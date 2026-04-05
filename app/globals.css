@@ -21,6 +21,18 @@ body {
   box-sizing: border-box;
 }
 
+button, a, [role="button"] {
+  /* Eliminates the 300ms tap delay on mobile */
+  touch-action: manipulation;
+  /* Remove the grey flash iOS shows on tap — we'll use :active instead */
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active, a:active, [role="button"]:active {
+  opacity: 0.65;
+  transition: opacity 0s;
+}
+
 .prose {
   line-height: 1.7;
   white-space: pre-wrap;
