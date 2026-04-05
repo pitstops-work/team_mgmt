@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  bio           String?
+  notifyDigest  Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts            Account[]
+  sessions            Session[]
+  goals               Goal[]
+  messages            Message[]
+  mentions            Mention[]
+  goalFollows         GoalFollow[]
+  threadSubscriptions ThreadSubscription[]
+  notifications       Notification[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Goal {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      GoalStatus @default(Active)
+  ownerId     String
+  deletedAt   DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  owner       User         @relation(fields: [ownerId], references: [id])
+  pitstops    Pitstop[]
+  attachments Attachment[]
+  followers   GoalFollow[]
+}
+
+model Pitstop {
+  id        String        @id @default(cuid())
+  title     String
+  type      PitstopType   @default(Discussion)
+  notes     String?
+  status    PitstopStatus @default(Upcoming)
+  goalId    String
+  deletedAt DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  goal        Goal         @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  threads     Thread[]
+  attachments Attachment[]
+}
+
+model Thread {
+  id        String   @id @default(cuid())
+  name      String
+  pitstopId String
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pitstop       Pitstop              @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  subscriptions ThreadSubscription[]
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  body      String
+  authorId  String
+  threadId  String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  author      User         @relation(fields: [authorId], references: [id])
+  thread      Thread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+  mentions    Mention[]
+}
+
+model Attachment {
+  id        String         @id @default(cuid())
+  name      String
+  type      AttachmentType @default(File)
+  url       String
+  size      Int?
+  mimeType  String?
+  messageId String?
+  pitstopId String?
+  goalId    String?
+  createdAt DateTime       @default(now())
+
+  message Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pitstop Pitstop? @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  goal    Goal?    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+}
+
+model Mention {
+  id        String   @id @default(cuid())
+  userId    String
+  messageId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model GoalFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  goalId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, goalId])
+}
+
+model ThreadSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  threadId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, threadId])
+}
+
+enum NotificationType {
+  Mention
+  NewPitstop
+  GoalStatusChange
+  NewMessage
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum GoalStatus {
+  Active
+  Paused
+  Complete
+}
+
+enum PitstopStatus {
+  Upcoming
+  InProgress
+  Done
+}
+
+enum PitstopType {
+  Meeting
+  Training
+  SiteVisit
+  Discussion
+  AppDevelopment
+  Budgeting
+  Proposal
+  Research
+  Review
+  Custom
+}
+
+enum AttachmentType {
+  File
+  Link
+}
