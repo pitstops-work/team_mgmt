@@ -2,8 +2,10 @@ import { PrismaClient } from "@/app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 function createPrismaClient() {
-  const connectionString = process.env.DB_URL ?? process.env.DATABASE_URL ?? "";
-  const adapter = new PrismaPg({ connectionString });
+  const connectionString = process.env.DATABASE_URL ?? "";
+  // Use a pool size of 1 when running in serverless (Vercel) to avoid
+  // exhausting Neon's connection limit across concurrent function instances.
+  const adapter = new PrismaPg({ connectionString, max: 1 });
   return new PrismaClient({ adapter });
 }
 
