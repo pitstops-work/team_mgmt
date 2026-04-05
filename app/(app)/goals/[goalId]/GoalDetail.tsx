@@ -374,22 +374,22 @@ function PitstopRow({
   return (
     <div className="bg-white border border-stone-200 rounded-lg hover:border-stone-300 transition-all flex">
       {/* Reorder controls */}
-      <div className="flex flex-col items-center justify-center px-1.5 py-2 border-r border-stone-100 gap-0.5">
+      <div className="flex flex-col items-center justify-center px-2 py-2 bg-stone-50 rounded-l-lg border-r border-stone-200 gap-1">
         <button
           onClick={() => onReorder(pitstop.id, "up")}
           disabled={isFirst}
-          className="p-0.5 text-stone-300 hover:text-stone-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          className="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-200 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           title="Move up"
         >
-          <ChevronUp className="w-3.5 h-3.5" />
+          <ChevronUp className="w-4 h-4" />
         </button>
         <button
           onClick={() => onReorder(pitstop.id, "down")}
           disabled={isLast}
-          className="p-0.5 text-stone-300 hover:text-stone-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          className="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-200 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           title="Move down"
         >
-          <ChevronDown className="w-3.5 h-3.5" />
+          <ChevronDown className="w-4 h-4" />
         </button>
       </div>
 
