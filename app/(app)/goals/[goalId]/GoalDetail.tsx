@@ -62,9 +62,10 @@ export default function GoalDetail({
   };
 
   const handleToggleFollow = async () => {
+    setIsFollowing((f) => !f);
     const method = isFollowing ? "DELETE" : "POST";
     const res = await fetch(`/api/goals/${goal.id}/follow`, { method });
-    if (res.ok) setIsFollowing(!isFollowing);
+    if (!res.ok) setIsFollowing((f) => !f); // revert on error
   };
 
   const handleGoalFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -360,15 +361,14 @@ function PitstopRow({
   };
 
   const handleStatusChange = async (status: string) => {
+    const previous = pitstop;
+    onUpdated({ ...pitstop, status: status as Pitstop["status"] }); // optimistic
     const res = await fetch(`/api/pitstops/${pitstop.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    if (res.ok) {
-      const updated = await res.json();
-      onUpdated(updated);
-    }
+    if (!res.ok) onUpdated(previous); // revert on error
   };
 
   return (

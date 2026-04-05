@@ -106,12 +106,17 @@ export default function PitstopDetail({
 
   const handleToggleSubscribe = async (threadId: string) => {
     const isSubscribed = subscribedIds.has(threadId);
+    setSubscribedIds((prev) => {
+      const next = new Set(prev);
+      isSubscribed ? next.delete(threadId) : next.add(threadId);
+      return next;
+    });
     const method = isSubscribed ? "DELETE" : "POST";
     const res = await fetch(`/api/threads/${threadId}/subscribe`, { method });
-    if (res.ok) {
+    if (!res.ok) {
       setSubscribedIds((prev) => {
         const next = new Set(prev);
-        isSubscribed ? next.delete(threadId) : next.add(threadId);
+        isSubscribed ? next.add(threadId) : next.delete(threadId); // revert
         return next;
       });
     }
