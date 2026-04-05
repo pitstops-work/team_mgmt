@@ -3,12 +3,13 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge, PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
 import CreatePitstopModal from "./CreatePitstopModal";
 import EditGoalModal from "./EditGoalModal";
+import { getTimelineInfo, timelineChip, timelineNodeBorder, fmtDate } from "@/lib/timeline";
 
 type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
@@ -19,6 +20,9 @@ type Pitstop = {
   notes: string | null;
   status: "Upcoming" | "InProgress" | "Done";
   order: number;
+  startDate?: string | null;
+  targetDate?: string | null;
+  completedAt?: string | null;
   attachments: Attachment[];
   threads: Thread[];
 };
@@ -27,6 +31,7 @@ type Goal = {
   title: string;
   description: string | null;
   status: "Active" | "Paused" | "Complete";
+  targetDate?: string | null;
   owner: { id: string; name: string | null; image: string | null };
   attachments: Attachment[];
   pitstops: Pitstop[];
@@ -181,6 +186,23 @@ export default function GoalDetail({
           </div>
         )}
 
+        {/* Deadline */}
+        {goal.targetDate && (
+          <div className="mt-3 flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+            <span className="text-xs text-stone-500">
+              Deadline: <span className="font-medium text-stone-700">{fmtDate(goal.targetDate)}</span>
+            </span>
+            {(() => {
+              const info = getTimelineInfo({ status: goal.status === "Complete" ? "Done" : "InProgress", targetDate: goal.targetDate });
+              const chip = timelineChip(info);
+              return chip ? (
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${chip.cls}`}>{chip.label}</span>
+              ) : null;
+            })()}
+          </div>
+        )}
+
         {/* Goal-level attachments */}
         <div className="mt-4 pt-4 border-t border-stone-100">
           <div className="flex items-center justify-between mb-2">
@@ -271,6 +293,7 @@ export default function GoalDetail({
       {showCreatePitstop && (
         <CreatePitstopModal
           goalId={goal.id}
+          goalTargetDate={goal.targetDate}
           onClose={() => setShowCreatePitstop(false)}
           onCreated={(pitstop) => {
             const p = pitstop as Pitstop;
@@ -307,21 +330,29 @@ function RouteMap({ pitstops, goalTitle, goalId }: { pitstops: Pitstop[]; goalTi
   return (
     <div className="overflow-x-auto pb-2 -mx-4 sm:mx-0 px-4 sm:px-0">
       <div className="flex items-center gap-0 min-w-max">
-        {pitstops.map((pitstop, idx) => (
+        {pitstops.map((pitstop, idx) => {
+          const tlInfo = getTimelineInfo(pitstop);
+          const tlBorder = timelineNodeBorder(tlInfo);
+          const tlChip = timelineChip(tlInfo);
+          return (
           <div key={pitstop.id} className="flex items-center">
             <Link
               href={`/goals/${goalId}/pitstops/${pitstop.id}`}
-              className={`flex flex-col gap-1 px-3 py-2.5 rounded-xl border text-left w-36 hover:shadow-sm transition-all ${statusColor[pitstop.status]}`}
+              className={`flex flex-col gap-1 px-3 py-2.5 rounded-xl border-2 text-left w-36 hover:shadow-sm transition-all ${statusColor[pitstop.status]} ${tlBorder}`}
             >
-              <span className="text-[10px] font-semibold uppercase tracking-wide opacity-60">
-                #{idx + 1}
-              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide opacity-60">#{idx + 1}</span>
               <span className="text-xs font-medium leading-snug line-clamp-2">{pitstop.title}</span>
-              <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
+              <div className="flex items-center gap-1 flex-wrap">
+                <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
+                {tlChip && (
+                  <span className={`text-[9px] font-medium px-1 py-0.5 rounded border ${tlChip.cls}`}>{tlChip.label}</span>
+                )}
+              </div>
             </Link>
             <ArrowRight className="w-4 h-4 text-stone-300 mx-1 flex-shrink-0" />
           </div>
-        ))}
+          );
+        })}
 
         {/* Goal node */}
         <div className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-sky-300 bg-sky-500 text-white w-36">
@@ -396,9 +427,15 @@ function PitstopRow({
       <div className="flex-1 min-w-0">
         <Link href={`/goals/${goalId}/pitstops/${pitstop.id}`} className="flex items-start gap-3 px-4 py-3.5">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <span className="text-sm font-medium text-stone-900">{pitstop.title}</span>
               <PitstopStatusBadge status={pitstop.status} />
+              {(() => {
+                const chip = timelineChip(getTimelineInfo(pitstop));
+                return chip ? (
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${chip.cls}`}>{chip.label}</span>
+                ) : null;
+              })()}
             </div>
             <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
             {pitstop.notes && (

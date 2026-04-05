@@ -7,14 +7,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { goalId } = await params;
-  const { title, type, notes, status } = await req.json();
+  const { title, type, notes, status, startDate, targetDate } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
+
+  // Validate pitstop targetDate doesn't exceed goal's targetDate
+  if (targetDate) {
+    const goal = await prisma.goal.findUnique({ where: { id: goalId }, select: { targetDate: true } });
+    if (goal?.targetDate && new Date(targetDate) > goal.targetDate) {
+      return Response.json({ error: "Pitstop target date cannot be after the goal deadline" }, { status: 400 });
+    }
+  }
 
   const existingCount = await prisma.pitstop.count({ where: { goalId, deletedAt: null } });
 
   const [pitstop, goal] = await Promise.all([
     prisma.pitstop.create({
-      data: { title, type: type ?? "Discussion", notes, status: status ?? "Upcoming", goalId, order: existingCount },
+      data: {
+        title, type: type ?? "Discussion", notes, status: status ?? "Upcoming", goalId, order: existingCount,
+        startDate: startDate ? new Date(startDate) : undefined,
+        targetDate: targetDate ? new Date(targetDate) : undefined,
+        completedAt: status === "Done" ? new Date() : undefined,
+      },
       include: {
         attachments: true,
         threads: { select: { id: true, name: true, _count: { select: { messages: true } } } },

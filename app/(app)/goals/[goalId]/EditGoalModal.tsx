@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import { toDateInput } from "@/lib/timeline";
 
 interface Goal {
   id: string;
   title: string;
   description: string | null;
   status: "Active" | "Paused" | "Complete";
+  targetDate?: string | null;
 }
 
 interface Props {
@@ -20,22 +22,27 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
   const [title, setTitle] = useState(goal.title);
   const [description, setDescription] = useState(goal.description ?? "");
   const [status, setStatus] = useState(goal.status);
+  const [targetDate, setTargetDate] = useState(toDateInput(goal.targetDate));
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !targetDate) return;
     setLoading(true);
+    setError("");
 
     const res = await fetch(`/api/goals/${goal.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title.trim(), description: description.trim() || null, status }),
+      body: JSON.stringify({ title: title.trim(), description: description.trim() || null, status, targetDate }),
     });
 
     setLoading(false);
     if (res.ok) {
-      onUpdated({ title: title.trim(), description: description.trim() || null, status });
+      onUpdated({ title: title.trim(), description: description.trim() || null, status, targetDate });
+    } else {
+      setError("Something went wrong.");
     }
   };
 
@@ -69,24 +76,41 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as Goal["status"])}
-              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
-            >
-              <option value="Active">Active</option>
-              <option value="Paused">Paused</option>
-              <option value="Complete">Complete</option>
-            </select>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-stone-600 mb-1">
+                Deadline <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                required
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+              />
+            </div>
+
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-stone-600 mb-1">Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as Goal["status"])}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              >
+                <option value="Active">Active</option>
+                <option value="Paused">Paused</option>
+                <option value="Complete">Complete</option>
+              </select>
+            </div>
           </div>
+
+          {error && <p className="text-sm text-red-500">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
             <button
               type="submit"
-              disabled={!title.trim() || loading}
+              disabled={!title.trim() || !targetDate || loading}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
             >
               {loading ? "Saving..." : "Save Changes"}

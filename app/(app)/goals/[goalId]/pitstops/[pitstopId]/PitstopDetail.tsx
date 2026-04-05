@@ -2,7 +2,8 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2 } from "lucide-react";
+import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar } from "lucide-react";
+import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
@@ -27,7 +28,10 @@ type Pitstop = {
   type: string;
   notes: string | null;
   status: "Upcoming" | "InProgress" | "Done";
-  goal: { id: string; title: string };
+  startDate?: string | null;
+  targetDate?: string | null;
+  completedAt?: string | null;
+  goal: { id: string; title: string; targetDate?: string | null };
   attachments: Attachment[];
   threads: Thread[];
 };
@@ -53,6 +57,11 @@ export default function PitstopDetail({
   );
   const [mobileView, setMobileView] = useState<"sidebar" | "thread">("sidebar");
   const [showNewThread, setShowNewThread] = useState(false);
+  const [editingDates, setEditingDates] = useState(false);
+  const [startDate, setStartDate] = useState(toDateInput(initialPitstop.startDate));
+  const [targetDate, setTargetDate] = useState(toDateInput(initialPitstop.targetDate));
+  const [savingDates, setSavingDates] = useState(false);
+  const [datesError, setDatesError] = useState("");
   const [newThreadName, setNewThreadName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(
@@ -122,6 +131,29 @@ export default function PitstopDetail({
     }
   };
 
+  const handleSaveDates = async () => {
+    const goalMax = toDateInput(pitstop.goal.targetDate);
+    if (targetDate && goalMax && targetDate > goalMax) {
+      setDatesError(`Must be on or before goal deadline (${fmtDate(pitstop.goal.targetDate)})`);
+      return;
+    }
+    setSavingDates(true);
+    setDatesError("");
+    const res = await fetch(`/api/pitstops/${pitstop.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startDate: startDate || null, targetDate: targetDate || null }),
+    });
+    setSavingDates(false);
+    if (res.ok) {
+      const updated = await res.json();
+      setPitstop((p) => ({ ...p, startDate: updated.startDate, targetDate: updated.targetDate }));
+      setEditingDates(false);
+    } else {
+      setDatesError("Failed to save.");
+    }
+  };
+
   return (
     <div className="flex h-full">
       {/* Left panel: pitstop info + thread list */}
@@ -150,6 +182,77 @@ export default function PitstopDetail({
             <p className="text-xs text-stone-500 leading-relaxed">{pitstop.notes}</p>
           </div>
         )}
+
+        {/* Timeline */}
+        <div className="px-4 py-3 border-b border-stone-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-stone-500 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" />
+              Timeline
+            </span>
+            <button
+              onClick={() => { setEditingDates((v) => !v); setDatesError(""); }}
+              className="text-xs text-sky-600 hover:text-sky-700"
+            >
+              {editingDates ? "Cancel" : "Edit"}
+            </button>
+          </div>
+
+          {editingDates ? (
+            <div className="space-y-2">
+              <div>
+                <label className="block text-[10px] text-stone-400 mb-0.5">Start date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  max={toDateInput(pitstop.goal.targetDate) || undefined}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-2 py-1 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-400"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-stone-400 mb-0.5">
+                  Target date
+                  {pitstop.goal.targetDate && (
+                    <span className="text-stone-300 ml-1">≤ {fmtDate(pitstop.goal.targetDate)}</span>
+                  )}
+                </label>
+                <input
+                  type="date"
+                  value={targetDate}
+                  max={toDateInput(pitstop.goal.targetDate) || undefined}
+                  onChange={(e) => setTargetDate(e.target.value)}
+                  className="w-full px-2 py-1 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-400"
+                />
+              </div>
+              {datesError && <p className="text-[10px] text-red-500">{datesError}</p>}
+              <button
+                onClick={handleSaveDates}
+                disabled={savingDates}
+                className="w-full py-1 text-xs bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white rounded-md transition-colors"
+              >
+                {savingDates ? "Saving..." : "Save dates"}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {(() => {
+                const chip = timelineChip(getTimelineInfo(pitstop));
+                return chip ? (
+                  <span className={`inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded border ${chip.cls}`}>{chip.label}</span>
+                ) : null;
+              })()}
+              <div className="flex flex-col gap-0.5 text-xs text-stone-500 mt-1">
+                {pitstop.startDate && <span>Start: <span className="text-stone-700">{fmtDate(pitstop.startDate)}</span></span>}
+                {pitstop.targetDate && <span>Target: <span className="text-stone-700">{fmtDate(pitstop.targetDate)}</span></span>}
+                {pitstop.completedAt && <span>Completed: <span className="text-stone-700">{fmtDate(pitstop.completedAt)}</span></span>}
+                {!pitstop.startDate && !pitstop.targetDate && (
+                  <span className="text-stone-400">No dates set</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Attachments */}
         <div className="px-4 py-3 border-b border-stone-100">
