@@ -272,7 +272,8 @@ export default function GoalDetail({
           goalId={goal.id}
           onClose={() => setShowCreatePitstop(false)}
           onCreated={(pitstop) => {
-            const newPitstop = { ...pitstop, order: goal.pitstops.length } as Pitstop;
+            const p = pitstop as Pitstop;
+            const newPitstop = { ...p, order: p.order ?? goal.pitstops.length };
             setGoal((g) => ({ ...g, pitstops: [...g.pitstops, newPitstop] }));
             setShowCreatePitstop(false);
           }}
