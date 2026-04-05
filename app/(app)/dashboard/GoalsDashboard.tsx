@@ -46,7 +46,7 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
 
   if (searchResults) {
     return (
-      <div className="max-w-3xl mx-auto px-6 py-10">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-8">
           <p className="text-sm text-stone-500 mb-1">Search results for</p>
           <h1 className="text-xl font-semibold text-stone-900">"{searchResults.query}"</h1>

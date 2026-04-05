@@ -51,6 +51,7 @@ export default function PitstopDetail({
   const [activeThread, setActiveThread] = useState<string | null>(
     initialPitstop.threads[0]?.id ?? null
   );
+  const [mobileView, setMobileView] = useState<"sidebar" | "thread">("sidebar");
   const [showNewThread, setShowNewThread] = useState(false);
   const [newThreadName, setNewThreadName] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -119,7 +120,7 @@ export default function PitstopDetail({
   return (
     <div className="flex h-full">
       {/* Left panel: pitstop info + thread list */}
-      <div className="w-64 flex-shrink-0 border-r border-stone-200 bg-white flex flex-col h-full overflow-y-auto">
+      <div className={`${mobileView === "thread" ? "hidden sm:flex" : "flex"} w-full sm:w-64 sm:flex-shrink-0 border-r border-stone-200 bg-white flex-col h-full overflow-y-auto`}>
         {/* Breadcrumb */}
         <div className="px-4 pt-5 pb-3 border-b border-stone-100">
           <Link
@@ -224,7 +225,7 @@ export default function PitstopDetail({
             {pitstop.threads.map((thread) => (
               <div key={thread.id} className="flex items-center gap-1">
                 <button
-                  onClick={() => setActiveThread(thread.id)}
+                  onClick={() => { setActiveThread(thread.id); setMobileView("thread"); }}
                   className={`flex-1 text-left px-2.5 py-1.5 rounded-md text-xs transition-colors ${
                     activeThread === thread.id
                       ? "bg-sky-50 text-sky-700 font-medium"
@@ -263,18 +264,26 @@ export default function PitstopDetail({
       </div>
 
       {/* Right panel: thread messages */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className={`${mobileView === "sidebar" ? "hidden sm:flex" : "flex"} flex-1 flex-col h-full overflow-hidden`}>
         {currentThread ? (
           <>
             {/* Thread header */}
-            <div className="px-6 py-4 border-b border-stone-200 bg-white flex-shrink-0 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-stone-900">
-                  <span className="text-stone-400 mr-1">#</span>{currentThread.name}
-                </h2>
-                <p className="text-xs text-stone-400 mt-0.5">
-                  {currentThread.messages.length} message{currentThread.messages.length !== 1 ? "s" : ""}
-                </p>
+            <div className="px-4 sm:px-6 py-4 border-b border-stone-200 bg-white flex-shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  onClick={() => setMobileView("sidebar")}
+                  className="sm:hidden flex-shrink-0 -ml-1 p-1 text-stone-400 hover:text-stone-600"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold text-stone-900 truncate">
+                    <span className="text-stone-400 mr-1">#</span>{currentThread.name}
+                  </h2>
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    {currentThread.messages.length} message{currentThread.messages.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => handleToggleSubscribe(currentThread.id)}
@@ -293,7 +302,7 @@ export default function PitstopDetail({
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
               {currentThread.messages.length === 0 ? (
                 <div className="text-center py-10">
                   <p className="text-stone-400 text-sm">No messages yet. Start the conversation.</p>
@@ -310,7 +319,7 @@ export default function PitstopDetail({
             </div>
 
             {/* Composer */}
-            <div className="flex-shrink-0 border-t border-stone-200 bg-white px-6 py-4">
+            <div className="flex-shrink-0 border-t border-stone-200 bg-white px-4 sm:px-6 py-4">
               <MessageComposer
                 threadId={currentThread.id}
                 users={users}
