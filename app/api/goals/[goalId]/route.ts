@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ goa
             select: { id: true, name: true, _count: { select: { messages: { where: { deletedAt: null } } } } },
           },
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { order: "asc" },
       },
     },
   });

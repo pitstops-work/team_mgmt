@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Plus, MoreHorizontal, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge, PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
@@ -18,6 +18,7 @@ type Pitstop = {
   type: string;
   notes: string | null;
   status: "Upcoming" | "InProgress" | "Done";
+  order: number;
   attachments: Attachment[];
   threads: Thread[];
 };
@@ -51,6 +52,8 @@ export default function GoalDetail({
 
   const isOwner = goal.owner.id === currentUserId;
 
+  const sortedPitstops = [...goal.pitstops].sort((a, b) => a.order - b.order);
+
   const handleDeleteGoal = async () => {
     if (!confirm("Delete this goal and all its pitstops?")) return;
     setDeletingGoal(true);
@@ -80,11 +83,27 @@ export default function GoalDetail({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const statusOrder: Record<string, number> = { Upcoming: 0, InProgress: 1, Done: 2 };
-  const sortedPitstops = [...goal.pitstops].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+  const handleReorder = async (pitstopId: string, direction: "up" | "down") => {
+    const sorted = [...goal.pitstops].sort((a, b) => a.order - b.order);
+    const idx = sorted.findIndex((p) => p.id === pitstopId);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+
+    const reordered = [...sorted];
+    [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]];
+    const withNewOrder = reordered.map((p, i) => ({ ...p, order: i }));
+
+    setGoal((g) => ({ ...g, pitstops: withNewOrder }));
+
+    await fetch(`/api/goals/${goal.id}/pitstops/reorder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: withNewOrder.map((p) => p.id) }),
+    });
+  };
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {/* Breadcrumb */}
       <Link
         href="/dashboard"
@@ -199,7 +218,15 @@ export default function GoalDetail({
         </div>
       </div>
 
-      {/* Pitstops */}
+      {/* Route Map */}
+      {sortedPitstops.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-stone-700 mb-3">Route Map</h2>
+          <RouteMap pitstops={sortedPitstops} goalTitle={goal.title} goalId={goal.id} />
+        </div>
+      )}
+
+      {/* Pitstops list */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-stone-700">Pitstops</h2>
         <button
@@ -223,11 +250,14 @@ export default function GoalDetail({
         </div>
       ) : (
         <div className="space-y-2">
-          {sortedPitstops.map((pitstop) => (
+          {sortedPitstops.map((pitstop, idx) => (
             <PitstopRow
               key={pitstop.id}
               pitstop={pitstop}
               goalId={goal.id}
+              isFirst={idx === 0}
+              isLast={idx === sortedPitstops.length - 1}
+              onReorder={handleReorder}
               onDeleted={(id) => setGoal((g) => ({ ...g, pitstops: g.pitstops.filter((p) => p.id !== id) }))}
               onUpdated={(updated) =>
                 setGoal((g) => ({ ...g, pitstops: g.pitstops.map((p) => (p.id === updated.id ? updated as Pitstop : p)) }))
@@ -242,7 +272,8 @@ export default function GoalDetail({
           goalId={goal.id}
           onClose={() => setShowCreatePitstop(false)}
           onCreated={(pitstop) => {
-            setGoal((g) => ({ ...g, pitstops: [...g.pitstops, pitstop as Pitstop] }));
+            const newPitstop = { ...pitstop, order: goal.pitstops.length } as Pitstop;
+            setGoal((g) => ({ ...g, pitstops: [...g.pitstops, newPitstop] }));
             setShowCreatePitstop(false);
           }}
         />
@@ -262,18 +293,63 @@ export default function GoalDetail({
   );
 }
 
+// ── Route Map ────────────────────────────────────────────────────────────────
+
+const statusColor: Record<string, string> = {
+  Done: "bg-emerald-50 border-emerald-200 text-emerald-700",
+  InProgress: "bg-sky-50 border-sky-200 text-sky-700",
+  Upcoming: "bg-stone-50 border-stone-200 text-stone-500",
+};
+
+function RouteMap({ pitstops, goalTitle, goalId }: { pitstops: Pitstop[]; goalTitle: string; goalId: string }) {
+  return (
+    <div className="overflow-x-auto pb-2 -mx-4 sm:mx-0 px-4 sm:px-0">
+      <div className="flex items-center gap-0 min-w-max">
+        {pitstops.map((pitstop, idx) => (
+          <div key={pitstop.id} className="flex items-center">
+            <Link
+              href={`/goals/${goalId}/pitstops/${pitstop.id}`}
+              className={`flex flex-col gap-1 px-3 py-2.5 rounded-xl border text-left w-36 hover:shadow-sm transition-all ${statusColor[pitstop.status]}`}
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-wide opacity-60">
+                #{idx + 1}
+              </span>
+              <span className="text-xs font-medium leading-snug line-clamp-2">{pitstop.title}</span>
+              <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
+            </Link>
+            <ArrowRight className="w-4 h-4 text-stone-300 mx-1 flex-shrink-0" />
+          </div>
+        ))}
+
+        {/* Goal node */}
+        <div className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-sky-300 bg-sky-500 text-white w-36">
+          <Flag className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="text-xs font-semibold line-clamp-2">{goalTitle}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Pitstop Row ──────────────────────────────────────────────────────────────
+
 function PitstopRow({
   pitstop,
   goalId,
+  isFirst,
+  isLast,
+  onReorder,
   onDeleted,
   onUpdated,
 }: {
   pitstop: Pitstop;
   goalId: string;
+  isFirst: boolean;
+  isLast: boolean;
+  onReorder: (id: string, dir: "up" | "down") => void;
   onDeleted: (id: string) => void;
   onUpdated: (p: Pitstop) => void;
 }) {
-  const [showMenu, setShowMenu] = useState(false);
   const totalMessages = pitstop.threads.reduce((sum, t) => sum + t._count.messages, 0);
 
   const handleDelete = async () => {
@@ -295,57 +371,79 @@ function PitstopRow({
   };
 
   return (
-    <div className="bg-white border border-stone-200 rounded-lg hover:border-stone-300 transition-all group">
-      <Link href={`/goals/${goalId}/pitstops/${pitstop.id}`} className="flex items-start gap-3 px-4 py-3.5">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-sm font-medium text-stone-900">{pitstop.title}</span>
-            <PitstopStatusBadge status={pitstop.status} />
-          </div>
-          <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
-          {pitstop.notes && (
-            <p className="text-xs text-stone-500 mt-1 line-clamp-2">{pitstop.notes}</p>
-          )}
-          <div className="flex items-center gap-3 mt-2">
-            {pitstop.threads.length > 0 && (
-              <span className="flex items-center gap-1 text-xs text-stone-400">
-                <MessageSquare className="w-3.5 h-3.5" />
-                {totalMessages} message{totalMessages !== 1 ? "s" : ""}
-              </span>
-            )}
-            {pitstop.attachments.length > 0 && (
-              <span className="flex items-center gap-1 text-xs text-stone-400">
-                <Paperclip className="w-3.5 h-3.5" />
-                {pitstop.attachments.length}
-              </span>
-            )}
-          </div>
-        </div>
-      </Link>
-
-      <div className="border-t border-stone-100 px-4 py-2 flex items-center justify-between">
-        <div className="flex gap-1">
-          {(["Upcoming", "InProgress", "Done"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => handleStatusChange(s)}
-              className={`px-2 py-0.5 text-xs rounded-md transition-colors ${
-                pitstop.status === s
-                  ? "bg-stone-900 text-white"
-                  : "text-stone-400 hover:text-stone-600 hover:bg-stone-100"
-              }`}
-            >
-              {s === "InProgress" ? "In Progress" : s}
-            </button>
-          ))}
-        </div>
+    <div className="bg-white border border-stone-200 rounded-lg hover:border-stone-300 transition-all flex">
+      {/* Reorder controls */}
+      <div className="flex flex-col items-center justify-center px-1.5 py-2 border-r border-stone-100 gap-0.5">
         <button
-          onClick={handleDelete}
-          className="p-1 text-stone-300 hover:text-red-400 transition-colors"
-          title="Delete pitstop"
+          onClick={() => onReorder(pitstop.id, "up")}
+          disabled={isFirst}
+          className="p-0.5 text-stone-300 hover:text-stone-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          title="Move up"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <ChevronUp className="w-3.5 h-3.5" />
         </button>
+        <button
+          onClick={() => onReorder(pitstop.id, "down")}
+          disabled={isLast}
+          className="p-0.5 text-stone-300 hover:text-stone-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          title="Move down"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <Link href={`/goals/${goalId}/pitstops/${pitstop.id}`} className="flex items-start gap-3 px-4 py-3.5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-sm font-medium text-stone-900">{pitstop.title}</span>
+              <PitstopStatusBadge status={pitstop.status} />
+            </div>
+            <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
+            {pitstop.notes && (
+              <p className="text-xs text-stone-500 mt-1 line-clamp-2">{pitstop.notes}</p>
+            )}
+            <div className="flex items-center gap-3 mt-2">
+              {pitstop.threads.length > 0 && (
+                <span className="flex items-center gap-1 text-xs text-stone-400">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  {totalMessages} message{totalMessages !== 1 ? "s" : ""}
+                </span>
+              )}
+              {pitstop.attachments.length > 0 && (
+                <span className="flex items-center gap-1 text-xs text-stone-400">
+                  <Paperclip className="w-3.5 h-3.5" />
+                  {pitstop.attachments.length}
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
+
+        <div className="border-t border-stone-100 px-4 py-2 flex items-center justify-between">
+          <div className="flex gap-1">
+            {(["Upcoming", "InProgress", "Done"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => handleStatusChange(s)}
+                className={`px-2 py-0.5 text-xs rounded-md transition-colors ${
+                  pitstop.status === s
+                    ? "bg-stone-900 text-white"
+                    : "text-stone-400 hover:text-stone-600 hover:bg-stone-100"
+                }`}
+              >
+                {s === "InProgress" ? "In Progress" : s}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleDelete}
+            className="p-1 text-stone-300 hover:text-red-400 transition-colors"
+            title="Delete pitstop"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );

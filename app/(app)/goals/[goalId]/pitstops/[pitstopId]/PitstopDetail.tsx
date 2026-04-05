@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff } from "lucide-react";
+import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
@@ -252,6 +252,21 @@ export default function PitstopDetail({
                   ) : (
                     <Bell className="w-3 h-3" />
                   )}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm("Delete this thread and all its messages?")) return;
+                    const res = await fetch(`/api/threads/${thread.id}`, { method: "DELETE" });
+                    if (res.ok) {
+                      const remaining = pitstop.threads.filter((t) => t.id !== thread.id);
+                      setPitstop((p) => ({ ...p, threads: remaining }));
+                      if (activeThread === thread.id) setActiveThread(remaining[0]?.id ?? null);
+                    }
+                  }}
+                  title="Delete thread"
+                  className="p-1 rounded text-stone-300 hover:text-red-400 transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
                 </button>
               </div>
             ))}

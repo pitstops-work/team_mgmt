@@ -10,9 +10,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
   const { title, type, notes, status } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
 
+  const existingCount = await prisma.pitstop.count({ where: { goalId, deletedAt: null } });
+
   const [pitstop, goal] = await Promise.all([
     prisma.pitstop.create({
-      data: { title, type: type ?? "Discussion", notes, status: status ?? "Upcoming", goalId },
+      data: { title, type: type ?? "Discussion", notes, status: status ?? "Upcoming", goalId, order: existingCount },
       include: {
         attachments: true,
         threads: { select: { id: true, name: true, _count: { select: { messages: true } } } },
