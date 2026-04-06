@@ -23,7 +23,6 @@ type Message = {
 };
 type Thread = { id: string; name: string; messages: Message[] };
 type User = { id: string; name: string | null; image: string | null };
-type User = { id: string; name: string | null; image: string | null };
 type Pitstop = {
   id: string;
   title: string;
