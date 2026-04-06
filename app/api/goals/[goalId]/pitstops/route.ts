@@ -10,18 +10,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
   const { title, type, notes, status, startDate, targetDate } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
 
+  const [goalRecord, existingCount] = await Promise.all([
+    prisma.goal.findUnique({ where: { id: goalId }, select: { ownerId: true, targetDate: true } }),
+    prisma.pitstop.count({ where: { goalId, deletedAt: null } }),
+  ]);
+
   // Validate pitstop targetDate doesn't exceed goal's targetDate
-  if (targetDate) {
-    const goal = await prisma.goal.findUnique({ where: { id: goalId }, select: { targetDate: true } });
-    if (goal?.targetDate && new Date(targetDate) > goal.targetDate) {
-      return Response.json({ error: "Pitstop target date cannot be after the goal deadline" }, { status: 400 });
-    }
+  if (targetDate && goalRecord?.targetDate && new Date(targetDate) > goalRecord.targetDate) {
+    return Response.json({ error: "Pitstop target date cannot be after the goal deadline" }, { status: 400 });
   }
-
-  const existingCount = await prisma.pitstop.count({ where: { goalId, deletedAt: null } });
-
-  // Inherit owner from goal
-  const goalRecord = await prisma.goal.findUnique({ where: { id: goalId }, select: { ownerId: true } });
 
   const [pitstop, goal] = await Promise.all([
     prisma.pitstop.create({
@@ -33,6 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
         completedAt: status === "Done" ? new Date() : undefined,
       },
       include: {
+        owner: { select: { id: true, name: true, image: true } },
         attachments: true,
         threads: { select: { id: true, name: true, _count: { select: { messages: true } } } },
       },
