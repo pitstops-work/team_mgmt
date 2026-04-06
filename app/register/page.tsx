@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function RegisterPage() {
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, inviteCode }),
     });
 
     setLoading(false);
@@ -46,6 +47,18 @@ export default function RegisterPage() {
 
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-stone-600 mb-1">Invite Code</label>
+              <input
+                type="text"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 font-mono tracking-widest"
+                placeholder="Ask a team member for the code"
+                autoComplete="off"
+                autoFocus
+              />
+            </div>
             <div>
               <label className="block text-xs font-medium text-stone-600 mb-1">Name</label>
               <input
@@ -81,7 +94,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={loading || !email || !password}
+              disabled={loading || !email || !password || !inviteCode}
               className="w-full py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
             >
               {loading ? "Creating..." : "Create Account"}
@@ -90,9 +103,7 @@ export default function RegisterPage() {
 
           <p className="mt-4 text-center text-xs text-stone-500">
             Already have an account?{" "}
-            <Link href="/login" className="text-sky-600 hover:text-sky-700 font-medium">
-              Sign in
-            </Link>
+            <Link href="/login" className="text-sky-600 hover:text-sky-700 font-medium">Sign in</Link>
           </p>
         </div>
       </div>

@@ -16,7 +16,8 @@ export default async function PitstopPage({
     prisma.pitstop.findUnique({
       where: { id: pitstopId, deletedAt: null },
       include: {
-        goal: { select: { id: true, title: true } },
+        owner: { select: { id: true, name: true, image: true } },
+        goal: { select: { id: true, title: true, targetDate: true } },
         attachments: true,
         threads: {
           where: { deletedAt: null },

@@ -49,6 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       title: data.title,
       description: data.description,
       status: data.status,
+      ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
       targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
     },
     include: { owner: { select: { id: true, name: true, image: true } }, pitstops: { select: { id: true, status: true } } },

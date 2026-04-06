@@ -22,6 +22,7 @@ model User {
   accounts            Account[]
   sessions            Session[]
   goals               Goal[]
+  ownedPitstops       Pitstop[]            @relation("PitstopOwner")
   messages            Message[]
   mentions            Mention[]
   goalFollows         GoalFollow[]
@@ -88,6 +89,7 @@ model Pitstop {
   notes     String?
   status    PitstopStatus @default(Upcoming)
   goalId      String
+  ownerId     String?
   order       Int           @default(0)
   startDate   DateTime?
   targetDate  DateTime?
@@ -97,6 +99,7 @@ model Pitstop {
   updatedAt DateTime      @updatedAt
 
   goal        Goal         @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  owner       User?        @relation("PitstopOwner", fields: [ownerId], references: [id])
   threads     Thread[]
   attachments Attachment[]
 }
@@ -228,4 +231,9 @@ enum PitstopType {
 enum AttachmentType {
   File
   Link
+}
+
+model AppSetting {
+  key   String @id
+  value String
 }

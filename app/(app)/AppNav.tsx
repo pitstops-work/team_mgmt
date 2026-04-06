@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 interface User {
@@ -73,6 +73,10 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             </div>
             Notifications
           </NavLink>
+          <NavLink href="/settings" active={pathname === "/settings"}>
+            <Settings className="w-3.5 h-3.5 text-stone-500" />
+            Settings
+          </NavLink>
         </div>
 
         {/* User */}
@@ -122,11 +126,21 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
           Notifications
         </Link>
 
+        <Link
+          href="/settings"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
+            pathname === "/settings" ? "text-sky-600" : "text-stone-400"
+          }`}
+        >
+          <Settings className="w-5 h-5" />
+          Settings
+        </Link>
+
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-stone-400"
         >
-          <Avatar name={user.name} image={user.image} size="sm" />
+          <LogOut className="w-5 h-5" />
           <span>Sign out</span>
         </button>
       </nav>

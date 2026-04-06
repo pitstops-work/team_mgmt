@@ -10,9 +10,11 @@ import PitstopTypeBadge from "@/components/PitstopTypeBadge";
 import CreatePitstopModal from "./CreatePitstopModal";
 import EditGoalModal from "./EditGoalModal";
 import { getTimelineInfo, timelineChip, timelineNodeBorder, fmtDate } from "@/lib/timeline";
+import OwnerPicker from "@/components/OwnerPicker";
 
 type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
+type User = { id: string; name: string | null; image: string | null };
 type Pitstop = {
   id: string;
   title: string;
@@ -20,6 +22,8 @@ type Pitstop = {
   notes: string | null;
   status: "Upcoming" | "InProgress" | "Done";
   order: number;
+  ownerId?: string | null;
+  owner?: User | null;
   startDate?: string | null;
   targetDate?: string | null;
   completedAt?: string | null;
@@ -32,17 +36,19 @@ type Goal = {
   description: string | null;
   status: "Active" | "Paused" | "Complete";
   targetDate?: string | null;
-  owner: { id: string; name: string | null; image: string | null };
+  owner: User;
   attachments: Attachment[];
   pitstops: Pitstop[];
 };
 
 export default function GoalDetail({
   goal: initialGoal,
+  users,
   currentUserId,
   isFollowing: initialIsFollowing,
 }: {
   goal: Goal;
+  users: User[];
   currentUserId: string;
   isFollowing: boolean;
 }) {
@@ -89,6 +95,31 @@ export default function GoalDetail({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleGoalOwnerChange = async (ownerId: string) => {
+    const newOwner = users.find((u) => u.id === ownerId)!;
+    setGoal((g) => ({ ...g, owner: newOwner }));
+    await fetch(`/api/goals/${goal.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ownerId }),
+    });
+  };
+
+  const handlePitstopOwnerChange = async (pitstopId: string, ownerId: string) => {
+    const newOwner = users.find((u) => u.id === ownerId)!;
+    setGoal((g) => ({
+      ...g,
+      pitstops: g.pitstops.map((p) =>
+        p.id === pitstopId ? { ...p, ownerId, owner: newOwner } : p
+      ),
+    }));
+    await fetch(`/api/pitstops/${pitstopId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ownerId }),
+    });
+  };
+
   const handleReorder = async (pitstopId: string, direction: "up" | "down") => {
     const sorted = [...goal.pitstops].sort((a, b) => a.order - b.order);
     const idx = sorted.findIndex((p) => p.id === pitstopId);
@@ -130,9 +161,8 @@ export default function GoalDetail({
             {goal.description && (
               <p className="text-sm text-stone-500 mt-1">{goal.description}</p>
             )}
-            <div className="flex items-center gap-2 mt-3">
-              <Avatar name={goal.owner.name} image={goal.owner.image} size="sm" />
-              <span className="text-xs text-stone-500">{goal.owner.name}</span>
+            <div className="mt-3">
+              <OwnerPicker users={users} value={goal.owner.id} onChange={handleGoalOwnerChange} />
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -278,9 +308,11 @@ export default function GoalDetail({
               key={pitstop.id}
               pitstop={pitstop}
               goalId={goal.id}
+              users={users}
               isFirst={idx === 0}
               isLast={idx === sortedPitstops.length - 1}
               onReorder={handleReorder}
+              onOwnerChange={(ownerId) => handlePitstopOwnerChange(pitstop.id, ownerId)}
               onDeleted={(id) => setGoal((g) => ({ ...g, pitstops: g.pitstops.filter((p) => p.id !== id) }))}
               onUpdated={(updated) =>
                 setGoal((g) => ({ ...g, pitstops: g.pitstops.map((p) => (p.id === updated.id ? updated as Pitstop : p)) }))
@@ -369,17 +401,21 @@ function RouteMap({ pitstops, goalTitle, goalId }: { pitstops: Pitstop[]; goalTi
 function PitstopRow({
   pitstop,
   goalId,
+  users,
   isFirst,
   isLast,
   onReorder,
+  onOwnerChange,
   onDeleted,
   onUpdated,
 }: {
   pitstop: Pitstop;
   goalId: string;
+  users: User[];
   isFirst: boolean;
   isLast: boolean;
   onReorder: (id: string, dir: "up" | "down") => void;
+  onOwnerChange: (ownerId: string) => void;
   onDeleted: (id: string) => void;
   onUpdated: (p: Pitstop) => void;
 }) {
@@ -458,7 +494,7 @@ function PitstopRow({
           </div>
         </Link>
 
-        <div className="border-t border-stone-100 px-4 py-2 flex items-center justify-between">
+        <div className="border-t border-stone-100 px-4 py-2 flex items-center justify-between gap-2 flex-wrap">
           <div className="flex gap-1">
             {(["Upcoming", "InProgress", "Done"] as const).map((s) => (
               <button
@@ -474,13 +510,16 @@ function PitstopRow({
               </button>
             ))}
           </div>
-          <button
-            onClick={handleDelete}
-            className="p-1 text-stone-300 hover:text-red-400 transition-colors"
-            title="Delete pitstop"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            <OwnerPicker users={users} value={pitstop.ownerId} onChange={onOwnerChange} />
+            <button
+              onClick={handleDelete}
+              className="p-1 text-stone-300 hover:text-red-400 transition-colors"
+              title="Delete pitstop"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

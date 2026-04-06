@@ -20,10 +20,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
 
   const existingCount = await prisma.pitstop.count({ where: { goalId, deletedAt: null } });
 
+  // Inherit owner from goal
+  const goalRecord = await prisma.goal.findUnique({ where: { id: goalId }, select: { ownerId: true } });
+
   const [pitstop, goal] = await Promise.all([
     prisma.pitstop.create({
       data: {
         title, type: type ?? "Discussion", notes, status: status ?? "Upcoming", goalId, order: existingCount,
+        ownerId: goalRecord?.ownerId ?? null,
         startDate: startDate ? new Date(startDate) : undefined,
         targetDate: targetDate ? new Date(targetDate) : undefined,
         completedAt: status === "Done" ? new Date() : undefined,

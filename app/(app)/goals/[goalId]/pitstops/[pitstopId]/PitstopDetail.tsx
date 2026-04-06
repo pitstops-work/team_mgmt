@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
+import OwnerPicker from "@/components/OwnerPicker";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
@@ -22,12 +23,15 @@ type Message = {
 };
 type Thread = { id: string; name: string; messages: Message[] };
 type User = { id: string; name: string | null; image: string | null };
+type User = { id: string; name: string | null; image: string | null };
 type Pitstop = {
   id: string;
   title: string;
   type: string;
   notes: string | null;
   status: "Upcoming" | "InProgress" | "Done";
+  ownerId?: string | null;
+  owner?: User | null;
   startDate?: string | null;
   targetDate?: string | null;
   completedAt?: string | null;
@@ -131,6 +135,16 @@ export default function PitstopDetail({
     }
   };
 
+  const handleOwnerChange = async (ownerId: string) => {
+    const newOwner = users.find((u) => u.id === ownerId) ?? null;
+    setPitstop((p) => ({ ...p, ownerId, owner: newOwner }));
+    await fetch(`/api/pitstops/${pitstop.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ownerId }),
+    });
+  };
+
   const handleSaveDates = async () => {
     const goalMax = toDateInput(pitstop.goal.targetDate);
     if (targetDate && goalMax && targetDate > goalMax) {
@@ -173,6 +187,10 @@ export default function PitstopDetail({
           </div>
           <div className="mt-1">
             <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
+          </div>
+          <div className="mt-2">
+            <p className="text-[10px] text-stone-400 mb-0.5">Owner</p>
+            <OwnerPicker users={users} value={pitstop.ownerId} onChange={handleOwnerChange} />
           </div>
         </div>
 
