@@ -88,9 +88,10 @@ model Pitstop {
   type      PitstopType   @default(Discussion)
   notes     String?
   status    PitstopStatus @default(Upcoming)
-  goalId      String
-  ownerId     String?
-  order       Int           @default(0)
+  goalId          String
+  ownerId         String?
+  ownerInherited  Boolean       @default(true)
+  order           Int           @default(0)
   startDate   DateTime?
   targetDate  DateTime?
   completedAt DateTime?

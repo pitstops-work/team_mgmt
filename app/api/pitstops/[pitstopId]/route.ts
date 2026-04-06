@@ -28,6 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
       notes: data.notes,
       status: data.status,
       ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
+      ownerInherited: data.ownerId !== undefined ? false : undefined,
       startDate: data.startDate !== undefined ? (data.startDate ? new Date(data.startDate) : null) : undefined,
       targetDate: data.targetDate !== undefined ? (data.targetDate ? new Date(data.targetDate) : null) : undefined,
       completedAt: completedAt instanceof Date ? completedAt : completedAt === null ? null : undefined,

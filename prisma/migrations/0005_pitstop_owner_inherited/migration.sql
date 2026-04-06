@@ -1,0 +1,1 @@
+ALTER TABLE "Pitstop" ADD COLUMN "ownerInherited" BOOLEAN NOT NULL DEFAULT true;

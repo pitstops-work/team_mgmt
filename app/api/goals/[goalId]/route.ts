@@ -55,6 +55,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
     include: { owner: { select: { id: true, name: true, image: true } }, pitstops: { select: { id: true, status: true } } },
   });
 
+  // Cascade owner change to pitstops that haven't been manually reassigned
+  if (data.ownerId !== undefined) {
+    await prisma.pitstop.updateMany({
+      where: { goalId, deletedAt: null, ownerInherited: true },
+      data: { ownerId: data.ownerId || null },
+    });
+  }
+
   if (existing && data.status && existing.status !== data.status) {
     const link = `/goals/${goalId}`;
     const notifications = existing.followers
