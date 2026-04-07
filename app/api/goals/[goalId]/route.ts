@@ -62,6 +62,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       where: { goalId, deletedAt: null, ownerInherited: true },
       data: { ownerId: data.ownerId || null },
     });
+    // New goal owner auto-follows the goal
+    if (data.ownerId) {
+      await prisma.goalFollow.upsert({
+        where: { userId_goalId: { userId: data.ownerId, goalId } },
+        create: { userId: data.ownerId, goalId },
+        update: {},
+      });
+    }
   }
 
   if (existing && data.status && existing.status !== data.status) {

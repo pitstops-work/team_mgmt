@@ -34,5 +34,12 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Goal owner auto-follows their own goal
+  await prisma.goalFollow.upsert({
+    where: { userId_goalId: { userId: session.user.id, goalId: goal.id } },
+    create: { userId: session.user.id, goalId: goal.id },
+    update: {},
+  });
+
   return Response.json(goal, { status: 201 });
 }

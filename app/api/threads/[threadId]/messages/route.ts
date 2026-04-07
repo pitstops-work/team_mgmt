@@ -72,6 +72,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
       link,
     }));
 
+  // Mentioned users auto-subscribe to the thread
+  if (mentionedUserIds.length > 0) {
+    await Promise.allSettled(
+      mentionedUserIds
+        .filter((id) => id !== session.user.id)
+        .map((userId) =>
+          prisma.threadSubscription.upsert({
+            where: { userId_threadId: { userId, threadId } },
+            create: { userId, threadId },
+            update: {},
+          })
+        )
+    );
+  }
+
   const allNotifications = [...mentionNotifications, ...subscriberNotifications];
   if (allNotifications.length > 0) {
     await prisma.notification.createMany({ data: allNotifications });

@@ -42,6 +42,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
     }),
   ]);
 
+  // Pitstop owner auto-follows the goal
+  if (pitstop.ownerId) {
+    await prisma.goalFollow.upsert({
+      where: { userId_goalId: { userId: pitstop.ownerId, goalId } },
+      create: { userId: pitstop.ownerId, goalId },
+      update: {},
+    });
+  }
+
   if (goal) {
     const link = `/goals/${goalId}/pitstops/${pitstop.id}`;
     const authorName = session.user.name ?? "Someone";

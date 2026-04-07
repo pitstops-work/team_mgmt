@@ -39,6 +39,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     },
   });
 
+  // New pitstop owner auto-follows the goal
+  if (data.ownerId && pitstop.ownerId) {
+    await prisma.goalFollow.upsert({
+      where: { userId_goalId: { userId: pitstop.ownerId, goalId: pitstop.goalId } },
+      create: { userId: pitstop.ownerId, goalId: pitstop.goalId },
+      update: {},
+    });
+  }
+
   return Response.json(pitstop);
 }
 
