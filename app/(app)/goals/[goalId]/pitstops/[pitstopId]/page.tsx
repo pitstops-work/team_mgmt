@@ -12,13 +12,20 @@ export default async function PitstopPage({
   const { goalId, pitstopId } = await params;
   const userId = session!.user!.id!;
 
-  const [pitstop, users, subscriptions] = await Promise.all([
+  const [pitstop, users, subscriptions, siblingPitstops] = await Promise.all([
     prisma.pitstop.findUnique({
       where: { id: pitstopId, deletedAt: null },
       include: {
         owner: { select: { id: true, name: true, image: true } },
         goal: { select: { id: true, title: true, targetDate: true } },
         attachments: true,
+        checklistItems: { orderBy: { order: "asc" } },
+        blockedBy: {
+          include: { blockedBy: { select: { id: true, title: true, status: true } } },
+        },
+        blocking: {
+          include: { blocked: { select: { id: true, title: true, status: true } } },
+        },
         threads: {
           where: { deletedAt: null },
           include: {
@@ -41,6 +48,11 @@ export default async function PitstopPage({
       where: { userId },
       select: { threadId: true },
     }),
+    prisma.pitstop.findMany({
+      where: { goalId, deletedAt: null },
+      select: { id: true, title: true, status: true },
+      orderBy: { order: "asc" },
+    }),
   ]);
 
   if (!pitstop || pitstop.goal.id !== goalId) notFound();
@@ -51,6 +63,7 @@ export default async function PitstopPage({
     <PitstopDetail
       pitstop={JSON.parse(JSON.stringify(pitstop))}
       users={JSON.parse(JSON.stringify(users))}
+      siblingPitstops={JSON.parse(JSON.stringify(siblingPitstops))}
       currentUserId={userId}
       currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
       subscribedThreadIds={Array.from(subscribedThreadIds)}

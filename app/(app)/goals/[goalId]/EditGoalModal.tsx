@@ -4,11 +4,14 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { toDateInput } from "@/lib/timeline";
 
+type Recurrence = "None" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
+
 interface Goal {
   id: string;
   title: string;
   description: string | null;
   status: "Active" | "Paused" | "Complete";
+  recurrence: Recurrence;
   targetDate?: string | null;
 }
 
@@ -22,6 +25,7 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
   const [title, setTitle] = useState(goal.title);
   const [description, setDescription] = useState(goal.description ?? "");
   const [status, setStatus] = useState(goal.status);
+  const [recurrence, setRecurrence] = useState<Recurrence>(goal.recurrence ?? "None");
   const [targetDate, setTargetDate] = useState(toDateInput(goal.targetDate));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -35,12 +39,13 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
     const res = await fetch(`/api/goals/${goal.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title.trim(), description: description.trim() || null, status, targetDate }),
+      body: JSON.stringify({ title: title.trim(), description: description.trim() || null, status, recurrence, targetDate }),
     });
 
     setLoading(false);
     if (res.ok) {
-      onUpdated({ title: title.trim(), description: description.trim() || null, status, targetDate });
+      onUpdated({ title: title.trim(), description: description.trim() || null, status, recurrence, targetDate });
+      onClose();
     } else {
       setError("Something went wrong.");
     }
@@ -102,6 +107,26 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
                 <option value="Complete">Complete</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-stone-600 mb-1">Recurrence</label>
+            <select
+              value={recurrence}
+              onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+            >
+              <option value="None">No recurrence</option>
+              <option value="Weekly">Weekly</option>
+              <option value="Monthly">Monthly</option>
+              <option value="Quarterly">Quarterly</option>
+              <option value="Yearly">Yearly</option>
+            </select>
+            {recurrence !== "None" && (
+              <p className="text-[10px] text-stone-400 mt-1">
+                When this goal is complete, you'll be offered to start the next {recurrence.toLowerCase()} cycle.
+              </p>
+            )}
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}

@@ -71,6 +71,7 @@ model Goal {
   title       String
   description String?
   status      GoalStatus @default(Active)
+  recurrence  Recurrence @default(None)
   targetDate  DateTime?
   ownerId     String
   deletedAt   DateTime?
@@ -100,10 +101,35 @@ model Pitstop {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  goal        Goal         @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  owner       User?        @relation("PitstopOwner", fields: [ownerId], references: [id])
-  threads     Thread[]
-  attachments Attachment[]
+  goal           Goal               @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  owner          User?              @relation("PitstopOwner", fields: [ownerId], references: [id])
+  threads        Thread[]
+  attachments    Attachment[]
+  checklistItems ChecklistItem[]
+  blockedBy      PitstopDependency[] @relation("BlockedPitstop")
+  blocking       PitstopDependency[] @relation("BlockingPitstop")
+}
+
+model ChecklistItem {
+  id        String   @id @default(cuid())
+  pitstopId String
+  text      String
+  checked   Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+}
+
+model PitstopDependency {
+  id          String @id @default(cuid())
+  blockedId   String
+  blockedById String
+
+  blocked   Pitstop @relation("BlockedPitstop",  fields: [blockedId],   references: [id], onDelete: Cascade)
+  blockedBy Pitstop @relation("BlockingPitstop", fields: [blockedById], references: [id], onDelete: Cascade)
+
+  @@unique([blockedId, blockedById])
 }
 
 model Thread {
@@ -209,6 +235,14 @@ enum GoalStatus {
   Active
   Paused
   Complete
+}
+
+enum Recurrence {
+  None
+  Weekly
+  Monthly
+  Quarterly
+  Yearly
 }
 
 enum PitstopStatus {

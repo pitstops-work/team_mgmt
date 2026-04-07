@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge, PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
@@ -30,11 +30,13 @@ type Pitstop = {
   attachments: Attachment[];
   threads: Thread[];
 };
+type Recurrence = "None" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
 type Goal = {
   id: string;
   title: string;
   description: string | null;
   status: "Active" | "Paused" | "Complete";
+  recurrence: Recurrence;
   targetDate?: string | null;
   owner: User;
   attachments: Attachment[];
@@ -61,9 +63,19 @@ export default function GoalDetail({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  const [recurLoading, setRecurLoading] = useState(false);
   const isOwner = goal.owner.id === currentUserId;
-
   const sortedPitstops = [...goal.pitstops].sort((a, b) => a.order - b.order);
+
+  const handleRecur = async () => {
+    setRecurLoading(true);
+    const res = await fetch(`/api/goals/${goal.id}/recur`, { method: "POST" });
+    setRecurLoading(false);
+    if (res.ok) {
+      const { goalId: newGoalId } = await res.json();
+      router.push(`/goals/${newGoalId}`);
+    }
+  };
 
   const handleDeleteGoal = async () => {
     if (!confirm("Delete this goal and all its pitstops?")) return;
@@ -233,6 +245,24 @@ export default function GoalDetail({
           </div>
         )}
 
+        {/* Recurrence banner */}
+        {goal.status === "Complete" && goal.recurrence && goal.recurrence !== "None" && (
+          <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <RefreshCw className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-emerald-800">This is a recurring goal</p>
+              <p className="text-xs text-emerald-600">Ready to start the next {goal.recurrence.toLowerCase()} cycle?</p>
+            </div>
+            <button
+              onClick={handleRecur}
+              disabled={recurLoading}
+              className="flex-shrink-0 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              {recurLoading ? "Creating..." : "Start next cycle"}
+            </button>
+          </div>
+        )}
+
         {/* Goal-level attachments */}
         <div className="mt-4 pt-4 border-t border-stone-100">
           <div className="flex items-center justify-between mb-2">
@@ -340,10 +370,7 @@ export default function GoalDetail({
         <EditGoalModal
           goal={goal}
           onClose={() => setShowEditGoal(false)}
-          onUpdated={(updated) => {
-            setGoal((g) => ({ ...g, ...updated }));
-            setShowEditGoal(false);
-          }}
+          onUpdated={(updated) => setGoal((g) => ({ ...g, ...updated }))}
         />
       )}
     </div>

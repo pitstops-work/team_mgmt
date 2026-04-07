@@ -103,6 +103,7 @@ export default function PeopleDashboard({ users, goals }: { users: User[]; goals
                   <span>{inProgress.length} in progress</span>
                   <span>{upcoming.length} upcoming</span>
                   <span className="text-emerald-600">{done.length} done</span>
+                  <WorkloadBar active={inProgress.length + upcoming.length} />
                 </div>
               </div>
 
@@ -160,6 +161,24 @@ export default function PeopleDashboard({ users, goals }: { users: User[]; goals
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function WorkloadBar({ active }: { active: number }) {
+  // 1-2: light, 3-5: medium, 6+: heavy
+  const level = active === 0 ? "none" : active <= 2 ? "light" : active <= 5 ? "medium" : "heavy";
+  const colors = { none: "bg-stone-100", light: "bg-emerald-400", medium: "bg-amber-400", heavy: "bg-red-400" };
+  const labels = { none: "Free", light: "Light", medium: "Busy", heavy: "Overloaded" };
+  const widths = { none: "w-1/4", light: "w-1/3", medium: "w-2/3", heavy: "w-full" };
+  return (
+    <div className="flex items-center gap-1.5" title={`${active} active pitstop${active !== 1 ? "s" : ""}`}>
+      <div className="w-12 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${colors[level]} ${widths[level]}`} />
+      </div>
+      <span className={`text-[10px] font-medium ${level === "heavy" ? "text-red-500" : level === "medium" ? "text-amber-500" : "text-stone-400"}`}>
+        {labels[level]}
+      </span>
     </div>
   );
 }

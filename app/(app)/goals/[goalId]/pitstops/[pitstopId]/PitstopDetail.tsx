@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar } from "lucide-react";
+import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar, CheckSquare, Lock, Unlock } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
 import OwnerPicker from "@/components/OwnerPicker";
 import Avatar from "@/components/Avatar";
@@ -23,6 +23,9 @@ type Message = {
 };
 type Thread = { id: string; name: string; messages: Message[] };
 type User = { id: string; name: string | null; image: string | null };
+type ChecklistItem = { id: string; text: string; checked: boolean; order: number };
+type DepPitstop = { id: string; title: string; status: string };
+type Dependency = { id: string; blockedBy: DepPitstop };
 type Pitstop = {
   id: string;
   title: string;
@@ -36,12 +39,16 @@ type Pitstop = {
   completedAt?: string | null;
   goal: { id: string; title: string; targetDate?: string | null };
   attachments: Attachment[];
+  checklistItems: ChecklistItem[];
+  blockedBy: Dependency[];
   threads: Thread[];
 };
+type SiblingPitstop = { id: string; title: string; status: string };
 
 interface Props {
   pitstop: Pitstop;
   users: User[];
+  siblingPitstops: SiblingPitstop[];
   currentUserId: string;
   currentUserName: string;
   subscribedThreadIds: string[];
@@ -50,6 +57,7 @@ interface Props {
 export default function PitstopDetail({
   pitstop: initialPitstop,
   users,
+  siblingPitstops,
   currentUserId,
   currentUserName,
   subscribedThreadIds: initialSubscribedThreadIds,
@@ -70,9 +78,79 @@ export default function PitstopDetail({
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(
     new Set(initialSubscribedThreadIds)
   );
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Checklist
+  const [newCheckItem, setNewCheckItem] = useState("");
+  const [addingCheck, setAddingCheck] = useState(false);
+  // Dependencies
+  const [showDepPicker, setShowDepPicker] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const currentThread = pitstop.threads.find((t) => t.id === activeThread);
+
+  // ── Checklist handlers ───────────────────────────────────────────────────────
+
+  const handleAddCheckItem = async () => {
+    if (!newCheckItem.trim()) return;
+    setAddingCheck(true);
+    const res = await fetch(`/api/pitstops/${pitstop.id}/checklist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: newCheckItem.trim() }),
+    });
+    if (res.ok) {
+      const item = await res.json();
+      setPitstop((p) => ({ ...p, checklistItems: [...p.checklistItems, item] }));
+      setNewCheckItem("");
+    }
+    setAddingCheck(false);
+  };
+
+  const handleToggleCheck = async (itemId: string, checked: boolean) => {
+    setPitstop((p) => ({
+      ...p,
+      checklistItems: p.checklistItems.map((i) => i.id === itemId ? { ...i, checked } : i),
+    }));
+    await fetch(`/api/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ checked }),
+    });
+  };
+
+  const handleDeleteCheckItem = async (itemId: string) => {
+    setPitstop((p) => ({ ...p, checklistItems: p.checklistItems.filter((i) => i.id !== itemId) }));
+    await fetch(`/api/checklist/${itemId}`, { method: "DELETE" });
+  };
+
+  // ── Dependency handlers ──────────────────────────────────────────────────────
+
+  const handleAddDep = async (blockedById: string) => {
+    const res = await fetch(`/api/pitstops/${pitstop.id}/dependencies`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blockedById }),
+    });
+    if (res.ok) {
+      const blocker = siblingPitstops.find((p) => p.id === blockedById)!;
+      const dep = await res.json();
+      setPitstop((p) => ({
+        ...p,
+        blockedBy: [...p.blockedBy, { id: dep.id, blockedBy: blocker }],
+      }));
+    }
+    setShowDepPicker(false);
+  };
+
+  const handleRemoveDep = async (blockedById: string) => {
+    setPitstop((p) => ({ ...p, blockedBy: p.blockedBy.filter((d) => d.blockedBy.id !== blockedById) }));
+    await fetch(`/api/pitstops/${pitstop.id}/dependencies`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blockedById }),
+    });
+  };
+
+  // ── Other handlers ───────────────────────────────────────────────────────────
 
   const handleCreateThread = async () => {
     if (!newThreadName.trim()) return;
@@ -128,7 +206,7 @@ export default function PitstopDetail({
     if (!res.ok) {
       setSubscribedIds((prev) => {
         const next = new Set(prev);
-        isSubscribed ? next.add(threadId) : next.delete(threadId); // revert
+        isSubscribed ? next.add(threadId) : next.delete(threadId);
         return next;
       });
     }
@@ -167,11 +245,20 @@ export default function PitstopDetail({
     }
   };
 
+  const checkedCount = pitstop.checklistItems.filter((i) => i.checked).length;
+  const totalCount = pitstop.checklistItems.length;
+  const isBlocked = pitstop.blockedBy.some((d) => d.blockedBy.status !== "Done");
+
+  // Pitstops that can be added as blockers (not already added, not self)
+  const availableBlockers = siblingPitstops.filter(
+    (s) => s.id !== pitstop.id && !pitstop.blockedBy.some((d) => d.blockedBy.id === s.id)
+  );
+
   return (
     <div className="flex h-full">
-      {/* Left panel: pitstop info + thread list */}
+      {/* Left panel */}
       <div className={`${mobileView === "thread" ? "hidden sm:flex" : "flex"} w-full sm:w-64 sm:flex-shrink-0 border-r border-stone-200 bg-white flex-col h-full overflow-y-auto`}>
-        {/* Breadcrumb */}
+        {/* Breadcrumb + header */}
         <div className="px-4 pt-5 pb-3 border-b border-stone-100">
           <Link
             href={`/goals/${pitstop.goal.id}`}
@@ -183,6 +270,12 @@ export default function PitstopDetail({
           <h1 className="text-sm font-semibold text-stone-900 leading-snug">{pitstop.title}</h1>
           <div className="flex items-center gap-2 mt-1.5">
             <PitstopStatusBadge status={pitstop.status} />
+            {isBlocked && (
+              <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                <Lock className="w-2.5 h-2.5" />
+                Blocked
+              </span>
+            )}
           </div>
           <div className="mt-1">
             <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
@@ -199,6 +292,130 @@ export default function PitstopDetail({
             <p className="text-xs text-stone-500 leading-relaxed">{pitstop.notes}</p>
           </div>
         )}
+
+        {/* Checklist */}
+        <div className="px-4 py-3 border-b border-stone-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-stone-500 flex items-center gap-1">
+              <CheckSquare className="w-3.5 h-3.5" />
+              Checklist
+              {totalCount > 0 && (
+                <span className="text-stone-400 font-normal">{checkedCount}/{totalCount}</span>
+              )}
+            </span>
+          </div>
+
+          {totalCount > 0 && (
+            <div className="mb-2 h-1 bg-stone-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-400 rounded-full transition-all"
+                style={{ width: `${Math.round((checkedCount / totalCount) * 100)}%` }}
+              />
+            </div>
+          )}
+
+          <div className="space-y-1 mb-2">
+            {pitstop.checklistItems.map((item) => (
+              <div key={item.id} className="flex items-center gap-2 group">
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={(e) => handleToggleCheck(item.id, e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0"
+                />
+                <span className={`flex-1 text-xs leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>
+                  {item.text}
+                </span>
+                <button
+                  onClick={() => handleDeleteCheckItem(item.id)}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 text-stone-300 hover:text-red-400 transition-all"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={newCheckItem}
+              onChange={(e) => setNewCheckItem(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAddCheckItem();
+                if (e.key === "Escape") setNewCheckItem("");
+              }}
+              placeholder="Add item..."
+              className="flex-1 px-2 py-1 text-xs border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-sky-400"
+            />
+            <button
+              onClick={handleAddCheckItem}
+              disabled={!newCheckItem.trim() || addingCheck}
+              className="p-1 text-sky-600 hover:text-sky-700 disabled:opacity-40"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Dependencies */}
+        <div className="px-4 py-3 border-b border-stone-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-stone-500 flex items-center gap-1">
+              <Lock className="w-3.5 h-3.5" />
+              Blocked by
+            </span>
+            {availableBlockers.length > 0 && (
+              <button
+                onClick={() => setShowDepPicker((v) => !v)}
+                className="text-xs text-sky-600 hover:text-sky-700 flex items-center gap-0.5"
+              >
+                <Plus className="w-3 h-3" />
+                Add
+              </button>
+            )}
+          </div>
+
+          {showDepPicker && (
+            <div className="mb-2 bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
+              {availableBlockers.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => handleAddDep(s.id)}
+                  className="w-full text-left px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-100 flex items-center gap-2"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.status === "Done" ? "bg-emerald-400" : s.status === "InProgress" ? "bg-sky-400" : "bg-stone-300"}`} />
+                  {s.title}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {pitstop.blockedBy.length === 0 ? (
+            <p className="text-xs text-stone-400">No blockers.</p>
+          ) : (
+            <div className="space-y-1">
+              {pitstop.blockedBy.map((dep) => (
+                <div key={dep.id} className="flex items-center gap-2 group">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dep.blockedBy.status === "Done" ? "bg-emerald-400" : dep.blockedBy.status === "InProgress" ? "bg-sky-400" : "bg-stone-300"}`} />
+                  <Link
+                    href={`/goals/${pitstop.goal.id}/pitstops/${dep.blockedBy.id}`}
+                    className={`flex-1 text-xs truncate hover:text-sky-600 ${dep.blockedBy.status === "Done" ? "line-through text-stone-400" : "text-stone-700"}`}
+                  >
+                    {dep.blockedBy.title}
+                  </Link>
+                  {dep.blockedBy.status === "Done" && <Unlock className="w-3 h-3 text-emerald-400 flex-shrink-0" />}
+                  <button
+                    onClick={() => handleRemoveDep(dep.blockedBy.id)}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 text-stone-300 hover:text-red-400 transition-all"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Timeline */}
         <div className="px-4 py-3 border-b border-stone-100">
@@ -283,12 +500,7 @@ export default function PitstopDetail({
               <Upload className="w-3 h-3" />
               {uploading ? "..." : "Upload"}
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
           </div>
           {pitstop.attachments.length === 0 ? (
             <p className="text-xs text-stone-400">No files attached.</p>
@@ -372,11 +584,7 @@ export default function PitstopDetail({
                       : "text-stone-300 hover:text-sky-500"
                   }`}
                 >
-                  {subscribedIds.has(thread.id) ? (
-                    <BellOff className="w-3 h-3" />
-                  ) : (
-                    <Bell className="w-3 h-3" />
-                  )}
+                  {subscribedIds.has(thread.id) ? <BellOff className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
                 </button>
                 <button
                   onClick={async () => {
@@ -395,7 +603,6 @@ export default function PitstopDetail({
                 </button>
               </div>
             ))}
-
             {pitstop.threads.length === 0 && !showNewThread && (
               <p className="text-xs text-stone-400 px-2">No threads yet.</p>
             )}
@@ -407,7 +614,6 @@ export default function PitstopDetail({
       <div className={`${mobileView === "sidebar" ? "hidden sm:flex" : "flex"} flex-1 flex-col h-full overflow-hidden`}>
         {currentThread ? (
           <>
-            {/* Thread header */}
             <div className="px-4 sm:px-6 py-4 border-b border-stone-200 bg-white flex-shrink-0 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <button
@@ -441,7 +647,6 @@ export default function PitstopDetail({
               </button>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
               {currentThread.messages.length === 0 ? (
                 <div className="text-center py-10">
@@ -449,16 +654,11 @@ export default function PitstopDetail({
                 </div>
               ) : (
                 currentThread.messages.map((msg) => (
-                  <MessageBubble
-                    key={msg.id}
-                    message={msg}
-                    isOwn={msg.author.id === currentUserId}
-                  />
+                  <MessageBubble key={msg.id} message={msg} isOwn={msg.author.id === currentUserId} />
                 ))
               )}
             </div>
 
-            {/* Composer */}
             <div className="flex-shrink-0 border-t border-stone-200 bg-white px-4 sm:px-6 py-4">
               <MessageComposer
                 threadId={currentThread.id}
