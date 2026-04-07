@@ -19,6 +19,7 @@ type Pitstop = {
   id: string;
   title: string;
   type: string;
+  customType?: string | null;
   notes: string | null;
   status: "Upcoming" | "InProgress" | "Done";
   order: number;
@@ -402,7 +403,7 @@ function RouteMap({ pitstops, goalTitle, goalId }: { pitstops: Pitstop[]; goalTi
               <span className="text-[10px] font-semibold uppercase tracking-wide opacity-60">#{idx + 1}</span>
               <span className="text-xs font-medium leading-snug line-clamp-2">{pitstop.title}</span>
               <div className="flex items-center gap-1 flex-wrap">
-                <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
+                <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} customType={pitstop.customType} />
                 {tlChip && (
                   <span className={`text-[9px] font-medium px-1 py-0.5 rounded border ${tlChip.cls}`}>{tlChip.label}</span>
                 )}
@@ -500,7 +501,7 @@ function PitstopRow({
                 ) : null;
               })()}
             </div>
-            <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
+            <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} customType={pitstop.customType} />
             {pitstop.notes && (
               <p className="text-xs text-stone-500 mt-1 line-clamp-2">{pitstop.notes}</p>
             )}

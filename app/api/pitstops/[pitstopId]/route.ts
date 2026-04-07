@@ -25,6 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     data: {
       title: data.title,
       type: data.type,
+      customType: data.type === "Custom" ? (data.customType?.trim() || null) : data.type !== undefined ? null : undefined,
       notes: data.notes,
       status: data.status,
       ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
@@ -38,6 +39,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
       threads: { select: { id: true, name: true, _count: { select: { messages: true } } } },
     },
   });
+
+  // Save custom type for reuse
+  if (data.type === "Custom" && data.customType?.trim()) {
+    await prisma.customPitstopType.upsert({
+      where: { name: data.customType.trim() },
+      create: { name: data.customType.trim() },
+      update: {},
+    });
+  }
 
   // New pitstop owner auto-follows the goal
   if (data.ownerId && pitstop.ownerId) {

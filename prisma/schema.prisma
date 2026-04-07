@@ -93,6 +93,7 @@ model Pitstop {
   goalId          String
   ownerId         String?
   ownerInherited  Boolean       @default(true)
+  customType      String?
   order           Int           @default(0)
   startDate   DateTime?
   targetDate  DateTime?
@@ -267,6 +268,12 @@ enum PitstopType {
 enum AttachmentType {
   File
   Link
+}
+
+model CustomPitstopType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
 }
 
 model AppSetting {

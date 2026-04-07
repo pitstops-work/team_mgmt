@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { goalId } = await params;
-  const { title, type, notes, status, startDate, targetDate } = await req.json();
+  const { title, type, customType, notes, status, startDate, targetDate } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
 
   const [goalRecord, existingCount] = await Promise.all([
@@ -24,7 +24,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
   const [pitstop, goal] = await Promise.all([
     prisma.pitstop.create({
       data: {
-        title, type: type ?? "Discussion", notes, status: status ?? "Upcoming", goalId, order: existingCount,
+        title, type: type ?? "Discussion", customType: type === "Custom" ? (customType?.trim() || null) : null,
+        notes, status: status ?? "Upcoming", goalId, order: existingCount,
         ownerId: goalRecord?.ownerId ?? null,
         startDate: startDate ? new Date(startDate) : undefined,
         targetDate: targetDate ? new Date(targetDate) : undefined,
@@ -41,6 +42,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
       select: { title: true, followers: { select: { userId: true } } },
     }),
   ]);
+
+  // Save custom type for reuse
+  if (type === "Custom" && customType?.trim()) {
+    await prisma.customPitstopType.upsert({
+      where: { name: customType.trim() },
+      create: { name: customType.trim() },
+      update: {},
+    });
+  }
 
   // Pitstop owner auto-follows the goal
   if (pitstop.ownerId) {

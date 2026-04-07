@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Plus } from "lucide-react";
 import { toDateInput, fmtDate } from "@/lib/timeline";
 
 const PITSTOP_TYPES = [
@@ -14,7 +14,7 @@ const PITSTOP_TYPES = [
   { value: "Proposal", label: "Proposal" },
   { value: "Research", label: "Research" },
   { value: "Review", label: "Review" },
-  { value: "Custom", label: "Custom" },
+  { value: "Custom", label: "Custom ⚡" },
 ];
 
 interface Props {
@@ -27,6 +27,8 @@ interface Props {
 export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, onCreated }: Props) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Discussion");
+  const [customType, setCustomType] = useState("");
+  const [existingCustomTypes, setExistingCustomTypes] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("Upcoming");
   const [startDate, setStartDate] = useState("");
@@ -36,9 +38,23 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
 
   const goalMax = toDateInput(goalTargetDate);
 
+  // Fetch existing custom types when "Custom" is selected
+  useEffect(() => {
+    if (type === "Custom" && existingCustomTypes.length === 0) {
+      fetch("/api/custom-types")
+        .then((r) => r.json())
+        .then((data) => setExistingCustomTypes(data.map((t: { name: string }) => t.name)))
+        .catch(() => {});
+    }
+  }, [type]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    if (type === "Custom" && !customType.trim()) {
+      setError("Please enter a name for the custom type.");
+      return;
+    }
 
     if (targetDate && goalMax && targetDate > goalMax) {
       setError(`Target date must be on or before the goal deadline (${fmtDate(goalTargetDate)})`);
@@ -53,7 +69,8 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title.trim(), type, notes: notes.trim() || null, status,
+          title: title.trim(), type, customType: customType.trim() || null,
+          notes: notes.trim() || null, status,
           startDate: startDate || null,
           targetDate: targetDate || null,
         }),
@@ -97,7 +114,7 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
               <label className="block text-xs font-medium text-stone-600 mb-1">Type</label>
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value)}
+                onChange={(e) => { setType(e.target.value); setCustomType(""); setError(""); }}
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
               >
                 {PITSTOP_TYPES.map((t) => (
@@ -119,6 +136,41 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
               </select>
             </div>
           </div>
+
+          {/* Custom type name input */}
+          {type === "Custom" && (
+            <div>
+              <label className="block text-xs font-medium text-stone-600 mb-1">Custom type name</label>
+              <input
+                type="text"
+                value={customType}
+                onChange={(e) => setCustomType(e.target.value)}
+                placeholder="e.g. Workshop, Field Trip, Demo..."
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+              />
+              {existingCustomTypes.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-[10px] text-stone-400 mb-1">Previously used:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {existingCustomTypes.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => setCustomType(name)}
+                        className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                          customType === name
+                            ? "bg-sky-500 text-white border-sky-500"
+                            : "bg-stone-50 text-stone-600 border-stone-200 hover:border-sky-300 hover:text-sky-600"
+                        }`}
+                      >
+                        ⚡ {name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Notes</label>
@@ -166,7 +218,7 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
             <button
               type="submit"
-              disabled={!title.trim() || loading}
+              disabled={!title.trim() || (type === "Custom" && !customType.trim()) || loading}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
             >
               {loading ? "Creating..." : "Create Pitstop"}

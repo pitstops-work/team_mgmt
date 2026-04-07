@@ -30,6 +30,7 @@ type Pitstop = {
   id: string;
   title: string;
   type: string;
+  customType?: string | null;
   notes: string | null;
   status: "Upcoming" | "InProgress" | "Done";
   ownerId?: string | null;
@@ -278,7 +279,7 @@ export default function PitstopDetail({
             )}
           </div>
           <div className="mt-1">
-            <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} />
+            <PitstopTypeBadge type={pitstop.type as Parameters<typeof PitstopTypeBadge>[0]["type"]} customType={pitstop.customType} />
           </div>
           <div className="mt-2">
             <p className="text-[10px] text-stone-400 mb-0.5">Owner</p>

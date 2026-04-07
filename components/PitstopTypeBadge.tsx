@@ -29,11 +29,12 @@ const icons: Record<PitstopType, string> = {
   Custom: "⚡",
 };
 
-export default function PitstopTypeBadge({ type }: { type: PitstopType }) {
+export default function PitstopTypeBadge({ type, customType }: { type: PitstopType; customType?: string | null }) {
+  const label = type === "Custom" && customType ? customType : labels[type];
   return (
     <span className="inline-flex items-center gap-1 text-xs text-stone-500">
       <span>{icons[type]}</span>
-      <span>{labels[type]}</span>
+      <span>{label}</span>
     </span>
   );
 }
