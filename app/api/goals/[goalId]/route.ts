@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendPushToUsers } from "@/lib/push";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
@@ -76,6 +77,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       }));
     if (notifications.length > 0) {
       await prisma.notification.createMany({ data: notifications });
+      const recipientIds = notifications.map((n) => n.userId);
+      sendPushToUsers(recipientIds, { title: `"${existing.title}" is now ${data.status}`, body: `Status changed from ${existing.status} to ${data.status}`, link: `/goals/${goalId}` });
     }
   }
 

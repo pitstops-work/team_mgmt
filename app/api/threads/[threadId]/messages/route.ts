@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendPushToUsers } from "@/lib/push";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
   const session = await auth();
@@ -74,6 +75,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
   const allNotifications = [...mentionNotifications, ...subscriberNotifications];
   if (allNotifications.length > 0) {
     await prisma.notification.createMany({ data: allNotifications });
+    // Send push to mentions + subscribers
+    const mentionIds = mentionNotifications.map((n) => n.userId);
+    const subIds = subscriberNotifications.map((n) => n.userId);
+    if (mentionIds.length > 0) {
+      sendPushToUsers(mentionIds, { title: `${authorName} mentioned you`, body: `In #${threadName} · ${pitstop.title}`, link });
+    }
+    if (subIds.length > 0) {
+      sendPushToUsers(subIds, { title: `New message in #${threadName}`, body: `${authorName} posted in ${pitstop.title}`, link });
+    }
   }
 
   // Strip the thread relation before returning to keep response shape stable

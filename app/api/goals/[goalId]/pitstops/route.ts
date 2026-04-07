@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendPushToUsers } from "@/lib/push";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
@@ -55,6 +56,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
       }));
     if (notifications.length > 0) {
       await prisma.notification.createMany({ data: notifications });
+      const recipientIds = notifications.map((n) => n.userId);
+      sendPushToUsers(recipientIds, { title: `New pitstop in "${goal.title}"`, body: `${authorName} added "${title}"`, link });
     }
   }
 
