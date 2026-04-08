@@ -166,8 +166,8 @@ export default function PeopleDashboard({ users, goals }: { users: User[]; goals
 }
 
 function WorkloadBar({ active }: { active: number }) {
-  // 1-2: light, 3-5: medium, 6+: heavy
-  const level = active === 0 ? "none" : active <= 2 ? "light" : active <= 5 ? "medium" : "heavy";
+  // 1-10: light, 11-20: busy, 21+: overloaded
+  const level = active === 0 ? "none" : active <= 10 ? "light" : active <= 20 ? "medium" : "heavy";
   const colors = { none: "bg-stone-100", light: "bg-emerald-400", medium: "bg-amber-400", heavy: "bg-red-400" };
   const labels = { none: "Free", light: "Light", medium: "Busy", heavy: "Overloaded" };
   const widths = { none: "w-1/4", light: "w-1/3", medium: "w-2/3", heavy: "w-full" };
