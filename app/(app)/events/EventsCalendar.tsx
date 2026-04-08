@@ -364,6 +364,10 @@ export default function EventsCalendar({
             <p className="text-sm text-stone-500">Meetings, visits, and scheduled events</p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/calendar"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors">
+              <ChevronLeft className="w-3.5 h-3.5" /> Pitstop Calendar
+            </Link>
             <button onClick={() => setShowCreate(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors">
               <Plus className="w-4 h-4" /> New Event

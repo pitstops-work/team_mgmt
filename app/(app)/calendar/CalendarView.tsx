@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, CalendarDays, ChevronDown, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, ChevronDown, X, CalendarClock } from "lucide-react";
 
 type Owner = { id: string; name: string | null; image: string | null };
 type Pitstop = {
@@ -21,6 +21,20 @@ type Event = {
   pitstop: Pitstop;
   kind: "start" | "target";
   date: string;
+};
+
+type ScheduledEvent = {
+  id: string;
+  title: string;
+  type: "Meeting" | "Visit" | "Event";
+  scheduledAt: string;
+  pitstop: { id: string; title: string; goal: { id: string; title: string } } | null;
+};
+
+const EVENT_TYPE_DOT: Record<string, string> = {
+  Meeting: "bg-sky-400",
+  Visit:   "bg-violet-400",
+  Event:   "bg-amber-400",
 };
 
 const STATUS_DOT: Record<string, string> = {
@@ -163,7 +177,7 @@ function GoalPicker({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function CalendarView({ pitstops }: { pitstops: Pitstop[] }) {
+export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: Pitstop[]; scheduledEvents: ScheduledEvent[] }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -203,6 +217,14 @@ export default function CalendarView({ pitstops }: { pitstops: Pitstop[] }) {
   });
 
   const eventMap = buildEventMap(filteredPitstops);
+
+  // Build date → scheduled events map
+  const scheduledMap = new Map<string, ScheduledEvent[]>();
+  for (const ev of scheduledEvents) {
+    const ymd = ev.scheduledAt.slice(0, 10);
+    if (!scheduledMap.has(ymd)) scheduledMap.set(ymd, []);
+    scheduledMap.get(ymd)!.push(ev);
+  }
 
   // Build calendar grid — weeks start Monday
   const firstDay = new Date(year, month, 1);
@@ -463,6 +485,37 @@ export default function CalendarView({ pitstops }: { pitstops: Pitstop[] }) {
                   </Link>
                 ))
               )}
+
+              {/* Scheduled events section */}
+              {(() => {
+                const dayEvents = scheduledMap.get(selectedDate) ?? [];
+                if (dayEvents.length === 0) return null;
+                return (
+                  <div className="pt-2 mt-1 border-t border-stone-100">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide">Scheduled Events</p>
+                      <Link href="/events" className="flex items-center gap-0.5 text-[10px] text-sky-500 hover:text-sky-700">
+                        <CalendarClock className="w-3 h-3" /> View all
+                      </Link>
+                    </div>
+                    <div className="space-y-1.5">
+                      {dayEvents.map(ev => (
+                        <Link key={ev.id} href="/events"
+                          className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-stone-50 border border-stone-200 hover:bg-stone-100 transition-colors">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_DOT[ev.type]}`} />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-stone-700 truncate">{ev.title}</p>
+                            <p className="text-[10px] text-stone-400 truncate">
+                              {new Date(ev.scheduledAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                              {ev.pitstop ? ` · ${ev.pitstop.title}` : ""}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
