@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 interface User {
@@ -69,6 +69,10 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
           <NavLink href="/gantt" active={pathname === "/gantt"}>
             <GanttChartSquare className="w-3.5 h-3.5 text-stone-500" />
             Gantt
+          </NavLink>
+          <NavLink href="/calendar" active={pathname === "/calendar"}>
+            <CalendarDays className="w-3.5 h-3.5 text-stone-500" />
+            Calendar
           </NavLink>
           <NavLink href="/notifications" active={pathname === "/notifications"}>
             <div className="relative">
@@ -135,6 +139,16 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
         >
           <GanttChartSquare className="w-5 h-5" />
           Gantt
+        </Link>
+
+        <Link
+          href="/calendar"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
+            pathname === "/calendar" ? "text-sky-600" : "text-stone-400"
+          }`}
+        >
+          <CalendarDays className="w-5 h-5" />
+          Calendar
         </Link>
 
         <Link
