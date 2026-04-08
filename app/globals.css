@@ -38,3 +38,16 @@ button:active, a:active, [role="button"]:active {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area padding for bottom nav on notched phones */
+.pb-safe {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}

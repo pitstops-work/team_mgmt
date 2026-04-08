@@ -384,9 +384,9 @@ export default function EventsCalendar({
           </div>
         </div>
         {/* Filter bar */}
-        <div className="flex items-center gap-2 mt-3 flex-wrap">
+        <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 no-scrollbar">
           {/* User chips */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button onClick={() => setSelectedUsers(new Set())}
               className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${selectedUsers.size === 0 ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-500 hover:border-stone-300"}`}>
               All People
@@ -463,9 +463,9 @@ export default function EventsCalendar({
           </div>
         </div>
 
-        {/* Day panel */}
+        {/* Day panel — bottom sheet on mobile, side panel on desktop */}
         {selectedDate && (
-          <div className="w-80 flex-shrink-0 border-l border-stone-200 bg-white flex flex-col overflow-hidden">
+          <div className="fixed inset-x-0 bottom-16 sm:bottom-auto sm:static z-30 sm:w-80 sm:flex-shrink-0 sm:border-l border-stone-200 bg-white flex flex-col overflow-hidden rounded-t-2xl sm:rounded-none shadow-xl sm:shadow-none max-h-[65vh] sm:max-h-none">
             <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-stone-800">

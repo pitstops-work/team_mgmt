@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { GoalStatusBadge } from "@/components/StatusBadge";
 import { ChevronDown, ChevronRight, AlertCircle, X, CheckSquare, ExternalLink } from "lucide-react";
@@ -73,15 +73,27 @@ function eachMonthStart(start: Date, end: Date): Date[] {
   return months;
 }
 
-const DAY_PX = 28;
+const DAY_PX = 24;
 const ROW_H = 36;
-const LABEL_W = 220;
 
 export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
   // Keep local mutable copy so checklist toggles update bar colors
   const [goals, setGoals] = useState(initialGoals);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [panel, setPanel] = useState<{ pitstop: Pitstop; goal: Goal } | null>(null);
+  const [labelW, setLabelW] = useState(220);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const update = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobile(mobile);
+      setLabelW(mobile ? 130 : 220);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   const toggle = (id: string) =>
     setCollapsed((prev) => {
@@ -216,9 +228,9 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
         <div className="flex-1 overflow-hidden flex">
           {/* Main chart area */}
           <div className="flex-1 overflow-auto flex flex-col">
-            <div className="flex" style={{ minWidth: LABEL_W + totalWidth }}>
+            <div className="flex" style={{ minWidth: labelW + totalWidth }}>
               {/* Label column */}
-              <div className="flex-shrink-0 sticky left-0 z-20 bg-white border-r border-stone-200" style={{ width: LABEL_W }}>
+              <div className="flex-shrink-0 sticky left-0 z-20 bg-white border-r border-stone-200" style={{ width: labelW }}>
                 <div className="border-b border-stone-200" style={{ height: 48 }} />
                 {rows.map((row, i) => (
                   <div
@@ -389,8 +401,8 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
             </div>
           </div>
 
-          {/* Checklist panel */}
-          {panel && (
+          {/* Checklist panel — side on desktop, bottom sheet on mobile */}
+          {panel && !isMobile && (
             <div className="w-72 flex-shrink-0 border-l border-stone-200 bg-white flex flex-col overflow-hidden">
               <div className="flex items-start justify-between px-4 py-3 border-b border-stone-100">
                 <div className="min-w-0 pr-2">
@@ -467,6 +479,67 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Mobile checklist bottom sheet */}
+      {panel && isMobile && (
+        <div className="fixed inset-0 z-50" onClick={() => setPanel(null)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-2xl shadow-xl max-h-[65vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-stone-100">
+              <div className="min-w-0 pr-2">
+                <p className="text-[10px] text-stone-400 uppercase tracking-wide mb-0.5">{panel.goal.title}</p>
+                <h3 className="text-sm font-semibold text-stone-900 leading-snug">{panel.pitstop.title}</h3>
+                <span className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                  panel.pitstop.status === "Done" ? "bg-emerald-100 text-emerald-700" :
+                  panel.pitstop.status === "InProgress" ? "bg-sky-100 text-sky-700" :
+                  "bg-stone-100 text-stone-500"
+                }`}>
+                  {panel.pitstop.status === "InProgress" ? "In Progress" : panel.pitstop.status}
+                </span>
+              </div>
+              <button onClick={() => setPanel(null)} className="flex-shrink-0 p-1 text-stone-400"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {panel.pitstop.checklistItems.length === 0 ? (
+                <p className="text-xs text-stone-400">No checklist items.</p>
+              ) : (
+                <>
+                  {(() => {
+                    const done = panel.pitstop.checklistItems.filter(i => i.checked).length;
+                    const total = panel.pitstop.checklistItems.length;
+                    return (
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
+                          <span className="flex items-center gap-1"><CheckSquare className="w-3.5 h-3.5" />{done}/{total}</span>
+                          <span>{Math.round((done / total) * 100)}%</span>
+                        </div>
+                        <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((done / total) * 100)}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <div className="space-y-3">
+                    {panel.pitstop.checklistItems.map(item => (
+                      <label key={item.id} className="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" checked={item.checked} onChange={e => handlePanelToggle(item.id, e.target.checked)}
+                          className="mt-0.5 w-4 h-4 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0" />
+                        <span className={`text-sm leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>{item.text}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-stone-100">
+              <Link href={`/goals/${panel.goal.id}/pitstops/${panel.pitstop.id}`}
+                className="flex items-center justify-center gap-1.5 w-full py-2.5 text-sm font-medium text-sky-600 hover:bg-sky-50 rounded-xl border border-sky-200">
+                <ExternalLink className="w-4 h-4" /> Open full pitstop
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 

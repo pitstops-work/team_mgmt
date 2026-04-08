@@ -290,9 +290,9 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
         </div>
 
         {/* Filter bar */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           {/* User chips */}
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => setSelectedUsers(new Set())}
               className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
@@ -419,9 +419,9 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
           </div>
         </div>
 
-        {/* Side panel — selected day */}
+        {/* Side panel — selected day (bottom sheet on mobile, side panel on desktop) */}
         {selectedDate && (
-          <div className="w-72 flex-shrink-0 border-l border-stone-200 bg-white flex flex-col overflow-hidden">
+          <div className="fixed inset-x-0 bottom-16 sm:bottom-auto sm:static z-30 sm:w-72 sm:flex-shrink-0 sm:border-l border-stone-200 bg-white flex flex-col overflow-hidden rounded-t-2xl sm:rounded-none shadow-xl sm:shadow-none max-h-[65vh] sm:max-h-none">
             <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-stone-800">

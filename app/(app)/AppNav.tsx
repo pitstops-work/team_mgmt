@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 interface User {
@@ -18,6 +18,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [showMore, setShowMore] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,64 +114,21 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
         </div>
       </nav>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — 5 items */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-200 flex items-stretch h-16">
-        <Link
-          href="/dashboard"
-          className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
-            pathname === "/dashboard" ? "text-sky-600" : "text-stone-400"
-          }`}
-        >
+        <Link href="/dashboard" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/dashboard" ? "text-sky-600" : "text-stone-400"}`}>
           <span className="text-lg leading-none">◈</span>
           Goals
         </Link>
-
-        <Link
-          href="/people"
-          className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
-            pathname === "/people" ? "text-sky-600" : "text-stone-400"
-          }`}
-        >
-          <Users className="w-5 h-5" />
-          People
-        </Link>
-
-        <Link
-          href="/gantt"
-          className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
-            pathname === "/gantt" ? "text-sky-600" : "text-stone-400"
-          }`}
-        >
-          <GanttChartSquare className="w-5 h-5" />
-          Gantt
-        </Link>
-
-        <Link
-          href="/calendar"
-          className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
-            pathname === "/calendar" ? "text-sky-600" : "text-stone-400"
-          }`}
-        >
+        <Link href="/calendar" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/calendar" ? "text-sky-600" : "text-stone-400"}`}>
           <CalendarDays className="w-5 h-5" />
           Calendar
         </Link>
-
-        <Link
-          href="/events"
-          className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
-            pathname === "/events" ? "text-sky-600" : "text-stone-400"
-          }`}
-        >
+        <Link href="/events" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/events" ? "text-sky-600" : "text-stone-400"}`}>
           <CalendarClock className="w-5 h-5" />
           Events
         </Link>
-
-        <Link
-          href="/notifications"
-          className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
-            pathname === "/notifications" ? "text-sky-600" : "text-stone-400"
-          }`}
-        >
+        <Link href="/notifications" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/notifications" ? "text-sky-600" : "text-stone-400"}`}>
           <div className="relative">
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
@@ -179,27 +137,49 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
               </span>
             )}
           </div>
-          Notifications
+          Alerts
         </Link>
-
-        <Link
-          href="/settings"
-          className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
-            pathname === "/settings" ? "text-sky-600" : "text-stone-400"
-          }`}
-        >
-          <Settings className="w-5 h-5" />
-          Settings
-        </Link>
-
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-stone-400"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>Sign out</span>
+        <button onClick={() => setShowMore(true)} className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${showMore ? "text-sky-600" : "text-stone-400"}`}>
+          <MoreHorizontal className="w-5 h-5" />
+          More
         </button>
       </nav>
+
+      {/* More drawer */}
+      {showMore && (
+        <div className="sm:hidden fixed inset-0 z-[60]" onClick={() => setShowMore(false)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl pb-safe" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-stone-100">
+              <p className="text-sm font-semibold text-stone-800">Menu</p>
+              <button onClick={() => setShowMore(false)} className="p-1 text-stone-400"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-3 py-2 space-y-0.5 pb-8">
+              {[
+                { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
+                { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
+                { href: "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname === item.href ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
+                  <span className="text-stone-400">{item.icon}</span>
+                  {item.label}
+                </Link>
+              ))}
+              <div className="h-px bg-stone-100 my-1 mx-4" />
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-stone-500">
+                <Sparkles className="w-5 h-5 text-sky-400" />
+                AI Assistant — tap ✦ button
+              </div>
+              <button onClick={() => { setShowMore(false); signOut({ callbackUrl: "/login" }); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">
+                <LogOut className="w-5 h-5" />
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
