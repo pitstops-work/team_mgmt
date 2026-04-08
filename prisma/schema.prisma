@@ -30,6 +30,7 @@ model User {
   notifications       Notification[]
   pushSubscriptions   PushSubscription[]
   createdEvents       PitstopEvent[]
+  eventAttendances    PitstopEventAttendee[]
 }
 
 model Account {
@@ -329,8 +330,20 @@ model PitstopEvent {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  pitstop     Pitstop?         @relation(fields: [pitstopId], references: [id], onDelete: SetNull)
-  createdBy   User             @relation(fields: [createdById], references: [id])
+  pitstop     Pitstop?              @relation(fields: [pitstopId], references: [id], onDelete: SetNull)
+  createdBy   User                  @relation(fields: [createdById], references: [id])
+  attendees   PitstopEventAttendee[]
+}
+
+model PitstopEventAttendee {
+  id      String @id @default(cuid())
+  eventId String
+  userId  String
+
+  event PitstopEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
 }
 
 model AppSetting {

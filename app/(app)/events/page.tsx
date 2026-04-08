@@ -5,12 +5,19 @@ import EventsCalendar from "./EventsCalendar";
 export default async function EventsPage() {
   const session = await auth();
 
-  const [events, pitstops] = await Promise.all([
+  const [events, pitstops, users] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: { deletedAt: null },
       include: {
-        pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } },
+        pitstop: {
+          select: {
+            id: true, title: true,
+            owner: { select: { id: true, name: true, image: true } },
+            goal: { select: { id: true, title: true } },
+          },
+        },
         createdBy: { select: { id: true, name: true, image: true } },
+        attendees: { select: { id: true, userId: true, user: { select: { id: true, name: true, image: true } } } },
       },
       orderBy: { scheduledAt: "asc" },
     }),
@@ -19,9 +26,14 @@ export default async function EventsPage() {
       select: {
         id: true,
         title: true,
+        owner: { select: { id: true, name: true, image: true } },
         goal: { select: { id: true, title: true } },
       },
       orderBy: [{ goal: { title: "asc" } }, { order: "asc" }],
+    }),
+    prisma.user.findMany({
+      select: { id: true, name: true, image: true },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -29,6 +41,7 @@ export default async function EventsPage() {
     <EventsCalendar
       events={JSON.parse(JSON.stringify(events))}
       pitstops={JSON.parse(JSON.stringify(pitstops))}
+      users={JSON.parse(JSON.stringify(users))}
       currentUserId={session!.user!.id!}
     />
   );

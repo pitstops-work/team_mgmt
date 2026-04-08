@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check } from "lucide-react";
 
-type PitstopRef = { id: string; title: string; goal: { id: string; title: string } };
 type User = { id: string; name: string | null; image: string | null };
+type PitstopOwner = { id: string; name: string | null; image: string | null };
+type PitstopRef = {
+  id: string; title: string;
+  owner: PitstopOwner;
+  goal: { id: string; title: string };
+};
+type Attendee = { id: string; userId: string; user: User };
 type PitstopEvent = {
   id: string;
   title: string;
@@ -15,6 +21,7 @@ type PitstopEvent = {
   location: string | null;
   pitstop: PitstopRef | null;
   createdBy: User;
+  attendees: Attendee[];
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -39,16 +46,88 @@ function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
+// ── Avatar helper ─────────────────────────────────────────────────────────────
+
+function Avatar({ user, size = 5 }: { user: User; size?: number }) {
+  const cls = `w-${size} h-${size} rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-semibold bg-stone-200 text-stone-600 overflow-hidden`;
+  if (user.image) return <img src={user.image} className={cls} alt={user.name ?? ""} />;
+  return <span className={cls}>{(user.name ?? "?")[0].toUpperCase()}</span>;
+}
+
+// ── Multi-select goal dropdown ────────────────────────────────────────────────
+
+function GoalPicker({
+  goals,
+  selected,
+  onChange,
+}: {
+  goals: { id: string; title: string }[];
+  selected: Set<string>;
+  onChange: (s: Set<string>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const toggle = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onChange(next);
+  };
+
+  const label = selected.size === 0 ? "All Goals" : selected.size === 1
+    ? goals.find(g => selected.has(g.id))?.title ?? "1 goal"
+    : `${selected.size} goals`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg transition-colors ${selected.size > 0 ? "border-sky-400 bg-sky-50 text-sky-700" : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"}`}>
+        {label}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+      {open && (
+        <div className="absolute top-full mt-1 right-0 z-30 w-64 bg-white border border-stone-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="max-h-56 overflow-y-auto p-1">
+            {goals.map(g => (
+              <button key={g.id} onClick={() => toggle(g.id)}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left hover:bg-stone-50 transition-colors">
+                <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(g.id) ? "bg-sky-500 border-sky-500" : "border-stone-300"}`}>
+                  {selected.has(g.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                </span>
+                <span className="truncate text-stone-700">{g.title}</span>
+              </button>
+            ))}
+          </div>
+          {selected.size > 0 && (
+            <div className="border-t border-stone-100 p-1">
+              <button onClick={() => onChange(new Set())} className="w-full text-xs text-stone-400 hover:text-stone-600 py-1.5 text-center">
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Create / Edit modal ───────────────────────────────────────────────────────
 
 function EventModal({
   pitstops,
+  users,
   initial,
   defaultDate,
   onClose,
   onSaved,
 }: {
   pitstops: PitstopRef[];
+  users: User[];
   initial?: PitstopEvent;
   defaultDate?: string;
   onClose: () => void;
@@ -61,26 +140,46 @@ function EventModal({
   const [time, setTime] = useState(initial ? initial.scheduledAt.slice(11,16) : "09:00");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [pitstopId, setPitstopId] = useState(initial?.pitstop?.id ?? "");
+  // Attendee ids excluding the owner (owner is auto-added server-side)
+  const initialExtraIds = initial
+    ? initial.attendees.filter(a => a.userId !== initial.pitstop?.owner?.id).map(a => a.userId)
+    : [];
+  const [extraAttendeeIds, setExtraAttendeeIds] = useState<Set<string>>(new Set(initialExtraIds));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const selectedPitstop = pitstops.find(p => p.id === pitstopId) ?? null;
+  const ownerId = selectedPitstop?.owner?.id;
+
+  // Users available to add as extra attendees (everyone except owner)
+  const extraCandidates = users.filter(u => u.id !== ownerId);
+
+  const toggleExtra = (uid: string) => {
+    setExtraAttendeeIds(prev => {
+      const next = new Set(prev);
+      next.has(uid) ? next.delete(uid) : next.add(uid);
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !date) return;
+    if (!title.trim() || !date || !pitstopId) { setError("Title, date, and pitstop are required."); return; }
     setLoading(true);
     setError("");
     const scheduledAt = `${date}T${time}:00`;
-    const body = { title: title.trim(), description: description.trim() || null, type, scheduledAt, location: location.trim() || null, pitstopId: pitstopId || null };
+    const attendeeIds = Array.from(extraAttendeeIds);
+    const body = { title: title.trim(), description: description.trim() || null, type, scheduledAt, location: location.trim() || null, pitstopId, attendeeIds };
     const url = initial ? `/api/pitstop-events/${initial.id}` : "/api/pitstop-events";
     const method = initial ? "PATCH" : "POST";
     const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (!res.ok) { setError("Something went wrong."); setLoading(false); return; }
+    if (!res.ok) { setError((await res.json()).error ?? "Something went wrong."); setLoading(false); return; }
     onSaved(await res.json());
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-stone-900">{initial ? "Edit Event" : "New Event"}</h2>
           <button onClick={onClose}><X className="w-4 h-4 text-stone-400" /></button>
@@ -91,10 +190,28 @@ function EventModal({
             <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Event title"
               className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
           </div>
+          <div>
+            <label className="block text-xs font-medium text-stone-600 mb-1">Pitstop <span className="text-red-400">*</span></label>
+            <select value={pitstopId} onChange={e => { setPitstopId(e.target.value); setExtraAttendeeIds(new Set()); }} required
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
+              <option value="">— select a pitstop —</option>
+              {pitstops.map(p => (
+                <option key={p.id} value={p.id}>{p.goal.title} › {p.title}</option>
+              ))}
+            </select>
+            {selectedPitstop && (
+              <div className="flex items-center gap-1.5 mt-1.5 px-1">
+                <Avatar user={selectedPitstop.owner} size={4} />
+                <span className="text-[11px] text-stone-500">
+                  Owner: <span className="font-medium text-stone-700">{selectedPitstop.owner.name ?? "Unknown"}</span>
+                </span>
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-stone-600 mb-1">Type</label>
-              <select value={type} onChange={e => setType(e.target.value as any)}
+              <select value={type} onChange={e => setType(e.target.value as "Meeting"|"Visit"|"Event")}
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
                 <option>Meeting</option>
                 <option>Visit</option>
@@ -117,16 +234,24 @@ function EventModal({
             <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Village name, address…"
               className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">Linked Pitstop (optional)</label>
-            <select value={pitstopId} onChange={e => setPitstopId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
-              <option value="">— none —</option>
-              {pitstops.map(p => (
-                <option key={p.id} value={p.id}>{p.goal.title} › {p.title}</option>
-              ))}
-            </select>
-          </div>
+          {pitstopId && extraCandidates.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-stone-600 mb-1.5">Additional Attendees (optional)</label>
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                {extraCandidates.map(u => {
+                  const checked = extraAttendeeIds.has(u.id);
+                  return (
+                    <button key={u.id} type="button" onClick={() => toggleExtra(u.id)}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs border transition-colors ${checked ? "bg-sky-50 border-sky-400 text-sky-700" : "border-stone-200 text-stone-600 hover:border-stone-300"}`}>
+                      <Avatar user={u} size={4} />
+                      {u.name ?? u.id}
+                      {checked && <X className="w-2.5 h-2.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Notes (optional)</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Agenda, prep notes…"
@@ -135,7 +260,7 @@ function EventModal({
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
-            <button type="submit" disabled={!title.trim() || !date || loading}
+            <button type="submit" disabled={!title.trim() || !date || !pitstopId || loading}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {loading ? "Saving…" : initial ? "Save changes" : "Create Event"}
             </button>
@@ -151,10 +276,12 @@ function EventModal({
 export default function EventsCalendar({
   events: initialEvents,
   pitstops,
+  users,
   currentUserId,
 }: {
   events: PitstopEvent[];
   pitstops: PitstopRef[];
+  users: User[];
   currentUserId: string;
 }) {
   const today = new Date();
@@ -165,9 +292,32 @@ export default function EventsCalendar({
   const [showCreate, setShowCreate] = useState(false);
   const [editEvent, setEditEvent] = useState<PitstopEvent | null>(null);
 
+  // Filters
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
+
+  // Unique goals from pitstops
+  const allGoals = Array.from(
+    new Map(pitstops.map(p => [p.goal.id, p.goal])).values()
+  ).sort((a, b) => a.title.localeCompare(b.title));
+
+  // Apply filters
+  const filteredEvents = events.filter(ev => {
+    if (selectedUsers.size > 0) {
+      const attendeeUserIds = new Set(ev.attendees.map(a => a.userId));
+      if (![...selectedUsers].some(uid => attendeeUserIds.has(uid))) return false;
+    }
+    if (selectedGoals.size > 0) {
+      if (!ev.pitstop || !selectedGoals.has(ev.pitstop.goal.id)) return false;
+    }
+    return true;
+  });
+
+  const hasFilters = selectedUsers.size > 0 || selectedGoals.size > 0;
+
   // Build date → events map
   const eventMap = new Map<string, PitstopEvent[]>();
-  for (const ev of events) {
+  for (const ev of filteredEvents) {
     const ymd = ev.scheduledAt.slice(0, 10);
     if (!eventMap.has(ymd)) eventMap.set(ymd, []);
     eventMap.get(ymd)!.push(ev);
@@ -207,25 +357,58 @@ export default function EventsCalendar({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-stone-100 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-semibold text-stone-900">Events</h1>
-          <p className="text-sm text-stone-500">Meetings, visits, and scheduled events</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors">
-            <Plus className="w-4 h-4" /> New Event
-          </button>
-          <button onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth()); setSelectedDate(todayYMD); }}
-            className="px-3 py-1 text-xs font-medium text-stone-600 border border-stone-200 rounded-md hover:bg-stone-50">
-            Today
-          </button>
-          <div className="flex items-center gap-1">
-            <button onClick={prevMonth} className="p-1.5 rounded-md text-stone-400 hover:bg-stone-100"><ChevronLeft className="w-4 h-4" /></button>
-            <span className="text-sm font-semibold text-stone-800 w-36 text-center">{MONTHS[month]} {year}</span>
-            <button onClick={nextMonth} className="p-1.5 rounded-md text-stone-400 hover:bg-stone-100"><ChevronRight className="w-4 h-4" /></button>
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-stone-100">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-lg font-semibold text-stone-900">Events</h1>
+            <p className="text-sm text-stone-500">Meetings, visits, and scheduled events</p>
           </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors">
+              <Plus className="w-4 h-4" /> New Event
+            </button>
+            <button onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth()); setSelectedDate(todayYMD); }}
+              className="px-3 py-1 text-xs font-medium text-stone-600 border border-stone-200 rounded-md hover:bg-stone-50">
+              Today
+            </button>
+            <div className="flex items-center gap-1">
+              <button onClick={prevMonth} className="p-1.5 rounded-md text-stone-400 hover:bg-stone-100"><ChevronLeft className="w-4 h-4" /></button>
+              <span className="text-sm font-semibold text-stone-800 w-36 text-center">{MONTHS[month]} {year}</span>
+              <button onClick={nextMonth} className="p-1.5 rounded-md text-stone-400 hover:bg-stone-100"><ChevronRight className="w-4 h-4" /></button>
+            </div>
+          </div>
+        </div>
+        {/* Filter bar */}
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          {/* User chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button onClick={() => setSelectedUsers(new Set())}
+              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${selectedUsers.size === 0 ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-500 hover:border-stone-300"}`}>
+              All People
+            </button>
+            {users.map(u => {
+              const active = selectedUsers.has(u.id);
+              return (
+                <button key={u.id} onClick={() => {
+                  const next = new Set(selectedUsers);
+                  active ? next.delete(u.id) : next.add(u.id);
+                  setSelectedUsers(next);
+                }} className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border transition-colors ${active ? "bg-sky-500 text-white border-sky-500" : "border-stone-200 text-stone-600 hover:border-stone-300"}`}>
+                  <Avatar user={u} size={3} />
+                  {u.name ?? "User"}
+                </button>
+              );
+            })}
+          </div>
+          <div className="w-px h-4 bg-stone-200" />
+          <GoalPicker goals={allGoals} selected={selectedGoals} onChange={setSelectedGoals} />
+          {hasFilters && (
+            <button onClick={() => { setSelectedUsers(new Set()); setSelectedGoals(new Set()); }}
+              className="text-xs text-stone-400 hover:text-stone-600 underline">
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -300,7 +483,7 @@ export default function EventsCalendar({
                   .map((ev) => (
                     <div key={ev.id} className={`px-3 py-2.5 rounded-lg border ${TYPE_COLORS[ev.type]}`}>
                       <div className="flex items-start justify-between gap-1">
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs font-semibold leading-snug">{ev.title}</p>
                           <p className="text-[10px] opacity-70 mt-0.5">{fmtTime(ev.scheduledAt)} · {ev.type}</p>
                           {ev.location && (
@@ -315,6 +498,18 @@ export default function EventsCalendar({
                               <ExternalLink className="w-2.5 h-2.5" />
                               {ev.pitstop.goal.title} › {ev.pitstop.title}
                             </Link>
+                          )}
+                          {ev.attendees.length > 0 && (
+                            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                              {ev.attendees.slice(0, 5).map(a => (
+                                <div key={a.id} className="flex items-center gap-1" title={a.user.name ?? ""}>
+                                  <Avatar user={a.user} size={4} />
+                                </div>
+                              ))}
+                              {ev.attendees.length > 5 && (
+                                <span className="text-[10px] opacity-60">+{ev.attendees.length - 5}</span>
+                              )}
+                            </div>
                           )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
@@ -337,6 +532,7 @@ export default function EventsCalendar({
       {(showCreate || editEvent) && (
         <EventModal
           pitstops={pitstops}
+          users={users}
           initial={editEvent ?? undefined}
           defaultDate={selectedDate ?? undefined}
           onClose={() => { setShowCreate(false); setEditEvent(null); }}
