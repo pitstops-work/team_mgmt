@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, ChevronDown, X } from "lucide-react";
 
+type Owner = { id: string; name: string | null; image: string | null };
 type Pitstop = {
   id: string;
   title: string;
@@ -13,14 +14,13 @@ type Pitstop = {
   startDate: string | null;
   targetDate: string | null;
   goal: { id: string; title: string };
-  owner: { id: string; name: string | null; image: string | null } | null;
+  owner: Owner | null;
 };
 
-// An "event" is a pitstop appearing on a specific date (start or target)
 type Event = {
   pitstop: Pitstop;
   kind: "start" | "target";
-  date: string; // YYYY-MM-DD
+  date: string;
 };
 
 const STATUS_DOT: Record<string, string> = {
@@ -60,23 +60,154 @@ function buildEventMap(pitstops: Pitstop[]): Map<string, Event[]> {
   return map;
 }
 
+// ── Goal multi-select dropdown ────────────────────────────────────────────────
+
+function GoalPicker({
+  goals,
+  selected,
+  onChange,
+}: {
+  goals: { id: string; title: string }[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = goals.filter(g => g.title.toLowerCase().includes(query.toLowerCase()));
+
+  const toggle = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onChange(next);
+  };
+
+  const label = selected.size === 0
+    ? "All Goals"
+    : selected.size === 1
+    ? goals.find(g => selected.has(g.id))?.title ?? "1 goal"
+    : `${selected.size} goals`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+          selected.size > 0
+            ? "bg-sky-50 border-sky-300 text-sky-700"
+            : "bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50"
+        }`}
+      >
+        <span className="max-w-[140px] truncate">{label}</span>
+        <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
+      </button>
+
+      {selected.size > 0 && (
+        <button
+          onClick={() => onChange(new Set())}
+          className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-sky-500 text-white rounded-full flex items-center justify-center hover:bg-sky-600 transition-colors"
+        >
+          <X className="w-2.5 h-2.5" />
+        </button>
+      )}
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-60 bg-white border border-stone-200 rounded-xl shadow-lg z-30 overflow-hidden">
+          <div className="p-2 border-b border-stone-100">
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search goals..."
+              className="w-full px-2 py-1 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-400"
+            />
+          </div>
+          <div className="max-h-52 overflow-y-auto">
+            {filtered.length === 0 && (
+              <p className="px-3 py-2 text-xs text-stone-400">No goals found.</p>
+            )}
+            {filtered.map(g => (
+              <label key={g.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-stone-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.has(g.id)}
+                  onChange={() => toggle(g.id)}
+                  className="w-3.5 h-3.5 rounded border-stone-300 text-sky-500 focus:ring-sky-400"
+                />
+                <span className="text-xs text-stone-700 leading-snug">{g.title}</span>
+              </label>
+            ))}
+          </div>
+          {selected.size > 0 && (
+            <div className="border-t border-stone-100 px-3 py-2">
+              <button onClick={() => onChange(new Set())} className="text-xs text-stone-400 hover:text-stone-600">
+                Clear selection
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function CalendarView({ pitstops }: { pitstops: Pitstop[] }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth()); // 0-indexed
+  const [month, setMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<"All" | "Upcoming" | "InProgress" | "Done">("All");
 
-  const eventMap = buildEventMap(pitstops);
+  // User + goal filters
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
+
+  // Derive unique users + goals from pitstop data
+  const allUsers: Owner[] = [];
+  const seenUsers = new Set<string>();
+  for (const p of pitstops) {
+    if (p.owner && !seenUsers.has(p.owner.id)) {
+      seenUsers.add(p.owner.id);
+      allUsers.push(p.owner);
+    }
+  }
+  allUsers.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+
+  const allGoals: { id: string; title: string }[] = [];
+  const seenGoals = new Set<string>();
+  for (const p of pitstops) {
+    if (!seenGoals.has(p.goal.id)) {
+      seenGoals.add(p.goal.id);
+      allGoals.push(p.goal);
+    }
+  }
+  allGoals.sort((a, b) => a.title.localeCompare(b.title));
+
+  // Apply user + goal filters to pitstop list
+  const filteredPitstops = pitstops.filter(p => {
+    if (selectedUsers.size > 0 && (!p.owner || !selectedUsers.has(p.owner.id))) return false;
+    if (selectedGoals.size > 0 && !selectedGoals.has(p.goal.id)) return false;
+    return true;
+  });
+
+  const eventMap = buildEventMap(filteredPitstops);
 
   // Build calendar grid — weeks start Monday
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-
-  // Day-of-week offset for Monday-start (Mon=0 … Sun=6)
   const startOffset = (firstDay.getDay() + 6) % 7;
-
-  // Total cells: pad to full weeks
   const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
   const cells: (Date | null)[] = Array.from({ length: totalCells }, (_, i) => {
     const dayNum = i - startOffset + 1;
@@ -85,13 +216,11 @@ export default function CalendarView({ pitstops }: { pitstops: Pitstop[] }) {
   });
 
   const prevMonth = () => {
-    if (month === 0) { setYear(y => y - 1); setMonth(11); }
-    else setMonth(m => m - 1);
+    if (month === 0) { setYear(y => y - 1); setMonth(11); } else setMonth(m => m - 1);
     setSelectedDate(null);
   };
   const nextMonth = () => {
-    if (month === 11) { setYear(y => y + 1); setMonth(0); }
-    else setMonth(m => m + 1);
+    if (month === 11) { setYear(y => y + 1); setMonth(0); } else setMonth(m => m + 1);
     setSelectedDate(null);
   };
   const goToday = () => {
@@ -106,32 +235,94 @@ export default function CalendarView({ pitstops }: { pitstops: Pitstop[] }) {
     ? selectedEvents
     : selectedEvents.filter(e => e.pitstop.status === filterStatus);
 
+  const activeFilterCount = (selectedUsers.size > 0 ? 1 : 0) + (selectedGoals.size > 0 ? 1 : 0);
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-stone-100 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-semibold text-stone-900">Calendar</h1>
-          <p className="text-sm text-stone-500">Pitstop start and target dates</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={goToday}
-            className="px-3 py-1 text-xs font-medium text-stone-600 border border-stone-200 rounded-md hover:bg-stone-50 transition-colors"
-          >
-            Today
-          </button>
-          <div className="flex items-center gap-1">
-            <button onClick={prevMonth} className="p-1.5 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-sm font-semibold text-stone-800 w-36 text-center">
-              {MONTHS[month]} {year}
-            </span>
-            <button onClick={nextMonth} className="p-1.5 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors">
-              <ChevronRight className="w-4 h-4" />
-            </button>
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-stone-100">
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <div>
+            <h1 className="text-lg font-semibold text-stone-900">Calendar</h1>
+            <p className="text-sm text-stone-500">Pitstop start and target dates</p>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={goToday}
+              className="px-3 py-1 text-xs font-medium text-stone-600 border border-stone-200 rounded-md hover:bg-stone-50 transition-colors"
+            >
+              Today
+            </button>
+            <div className="flex items-center gap-1">
+              <button onClick={prevMonth} className="p-1.5 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-semibold text-stone-800 w-36 text-center">
+                {MONTHS[month]} {year}
+              </span>
+              <button onClick={nextMonth} className="p-1.5 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter bar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* User chips */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <button
+              onClick={() => setSelectedUsers(new Set())}
+              className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
+                selectedUsers.size === 0
+                  ? "bg-stone-900 text-white border-stone-900"
+                  : "text-stone-500 border-stone-200 hover:border-stone-300 hover:bg-stone-50"
+              }`}
+            >
+              All People
+            </button>
+            {allUsers.map(u => (
+              <button
+                key={u.id}
+                onClick={() => {
+                  const next = new Set(selectedUsers);
+                  next.has(u.id) ? next.delete(u.id) : next.add(u.id);
+                  setSelectedUsers(next);
+                }}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
+                  selectedUsers.has(u.id)
+                    ? "bg-sky-500 text-white border-sky-500"
+                    : "text-stone-500 border-stone-200 hover:border-stone-300 hover:bg-stone-50"
+                }`}
+              >
+                {u.image ? (
+                  <img src={u.image} alt="" className="w-3.5 h-3.5 rounded-full object-cover flex-shrink-0" />
+                ) : (
+                  <span className="w-3.5 h-3.5 rounded-full bg-stone-300 flex-shrink-0 flex items-center justify-center text-[8px] text-white font-bold">
+                    {(u.name ?? "?")[0].toUpperCase()}
+                  </span>
+                )}
+                {u.name ?? "Unknown"}
+              </button>
+            ))}
+          </div>
+
+          {/* Divider */}
+          <div className="h-5 w-px bg-stone-200" />
+
+          {/* Goal multi-select */}
+          <GoalPicker goals={allGoals} selected={selectedGoals} onChange={setSelectedGoals} />
+
+          {/* Clear all */}
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => { setSelectedUsers(new Set()); setSelectedGoals(new Set()); }}
+              className="flex items-center gap-1 px-2 py-1 text-xs text-stone-400 hover:text-stone-600 transition-colors"
+            >
+              <X className="w-3 h-3" />
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -165,14 +356,11 @@ export default function CalendarView({ pitstops }: { pitstops: Pitstop[] }) {
                     isSelected ? "bg-sky-50 hover:bg-sky-50" : ""
                   } ${!isCurrentMonth ? "opacity-40" : ""}`}
                 >
-                  {/* Date number */}
                   <span className={`text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0 ${
                     isToday ? "bg-sky-500 text-white" : "text-stone-600"
                   }`}>
                     {date.getDate()}
                   </span>
-
-                  {/* Events */}
                   <div className="flex-1 space-y-0.5 overflow-hidden">
                     {events.slice(0, 3).map((ev, ei) => (
                       <div
@@ -223,7 +411,6 @@ export default function CalendarView({ pitstops }: { pitstops: Pitstop[] }) {
               </div>
             </div>
 
-            {/* Filter */}
             {selectedEvents.length > 0 && (
               <div className="flex gap-1 px-3 py-2 border-b border-stone-100">
                 {(["All", "Upcoming", "InProgress", "Done"] as const).map(f => (
@@ -264,6 +451,9 @@ export default function CalendarView({ pitstops }: { pitstops: Pitstop[] }) {
                       </span>
                     </div>
                     <p className="text-[10px] opacity-70 truncate">{ev.pitstop.goal.title}</p>
+                    {ev.pitstop.owner && (
+                      <p className="text-[10px] opacity-60 mt-0.5 truncate">{ev.pitstop.owner.name}</p>
+                    )}
                     <div className="flex items-center gap-1 mt-1.5">
                       <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[ev.pitstop.status]}`} />
                       <span className="text-[10px] opacity-60">
