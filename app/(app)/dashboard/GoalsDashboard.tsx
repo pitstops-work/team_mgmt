@@ -4,10 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Target, ChevronRight } from "lucide-react";
+import { Plus, Target, ChevronRight, Layers } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge } from "@/components/StatusBadge";
 import CreateGoalModal from "./CreateGoalModal";
+import TemplatePickerModal from "@/components/TemplatePickerModal";
 import { qk } from "@/lib/query-keys";
 import { fetchGoal, fetchGoals } from "@/lib/api-client";
 
@@ -34,6 +35,7 @@ interface Props {
 
 export default function GoalsDashboard({ initialGoals, currentUserId, searchResults }: Props) {
   const [showCreate, setShowCreate] = useState(false);
+  const [showTemplate, setShowTemplate] = useState(false);
   const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">("All");
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -121,13 +123,22 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
           <h1 className="text-xl font-semibold text-stone-900">Goals</h1>
           <p className="text-sm text-stone-500 mt-0.5">Track progress across the team</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Goal
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowTemplate(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium rounded-lg transition-colors"
+          >
+            <Layers className="w-4 h-4" />
+            From Template
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Goal
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-1 mb-6">
@@ -183,6 +194,16 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
           onCreated={(goal) => {
             queryClient.setQueryData<Goal[]>(qk.goals(), (old = []) => [goal as Goal, ...old]);
             setShowCreate(false);
+          }}
+        />
+      )}
+
+      {showTemplate && (
+        <TemplatePickerModal
+          onClose={() => setShowTemplate(false)}
+          onCreated={(goal) => {
+            queryClient.setQueryData<Goal[]>(qk.goals(), (old = []) => [goal as Goal, ...old]);
+            setShowTemplate(false);
           }}
         />
       )}
