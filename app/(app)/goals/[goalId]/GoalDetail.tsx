@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge, PitstopStatusBadge } from "@/components/StatusBadge";
@@ -11,6 +12,8 @@ import CreatePitstopModal from "./CreatePitstopModal";
 import EditGoalModal from "./EditGoalModal";
 import { getTimelineInfo, timelineChip, timelineNodeBorder, fmtDate } from "@/lib/timeline";
 import OwnerPicker from "@/components/OwnerPicker";
+import { qk } from "@/lib/query-keys";
+import { fetchGoal } from "@/lib/api-client";
 
 type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
@@ -55,7 +58,6 @@ export default function GoalDetail({
   currentUserId: string;
   isFollowing: boolean;
 }) {
-  const [goal, setGoal] = useState(initialGoal);
   const [showCreatePitstop, setShowCreatePitstop] = useState(false);
   const [showEditGoal, setShowEditGoal] = useState(false);
   const [deletingGoal, setDeletingGoal] = useState(false);
@@ -63,10 +65,29 @@ export default function GoalDetail({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // React Query — seed with server data, cache for 60s, re-fetches silently after
+  const { data: goal, isFetching } = useQuery<Goal>({
+    queryKey: qk.goal(initialGoal.id),
+    queryFn: () => fetchGoal(initialGoal.id),
+    initialData: initialGoal,
+    initialDataUpdatedAt: Date.now(),
+  });
+
+  // Local mutation helper — update cache directly for optimistic updates
+  const updateGoal = (updater: (g: Goal) => Goal) => {
+    queryClient.setQueryData<Goal>(qk.goal(initialGoal.id), (old) => old ? updater(old) : old);
+  };
 
   const [recurLoading, setRecurLoading] = useState(false);
-  const isOwner = goal.owner.id === currentUserId;
-  const sortedPitstops = [...goal.pitstops].sort((a, b) => a.order - b.order);
+  const isOwner = goal!.owner.id === currentUserId;
+  const sortedPitstops = [...(goal?.pitstops ?? [])].sort((a, b) => a.order - b.order);
+
+  // Prefetch pitstop page on hover
+  const prefetchPitstop = (pitstopId: string) => {
+    router.prefetch(`/goals/${goal!.id}/pitstops/${pitstopId}`);
+  };
 
   const handleRecur = async () => {
     setRecurLoading(true);
@@ -102,7 +123,7 @@ export default function GoalDetail({
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) {
       const att = await res.json();
-      setGoal((g) => ({ ...g, attachments: [...g.attachments, att] }));
+      updateGoal((g) => ({ ...g, attachments: [...g.attachments, att] }));
     }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -110,7 +131,7 @@ export default function GoalDetail({
 
   const handleGoalOwnerChange = async (ownerId: string) => {
     const newOwner = users.find((u) => u.id === ownerId)!;
-    setGoal((g) => ({ ...g, owner: newOwner }));
+    updateGoal((g) => ({ ...g, owner: newOwner }));
     await fetch(`/api/goals/${goal.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -120,7 +141,7 @@ export default function GoalDetail({
 
   const handlePitstopOwnerChange = async (pitstopId: string, ownerId: string) => {
     const newOwner = users.find((u) => u.id === ownerId)!;
-    setGoal((g) => ({
+    updateGoal((g) => ({
       ...g,
       pitstops: g.pitstops.map((p) =>
         p.id === pitstopId ? { ...p, ownerId, owner: newOwner } : p
@@ -143,7 +164,7 @@ export default function GoalDetail({
     [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]];
     const withNewOrder = reordered.map((p, i) => ({ ...p, order: i }));
 
-    setGoal((g) => ({ ...g, pitstops: withNewOrder }));
+    updateGoal((g) => ({ ...g, pitstops: withNewOrder }));
 
     await fetch(`/api/goals/${goal.id}/pitstops/reorder`, {
       method: "PATCH",
@@ -306,7 +327,7 @@ export default function GoalDetail({
       {sortedPitstops.length > 0 && (
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-stone-700 mb-3">Route Map</h2>
-          <RouteMap pitstops={sortedPitstops} goalTitle={goal.title} goalId={goal.id} />
+          <RouteMap pitstops={sortedPitstops} goalTitle={goal!.title} goalId={goal!.id} onHover={prefetchPitstop} />
         </div>
       )}
 
@@ -338,15 +359,16 @@ export default function GoalDetail({
             <PitstopRow
               key={pitstop.id}
               pitstop={pitstop}
-              goalId={goal.id}
+              goalId={goal!.id}
               users={users}
               isFirst={idx === 0}
               isLast={idx === sortedPitstops.length - 1}
               onReorder={handleReorder}
+              onHover={prefetchPitstop}
               onOwnerChange={(ownerId) => handlePitstopOwnerChange(pitstop.id, ownerId)}
-              onDeleted={(id) => setGoal((g) => ({ ...g, pitstops: g.pitstops.filter((p) => p.id !== id) }))}
+              onDeleted={(id) => updateGoal((g) => ({ ...g, pitstops: g.pitstops.filter((p) => p.id !== id) }))}
               onUpdated={(updated) =>
-                setGoal((g) => ({ ...g, pitstops: g.pitstops.map((p) => (p.id === updated.id ? updated as Pitstop : p)) }))
+                updateGoal((g) => ({ ...g, pitstops: g.pitstops.map((p) => (p.id === updated.id ? updated as Pitstop : p)) }))
               }
             />
           ))}
@@ -361,7 +383,7 @@ export default function GoalDetail({
           onCreated={(pitstop) => {
             const p = pitstop as Pitstop;
             const newPitstop = { ...p, order: p.order ?? goal.pitstops.length };
-            setGoal((g) => ({ ...g, pitstops: [...g.pitstops, newPitstop] }));
+            updateGoal((g) => ({ ...g, pitstops: [...g.pitstops, newPitstop] }));
             setShowCreatePitstop(false);
           }}
         />
@@ -371,7 +393,7 @@ export default function GoalDetail({
         <EditGoalModal
           goal={goal}
           onClose={() => setShowEditGoal(false)}
-          onUpdated={(updated) => setGoal((g) => ({ ...g, ...updated }))}
+          onUpdated={(updated) => updateGoal((g) => ({ ...g, ...updated }))}
         />
       )}
     </div>
@@ -386,7 +408,7 @@ const statusColor: Record<string, string> = {
   Upcoming: "bg-stone-50 border-stone-200 text-stone-500",
 };
 
-function RouteMap({ pitstops, goalTitle, goalId }: { pitstops: Pitstop[]; goalTitle: string; goalId: string }) {
+function RouteMap({ pitstops, goalTitle, goalId, onHover }: { pitstops: Pitstop[]; goalTitle: string; goalId: string; onHover: (id: string) => void }) {
   return (
     <div className="overflow-x-auto pb-2 -mx-4 sm:mx-0 px-4 sm:px-0">
       <div className="flex items-center gap-0 min-w-max">
@@ -398,6 +420,8 @@ function RouteMap({ pitstops, goalTitle, goalId }: { pitstops: Pitstop[]; goalTi
           <div key={pitstop.id} className="flex items-center">
             <Link
               href={`/goals/${goalId}/pitstops/${pitstop.id}`}
+              onMouseEnter={() => onHover(pitstop.id)}
+              onTouchStart={() => onHover(pitstop.id)}
               className={`flex flex-col gap-1 px-3 py-2.5 rounded-xl border-2 text-left w-36 hover:shadow-sm transition-all ${statusColor[pitstop.status]} ${tlBorder}`}
             >
               <span className="text-[10px] font-semibold uppercase tracking-wide opacity-60">#{idx + 1}</span>
@@ -433,6 +457,7 @@ function PitstopRow({
   isFirst,
   isLast,
   onReorder,
+  onHover,
   onOwnerChange,
   onDeleted,
   onUpdated,
@@ -443,6 +468,7 @@ function PitstopRow({
   isFirst: boolean;
   isLast: boolean;
   onReorder: (id: string, dir: "up" | "down") => void;
+  onHover: (id: string) => void;
   onOwnerChange: (ownerId: string) => void;
   onDeleted: (id: string) => void;
   onUpdated: (p: Pitstop) => void;
@@ -489,7 +515,7 @@ function PitstopRow({
       </div>
 
       <div className="flex-1 min-w-0">
-        <Link href={`/goals/${goalId}/pitstops/${pitstop.id}`} className="flex items-start gap-3 px-4 py-3.5">
+        <Link href={`/goals/${goalId}/pitstops/${pitstop.id}`} onMouseEnter={() => onHover(pitstop.id)} onTouchStart={() => onHover(pitstop.id)} className="flex items-start gap-3 px-4 py-3.5">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <span className="text-sm font-medium text-stone-900">{pitstop.title}</span>

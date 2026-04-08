@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Target, ChevronRight } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge } from "@/components/StatusBadge";
 import CreateGoalModal from "./CreateGoalModal";
+import { qk } from "@/lib/query-keys";
+import { fetchGoal, fetchGoals } from "@/lib/api-client";
 
 type Goal = {
   id: string;
@@ -29,9 +33,18 @@ interface Props {
 }
 
 export default function GoalsDashboard({ initialGoals, currentUserId, searchResults }: Props) {
-  const [goals, setGoals] = useState<Goal[]>(initialGoals);
   const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">("All");
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  // React Query — initialData from server, stays fresh for 60s, re-fetches silently after
+  const { data: goals = initialGoals } = useQuery<Goal[]>({
+    queryKey: qk.goals(),
+    queryFn: fetchGoals,
+    initialData: initialGoals,
+    initialDataUpdatedAt: Date.now(),
+  });
 
   const filtered = goals.filter((g) => {
     if (filter === "Mine") return g.owner.id === currentUserId;
@@ -43,6 +56,16 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
 
   const myGoals = filtered.filter((g) => g.owner.id === currentUserId);
   const teamGoals = filtered.filter((g) => g.owner.id !== currentUserId);
+
+  // Prefetch goal data + route on hover/touch so navigation feels instant
+  const prefetchGoal = (goalId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: qk.goal(goalId),
+      queryFn: () => fetchGoal(goalId),
+      staleTime: 30 * 1000,
+    });
+    router.prefetch(`/goals/${goalId}`);
+  };
 
   if (searchResults) {
     return (
@@ -57,7 +80,7 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
             <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Goals</h2>
             <div className="space-y-2">
               {searchResults.goals.map((g) => (
-                <GoalCard key={g.id} goal={g} />
+                <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />
               ))}
             </div>
           </section>
@@ -93,7 +116,6 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-stone-900">Goals</h1>
@@ -108,7 +130,6 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
         </button>
       </div>
 
-      {/* Filter tabs */}
       <div className="flex gap-1 mb-6">
         {(["All", "Mine", "Active", "Paused", "Complete"] as const).map((f) => (
           <button
@@ -131,10 +152,7 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
             <Target className="w-6 h-6 text-stone-400" />
           </div>
           <p className="text-stone-500 text-sm">No goals yet.</p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="mt-2 text-sm text-sky-600 hover:text-sky-700"
-          >
+          <button onClick={() => setShowCreate(true)} className="mt-2 text-sm text-sky-600 hover:text-sky-700">
             Create the first one
           </button>
         </div>
@@ -144,20 +162,15 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
             <section className="mb-8">
               <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">My Goals</h2>
               <div className="space-y-2">
-                {myGoals.map((g) => (
-                  <GoalCard key={g.id} goal={g} />
-                ))}
+                {myGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
               </div>
             </section>
           )}
-
           {teamGoals.length > 0 && (
             <section>
               <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Team Goals</h2>
               <div className="space-y-2">
-                {teamGoals.map((g) => (
-                  <GoalCard key={g.id} goal={g} />
-                ))}
+                {teamGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
               </div>
             </section>
           )}
@@ -168,7 +181,7 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
         <CreateGoalModal
           onClose={() => setShowCreate(false)}
           onCreated={(goal) => {
-            setGoals((prev) => [goal as Goal, ...prev]);
+            queryClient.setQueryData<Goal[]>(qk.goals(), (old = []) => [goal as Goal, ...old]);
             setShowCreate(false);
           }}
         />
@@ -177,7 +190,7 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
   );
 }
 
-function GoalCard({ goal }: { goal: Goal }) {
+function GoalCard({ goal, onHover }: { goal: Goal; onHover: (id: string) => void }) {
   const total = goal.pitstops.length;
   const done = goal.pitstops.filter((p) => p.status === "Done").length;
   const progress = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -185,6 +198,8 @@ function GoalCard({ goal }: { goal: Goal }) {
   return (
     <Link
       href={`/goals/${goal.id}`}
+      onMouseEnter={() => onHover(goal.id)}
+      onTouchStart={() => onHover(goal.id)}
       className="flex items-center gap-4 px-4 py-3.5 bg-white rounded-lg border border-stone-200 hover:border-stone-300 hover:shadow-sm transition-all group"
     >
       <div className="flex-1 min-w-0">
@@ -198,10 +213,7 @@ function GoalCard({ goal }: { goal: Goal }) {
         {total > 0 && (
           <div className="mt-2 flex items-center gap-2">
             <div className="flex-1 h-1 bg-stone-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-sky-400 rounded-full transition-all"
-                style={{ width: `${progress}%` }}
-              />
+              <div className="h-full bg-sky-400 rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
             <span className="text-xs text-stone-400">{done}/{total}</span>
           </div>

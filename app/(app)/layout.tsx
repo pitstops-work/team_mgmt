@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import SessionProvider from "@/components/SessionProvider";
+import QueryProvider from "@/components/QueryProvider";
 import AppNav from "./AppNav";
 import PushSubscriber from "@/components/PushSubscriber";
 import prisma from "@/lib/prisma";
@@ -15,11 +16,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <SessionProvider>
+      <QueryProvider>
       <PushSubscriber />
       <div className="flex h-screen overflow-hidden">
         <AppNav user={session.user} unreadCount={unreadCount} />
         <main className="flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>
       </div>
+      </QueryProvider>
     </SessionProvider>
   );
 }
