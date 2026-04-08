@@ -596,9 +596,10 @@ function PitstopRow({
   onUpdated: (p: Pitstop) => void;
 }) {
   const totalMessages = pitstop.threads.reduce((sum, t) => sum + t._count.messages, 0);
-  const incompleteItems = pitstop.checklistItems.filter((i) => !i.checked).length;
-  const hasChecklist = pitstop.checklistItems.length > 0;
-  const checkedCount = pitstop.checklistItems.filter((i) => i.checked).length;
+  const items = pitstop.checklistItems ?? [];
+  const incompleteItems = items.filter((i) => !i.checked).length;
+  const hasChecklist = items.length > 0;
+  const checkedCount = items.filter((i) => i.checked).length;
 
   const handleDelete = async () => {
     if (!confirm("Delete this pitstop?")) return;
@@ -699,7 +700,7 @@ function PitstopRow({
             {hasChecklist && incompleteItems > 0 && (
               <span className="flex items-center gap-0.5 text-[10px] text-amber-500 ml-1" title={`${incompleteItems} checklist item${incompleteItems > 1 ? "s" : ""} remaining`}>
                 <AlertTriangle className="w-3 h-3" />
-                {checkedCount}/{pitstop.checklistItems.length}
+                {checkedCount}/{items.length}
               </span>
             )}
           </div>
