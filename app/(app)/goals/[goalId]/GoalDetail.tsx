@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock, X, CheckSquare, ExternalLink, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock, X, CheckSquare, ExternalLink, AlertTriangle, Copy } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge, PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
@@ -63,6 +63,7 @@ export default function GoalDetail({
   const [showCreatePitstop, setShowCreatePitstop] = useState(false);
   const [showEditGoal, setShowEditGoal] = useState(false);
   const [deletingGoal, setDeletingGoal] = useState(false);
+  const [cloningGoal, setCloningGoal] = useState(false);
   const [panelPitstopId, setPanelPitstopId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [uploading, setUploading] = useState(false);
@@ -106,6 +107,17 @@ export default function GoalDetail({
     setDeletingGoal(true);
     await fetch(`/api/goals/${goal.id}`, { method: "DELETE" });
     router.push("/dashboard");
+  };
+
+  const handleCloneGoal = async () => {
+    setCloningGoal(true);
+    const res = await fetch(`/api/goals/${goal.id}/clone`, { method: "POST" });
+    if (res.ok) {
+      const { id } = await res.json();
+      router.push(`/goals/${id}`);
+    } else {
+      setCloningGoal(false);
+    }
   };
 
   const handleToggleFollow = async () => {
@@ -250,6 +262,14 @@ export default function GoalDetail({
             >
               {isFollowing ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
               {isFollowing ? "Following" : "Follow"}
+            </button>
+            <button
+              onClick={handleCloneGoal}
+              disabled={cloningGoal}
+              className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors disabled:opacity-50"
+              title="Clone goal"
+            >
+              <Copy className="w-4 h-4" />
             </button>
             <button
               onClick={() => setShowEditGoal(true)}
