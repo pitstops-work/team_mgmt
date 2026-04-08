@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock, X, CheckSquare, ExternalLink, AlertTriangle } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge, PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
@@ -18,6 +18,7 @@ import { fetchGoal } from "@/lib/api-client";
 type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
 type User = { id: string; name: string | null; image: string | null };
+type ChecklistItem = { id: string; text: string; checked: boolean };
 type Pitstop = {
   id: string;
   title: string;
@@ -33,6 +34,7 @@ type Pitstop = {
   completedAt?: string | null;
   attachments: Attachment[];
   threads: Thread[];
+  checklistItems: ChecklistItem[];
 };
 type Recurrence = "None" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
 type Goal = {
@@ -61,6 +63,7 @@ export default function GoalDetail({
   const [showCreatePitstop, setShowCreatePitstop] = useState(false);
   const [showEditGoal, setShowEditGoal] = useState(false);
   const [deletingGoal, setDeletingGoal] = useState(false);
+  const [panelPitstopId, setPanelPitstopId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -171,6 +174,43 @@ export default function GoalDetail({
       body: JSON.stringify({ orderedIds: withNewOrder.map((p) => p.id) }),
     });
   };
+
+  const handlePanelCheckToggle = async (pitstopId: string, itemId: string, checked: boolean) => {
+    updateGoal((g) => {
+      const pitstops = g.pitstops.map((p) => {
+        if (p.id !== pitstopId) return p;
+        const newItems = p.checklistItems.map((i) => i.id === itemId ? { ...i, checked } : i);
+        // Auto-derive status
+        const allChecked = newItems.every((i) => i.checked);
+        const anyChecked = newItems.some((i) => i.checked);
+        const derived = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
+        return { ...p, checklistItems: newItems, status: newItems.length > 0 ? derived : p.status };
+      });
+      return { ...g, pitstops };
+    });
+    const pitstop = goal!.pitstops.find((p) => p.id === pitstopId)!;
+    const newItems = pitstop.checklistItems.map((i) => i.id === itemId ? { ...i, checked } : i);
+    const allChecked = newItems.every((i) => i.checked);
+    const anyChecked = newItems.some((i) => i.checked);
+    const derived = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
+    const calls: Promise<Response>[] = [
+      fetch(`/api/checklist/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checked }),
+      }),
+    ];
+    if (newItems.length > 0 && derived !== pitstop.status) {
+      calls.push(fetch(`/api/pitstops/${pitstopId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: derived }),
+      }));
+    }
+    await Promise.all(calls);
+  };
+
+  const panelPitstop = panelPitstopId ? sortedPitstops.find((p) => p.id === panelPitstopId) ?? null : null;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -324,7 +364,14 @@ export default function GoalDetail({
       {sortedPitstops.length > 0 && (
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-stone-700 mb-3">Route Map</h2>
-          <RouteMap pitstops={sortedPitstops} goalTitle={goal!.title} goalId={goal!.id} onHover={prefetchPitstop} />
+          <RouteMap
+            pitstops={sortedPitstops}
+            goalTitle={goal!.title}
+            goalId={goal!.id}
+            onHover={prefetchPitstop}
+            onNodeClick={(id) => setPanelPitstopId((prev) => prev === id ? null : id)}
+            activePitstopId={panelPitstopId}
+          />
         </div>
       )}
 
@@ -372,6 +419,68 @@ export default function GoalDetail({
         </div>
       )}
 
+      {/* Checklist panel (Route Map drill-down) */}
+      {panelPitstop && (
+        <div className="fixed right-0 top-0 bottom-0 w-80 bg-white shadow-2xl border-l border-stone-200 z-40 flex flex-col">
+          <div className="flex items-start justify-between px-4 py-4 border-b border-stone-100">
+            <div className="min-w-0 pr-2">
+              <p className="text-[10px] text-stone-400 uppercase tracking-wide mb-0.5">Checklist</p>
+              <h3 className="text-sm font-semibold text-stone-900 leading-snug">{panelPitstop.title}</h3>
+            </div>
+            <button onClick={() => setPanelPitstopId(null)} className="flex-shrink-0 p-1 text-stone-400 hover:text-stone-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            {panelPitstop.checklistItems.length === 0 ? (
+              <p className="text-xs text-stone-400">No checklist items.</p>
+            ) : (
+              <>
+                {(() => {
+                  const done = panelPitstop.checklistItems.filter((i) => i.checked).length;
+                  const total = panelPitstop.checklistItems.length;
+                  return (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
+                        <span className="flex items-center gap-1"><CheckSquare className="w-3.5 h-3.5" />{done}/{total}</span>
+                        <span>{Math.round((done / total) * 100)}%</span>
+                      </div>
+                      <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((done / total) * 100)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div className="space-y-2">
+                  {panelPitstop.checklistItems.map((item) => (
+                    <label key={item.id} className="flex items-start gap-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={item.checked}
+                        onChange={(e) => handlePanelCheckToggle(panelPitstop.id, item.id, e.target.checked)}
+                        className="mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0"
+                      />
+                      <span className={`text-xs leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>
+                        {item.text}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="px-4 py-3 border-t border-stone-100">
+            <Link
+              href={`/goals/${goal!.id}/pitstops/${panelPitstop.id}`}
+              className="flex items-center justify-center gap-1.5 w-full py-2 text-xs font-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors border border-sky-200 hover:border-sky-300"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open full pitstop
+            </Link>
+          </div>
+        </div>
+      )}
+
       {showCreatePitstop && (
         <CreatePitstopModal
           goalId={goal.id}
@@ -405,7 +514,14 @@ const statusColor: Record<string, string> = {
   Upcoming: "bg-stone-50 border-stone-200 text-stone-500",
 };
 
-function RouteMap({ pitstops, goalTitle, goalId, onHover }: { pitstops: Pitstop[]; goalTitle: string; goalId: string; onHover: (id: string) => void }) {
+function RouteMap({ pitstops, goalTitle, goalId, onHover, onNodeClick, activePitstopId }: {
+  pitstops: Pitstop[];
+  goalTitle: string;
+  goalId: string;
+  onHover: (id: string) => void;
+  onNodeClick: (id: string) => void;
+  activePitstopId: string | null;
+}) {
   return (
     <div className="overflow-x-auto pb-2 -mx-4 sm:mx-0 px-4 sm:px-0">
       <div className="flex items-center gap-0 min-w-max">
@@ -413,13 +529,16 @@ function RouteMap({ pitstops, goalTitle, goalId, onHover }: { pitstops: Pitstop[
           const tlInfo = getTimelineInfo(pitstop);
           const tlBorder = timelineNodeBorder(tlInfo);
           const tlChip = timelineChip(tlInfo);
+          const hasChecklist = pitstop.checklistItems.length > 0;
+          const doneCount = pitstop.checklistItems.filter((i) => i.checked).length;
+          const isActive = activePitstopId === pitstop.id;
           return (
           <div key={pitstop.id} className="flex items-center">
-            <Link
-              href={`/goals/${goalId}/pitstops/${pitstop.id}`}
+            <button
               onMouseEnter={() => onHover(pitstop.id)}
               onTouchStart={() => onHover(pitstop.id)}
-              className={`flex flex-col gap-1 px-3 py-2.5 rounded-xl border-2 text-left w-36 hover:shadow-sm transition-all ${statusColor[pitstop.status]} ${tlBorder}`}
+              onClick={() => onNodeClick(pitstop.id)}
+              className={`flex flex-col gap-1 px-3 py-2.5 rounded-xl border-2 text-left w-36 hover:shadow-sm transition-all ${statusColor[pitstop.status]} ${tlBorder} ${isActive ? "ring-2 ring-sky-400 ring-offset-1" : ""}`}
             >
               <span className="text-[10px] font-semibold uppercase tracking-wide opacity-60">#{idx + 1}</span>
               <span className="text-xs font-medium leading-snug line-clamp-2">{pitstop.title}</span>
@@ -428,8 +547,14 @@ function RouteMap({ pitstops, goalTitle, goalId, onHover }: { pitstops: Pitstop[
                 {tlChip && (
                   <span className={`text-[9px] font-medium px-1 py-0.5 rounded border ${tlChip.cls}`}>{tlChip.label}</span>
                 )}
+                {hasChecklist && (
+                  <span className="flex items-center gap-0.5 text-[9px] font-medium opacity-70">
+                    <CheckSquare className="w-2.5 h-2.5" />
+                    {doneCount}/{pitstop.checklistItems.length}
+                  </span>
+                )}
               </div>
-            </Link>
+            </button>
             <ArrowRight className="w-4 h-4 text-stone-300 mx-1 flex-shrink-0" />
           </div>
           );
@@ -471,6 +596,9 @@ function PitstopRow({
   onUpdated: (p: Pitstop) => void;
 }) {
   const totalMessages = pitstop.threads.reduce((sum, t) => sum + t._count.messages, 0);
+  const incompleteItems = pitstop.checklistItems.filter((i) => !i.checked).length;
+  const hasChecklist = pitstop.checklistItems.length > 0;
+  const checkedCount = pitstop.checklistItems.filter((i) => i.checked).length;
 
   const handleDelete = async () => {
     if (!confirm("Delete this pitstop?")) return;
@@ -479,6 +607,7 @@ function PitstopRow({
   };
 
   const handleStatusChange = async (status: string) => {
+    if (status === "Done" && hasChecklist && incompleteItems > 0) return; // blocked
     const previous = pitstop;
     onUpdated({ ...pitstop, status: status as Pitstop["status"] }); // optimistic
     const res = await fetch(`/api/pitstops/${pitstop.id}`, {
@@ -546,20 +675,33 @@ function PitstopRow({
         </Link>
 
         <div className="border-t border-stone-100 px-4 py-2 flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex gap-1">
-            {(["Upcoming", "InProgress", "Done"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => handleStatusChange(s)}
-                className={`px-2 py-0.5 text-xs rounded-md transition-colors ${
-                  pitstop.status === s
-                    ? "bg-stone-900 text-white"
-                    : "text-stone-400 hover:text-stone-600 hover:bg-stone-100"
-                }`}
-              >
-                {s === "InProgress" ? "In Progress" : s}
-              </button>
-            ))}
+          <div className="flex items-center gap-1">
+            {(["Upcoming", "InProgress", "Done"] as const).map((s) => {
+              const blocked = s === "Done" && hasChecklist && incompleteItems > 0;
+              return (
+                <button
+                  key={s}
+                  onClick={() => handleStatusChange(s)}
+                  disabled={blocked}
+                  title={blocked ? `Complete all checklist items first (${incompleteItems} remaining)` : undefined}
+                  className={`px-2 py-0.5 text-xs rounded-md transition-colors ${
+                    pitstop.status === s
+                      ? "bg-stone-900 text-white"
+                      : blocked
+                      ? "text-stone-300 cursor-not-allowed"
+                      : "text-stone-400 hover:text-stone-600 hover:bg-stone-100"
+                  }`}
+                >
+                  {s === "InProgress" ? "In Progress" : s}
+                </button>
+              );
+            })}
+            {hasChecklist && incompleteItems > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px] text-amber-500 ml-1" title={`${incompleteItems} checklist item${incompleteItems > 1 ? "s" : ""} remaining`}>
+                <AlertTriangle className="w-3 h-3" />
+                {checkedCount}/{pitstop.checklistItems.length}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <OwnerPicker users={users} value={pitstop.ownerId} onChange={onOwnerChange} />

@@ -107,15 +107,40 @@ export default function PitstopDetail({
   };
 
   const handleToggleCheck = async (itemId: string, checked: boolean) => {
+    const newItems = pitstop.checklistItems.map((i) => i.id === itemId ? { ...i, checked } : i);
+
+    // Auto-derive status from checklist
+    let newStatus: Pitstop["status"] | null = null;
+    if (newItems.length > 0) {
+      const allChecked = newItems.every((i) => i.checked);
+      const anyChecked = newItems.some((i) => i.checked);
+      const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
+      if (derived !== pitstop.status) newStatus = derived;
+    }
+
     setPitstop((p) => ({
       ...p,
-      checklistItems: p.checklistItems.map((i) => i.id === itemId ? { ...i, checked } : i),
+      checklistItems: newItems,
+      ...(newStatus ? { status: newStatus } : {}),
     }));
-    await fetch(`/api/checklist/${itemId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ checked }),
-    });
+
+    const calls: Promise<Response>[] = [
+      fetch(`/api/checklist/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checked }),
+      }),
+    ];
+    if (newStatus) {
+      calls.push(
+        fetch(`/api/pitstops/${pitstop.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        })
+      );
+    }
+    await Promise.all(calls);
   };
 
   const handleDeleteCheckItem = async (itemId: string) => {

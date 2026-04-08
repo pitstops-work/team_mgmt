@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { GoalStatusBadge } from "@/components/StatusBadge";
-import { ChevronDown, ChevronRight, AlertCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, AlertCircle, X, CheckSquare, ExternalLink } from "lucide-react";
 
 type User = { id: string; name: string | null; image: string | null };
+type ChecklistItem = { id: string; text: string; checked: boolean };
 type Pitstop = {
   id: string;
   title: string;
@@ -17,6 +18,7 @@ type Pitstop = {
   completedAt: string | null;
   ownerId: string | null;
   owner: User | null;
+  checklistItems: ChecklistItem[];
 };
 type Goal = {
   id: string;
@@ -52,7 +54,6 @@ function startOfDay(date: Date) {
 function eachWeekStart(start: Date, end: Date): Date[] {
   const weeks: Date[] = [];
   const d = new Date(start);
-  // rewind to Monday
   const day = d.getDay();
   d.setDate(d.getDate() - ((day + 6) % 7));
   while (d <= end) {
@@ -76,10 +77,11 @@ const DAY_PX = 28;
 const ROW_H = 36;
 const LABEL_W = 220;
 
-export default function GanttChart({ goals }: { goals: Goal[] }) {
+export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
+  // Keep local mutable copy so checklist toggles update bar colors
+  const [goals, setGoals] = useState(initialGoals);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [tooltip, setTooltip] = useState<{ pitstop: Pitstop; goal: Goal; x: number; y: number } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [panel, setPanel] = useState<{ pitstop: Pitstop; goal: Goal } | null>(null);
 
   const toggle = (id: string) =>
     setCollapsed((prev) => {
@@ -88,7 +90,62 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
       return next;
     });
 
-  // Determine date range across all goals + pitstops
+  const openPanel = (pitstop: Pitstop, goal: Goal) => {
+    setPanel((prev) =>
+      prev?.pitstop.id === pitstop.id ? null : { pitstop, goal }
+    );
+  };
+
+  const handlePanelToggle = async (itemId: string, checked: boolean) => {
+    if (!panel) return;
+    const pitstopId = panel.pitstop.id;
+
+    // Compute new items + auto-status
+    const newItems = panel.pitstop.checklistItems.map((i) =>
+      i.id === itemId ? { ...i, checked } : i
+    );
+    const allChecked = newItems.every((i) => i.checked);
+    const anyChecked = newItems.some((i) => i.checked);
+    const newStatus: string = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
+    const statusChanged = newStatus !== panel.pitstop.status;
+
+    const updatedPitstop = { ...panel.pitstop, checklistItems: newItems, status: newStatus };
+
+    // Update goals state so bar color updates
+    setGoals((gs) =>
+      gs.map((g) =>
+        g.id !== panel.goal.id
+          ? g
+          : {
+              ...g,
+              pitstops: g.pitstops.map((p) =>
+                p.id === pitstopId ? updatedPitstop : p
+              ),
+            }
+      )
+    );
+    setPanel({ pitstop: updatedPitstop, goal: panel.goal });
+
+    const calls: Promise<Response>[] = [
+      fetch(`/api/checklist/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checked }),
+      }),
+    ];
+    if (statusChanged) {
+      calls.push(
+        fetch(`/api/pitstops/${pitstopId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        })
+      );
+    }
+    await Promise.all(calls);
+  };
+
+  // Determine date range
   const allDates: Date[] = [];
   for (const g of goals) {
     if (g.targetDate) allDates.push(new Date(g.targetDate));
@@ -104,7 +161,6 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
   const minDate = startOfDay(allDates.length ? new Date(Math.min(...allDates.map((d) => d.getTime()))) : today);
   const maxDate = startOfDay(allDates.length ? new Date(Math.max(...allDates.map((d) => d.getTime()))) : addDays(today, 60));
 
-  // Pad a bit
   const rangeStart = addDays(minDate, -7);
   const rangeEnd = addDays(maxDate, 14);
   const totalDays = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86400000) + 1;
@@ -115,14 +171,9 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
     return Math.round((d.getTime() - rangeStart.getTime()) / 86400000);
   }
 
-  function todayOffset() {
-    return dayOffset(today);
-  }
-
   const months = eachMonthStart(rangeStart, rangeEnd);
   const weeks = eachWeekStart(rangeStart, rangeEnd);
 
-  // Build rows
   type Row =
     | { kind: "goal"; goal: Goal }
     | { kind: "pitstop"; pitstop: Pitstop; goal: Goal };
@@ -138,13 +189,12 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
   }
 
   const totalHeight = rows.length * ROW_H;
-
   const hasAnyDates = goals.some(
     (g) => g.targetDate || g.pitstops.some((p) => p.startDate || p.targetDate)
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-stone-100 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-stone-900">Gantt Chart</h1>
@@ -163,12 +213,12 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
           No goals yet.
         </div>
       ) : (
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <div ref={containerRef} className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-hidden flex">
+          {/* Main chart area */}
+          <div className="flex-1 overflow-auto flex flex-col">
             <div className="flex" style={{ minWidth: LABEL_W + totalWidth }}>
               {/* Label column */}
               <div className="flex-shrink-0 sticky left-0 z-20 bg-white border-r border-stone-200" style={{ width: LABEL_W }}>
-                {/* Header spacer */}
                 <div className="border-b border-stone-200" style={{ height: 48 }} />
                 {rows.map((row, i) => (
                   <div
@@ -192,9 +242,9 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
                         <GoalStatusBadge status={row.goal.status as any} />
                       </button>
                     ) : (
-                      <Link
-                        href={`/goals/${row.goal.id}/pitstops/${row.pitstop.id}`}
-                        className="flex items-center gap-2 w-full pl-5"
+                      <button
+                        onClick={() => openPanel(row.pitstop, row.goal)}
+                        className={`flex items-center gap-2 w-full pl-5 text-left ${panel?.pitstop.id === row.pitstop.id ? "text-sky-600 font-medium" : ""}`}
                       >
                         <span
                           className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLORS[row.pitstop.status] ?? "bg-stone-300"}`}
@@ -202,7 +252,12 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
                         <span className="text-xs text-stone-600 truncate hover:text-sky-600">
                           {row.pitstop.title}
                         </span>
-                      </Link>
+                        {row.pitstop.checklistItems.length > 0 && (
+                          <span className="flex-shrink-0 text-[10px] text-stone-400">
+                            {row.pitstop.checklistItems.filter((i) => i.checked).length}/{row.pitstop.checklistItems.length}
+                          </span>
+                        )}
+                      </button>
                     )}
                   </div>
                 ))}
@@ -226,7 +281,6 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
                       );
                     })}
                   </div>
-                  {/* Week ticks */}
                   <div className="relative" style={{ height: 24 }}>
                     {weeks.map((w, i) => {
                       const left = dayOffset(w) * DAY_PX;
@@ -245,7 +299,6 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
 
                 {/* Grid + bars */}
                 <div className="relative" style={{ height: totalHeight }}>
-                  {/* Vertical week lines */}
                   {weeks.map((w, i) => (
                     <div
                       key={i}
@@ -257,14 +310,13 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
                   {/* Today line */}
                   <div
                     className="absolute top-0 bottom-0 border-l-2 border-sky-400 z-10"
-                    style={{ left: todayOffset() * DAY_PX }}
+                    style={{ left: dayOffset(today) * DAY_PX }}
                   >
                     <div className="absolute -top-0 -left-[13px] bg-sky-400 text-white text-[9px] px-1 py-0.5 rounded font-medium">
                       today
                     </div>
                   </div>
 
-                  {/* Row backgrounds + bars */}
                   {rows.map((row, i) => {
                     const top = i * ROW_H;
                     if (row.kind === "goal") {
@@ -287,7 +339,6 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
                       );
                     }
 
-                    // Pitstop bar
                     const { pitstop } = row;
                     const start = pitstop.startDate || pitstop.targetDate;
                     const end = pitstop.targetDate || pitstop.startDate;
@@ -306,6 +357,7 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
                     const endX = end ? (dayOffset(end) + 1) * DAY_PX : startX + DAY_PX;
                     const width = Math.max(endX - startX, DAY_PX);
                     const overdue = pitstop.status !== "Done" && pitstop.targetDate && new Date(pitstop.targetDate) < today;
+                    const isSelected = panel?.pitstop.id === pitstop.id;
 
                     return (
                       <div key={i}>
@@ -313,28 +365,22 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
                           className="absolute left-0 right-0 border-b border-stone-100"
                           style={{ top, height: ROW_H }}
                         />
-                        <Link href={`/goals/${row.goal.id}/pitstops/${pitstop.id}`}>
-                          <div
-                            className={`absolute rounded-md flex items-center px-2 cursor-pointer transition-opacity hover:opacity-80 border ${
-                              overdue ? "bg-red-400 border-red-500" : `${STATUS_COLORS[pitstop.status]} ${STATUS_BORDER[pitstop.status]}`
-                            }`}
-                            style={{
-                              top: top + 6,
-                              left: startX,
-                              width,
-                              height: ROW_H - 12,
-                            }}
-                            onMouseEnter={(e) => {
-                              const rect = (e.target as HTMLElement).closest("[data-gantt]")?.getBoundingClientRect();
-                              setTooltip({ pitstop, goal: row.goal, x: e.clientX, y: e.clientY });
-                            }}
-                            onMouseLeave={() => setTooltip(null)}
-                          >
-                            <span className="text-[11px] font-medium text-white truncate leading-none">
-                              {width > 60 ? pitstop.title : ""}
-                            </span>
-                          </div>
-                        </Link>
+                        <button
+                          onClick={() => openPanel(pitstop, row.goal)}
+                          className={`absolute rounded-md flex items-center px-2 cursor-pointer transition-opacity hover:opacity-80 border ${isSelected ? "ring-2 ring-sky-300 ring-offset-1" : ""} ${
+                            overdue ? "bg-red-400 border-red-500" : `${STATUS_COLORS[pitstop.status]} ${STATUS_BORDER[pitstop.status]}`
+                          }`}
+                          style={{
+                            top: top + 6,
+                            left: startX,
+                            width,
+                            height: ROW_H - 12,
+                          }}
+                        >
+                          <span className="text-[11px] font-medium text-white truncate leading-none">
+                            {width > 60 ? pitstop.title : ""}
+                          </span>
+                        </button>
                       </div>
                     );
                   })}
@@ -342,27 +388,85 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
               </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Tooltip */}
-      {tooltip && (
-        <div
-          className="fixed z-50 bg-stone-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl pointer-events-none max-w-[200px]"
-          style={{ left: tooltip.x + 12, top: tooltip.y - 8 }}
-        >
-          <p className="font-semibold">{tooltip.pitstop.title}</p>
-          <p className="text-stone-400 mt-0.5">{tooltip.goal.title}</p>
-          <p className="mt-1 text-stone-300">
-            {tooltip.pitstop.startDate
-              ? new Date(tooltip.pitstop.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-              : "—"}
-            {" → "}
-            {tooltip.pitstop.targetDate
-              ? new Date(tooltip.pitstop.targetDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-              : "—"}
-          </p>
-          <p className="text-stone-400">{tooltip.pitstop.status}</p>
+          {/* Checklist panel */}
+          {panel && (
+            <div className="w-72 flex-shrink-0 border-l border-stone-200 bg-white flex flex-col overflow-hidden">
+              <div className="flex items-start justify-between px-4 py-3 border-b border-stone-100">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[10px] text-stone-400 uppercase tracking-wide mb-0.5">{panel.goal.title}</p>
+                  <h3 className="text-sm font-semibold text-stone-900 leading-snug">{panel.pitstop.title}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                      panel.pitstop.status === "Done" ? "bg-emerald-100 text-emerald-700" :
+                      panel.pitstop.status === "InProgress" ? "bg-sky-100 text-sky-700" :
+                      "bg-stone-100 text-stone-500"
+                    }`}>
+                      {panel.pitstop.status === "InProgress" ? "In Progress" : panel.pitstop.status}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => setPanel(null)} className="flex-shrink-0 p-1 text-stone-400 hover:text-stone-600">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-3">
+                {panel.pitstop.checklistItems.length === 0 ? (
+                  <p className="text-xs text-stone-400">No checklist items.</p>
+                ) : (
+                  <>
+                    {(() => {
+                      const done = panel.pitstop.checklistItems.filter((i) => i.checked).length;
+                      const total = panel.pitstop.checklistItems.length;
+                      return (
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
+                            <span className="flex items-center gap-1">
+                              <CheckSquare className="w-3.5 h-3.5" />
+                              {done}/{total}
+                            </span>
+                            <span>{Math.round((done / total) * 100)}%</span>
+                          </div>
+                          <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-400 rounded-full transition-all"
+                              style={{ width: `${Math.round((done / total) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    <div className="space-y-2">
+                      {panel.pitstop.checklistItems.map((item) => (
+                        <label key={item.id} className="flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={item.checked}
+                            onChange={(e) => handlePanelToggle(item.id, e.target.checked)}
+                            className="mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0"
+                          />
+                          <span className={`text-xs leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>
+                            {item.text}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="px-4 py-3 border-t border-stone-100">
+                <Link
+                  href={`/goals/${panel.goal.id}/pitstops/${panel.pitstop.id}`}
+                  className="flex items-center justify-center gap-1.5 w-full py-2 text-xs font-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors border border-sky-200 hover:border-sky-300"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open full pitstop
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -383,6 +487,7 @@ export default function GanttChart({ goals }: { goals: Goal[] }) {
           <div className="w-3 h-3 rotate-45 bg-stone-600" />
           Goal deadline
         </div>
+        <p className="ml-auto text-stone-400">Click a bar to view checklist</p>
       </div>
     </div>
   );

@@ -24,6 +24,7 @@ export default async function GoalPage({ params }: { params: Promise<{ goalId: s
               where: { deletedAt: null },
               select: { id: true, name: true, _count: { select: { messages: { where: { deletedAt: null } } } } },
             },
+            checklistItems: { select: { id: true, text: true, checked: true }, orderBy: { order: "asc" } },
           },
           orderBy: { order: "asc" },
         },
