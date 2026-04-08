@@ -29,6 +29,7 @@ model User {
   threadSubscriptions ThreadSubscription[]
   notifications       Notification[]
   pushSubscriptions   PushSubscription[]
+  createdEvents       PitstopEvent[]
 }
 
 model Account {
@@ -95,6 +96,7 @@ model Pitstop {
   ownerInherited  Boolean       @default(true)
   customType      String?
   order           Int           @default(0)
+  recurrence      PitstopRecurrence @default(None)
   startDate   DateTime?
   targetDate  DateTime?
   completedAt DateTime?
@@ -109,6 +111,9 @@ model Pitstop {
   checklistItems ChecklistItem[]
   blockedBy      PitstopDependency[] @relation("BlockedPitstop")
   blocking       PitstopDependency[] @relation("BlockingPitstop")
+  reminderLogs   PitstopReminderLog[]
+  checkinLog     PitstopCheckinLog?
+  events         PitstopEvent[]
 }
 
 model ChecklistItem {
@@ -274,6 +279,58 @@ model CustomPitstopType {
   id        String   @id @default(cuid())
   name      String   @unique
   createdAt DateTime @default(now())
+}
+
+enum PitstopRecurrence {
+  None
+  Weekly
+  Monthly
+  Quarterly
+}
+
+// Tracks the 3 one-shot reminders (10d / 3d / due-day) per pitstop
+model PitstopReminderLog {
+  id        String   @id @default(cuid())
+  pitstopId String
+  type      String   // "10d" | "3d" | "due"
+  sentAt    DateTime @default(now())
+
+  pitstop   Pitstop  @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+
+  @@unique([pitstopId, type])
+}
+
+// Tracks when we last sent an "any blockers?" check-in per pitstop
+model PitstopCheckinLog {
+  id         String   @id @default(cuid())
+  pitstopId  String   @unique
+  lastSentAt DateTime
+
+  pitstop    Pitstop  @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+}
+
+// Schedulable meetings / visits / events linked to a pitstop
+enum PitstopEventType {
+  Meeting
+  Visit
+  Event
+}
+
+model PitstopEvent {
+  id          String           @id @default(cuid())
+  title       String
+  description String?
+  type        PitstopEventType @default(Meeting)
+  scheduledAt DateTime
+  location    String?
+  pitstopId   String?
+  createdById String
+  deletedAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  pitstop     Pitstop?         @relation(fields: [pitstopId], references: [id], onDelete: SetNull)
+  createdBy   User             @relation(fields: [createdById], references: [id])
 }
 
 model AppSetting {

@@ -20,6 +20,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
   // Auto-set completedAt when status flips to Done
   const completedAt = data.status === "Done" ? (data.completedAt ?? new Date()) : data.status ? null : undefined;
 
+  const existing = await prisma.pitstop.findUnique({
+    where: { id: pitstopId },
+    select: { recurrence: true, startDate: true, targetDate: true, status: true, goalId: true, order: true },
+  });
+
   const pitstop = await prisma.pitstop.update({
     where: { id: pitstopId },
     data: {
@@ -28,6 +33,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
       customType: data.type === "Custom" ? (data.customType?.trim() || null) : data.type !== undefined ? null : undefined,
       notes: data.notes,
       status: data.status,
+      recurrence: data.recurrence,
       ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
       ownerInherited: data.ownerId !== undefined ? false : undefined,
       startDate: data.startDate !== undefined ? (data.startDate ? new Date(data.startDate) : null) : undefined,
@@ -37,6 +43,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     include: {
       attachments: true,
       threads: { select: { id: true, name: true, _count: { select: { messages: true } } } },
+      checklistItems: { select: { id: true, text: true, checked: true }, orderBy: { order: "asc" } },
     },
   });
 
@@ -56,6 +63,59 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
       create: { userId: pitstop.ownerId, goalId: pitstop.goalId },
       update: {},
     });
+  }
+
+  // Recurring pitstop — clone with next window when marked Done
+  const recurrence = data.recurrence ?? existing?.recurrence ?? "None";
+  if (data.status === "Done" && recurrence !== "None" && existing?.status !== "Done") {
+    const DAYS: Record<string, number> = { Weekly: 7, Monthly: 30, Quarterly: 91 };
+    const shift = DAYS[recurrence] ?? 0;
+    if (shift > 0 && existing?.startDate && existing?.targetDate) {
+      const newStart = new Date(existing.startDate);
+      newStart.setDate(newStart.getDate() + shift);
+      const newTarget = new Date(existing.targetDate);
+      newTarget.setDate(newTarget.getDate() + shift);
+
+      const sibling = await prisma.pitstop.findFirst({
+        where: { goalId: existing.goalId, deletedAt: null },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+
+      const cloneData = await prisma.pitstop.findUnique({
+        where: { id: pitstopId },
+        select: { title: true, type: true, customType: true, notes: true, ownerId: true, ownerInherited: true, goalId: true },
+      });
+
+      if (cloneData) {
+        const clone = await prisma.pitstop.create({
+          data: {
+            ...cloneData,
+            status: "Upcoming",
+            recurrence,
+            startDate: newStart,
+            targetDate: newTarget,
+            order: (sibling?.order ?? 0) + 1,
+          },
+        });
+
+        // Clone checklist items (unchecked)
+        const items = await prisma.checklistItem.findMany({
+          where: { pitstopId },
+          orderBy: { order: "asc" },
+        });
+        if (items.length > 0) {
+          await prisma.checklistItem.createMany({
+            data: items.map((item) => ({
+              pitstopId: clone.id,
+              text: item.text,
+              order: item.order,
+              checked: false,
+            })),
+          });
+        }
+      }
+    }
   }
 
   return Response.json(pitstop);

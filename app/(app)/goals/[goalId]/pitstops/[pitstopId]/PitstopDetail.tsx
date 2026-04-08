@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar, CheckSquare, Lock, Unlock } from "lucide-react";
+import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar, CheckSquare, Lock, Unlock, RefreshCw } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
 import OwnerPicker from "@/components/OwnerPicker";
 import Avatar from "@/components/Avatar";
@@ -26,6 +26,7 @@ type User = { id: string; name: string | null; image: string | null };
 type ChecklistItem = { id: string; text: string; checked: boolean; order: number };
 type DepPitstop = { id: string; title: string; status: string };
 type Dependency = { id: string; blockedBy: DepPitstop };
+type PitstopRecurrence = "None" | "Weekly" | "Monthly" | "Quarterly";
 type Pitstop = {
   id: string;
   title: string;
@@ -33,6 +34,7 @@ type Pitstop = {
   customType?: string | null;
   notes: string | null;
   status: "Upcoming" | "InProgress" | "Done";
+  recurrence: PitstopRecurrence;
   ownerId?: string | null;
   owner?: User | null;
   startDate?: string | null;
@@ -245,6 +247,15 @@ export default function PitstopDetail({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ownerId }),
+    });
+  };
+
+  const handleRecurrenceChange = async (recurrence: PitstopRecurrence) => {
+    setPitstop((p) => ({ ...p, recurrence }));
+    await fetch(`/api/pitstops/${pitstop.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recurrence }),
     });
   };
 
@@ -511,6 +522,35 @@ export default function PitstopDetail({
                 )}
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Recurrence */}
+        <div className="px-4 py-3 border-b border-stone-100">
+          <div className="flex items-center gap-1.5 mb-2">
+            <RefreshCw className="w-3.5 h-3.5 text-stone-400" />
+            <span className="text-xs font-medium text-stone-500">Recurrence</span>
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            {(["None", "Weekly", "Monthly", "Quarterly"] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => handleRecurrenceChange(r)}
+                className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                  pitstop.recurrence === r
+                    ? "bg-stone-900 text-white border-stone-900"
+                    : "text-stone-500 border-stone-200 hover:border-stone-300 hover:bg-stone-50"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          {pitstop.recurrence !== "None" && (
+            <p className="text-[10px] text-stone-400 mt-1.5 flex items-center gap-1">
+              <RefreshCw className="w-2.5 h-2.5" />
+              A new pitstop will be created automatically when this one is marked Done.
+            </p>
           )}
         </div>
 
