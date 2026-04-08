@@ -81,7 +81,6 @@ export default function GoalDetail({
   };
 
   const [recurLoading, setRecurLoading] = useState(false);
-  const isOwner = goal!.owner.id === currentUserId;
   const sortedPitstops = [...(goal?.pitstops ?? [])].sort((a, b) => a.order - b.order);
 
   // Prefetch pitstop page on hover
@@ -212,23 +211,21 @@ export default function GoalDetail({
               {isFollowing ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
               {isFollowing ? "Following" : "Follow"}
             </button>
-            {isOwner && (
-              <>
-                <button
-                  onClick={() => setShowEditGoal(true)}
-                  className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleDeleteGoal}
-                  disabled={deletingGoal}
-                  className="p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </>
-            )}
+            <button
+              onClick={() => setShowEditGoal(true)}
+              className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors"
+              title="Edit goal"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleDeleteGoal}
+              disabled={deletingGoal}
+              className="p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+              title="Delete goal"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
