@@ -12,7 +12,7 @@ export default async function PeoplePage() {
         name: true,
         image: true,
         ownedPitstops: {
-          where: { deletedAt: null },
+          where: { deletedAt: null, goal: { deletedAt: null } },
           select: {
             id: true,
             title: true,
