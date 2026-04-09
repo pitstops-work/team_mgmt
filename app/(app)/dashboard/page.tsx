@@ -10,14 +10,19 @@ export default async function DashboardPage({
   const session = await auth();
   const { q } = await searchParams;
 
-  const goals = await prisma.goal.findMany({
-    where: { deletedAt: null },
-    include: {
-      owner: { select: { id: true, name: true, image: true } },
-      pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  const [goals, users, programs] = await Promise.all([
+    prisma.goal.findMany({
+      where: { deletedAt: null },
+      include: {
+        owner: { select: { id: true, name: true, image: true } },
+        pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
+        programs: { include: { program: { select: { id: true, title: true } } } },
+      },
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.user.findMany({ select: { id: true, name: true, image: true }, orderBy: { name: "asc" } }),
+    prisma.program.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
+  ]);
 
   let searchResults = null;
   if (q?.trim()) {
@@ -50,6 +55,8 @@ export default async function DashboardPage({
       initialGoals={JSON.parse(JSON.stringify(goals))}
       currentUserId={session!.user!.id!}
       searchResults={searchResults ? JSON.parse(JSON.stringify(searchResults)) : null}
+      users={users}
+      programs={programs}
     />
   );
 }

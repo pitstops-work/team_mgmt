@@ -11,6 +11,7 @@ export async function GET() {
     include: {
       owner: { select: { id: true, name: true, image: true } },
       pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
+      programs: { include: { program: { select: { id: true, title: true } } } },
     },
     orderBy: { updatedAt: "desc" },
   });

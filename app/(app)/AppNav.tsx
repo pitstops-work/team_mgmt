@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import { useState } from "react";
 import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import PWAInstallButton from "@/components/PWAInstallButton";
 
 interface User {
   id?: string;
@@ -114,6 +115,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
 
         {/* User */}
         <div className="px-3 py-3 border-t border-stone-100">
+          <PWAInstallButton />
           <div className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-stone-50 group">
             <Avatar name={user.name} image={user.image} size="sm" />
             <div className="flex-1 min-w-0">
@@ -190,6 +192,9 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
               <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-stone-500">
                 <Sparkles className="w-5 h-5 text-sky-400" />
                 AI Assistant — tap ✦ button
+              </div>
+              <div className="px-1">
+                <PWAInstallButton />
               </div>
               <button onClick={() => { setShowMore(false); signOut({ callbackUrl: "/login" }); }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">

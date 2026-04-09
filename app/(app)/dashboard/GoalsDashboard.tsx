@@ -19,6 +19,7 @@ type Goal = {
   status: "Active" | "Paused" | "Complete";
   owner: { id: string; name: string | null; image: string | null };
   pitstops: { id: string; status: string }[];
+  programs: { program: { id: string; title: string } }[];
 };
 
 interface SearchResults {
@@ -31,12 +32,16 @@ interface Props {
   initialGoals: Goal[];
   currentUserId: string;
   searchResults: SearchResults | null;
+  users: { id: string; name: string | null; image: string | null }[];
+  programs: { id: string; title: string }[];
 }
 
-export default function GoalsDashboard({ initialGoals, currentUserId, searchResults }: Props) {
+export default function GoalsDashboard({ initialGoals, currentUserId, searchResults, users, programs }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
   const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">("All");
+  const [programFilter, setProgramFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -49,10 +54,12 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
   });
 
   const filtered = goals.filter((g) => {
-    if (filter === "Mine") return g.owner.id === currentUserId;
-    if (filter === "Active") return g.status === "Active";
-    if (filter === "Paused") return g.status === "Paused";
-    if (filter === "Complete") return g.status === "Complete";
+    if (filter === "Mine" && g.owner.id !== currentUserId) return false;
+    if (filter === "Active" && g.status !== "Active") return false;
+    if (filter === "Paused" && g.status !== "Paused") return false;
+    if (filter === "Complete" && g.status !== "Complete") return false;
+    if (programFilter && !g.programs.some((pg) => pg.program.id === programFilter)) return false;
+    if (userFilter && g.owner.id !== userFilter) return false;
     return true;
   });
 
@@ -141,7 +148,7 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
         </div>
       </div>
 
-      <div className="flex gap-1 mb-6">
+      <div className="flex flex-wrap gap-1 mb-4">
         {(["All", "Mine", "Active", "Paused", "Complete"] as const).map((f) => (
           <button
             key={f}
@@ -156,6 +163,51 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
           </button>
         ))}
       </div>
+
+      {(programs.length > 0 || users.length > 0) && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {programs.length > 0 && (
+            <select
+              value={programFilter}
+              onChange={(e) => setProgramFilter(e.target.value)}
+              className={`px-2.5 py-1 text-xs rounded-md border transition-colors outline-none ${
+                programFilter
+                  ? "border-sky-400 bg-sky-50 text-sky-700"
+                  : "border-stone-200 bg-white text-stone-500 hover:border-stone-300"
+              }`}
+            >
+              <option value="">All Programs</option>
+              {programs.map((p) => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+          )}
+          {users.length > 0 && (
+            <select
+              value={userFilter}
+              onChange={(e) => setUserFilter(e.target.value)}
+              className={`px-2.5 py-1 text-xs rounded-md border transition-colors outline-none ${
+                userFilter
+                  ? "border-sky-400 bg-sky-50 text-sky-700"
+                  : "border-stone-200 bg-white text-stone-500 hover:border-stone-300"
+              }`}
+            >
+              <option value="">All Members</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.name ?? u.id}</option>
+              ))}
+            </select>
+          )}
+          {(programFilter || userFilter) && (
+            <button
+              onClick={() => { setProgramFilter(""); setUserFilter(""); }}
+              className="px-2.5 py-1 text-xs text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="text-center py-16">

@@ -434,6 +434,7 @@ export default function GoalDetail({
               onUpdated={(updated) =>
                 updateGoal((g) => ({ ...g, pitstops: g.pitstops.map((p) => (p.id === updated.id ? updated as Pitstop : p)) }))
               }
+              onCloned={(cloned) => updateGoal((g) => ({ ...g, pitstops: [...g.pitstops, cloned as Pitstop] }))}
             />
           ))}
         </div>
@@ -603,6 +604,7 @@ function PitstopRow({
   onOwnerChange,
   onDeleted,
   onUpdated,
+  onCloned,
 }: {
   pitstop: Pitstop;
   goalId: string;
@@ -614,12 +616,24 @@ function PitstopRow({
   onOwnerChange: (ownerId: string) => void;
   onDeleted: (id: string) => void;
   onUpdated: (p: Pitstop) => void;
+  onCloned: (p: Pitstop) => void;
 }) {
   const totalMessages = pitstop.threads.reduce((sum, t) => sum + t._count.messages, 0);
   const items = pitstop.checklistItems ?? [];
   const incompleteItems = items.filter((i) => !i.checked).length;
   const hasChecklist = items.length > 0;
   const checkedCount = items.filter((i) => i.checked).length;
+  const [cloning, setCloning] = useState(false);
+
+  const handleClone = async () => {
+    setCloning(true);
+    const res = await fetch(`/api/pitstops/${pitstop.id}/clone`, { method: "POST" });
+    if (res.ok) {
+      const cloned = await res.json();
+      onCloned(cloned as Pitstop);
+    }
+    setCloning(false);
+  };
 
   const handleDelete = async () => {
     if (!confirm("Delete this pitstop?")) return;
@@ -726,6 +740,14 @@ function PitstopRow({
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <OwnerPicker users={users} value={pitstop.ownerId} onChange={onOwnerChange} />
+            <button
+              onClick={handleClone}
+              disabled={cloning}
+              className="p-1 text-stone-300 hover:text-stone-600 transition-colors disabled:opacity-50"
+              title="Clone pitstop"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={handleDelete}
               className="p-1 text-stone-300 hover:text-red-400 transition-colors"
