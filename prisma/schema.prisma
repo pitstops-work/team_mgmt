@@ -390,6 +390,7 @@ model PlanItem {
   title       String
   description String?
   date        DateTime
+  endDate     DateTime?
   type        String    @default("Note")
   userId      String
   deletedAt   DateTime?

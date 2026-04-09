@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { title, description, date, type, pitstopIds } = await req.json();
+  const { title, description, date, endDate, type, pitstopIds } = await req.json();
 
   const item = await prisma.planItem.update({
     where: { id },
@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(title !== undefined && { title: title.trim() }),
       ...(description !== undefined && { description: description?.trim() || null }),
       ...(date !== undefined && { date: new Date(date) }),
+      ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
       ...(type !== undefined && { type }),
       ...(pitstopIds !== undefined && {
         pitstops: {

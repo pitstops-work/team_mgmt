@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, description, date, type, pitstopIds = [], userId } = await req.json();
+  const { title, description, date, endDate, type, pitstopIds = [], userId } = await req.json();
   if (!title?.trim() || !date) return NextResponse.json({ error: "Title and date required" }, { status: 400 });
   if (!pitstopIds.length) return NextResponse.json({ error: "At least one pitstop required" }, { status: 400 });
 
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       title: title.trim(),
       description: description?.trim() || null,
       date: new Date(date),
+      endDate: endDate ? new Date(endDate) : null,
       type: type || "Note",
       userId: userId || session.user.id,
       pitstops: {

@@ -27,7 +27,7 @@ type Activity = {
 
 type PlanItem = {
   id: string; title: string; description: string | null;
-  date: string; type: string;
+  date: string; endDate: string | null; type: string;
   pitstops: { pitstop: { id: string; title: string; goal: GoalRef } }[];
 };
 
@@ -157,6 +157,8 @@ function PlanItemModal({
   const [title, setTitle]       = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [date, setDate]         = useState(initial?.date?.slice(0, 10) ?? defaultDate);
+  const [isMultiDay, setIsMultiDay] = useState(!!(initial?.endDate));
+  const [endDate, setEndDate]   = useState(initial?.endDate ? initial.endDate.slice(0, 10) : "");
   const [type, setType]         = useState(initial?.type ?? "Note");
   const [selectedPitstopIds, setSelectedPitstopIds] = useState<Set<string>>(
     new Set(initial?.pitstops?.map(p => p.pitstop.id) ?? [])
@@ -173,7 +175,9 @@ function PlanItemModal({
     const body = {
       title: title.trim(),
       description: description.trim() || null,
-      date, type,
+      date,
+      endDate: isMultiDay && endDate && endDate > date ? endDate : null,
+      type,
       pitstopIds: Array.from(selectedPitstopIds),
       userId: targetUserId,
     };
@@ -210,6 +214,21 @@ function PlanItemModal({
               <input type="date" value={date} onChange={e => setDate(e.target.value)} required
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
             </div>
+          </div>
+          {/* Multi-day toggle */}
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => { setIsMultiDay(v => !v); setEndDate(""); }}
+              className={`relative w-8 h-4 rounded-full transition-colors flex-shrink-0 ${isMultiDay ? "bg-sky-500" : "bg-stone-200"}`}>
+              <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${isMultiDay ? "translate-x-4" : "translate-x-0.5"}`} />
+            </button>
+            <span className="text-xs text-stone-600">Multi-day</span>
+            {isMultiDay && (
+              <div className="flex-1 ml-2">
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                  min={date} placeholder="End date"
+                  className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">
@@ -387,7 +406,10 @@ function WeekRow({
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate">{item.title}</p>
                         <p className="text-[10px] opacity-70 mt-0.5">
-                          {new Date(item.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                          {item.endDate
+                            ? `${fmtDate(item.date)} – ${fmtDate(item.endDate)}`
+                            : new Date(item.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+                          }
                           {" · "}{item.type}
                         </p>
                         {item.description && (
@@ -618,7 +640,7 @@ export default function PlannerView({
             );
 
             const weekActivities = activities.filter(a => inWeek(a.scheduledAt, start, end, a.endsAt));
-            const weekPlanItems  = planItems.filter(i => inWeek(i.date, start, end));
+            const weekPlanItems  = planItems.filter(i => inWeek(i.date, start, end, i.endDate));
 
             return (
               <WeekRow
