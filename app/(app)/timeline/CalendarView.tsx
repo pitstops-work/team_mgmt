@@ -148,6 +148,7 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
   const [filterStatus, setFilterStatus] = useState<"All" | "Upcoming" | "InProgress" | "Done">("All");
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
+  const [showActivities, setShowActivities] = useState(true);
 
   // Derive unique users + goals
   const allUsers: Owner[] = [];
@@ -225,7 +226,7 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
   // Day view
   const dayYMD = toYMD(anchorDate);
   const dayPitstopEvents = eventMap.get(dayYMD) ?? [];
-  const dayScheduledEvents = scheduledMap.get(dayYMD) ?? [];
+  const dayScheduledEvents = showActivities ? (scheduledMap.get(dayYMD) ?? []) : [];
   const filteredDayEvents = filterStatus === "All" ? dayPitstopEvents : dayPitstopEvents.filter(e => e.pitstop.status === filterStatus);
 
   return (
@@ -235,6 +236,17 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <h1 className="text-lg font-semibold text-stone-900">Timeline</h1>
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              onClick={() => setShowActivities(v => !v)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors ${
+                showActivities
+                  ? "bg-violet-50 border-violet-200 text-violet-700"
+                  : "bg-stone-100 border-stone-200 text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              Activities
+            </button>
             <ViewSwitcher view={viewMode} onChange={v => { setViewMode(v); setSelectedDate(null); setFilterStatus("All"); }} />
             <button onClick={goToday} className="px-2.5 py-1 text-xs font-medium text-stone-600 border border-stone-200 rounded-md hover:bg-stone-50 transition-colors">
               Today
@@ -385,9 +397,8 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
                   </Link>
                 ))}
                 {/* Scheduled events */}
-                {(() => {
+                {showActivities && (() => {
                   const dayEvs = scheduledMap.get(selectedDate) ?? [];
-                  if (!dayEvs.length) return null;
                   return (
                     <div className="pt-2 border-t border-stone-100">
                       <div className="flex items-center justify-between mb-1.5">
@@ -406,6 +417,12 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
                           </div>
                         </Link>
                       ))}
+                      <Link
+                        href={`/activities`}
+                        className="flex items-center gap-1.5 w-full px-2.5 py-2 mt-1 text-[10px] text-stone-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg border border-dashed border-stone-200 hover:border-violet-300 transition-all">
+                        <CalendarDays className="w-3 h-3" />
+                        Add activity on this day
+                      </Link>
                     </div>
                   );
                 })()}
@@ -422,7 +439,7 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
             {weekDays.map(d => {
               const ymd = toYMD(d);
               const pvEvents = eventMap.get(ymd) ?? [];
-              const schEvents = scheduledMap.get(ymd) ?? [];
+              const schEvents = showActivities ? (scheduledMap.get(ymd) ?? []) : [];
               const isToday = ymd === todayYMD;
               const total = pvEvents.length + schEvents.length;
               return (

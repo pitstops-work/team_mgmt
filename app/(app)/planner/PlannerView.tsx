@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { Plus, X, Pencil, Trash2, ChevronDown, ChevronRight, MapPin, ExternalLink, CalendarDays } from "lucide-react";
+import { Plus, X, Pencil, Trash2, ChevronDown, ChevronRight, MapPin, ExternalLink } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 
@@ -274,7 +274,6 @@ function WeekRow({
   defaultDate,
   pitstopOptions,
   targetUserId,
-  showActivities,
   onAddItem,
   onEditItem,
   onDeleteItem,
@@ -290,7 +289,6 @@ function WeekRow({
   defaultDate: string;
   pitstopOptions: PitstopRef[];
   targetUserId: string;
-  showActivities: boolean;
   onAddItem: (item: PlanItem) => void;
   onEditItem: (item: PlanItem) => void;
   onDeleteItem: (id: string) => void;
@@ -305,7 +303,7 @@ function WeekRow({
     return t >= weekStart && t <= weekEnd;
   })();
 
-  const total = pitstops.length + (showActivities ? activities.length : 0) + planItems.length;
+  const total = pitstops.length + activities.length + planItems.length;
 
   return (
     <div className={`border rounded-xl overflow-hidden transition-all ${todayInWeek ? "border-sky-200 shadow-sm" : "border-stone-200"}`}>
@@ -362,7 +360,7 @@ function WeekRow({
           )}
 
           {/* Scheduled activities */}
-          {showActivities && activities.length > 0 && (
+          {activities.length > 0 && (
             <div>
               <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider mb-1.5">Scheduled Activities</p>
               <div className="space-y-1.5">
@@ -534,7 +532,6 @@ export default function PlannerView({
   const [activities, setActivities] = useState(initialActivities);
   const [planItems, setPlanItems]   = useState(initialPlanItems);
   const [loading, setLoading]       = useState(false);
-  const [showActivities, setShowActivities] = useState(true);
 
   const isManager = currentUserId === viewUserId ? false : true;
   const viewUser = users.find(u => u.id === viewUserId);
@@ -592,7 +589,7 @@ export default function PlannerView({
             </p>
           </div>
 
-          {/* Person picker + activities toggle */}
+          {/* Person picker */}
           <div className="flex items-center gap-2 flex-wrap">
             <select
               value={viewUserId}
@@ -605,17 +602,6 @@ export default function PlannerView({
                 </option>
               ))}
             </select>
-            <button
-              onClick={() => setShowActivities(v => !v)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
-                showActivities
-                  ? "bg-violet-50 border-violet-200 text-violet-700"
-                  : "bg-stone-100 border-stone-200 text-stone-500 hover:text-stone-700"
-              }`}
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              Activities
-            </button>
           </div>
         </div>
 
@@ -675,7 +661,6 @@ export default function PlannerView({
                 defaultDate={toYMD(start)}
                 pitstopOptions={allPitstops}
                 targetUserId={viewUserId}
-                showActivities={showActivities}
                 onAddItem={handleAddItem}
                 onEditItem={handleEditItem}
                 onDeleteItem={handleDeleteItem}
