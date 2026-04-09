@@ -3,11 +3,15 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 const include = {
-  pitstop: {
+  pitstops: {
     select: {
-      id: true, title: true,
-      owner: { select: { id: true, name: true, image: true } },
-      goal: { select: { id: true, title: true } },
+      pitstop: {
+        select: {
+          id: true, title: true,
+          owner: { select: { id: true, name: true, image: true } },
+          goal: { select: { id: true, title: true } },
+        },
+      },
     },
   },
   createdBy: { select: { id: true, name: true, image: true } },
@@ -19,15 +23,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { eventId } = await params;
-  const { title, description, type, scheduledAt, endsAt, location, pitstopId, attendeeIds } = await req.json();
+  const { title, description, type, scheduledAt, endsAt, location, pitstopIds, attendeeIds } = await req.json();
 
-  // Resolve pitstop owner if pitstop is changing or if attendeeIds are being updated
-  let ownerIdToAdd: string | null = null;
-  if (pitstopId !== undefined || attendeeIds !== undefined) {
-    const resolvedPitstopId = pitstopId ?? (await prisma.pitstopEvent.findUnique({ where: { id: eventId }, select: { pitstopId: true } }))?.pitstopId;
-    if (resolvedPitstopId) {
-      const p = await prisma.pitstop.findUnique({ where: { id: resolvedPitstopId }, select: { ownerId: true } });
-      ownerIdToAdd = p?.ownerId ?? null;
+  // Resolve owners of all linked pitstops when pitstops or attendees change
+  let ownerIds: string[] = [];
+  if (pitstopIds !== undefined || attendeeIds !== undefined) {
+    const resolvedIds: string[] = pitstopIds ?? (
+      await prisma.pitstopEventPitstop.findMany({ where: { eventId }, select: { pitstopId: true } })
+    ).map((r: { pitstopId: string }) => r.pitstopId);
+
+    if (resolvedIds.length > 0) {
+      const linked = await prisma.pitstop.findMany({
+        where: { id: { in: resolvedIds } },
+        select: { ownerId: true },
+      });
+      ownerIds = linked.filter(p => p.ownerId).map(p => p.ownerId!);
     }
   }
 
@@ -40,14 +50,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
       endsAt: endsAt !== undefined ? (endsAt ? new Date(endsAt) : null) : undefined,
       location: location !== undefined ? (location || null) : undefined,
-      pitstopId: pitstopId !== undefined ? (pitstopId || null) : undefined,
+      ...(pitstopIds !== undefined ? {
+        pitstops: {
+          deleteMany: {},
+          create: pitstopIds.map((pitstopId: string) => ({ pitstopId })),
+        },
+      } : {}),
       ...(attendeeIds !== undefined ? {
         attendees: {
           deleteMany: {},
-          create: Array.from(new Set([
-            ...(ownerIdToAdd ? [ownerIdToAdd] : []),
-            ...attendeeIds,
-          ])).map((userId: string) => ({ userId })),
+          create: Array.from(new Set([...ownerIds, ...attendeeIds])).map((userId: string) => ({ userId })),
         },
       } : {}),
     },

@@ -3,11 +3,15 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 const include = {
-  pitstop: {
+  pitstops: {
     select: {
-      id: true, title: true,
-      owner: { select: { id: true, name: true, image: true } },
-      goal: { select: { id: true, title: true } },
+      pitstop: {
+        select: {
+          id: true, title: true,
+          owner: { select: { id: true, name: true, image: true } },
+          goal: { select: { id: true, title: true } },
+        },
+      },
     },
   },
   createdBy: { select: { id: true, name: true, image: true } },
@@ -31,21 +35,20 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, description, type, scheduledAt, endsAt, location, pitstopId, attendeeIds = [] } = await req.json();
+  const { title, description, type, scheduledAt, endsAt, location, pitstopIds = [], attendeeIds = [] } = await req.json();
   if (!title || !scheduledAt) return Response.json({ error: "Title and date required" }, { status: 400 });
-  if (!pitstopId) return Response.json({ error: "Pitstop is required" }, { status: 400 });
 
-  // Get pitstop owner to auto-add as attendee
-  const pitstop = await prisma.pitstop.findUnique({
-    where: { id: pitstopId },
-    select: { ownerId: true },
-  });
+  // Auto-add owners of all linked pitstops as attendees
+  let ownerIds: string[] = [];
+  if (pitstopIds.length > 0) {
+    const linked = await prisma.pitstop.findMany({
+      where: { id: { in: pitstopIds } },
+      select: { ownerId: true },
+    });
+    ownerIds = linked.filter(p => p.ownerId).map(p => p.ownerId!);
+  }
 
-  // Build deduplicated attendee set: owner + any extras
-  const allAttendeeIds = Array.from(new Set([
-    ...(pitstop?.ownerId ? [pitstop.ownerId] : []),
-    ...attendeeIds,
-  ]));
+  const allAttendeeIds = Array.from(new Set([...ownerIds, ...attendeeIds]));
 
   const event = await prisma.pitstopEvent.create({
     data: {
@@ -55,8 +58,10 @@ export async function POST(req: NextRequest) {
       scheduledAt: new Date(scheduledAt),
       endsAt: endsAt ? new Date(endsAt) : null,
       location: location || null,
-      pitstopId,
       createdById: session.user.id,
+      pitstops: {
+        create: pitstopIds.map((pitstopId: string) => ({ pitstopId })),
+      },
       attendees: {
         create: allAttendeeIds.map((userId: string) => ({ userId })),
       },

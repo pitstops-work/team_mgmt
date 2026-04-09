@@ -20,7 +20,7 @@ type Pitstop = {
 
 type Activity = {
   id: string; title: string; type: string; scheduledAt: string; endsAt: string | null; location: string | null;
-  pitstop: { id: string; title: string; goal: GoalRef } | null;
+  pitstops: { pitstop: { id: string; title: string; goal: GoalRef } }[];
   attendees: { userId: string; user: { id: string; name: string | null; image: string | null } }[];
 };
 
@@ -331,8 +331,8 @@ function WeekRow({
               <div className="space-y-1.5">
                 {activities.map(a => (
                   <Link key={a.id} href="/activities"
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 transition-colors">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ACT_TYPE_DOT[a.type] ?? "bg-stone-400"}`} />
+                    className="flex items-start gap-2 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 transition-colors">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${ACT_TYPE_DOT[a.type] ?? "bg-stone-400"}`} />
                     <div className="flex-1 min-w-0">
                       <span className="text-xs font-medium text-stone-800 truncate block">{a.title}</span>
                       <span className="text-[10px] text-stone-400">
@@ -341,12 +341,16 @@ function WeekRow({
                           : fmtTime(a.scheduledAt)
                         } · {a.type}{a.location ? ` · ${a.location}` : ""}
                       </span>
+                      {a.pitstops.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {a.pitstops.map(({ pitstop }) => (
+                            <span key={pitstop.id} className="text-[10px] text-stone-400 truncate max-w-[180px]">
+                              {pitstop.goal.title} › {pitstop.title}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {a.pitstop && (
-                      <span className="text-[10px] text-stone-400 truncate max-w-[120px] flex-shrink-0">
-                        {a.pitstop.goal.title}
-                      </span>
-                    )}
                   </Link>
                 ))}
               </div>

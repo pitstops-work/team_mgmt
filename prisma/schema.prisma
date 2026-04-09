@@ -117,7 +117,7 @@ model Pitstop {
   blocking       PitstopDependency[] @relation("BlockingPitstop")
   reminderLogs   PitstopReminderLog[]
   checkinLog     PitstopCheckinLog?
-  events         PitstopEvent[]
+  events         PitstopEventPitstop[]
   planItems      PlanItem[]
 }
 
@@ -329,15 +329,14 @@ model PitstopEvent {
   scheduledAt DateTime
   endsAt      DateTime?
   location    String?
-  pitstopId   String?
   createdById String
   deletedAt   DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  pitstop     Pitstop?              @relation(fields: [pitstopId], references: [id], onDelete: SetNull)
-  createdBy   User                  @relation(fields: [createdById], references: [id])
+  createdBy   User                   @relation(fields: [createdById], references: [id])
   attendees   PitstopEventAttendee[]
+  pitstops    PitstopEventPitstop[]
 }
 
 model PitstopEventAttendee {
@@ -349,6 +348,17 @@ model PitstopEventAttendee {
   user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
+}
+
+model PitstopEventPitstop {
+  id        String @id @default(cuid())
+  eventId   String
+  pitstopId String
+
+  event   PitstopEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  pitstop Pitstop      @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, pitstopId])
 }
 
 model Program {
