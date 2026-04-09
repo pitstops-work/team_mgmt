@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { Plus, X, Pencil, Trash2, ChevronDown, ChevronRight, MapPin, ExternalLink } from "lucide-react";
+import { Plus, X, Pencil, Trash2, ChevronDown, ChevronRight, MapPin, ExternalLink, CalendarDays } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 
