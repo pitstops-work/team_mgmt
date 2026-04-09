@@ -41,7 +41,6 @@ export async function POST(req: NextRequest) {
 
   const { title, description, date, endDate, type, pitstopIds = [], userId } = await req.json();
   if (!title?.trim() || !date) return NextResponse.json({ error: "Title and date required" }, { status: 400 });
-  if (!pitstopIds.length) return NextResponse.json({ error: "At least one pitstop required" }, { status: 400 });
 
   const item = await prisma.planItem.create({
     data: {

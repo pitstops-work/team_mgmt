@@ -169,7 +169,6 @@ function PlanItemModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    if (selectedPitstopIds.size === 0) { setError("Select at least one pitstop."); return; }
     setLoading(true);
     setError("");
     const body = {
@@ -232,14 +231,13 @@ function PlanItemModal({
           </div>
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">
-              Pitstops <span className="text-red-400">*</span>
+              Pitstops <span className="text-stone-400">(optional)</span>
             </label>
             <PitstopMultiPicker
               pitstops={pitstops}
               users={users}
               selected={selectedPitstopIds}
               onChange={setSelectedPitstopIds}
-              required
             />
           </div>
           <div>
@@ -251,7 +249,7 @@ function PlanItemModal({
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
-            <button type="submit" disabled={!title.trim() || selectedPitstopIds.size === 0 || loading}
+            <button type="submit" disabled={!title.trim() || loading}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {loading ? "Saving…" : initial ? "Save" : "Add"}
             </button>
