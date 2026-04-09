@@ -1,10 +1,10 @@
 interface AvatarProps {
   name?: string | null;
   image?: string | null;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 }
 
-const sizes = { sm: "w-6 h-6 text-xs", md: "w-8 h-8 text-sm", lg: "w-10 h-10 text-base" };
+const sizes = { xs: "w-5 h-5 text-[10px]", sm: "w-6 h-6 text-xs", md: "w-8 h-8 text-sm", lg: "w-10 h-10 text-base" };
 
 export default function Avatar({ name, image, size = "md" }: AvatarProps) {
   const initials = name
