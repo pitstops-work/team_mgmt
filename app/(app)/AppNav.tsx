@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 interface User {
@@ -78,6 +78,10 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
           <NavLink href="/activities" active={pathname === "/activities"}>
             <CalendarClock className="w-3.5 h-3.5 text-stone-500" />
             Activities
+          </NavLink>
+          <NavLink href="/planner" active={pathname === "/planner"}>
+            <BookOpen className="w-3.5 h-3.5 text-stone-500" />
+            Planner
           </NavLink>
           <NavLink href="/programs" active={pathname.startsWith("/programs")}>
             <Layers className="w-3.5 h-3.5 text-stone-500" />
@@ -168,6 +172,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             </div>
             <div className="px-3 py-2 space-y-0.5 pb-8">
               {[
+                { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
                 { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
                 { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
                 { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },

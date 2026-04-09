@@ -32,6 +32,7 @@ model User {
   pushSubscriptions   PushSubscription[]
   createdEvents       PitstopEvent[]
   eventAttendances    PitstopEventAttendee[]
+  planItems           PlanItem[]
 }
 
 model Account {
@@ -117,6 +118,7 @@ model Pitstop {
   reminderLogs   PitstopReminderLog[]
   checkinLog     PitstopCheckinLog?
   events         PitstopEvent[]
+  planItems      PlanItem[]
 }
 
 model ChecklistItem {
@@ -370,6 +372,22 @@ model ProgramGoal {
   goal    Goal    @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@unique([programId, goalId])
+}
+
+model PlanItem {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  type        String    @default("Note")
+  userId      String
+  pitstopId   String?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pitstop Pitstop? @relation(fields: [pitstopId], references: [id], onDelete: SetNull)
 }
 
 model AppSetting {
