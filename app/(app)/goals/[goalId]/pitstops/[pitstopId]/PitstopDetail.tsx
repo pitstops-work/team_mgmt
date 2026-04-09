@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar, CheckSquare, Lock, Unlock, RefreshCw } from "lucide-react";
+import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar, CheckSquare, Lock, Unlock, RefreshCw, Pencil } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
 import OwnerPicker from "@/components/OwnerPicker";
 import Avatar from "@/components/Avatar";
@@ -70,6 +70,7 @@ export default function PitstopDetail({
     initialPitstop.threads[0]?.id ?? null
   );
   const [mobileView, setMobileView] = useState<"sidebar" | "thread">("sidebar");
+  const [showEdit, setShowEdit] = useState(false);
   const [showNewThread, setShowNewThread] = useState(false);
   const [editingDates, setEditingDates] = useState(false);
   const [startDate, setStartDate] = useState(toDateInput(initialPitstop.startDate));
@@ -282,6 +283,32 @@ export default function PitstopDetail({
     }
   };
 
+  const handleSaveEdit = async (data: { title: string; type: string; customType: string; status: string; notes: string }) => {
+    const res = await fetch(`/api/pitstops/${pitstop.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: data.title,
+        type: data.type,
+        customType: data.type === "Custom" ? data.customType : null,
+        status: data.status,
+        notes: data.notes || null,
+      }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setPitstop(p => ({
+        ...p,
+        title: updated.title,
+        type: updated.type,
+        customType: updated.customType,
+        status: updated.status,
+        notes: updated.notes,
+      }));
+      setShowEdit(false);
+    }
+  };
+
   const checkedCount = pitstop.checklistItems.filter((i) => i.checked).length;
   const totalCount = pitstop.checklistItems.length;
   const isBlocked = pitstop.blockedBy.some((d) => d.blockedBy.status !== "Done");
@@ -304,7 +331,12 @@ export default function PitstopDetail({
             <ChevronLeft className="w-3.5 h-3.5" />
             {pitstop.goal.title}
           </Link>
-          <h1 className="text-sm font-semibold text-stone-900 leading-snug">{pitstop.title}</h1>
+          <div className="flex items-start gap-1.5">
+            <h1 className="text-sm font-semibold text-stone-900 leading-snug flex-1">{pitstop.title}</h1>
+            <button onClick={() => setShowEdit(true)} className="p-1 text-stone-300 hover:text-stone-600 transition-colors flex-shrink-0 mt-0.5">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </div>
           <div className="flex items-center gap-2 mt-1.5">
             <PitstopStatusBadge status={pitstop.status} />
             {isBlocked && (
@@ -324,11 +356,12 @@ export default function PitstopDetail({
         </div>
 
         {/* Notes */}
-        {pitstop.notes && (
-          <div className="px-4 py-3 border-b border-stone-100">
-            <p className="text-xs text-stone-500 leading-relaxed">{pitstop.notes}</p>
-          </div>
-        )}
+        <div className="px-4 py-3 border-b border-stone-100">
+          {pitstop.notes
+            ? <p className="text-xs text-stone-500 leading-relaxed">{pitstop.notes}</p>
+            : <button onClick={() => setShowEdit(true)} className="text-xs text-stone-300 hover:text-stone-500 italic">Add notes…</button>
+          }
+        </div>
 
         {/* Checklist */}
         <div className="px-4 py-3 border-b border-stone-100">
@@ -740,6 +773,111 @@ export default function PitstopDetail({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Edit pitstop modal */}
+      {showEdit && (
+        <EditPitstopModal
+          pitstop={pitstop}
+          onClose={() => setShowEdit(false)}
+          onSave={handleSaveEdit}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Edit modal ────────────────────────────────────────────────────────────────
+
+const PITSTOP_TYPES = [
+  "Meeting", "Training", "SiteVisit", "Discussion",
+  "AppDevelopment", "Budgeting", "Proposal", "Research", "Review", "Custom",
+];
+const PITSTOP_TYPE_LABELS: Record<string, string> = {
+  SiteVisit: "Site Visit", AppDevelopment: "App Development",
+};
+
+function EditPitstopModal({
+  pitstop,
+  onClose,
+  onSave,
+}: {
+  pitstop: Pitstop;
+  onClose: () => void;
+  onSave: (data: { title: string; type: string; customType: string; status: string; notes: string }) => Promise<void>;
+}) {
+  const [title, setTitle]       = useState(pitstop.title);
+  const [type, setType]         = useState(pitstop.type);
+  const [customType, setCustomType] = useState(pitstop.customType ?? "");
+  const [status, setStatus]     = useState(pitstop.status);
+  const [notes, setNotes]       = useState(pitstop.notes ?? "");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) { setError("Title is required."); return; }
+    if (type === "Custom" && !customType.trim()) { setError("Enter a name for the custom type."); return; }
+    setLoading(true);
+    await onSave({ title: title.trim(), type, customType: customType.trim(), status, notes });
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-stone-900">Edit Pitstop</h2>
+          <button onClick={onClose}><X className="w-4 h-4 text-stone-400" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-stone-600 mb-1">Title</label>
+            <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-stone-600 mb-1">Type</label>
+              <select value={type} onChange={e => setType(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
+                {PITSTOP_TYPES.map(t => (
+                  <option key={t} value={t}>{PITSTOP_TYPE_LABELS[t] ?? t}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-stone-600 mb-1">Status</label>
+              <select value={status} onChange={e => setStatus(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
+                <option value="Upcoming">Upcoming</option>
+                <option value="InProgress">In Progress</option>
+                <option value="Done">Done</option>
+              </select>
+            </div>
+          </div>
+          {type === "Custom" && (
+            <div>
+              <label className="block text-xs font-medium text-stone-600 mb-1">Custom type name</label>
+              <input value={customType} onChange={e => setCustomType(e.target.value)} placeholder="e.g. Community Mobilisation"
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-stone-600 mb-1">Notes</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+              placeholder="Context, background, objectives…"
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 resize-none" />
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
+            <button type="submit" disabled={!title.trim() || loading}
+              className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+              {loading ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
