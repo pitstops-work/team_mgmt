@@ -111,7 +111,7 @@ export default async function HomePage() {
     prisma.goal.findMany({
       where: {
         deletedAt: null,
-        status: { not: "Done" },
+        status: { not: "Complete" },
         pitstops: {
           some: { deletedAt: null, ownerId: currentUserId, status: { in: ["Upcoming", "InProgress"] } },
         },

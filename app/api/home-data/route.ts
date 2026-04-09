@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
     prisma.goal.findMany({
       where: {
         deletedAt: null,
-        status: { not: "Done" },
+        status: { not: "Complete" },
         pitstops: {
           some: {
             deletedAt: null,
