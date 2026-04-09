@@ -6,7 +6,7 @@ import { ChevronDown, Check, X } from "lucide-react";
 export type PitstopPickerOption = {
   id: string;
   title: string;
-  owner: { id: string; name: string | null };
+  owner?: { id: string; name: string | null } | null;
   goal: { id: string; title: string };
 };
 
@@ -39,7 +39,7 @@ export default function PitstopMultiPicker({
   }, []);
 
   const ownerPool = ownerFilter
-    ? pitstops.filter(p => p.owner.id === ownerFilter)
+    ? pitstops.filter(p => p.owner?.id === ownerFilter)
     : pitstops;
 
   const goals = Array.from(
@@ -118,7 +118,7 @@ export default function PitstopMultiPicker({
                   </span>
                   <div className="min-w-0 flex-1">
                     <span className="truncate text-stone-700 block font-medium">{p.title}</span>
-                    <span className="text-stone-400 truncate block">{p.goal.title} · {p.owner.name ?? "?"}</span>
+                    <span className="text-stone-400 truncate block">{p.goal.title} · {p.owner?.name ?? "?"}</span>
                   </div>
                 </button>
               );
