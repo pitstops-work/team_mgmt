@@ -22,7 +22,7 @@ type ScheduledEvent = {
   title: string;
   type: "Meeting" | "Visit" | "Event";
   scheduledAt: string;
-  pitstop: { id: string; title: string; goal: { id: string; title: string } } | null;
+  pitstops: { pitstop: { id: string; title: string; goal: { id: string; title: string } } }[];
 };
 type ViewMode = "day" | "week" | "month";
 
@@ -525,7 +525,7 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
                         <p className="text-xs text-stone-400 mt-0.5">
                           {ev.type} · {new Date(ev.scheduledAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}
                         </p>
-                        {ev.pitstop && <p className="text-xs text-stone-400 truncate mt-0.5">{ev.pitstop.goal.title} › {ev.pitstop.title}</p>}
+                        {ev.pitstops.length > 0 && <p className="text-xs text-stone-400 truncate mt-0.5">{ev.pitstops.map(p => `${p.pitstop.goal.title} › ${p.pitstop.title}`).join(", ")}</p>}
                       </div>
                     </Link>
                   ))}

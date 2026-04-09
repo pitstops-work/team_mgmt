@@ -32,7 +32,7 @@ export default async function TimelinePage() {
         title: true,
         type: true,
         scheduledAt: true,
-        pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } },
+        pitstops: { select: { pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } } } },
       },
       orderBy: { scheduledAt: "asc" },
     }),
