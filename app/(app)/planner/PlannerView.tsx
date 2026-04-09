@@ -72,7 +72,10 @@ const STATUS_BG: Record<string, string> = {
   Upcoming: "bg-stone-50 border-stone-200 text-stone-600",
 };
 
-const QUARTERS = ["Q1 (Jan–Mar)", "Q2 (Apr–Jun)", "Q3 (Jul–Sep)", "Q4 (Oct–Dec)"];
+// Financial year: Q1=Apr–Jun, Q2=Jul–Sep, Q3=Oct–Dec, Q4=Jan–Mar
+const QUARTERS = ["Q1 (Apr–Jun)", "Q2 (Jul–Sep)", "Q3 (Oct–Dec)", "Q4 (Jan–Mar)"];
+// Start month (0-indexed) for each FY quarter
+const FY_QUARTER_START_MONTH = [3, 6, 9, 0]; // Q1→Apr, Q2→Jul, Q3→Oct, Q4→Jan
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -81,8 +84,10 @@ function toYMD(d: Date) {
 }
 
 function getQuarterWeeks(year: number, quarter: number): { start: Date; end: Date; label: string; weekNum: number }[] {
-  const qMonthStart = (quarter - 1) * 3;
-  const qStart = new Date(year, qMonthStart, 1);
+  const startMonth = FY_QUARTER_START_MONTH[quarter - 1];
+  // Q4 (Jan–Mar) belongs to the next calendar year
+  const startYear = (quarter === 4) ? year + 1 : year;
+  const qStart = new Date(startYear, startMonth, 1);
   qStart.setHours(12, 0, 0, 0);
 
   // Start from Monday of the week containing qStart
@@ -90,7 +95,7 @@ function getQuarterWeeks(year: number, quarter: number): { start: Date; end: Dat
   const firstMonday = new Date(qStart);
   firstMonday.setDate(firstMonday.getDate() - offset);
 
-  const qEnd = new Date(year, qMonthStart + 3, 1);
+  const qEnd = new Date(startYear, startMonth + 3, 1);
 
   const weeks: { start: Date; end: Date; label: string; weekNum: number }[] = [];
   let cur = new Date(firstMonday);

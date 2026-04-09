@@ -7,12 +7,18 @@ export default async function PlannerPage() {
   const currentUserId = session!.user!.id!;
 
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+  const m = now.getMonth(); // 0-indexed
+  // FY Q1=Apr–Jun(3–5), Q2=Jul–Sep(6–8), Q3=Oct–Dec(9–11), Q4=Jan–Mar(0–2)
+  const currentQuarter = m >= 3 && m <= 5 ? 1 : m >= 6 && m <= 8 ? 2 : m >= 9 ? 3 : 4;
+  // FY year = calendar year of April (start of FY). Jan–Mar belong to previous FY year.
+  const currentYear = m < 3 ? now.getFullYear() - 1 : now.getFullYear();
 
   // Quarter date range for initial load
-  const qStart = new Date(currentYear, (currentQuarter - 1) * 3, 1);
-  const qEnd   = new Date(currentYear, currentQuarter * 3, 1);
+  const FY_QUARTER_START_MONTH = [3, 6, 9, 0];
+  const startMonth = FY_QUARTER_START_MONTH[currentQuarter - 1];
+  const startYear  = currentQuarter === 4 ? currentYear + 1 : currentYear;
+  const qStart = new Date(startYear, startMonth, 1);
+  const qEnd   = new Date(startYear, startMonth + 3, 1);
 
   const [users, pitstops, activities, planItems] = await Promise.all([
     // All users (for manager person picker)

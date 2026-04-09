@@ -11,8 +11,12 @@ export async function GET(req: NextRequest) {
   const year    = parseInt(searchParams.get("year")    || String(new Date().getFullYear()));
   const quarter = parseInt(searchParams.get("quarter") || "1");
 
-  const qStart = new Date(year, (quarter - 1) * 3, 1);
-  const qEnd   = new Date(year, quarter * 3, 1);
+  // FY quarters: Q1=Apr–Jun, Q2=Jul–Sep, Q3=Oct–Dec, Q4=Jan–Mar
+  const FY_START_MONTH = [3, 6, 9, 0];
+  const startMonth = FY_START_MONTH[quarter - 1];
+  const startYear  = quarter === 4 ? year + 1 : year;
+  const qStart = new Date(startYear, startMonth, 1);
+  const qEnd   = new Date(startYear, startMonth + 3, 1);
 
   const [pitstops, activities, planItems] = await Promise.all([
     prisma.pitstop.findMany({
