@@ -31,6 +31,7 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
   const [existingCustomTypes, setExistingCustomTypes] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("Upcoming");
+  const [priority, setPriority] = useState("Medium");
   const [startDate, setStartDate] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,7 +71,7 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(), type, customType: customType.trim() || null,
-          notes: notes.trim() || null, status,
+          notes: notes.trim() || null, status, priority,
           startDate: startDate || null,
           targetDate: targetDate || null,
         }),
@@ -133,6 +134,18 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
                 <option value="Upcoming">Upcoming</option>
                 <option value="InProgress">In Progress</option>
                 <option value="Done">Done</option>
+              </select>
+            </div>
+            <div className="w-28">
+              <label className="block text-xs font-medium text-stone-600 mb-1">Priority</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              >
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
               </select>
             </div>
           </div>

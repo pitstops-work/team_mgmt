@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/activity-morning-nudge",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-plan-nudge",
+      "schedule": "30 2 * * 1"
     }
   ],
   "experimentalServices": {

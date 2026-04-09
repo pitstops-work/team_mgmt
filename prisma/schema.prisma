@@ -91,23 +91,24 @@ model Goal {
 }
 
 model Pitstop {
-  id        String        @id @default(cuid())
+  id        String           @id @default(cuid())
   title     String
-  type      PitstopType   @default(Discussion)
+  type      PitstopType      @default(Discussion)
   notes     String?
-  status    PitstopStatus @default(Upcoming)
+  status    PitstopStatus    @default(Upcoming)
+  priority  PitstopPriority  @default(Medium)
   goalId          String
   ownerId         String?
-  ownerInherited  Boolean       @default(true)
+  ownerInherited  Boolean          @default(true)
   customType      String?
-  order           Int           @default(0)
+  order           Int              @default(0)
   recurrence      PitstopRecurrence @default(None)
   startDate   DateTime?
   targetDate  DateTime?
   completedAt DateTime?
   deletedAt   DateTime?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   goal           Goal               @relation(fields: [goalId], references: [id], onDelete: Cascade)
   owner          User?              @relation("PitstopOwner", fields: [ownerId], references: [id])
@@ -233,6 +234,13 @@ enum NotificationType {
   ActivityTagged
   ActivityFollowup
   ActivityMorningNudge
+  WeeklyPlanNudge
+}
+
+enum PitstopPriority {
+  High
+  Medium
+  Low
 }
 
 enum PitstopEventStatus {

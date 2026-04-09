@@ -24,6 +24,7 @@ const typeLabel: Record<string, string> = {
   ActivityTagged: "Activity",
   ActivityFollowup: "Activity",
   ActivityMorningNudge: "Activity",
+  WeeklyPlanNudge: "Planning",
 };
 
 type FollowupState = "idle" | "loading" | "done" | "cancelled" | "rescheduling" | "rescheduled" | "no";

@@ -10,7 +10,7 @@ import { GoalStatusBadge, PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
 import CreatePitstopModal from "./CreatePitstopModal";
 import EditGoalModal from "./EditGoalModal";
-import { getTimelineInfo, timelineChip, timelineNodeBorder, fmtDate } from "@/lib/timeline";
+import { getTimelineInfo, timelineChip, timelineNodeBorder, fmtDate, getPitstopHealth, HEALTH_DOT } from "@/lib/timeline";
 import OwnerPicker from "@/components/OwnerPicker";
 import { qk } from "@/lib/query-keys";
 import { fetchGoal } from "@/lib/api-client";
@@ -19,6 +19,7 @@ type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
 type User = { id: string; name: string | null; image: string | null };
 type ChecklistItem = { id: string; text: string; checked: boolean };
+type PitstopPriority = "High" | "Medium" | "Low";
 type Pitstop = {
   id: string;
   title: string;
@@ -26,12 +27,14 @@ type Pitstop = {
   customType?: string | null;
   notes: string | null;
   status: "Upcoming" | "InProgress" | "Done";
+  priority: PitstopPriority;
   order: number;
   ownerId?: string | null;
   owner?: User | null;
   startDate?: string | null;
   targetDate?: string | null;
   completedAt?: string | null;
+  updatedAt?: string | null;
   attachments: Attachment[];
   threads: Thread[];
   checklistItems: ChecklistItem[];
@@ -553,14 +556,18 @@ function RouteMap({ pitstops, goalTitle, goalId, onHover, onNodeClick, activePit
           const hasChecklist = pitstop.checklistItems.length > 0;
           const doneCount = pitstop.checklistItems.filter((i) => i.checked).length;
           const isActive = activePitstopId === pitstop.id;
+          const health = getPitstopHealth(pitstop);
           return (
           <div key={pitstop.id} className="flex items-center">
             <button
               onMouseEnter={() => onHover(pitstop.id)}
               onTouchStart={() => onHover(pitstop.id)}
               onClick={() => onNodeClick(pitstop.id)}
-              className={`flex flex-col gap-1 px-3 py-2.5 rounded-xl border-2 text-left w-36 hover:shadow-sm transition-all ${statusColor[pitstop.status]} ${tlBorder} ${isActive ? "ring-2 ring-sky-400 ring-offset-1" : ""}`}
+              className={`relative flex flex-col gap-1 px-3 py-2.5 rounded-xl border-2 text-left w-36 hover:shadow-sm transition-all ${statusColor[pitstop.status]} ${tlBorder} ${isActive ? "ring-2 ring-sky-400 ring-offset-1" : ""}`}
             >
+              {health !== "none" && (
+                <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${HEALTH_DOT[health]}`} title={`Health: ${health}`} />
+              )}
               <span className="text-[10px] font-semibold uppercase tracking-wide opacity-60">#{idx + 1}</span>
               <span className="text-xs font-medium leading-snug line-clamp-2">{pitstop.title}</span>
               <div className="flex items-center gap-1 flex-wrap">
@@ -679,8 +686,17 @@ function PitstopRow({
         <Link href={`/goals/${goalId}/pitstops/${pitstop.id}`} onMouseEnter={() => onHover(pitstop.id)} onTouchStart={() => onHover(pitstop.id)} className="flex items-start gap-3 px-4 py-3.5">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+              {(() => {
+                const h = getPitstopHealth(pitstop);
+                return h !== "none" ? <span className={`w-2 h-2 rounded-full flex-shrink-0 ${HEALTH_DOT[h]}`} title={`Health: ${h}`} /> : null;
+              })()}
               <span className="text-sm font-medium text-stone-900">{pitstop.title}</span>
               <PitstopStatusBadge status={pitstop.status} />
+              {pitstop.priority !== "Medium" && (
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${pitstop.priority === "High" ? "bg-red-50 border-red-200 text-red-600" : "bg-stone-50 border-stone-200 text-stone-400"}`}>
+                  {pitstop.priority}
+                </span>
+              )}
               {(() => {
                 const chip = timelineChip(getTimelineInfo(pitstop));
                 return chip ? (
@@ -739,6 +755,27 @@ function PitstopRow({
             )}
           </div>
           <div className="flex items-center gap-2 ml-auto">
+            <select
+              value={pitstop.priority}
+              onChange={async (e) => {
+                const priority = e.target.value as PitstopPriority;
+                onUpdated({ ...pitstop, priority });
+                await fetch(`/api/pitstops/${pitstop.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ priority }),
+                });
+              }}
+              className={`text-[10px] font-medium rounded border px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-sky-400 ${
+                pitstop.priority === "High"   ? "bg-red-50 border-red-200 text-red-600" :
+                pitstop.priority === "Low"    ? "bg-stone-50 border-stone-200 text-stone-400" :
+                                               "bg-stone-50 border-stone-200 text-stone-500"
+              }`}
+            >
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
             <OwnerPicker users={users} value={pitstop.ownerId} onChange={onOwnerChange} />
             <button
               onClick={handleClone}

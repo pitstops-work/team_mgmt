@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { goalId } = await params;
-  const { title, type, customType, notes, status, startDate, targetDate } = await req.json();
+  const { title, type, customType, notes, status, priority, startDate, targetDate } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
 
   const [goalRecord, existingCount] = await Promise.all([
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
     prisma.pitstop.create({
       data: {
         title, type: type ?? "Discussion", customType: type === "Custom" ? (customType?.trim() || null) : null,
-        notes, status: status ?? "Upcoming", goalId, order: existingCount,
+        notes, status: status ?? "Upcoming", priority: priority ?? "Medium", goalId, order: existingCount,
         ownerId: goalRecord?.ownerId ?? null,
         startDate: startDate ? new Date(startDate) : undefined,
         targetDate: targetDate ? new Date(targetDate) : undefined,

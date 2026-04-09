@@ -65,6 +65,35 @@ export function timelineNodeBorder(info: TimelineInfo): string {
   }
 }
 
+// Health score for a pitstop — red / amber / green / none
+export type PitstopHealth = "red" | "amber" | "green" | "none";
+
+export function getPitstopHealth(pitstop: {
+  status: string;
+  targetDate?: string | null;
+  updatedAt?: string | null;
+}): PitstopHealth {
+  const { status, targetDate, updatedAt } = pitstop;
+  if (status === "Done") return "green";
+
+  const info = getTimelineInfo(pitstop);
+  const stale = updatedAt ? (Date.now() - new Date(updatedAt).getTime()) > 14 * 24 * 60 * 60 * 1000 : false;
+
+  if (info.status === "overdue") return "red";
+  if (stale) return "red";
+  if (info.status === "due-today") return "amber";
+  if (info.status === "on-track" && info.daysLeft <= 7) return "amber";
+  if (!targetDate) return "none";
+  return "green";
+}
+
+export const HEALTH_DOT: Record<PitstopHealth, string> = {
+  red:   "bg-red-500",
+  amber: "bg-amber-400",
+  green: "bg-emerald-400",
+  none:  "bg-transparent",
+};
+
 // Format a date string as "12 Mar 2025"
 export function fmtDate(d: string | null | undefined): string {
   if (!d) return "—";
