@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
+const pitstopsInclude = {
+  pitstops: {
+    select: {
+      pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } },
+    },
+  },
+} as const;
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { title, description, date, type, pitstopId } = await req.json();
+  const { title, description, date, type, pitstopIds } = await req.json();
 
   const item = await prisma.planItem.update({
     where: { id },
@@ -16,18 +24,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(description !== undefined && { description: description?.trim() || null }),
       ...(date !== undefined && { date: new Date(date) }),
       ...(type !== undefined && { type }),
-      ...(pitstopId !== undefined && { pitstopId: pitstopId || null }),
+      ...(pitstopIds !== undefined && {
+        pitstops: {
+          deleteMany: {},
+          create: pitstopIds.map((pitstopId: string) => ({ pitstopId })),
+        },
+      }),
       updatedAt: new Date(),
     },
-    include: {
-      pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } },
-    },
+    include: pitstopsInclude,
   });
 
   return NextResponse.json(item);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

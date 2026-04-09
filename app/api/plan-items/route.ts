@@ -3,16 +3,23 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { randomUUID } from "crypto";
 
+const pitstopsInclude = {
+  pitstops: {
+    select: {
+      pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } },
+    },
+  },
+} as const;
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId") || session.user.id;
-  const year  = parseInt(searchParams.get("year")  || String(new Date().getFullYear()));
+  const userId  = searchParams.get("userId") || session.user.id;
+  const year    = parseInt(searchParams.get("year")    || String(new Date().getFullYear()));
   const quarter = parseInt(searchParams.get("quarter") || "1");
 
-  // FY quarters: Q1=Apr–Jun, Q2=Jul–Sep, Q3=Oct–Dec, Q4=Jan–Mar
   const FY_START_MONTH = [3, 6, 9, 0];
   const startMonth = FY_START_MONTH[quarter - 1];
   const startYear  = quarter === 4 ? year + 1 : year;
@@ -20,14 +27,8 @@ export async function GET(req: NextRequest) {
   const qEnd   = new Date(startYear, startMonth + 3, 1);
 
   const items = await prisma.planItem.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      date: { gte: qStart, lt: qEnd },
-    },
-    include: {
-      pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } },
-    },
+    where: { userId, deletedAt: null, date: { gte: qStart, lt: qEnd } },
+    include: pitstopsInclude,
     orderBy: { date: "asc" },
   });
 
@@ -38,10 +39,9 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, description, date, type, pitstopId, userId } = await req.json();
+  const { title, description, date, type, pitstopIds = [], userId } = await req.json();
   if (!title?.trim() || !date) return NextResponse.json({ error: "Title and date required" }, { status: 400 });
-
-  const targetUserId = userId || session.user.id;
+  if (!pitstopIds.length) return NextResponse.json({ error: "At least one pitstop required" }, { status: 400 });
 
   const item = await prisma.planItem.create({
     data: {
@@ -50,12 +50,12 @@ export async function POST(req: NextRequest) {
       description: description?.trim() || null,
       date: new Date(date),
       type: type || "Note",
-      userId: targetUserId,
-      pitstopId: pitstopId || null,
+      userId: userId || session.user.id,
+      pitstops: {
+        create: pitstopIds.map((pitstopId: string) => ({ pitstopId })),
+      },
     },
-    include: {
-      pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } },
-    },
+    include: pitstopsInclude,
   });
 
   return NextResponse.json(item, { status: 201 });

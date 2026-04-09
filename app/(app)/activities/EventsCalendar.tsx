@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock } from "lucide-react";
+import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 
 type User = { id: string; name: string | null; image: string | null };
 type PitstopOwner = { id: string; name: string | null; image: string | null };
@@ -148,13 +149,6 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
   const [selectedPitstopIds, setSelectedPitstopIds] = useState<Set<string>>(
     new Set(initial?.pitstops?.map(p => p.pitstop.id) ?? [])
   );
-  const [pitstopOpen, setPitstopOpen] = useState(false);
-  const pitstopPickerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (pitstopPickerRef.current && !pitstopPickerRef.current.contains(e.target as Node)) setPitstopOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
 
   const ownerIds = new Set(
     pitstops.filter(p => selectedPitstopIds.has(p.id)).map(p => p.owner.id)
@@ -168,15 +162,6 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
 
   const extraCandidates = users.filter(u => !ownerIds.has(u.id));
 
-  const togglePitstop = (id: string) => {
-    setSelectedPitstopIds(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-    setExtraAttendeeIds(new Set());
-  };
-
   const toggleExtra = (uid: string) => {
     setExtraAttendeeIds(prev => {
       const next = new Set(prev);
@@ -188,6 +173,7 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !date) { setError("Title and date are required."); return; }
+    if (selectedPitstopIds.size === 0) { setError("Select at least one pitstop."); return; }
     setLoading(true); setError("");
     const scheduledAt = `${date}T${time}:00`;
     const endsAt = isMultiDay && endDate && endDate > date ? `${endDate}T23:59:00` : null;
@@ -214,60 +200,16 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
               className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">Pitstops <span className="text-xs font-normal text-stone-400">(select one or more)</span></label>
-            <div ref={pitstopPickerRef} className="relative">
-              <button type="button" onClick={() => setPitstopOpen(o => !o)}
-                className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-colors text-left ${selectedPitstopIds.size > 0 ? "border-sky-300 bg-sky-50" : "border-stone-200 bg-white"}`}>
-                <span className={selectedPitstopIds.size > 0 ? "text-sky-700" : "text-stone-400"}>
-                  {selectedPitstopIds.size === 0
-                    ? "— select pitstops —"
-                    : selectedPitstopIds.size === 1
-                      ? pitstops.find(p => selectedPitstopIds.has(p.id))?.title ?? "1 pitstop"
-                      : `${selectedPitstopIds.size} pitstops`}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 opacity-50 flex-shrink-0" />
-              </button>
-              {pitstopOpen && (
-                <div className="absolute top-full mt-1 left-0 right-0 z-30 bg-white border border-stone-200 rounded-xl shadow-lg overflow-hidden">
-                  <div className="max-h-52 overflow-y-auto p-1">
-                    {pitstops.map(p => {
-                      const checked = selectedPitstopIds.has(p.id);
-                      return (
-                        <button key={p.id} type="button" onClick={() => togglePitstop(p.id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left hover:bg-stone-50 transition-colors">
-                          <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${checked ? "bg-sky-500 border-sky-500" : "border-stone-300"}`}>
-                            {checked && <Check className="w-2.5 h-2.5 text-white" />}
-                          </span>
-                          <div className="min-w-0">
-                            <span className="truncate text-stone-700 block">{p.title}</span>
-                            <span className="text-stone-400 truncate block">{p.goal.title}</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {selectedPitstopIds.size > 0 && (
-                    <div className="border-t border-stone-100 p-1">
-                      <button type="button" onClick={() => { setSelectedPitstopIds(new Set()); setExtraAttendeeIds(new Set()); }}
-                        className="w-full text-xs text-stone-400 hover:text-stone-600 py-1.5 text-center">Clear</button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            {selectedPitstopIds.size > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5 px-0.5">
-                {pitstops.filter(p => selectedPitstopIds.has(p.id)).map(p => (
-                  <span key={p.id} className="flex items-center gap-1 text-[11px] bg-sky-50 text-sky-700 border border-sky-200 rounded-full px-2 py-0.5">
-                    <AvatarSmall user={p.owner} size={3} />
-                    {p.title}
-                    <button type="button" onClick={() => togglePitstop(p.id)} className="opacity-60 hover:opacity-100">
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <label className="block text-xs font-medium text-stone-600 mb-1">
+              Pitstops <span className="text-red-400">*</span>
+            </label>
+            <PitstopMultiPicker
+              pitstops={pitstops}
+              users={users}
+              selected={selectedPitstopIds}
+              onChange={(s) => { setSelectedPitstopIds(s); setExtraAttendeeIds(new Set()); }}
+              required
+            />
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
@@ -334,7 +276,7 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
-            <button type="submit" disabled={!title.trim() || !date || loading}
+            <button type="submit" disabled={!title.trim() || !date || selectedPitstopIds.size === 0 || loading}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {loading ? "Saving…" : initial ? "Save changes" : "Create Event"}
             </button>

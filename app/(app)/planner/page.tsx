@@ -71,7 +71,7 @@ export default async function PlannerPage() {
         date: { gte: qStart, lt: qEnd },
       },
       include: {
-        pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } },
+        pitstops: { select: { pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } } } },
       },
       orderBy: { date: "asc" },
     }),

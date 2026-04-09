@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, X, Pencil, Trash2, ChevronDown, ChevronRight, MapPin, ExternalLink } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ type Activity = {
 type PlanItem = {
   id: string; title: string; description: string | null;
   date: string; type: string;
-  pitstop: { id: string; title: string; goal: GoalRef } | null;
+  pitstops: { pitstop: { id: string; title: string; goal: GoalRef } }[];
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -140,6 +141,7 @@ function PlanItemModal({
   initial,
   defaultDate,
   pitstops,
+  users,
   targetUserId,
   onClose,
   onSaved,
@@ -147,34 +149,44 @@ function PlanItemModal({
   initial?: PlanItem;
   defaultDate: string;
   pitstops: PitstopRef[];
+  users: User[];
   targetUserId: string;
   onClose: () => void;
   onSaved: (item: PlanItem) => void;
 }) {
-  const [title, setTitle] = useState(initial?.title ?? "");
+  const [title, setTitle]       = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [date, setDate] = useState(initial?.date?.slice(0, 10) ?? defaultDate);
-  const [type, setType] = useState(initial?.type ?? "Note");
-  const [pitstopId, setPitstopId] = useState(initial?.pitstop?.id ?? "");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [date, setDate]         = useState(initial?.date?.slice(0, 10) ?? defaultDate);
+  const [type, setType]         = useState(initial?.type ?? "Note");
+  const [selectedPitstopIds, setSelectedPitstopIds] = useState<Set<string>>(
+    new Set(initial?.pitstops?.map(p => p.pitstop.id) ?? [])
+  );
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    if (selectedPitstopIds.size === 0) { setError("Select at least one pitstop."); return; }
     setLoading(true);
     setError("");
-    const body = { title: title.trim(), description: description.trim() || null, date, type, pitstopId: pitstopId || null, userId: targetUserId };
+    const body = {
+      title: title.trim(),
+      description: description.trim() || null,
+      date, type,
+      pitstopIds: Array.from(selectedPitstopIds),
+      userId: targetUserId,
+    };
     const url = initial ? `/api/plan-items/${initial.id}` : "/api/plan-items";
     const method = initial ? "PATCH" : "POST";
     const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (!res.ok) { setError("Something went wrong."); setLoading(false); return; }
+    if (!res.ok) { setError((await res.json()).error ?? "Something went wrong."); setLoading(false); return; }
     onSaved(await res.json());
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-stone-900">{initial ? "Edit plan item" : "Add to plan"}</h2>
           <button onClick={onClose}><X className="w-4 h-4 text-stone-400" /></button>
@@ -200,12 +212,16 @@ function PlanItemModal({
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">Link to pitstop (optional)</label>
-            <select value={pitstopId} onChange={e => setPitstopId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
-              <option value="">— none —</option>
-              {pitstops.map(p => <option key={p.id} value={p.id}>{p.goal.title} › {p.title}</option>)}
-            </select>
+            <label className="block text-xs font-medium text-stone-600 mb-1">
+              Pitstops <span className="text-red-400">*</span>
+            </label>
+            <PitstopMultiPicker
+              pitstops={pitstops}
+              users={users}
+              selected={selectedPitstopIds}
+              onChange={setSelectedPitstopIds}
+              required
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Notes (optional)</label>
@@ -216,7 +232,7 @@ function PlanItemModal({
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
-            <button type="submit" disabled={!title.trim() || loading}
+            <button type="submit" disabled={!title.trim() || selectedPitstopIds.size === 0 || loading}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {loading ? "Saving…" : initial ? "Save" : "Add"}
             </button>
@@ -237,6 +253,7 @@ function WeekRow({
   pitstops,
   activities,
   planItems,
+  users,
   defaultDate,
   pitstopOptions,
   targetUserId,
@@ -251,6 +268,7 @@ function WeekRow({
   pitstops: Pitstop[];
   activities: Activity[];
   planItems: PlanItem[];
+  users: User[];
   defaultDate: string;
   pitstopOptions: PitstopRef[];
   targetUserId: string;
@@ -375,11 +393,15 @@ function WeekRow({
                         {item.description && (
                           <p className="text-[10px] opacity-60 mt-0.5 line-clamp-2">{item.description}</p>
                         )}
-                        {item.pitstop && (
-                          <p className="flex items-center gap-0.5 text-[10px] opacity-60 mt-0.5 truncate">
-                            <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
-                            {item.pitstop.goal.title} › {item.pitstop.title}
-                          </p>
+                        {item.pitstops.length > 0 && (
+                          <div className="flex flex-wrap gap-x-2 mt-0.5">
+                            {item.pitstops.map(({ pitstop }) => (
+                              <p key={pitstop.id} className="flex items-center gap-0.5 text-[10px] opacity-60 truncate">
+                                <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+                                {pitstop.goal.title} › {pitstop.title}
+                              </p>
+                            ))}
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -414,6 +436,7 @@ function WeekRow({
           initial={editItem ?? undefined}
           defaultDate={defaultDate}
           pitstops={pitstopOptions}
+          users={users}
           targetUserId={targetUserId}
           onClose={() => { setShowAdd(false); setEditItem(null); }}
           onSaved={item => {
@@ -607,6 +630,7 @@ export default function PlannerView({
                 pitstops={uniquePitstops}
                 activities={weekActivities}
                 planItems={weekPlanItems}
+                users={users}
                 defaultDate={toYMD(start)}
                 pitstopOptions={allPitstops}
                 targetUserId={viewUserId}

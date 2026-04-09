@@ -118,7 +118,7 @@ model Pitstop {
   reminderLogs   PitstopReminderLog[]
   checkinLog     PitstopCheckinLog?
   events         PitstopEventPitstop[]
-  planItems      PlanItem[]
+  planItems      PlanItemPitstop[]
 }
 
 model ChecklistItem {
@@ -392,13 +392,23 @@ model PlanItem {
   date        DateTime
   type        String    @default("Note")
   userId      String
-  pitstopId   String?
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pitstop Pitstop? @relation(fields: [pitstopId], references: [id], onDelete: SetNull)
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pitstops PlanItemPitstop[]
+}
+
+model PlanItemPitstop {
+  id         String @id @default(cuid())
+  planItemId String
+  pitstopId  String
+
+  planItem PlanItem @relation(fields: [planItemId], references: [id], onDelete: Cascade)
+  pitstop  Pitstop  @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+
+  @@unique([planItemId, pitstopId])
 }
 
 model AppSetting {
