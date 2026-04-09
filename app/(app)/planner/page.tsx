@@ -56,8 +56,8 @@ export default async function PlannerPage() {
         attendees: { some: { userId: currentUserId } },
       },
       select: {
-        id: true, title: true, type: true, scheduledAt: true, location: true,
-        pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } },
+        id: true, title: true, type: true, scheduledAt: true, endsAt: true, location: true,
+        pitstops: { select: { pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } } } },
         attendees: { select: { userId: true, user: { select: { id: true, name: true, image: true } } } },
       },
       orderBy: { scheduledAt: "asc" },
