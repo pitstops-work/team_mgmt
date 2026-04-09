@@ -18,6 +18,7 @@ type PitstopEvent = {
   description: string | null;
   type: "Meeting" | "Visit" | "Event";
   scheduledAt: string;
+  endsAt: string | null;
   location: string | null;
   pitstop: PitstopRef | null;
   createdBy: User;
@@ -53,6 +54,9 @@ function getWeekStart(d: Date) {
 }
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function AvatarSmall({ user, size = 5 }: { user: User; size?: number }) {
@@ -138,6 +142,8 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
   const [type, setType] = useState<"Meeting"|"Visit"|"Event">(initial?.type ?? "Meeting");
   const [date, setDate] = useState(initial ? initial.scheduledAt.slice(0,10) : (defaultDate ?? ""));
   const [time, setTime] = useState(initial ? initial.scheduledAt.slice(11,16) : "09:00");
+  const [isMultiDay, setIsMultiDay] = useState(!!(initial?.endsAt));
+  const [endDate, setEndDate] = useState(initial?.endsAt ? initial.endsAt.slice(0,10) : "");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [pitstopId, setPitstopId] = useState(initial?.pitstop?.id ?? "");
   const initialExtraIds = initial
@@ -164,8 +170,9 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
     if (!title.trim() || !date || !pitstopId) { setError("Title, date, and pitstop are required."); return; }
     setLoading(true); setError("");
     const scheduledAt = `${date}T${time}:00`;
+    const endsAt = isMultiDay && endDate && endDate > date ? `${endDate}T23:59:00` : null;
     const attendeeIds = Array.from(extraAttendeeIds);
-    const body = { title: title.trim(), description: description.trim() || null, type, scheduledAt, location: location.trim() || null, pitstopId, attendeeIds };
+    const body = { title: title.trim(), description: description.trim() || null, type, scheduledAt, endsAt, location: location.trim() || null, pitstopId, attendeeIds };
     const url = initial ? `/api/pitstop-events/${initial.id}` : "/api/pitstop-events";
     const method = initial ? "PATCH" : "POST";
     const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -213,7 +220,7 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
               </select>
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-stone-600 mb-1">Date</label>
+              <label className="block text-xs font-medium text-stone-600 mb-1">Start Date</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} required
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
             </div>
@@ -222,6 +229,21 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
               <input type="time" value={time} onChange={e => setTime(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
             </div>
+          </div>
+          {/* Multi-day toggle */}
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => { setIsMultiDay(v => !v); setEndDate(""); }}
+              className={`relative w-8 h-4 rounded-full transition-colors flex-shrink-0 ${isMultiDay ? "bg-sky-500" : "bg-stone-200"}`}>
+              <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${isMultiDay ? "translate-x-4" : "translate-x-0.5"}`} />
+            </button>
+            <span className="text-xs text-stone-600">Multi-day</span>
+            {isMultiDay && (
+              <div className="flex-1 ml-2">
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                  min={date} placeholder="End date"
+                  className="w-full px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Location (optional)</label>
@@ -273,7 +295,11 @@ function EventCard({ ev, onEdit, onDelete }: { ev: PitstopEvent; onEdit: () => v
       <div className="flex items-start justify-between gap-1">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-snug">{ev.title}</p>
-          <p className="text-xs opacity-70 mt-0.5">{fmtTime(ev.scheduledAt)} · {ev.type}</p>
+          <p className="text-xs opacity-70 mt-0.5">
+            {ev.endsAt
+              ? `${fmtDate(ev.scheduledAt)} – ${fmtDate(ev.endsAt)} · ${ev.type}`
+              : `${fmtTime(ev.scheduledAt)} · ${ev.type}`}
+          </p>
           {ev.location && (
             <p className="flex items-center gap-0.5 text-xs opacity-70 mt-0.5">
               <MapPin className="w-3 h-3" />{ev.location}

@@ -1,0 +1,1 @@
+ALTER TABLE "PitstopEvent" ADD COLUMN "endsAt" TIMESTAMP(3);

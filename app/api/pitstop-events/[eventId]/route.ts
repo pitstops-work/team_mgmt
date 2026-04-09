@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { eventId } = await params;
-  const { title, description, type, scheduledAt, location, pitstopId, attendeeIds } = await req.json();
+  const { title, description, type, scheduledAt, endsAt, location, pitstopId, attendeeIds } = await req.json();
 
   // Resolve pitstop owner if pitstop is changing or if attendeeIds are being updated
   let ownerIdToAdd: string | null = null;
@@ -38,6 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
       description: description !== undefined ? (description || null) : undefined,
       type: type ?? undefined,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+      endsAt: endsAt !== undefined ? (endsAt ? new Date(endsAt) : null) : undefined,
       location: location !== undefined ? (location || null) : undefined,
       pitstopId: pitstopId !== undefined ? (pitstopId || null) : undefined,
       ...(attendeeIds !== undefined ? {

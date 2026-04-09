@@ -327,6 +327,7 @@ model PitstopEvent {
   description String?
   type        PitstopEventType @default(Meeting)
   scheduledAt DateTime
+  endsAt      DateTime?
   location    String?
   pitstopId   String?
   createdById String

@@ -19,7 +19,7 @@ type Pitstop = {
 };
 
 type Activity = {
-  id: string; title: string; type: string; scheduledAt: string; location: string | null;
+  id: string; title: string; type: string; scheduledAt: string; endsAt: string | null; location: string | null;
   pitstop: { id: string; title: string; goal: GoalRef } | null;
   attendees: { userId: string; user: { id: string; name: string | null; image: string | null } }[];
 };
@@ -120,13 +120,18 @@ function getQuarterWeeks(year: number, quarter: number): { start: Date; end: Dat
   return weeks;
 }
 
-function inWeek(dateStr: string, weekStart: Date, weekEnd: Date) {
-  const d = new Date(dateStr);
-  return d >= weekStart && d <= weekEnd;
+function inWeek(dateStr: string, weekStart: Date, weekEnd: Date, endDateStr?: string | null) {
+  const start = new Date(dateStr);
+  const end = endDateStr ? new Date(endDateStr) : start;
+  // overlaps if event start <= week end AND event end >= week start
+  return start <= weekEnd && end >= weekStart;
 }
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // ── Add / Edit plan item modal ────────────────────────────────────────────────
@@ -331,8 +336,10 @@ function WeekRow({
                     <div className="flex-1 min-w-0">
                       <span className="text-xs font-medium text-stone-800 truncate block">{a.title}</span>
                       <span className="text-[10px] text-stone-400">
-                        {fmtTime(a.scheduledAt)} · {a.type}
-                        {a.location ? ` · ${a.location}` : ""}
+                        {a.endsAt
+                          ? `${fmtDate(a.scheduledAt)} – ${fmtDate(a.endsAt)}`
+                          : fmtTime(a.scheduledAt)
+                        } · {a.type}{a.location ? ` · ${a.location}` : ""}
                       </span>
                     </div>
                     {a.pitstop && (
@@ -583,7 +590,7 @@ export default function PlannerView({
               weekPitstops.findIndex(x => x.id === p.id) === idx
             );
 
-            const weekActivities = activities.filter(a => inWeek(a.scheduledAt, start, end));
+            const weekActivities = activities.filter(a => inWeek(a.scheduledAt, start, end, a.endsAt));
             const weekPlanItems  = planItems.filter(i => inWeek(i.date, start, end));
 
             return (
