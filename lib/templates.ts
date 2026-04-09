@@ -898,6 +898,146 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
   ];
 }
 
+// ── Seeding Programme Template ───────────────────────────────────────────────
+
+function buildSeedingTemplate(params: Record<string, string | number>): PitstopTemplate[] {
+  const cohort = Number(params.cohort) || 5;
+
+  return [
+    {
+      title: "Programme Team Setup & Hiring",
+      type: "Milestone",
+      notes: `Set up the core seeding team and establish the weekly tracking rhythm. The programme requires 2 additional hires to support sourcing, screening, and handholding. Weekly tracking meeting (Fridays, 9am) between programme leads. Seeding and handholding will be done by respective Geo teams while sourcing and screening are held centrally.`,
+      startSlaDays: 0,
+      slaDays: 30,
+      checklist: [
+        { text: "Draft JD and initiate hiring for 2 seeding programme support roles" },
+        { text: "Identify interim support from existing team while hires are in progress" },
+        { text: "Set up weekly Friday 9am tracking meeting (programme leads)" },
+        { text: "Define roles: who holds sourcing/screening centrally vs geo-level handholding" },
+        { text: "Set up shared tracking sheet / MIS for seeding pipeline" },
+        { text: "Onboard new hires and orient them on the seeding approach and categories" },
+      ],
+    },
+    {
+      title: "Geo Demand Estimation",
+      type: "Milestone",
+      notes: `Engage each Geo team to understand where and what type of seeding is needed. Output: a demand map per geography — thematic priorities, preferred candidate profiles, and readiness to handhold. This demand map drives the sourcing framework. Without it, sourcing risks being supply-led and misaligned.`,
+      startSlaDays: 7,
+      slaDays: 45,
+      checklist: [
+        { text: "Design demand estimation questionnaire for Geo teams" },
+        { text: "Meet each Geo team lead — understand thematic gaps and expansion priorities" },
+        { text: "Identify programmatic domains with clarity and frameworks (e.g. livelihoods, creches)" },
+        { text: "Identify geographies where seeding is a priority in the near term" },
+        { text: "Understand Geo team capacity to handhold a seeded organisation (bandwidth, experience)" },
+        { text: "Compile demand map: geography × theme × preferred candidate type" },
+        { text: "Share demand map with programme leads for alignment" },
+      ],
+    },
+    {
+      title: "Learning from Peer Seeding Institutions",
+      type: "Meeting",
+      notes: `Engage 3–5 institutions that do seeding or incubation work in the social sector to learn from their experience — what worked, what didn't, how they structure cohorts, what support is most valued, and common failure modes. This informs our model design before we commit to an approach.`,
+      startSlaDays: 7,
+      slaDays: 45,
+      checklist: [
+        { text: "Identify 3–5 peer institutions doing seeding/incubation (social sector)" },
+        { text: "Prepare structured learning questions: sourcing, screening, support model, failure modes" },
+        { text: "Conduct conversations with each institution — take structured notes" },
+        { text: "Understand how they differentiate between categories (freshers vs alumni vs young orgs)" },
+        { text: "Understand their capacity-building approach and what worked" },
+        { text: "Understand how they manage the 'thin line' between over-involvement and under-support" },
+        { text: "Synthesise learnings into a 1-page note for internal discussion" },
+      ],
+    },
+    {
+      title: "Sourcing Framework Development",
+      type: "Milestone",
+      notes: `Develop the sourcing framework covering all 5 candidate categories: (A) freshers from social work colleges, (B) alumni in CSOs / partner orgs, (C) youth leaders already engaged in communities, (D) young organisations not yet grown, (E) alumni from non-social-work institutions. Each category has a different sourcing channel, screening lens, and mode of engagement. Framework must link to the geo demand map.`,
+      startSlaDays: 30,
+      slaDays: 60,
+      checklist: [
+        { text: "Draft sourcing channels per category (A–E) — colleges, networks, partner orgs, communities" },
+        { text: "Define screening criteria per category — what does 'potential' look like for each?" },
+        { text: "Define mode of engagement per category — internship, seed fund, early-stage grant, etc." },
+        { text: "Define 12–18 month pathway for Category A (freshers): intern → incubation → seed-stage" },
+        { text: "Define 12–18 month pathway for Category B/C: seed fund → early-stage grant" },
+        { text: "Revisit Category D (young orgs) — current experience weak; identify revised support structure" },
+        { text: "Set priority order across categories (Category E is last priority currently)" },
+        { text: "Link sourcing targets to geo demand map — which categories for which geographies?" },
+        { text: "Share draft framework with Geo teams for feedback" },
+        { text: "Finalise framework — document and circulate to all stakeholders" },
+      ],
+    },
+    {
+      title: "Capacity Building Approach Decision",
+      type: "Meeting",
+      notes: `Decide how capacity building support will be structured for seeded organisations. Three options discussed: (1) through the URC, (2) through mentor organisations, (3) through dedicated teams in Geo teams. These are not mutually exclusive. Decision should factor in cost, quality, proximity to the seeded org, and Geo team bandwidth.`,
+      startSlaDays: 30,
+      slaDays: 60,
+      checklist: [
+        { text: "Map current URC capacity and willingness to support seeded organisations" },
+        { text: "Identify potential mentor organisations per geography/theme" },
+        { text: "Assess Geo team bandwidth for dedicated handholding" },
+        { text: "Present options and tradeoffs to programme leadership for decision" },
+        { text: "Draft capacity building plan for the first cohort based on chosen approach" },
+        { text: "Document decision and rationale — share with Geo teams" },
+      ],
+    },
+    {
+      title: "Sourcing & Screening — Build Pipeline",
+      type: "Milestone",
+      notes: `Activate sourcing channels and build a pipeline of ${cohort * 4}–${cohort * 6} candidates (targeting a ${cohort}-person/org cohort, assuming ~4–6× funnel). Sourcing and screening are held centrally. Geo teams are consulted on fit with local demand. Screening distinguishes genuine motivation and potential from surface interest.`,
+      startSlaDays: 45,
+      slaDays: 90,
+      checklist: [
+        { text: "Activate sourcing channels per category — reach out to colleges, networks, partner orgs" },
+        { text: `Build initial pipeline of ${cohort * 4}–${cohort * 6} candidates across categories` },
+        { text: "Design screening process: application, conversation, reference check" },
+        { text: "Conduct first-round screening conversations with all applicants" },
+        { text: "Involve Geo teams in assessing fit with local demand and context" },
+        { text: "Shortlist candidates — document rationale per shortlisted person/org" },
+        { text: "Conduct deeper assessment for shortlisted candidates (second conversation / field visit)" },
+        { text: `Finalise cohort of ${cohort} candidates — document selection rationale` },
+      ],
+    },
+    {
+      title: "Cohort Onboarding & Placement",
+      type: "Milestone",
+      notes: `Onboard the first seeding cohort. Category A (freshers): place as interns with partner organisations for 12–18 months. Category B/C (alumni/youth leaders): typically placed in home states/districts with a 12–18 month seed fund, followed by early-stage grant. Each seeded individual/org gets a designated Geo team contact for handholding. Balance between over-involvement and under-support is critical.`,
+      startSlaDays: 75,
+      slaDays: 120,
+      checklist: [
+        { text: "Confirm placement details with each cohort member — host org (if intern) or geography (if seeding)" },
+        { text: "Issue seed fund agreements / internship letters as applicable" },
+        { text: "Assign Geo team contact per cohort member for handholding" },
+        { text: "Conduct onboarding orientation — explain expectations, support available, review cadence" },
+        { text: "Set up 12–18 month engagement calendar for each cohort member" },
+        { text: "Define what 'progress' looks like at 3, 6, 12 months for each cohort member" },
+        { text: "Introduce cohort members to each other — enable peer learning" },
+        { text: "Document cohort baseline: motivation, skills, context, stated goals" },
+      ],
+    },
+    {
+      title: "Review & Monitoring Cadence",
+      type: "Milestone",
+      notes: `Establish a structured review rhythm to track progress without over-controlling. Weekly Friday meeting tracks operational progress. Quarterly review assesses cohort progress at a deeper level. Seeded orgs/individuals should feel supported but not suffocated — the review process should be light-touch and developmental rather than compliance-oriented.`,
+      startSlaDays: 14,
+      slaDays: 90,
+      checklist: [
+        { text: "Weekly Friday 9am check-in: pipeline status, blockers, decisions needed" },
+        { text: "Set up cohort tracking tracker: status per member, support given, milestones hit" },
+        { text: "Monthly check-in with each cohort member (Geo team lead)" },
+        { text: "Quarterly programme review: cohort progress, framework learnings, adjustments needed" },
+        { text: "Define early warning indicators — what signals a cohort member is struggling?" },
+        { text: "Define exit/graduation criteria — when is a seeded org ready for the next stage?" },
+        { text: "Document learnings after first cohort — inform second cohort design" },
+      ],
+    },
+  ];
+}
+
 // ── Scheme Linkage & Entitlements Drive Template ─────────────────────────────
 
 function buildSchemeLinkageTemplate(params: Record<string, string | number>): PitstopTemplate[] {
@@ -1191,6 +1331,24 @@ export const TEMPLATES: GoalTemplate[] = [
       },
     ],
     build: buildYouthTemplate,
+  },
+  {
+    id: "seeding-programme",
+    name: "Seeding Programme",
+    description: "End-to-end programme for sourcing, screening, and seeding new organisations in the social sector. Covers team setup, geo demand estimation, peer learning, sourcing framework, capacity building approach, pipeline building, cohort placement, and review cadence.",
+    category: "Programmes",
+    icon: "🌱",
+    parameters: [
+      {
+        key: "cohort",
+        label: "Cohort size (individuals / orgs)",
+        type: "number",
+        min: 1,
+        max: 1000000,
+        placeholder: "e.g. 5",
+      },
+    ],
+    build: buildSeedingTemplate,
   },
   {
     id: "scheme-linkage-drive",
