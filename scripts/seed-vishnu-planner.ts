@@ -5,7 +5,8 @@
  *   DATABASE_URL="postgresql://..." USER_EMAIL="your@email.com" npx tsx scripts/seed-vishnu-planner.ts
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../app/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import * as readline from "readline";
 
 const userEmail = process.env.USER_EMAIL;
@@ -72,7 +73,8 @@ const ITEMS = [
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 async function main() {
-  const prisma = new PrismaClient();
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+  const prisma = new PrismaClient({ adapter });
 
   const user = await prisma.user.findUnique({
     where: { email: userEmail! },
