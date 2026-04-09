@@ -243,6 +243,221 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
   return pitstops;
 }
 
+// ── Welfare Rights Programme Template ────────────────────────────────────────
+
+function buildWelfareRightsTemplate(params: Record<string, string | number>): PitstopTemplate[] {
+  const clusters = Number(params.clusters) || 1;
+  const hhPerCluster = 5000;
+  const totalHH = clusters * hhPerCluster;
+  const totalCOs = clusters * 3;                         // 2-3 COs per cluster, use 3
+  const coTrainingBatches = Math.ceil(totalCOs / 20);    // ~20 per training batch
+  const totalMASGroups = Math.ceil(totalHH / 300);       // 1 MAS per 300 HH
+  const totalCommunityGroups = Math.ceil(totalHH / 500); // 1 group per ~500 HH
+  const totalSettlements = clusters * 7;                 // avg 7 settlements per cluster
+
+  return [
+    {
+      title: "Team Recruitment & Deployment",
+      type: "Milestone",
+      notes: `Recruit and deploy the full programme team for ${clusters} cluster(s). Required: 1 Project Coordinator, ${clusters} Cluster Coordinator(s), ${clusters} Resource Centre Coordinator(s), 1 MIS Coordinator, ${totalCOs} Community Organizer(s) (2-3 per cluster). For expansion: COs must be from the community with no prior experience required — only interest and openness to learn.`,
+      startSlaDays: 0,
+      slaDays: 21,
+      checklist: [
+        { text: "Recruit Project Coordinator" },
+        { text: `Recruit ${clusters} Cluster Coordinator(s)` },
+        { text: `Recruit ${clusters} Resource Centre Coordinator(s)` },
+        { text: "Recruit MIS Coordinator" },
+        { text: `Recruit ${totalCOs} Community Organizers (from community, 2-3 per cluster)` },
+        { text: "Conduct team induction and orientation session" },
+        { text: "Map existing COs — assess interests, capacity, entitlement experience, stakeholder relationships" },
+        { text: "Assign COs to clusters and settlements (3-4 slums per CO)" },
+        { text: "Set up team communication channels and review cadence" },
+      ],
+    },
+    {
+      title: "Cluster & Settlement Mapping",
+      type: "Research",
+      notes: `Map all ${clusters} cluster(s) covering approx. ${totalHH.toLocaleString()} households across ${totalSettlements} settlements. Each cluster has 6-8 settlements and ~5,000 households. Identify existing community groups (active/inactive), MAS groups, and locate relevant government infrastructure.`,
+      startSlaDays: 7,
+      slaDays: 35,
+      checklist: [
+        { text: `Delineate ${clusters} cluster boundary/boundaries with ward/block boundaries` },
+        { text: `List all ${totalSettlements} settlements (approx.) in intervention area` },
+        { text: "Enumerate household count per settlement" },
+        { text: "Identify existing community groups (active, inactive, or absent) per settlement" },
+        { text: "Map existing Mahila Arogya Samiti (MAS) groups per settlement" },
+        { text: "Locate PHC, Anganwadi, government schools, police station per cluster" },
+        { text: "Identify key community leaders and influencers in each settlement" },
+        { text: "Document findings in cluster planning sheet and share with team" },
+      ],
+    },
+    {
+      title: "CO Orientation Training",
+      type: "Training",
+      notes: `Conduct 3-day orientation for all ${totalCOs} Community Organizers in batches of up to 20. Covers programme objectives, community organising, civic amenities, MAS, stakeholder engagement, mobile app for mapping and MIS, and the monthly training calendar for Year 1.`,
+      startSlaDays: 14,
+      slaDays: 45,
+      checklist: [
+        ...Array.from({ length: coTrainingBatches }, (_, i) => ({
+          text: `Batch ${i + 1}: 3-day orientation for COs ${i * 20 + 1}–${Math.min((i + 1) * 20, totalCOs)}`,
+        })),
+        { text: "Day 1 content: Programme objectives, community group formation, roles & responsibilities" },
+        { text: "Day 2 content: Civic amenities baseline — categories, mapping tool, mobile app" },
+        { text: "Day 3 content: MAS, Bal Raksha Samiti, SDMC, entitlements, stakeholder engagement" },
+        { text: "Distribute mapping tools, registers, and mobile app access to all COs" },
+        { text: "Share Year 1 monthly training calendar with all COs" },
+      ],
+    },
+    {
+      title: "Community Group Formation & Activation",
+      type: "Meeting",
+      notes: `Form or activate community groups across all ${totalSettlements} settlements. Target: 1 group per ~500 HH (approx. ${totalCommunityGroups} groups total), 20 members each. Ensure representation of women, parents of school-going children, and across age groups. Each group needs a regular meeting space.`,
+      startSlaDays: 30,
+      slaDays: 75,
+      checklist: [
+        { text: "Review existing groups from mapping — categorise as active, inactive, or absent" },
+        { text: "For inactive groups: re-engage identified leaders and conduct revival meeting" },
+        { text: "For settlements without groups: identify interested members with CO support" },
+        { text: "Ensure group composition: women participation, parents of school-going children, cross-age" },
+        { text: `Form/activate approx. ${totalCommunityGroups} community groups across all settlements` },
+        { text: "Identify and confirm meeting space for each group" },
+        { text: "Conduct initial meeting for each group: objectives, roles & responsibilities, monthly schedule" },
+        { text: "Introduce civic amenities baseline concept to each group" },
+        { text: "Identify 2-3 group leaders per community group" },
+        { text: "Document group roster, meeting schedule, and leader contacts in MIS" },
+      ],
+    },
+    {
+      title: "Mahila Arogya Samiti (MAS) Setup",
+      type: "Meeting",
+      notes: `Form or strengthen MAS groups — 1 per 300 households (approx. ${totalMASGroups} groups total). Work with ASHA to form groups where absent. Link each MAS with the local PHC and identify 5 priority health issues per group. Also initiate Bal Raksha Samiti and Vigilance Committee formation as conditions allow.`,
+      startSlaDays: 35,
+      slaDays: 80,
+      checklist: [
+        { text: "Map all existing MAS groups with CO support" },
+        { text: `Identify gaps — target total of ${totalMASGroups} MAS groups across ${clusters} cluster(s)` },
+        { text: "Work with ASHA workers to form MAS where none exist (1 per 300 HH)" },
+        { text: "Conduct first MAS meeting in each settlement — introduce programme and roles" },
+        { text: "Link each MAS group with local PHC/Medical Officer" },
+        { text: "Facilitate identification of 5 priority health issues per MAS group" },
+        { text: "Begin Bal Raksha Samiti formation in settlements with school-going children" },
+        { text: "Begin Vigilance Committee formation as relevant issues are identified" },
+        { text: "Register MAS groups and meeting cadence in MIS" },
+      ],
+    },
+    {
+      title: "Civic Amenities Baseline Mapping",
+      type: "Research",
+      notes: `Conduct a structured baseline mapping of 7 civic amenity categories across all ${totalSettlements} settlements. Use the mobile application and mapping tool. COs work alongside community members in this exercise. Output: settlement-level data on access to toilets, water, drainage, waste collection, streetlights, CCTV, and other issues.`,
+      startSlaDays: 45,
+      slaDays: 90,
+      checklist: [
+        { text: "Complete CO training on mapping tool and mobile application" },
+        { text: "Map: access to public toilets (availability, functionality, gender-segregated)" },
+        { text: "Map: access to regular drinking water supply" },
+        { text: "Map: drainage and sewer line coverage" },
+        { text: "Map: waste collection frequency and coverage (BBMP or equivalent)" },
+        { text: "Map: adequacy of streetlights" },
+        { text: "Map: CCTV coverage in blind spots / unsafe areas" },
+        { text: "Map: other settlement-specific civic issues identified by community" },
+        { text: `Compile findings for all ${totalSettlements} settlements` },
+        { text: "Share settlement-level mapping reports with community groups and cluster coordinators" },
+        { text: "Prioritise top 3 issues per settlement for action planning" },
+      ],
+    },
+    {
+      title: "Stakeholder Engagement & Relationship Building",
+      type: "Meeting",
+      notes: `Establish structured relationships with key government stakeholders in each cluster: ASHA, ANM, PHC staff, police, nodal officer, Medical Officer, Block/Ward office officers. Conduct first round of stakeholder meetings. Set up regular engagement rhythm based on issues identified in baseline mapping.`,
+      startSlaDays: 50,
+      slaDays: 90,
+      checklist: [
+        { text: "Map all relevant stakeholders per cluster: ASHA, ANM, PHC MO, police, ward/block officers" },
+        { text: "Introduce programme to each stakeholder with formal letter and CO meeting" },
+        { text: "Establish regular meeting schedule with PHC (monthly), police (monthly), ward officer (monthly)" },
+        { text: "Conduct first Adalat / grievance forum at slum level in each cluster" },
+        { text: "Invite stakeholders to attend cluster-level community group meetings" },
+        { text: "Establish referral pathway for GBV/DV cases to police and support services" },
+        { text: "Establish referral pathway for housing/land rights to relevant authorities" },
+        { text: "Document stakeholder contacts, meeting rhythm, and engagement status per cluster" },
+      ],
+    },
+    {
+      title: "MIS & Mobile App Deployment",
+      type: "Milestone",
+      notes: `Deploy and operationalise the MIS system and mobile application across all COs and coordinators. The app must capture: community group roster and attendance, meeting rhythm and action plans, civic amenity mapping data, entitlements facilitated, DV cases, MAS group data, and stakeholder visits.`,
+      startSlaDays: 30,
+      slaDays: 60,
+      checklist: [
+        { text: "Install mobile app on all CO devices" },
+        { text: "Create user accounts for all COs, cluster coordinators, and programme team" },
+        { text: "Train all COs on data entry: group meetings, attendance, action plans" },
+        { text: "Train COs on civic amenities mapping module" },
+        { text: "Train COs on entitlement tracking and DV case reporting" },
+        { text: "Configure cluster coordinator view: groups, meetings, attendance, action plan status" },
+        { text: "Configure MAS tracking module" },
+        { text: "Conduct first MIS data quality review (2 weeks after deployment)" },
+        { text: "Set up monthly MIS reporting cadence for programme team" },
+      ],
+    },
+    {
+      title: "Issue-Based Capacity Building of Community Leaders",
+      type: "Training",
+      notes: `Based on civic amenities mapping findings, conduct targeted training for community group leaders on specific issues. For example, if waste collection is irregular, train on BBMP process, grievance portal, responsible officer identification. Monthly 1-day training for group leaders planned throughout Year 1.`,
+      startSlaDays: 75,
+      slaDays: 110,
+      checklist: [
+        { text: "Review mapping data to identify top 3 issues per cluster" },
+        { text: "Design issue-specific training modules for top civic amenity issues" },
+        { text: "Train leaders on: how to use grievance redressal portals (BBMP, ward, PHC)" },
+        { text: "Train leaders on: how to identify and meet responsible department officer" },
+        { text: "Train leaders on: writing complaint letters and follow-up process" },
+        { text: "Train leaders on: housing rights and land title deed application process" },
+        { text: "Conduct exposure visit for community leaders to a well-functioning similar programme" },
+        { text: "Begin tracking resolution rate of issues identified in baseline mapping" },
+      ],
+    },
+    {
+      title: "Land Title Deed & Housing Rights Drive",
+      type: "Milestone",
+      notes: `Facilitate land title deed applications for eligible households across all clusters. COs to spend ~3 days/month on collection of applications and follow-up. Train COs and community leaders on application process. Conduct exposure visits to existing models.`,
+      startSlaDays: 60,
+      slaDays: 120,
+      checklist: [
+        { text: "Train COs on land title deed eligibility criteria and application process" },
+        { text: "Conduct exposure visit for COs to an existing housing rights model" },
+        { text: "Identify eligible households in each settlement" },
+        { text: "Conduct application collection drives (CO 3 days/month dedicated)" },
+        { text: "Submit applications to relevant authority (municipality/BDA/BBMP)" },
+        { text: "Track application status per household in MIS" },
+        { text: "Conduct department follow-up visits (monthly)" },
+        { text: "Report resolution rate of housing/land rights cases quarterly" },
+      ],
+    },
+    {
+      title: "Review & Monitoring Cadence Setup",
+      type: "Milestone",
+      notes: `Establish the full programme review and supervision architecture. Monthly: CC visits bi-monthly to each CO, resource centre monthly review, foundation team participates in cluster meetings. Key metrics: group meeting cadence, civic issue resolution rate, MAS functioning, entitlements facilitated, DV referrals.`,
+      startSlaDays: 90,
+      slaDays: 120,
+      checklist: [
+        { text: "Set Cluster Coordinator bi-monthly visit schedule to each CO's group meetings" },
+        { text: "Schedule monthly resource centre review (COs share action plans and status)" },
+        { text: "Schedule monthly cluster-level meeting (CC + all COs + community leaders)" },
+        { text: "Schedule monthly foundation team participation in cluster meetings" },
+        { text: "Schedule monthly Cluster Coordinator review by zone/programme lead" },
+        { text: "Define key metrics tracking: group meeting cadence & attendance" },
+        { text: "Define key metrics tracking: civic amenity issue resolution rate (one-time and recurring)" },
+        { text: "Define key metrics tracking: 100% of members able to resolve frequent category issues" },
+        { text: "Define key metrics tracking: MAS meeting frequency and PHC issue resolution" },
+        { text: "Define key metrics tracking: land/housing applications filed and resolved" },
+        { text: "Define key metrics tracking: DV/GBV referrals made and follow-up status" },
+        { text: "Conduct first round of monthly reviews and document learnings" },
+      ],
+    },
+  ];
+}
+
 // ── Template registry ─────────────────────────────────────────────────────────
 
 export const TEMPLATES: GoalTemplate[] = [
@@ -263,6 +478,24 @@ export const TEMPLATES: GoalTemplate[] = [
       },
     ],
     build: buildCrecheTemplate,
+  },
+  {
+    id: "welfare-rights",
+    name: "Welfare Rights Programme",
+    description: "Community collective formation and civic empowerment programme. Covers team setup, settlement mapping, community group formation, MAS, civic amenities baseline, stakeholder engagement, and ongoing review cadence.",
+    category: "Community Programs",
+    icon: "⚖️",
+    parameters: [
+      {
+        key: "clusters",
+        label: "Number of clusters",
+        type: "number",
+        min: 1,
+        max: 20,
+        placeholder: "e.g. 2 (each ~5,000 HH, 6-8 settlements)",
+      },
+    ],
+    build: buildWelfareRightsTemplate,
   },
 ];
 
