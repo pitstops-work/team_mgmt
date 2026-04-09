@@ -247,9 +247,9 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
 
 function buildWelfareRightsTemplate(params: Record<string, string | number>): PitstopTemplate[] {
   const clusters = Number(params.clusters) || 1;
-  const hhPerCluster = 5000;
+  const hhPerCluster = 5500;                             // avg 5,000–6,000 HH per cluster
   const totalHH = clusters * hhPerCluster;
-  const totalCOs = clusters * 3;                         // 2-3 COs per cluster, use 3
+  const totalCOs = clusters * 2;                         // 2 COs per cluster
   const coTrainingBatches = Math.ceil(totalCOs / 20);    // ~20 per training batch
   const totalMASGroups = Math.ceil(totalHH / 300);       // 1 MAS per 300 HH
   const totalCommunityGroups = Math.ceil(totalHH / 500); // 1 group per ~500 HH
@@ -259,18 +259,18 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
     {
       title: "Team Recruitment & Deployment",
       type: "Milestone",
-      notes: `Recruit and deploy the full programme team for ${clusters} cluster(s). Required: 1 Project Coordinator, ${clusters} Cluster Coordinator(s), ${clusters} Resource Centre Coordinator(s), 1 MIS Coordinator, ${totalCOs} Community Organizer(s) (2-3 per cluster). For expansion: COs must be from the community with no prior experience required — only interest and openness to learn.`,
+      notes: `Recruit and deploy the full programme team for ${clusters} cluster(s) (~${totalHH.toLocaleString()} HH total). Required: 1 Programme Manager, ${clusters} Cluster Coordinator(s), ${clusters} Resource Centre Coordinator(s), 1 MIS Coordinator, ${totalCOs} Community Organizer(s) (2 per cluster, covering ~5,000–6,000 HH each). COs must be from the community with no prior experience required — only interest and openness to learn.`,
       startSlaDays: 0,
       slaDays: 21,
       checklist: [
-        { text: "Recruit Project Coordinator" },
-        { text: `Recruit ${clusters} Cluster Coordinator(s)` },
-        { text: `Recruit ${clusters} Resource Centre Coordinator(s)` },
-        { text: "Recruit MIS Coordinator" },
-        { text: `Recruit ${totalCOs} Community Organizers (from community, 2-3 per cluster)` },
+        { text: "Recruit Programme Manager (1 overall)" },
+        { text: `Recruit ${clusters} Cluster Coordinator(s) (1 per cluster)` },
+        { text: `Recruit ${clusters} Resource Centre Coordinator(s) (1 per cluster RCC)` },
+        { text: "Recruit MIS Coordinator (1 overall)" },
+        { text: `Recruit ${totalCOs} Community Organizers (2 per cluster, from community)` },
         { text: "Conduct team induction and orientation session" },
         { text: "Map existing COs — assess interests, capacity, entitlement experience, stakeholder relationships" },
-        { text: "Assign COs to clusters and settlements (3-4 slums per CO)" },
+        { text: "Assign COs to clusters and settlements" },
         { text: "Set up team communication channels and review cadence" },
       ],
     },
@@ -901,22 +901,24 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
 // ── Scheme Linkage & Entitlements Drive Template ─────────────────────────────
 
 function buildSchemeLinkageTemplate(params: Record<string, string | number>): PitstopTemplate[] {
-  const hh = Number(params.households) || 500;
-  const cos = Math.ceil(hh / 200);          // 1 CO per ~200 HH (30 visits/day, ~weekly cycle)
-  const acs = Math.ceil(cos / 3);           // 1 Area Coordinator per 3 COs
-  const hasMISCoord = hh >= 300;            // dedicated MIS coordinator above 300 HH
+  const hh = Number(params.households) || 625;
+  const cos = Math.ceil(hh / 625);          // 1 CO per 625 HH
+  const acs = Math.ceil(cos / 3);           // 1 Area Coordinator per 3–4 COs
+  const rccs = Math.max(1, acs);            // 1 Resource Centre Coordinator per AC cluster
 
   return [
     {
       title: "Team Deployment & Scheme Training",
       type: "Training",
-      notes: `Assign and train the field team for ${hh} households. Staff needed: ${cos} Community Organiser(s), ${acs} Area Coordinator(s)${hasMISCoord ? ", 1 MIS Coordinator" : ""}. Training covers: eligibility criteria for each scheme, required documents, application process (online/offline), common rejection reasons, how to update household MIS, and daily plan generation logic.`,
+      notes: `Assign and train the field team for ${hh.toLocaleString()} households. Staff needed: 1 Programme Manager, ${cos} Community Organiser(s) (1 per 625 HH), ${acs} Area Coordinator(s) (1 per 3–4 COs), ${rccs} Resource Centre Coordinator(s) (1 per RCC), 1 MIS Coordinator. Training covers: eligibility criteria for each scheme, required documents, application process (online/offline), common rejection reasons, how to update household MIS, and daily plan generation logic.`,
       startSlaDays: 0,
       slaDays: 21,
       checklist: [
-        { text: `Assign ${cos} Community Organiser(s) to this settlement/cluster` },
-        { text: `Assign ${acs} Area Coordinator(s) for supervision and escalation` },
-        ...(hasMISCoord ? [{ text: "Assign MIS Coordinator to manage household data entry and reports" }] : []),
+        { text: "Assign Programme Manager (1 overall)" },
+        { text: `Assign ${cos} Community Organiser(s) (1 per 625 HH)` },
+        { text: `Assign ${acs} Area Coordinator(s) (1 per 3–4 COs)` },
+        { text: `Assign ${rccs} Resource Centre Coordinator(s) (1 per RCC)` },
+        { text: "Assign MIS Coordinator (1 overall)" },
         { text: "Conduct 3-day induction: scheme eligibility, document checklist, application process" },
         { text: "Train on CMCHIS / PMJAY: eligibility (income <₹72k/year), docs (Aadhaar + Income cert), 1467 empanelled hospitals" },
         { text: "Train on PMJJBY: ₹2L life insurance @₹436/year, needs bank account, age 18–50" },
