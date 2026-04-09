@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -24,7 +24,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      router.push(`/dashboard?q=${encodeURIComponent(query.trim())}`);
+      router.push(`/dashboard?q=${encodeURIComponent(query.trim())}`); // search lives on goals page
     }
   };
 
@@ -34,7 +34,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
       <nav className="hidden sm:flex w-56 flex-shrink-0 border-r border-stone-200 bg-white flex-col h-full">
         {/* Logo */}
         <div className="px-4 py-5 border-b border-stone-100">
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <Link href="/home" className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-sky-500 flex items-center justify-center">
               <Target className="w-4 h-4 text-white" />
             </div>
@@ -60,6 +60,10 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
 
         {/* Nav links */}
         <div className="flex-1 px-3 py-3 space-y-0.5">
+          <NavLink href="/home" active={pathname === "/home"}>
+            <LayoutDashboard className="w-3.5 h-3.5 text-stone-500" />
+            Home
+          </NavLink>
           <NavLink href="/dashboard" active={pathname === "/dashboard"}>
             <span className="text-stone-500">◈</span>
             Goals
@@ -134,9 +138,9 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
 
       {/* Mobile bottom nav — 5 items */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-200 flex items-stretch h-16">
-        <Link href="/dashboard" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/dashboard" ? "text-sky-600" : "text-stone-400"}`}>
-          <span className="text-lg leading-none">◈</span>
-          Goals
+        <Link href="/home" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/home" ? "text-sky-600" : "text-stone-400"}`}>
+          <LayoutDashboard className="w-5 h-5" />
+          Home
         </Link>
         <Link href="/timeline" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/timeline" ? "text-sky-600" : "text-stone-400"}`}>
           <CalendarDays className="w-5 h-5" />
@@ -174,6 +178,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             </div>
             <div className="px-3 py-2 space-y-0.5 pb-8">
               {[
+                { href: "/dashboard", icon: <span className="text-xl leading-none">◈</span>, label: "Goals" },
                 { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
                 { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
                 { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
