@@ -809,7 +809,7 @@ function EditPitstopModal({
   const [title, setTitle]       = useState(pitstop.title);
   const [type, setType]         = useState(pitstop.type);
   const [customType, setCustomType] = useState(pitstop.customType ?? "");
-  const [status, setStatus]     = useState(pitstop.status);
+  const [status, setStatus]     = useState<"Upcoming" | "InProgress" | "Done">(pitstop.status);
   const [notes, setNotes]       = useState(pitstop.notes ?? "");
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
@@ -848,7 +848,7 @@ function EditPitstopModal({
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-stone-600 mb-1">Status</label>
-              <select value={status} onChange={e => setStatus(e.target.value)}
+              <select value={status} onChange={e => setStatus(e.target.value as "Upcoming" | "InProgress" | "Done")}
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
                 <option value="Upcoming">Upcoming</option>
                 <option value="InProgress">In Progress</option>
