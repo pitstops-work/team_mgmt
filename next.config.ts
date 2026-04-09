@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   experimental: {
     // Cache RSC payloads for dynamic routes — makes back-navigation instant
     staleTimes: {
-      dynamic: 30,   // seconds — revisiting a dynamic page within 30s uses cached RSC
+      dynamic: 0,    // always refetch RSC on navigation — prevents stale goal/pitstop data
       static: 180,
     },
   },
