@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 interface User {
@@ -78,6 +78,18 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
           <NavLink href="/events" active={pathname === "/events"}>
             <CalendarClock className="w-3.5 h-3.5 text-stone-500" />
             Events
+          </NavLink>
+          <NavLink href="/programs" active={pathname.startsWith("/programs")}>
+            <Layers className="w-3.5 h-3.5 text-stone-500" />
+            Programs
+          </NavLink>
+          <NavLink href="/pitstops" active={pathname === "/pitstops"}>
+            <ListTodo className="w-3.5 h-3.5 text-stone-500" />
+            All Pitstops
+          </NavLink>
+          <NavLink href="/threads" active={pathname === "/threads"}>
+            <MessageSquare className="w-3.5 h-3.5 text-stone-500" />
+            All Threads
           </NavLink>
           <NavLink href="/notifications" active={pathname === "/notifications"}>
             <div className="relative">
@@ -158,6 +170,9 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
               {[
                 { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
                 { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
+                { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
+                { href: "/pitstops", icon: <ListTodo className="w-5 h-5" />, label: "All Pitstops" },
+                { href: "/threads", icon: <MessageSquare className="w-5 h-5" />, label: "All Threads" },
                 { href: "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
               ].map(item => (
                 <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}

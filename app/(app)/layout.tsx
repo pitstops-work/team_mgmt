@@ -5,6 +5,7 @@ import QueryProvider from "@/components/QueryProvider";
 import AppNav from "./AppNav";
 import PushSubscriber from "@/components/PushSubscriber";
 import AIAssistant from "./AIAssistant";
+import NavigationProgress from "@/components/NavigationProgress";
 import prisma from "@/lib/prisma";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <SessionProvider>
       <QueryProvider>
+      <NavigationProgress />
       <PushSubscriber />
       <div className="flex h-screen overflow-hidden">
         <AppNav user={session.user} unreadCount={unreadCount} />

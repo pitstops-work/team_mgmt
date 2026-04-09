@@ -8,5 +8,11 @@
       "path": "/api/cron/checkins",
       "schedule": "0 7 * * *"
     }
-  ]
+  ],
+  "experimentalServices": {
+    "web": {
+      "routePrefix": "/",
+      "framework": "nextjs"
+    }
+  }
 }

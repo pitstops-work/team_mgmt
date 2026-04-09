@@ -23,6 +23,7 @@ model User {
   sessions            Session[]
   goals               Goal[]
   ownedPitstops       Pitstop[]            @relation("PitstopOwner")
+  programs            Program[]
   messages            Message[]
   mentions            Mention[]
   goalFollows         GoalFollow[]
@@ -84,6 +85,7 @@ model Goal {
   pitstops    Pitstop[]
   attachments Attachment[]
   followers   GoalFollow[]
+  programs    ProgramGoal[]
 }
 
 model Pitstop {
@@ -344,6 +346,30 @@ model PitstopEventAttendee {
   user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
+}
+
+model Program {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  ownerId     String
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  owner User          @relation(fields: [ownerId], references: [id])
+  goals ProgramGoal[]
+}
+
+model ProgramGoal {
+  id        String @id @default(cuid())
+  programId String
+  goalId    String
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  goal    Goal    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, goalId])
 }
 
 model AppSetting {

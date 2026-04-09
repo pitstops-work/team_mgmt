@@ -22,10 +22,13 @@ body {
 }
 
 button, a, [role="button"] {
-  /* Eliminates the 300ms tap delay on mobile */
   touch-action: manipulation;
-  /* Remove the grey flash iOS shows on tap — we'll use :active instead */
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent SVGs inside interactive elements from swallowing tap events on iOS */
+button svg, a svg, [role="button"] svg {
+  pointer-events: none;
 }
 
 button:active, a:active, [role="button"]:active {
