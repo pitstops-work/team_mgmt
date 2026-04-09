@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckSquare, ChevronDown, X } from "lucide-react";
+import { CheckSquare, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge } from "@/components/StatusBadge";
 
@@ -21,7 +21,6 @@ export default function PitstopsList({ pitstops, goals, users }: { pitstops: Pit
   const [selectedGoal, setSelectedGoal] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
-  const [goalOpen, setGoalOpen] = useState(false);
 
   const filtered = pitstops
     .filter(p => !selectedGoal || p.goal.id === selectedGoal)
@@ -49,26 +48,11 @@ export default function PitstopsList({ pitstops, goals, users }: { pitstops: Pit
         ))}
         <div className="w-px h-4 bg-stone-200 flex-shrink-0" />
         {/* Goal picker */}
-        <div className="relative flex-shrink-0">
-          <button onClick={() => setGoalOpen(o => !o)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg transition-colors ${selectedGoal ? "border-sky-400 bg-sky-50 text-sky-700" : "border-stone-200 text-stone-600 hover:border-stone-300"}`}>
-            {selectedGoal ? goals.find(g => g.id === selectedGoal)?.title ?? "Goal" : "All Goals"}
-            <ChevronDown className="w-3 h-3" />
-          </button>
-          {goalOpen && (
-            <div className="absolute top-full mt-1 left-0 z-20 w-56 bg-white border border-stone-200 rounded-xl shadow-lg overflow-hidden">
-              <div className="max-h-48 overflow-y-auto p-1">
-                <button onClick={() => { setSelectedGoal(""); setGoalOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-stone-500 hover:bg-stone-50 rounded-lg">All Goals</button>
-                {goals.map(g => (
-                  <button key={g.id} onClick={() => { setSelectedGoal(g.id); setGoalOpen(false); }}
-                    className={`w-full text-left px-3 py-2 text-xs hover:bg-stone-50 rounded-lg truncate ${selectedGoal === g.id ? "text-sky-600 font-medium" : "text-stone-700"}`}>
-                    {g.title}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <select value={selectedGoal} onChange={e => setSelectedGoal(e.target.value)}
+          className={`flex-shrink-0 px-3 py-1.5 text-xs border rounded-lg bg-white transition-colors ${selectedGoal ? "border-sky-400 text-sky-700" : "border-stone-200 text-stone-600"}`}>
+          <option value="">All Goals</option>
+          {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+        </select>
         {/* User picker */}
         <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)}
           className={`flex-shrink-0 px-3 py-1.5 text-xs border rounded-lg bg-white transition-colors ${selectedUser ? "border-sky-400 text-sky-700" : "border-stone-200 text-stone-600"}`}>
