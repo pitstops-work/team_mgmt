@@ -592,7 +592,7 @@ export default function PlannerView({
             </p>
           </div>
 
-          {/* Person picker (visible to all, defaults to self) */}
+          {/* Person picker + activities toggle */}
           <div className="flex items-center gap-2 flex-wrap">
             <select
               value={viewUserId}
@@ -605,6 +605,17 @@ export default function PlannerView({
                 </option>
               ))}
             </select>
+            <button
+              onClick={() => setShowActivities(v => !v)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
+                showActivities
+                  ? "bg-violet-50 border-violet-200 text-violet-700"
+                  : "bg-stone-100 border-stone-200 text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              Activities
+            </button>
           </div>
         </div>
 
@@ -627,17 +638,6 @@ export default function PlannerView({
             ))}
           </div>
           {loading && <span className="text-xs text-stone-400 animate-pulse">Loading…</span>}
-          <button
-            onClick={() => setShowActivities(v => !v)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors ${
-              showActivities
-                ? "bg-violet-50 border-violet-200 text-violet-700"
-                : "bg-stone-100 border-stone-200 text-stone-500 hover:text-stone-700"
-            }`}
-          >
-            <CalendarDays className="w-3 h-3" />
-            Activities {showActivities ? "on" : "off"}
-          </button>
         </div>
       </div>
 
