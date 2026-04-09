@@ -308,7 +308,7 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
             <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Village name, address…"
               className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
           </div>
-          {pitstopId && extraCandidates.length > 0 && (
+          {selectedPitstopIds.size > 0 && extraCandidates.length > 0 && (
             <div>
               <label className="block text-xs font-medium text-stone-600 mb-1.5">Additional Attendees (optional)</label>
               <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
