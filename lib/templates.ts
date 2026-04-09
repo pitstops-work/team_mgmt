@@ -249,8 +249,8 @@ export const TEMPLATES: GoalTemplate[] = [
   {
     id: "creche-program",
     name: "Creche Program",
-    description: "End-to-end setup and operations for community creches, based on Azim Premji Foundation protocols. Covers recruitment, govt liaison, community engagement, caregiver training, and ongoing operations.",
-    category: "Social Programs",
+    description: "End-to-end setup and operations for community creches, based on our protocols. Covers recruitment, govt liaison, community engagement, caregiver training, and ongoing operations.",
+    category: "Community Programs",
     icon: "🏠",
     parameters: [
       {

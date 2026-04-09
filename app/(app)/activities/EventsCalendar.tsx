@@ -418,10 +418,10 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
       <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-stone-100">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold text-stone-900">Events</h1>
-            <Link href="/calendar"
+            <h1 className="text-lg font-semibold text-stone-900">Activities</h1>
+            <Link href="/timeline"
               className="hidden sm:flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 transition-colors">
-              <CalendarClock className="w-3.5 h-3.5" /> Pitstop Calendar
+              <CalendarClock className="w-3.5 h-3.5" /> Pitstop Timeline
             </Link>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -550,7 +550,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
               </div>
               <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
                 {selectedDayEvents.length === 0 ? (
-                  <p className="text-xs text-stone-400 text-center py-8">No events. Tap Add to schedule one.</p>
+                  <p className="text-xs text-stone-400 text-center py-8">No activities. Tap Add to schedule one.</p>
                 ) : selectedDayEvents.map(ev => (
                   <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} />
                 ))}
@@ -609,7 +609,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
             {dayEvents.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20">
                 <CalendarClock className="w-12 h-12 text-stone-200 mb-3" />
-                <p className="text-sm text-stone-400">No events scheduled for this day.</p>
+                <p className="text-sm text-stone-400">No activities scheduled for this day.</p>
                 <p className="text-xs text-stone-300 mt-1">Use ‹ › to navigate days.</p>
               </div>
             ) : (

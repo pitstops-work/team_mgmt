@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import EventsCalendar from "./EventsCalendar";
 
-export default async function EventsPage() {
+export default async function ActivitiesPage() {
   const session = await auth();
 
   const [events, pitstops, users] = await Promise.all([

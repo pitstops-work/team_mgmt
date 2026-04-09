@@ -71,11 +71,11 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             <GanttChartSquare className="w-3.5 h-3.5 text-stone-500" />
             Gantt
           </NavLink>
-          <NavLink href="/calendar" active={pathname === "/calendar"}>
+          <NavLink href="/timeline" active={pathname === "/timeline"}>
             <CalendarDays className="w-3.5 h-3.5 text-stone-500" />
             Calendar
           </NavLink>
-          <NavLink href="/events" active={pathname === "/events"}>
+          <NavLink href="/activities" active={pathname === "/activities"}>
             <CalendarClock className="w-3.5 h-3.5 text-stone-500" />
             Events
           </NavLink>
@@ -132,11 +132,11 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
           <span className="text-lg leading-none">◈</span>
           Goals
         </Link>
-        <Link href="/calendar" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/calendar" ? "text-sky-600" : "text-stone-400"}`}>
+        <Link href="/timeline" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/timeline" ? "text-sky-600" : "text-stone-400"}`}>
           <CalendarDays className="w-5 h-5" />
           Calendar
         </Link>
-        <Link href="/events" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/events" ? "text-sky-600" : "text-stone-400"}`}>
+        <Link href="/activities" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/activities" ? "text-sky-600" : "text-stone-400"}`}>
           <CalendarClock className="w-5 h-5" />
           Events
         </Link>

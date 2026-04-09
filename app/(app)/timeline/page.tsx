@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import CalendarView from "./CalendarView";
 
-export default async function CalendarPage() {
+export default async function TimelinePage() {
   await auth();
 
   const [pitstops, scheduledEvents] = await Promise.all([
