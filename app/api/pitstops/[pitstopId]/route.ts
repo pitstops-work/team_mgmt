@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendPushToUsers } from "@/lib/push";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pitstopId: string }> }) {
   const session = await auth();
@@ -114,6 +115,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
             })),
           });
         }
+      }
+    }
+  }
+
+  // Notify goal followers when pitstop status changes
+  if (data.status && existing?.status && data.status !== existing.status) {
+    const goal = await prisma.goal.findUnique({
+      where: { id: pitstop.goalId },
+      select: { title: true, followers: { select: { userId: true } } },
+    });
+    if (goal) {
+      const notifications = goal.followers
+        .filter((f) => f.userId !== session.user.id)
+        .map((f) => ({
+          userId: f.userId,
+          type: "PitstopStatusChange" as const,
+          title: `"${pitstop.title}" is now ${data.status}`,
+          body: `in ${goal.title}`,
+          link: `/goals/${pitstop.goalId}/pitstops/${pitstopId}`,
+        }));
+      if (notifications.length > 0) {
+        await prisma.notification.createMany({ data: notifications });
+        sendPushToUsers(notifications.map((n) => n.userId), {
+          title: notifications[0].title,
+          body: notifications[0].body!,
+          link: notifications[0].link!,
+        });
       }
     }
   }

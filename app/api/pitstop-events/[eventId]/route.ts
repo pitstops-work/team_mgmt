@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendPushToUsers } from "@/lib/push";
 
 const include = {
   pitstops: {
@@ -65,6 +66,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
     },
     include,
   });
+
+  // Notify newly added attendees
+  if (attendeeIds !== undefined) {
+    const prevAttendees = await prisma.pitstopEventAttendee.findMany({
+      where: { eventId },
+      select: { userId: true },
+    });
+    const prevIds = new Set(prevAttendees.map((a) => a.userId));
+    const newIds = Array.from(new Set([...ownerIds, ...attendeeIds])).filter(
+      (id) => !prevIds.has(id) && id !== session.user.id
+    );
+    if (newIds.length > 0) {
+      const creatorName = session.user.name ?? "Someone";
+      await prisma.notification.createMany({
+        data: newIds.map((userId) => ({
+          userId,
+          type: "ActivityTagged" as const,
+          title: `${creatorName} added you to "${event.title}"`,
+          body: new Date(event.scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+          link: `/activities`,
+        })),
+      });
+      sendPushToUsers(newIds, {
+        title: `${creatorName} added you to "${event.title}"`,
+        body: new Date(event.scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+        link: `/activities`,
+      });
+    }
+  }
 
   return Response.json(event);
 }

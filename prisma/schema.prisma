@@ -32,6 +32,7 @@ model User {
   pushSubscriptions   PushSubscription[]
   createdEvents       PitstopEvent[]
   eventAttendances    PitstopEventAttendee[]
+  eventFollowups      PitstopEventFollowup[]
   planItems           PlanItem[]
 }
 
@@ -227,6 +228,18 @@ enum NotificationType {
   NewPitstop
   GoalStatusChange
   NewMessage
+  PitstopStatusChange
+  GoalFollowed
+  ActivityTagged
+  ActivityFollowup
+  ActivityMorningNudge
+}
+
+enum PitstopEventStatus {
+  Scheduled
+  Done
+  Cancelled
+  Flagged
 }
 
 model Notification {
@@ -322,21 +335,46 @@ enum PitstopEventType {
 }
 
 model PitstopEvent {
-  id          String           @id @default(cuid())
+  id          String             @id @default(cuid())
   title       String
   description String?
-  type        PitstopEventType @default(Meeting)
+  type        PitstopEventType   @default(Meeting)
+  status      PitstopEventStatus @default(Scheduled)
   scheduledAt DateTime
   endsAt      DateTime?
   location    String?
   createdById String
   deletedAt   DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
-  createdBy   User                   @relation(fields: [createdById], references: [id])
+  createdBy   User                       @relation(fields: [createdById], references: [id])
   attendees   PitstopEventAttendee[]
   pitstops    PitstopEventPitstop[]
+  followups   PitstopEventFollowup[]
+}
+
+model PitstopEventFollowup {
+  id          String                      @id @default(cuid())
+  eventId     String
+  userId      String
+  response    PitstopEventFollowupStatus?
+  sentAt      DateTime
+  nudgeSentAt DateTime?
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+
+  event PitstopEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+enum PitstopEventFollowupStatus {
+  Done
+  No
+  Cancelled
+  Rescheduled
 }
 
 model PitstopEventAttendee {

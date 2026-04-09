@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bell, Check, CheckCheck } from "lucide-react";
+import { Bell, Check, CheckCheck, CalendarClock } from "lucide-react";
 
 type Notification = {
   id: string;
@@ -18,8 +18,82 @@ const typeLabel: Record<string, string> = {
   Mention: "Mention",
   NewPitstop: "New Pitstop",
   GoalStatusChange: "Status Change",
-  NewMessage: "New Message",
+  PitstopStatusChange: "Status Change",
+  NewMessage: "Message",
+  GoalFollowed: "Follower",
+  ActivityTagged: "Activity",
+  ActivityFollowup: "Activity",
+  ActivityMorningNudge: "Activity",
 };
+
+type FollowupState = "idle" | "loading" | "done" | "cancelled" | "rescheduling" | "rescheduled" | "no";
+
+function ActivityFollowupActions({ eventId, onResponded }: { eventId: string; onResponded: () => void }) {
+  const [state, setState] = useState<FollowupState>("idle");
+  const [newDate, setNewDate] = useState("");
+  const [error, setError] = useState("");
+
+  const respond = async (action: string, extra?: Record<string, string>) => {
+    setState("loading");
+    setError("");
+    const res = await fetch(`/api/pitstop-events/${eventId}/respond`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...extra }),
+    });
+    if (!res.ok) { setError("Something went wrong."); setState("idle"); return; }
+    const data = await res.json();
+    if (action === "yes")        { setState("done"); onResponded(); }
+    else if (action === "cancel") { setState("cancelled"); onResponded(); }
+    else if (action === "reschedule") { setState("rescheduled"); onResponded(); }
+    else if (action === "no") setState(data.next === "choose_cancel_or_reschedule" ? "no" : "idle");
+  };
+
+  if (state === "done")       return <p className="text-xs text-emerald-600 font-medium mt-2">✓ Marked as done</p>;
+  if (state === "cancelled")  return <p className="text-xs text-stone-400 font-medium mt-2">Activity cancelled</p>;
+  if (state === "rescheduled") return <p className="text-xs text-sky-600 font-medium mt-2">✓ Rescheduled</p>;
+  if (state === "loading")    return <p className="text-xs text-stone-400 mt-2">Saving…</p>;
+
+  if (state === "no") return (
+    <div className="flex flex-wrap gap-2 mt-2">
+      <button onClick={() => respond("cancel")}
+        className="px-3 py-1 text-xs rounded-md bg-stone-100 hover:bg-stone-200 text-stone-600 font-medium transition-colors">
+        Cancel activity
+      </button>
+      <button onClick={() => setState("rescheduling")}
+        className="px-3 py-1 text-xs rounded-md bg-sky-50 hover:bg-sky-100 text-sky-700 font-medium transition-colors">
+        Reschedule
+      </button>
+      {error && <p className="text-xs text-red-500 w-full">{error}</p>}
+    </div>
+  );
+
+  if (state === "rescheduling") return (
+    <div className="flex items-center gap-2 mt-2 flex-wrap">
+      <input type="datetime-local" value={newDate} onChange={(e) => setNewDate(e.target.value)}
+        className="text-xs border border-stone-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+      <button disabled={!newDate} onClick={() => respond("reschedule", { scheduledAt: new Date(newDate).toISOString() })}
+        className="px-3 py-1 text-xs rounded-md bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white font-medium transition-colors">
+        Confirm
+      </button>
+      <button onClick={() => setState("no")} className="px-2 py-1 text-xs text-stone-400 hover:text-stone-600">Back</button>
+      {error && <p className="text-xs text-red-500 w-full">{error}</p>}
+    </div>
+  );
+
+  return (
+    <div className="flex gap-2 mt-2">
+      <button onClick={() => respond("yes")}
+        className="px-3 py-1 text-xs rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium transition-colors">
+        Yes, done
+      </button>
+      <button onClick={() => respond("no")}
+        className="px-3 py-1 text-xs rounded-md bg-stone-100 hover:bg-stone-200 text-stone-600 font-medium transition-colors">
+        No
+      </button>
+    </div>
+  );
+}
 
 export default function NotificationsPage({ initialNotifications }: { initialNotifications: Notification[] }) {
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -65,7 +139,10 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
       ) : (
         <div className="space-y-1">
           {notifications.map((n) => {
-            const content = (
+            const isFollowup = n.type === "ActivityFollowup" || n.type === "ActivityMorningNudge";
+            const eventId = isFollowup && n.link ? new URL(n.link, "http://x").searchParams.get("followup") : null;
+
+            const inner = (
               <div className={`flex items-start gap-3 px-4 py-3.5 rounded-lg border transition-colors ${
                 n.read
                   ? "bg-white border-stone-100 text-stone-500"
@@ -83,6 +160,9 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
                   </div>
                   <p className={`text-sm font-medium ${n.read ? "text-stone-600" : "text-stone-900"}`}>{n.title}</p>
                   {n.body && <p className="text-xs text-stone-500 mt-0.5">{n.body}</p>}
+                  {isFollowup && eventId && (
+                    <ActivityFollowupActions eventId={eventId} onResponded={() => markRead(n.id)} />
+                  )}
                 </div>
                 {!n.read && (
                   <button
@@ -96,12 +176,14 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
               </div>
             );
 
+            if (isFollowup) return <div key={n.id}>{inner}</div>;
+
             return n.link ? (
               <Link key={n.id} href={n.link} onClick={() => !n.read && markRead(n.id)}>
-                {content}
+                {inner}
               </Link>
             ) : (
-              <div key={n.id}>{content}</div>
+              <div key={n.id}>{inner}</div>
             );
           })}
         </div>

@@ -8,6 +8,14 @@
     {
       "path": "/api/cron/checkins",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/activity-followup",
+      "schedule": "30 12 * * *"
+    },
+    {
+      "path": "/api/cron/activity-morning-nudge",
+      "schedule": "30 3 * * *"
     }
   ],
   "experimentalServices": {

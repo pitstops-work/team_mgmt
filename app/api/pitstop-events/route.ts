@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendPushToUsers } from "@/lib/push";
 
 const include = {
   pitstops: {
@@ -68,6 +69,26 @@ export async function POST(req: NextRequest) {
     },
     include,
   });
+
+  // Notify attendees they've been tagged (exclude creator)
+  const creatorName = session.user.name ?? "Someone";
+  const taggedIds = allAttendeeIds.filter((id) => id !== session.user.id);
+  if (taggedIds.length > 0) {
+    await prisma.notification.createMany({
+      data: taggedIds.map((userId) => ({
+        userId,
+        type: "ActivityTagged" as const,
+        title: `${creatorName} added you to "${title}"`,
+        body: new Date(scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+        link: `/activities`,
+      })),
+    });
+    sendPushToUsers(taggedIds, {
+      title: `${creatorName} added you to "${title}"`,
+      body: new Date(scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+      link: `/activities`,
+    });
+  }
 
   return Response.json(event, { status: 201 });
 }

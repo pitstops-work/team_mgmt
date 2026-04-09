@@ -18,6 +18,7 @@ type PitstopEvent = {
   title: string;
   description: string | null;
   type: "Meeting" | "Visit" | "Event";
+  status: "Scheduled" | "Done" | "Cancelled" | "Flagged";
   scheduledAt: string;
   endsAt: string | null;
   location: string | null;
@@ -290,11 +291,19 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
 // ── Event card (shared across views) ─────────────────────────────────────────
 
 function EventCard({ ev, onEdit, onDelete }: { ev: PitstopEvent; onEdit: () => void; onDelete: () => void }) {
+  const isCancelled = ev.status === "Cancelled";
+  const isDone = ev.status === "Done";
+  const isFlagged = ev.status === "Flagged";
   return (
-    <div className={`px-3 py-2.5 rounded-xl border ${TYPE_COLORS[ev.type]}`}>
+    <div className={`px-3 py-2.5 rounded-xl border ${isCancelled ? "bg-stone-50 border-stone-200 opacity-60" : TYPE_COLORS[ev.type]}`}>
       <div className="flex items-start justify-between gap-1">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-snug">{ev.title}</p>
+          <div className="flex items-center gap-1.5">
+            <p className={`text-sm font-semibold leading-snug ${isCancelled ? "line-through text-stone-400" : ""}`}>{ev.title}</p>
+            {isDone && <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Done</span>}
+            {isFlagged && <span className="text-[10px] font-medium text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">Flagged</span>}
+            {isCancelled && <span className="text-[10px] font-medium text-stone-400 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-full">Cancelled</span>}
+          </div>
           <p className="text-xs opacity-70 mt-0.5">
             {ev.endsAt
               ? `${fmtDate(ev.scheduledAt)} – ${fmtDate(ev.endsAt)} · ${ev.type}`
@@ -537,9 +546,9 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                     {/* Desktop: labels */}
                     <div className="hidden sm:flex flex-1 flex-col space-y-0.5 overflow-hidden">
                       {dayEvs.slice(0, 3).map((ev, ei) => (
-                        <div key={ei} className={`flex items-center gap-1 px-1 py-0.5 rounded text-[10px] border truncate ${TYPE_COLORS[ev.type]}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${TYPE_DOT[ev.type]}`} />
-                          <span className="truncate">{ev.title}</span>
+                        <div key={ei} className={`flex items-center gap-1 px-1 py-0.5 rounded text-[10px] border truncate ${ev.status === "Cancelled" ? "bg-stone-50 border-stone-200 opacity-50" : TYPE_COLORS[ev.type]}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ev.status === "Done" ? "bg-emerald-400" : ev.status === "Flagged" ? "bg-red-400" : ev.status === "Cancelled" ? "bg-stone-300" : TYPE_DOT[ev.type]}`} />
+                          <span className={`truncate ${ev.status === "Cancelled" ? "line-through" : ""}`}>{ev.title}</span>
                         </div>
                       ))}
                       {dayEvs.length > 3 && <p className="text-[10px] text-stone-400 px-1">+{dayEvs.length - 3}</p>}
