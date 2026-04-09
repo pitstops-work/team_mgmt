@@ -25,7 +25,7 @@ async function buildContext(userId: string): Promise<string> {
     prisma.pitstopEvent.findMany({
       where: { deletedAt: null },
       include: {
-        pitstop: { select: { id: true, title: true, goal: { select: { title: true } } } },
+        pitstops: { select: { pitstop: { select: { id: true, title: true, goal: { select: { title: true } } } } } },
         attendees: { include: { user: { select: { name: true } } } },
       },
       orderBy: { scheduledAt: "asc" },
@@ -58,7 +58,7 @@ async function buildContext(userId: string): Promise<string> {
     ctx += `\nSCHEDULED EVENTS:\n`;
     for (const ev of events) {
       const date = new Date(ev.scheduledAt).toISOString().slice(0, 16).replace("T", " ");
-      const pitstopRef = ev.pitstop ? ` | Pitstop: "${ev.pitstop.title}" (${ev.pitstop.goal.title})` : "";
+      const pitstopRef = ev.pitstops.length > 0 ? ` | Pitstops: ${ev.pitstops.map(p => `"${p.pitstop.title}" (${p.pitstop.goal.title})`).join(", ")}` : "";
       const attendeeList = ev.attendees.map(a => a.user.name).join(", ");
       ctx += `  - "${ev.title}" | ${ev.type} | ${date}${pitstopRef} | Attendees: ${attendeeList}\n`;
     }
