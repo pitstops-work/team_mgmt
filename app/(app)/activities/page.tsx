@@ -9,11 +9,15 @@ export default async function ActivitiesPage() {
     prisma.pitstopEvent.findMany({
       where: { deletedAt: null },
       include: {
-        pitstop: {
+        pitstops: {
           select: {
-            id: true, title: true,
-            owner: { select: { id: true, name: true, image: true } },
-            goal: { select: { id: true, title: true } },
+            pitstop: {
+              select: {
+                id: true, title: true,
+                owner: { select: { id: true, name: true, image: true } },
+                goal: { select: { id: true, title: true } },
+              },
+            },
           },
         },
         createdBy: { select: { id: true, name: true, image: true } },
