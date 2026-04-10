@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -99,6 +99,10 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
           <NavLink href="/threads" active={pathname === "/threads"}>
             <MessageSquare className="w-3.5 h-3.5 text-stone-500" />
             All Threads
+          </NavLink>
+          <NavLink href="/standup" active={pathname === "/standup"}>
+            <ClipboardList className="w-3.5 h-3.5 text-stone-500" />
+            Standup
           </NavLink>
           <NavLink href="/notifications" active={pathname === "/notifications"}>
             <div className="relative">

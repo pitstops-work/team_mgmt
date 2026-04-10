@@ -10,6 +10,8 @@ import { PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
 import MessageComposer from "./MessageComposer";
 import MessageBubble from "./MessageBubble";
+import CheckinSection from "./CheckinSection";
+import RetrospectiveSection from "./RetrospectiveSection";
 
 type Attachment = { id: string; name: string; url: string; type: string; mimeType?: string | null };
 type Mention = { user: { id: string; name: string | null } };
@@ -557,6 +559,12 @@ export default function PitstopDetail({
             </div>
           )}
         </div>
+
+        {/* Check-ins */}
+        <CheckinSection pitstopId={pitstop.id} />
+
+        {/* Retrospective */}
+        <RetrospectiveSection entityType="Pitstop" entityId={pitstop.id} />
 
         {/* Recurrence */}
         <div className="px-4 py-3 border-b border-stone-100">
