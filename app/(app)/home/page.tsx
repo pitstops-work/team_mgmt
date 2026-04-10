@@ -23,6 +23,7 @@ export default async function HomePage() {
   const { weekStart, weekEnd } = getWeekBounds(now);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const twentyOneDaysAgo = new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000);
 
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -47,6 +48,7 @@ export default async function HomePage() {
     recentBroadcasts,
     recentStandups,
     staleCheckins,
+    driftingThemes,
   ] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, image: true, email: true },
@@ -203,6 +205,29 @@ export default async function HomePage() {
       },
       take: 5,
     }),
+
+    // Drifting themes: have InProgress pitstops not updated in 21 days
+    prisma.theme.findMany({
+      where: {
+        deletedAt: null,
+        goals: {
+          some: {
+            goal: {
+              deletedAt: null,
+              status: { not: "Complete" },
+              pitstops: {
+                some: {
+                  deletedAt: null,
+                  status: "InProgress",
+                  updatedAt: { lt: twentyOneDaysAgo },
+                },
+              },
+            },
+          },
+        },
+      },
+      select: { id: true, name: true, color: true },
+    }),
   ]);
 
   const plannedIds = new Set(plannedThisWeek.map(r => r.pitstopId));
@@ -225,6 +250,7 @@ export default async function HomePage() {
     recentBroadcasts: JSON.parse(JSON.stringify(recentBroadcasts)),
     recentStandups: JSON.parse(JSON.stringify(recentStandups)),
     staleCheckins: JSON.parse(JSON.stringify(staleCheckins)),
+    driftingThemes: JSON.parse(JSON.stringify(driftingThemes)),
     fyYear,
     fyQ,
   };

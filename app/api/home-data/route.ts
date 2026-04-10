@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
   const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
   const { weekStart, weekEnd } = getWeekBounds(now);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const twentyOneDaysAgo = new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000);
 
   const { year: fyYear, quarter: fyQ } = currentFYQuarter(now);
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -53,6 +54,7 @@ export async function GET(req: NextRequest) {
     recentBroadcasts,
     recentStandups,
     staleCheckins,
+    driftingThemes,
   ] = await Promise.all([
     // Overdue: past target date, not done
     prisma.pitstop.findMany({
@@ -241,6 +243,29 @@ export async function GET(req: NextRequest) {
       },
       take: 5,
     }),
+
+    // Drifting themes: have InProgress pitstops not updated in 21 days
+    prisma.theme.findMany({
+      where: {
+        deletedAt: null,
+        goals: {
+          some: {
+            goal: {
+              deletedAt: null,
+              status: { not: "Complete" },
+              pitstops: {
+                some: {
+                  deletedAt: null,
+                  status: "InProgress",
+                  updatedAt: { lt: twentyOneDaysAgo },
+                },
+              },
+            },
+          },
+        },
+      },
+      select: { id: true, name: true, color: true },
+    }),
   ]);
 
   const plannedIds = new Set(plannedThisWeek.map(r => r.pitstopId));
@@ -264,6 +289,7 @@ export async function GET(req: NextRequest) {
     recentBroadcasts,
     recentStandups,
     staleCheckins,
+    driftingThemes,
     fyYear,
     fyQ,
   });

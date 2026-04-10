@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -102,7 +102,11 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
           </NavLink>
           <NavLink href="/standup" active={pathname === "/standup"}>
             <ClipboardList className="w-3.5 h-3.5 text-stone-500" />
-            Standup
+            Field Notes
+          </NavLink>
+          <NavLink href="/review" active={pathname === "/review"}>
+            <ClipboardCheck className="w-3.5 h-3.5 text-stone-500" />
+            Review
           </NavLink>
           <NavLink href="/decisions" active={pathname === "/decisions"}>
             <Scale className="w-3.5 h-3.5 text-stone-500" />
@@ -209,6 +213,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
                 { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
                 { href: "/pitstops", icon: <ListTodo className="w-5 h-5" />, label: "All Pitstops" },
                 { href: "/threads", icon: <MessageSquare className="w-5 h-5" />, label: "All Threads" },
+                { href: "/review", icon: <ClipboardCheck className="w-5 h-5" />, label: "Fortnightly Review" },
                 { href: "/decisions", icon: <Scale className="w-5 h-5" />, label: "Decisions" },
                 { href: "/risks", icon: <ShieldAlert className="w-5 h-5" />, label: "Risks" },
                 { href: "/themes", icon: <Tag className="w-5 h-5" />, label: "Themes" },

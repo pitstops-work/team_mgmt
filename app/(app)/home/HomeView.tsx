@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, CalendarDays, Clock, Bell, ChevronRight, Plus,
-  CalendarRange, Megaphone, ClipboardList, RefreshCw,
+  CalendarRange, Megaphone, ClipboardList, Tag,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
@@ -64,6 +64,7 @@ type HomeData = {
   recentBroadcasts: Broadcast[];
   recentStandups: StandupLog[];
   staleCheckins: StalePitstop[];
+  driftingThemes: { id: string; name: string; color: string | null }[];
   fyYear: number;
   fyQ: number;
 };
@@ -332,12 +333,10 @@ export default function HomeView({
   const {
     overduePitstops, thisWeekPitstops, todayPlanItems, todayActivities,
     noPlanPitstops, goneQuietGoals, flaggedActivities, recentNotifications,
-    currentQuarter, recentBroadcasts, recentStandups, staleCheckins, fyYear, fyQ,
+    currentQuarter, recentBroadcasts, recentStandups, staleCheckins, driftingThemes, fyYear, fyQ,
   } = data;
 
-  const attentionCount =
-    overduePitstops.length + noPlanPitstops.length +
-    goneQuietGoals.length + flaggedActivities.length + staleCheckins.length;
+  const attentionCount = overduePitstops.length + goneQuietGoals.length + flaggedActivities.length;
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-stone-50/40">
@@ -373,7 +372,7 @@ export default function HomeView({
         <StatCard label="Overdue"      value={overduePitstops.length}                          icon={<AlertTriangle className="w-3.5 h-3.5" />} accent="red" />
         <StatCard label="Due this week" value={thisWeekPitstops.filter(p => p.targetDate).length} icon={<Clock className="w-3.5 h-3.5" />}         accent="amber" />
         <StatCard label="No plan"      value={noPlanPitstops.length}                            icon={<CalendarDays className="w-3.5 h-3.5" />}    accent="amber" />
-        <StatCard label="No check-in"  value={staleCheckins.length}                             icon={<RefreshCw className="w-3.5 h-3.5" />}       accent="sky" />
+        <StatCard label="Drifting themes" value={driftingThemes.length} icon={<Tag className="w-3.5 h-3.5" />} accent="amber" />
       </div>
 
       {/* Main grid */}
@@ -421,51 +420,9 @@ export default function HomeView({
                     </div>
                   )}
 
-                  {staleCheckins.length > 0 && (
-                    <div className="px-4 py-3">
-                      <p className="text-[10px] font-semibold text-sky-500 uppercase tracking-wide mb-2">No check-in (7d) ({staleCheckins.length})</p>
-                      <div className="space-y-1.5">
-                        {staleCheckins.map(p => (
-                          <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`} className="flex items-start gap-2 group">
-                            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0 mt-1.5" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-stone-800 truncate group-hover:text-sky-600 transition-colors">{p.title}</p>
-                              <p className="text-[10px] text-stone-400 truncate">{p.goal.title}</p>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                      <Link href="/standup" className="flex items-center gap-1 mt-2 text-[10px] text-sky-500 hover:text-sky-700">
-                        <ClipboardList className="w-3 h-3" /> Log standup
-                      </Link>
-                    </div>
-                  )}
-
-                  {noPlanPitstops.length > 0 && (
-                    <div className="px-4 py-3">
-                      <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-wide mb-2">No plan this week ({noPlanPitstops.length})</p>
-                      <div className="space-y-1.5">
-                        {noPlanPitstops.slice(0, 4).map(p => (
-                          <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`} className="flex items-start gap-2 group">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 mt-1.5" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-stone-800 truncate group-hover:text-sky-600 transition-colors">{p.title}</p>
-                              <p className="text-[10px] text-stone-400 truncate">{p.goal.title}</p>
-                            </div>
-                            {p.targetDate && <span className="text-[10px] text-stone-400 flex-shrink-0">{fmtDate(p.targetDate)}</span>}
-                          </Link>
-                        ))}
-                        {noPlanPitstops.length > 4 && <p className="text-[10px] text-stone-400 pl-3.5">+{noPlanPitstops.length - 4} more</p>}
-                      </div>
-                      <Link href="/planner" className="flex items-center gap-1 mt-2 text-[10px] text-sky-500 hover:text-sky-700">
-                        <CalendarDays className="w-3 h-3" /> Plan in Planner
-                      </Link>
-                    </div>
-                  )}
-
                   {goneQuietGoals.length > 0 && (
                     <div className="px-4 py-3">
-                      <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-2">Gone quiet 14+ days ({goneQuietGoals.length})</p>
+                      <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-2">No updates in 14+ days ({goneQuietGoals.length})</p>
                       <div className="space-y-1.5">
                         {goneQuietGoals.slice(0, 4).map(g => (
                           <Link key={g.id} href={`/goals/${g.id}`} className="flex items-start gap-2 group">
@@ -579,6 +536,24 @@ export default function HomeView({
               <SectionHeader title="Team Pulse" href="/standup" icon={<ClipboardList className="w-3.5 h-3.5" />} />
               <TeamPulseCard standups={recentStandups} broadcasts={recentBroadcasts} />
             </div>
+
+            {/* Drifting themes */}
+            {driftingThemes.length > 0 && (
+              <div>
+                <SectionHeader title="Drifting themes" icon={<Tag className="w-3.5 h-3.5" />} href="/themes" />
+                <div className="flex flex-wrap gap-2">
+                  {driftingThemes.map(t => (
+                    <Link key={t.id} href="/themes"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 transition-colors">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={t.color ? { backgroundColor: t.color } : { backgroundColor: '#d97706' }} />
+                      {t.name}
+                      <span className="text-[10px] font-normal text-amber-600">21d quiet</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* This week */}
             <div>
