@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, CalendarDays, Clock, Bell, ChevronRight, Plus,
-  CalendarRange, Megaphone, ClipboardList, Tag,
+  CalendarRange, Megaphone, Tag,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
@@ -232,74 +232,36 @@ function CurrentQuarterCard({ quarter, fyYear, fyQ }: { quarter: Quarter | null;
   );
 }
 
-// ── Team Pulse ────────────────────────────────────────────────────────────────
+// ── Recent broadcasts ─────────────────────────────────────────────────────────
 
-function TeamPulseCard({ standups, broadcasts }: { standups: StandupLog[]; broadcasts: Broadcast[] }) {
-  const [tab, setTab] = useState<"standups" | "broadcasts">("standups");
+function BroadcastsCard({ broadcasts }: { broadcasts: Broadcast[] }) {
   return (
     <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
       <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
-        <span className="text-xs font-semibold text-stone-600">Team Pulse</span>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setTab("standups")}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] transition-colors ${tab === "standups" ? "bg-sky-100 text-sky-700" : "text-stone-400 hover:text-stone-600"}`}>
-            <ClipboardList className="w-3 h-3" /> Standups
-          </button>
-          <button onClick={() => setTab("broadcasts")}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] transition-colors ${tab === "broadcasts" ? "bg-sky-100 text-sky-700" : "text-stone-400 hover:text-stone-600"}`}>
-            <Megaphone className="w-3 h-3" /> Broadcasts
-          </button>
+        <div className="flex items-center gap-2">
+          <Megaphone className="w-3.5 h-3.5 text-stone-400" />
+          <span className="text-xs font-semibold text-stone-600">Recent updates</span>
         </div>
       </div>
-
-      {tab === "standups" && (
-        standups.length === 0 ? (
-          <div className="px-4 py-4 text-center">
-            <p className="text-xs text-stone-400">No standups this week.</p>
-            <Link href="/standup" className="mt-1 inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
-              <Plus className="w-3 h-3" /> Log standup
-            </Link>
-          </div>
-        ) : (
-          <div className="divide-y divide-stone-50">
-            {standups.map(s => (
-              <div key={s.id} className="px-4 py-2.5">
-                <div className="flex items-center gap-2 mb-1">
-                  <Avatar name={s.user.name} image={s.user.image} size="xs" />
-                  <span className="text-xs font-medium text-stone-700">{s.user.name}</span>
-                  <span className="text-[10px] text-stone-400 ml-auto">{fmtDate(s.createdAt)}</span>
-                </div>
-                {s.today && <p className="text-xs text-stone-600 line-clamp-2 pl-5">{s.today}</p>}
-                {s.blockers && <p className="text-[10px] text-red-500 line-clamp-1 pl-5 mt-0.5">⚠ {s.blockers}</p>}
+      {broadcasts.length === 0 ? (
+        <div className="px-4 py-5 text-center">
+          <p className="text-xs text-stone-400">No updates posted yet.</p>
+          <p className="text-[10px] text-stone-300 mt-1">Goal owners can broadcast updates from any goal page.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-stone-50">
+          {broadcasts.map(b => (
+            <Link key={b.id} href={`/goals/${b.goal.id}`}
+              className="block px-4 py-2.5 hover:bg-stone-50 transition-colors">
+              <div className="flex items-center gap-2 mb-1">
+                <Avatar name={b.author.name} image={b.author.image} size="xs" />
+                <span className="text-xs font-medium text-stone-700 truncate">{b.goal.title}</span>
+                <span className="text-[10px] text-stone-400 ml-auto flex-shrink-0">{fmtDate(b.createdAt)}</span>
               </div>
-            ))}
-            <div className="px-4 py-2">
-              <Link href="/standup" className="text-[10px] text-sky-500 hover:text-sky-700">View all standups →</Link>
-            </div>
-          </div>
-        )
-      )}
-
-      {tab === "broadcasts" && (
-        broadcasts.length === 0 ? (
-          <div className="px-4 py-4 text-center">
-            <p className="text-xs text-stone-400">No broadcasts yet.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-stone-50">
-            {broadcasts.map(b => (
-              <Link key={b.id} href={`/goals/${b.goal.id}`}
-                className="block px-4 py-2.5 hover:bg-stone-50 transition-colors">
-                <div className="flex items-center gap-2 mb-1">
-                  <Avatar name={b.author.name} image={b.author.image} size="xs" />
-                  <span className="text-xs font-medium text-stone-700 truncate">{b.goal.title}</span>
-                  <span className="text-[10px] text-stone-400 ml-auto flex-shrink-0">{fmtDate(b.createdAt)}</span>
-                </div>
-                <p className="text-xs text-stone-600 line-clamp-2 pl-5">{b.message}</p>
-              </Link>
-            ))}
-          </div>
-        )
+              <p className="text-xs text-stone-600 line-clamp-2 pl-5">{b.message}</p>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -333,7 +295,7 @@ export default function HomeView({
   const {
     overduePitstops, thisWeekPitstops, todayPlanItems, todayActivities,
     noPlanPitstops, goneQuietGoals, flaggedActivities, recentNotifications,
-    currentQuarter, recentBroadcasts, recentStandups, staleCheckins, driftingThemes, fyYear, fyQ,
+    currentQuarter, recentBroadcasts, driftingThemes, fyYear, fyQ,
   } = data;
 
   const attentionCount = overduePitstops.length + goneQuietGoals.length + flaggedActivities.length;
@@ -531,10 +493,10 @@ export default function HomeView({
               )}
             </div>
 
-            {/* Team Pulse */}
+            {/* Recent broadcasts */}
             <div>
-              <SectionHeader title="Team Pulse" href="/standup" icon={<ClipboardList className="w-3.5 h-3.5" />} />
-              <TeamPulseCard standups={recentStandups} broadcasts={recentBroadcasts} />
+              <SectionHeader title="Recent updates" icon={<Megaphone className="w-3.5 h-3.5" />} />
+              <BroadcastsCard broadcasts={recentBroadcasts} />
             </div>
 
             {/* Drifting themes */}
