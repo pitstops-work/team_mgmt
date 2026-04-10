@@ -8,32 +8,50 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  bio           String?
-  notifyDigest  Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  name             String?
+  email            String    @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  bio              String?
+  notifyDigest     Boolean   @default(false)
+  weeklyCapacity   Float     @default(40)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  accounts            Account[]
-  sessions            Session[]
-  goals               Goal[]
-  ownedPitstops       Pitstop[]            @relation("PitstopOwner")
-  programs            Program[]
-  messages            Message[]
-  mentions            Mention[]
-  goalFollows         GoalFollow[]
-  threadSubscriptions ThreadSubscription[]
-  notifications       Notification[]
-  pushSubscriptions   PushSubscription[]
-  createdEvents       PitstopEvent[]
-  eventAttendances    PitstopEventAttendee[]
-  eventFollowups      PitstopEventFollowup[]
-  planItems           PlanItem[]
+  accounts             Account[]
+  sessions             Session[]
+  goals                Goal[]
+  ownedPitstops        Pitstop[]             @relation("PitstopOwner")
+  programs             Program[]
+  messages             Message[]
+  mentions             Mention[]
+  goalFollows          GoalFollow[]
+  threadSubscriptions  ThreadSubscription[]
+  notifications        Notification[]
+  pushSubscriptions    PushSubscription[]
+  createdEvents        PitstopEvent[]
+  eventAttendances     PitstopEventAttendee[]
+  eventFollowups       PitstopEventFollowup[]
+  planItems            PlanItem[]
+  // Accountability
+  checkins             PitstopCheckin[]
+  retrospectives       Retrospective[]
+  standupLogs          StandupLog[]
+  // Escalation
+  escalationsGiven     PitstopEscalation[]   @relation("EscalatedBy")
+  escalationsTaken     PitstopEscalation[]   @relation("EscalatedTo")
+  // Co-ownership
+  pitstopCoOwners      PitstopCoOwner[]
+  goalCoOwners         GoalCoOwner[]
+  // Decisions, Audit, Risks
+  decisions            Decision[]
+  auditLogs            AuditLog[]
+  risks                Risk[]
+  // Broadcasts & Metrics
+  broadcasts           GoalBroadcast[]
+  metricDataPoints     MetricDataPoint[]
 }
 
 model Account {
@@ -83,35 +101,50 @@ model Goal {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  owner       User         @relation(fields: [ownerId], references: [id])
+  owner       User          @relation(fields: [ownerId], references: [id])
   pitstops    Pitstop[]
   attachments Attachment[]
   followers   GoalFollow[]
   programs    ProgramGoal[]
+  // Co-ownership
+  coOwners    GoalCoOwner[]
+  // Decisions, risks, broadcasts
+  decisions   Decision[]
+  risks       Risk[]
+  broadcasts  GoalBroadcast[]
+  // Metrics/KPIs
+  metrics     GoalMetric[]
+  // Strategic tags
+  themes      GoalTheme[]
+  zones       GoalZone[]
+  clusters    GoalCluster[]
+  settlements GoalSettlement[]
+  quarters    GoalQuarter[]
 }
 
 model Pitstop {
-  id        String           @id @default(cuid())
-  title     String
-  type      PitstopType      @default(Discussion)
-  notes     String?
-  status    PitstopStatus    @default(Upcoming)
-  priority  PitstopPriority  @default(Medium)
+  id              String            @id @default(cuid())
+  title           String
+  type            PitstopType       @default(Discussion)
+  notes           String?
+  status          PitstopStatus     @default(Upcoming)
+  priority        PitstopPriority   @default(Medium)
   goalId          String
   ownerId         String?
-  ownerInherited  Boolean          @default(true)
+  ownerInherited  Boolean           @default(true)
   customType      String?
-  order           Int              @default(0)
+  order           Int               @default(0)
   recurrence      PitstopRecurrence @default(None)
-  startDate   DateTime?
-  targetDate  DateTime?
-  completedAt DateTime?
-  deletedAt   DateTime?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  estimatedHours  Float?
+  startDate       DateTime?
+  targetDate      DateTime?
+  completedAt     DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
-  goal           Goal               @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  owner          User?              @relation("PitstopOwner", fields: [ownerId], references: [id])
+  goal           Goal                @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  owner          User?               @relation("PitstopOwner", fields: [ownerId], references: [id])
   threads        Thread[]
   attachments    Attachment[]
   checklistItems ChecklistItem[]
@@ -121,6 +154,12 @@ model Pitstop {
   checkinLog     PitstopCheckinLog?
   events         PitstopEventPitstop[]
   planItems      PlanItemPitstop[]
+  // New relations
+  coOwners       PitstopCoOwner[]
+  escalations    PitstopEscalation[]
+  checkins       PitstopCheckin[]
+  standupLinks   StandupLogPitstop[]
+  risks          Risk[]
 }
 
 model ChecklistItem {
@@ -146,12 +185,12 @@ model PitstopDependency {
 }
 
 model Thread {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   pitstopId String
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   pitstop       Pitstop              @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
   messages      Message[]
@@ -224,6 +263,8 @@ model ThreadSubscription {
   @@unique([userId, threadId])
 }
 
+// ── Notifications ─────────────────────────────────────────────────────────────
+
 enum NotificationType {
   Mention
   NewPitstop
@@ -235,19 +276,9 @@ enum NotificationType {
   ActivityFollowup
   ActivityMorningNudge
   WeeklyPlanNudge
-}
-
-enum PitstopPriority {
-  High
-  Medium
-  Low
-}
-
-enum PitstopEventStatus {
-  Scheduled
-  Done
-  Cancelled
-  Flagged
+  CheckinReminder
+  EscalationAlert
+  BroadcastUpdate
 }
 
 model Notification {
@@ -262,6 +293,8 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
 
 enum GoalStatus {
   Active
@@ -283,6 +316,12 @@ enum PitstopStatus {
   Done
 }
 
+enum PitstopPriority {
+  High
+  Medium
+  Low
+}
+
 enum PitstopType {
   Meeting
   Training
@@ -301,12 +340,6 @@ enum AttachmentType {
   Link
 }
 
-model CustomPitstopType {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-}
-
 enum PitstopRecurrence {
   None
   Weekly
@@ -314,28 +347,389 @@ enum PitstopRecurrence {
   Quarterly
 }
 
-// Tracks the 3 one-shot reminders (10d / 3d / due-day) per pitstop
+enum PitstopEventStatus {
+  Scheduled
+  Done
+  Cancelled
+  Flagged
+}
+
+enum CheckinStatus {
+  OnTrack
+  AtRisk
+  Blocked
+  Done
+}
+
+enum DecisionStatus {
+  Open
+  Made
+  Reversed
+}
+
+enum RiskLikelihood {
+  Low
+  Medium
+  High
+}
+
+enum RiskImpact {
+  Low
+  Medium
+  High
+}
+
+enum RiskStatus {
+  Open
+  Mitigated
+  Closed
+}
+
+enum MetricFrequency {
+  Daily
+  Weekly
+  Monthly
+  Quarterly
+}
+
+// ── Accountability ────────────────────────────────────────────────────────────
+
+model PitstopCheckin {
+  id        String        @id @default(cuid())
+  pitstopId String
+  userId    String
+  date      DateTime      @default(now())
+  status    CheckinStatus
+  note      String?
+  nextSteps String?
+  createdAt DateTime      @default(now())
+
+  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Retrospective {
+  id           String   @id @default(cuid())
+  entityType   String   // "Goal" | "Pitstop"
+  entityId     String
+  authorId     String
+  wentWell     String?
+  couldImprove String?
+  keyLearning  String?
+  createdAt    DateTime @default(now())
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model StandupLog {
+  id        String    @id @default(cuid())
+  userId    String
+  date      DateTime
+  yesterday String?
+  today     String?
+  blockers  String?
+  createdAt DateTime  @default(now())
+
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pitstops StandupLogPitstop[]
+}
+
+model StandupLogPitstop {
+  standupLogId String
+  pitstopId    String
+
+  standupLog StandupLog @relation(fields: [standupLogId], references: [id], onDelete: Cascade)
+  pitstop    Pitstop    @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+
+  @@id([standupLogId, pitstopId])
+}
+
+// ── Escalation ────────────────────────────────────────────────────────────────
+
+model PitstopEscalation {
+  id             String    @id @default(cuid())
+  pitstopId      String
+  escalatedById  String
+  escalatedToId  String
+  note           String?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  pitstop     Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  escalatedBy User    @relation("EscalatedBy", fields: [escalatedById], references: [id], onDelete: Cascade)
+  escalatedTo User    @relation("EscalatedTo", fields: [escalatedToId], references: [id], onDelete: Cascade)
+}
+
+// ── Co-ownership ──────────────────────────────────────────────────────────────
+
+model PitstopCoOwner {
+  pitstopId String
+  userId    String
+
+  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([pitstopId, userId])
+}
+
+model GoalCoOwner {
+  goalId String
+  userId String
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([goalId, userId])
+}
+
+// ── Decision Log ──────────────────────────────────────────────────────────────
+
+model Decision {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  rationale   String?
+  status      DecisionStatus @default(Open)
+  decidedAt   DateTime?
+  goalId      String?
+  createdById String
+  deletedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  goal      Goal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  createdBy User  @relation(fields: [createdById], references: [id], onDelete: Cascade)
+}
+
+// ── Audit Trail ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String   // "Goal" | "Pitstop"
+  entityId   String
+  userId     String
+  action     String   // "status_change" | "owner_change" | "date_change" | "priority_change" | "created" | "deleted"
+  field      String?
+  oldValue   String?
+  newValue   String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+}
+
+// ── Risk Registry ─────────────────────────────────────────────────────────────
+
+model Risk {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  likelihood  RiskLikelihood @default(Medium)
+  impact      RiskImpact     @default(Medium)
+  mitigation  String?
+  status      RiskStatus     @default(Open)
+  goalId      String?
+  pitstopId   String?
+  createdById String
+  deletedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  goal      Goal?    @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  pitstop   Pitstop? @relation(fields: [pitstopId], references: [id], onDelete: SetNull)
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+}
+
+// ── Broadcast Updates ─────────────────────────────────────────────────────────
+
+model GoalBroadcast {
+  id        String    @id @default(cuid())
+  goalId    String
+  authorId  String
+  title     String
+  body      String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  goal   Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+// ── Metrics / KPIs ────────────────────────────────────────────────────────────
+
+model GoalMetric {
+  id          String          @id @default(cuid())
+  goalId      String
+  name        String
+  description String?
+  target      Float
+  current     Float           @default(0)
+  unit        String?
+  frequency   MetricFrequency @default(Monthly)
+  deletedAt   DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  goal       Goal              @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  dataPoints MetricDataPoint[]
+}
+
+model MetricDataPoint {
+  id        String   @id @default(cuid())
+  metricId  String
+  value     Float
+  note      String?
+  date      DateTime
+  userId    String
+  createdAt DateTime @default(now())
+
+  metric GoalMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── Themes ────────────────────────────────────────────────────────────────────
+
+model Theme {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  goals GoalTheme[]
+}
+
+model GoalTheme {
+  goalId  String
+  themeId String
+
+  goal  Goal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  theme Theme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@id([goalId, themeId])
+}
+
+// ── Geography: Zone → Cluster → Settlement ───────────────────────────────────
+
+model Zone {
+  id        String    @id @default(cuid())
+  name      String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  clusters Cluster[]
+  goals    GoalZone[]
+}
+
+model Cluster {
+  id        String    @id @default(cuid())
+  name      String
+  zoneId    String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  zone        Zone          @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  settlements Settlement[]
+  goals       GoalCluster[]
+}
+
+model Settlement {
+  id        String    @id @default(cuid())
+  name      String
+  clusterId String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  cluster Cluster        @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  goals   GoalSettlement[]
+}
+
+model GoalZone {
+  goalId String
+  zoneId String
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  zone Zone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@id([goalId, zoneId])
+}
+
+model GoalCluster {
+  goalId    String
+  clusterId String
+
+  goal    Goal    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  cluster Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+  @@id([goalId, clusterId])
+}
+
+model GoalSettlement {
+  goalId       String
+  settlementId String
+
+  goal       Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  @@id([goalId, settlementId])
+}
+
+// ── Quarterly Planning ────────────────────────────────────────────────────────
+
+model Quarter {
+  id        String    @id @default(cuid())
+  year      Int
+  quarter   Int       // 1–4
+  startDate DateTime
+  endDate   DateTime
+  focus     String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  goals GoalQuarter[]
+
+  @@unique([year, quarter])
+}
+
+model GoalQuarter {
+  goalId    String
+  quarterId String
+
+  goal    Goal    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  quarter Quarter @relation(fields: [quarterId], references: [id], onDelete: Cascade)
+
+  @@id([goalId, quarterId])
+}
+
+// ── Legacy / Utility ──────────────────────────────────────────────────────────
+
+model CustomPitstopType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 model PitstopReminderLog {
   id        String   @id @default(cuid())
   pitstopId String
   type      String   // "10d" | "3d" | "due"
   sentAt    DateTime @default(now())
 
-  pitstop   Pitstop  @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
 
   @@unique([pitstopId, type])
 }
 
-// Tracks when we last sent an "any blockers?" check-in per pitstop
 model PitstopCheckinLog {
   id         String   @id @default(cuid())
   pitstopId  String   @unique
   lastSentAt DateTime
 
-  pitstop    Pitstop  @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
 }
 
-// Schedulable meetings / visits / events linked to a pitstop
 enum PitstopEventType {
   Meeting
   Visit
@@ -356,10 +750,10 @@ model PitstopEvent {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
-  createdBy   User                       @relation(fields: [createdById], references: [id])
-  attendees   PitstopEventAttendee[]
-  pitstops    PitstopEventPitstop[]
-  followups   PitstopEventFollowup[]
+  createdBy User                      @relation(fields: [createdById], references: [id])
+  attendees PitstopEventAttendee[]
+  pitstops  PitstopEventPitstop[]
+  followups PitstopEventFollowup[]
 }
 
 model PitstopEventFollowup {
@@ -443,7 +837,7 @@ model PlanItem {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   pitstops PlanItemPitstop[]
 }
 
