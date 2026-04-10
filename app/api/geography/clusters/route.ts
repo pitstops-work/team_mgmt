@@ -1,0 +1,14 @@
+import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { name, zoneId } = await req.json();
+  if (!name?.trim() || !zoneId) return Response.json({ error: "name and zoneId required" }, { status: 400 });
+
+  const cluster = await prisma.cluster.create({ data: { name: name.trim(), zoneId } });
+  return Response.json(cluster);
+}
