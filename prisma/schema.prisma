@@ -161,6 +161,11 @@ model Pitstop {
   checkins       PitstopCheckin[]
   standupLinks   StandupLogPitstop[]
   risks          Risk[]
+  themes         PitstopTheme[]
+  cities         PitstopCity[]
+  zones          PitstopZone[]
+  clusters       PitstopCluster[]
+  settlements    PitstopSettlement[]
 }
 
 model ChecklistItem {
@@ -599,7 +604,18 @@ model Theme {
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
 
-  goals GoalTheme[]
+  goals    GoalTheme[]
+  pitstops PitstopTheme[]
+}
+
+model PitstopTheme {
+  pitstopId String
+  themeId   String
+
+  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  theme   Theme   @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@id([pitstopId, themeId])
 }
 
 model GoalTheme {
@@ -620,8 +636,19 @@ model City {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  zones Zone[]
-  goals GoalCity[]
+  zones    Zone[]
+  goals    GoalCity[]
+  pitstops PitstopCity[]
+}
+
+model PitstopCity {
+  pitstopId String
+  cityId    String
+
+  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  city    City    @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@id([pitstopId, cityId])
 }
 
 model GoalCity {
@@ -644,6 +671,7 @@ model Zone {
   city     City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
   clusters Cluster[]
   goals    GoalZone[]
+  pitstops PitstopZone[]
 }
 
 model Cluster {
@@ -656,6 +684,7 @@ model Cluster {
   zone        Zone          @relation(fields: [zoneId], references: [id], onDelete: Cascade)
   settlements Settlement[]
   goals       GoalCluster[]
+  pitstops    PitstopCluster[]
 }
 
 model Settlement {
@@ -665,8 +694,9 @@ model Settlement {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  cluster Cluster        @relation(fields: [clusterId], references: [id], onDelete: Cascade)
-  goals   GoalSettlement[]
+  cluster  Cluster          @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  goals    GoalSettlement[]
+  pitstops PitstopSettlement[]
 }
 
 model GoalZone {
@@ -697,6 +727,36 @@ model GoalSettlement {
   settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
 
   @@id([goalId, settlementId])
+}
+
+model PitstopZone {
+  pitstopId String
+  zoneId    String
+
+  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  zone    Zone    @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@id([pitstopId, zoneId])
+}
+
+model PitstopCluster {
+  pitstopId String
+  clusterId String
+
+  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  cluster Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+  @@id([pitstopId, clusterId])
+}
+
+model PitstopSettlement {
+  pitstopId    String
+  settlementId String
+
+  pitstop    Pitstop    @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  @@id([pitstopId, settlementId])
 }
 
 // ── Quarterly Planning ────────────────────────────────────────────────────────

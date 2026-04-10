@@ -26,7 +26,10 @@ export default async function QuartersPage() {
     }),
     prisma.goal.findMany({
       where: { deletedAt: null },
-      select: { id: true, title: true, status: true },
+      select: {
+        id: true, title: true, status: true,
+        pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
+      },
       orderBy: { title: "asc" },
     }),
   ]);

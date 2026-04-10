@@ -14,6 +14,8 @@ import CheckinSection from "./CheckinSection";
 import RetrospectiveSection from "./RetrospectiveSection";
 import EscalationSection from "./EscalationSection";
 import CoOwnersSection from "./CoOwnersSection";
+import ThemesSection from "./ThemesSection";
+import GeographySection from "./GeographySection";
 import AuditSection from "./AuditSection";
 
 type Attachment = { id: string; name: string; url: string; type: string; mimeType?: string | null };
@@ -577,6 +579,12 @@ export default function PitstopDetail({
 
         {/* Co-owners */}
         <CoOwnersSection pitstopId={pitstop.id} users={users} />
+
+        {/* Themes */}
+        <ThemesSection pitstopId={pitstop.id} />
+
+        {/* Geography */}
+        <GeographySection pitstopId={pitstop.id} />
 
         {/* Audit trail */}
         <AuditSection entityType="Pitstop" entityId={pitstop.id} />
