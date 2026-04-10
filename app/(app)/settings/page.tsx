@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, RefreshCw, Users } from "lucide-react";
+import { Copy, Check, RefreshCw, Users, KeyRound } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 type Member = { id: string; name: string | null; email: string | null; image: string | null };
@@ -11,6 +11,13 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -33,6 +40,32 @@ export default function SettingsPage() {
     const data = await res.json();
     setCode(data.code);
     setRotating(false);
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    setPwSuccess(false);
+    if (newPassword !== confirmPassword) {
+      setPwError("New passwords do not match");
+      return;
+    }
+    setPwSaving(true);
+    const res = await fetch("/api/account/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json();
+    setPwSaving(false);
+    if (!res.ok) {
+      setPwError(data.error ?? "Something went wrong");
+    } else {
+      setPwSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    }
   };
 
   return (
@@ -74,6 +107,56 @@ export default function SettingsPage() {
             <span>Rotate</span>
           </button>
         </div>
+      </section>
+
+      {/* Change Password */}
+      <section className="mb-10">
+        <div className="flex items-center gap-2 mb-1">
+          <KeyRound className="w-4 h-4 text-stone-400" />
+          <h2 className="text-sm font-semibold text-stone-700">Change Password</h2>
+        </div>
+        <p className="text-xs text-stone-500 mb-4">
+          Enter your current password to set a new one.
+        </p>
+
+        <form onSubmit={handleChangePassword} className="space-y-3 max-w-sm">
+          <input
+            type="password"
+            placeholder="Current password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            required
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+          />
+          <input
+            type="password"
+            placeholder="New password (min 8 characters)"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength={8}
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+          />
+          <input
+            type="password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+          />
+
+          {pwError && <p className="text-xs text-red-500">{pwError}</p>}
+          {pwSuccess && <p className="text-xs text-emerald-600">Password updated successfully.</p>}
+
+          <button
+            type="submit"
+            disabled={pwSaving}
+            className="px-4 py-2 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+          >
+            {pwSaving ? "Saving…" : "Update password"}
+          </button>
+        </form>
       </section>
 
       {/* Members */}
