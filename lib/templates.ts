@@ -1354,7 +1354,7 @@ export const TEMPLATES: GoalTemplate[] = [
   // ── RP Templates ───────────────────────────────────────────────────────────
   {
     id: "rp-typical-cluster",
-    name: "RP Work Plan — Typical Cluster",
+    name: "Cluster Work Plan — Typical Cluster",
     description: "Quarterly work plan for a Resource Person covering one typical cluster (~6000 households, 11 slums). Covers Welfare Rights, Children (4–14), Youth (15–21), Elderly (55+), Creches, and Admin. ~20 working days/month.",
     category: "Field Programmes",
     icon: "🏘️",
@@ -1394,7 +1394,7 @@ export const TEMPLATES: GoalTemplate[] = [
   },
   {
     id: "rp-base-cluster",
-    name: "RP Work Plan — Base Cluster (2–3 Clusters)",
+    name: "Cluster Work Plan — Base Cluster (2–3 Clusters)",
     description: "Quarterly work plan for a Resource Person covering 2–3 base clusters. A base cluster is roughly half the activity of a typical cluster (~10 days/month per cluster). Lighter frequency and combined sessions.",
     category: "Field Programmes",
     icon: "🏚️",
@@ -1423,7 +1423,7 @@ export const TEMPLATES: GoalTemplate[] = [
   },
   {
     id: "rp-full-coverage",
-    name: "RP Work Plan — Full Coverage Cluster",
+    name: "Cluster Work Plan — Full Coverage Cluster",
     description: "Quarterly work plan for a Resource Person covering one full coverage cluster (saturation mode). 2–4 children's centres, 2+ youth centres, ~22 creches. 35–39 working days/month.",
     category: "Field Programmes",
     icon: "🏙️",
