@@ -14,6 +14,7 @@ import CheckinSection from "./CheckinSection";
 import RetrospectiveSection from "./RetrospectiveSection";
 import EscalationSection from "./EscalationSection";
 import CoOwnersSection from "./CoOwnersSection";
+import AuditSection from "./AuditSection";
 
 type Attachment = { id: string; name: string; url: string; type: string; mimeType?: string | null };
 type Mention = { user: { id: string; name: string | null } };
@@ -576,6 +577,9 @@ export default function PitstopDetail({
 
         {/* Co-owners */}
         <CoOwnersSection pitstopId={pitstop.id} users={users} />
+
+        {/* Audit trail */}
+        <AuditSection entityType="Pitstop" entityId={pitstop.id} />
 
         {/* Recurrence */}
         <div className="px-4 py-3 border-b border-stone-100">

@@ -14,6 +14,10 @@ import { getTimelineInfo, timelineChip, timelineNodeBorder, fmtDate, getPitstopH
 import OwnerPicker from "@/components/OwnerPicker";
 import { qk } from "@/lib/query-keys";
 import { fetchGoal } from "@/lib/api-client";
+import DecisionsSection from "./DecisionsSection";
+import RisksSection from "./RisksSection";
+import BroadcastsSection from "./BroadcastsSection";
+import MetricsSection from "./MetricsSection";
 
 type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
@@ -514,6 +518,14 @@ export default function GoalDetail({
           </div>
         </div>
       )}
+
+      {/* Decisions, Risks, Broadcasts, Metrics */}
+      <div className="mt-8 space-y-4">
+        <DecisionsSection goalId={goal.id} />
+        <RisksSection goalId={goal.id} />
+        <BroadcastsSection goalId={goal.id} />
+        <MetricsSection goalId={goal.id} />
+      </div>
 
       {showCreatePitstop && (
         <CreatePitstopModal
