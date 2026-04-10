@@ -12,3 +12,12 @@ export async function POST(req: NextRequest) {
   const settlement = await prisma.settlement.create({ data: { name: name.trim(), clusterId } });
   return Response.json(settlement);
 }
+
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await req.json();
+  await prisma.settlement.update({ where: { id }, data: { deletedAt: new Date() } });
+  return Response.json({ ok: true });
+}

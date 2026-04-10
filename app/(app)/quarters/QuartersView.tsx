@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CalendarRange, Plus, X, Check } from "lucide-react";
+import { CalendarRange, Plus, X, Trash2 } from "lucide-react";
 
 type PitstopHealth = { id: string; status: string };
 type GoalStub = { id: string; title: string; status: string; pitstops: PitstopHealth[] };
@@ -59,6 +59,7 @@ export default function QuartersView({
   const [focus, setFocus] = useState("");
   const [saving, setSaving] = useState(false);
   const [taggingGoalId, setTaggingGoalId] = useState<{ quarterId: string; goalId: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const handleCreate = async () => {
     setSaving(true);
@@ -73,6 +74,16 @@ export default function QuartersView({
       setYear(String(new Date().getFullYear())); setQNum("1"); setFocus(""); setShowForm(false);
     }
     setSaving(false);
+  };
+
+  const handleDeleteQuarter = async (id: string) => {
+    const res = await fetch("/api/quarters", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) setQuarters((prev) => prev.filter((q) => q.id !== id));
+    setConfirmDelete(null);
   };
 
   const handleTagGoal = async (quarterId: string, goalId: string, tag: boolean) => {
@@ -172,13 +183,22 @@ export default function QuartersView({
                       {health.done}/{health.total} pitstops done · {q.goals.length} goals
                     </p>
                   </div>
-                  <button
-                    onClick={() => setTaggingGoalId(isTagging ? null : { quarterId: q.id, goalId: "" })}
-                    className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Tag goal
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setTaggingGoalId(isTagging ? null : { quarterId: q.id, goalId: "" })}
+                      className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Tag goal
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(q.id)}
+                      className="p-1 text-stone-300 hover:text-red-400 transition-colors"
+                      title="Delete quarter"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {isTagging && untaggedGoals.length > 0 && (
@@ -235,6 +255,25 @@ export default function QuartersView({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-5 max-w-sm w-full space-y-3">
+            <p className="text-sm font-semibold text-stone-800">Delete quarter?</p>
+            <p className="text-xs text-stone-500">
+              This will remove the quarter and all goal associations. This cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setConfirmDelete(null)}
+                className="px-3 py-2 text-sm text-stone-600 hover:text-stone-800">Cancel</button>
+              <button onClick={() => handleDeleteQuarter(confirmDelete)}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -14,3 +14,12 @@ export async function POST(req: NextRequest) {
   });
   return Response.json(zone);
 }
+
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await req.json();
+  await prisma.zone.update({ where: { id }, data: { deletedAt: new Date() } });
+  return Response.json({ ok: true });
+}

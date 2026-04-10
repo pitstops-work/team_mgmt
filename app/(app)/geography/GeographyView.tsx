@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MapPin, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { MapPin, Plus, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 
 type GoalStub = { id: string; title: string };
 type Settlement = { id: string; name: string; clusterId: string; goals: { goal: GoalStub }[] };
@@ -35,6 +35,7 @@ export default function GeographyView({
   const [newClusterName, setNewClusterName] = useState("");
   const [settlementFormClusterId, setSettlementFormClusterId] = useState<string | null>(null);
   const [newSettlementName, setNewSettlementName] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<{ type: string; id: string; name: string } | null>(null);
 
   const createCity = async () => {
     if (!newCityName.trim()) return;
@@ -117,6 +118,33 @@ export default function GeographyView({
     setSaving(false);
   };
 
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    const { type, id } = confirmDelete;
+    const endpoint =
+      type === "city" ? "/api/geography/cities" :
+      type === "zone" ? "/api/geography/zones" :
+      type === "cluster" ? "/api/geography/clusters" :
+      "/api/geography/settlements";
+    const res = await fetch(endpoint, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      if (type === "city") setCities((p) => p.filter((c) => c.id !== id));
+      else if (type === "zone") {
+        setCities((p) => p.map((c) => ({ ...c, zones: c.zones.filter((z) => z.id !== id) })));
+        setOrphanZones((p) => p.filter((z) => z.id !== id));
+      } else if (type === "cluster") {
+        setCities((p) => p.map((c) => ({ ...c, zones: c.zones.map((z) => ({ ...z, clusters: z.clusters.filter((cl) => cl.id !== id) })) })));
+      } else {
+        setCities((p) => p.map((c) => ({ ...c, zones: c.zones.map((z) => ({ ...z, clusters: z.clusters.map((cl) => ({ ...cl, settlements: cl.settlements.filter((s) => s.id !== id) })) })) })));
+      }
+    }
+    setConfirmDelete(null);
+  };
+
   const inlineInput = (value: string, onChange: (v: string) => void, onEnter: () => void, onEsc: () => void, placeholder: string) => (
     <input
       autoFocus
@@ -172,16 +200,22 @@ export default function GeographyView({
           {cities.map((city) => (
             <div key={city.id} className="border border-stone-200 rounded-xl overflow-hidden">
               {/* City row */}
-              <div className="flex items-center justify-between px-4 py-3 bg-stone-100">
+              <div className="flex items-center justify-between px-4 py-3 bg-stone-100 group/city">
                 <button onClick={() => toggle(city.id)} className="flex items-center gap-2 flex-1 text-left">
                   {expanded.has(city.id) ? <ChevronDown className="w-4 h-4 text-stone-500" /> : <ChevronRight className="w-4 h-4 text-stone-500" />}
                   <span className="text-sm font-bold text-stone-800">{city.name}</span>
                   <span className="text-xs text-stone-400">{city.zones.length} zones</span>
                 </button>
-                <button onClick={() => { setZoneFormCityId(city.id); toggle(city.id); }}
-                  className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
-                  <Plus className="w-3.5 h-3.5" /> Zone
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setZoneFormCityId(city.id); toggle(city.id); }}
+                    className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
+                    <Plus className="w-3.5 h-3.5" /> Zone
+                  </button>
+                  <button onClick={() => setConfirmDelete({ type: "city", id: city.id, name: city.name })}
+                    className="opacity-0 group-hover/city:opacity-100 p-1 text-stone-300 hover:text-red-400 transition-all">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               {zoneFormCityId === city.id && (
@@ -195,16 +229,22 @@ export default function GeographyView({
               {expanded.has(city.id) && city.zones.map((zone) => (
                 <div key={zone.id} className="border-t border-stone-100">
                   {/* Zone row */}
-                  <div className="flex items-center justify-between px-6 py-2 bg-stone-50">
+                  <div className="flex items-center justify-between px-6 py-2 bg-stone-50 group/zone">
                     <button onClick={() => toggle(`z-${zone.id}`)} className="flex items-center gap-2 flex-1 text-left">
                       {expanded.has(`z-${zone.id}`) ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
                       <span className="text-sm font-semibold text-stone-700">{zone.name}</span>
                       <span className="text-xs text-stone-400">{zone.clusters.length} clusters</span>
                     </button>
-                    <button onClick={() => setClusterFormZoneId(zone.id)}
-                      className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
-                      <Plus className="w-3 h-3" /> Cluster
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setClusterFormZoneId(zone.id)}
+                        className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
+                        <Plus className="w-3 h-3" /> Cluster
+                      </button>
+                      <button onClick={() => setConfirmDelete({ type: "zone", id: zone.id, name: zone.name })}
+                        className="opacity-0 group-hover/zone:opacity-100 p-1 text-stone-300 hover:text-red-400 transition-all">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
 
                   {clusterFormZoneId === zone.id && (
@@ -218,16 +258,22 @@ export default function GeographyView({
                   {expanded.has(`z-${zone.id}`) && zone.clusters.map((cluster) => (
                     <div key={cluster.id} className="border-t border-stone-100">
                       {/* Cluster row */}
-                      <div className="flex items-center justify-between px-8 py-2 bg-white">
+                      <div className="flex items-center justify-between px-8 py-2 bg-white group/cluster">
                         <button onClick={() => toggle(`cl-${cluster.id}`)} className="flex items-center gap-2 flex-1 text-left">
                           {expanded.has(`cl-${cluster.id}`) ? <ChevronDown className="w-3 h-3 text-stone-300" /> : <ChevronRight className="w-3 h-3 text-stone-300" />}
                           <span className="text-xs font-medium text-stone-600">{cluster.name}</span>
                           <span className="text-[10px] text-stone-400">{cluster.settlements.length} settlements</span>
                         </button>
-                        <button onClick={() => setSettlementFormClusterId(cluster.id)}
-                          className="flex items-center gap-1 text-[10px] text-sky-600 hover:text-sky-700">
-                          <Plus className="w-2.5 h-2.5" /> Settlement
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setSettlementFormClusterId(cluster.id)}
+                            className="flex items-center gap-1 text-[10px] text-sky-600 hover:text-sky-700">
+                            <Plus className="w-2.5 h-2.5" /> Settlement
+                          </button>
+                          <button onClick={() => setConfirmDelete({ type: "cluster", id: cluster.id, name: cluster.name })}
+                            className="opacity-0 group-hover/cluster:opacity-100 p-1 text-stone-300 hover:text-red-400 transition-all">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
 
                       {settlementFormClusterId === cluster.id && (
@@ -239,12 +285,16 @@ export default function GeographyView({
                       )}
 
                       {expanded.has(`cl-${cluster.id}`) && cluster.settlements.map((s) => (
-                        <div key={s.id} className="px-12 py-1.5 border-t border-stone-50 flex items-center gap-2">
+                        <div key={s.id} className="px-12 py-1.5 border-t border-stone-50 flex items-center gap-2 group/settlement">
                           <span className="w-1 h-1 rounded-full bg-stone-300 flex-shrink-0" />
-                          <span className="text-xs text-stone-600">{s.name}</span>
+                          <span className="text-xs text-stone-600 flex-1">{s.name}</span>
                           {s.goals.length > 0 && (
                             <span className="text-[10px] text-stone-400">({s.goals.length} goal{s.goals.length !== 1 ? "s" : ""})</span>
                           )}
+                          <button onClick={() => setConfirmDelete({ type: "settlement", id: s.id, name: s.name })}
+                            className="opacity-0 group-hover/settlement:opacity-100 p-0.5 text-stone-300 hover:text-red-400 transition-all">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -260,11 +310,38 @@ export default function GeographyView({
               <p className="text-xs font-medium text-stone-400 mb-2">Zones without a city</p>
               <div className="space-y-1">
                 {orphanZones.map((z) => (
-                  <p key={z.id} className="text-xs text-stone-600">{z.name}</p>
+                  <div key={z.id} className="flex items-center gap-2 group/orphan">
+                    <span className="text-xs text-stone-600 flex-1">{z.name}</span>
+                    <button onClick={() => setConfirmDelete({ type: "zone", id: z.id, name: z.name })}
+                      className="opacity-0 group-hover/orphan:opacity-100 p-0.5 text-stone-300 hover:text-red-400 transition-all">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-5 max-w-sm w-full space-y-3">
+            <p className="text-sm font-semibold text-stone-800">Delete {confirmDelete.type}?</p>
+            <p className="text-xs text-stone-500">
+              <span className="font-medium text-stone-700">{confirmDelete.name}</span> will be removed.
+              This cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setConfirmDelete(null)}
+                className="px-3 py-2 text-sm text-stone-600 hover:text-stone-800">Cancel</button>
+              <button onClick={handleDelete}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
