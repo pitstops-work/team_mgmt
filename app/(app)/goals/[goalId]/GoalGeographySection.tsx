@@ -4,7 +4,14 @@ import { useState } from "react";
 import { MapPin, Plus, X } from "lucide-react";
 
 type GeoType = "city" | "zone" | "cluster" | "settlement";
-type GeoItem = { id: string; name: string; type: GeoType };
+type GeoItem = {
+  id: string;
+  name: string;
+  type: GeoType;
+  cityId?: string;
+  zoneId?: string;
+  clusterId?: string;
+};
 type GeoState = Record<GeoType, GeoItem[]>;
 
 const TYPE_LABELS: Record<GeoType, string> = {
@@ -12,14 +19,6 @@ const TYPE_LABELS: Record<GeoType, string> = {
   zone: "Zone",
   cluster: "Cluster",
   settlement: "Settlement",
-};
-
-// API returns plural keys; map them to our GeoType keys
-const API_KEY: Record<GeoType, string> = {
-  city: "cities",
-  zone: "zones",
-  cluster: "clusters",
-  settlement: "settlements",
 };
 
 const EMPTY: GeoState = { city: [], zone: [], cluster: [], settlement: [] };
@@ -41,20 +40,20 @@ export default function GoalGeographySection({ goalId }: { goalId: string }) {
     if (taggedRes.ok) {
       const data = await taggedRes.json();
       setTagged({
-        city: (data.cities ?? []).map((c: { id: string; name: string }) => ({ ...c, type: "city" as const })),
-        zone: (data.zones ?? []).map((z: { id: string; name: string }) => ({ ...z, type: "zone" as const })),
-        cluster: (data.clusters ?? []).map((cl: { id: string; name: string }) => ({ ...cl, type: "cluster" as const })),
-        settlement: (data.settlements ?? []).map((s: { id: string; name: string }) => ({ ...s, type: "settlement" as const })),
+        city:       (data.cities      ?? []).map((c: GeoItem) => ({ ...c, type: "city"       as const })),
+        zone:       (data.zones       ?? []).map((z: GeoItem) => ({ ...z, type: "zone"       as const })),
+        cluster:    (data.clusters    ?? []).map((cl: GeoItem) => ({ ...cl, type: "cluster"  as const })),
+        settlement: (data.settlements ?? []).map((s: GeoItem) => ({ ...s, type: "settlement" as const })),
       });
     }
 
     if (allRes.ok) {
       const data = await allRes.json();
       setAll({
-        city: (data.cities ?? []).map((c: { id: string; name: string }) => ({ ...c, type: "city" as const })),
-        zone: (data.zones ?? []).map((z: { id: string; name: string }) => ({ ...z, type: "zone" as const })),
-        cluster: (data.clusters ?? []).map((cl: { id: string; name: string }) => ({ ...cl, type: "cluster" as const })),
-        settlement: (data.settlements ?? []).map((s: { id: string; name: string }) => ({ ...s, type: "settlement" as const })),
+        city:       (data.cities      ?? []).map((c: GeoItem) => ({ ...c, type: "city"       as const })),
+        zone:       (data.zones       ?? []).map((z: GeoItem) => ({ ...z, type: "zone"       as const })),
+        cluster:    (data.clusters    ?? []).map((cl: GeoItem) => ({ ...cl, type: "cluster"  as const })),
+        settlement: (data.settlements ?? []).map((s: GeoItem) => ({ ...s, type: "settlement" as const })),
       });
     }
 
@@ -96,10 +95,57 @@ export default function GoalGeographySection({ goalId }: { goalId: string }) {
     ...tagged.settlement,
   ];
 
-  const totalCount = allTagged.length;
+  // Cross-filtered untagged items for the picker
+  const getPickerItems = (type: GeoType): GeoItem[] => {
+    const alreadyTagged = new Set(tagged[type].map((i) => i.id));
+    const candidates = all[type].filter((i) => !alreadyTagged.has(i.id));
 
-  const getUntagged = (type: GeoType) =>
-    all[type].filter((i) => !tagged[type].some((t) => t.id === i.id));
+    if (type === "zone") {
+      const taggedCityIds = new Set(tagged.city.map((c) => c.id));
+      if (taggedCityIds.size > 0)
+        return candidates.filter((z) => z.cityId && taggedCityIds.has(z.cityId));
+    }
+    if (type === "cluster") {
+      const taggedZoneIds = new Set(tagged.zone.map((z) => z.id));
+      if (taggedZoneIds.size > 0)
+        return candidates.filter((cl) => cl.zoneId && taggedZoneIds.has(cl.zoneId));
+      // fall back: filter by tagged cities via zone lookup
+      const taggedCityIds = new Set(tagged.city.map((c) => c.id));
+      if (taggedCityIds.size > 0) {
+        const zonesInCities = new Set(all.zone.filter((z) => z.cityId && taggedCityIds.has(z.cityId)).map((z) => z.id));
+        return candidates.filter((cl) => cl.zoneId && zonesInCities.has(cl.zoneId));
+      }
+    }
+    if (type === "settlement") {
+      const taggedClusterIds = new Set(tagged.cluster.map((cl) => cl.id));
+      if (taggedClusterIds.size > 0)
+        return candidates.filter((s) => s.clusterId && taggedClusterIds.has(s.clusterId));
+      // fall back: filter by tagged zones
+      const taggedZoneIds = new Set(tagged.zone.map((z) => z.id));
+      if (taggedZoneIds.size > 0) {
+        const clustersInZones = new Set(all.cluster.filter((cl) => cl.zoneId && taggedZoneIds.has(cl.zoneId)).map((cl) => cl.id));
+        return candidates.filter((s) => s.clusterId && clustersInZones.has(s.clusterId));
+      }
+    }
+    return candidates;
+  };
+
+  // Parent context label for picker items
+  const getParentLabel = (type: GeoType, item: GeoItem): string | null => {
+    if (type === "zone" && item.cityId) {
+      return all.city.find((c) => c.id === item.cityId)?.name ?? null;
+    }
+    if (type === "cluster" && item.zoneId) {
+      const zone = all.zone.find((z) => z.id === item.zoneId);
+      if (!zone) return null;
+      const city = zone.cityId ? all.city.find((c) => c.id === zone.cityId) : null;
+      return city ? `${zone.name} · ${city.name}` : zone.name;
+    }
+    if (type === "settlement" && item.clusterId) {
+      return all.cluster.find((cl) => cl.id === item.clusterId)?.name ?? null;
+    }
+    return null;
+  };
 
   return (
     <div className="pt-4 border-t border-stone-100">
@@ -109,14 +155,14 @@ export default function GoalGeographySection({ goalId }: { goalId: string }) {
       >
         <MapPin className="w-3.5 h-3.5" />
         Geography
-        {totalCount > 0 && <span className="ml-1 text-sky-600 font-semibold">{totalCount}</span>}
+        {allTagged.length > 0 && <span className="ml-1 text-sky-600 font-semibold">{allTagged.length}</span>}
       </button>
 
       {open && (
         <div className="space-y-2">
           {!loaded && <p className="text-xs text-stone-400">Loading…</p>}
 
-          {loaded && totalCount === 0 && !pickerType && (
+          {loaded && allTagged.length === 0 && !pickerType && (
             <p className="text-xs text-stone-400">No geography tagged.</p>
           )}
 
@@ -143,8 +189,7 @@ export default function GoalGeographySection({ goalId }: { goalId: string }) {
           {loaded && !pickerType && (
             <div className="flex flex-wrap gap-1.5 mt-1">
               {(["city", "zone", "cluster", "settlement"] as const).map((type) => {
-                const untagged = getUntagged(type);
-                if (untagged.length === 0) return null;
+                if (getPickerItems(type).length === 0) return null;
                 return (
                   <button
                     key={type}
@@ -170,15 +215,19 @@ export default function GoalGeographySection({ goalId }: { goalId: string }) {
                 </button>
               </div>
               <div className="max-h-40 overflow-y-auto">
-                {getUntagged(pickerType).map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleTag(pickerType, item.id)}
-                    className="w-full text-left px-3 py-2 text-xs text-stone-700 hover:bg-sky-50 hover:text-sky-700 transition-colors"
-                  >
-                    {item.name}
-                  </button>
-                ))}
+                {getPickerItems(pickerType).map((item) => {
+                  const parent = getParentLabel(pickerType, item);
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleTag(pickerType, item.id)}
+                      className="w-full text-left px-3 py-2 text-xs text-stone-700 hover:bg-sky-50 hover:text-sky-700 transition-colors flex items-center justify-between gap-2"
+                    >
+                      <span>{item.name}</span>
+                      {parent && <span className="text-[10px] text-stone-400 shrink-0">{parent}</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
