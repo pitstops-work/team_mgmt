@@ -15,6 +15,7 @@ export default async function GoalPage({ params }: { params: Promise<{ goalId: s
         // recurrence is a scalar — included automatically
         attachments: { where: { goalId: { not: null } }, orderBy: { createdAt: "asc" } },
         followers: { select: { userId: true } },
+        coOwners: { select: { userId: true, user: { select: { id: true, name: true, image: true } } } },
         pitstops: {
           where: { deletedAt: null },
           include: {

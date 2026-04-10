@@ -40,6 +40,7 @@ type Pitstop = {
   checklistItems: ChecklistItem[];
 };
 type Recurrence = "None" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
+type CoOwner = { userId: string; user: User };
 type Goal = {
   id: string;
   title: string;
@@ -50,6 +51,7 @@ type Goal = {
   owner: User;
   attachments: Attachment[];
   pitstops: Pitstop[];
+  coOwners: CoOwner[];
 };
 
 export default function GoalDetail({
@@ -249,8 +251,16 @@ export default function GoalDetail({
             {goal.description && (
               <p className="text-sm text-stone-500 mt-1">{goal.description}</p>
             )}
-            <div className="mt-3">
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
               <OwnerPicker users={users} value={goal.owner.id} onChange={handleGoalOwnerChange} />
+              {goal.coOwners && goal.coOwners.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-stone-400">+ co-owners:</span>
+                  {goal.coOwners.map((c) => (
+                    <Avatar key={c.userId} name={c.user.name} image={c.user.image} size="sm" />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1">

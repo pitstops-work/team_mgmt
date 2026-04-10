@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
 
   const existing = await prisma.pitstop.findUnique({
     where: { id: pitstopId },
-    select: { recurrence: true, startDate: true, targetDate: true, status: true, goalId: true, order: true },
+    select: { recurrence: true, startDate: true, targetDate: true, status: true, goalId: true, order: true, priority: true, ownerId: true },
   });
 
   const pitstop = await prisma.pitstop.update({
@@ -38,6 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
       ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
       ownerInherited: data.ownerId !== undefined ? false : undefined,
       priority: data.priority ?? undefined,
+      estimatedHours: data.estimatedHours !== undefined ? (data.estimatedHours === null ? null : Number(data.estimatedHours)) : undefined,
       startDate: data.startDate !== undefined ? (data.startDate ? new Date(data.startDate) : null) : undefined,
       targetDate: data.targetDate !== undefined ? (data.targetDate ? new Date(data.targetDate) : null) : undefined,
       completedAt: completedAt instanceof Date ? completedAt : completedAt === null ? null : undefined,
@@ -48,6 +49,32 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
       checklistItems: { select: { id: true, text: true, checked: true }, orderBy: { order: "asc" } },
     },
   });
+
+  // Audit logging for changed fields
+  if (existing) {
+    const auditEntries: Array<{ entityType: string; entityId: string; userId: string; action: string; field: string; oldValue: string | null; newValue: string | null }> = [];
+    const addAudit = (field: string, oldVal: string | null | undefined, newVal: string | null | undefined) => {
+      if (newVal !== undefined && String(newVal ?? "") !== String(oldVal ?? "")) {
+        auditEntries.push({
+          entityType: "Pitstop",
+          entityId: pitstopId,
+          userId: session.user.id!,
+          action: `${field}_change`,
+          field,
+          oldValue: oldVal ? String(oldVal) : null,
+          newValue: newVal ? String(newVal) : null,
+        });
+      }
+    };
+    if (data.status !== undefined) addAudit("status", existing.status, data.status);
+    if (data.priority !== undefined) addAudit("priority", existing.priority, data.priority);
+    if (data.ownerId !== undefined) addAudit("ownerId", existing.ownerId, data.ownerId || null);
+    if (data.targetDate !== undefined) addAudit("targetDate", existing.targetDate?.toISOString() ?? null, data.targetDate);
+    if (data.startDate !== undefined) addAudit("startDate", existing.startDate?.toISOString() ?? null, data.startDate);
+    if (auditEntries.length > 0) {
+      await prisma.auditLog.createMany({ data: auditEntries });
+    }
+  }
 
   // Save custom type for reuse
   if (data.type === "Custom" && data.customType?.trim()) {
