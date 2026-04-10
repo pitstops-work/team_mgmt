@@ -2,6 +2,15 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
+// Indian FY: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar
+function currentFYQuarter(now: Date): { year: number; quarter: number } {
+  const m = now.getMonth();
+  if (m >= 3 && m <= 5) return { year: now.getFullYear(), quarter: 1 };
+  if (m >= 6 && m <= 8) return { year: now.getFullYear(), quarter: 2 };
+  if (m >= 9)           return { year: now.getFullYear(), quarter: 3 };
+  return { year: now.getFullYear() - 1, quarter: 4 };
+}
+
 function getWeekBounds(now: Date) {
   const weekStart = new Date(now);
   const day = weekStart.getDay();
@@ -27,6 +36,9 @@ export async function GET(req: NextRequest) {
   const { weekStart, weekEnd } = getWeekBounds(now);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
+  const { year: fyYear, quarter: fyQ } = currentFYQuarter(now);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
   const [
     overduePitstops,
     thisWeekPitstops,
@@ -37,6 +49,10 @@ export async function GET(req: NextRequest) {
     activeGoals,
     flaggedActivities,
     recentNotifications,
+    currentQuarter,
+    recentBroadcasts,
+    recentStandups,
+    staleCheckins,
   ] = await Promise.all([
     // Overdue: past target date, not done
     prisma.pitstop.findMany({
@@ -173,6 +189,58 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
+
+    // Current quarter with its goals
+    prisma.quarter.findFirst({
+      where: { deletedAt: null, year: fyYear, quarter: fyQ },
+      include: {
+        goals: {
+          include: {
+            goal: {
+              select: {
+                id: true, title: true, status: true,
+                pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+
+    // Recent goal broadcasts (last 5)
+    prisma.goalBroadcast.findMany({
+      where: { goal: { deletedAt: null } },
+      include: {
+        author: { select: { id: true, name: true, image: true } },
+        goal: { select: { id: true, title: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+    }),
+
+    // Recent standups (last 3 days, all users)
+    prisma.standupLog.findMany({
+      where: { createdAt: { gte: sevenDaysAgo } },
+      include: { user: { select: { id: true, name: true, image: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+
+    // InProgress pitstops owned by target user with no check-in in 7 days
+    prisma.pitstop.findMany({
+      where: {
+        deletedAt: null,
+        ownerId: targetUserId,
+        status: "InProgress",
+        goal: { deletedAt: null },
+        checkins: { none: { createdAt: { gte: sevenDaysAgo } } },
+      },
+      select: {
+        id: true, title: true,
+        goal: { select: { id: true, title: true } },
+      },
+      take: 5,
+    }),
   ]);
 
   const plannedIds = new Set(plannedThisWeek.map(r => r.pitstopId));
@@ -192,5 +260,11 @@ export async function GET(req: NextRequest) {
     goneQuietGoals,
     flaggedActivities,
     recentNotifications,
+    currentQuarter,
+    recentBroadcasts,
+    recentStandups,
+    staleCheckins,
+    fyYear,
+    fyQ,
   });
 }

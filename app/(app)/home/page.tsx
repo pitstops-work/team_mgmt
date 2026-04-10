@@ -22,10 +22,15 @@ export default async function HomePage() {
   const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
   const { weekStart, weekEnd } = getWeekBounds(now);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const todayLabel = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+  const m = now.getMonth();
+  const fyYear = m >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const fyQ = m >= 3 && m <= 5 ? 1 : m >= 6 && m <= 8 ? 2 : m >= 9 ? 3 : 4;
 
   const [
     users,
@@ -38,6 +43,10 @@ export default async function HomePage() {
     activeGoals,
     flaggedActivities,
     recentNotifications,
+    currentQuarter,
+    recentBroadcasts,
+    recentStandups,
+    staleCheckins,
   ] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, image: true, email: true },
@@ -142,6 +151,58 @@ export default async function HomePage() {
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
+
+    // Current quarter with its goals
+    prisma.quarter.findFirst({
+      where: { deletedAt: null, year: fyYear, quarter: fyQ },
+      include: {
+        goals: {
+          include: {
+            goal: {
+              select: {
+                id: true, title: true, status: true,
+                pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+
+    // Recent goal broadcasts
+    prisma.goalBroadcast.findMany({
+      where: { goal: { deletedAt: null } },
+      include: {
+        author: { select: { id: true, name: true, image: true } },
+        goal: { select: { id: true, title: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+    }),
+
+    // Recent standups
+    prisma.standupLog.findMany({
+      where: { createdAt: { gte: sevenDaysAgo } },
+      include: { user: { select: { id: true, name: true, image: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+
+    // InProgress pitstops with no check-in in 7 days
+    prisma.pitstop.findMany({
+      where: {
+        deletedAt: null,
+        ownerId: currentUserId,
+        status: "InProgress",
+        goal: { deletedAt: null },
+        checkins: { none: { createdAt: { gte: sevenDaysAgo } } },
+      },
+      select: {
+        id: true, title: true,
+        goal: { select: { id: true, title: true } },
+      },
+      take: 5,
+    }),
   ]);
 
   const plannedIds = new Set(plannedThisWeek.map(r => r.pitstopId));
@@ -160,6 +221,12 @@ export default async function HomePage() {
     goneQuietGoals,
     flaggedActivities: JSON.parse(JSON.stringify(flaggedActivities)),
     recentNotifications: JSON.parse(JSON.stringify(recentNotifications)),
+    currentQuarter: JSON.parse(JSON.stringify(currentQuarter)),
+    recentBroadcasts: JSON.parse(JSON.stringify(recentBroadcasts)),
+    recentStandups: JSON.parse(JSON.stringify(recentStandups)),
+    staleCheckins: JSON.parse(JSON.stringify(staleCheckins)),
+    fyYear,
+    fyQ,
   };
 
   return (
