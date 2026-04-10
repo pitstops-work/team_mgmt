@@ -10,7 +10,6 @@ import { PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
 import MessageComposer from "./MessageComposer";
 import MessageBubble from "./MessageBubble";
-import CheckinSection from "./CheckinSection";
 import RetrospectiveSection from "./RetrospectiveSection";
 import EscalationSection from "./EscalationSection";
 import CoOwnersSection from "./CoOwnersSection";
@@ -569,8 +568,6 @@ export default function PitstopDetail({
         </div>
 
         {/* Check-ins */}
-        <CheckinSection pitstopId={pitstop.id} />
-
         {/* Retrospective */}
         <RetrospectiveSection entityType="Pitstop" entityId={pitstop.id} />
 
