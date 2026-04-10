@@ -94,7 +94,7 @@ function StatCard({ label, value, icon, accent }: {
   };
   const c = colors[accent];
   return (
-    <div className={`flex-1 min-w-[110px] px-4 py-3 rounded-xl border ${c.bg} flex flex-col gap-1`}>
+    <div className={`px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border ${c.bg} flex flex-col gap-0.5`}>
       <div className="flex items-center gap-1.5 text-stone-400">{icon}<span className="text-[10px] font-medium uppercase tracking-wide">{label}</span></div>
       <p className={`text-2xl font-bold ${c.val}`}>{value}</p>
     </div>
@@ -155,19 +155,19 @@ export default function HomeView({
 
       {/* Header */}
       <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-stone-100 bg-white">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-lg font-semibold text-stone-900">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-stone-900 truncate">
               {greeting}{firstName ? `, ${firstName}` : ""}
             </h1>
             <p className="text-sm text-stone-400 mt-0.5">{todayLabel}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {loading && <span className="text-xs text-stone-400 animate-pulse">Loading…</span>}
             <select
               value={viewUserId}
               onChange={e => handleUserChange(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-stone-200 rounded-lg bg-white text-stone-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="max-w-[130px] sm:max-w-none px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg bg-white text-stone-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
             >
               {users.map(u => (
                 <option key={u.id} value={u.id}>
@@ -179,8 +179,8 @@ export default function HomeView({
         </div>
       </div>
 
-      {/* Stats strip */}
-      <div className="flex gap-3 px-4 sm:px-6 py-4 overflow-x-auto no-scrollbar bg-white border-b border-stone-100">
+      {/* Stats strip — 2×2 grid on mobile, single row on sm+ */}
+      <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 px-4 sm:px-6 py-4 bg-white border-b border-stone-100">
         <StatCard label="Overdue" value={overduePitstops.length} icon={<AlertTriangle className="w-3.5 h-3.5" />} accent="red" />
         <StatCard label="Due this week" value={thisWeekPitstops.filter(p => p.targetDate).length} icon={<Clock className="w-3.5 h-3.5" />} accent="amber" />
         <StatCard label="No plan" value={noPlanPitstops.length} icon={<CalendarDays className="w-3.5 h-3.5" />} accent="amber" />
@@ -188,88 +188,11 @@ export default function HomeView({
       </div>
 
       {/* Main */}
-      <div className="flex-1 px-4 sm:px-6 py-5">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex-1 px-4 sm:px-6 py-5 pb-24 lg:pb-8">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-          {/* ── Left column ────────────────────────────────────────────── */}
-          <div className="lg:col-span-2 space-y-6">
-
-            {/* Today */}
-            <div>
-              <SectionHeader title="Today" href="/planner" />
-              {todayPlanItems.length === 0 && todayActivities.length === 0 ? (
-                <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-dashed border-stone-200 text-stone-400 text-xs">
-                  <span>Nothing planned for today.</span>
-                  <Link href="/planner" className="flex items-center gap-1 text-sky-500 hover:text-sky-700">
-                    <Plus className="w-3.5 h-3.5" /> Add
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  {todayActivities.map(a => (
-                    <Link key={a.id} href="/activities"
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ACT_DOT[a.type] ?? "bg-stone-400"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                        <p className="text-[11px] text-stone-400">{fmtTime(a.scheduledAt)} · {a.type}{a.location ? ` · ${a.location}` : ""}</p>
-                      </div>
-                      <span className="text-[10px] text-stone-400 bg-stone-50 border border-stone-200 px-2 py-0.5 rounded-full flex-shrink-0">Activity</span>
-                    </Link>
-                  ))}
-                  {todayPlanItems.map(item => (
-                    <div key={item.id}
-                      className="flex items-start gap-3 px-3 py-2.5 rounded-xl border border-stone-200 bg-white">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${PLAN_TYPE_DOT[item.type] ?? "bg-stone-300"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-800 truncate">{item.title}</p>
-                        {item.pitstops.length > 0 && (
-                          <p className="text-[11px] text-stone-400 truncate mt-0.5">
-                            {item.pitstops.map(p => p.pitstop.goal.title + " › " + p.pitstop.title).join(", ")}
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-stone-400 bg-stone-50 border border-stone-200 px-2 py-0.5 rounded-full flex-shrink-0">{item.type}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* This week */}
-            <div>
-              <SectionHeader title="This week's pitstops" count={thisWeekPitstops.length} href="/timeline" />
-              {thisWeekPitstops.length === 0 ? (
-                <p className="text-xs text-stone-400 px-1">No pitstops due or starting this week.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {thisWeekPitstops.map(p => {
-                    const isDue   = p.targetDate && new Date(p.targetDate) <= new Date(new Date().setHours(23,59,59,999));
-                    const isStart = p.startDate  && !isDue;
-                    return (
-                      <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border hover:shadow-sm transition-all ${STATUS_BG[p.status]}`}>
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[p.status]}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{p.title}</p>
-                          <p className="text-[11px] opacity-60 truncate">{p.goal.title}</p>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {p.owner && <p className="text-[10px] opacity-60 hidden sm:block">{p.owner.name}</p>}
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${isDue ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-white/60 border-current opacity-70"}`}>
-                            {isDue ? (p.targetDate ? `Due ${fmtDate(p.targetDate)}` : "Due") : (p.startDate ? `Starts ${fmtDate(p.startDate)}` : "Starts")}
-                          </span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Right column ───────────────────────────────────────────── */}
-          <div className="space-y-5">
+          {/* ── Right column — shown FIRST on mobile ───────────────────── */}
+          <div className="order-1 lg:order-2 space-y-5">
 
             {/* Needs attention */}
             <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
@@ -419,6 +342,84 @@ export default function HomeView({
             </div>
 
           </div>
+
+          {/* ── Left column — shown SECOND on mobile ───────────────────── */}
+          <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
+
+            {/* Today */}
+            <div>
+              <SectionHeader title="Today" href="/planner" />
+              {todayPlanItems.length === 0 && todayActivities.length === 0 ? (
+                <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-dashed border-stone-200 text-stone-400 text-xs">
+                  <span>Nothing planned for today.</span>
+                  <Link href="/planner" className="flex items-center gap-1 text-sky-500 hover:text-sky-700">
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {todayActivities.map(a => (
+                    <Link key={a.id} href="/activities"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ACT_DOT[a.type] ?? "bg-stone-400"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                        <p className="text-[11px] text-stone-400">{fmtTime(a.scheduledAt)} · {a.type}{a.location ? ` · ${a.location}` : ""}</p>
+                      </div>
+                      <span className="text-[10px] text-stone-400 bg-stone-50 border border-stone-200 px-2 py-0.5 rounded-full flex-shrink-0">Activity</span>
+                    </Link>
+                  ))}
+                  {todayPlanItems.map(item => (
+                    <div key={item.id}
+                      className="flex items-start gap-3 px-3 py-2.5 rounded-xl border border-stone-200 bg-white">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${PLAN_TYPE_DOT[item.type] ?? "bg-stone-300"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-800 truncate">{item.title}</p>
+                        {item.pitstops.length > 0 && (
+                          <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                            {item.pitstops.map(p => p.pitstop.goal.title + " › " + p.pitstop.title).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-stone-400 bg-stone-50 border border-stone-200 px-2 py-0.5 rounded-full flex-shrink-0">{item.type}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* This week */}
+            <div>
+              <SectionHeader title="This week's pitstops" count={thisWeekPitstops.length} href="/timeline" />
+              {thisWeekPitstops.length === 0 ? (
+                <p className="text-xs text-stone-400 px-1">No pitstops due or starting this week.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {thisWeekPitstops.map(p => {
+                    const isDue   = p.targetDate && new Date(p.targetDate) <= new Date(new Date().setHours(23,59,59,999));
+                    const isStart = p.startDate  && !isDue;
+                    return (
+                      <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border hover:shadow-sm transition-all ${STATUS_BG[p.status]}`}>
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[p.status]}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{p.title}</p>
+                          <p className="text-[11px] opacity-60 truncate">{p.goal.title}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {p.owner && <p className="text-[10px] opacity-60 hidden sm:block">{p.owner.name}</p>}
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${isDue ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-white/60 border-current opacity-70"}`}>
+                            {isDue ? (p.targetDate ? `Due ${fmtDate(p.targetDate)}` : "Due") : (p.startDate ? `Starts ${fmtDate(p.startDate)}` : "Starts")}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
