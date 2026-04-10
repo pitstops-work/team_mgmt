@@ -118,7 +118,7 @@ export default function BroadcastsSection({ goalId }: { goalId: string }) {
           {broadcasts && broadcasts.map((b) => (
             <div key={b.id} className="px-4 py-3">
               <div className="flex items-start gap-2">
-                <Avatar user={b.author} size={20} />
+                <Avatar name={b.author.name} image={b.author.image} size="sm" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-xs font-medium text-stone-800">{b.title}</span>

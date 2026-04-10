@@ -81,7 +81,7 @@ export default function CoOwnersSection({
             <div className="space-y-1">
               {coOwners.map((c) => (
                 <div key={c.userId} className="flex items-center gap-2 group">
-                  <Avatar user={c.user} size={16} />
+                  <Avatar name={c.user.name} image={c.user.image} size="xs" />
                   <span className="flex-1 text-xs text-stone-700">{c.user.name}</span>
                   <button
                     onClick={() => handleRemove(c.userId)}

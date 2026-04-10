@@ -139,7 +139,7 @@ export default function EscalationSection({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                   <span className="text-[10px] font-medium text-amber-600">Escalated to</span>
-                  <Avatar user={e.escalatedTo} size={14} />
+                  <Avatar name={e.escalatedTo.name} image={e.escalatedTo.image} size="xs" />
                   <span className="text-[10px] text-stone-600">{e.escalatedTo.name}</span>
                   <span className="text-[10px] text-stone-400">by {e.escalatedBy.name}</span>
                   <span className="text-[10px] text-stone-300">{fmtDate(e.createdAt)}</span>

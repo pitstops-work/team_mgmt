@@ -16,18 +16,18 @@ export default async function GeographyPage() {
           },
           orderBy: { name: "asc" },
         },
-        goals: { include: { goal: { where: { deletedAt: null }, select: { id: true, title: true } } } },
+        goals: { include: { goal: { select: { id: true, title: true } } } },
       },
       orderBy: { name: "asc" },
     }),
     prisma.cluster.findMany({
       where: { deletedAt: null },
-      include: { goals: { include: { goal: { where: { deletedAt: null }, select: { id: true, title: true } } } } },
+      include: { goals: { include: { goal: { select: { id: true, title: true } } } } },
       orderBy: { name: "asc" },
     }),
     prisma.settlement.findMany({
       where: { deletedAt: null },
-      include: { goals: { include: { goal: { where: { deletedAt: null }, select: { id: true, title: true } } } } },
+      include: { goals: { include: { goal: { select: { id: true, title: true } } } } },
       orderBy: { name: "asc" },
     }),
   ]);

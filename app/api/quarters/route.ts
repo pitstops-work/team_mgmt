@@ -12,7 +12,6 @@ export async function GET() {
       goals: {
         include: {
           goal: {
-            where: { deletedAt: null },
             select: {
               id: true, title: true, status: true,
               pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },

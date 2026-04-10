@@ -12,7 +12,6 @@ export default async function ThemesPage() {
       goals: {
         include: {
           goal: {
-            where: { deletedAt: null },
             select: { id: true, title: true, status: true },
           },
         },

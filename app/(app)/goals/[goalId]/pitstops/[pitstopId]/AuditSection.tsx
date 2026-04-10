@@ -75,7 +75,7 @@ export default function AuditSection({
               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 bg-stone-300" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <Avatar user={log.user} size={14} />
+                  <Avatar name={log.user.name} image={log.user.image} size="xs" />
                   <span className="text-xs text-stone-600">{fmtAction(log)}</span>
                 </div>
                 <span className="text-[10px] text-stone-400">{fmtDate(log.createdAt)}</span>

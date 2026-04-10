@@ -12,7 +12,6 @@ export default async function QuartersPage() {
         goals: {
           include: {
             goal: {
-              where: { deletedAt: null },
               select: {
                 id: true,
                 title: true,
