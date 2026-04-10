@@ -42,6 +42,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           ];
           const pitstopType = validTypes.includes(pt.type) ? pt.type : "Discussion";
 
+          const validRecurrences = ["None", "Weekly", "Monthly", "Quarterly"];
+          const recurrence = pt.recurrence && validRecurrences.includes(pt.recurrence) ? pt.recurrence : "None";
+
           return {
             title: pt.title,
             type: pitstopType as any,
@@ -49,6 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             order: idx,
             ownerId: session.user.id,
             ownerInherited: true,
+            recurrence: recurrence as any,
             startDate: pitstopStart,
             targetDate: pitstopTarget,
             checklistItems: {

@@ -12,6 +12,7 @@ export interface PitstopTemplate {
   notes: string;
   slaDays: number;         // target date = goal start + slaDays
   startSlaDays: number;    // start date = goal start + startSlaDays
+  recurrence?: "None" | "Weekly" | "Monthly" | "Quarterly";
   checklist: ChecklistItemTemplate[];
 }
 
@@ -1349,6 +1350,122 @@ export const TEMPLATES: GoalTemplate[] = [
       },
     ],
     build: buildSeedingTemplate,
+  },
+  // ── RP Templates ───────────────────────────────────────────────────────────
+  {
+    id: "rp-typical-cluster",
+    name: "RP Work Plan — Typical Cluster",
+    description: "Quarterly work plan for a Resource Person covering one typical cluster (~6000 households, 11 slums). Covers Welfare Rights, Children (4–14), Youth (15–21), Elderly (55+), Creches, and Admin. ~20 working days/month.",
+    category: "Field Programmes",
+    icon: "🏘️",
+    parameters: [
+      { key: "clusterName", label: "Cluster name", type: "text", placeholder: "e.g. Byatarayanapura" },
+      { key: "creches", label: "Number of creches in cluster", type: "number", min: 1, max: 30, placeholder: "e.g. 11" },
+    ],
+    build(params) {
+      const cluster = String(params.clusterName || "Cluster");
+      const n = Number(params.creches) || 11;
+      return [
+        // WELFARE RIGHTS
+        { title: `WR: Community Group Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly meeting with all community groups at cluster level. Review WR cases, escalations, and organizer progress.", checklist: [{ text: "Pre-meeting agenda circulated to partner" }, { text: "All slum community groups represented" }, { text: "Active WR cases reviewed" }, { text: "Issues and escalations documented" }, { text: "Follow-up action owners assigned" }, { text: "Meeting notes shared with partner" }] },
+        { title: `WR: Partner Review Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with partner team (cluster coordinator + COs). Progress on pending cases, priorities for next month.", checklist: [{ text: "Cluster coordinator and all COs present" }, { text: "Previous month action items reviewed" }, { text: "Pending WR cases status updated" }, { text: "MIS data cross-checked with field reality" }, { text: "Next month priorities agreed" }] },
+        { title: `WR: Rights Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training on civic amenities, land & housing rights, welfare schemes. Topics rotate each month.", checklist: [{ text: "Training topic selected (civic amenities / land / housing / scheme)" }, { text: "Training material prepared" }, { text: "All COs and coordinator attended" }, { text: "Practice / role-play conducted" }, { text: "Attendance recorded" }, { text: "Follow-up material distributed" }] },
+        // CHILDREN
+        { title: `Children: Centre Visit (Twice-Weekly) — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Visit the children's centre twice a week (½ day each). Handhold coordinator in planned activities and quality review.", checklist: [{ text: "Centre activity for the day observed" }, { text: "Coordinator supported on planned activity" }, { text: "Attendance register reviewed" }, { text: "Learning quality spot-check done" }, { text: "Infrastructure / material needs flagged" }, { text: "Coordinator debrief completed" }] },
+        { title: `Children: Monthly Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly training for children's programme activities. Reinforce with coordinator post-session.", checklist: [{ text: "Training topic aligned with monthly plan" }, { text: "Full session attended" }, { text: "Key learning shared with coordinator" }, { text: "Attendance recorded" }] },
+        { title: `Children: Govt School / DI Coordination — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Visit relevant government schools and coordinate with DI on dropout follow-up and school-community engagement.", checklist: [{ text: "Target school(s) visited / DI contacted" }, { text: "Out-of-school children list updated" }, { text: "Dropout follow-up done with partner" }, { text: "School engagement plan progressed" }, { text: "Next steps documented" }] },
+        // YOUTH
+        { title: `Youth: Saturday Centre Visit + CAP Review — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Every Saturday: visit youth resource centre and review CAP progress with youth groups (½ day/week).", checklist: [{ text: "Youth centre visited" }, { text: "Coordinator supported" }, { text: "Youth groups met for CAP review" }, { text: "CAP milestones status updated" }, { text: "Blockers / issues logged" }, { text: "Wins noted for motivation" }] },
+        { title: `Youth: Monthly Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly youth programme training. Brief coordinator on key takeaways.", checklist: [{ text: "Training topic aligned with monthly plan" }, { text: "Full session attended" }, { text: "Coordinator briefed post-training" }, { text: "Attendance recorded" }] },
+        // ELDERLY
+        { title: `Elderly: Monthly Centre and Outreach Review — ${cluster}`, type: "Review", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review of elderly care centre operations and outreach coverage.", checklist: [{ text: "Centre visited and operations observed" }, { text: "Outreach coverage vs. target reviewed" }, { text: "Caregiver welfare checked" }, { text: "Health referral cases followed up" }, { text: "Issues escalated with action owners" }] },
+        { title: `Elderly: Monthly Team Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training for full elderly care team (coordinator, helpers, outreach workers, part-time therapists).", checklist: [{ text: "Training topic prepared" }, { text: "All staff attended" }, { text: "Practical demonstration included" }, { text: "Action points documented" }] },
+        { title: `Elderly: Field Day with COs — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "One full day each with CO-1 and CO-2 on the field. Observe work, provide coaching. 2 days/month total.", checklist: [{ text: "Field day with CO-1 completed" }, { text: "Field day with CO-2 completed" }, { text: "Field observations documented for both" }, { text: "Coaching and support provided" }] },
+        { title: `Elderly: CSO Referral Mapping — ${cluster}`, type: "Research", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Map local CSOs and govt services for elderly referrals. Establish active referral relationships.", checklist: [{ text: "CSOs / govt services identified" }, { text: "At least 2 new referral contacts established" }, { text: "Referral directory updated and shared" }, { text: "At least 1 successful referral completed and documented" }] },
+        // CRECHES
+        { title: `Creche: Monthly Rounds (${n} creches) — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: `Monthly 2-hour visit to each of the ${n} creches in the cluster (~3 days/month).`, checklist: [{ text: `All ${n} creches visited this month` }, { text: "Caregiver conduct observed in each creche" }, { text: "Child nutrition records reviewed" }, { text: "Hygiene and safety standards checked" }, { text: "Issues flagged to supervisor immediately" }, { text: "Creche visit log updated" }] },
+        { title: `Creche: Supervisor Review — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with creche supervisors. Quality concerns, caregiver issues, expansion pipeline.", checklist: [{ text: "Both supervisors attended" }, { text: "Monthly rounds findings discussed" }, { text: "Caregiver performance issues addressed" }, { text: "Expansion / new creche pipeline reviewed" }, { text: "Action items documented" }] },
+        // TEAM & ADMIN
+        { title: "City / Zonal Team Review", type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly city-level or zonal RP team review. Present cluster updates and cross-learn.", checklist: [{ text: "Attended city / zonal team review" }, { text: "Cluster update presented" }, { text: "Cross-learning shared with team" }, { text: "Systemic issues flagged to PM" }, { text: "Action items noted" }] },
+        { title: "Quarterly Report and Programme Review", type: "Review", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Quarterly report covering all programme domains. Data, analysis, challenges, learnings, and next quarter plan.", checklist: [{ text: "WR data compiled" }, { text: "Children programme data compiled" }, { text: "Youth programme data compiled" }, { text: "Elderly programme data compiled" }, { text: "Creche programme data compiled" }, { text: "Partner inputs received" }, { text: "Challenges and learnings written" }, { text: "Next quarter priorities drafted" }, { text: "Report reviewed with PM" }, { text: "Report submitted on time" }] },
+        { title: "Documentation and Desk Work", type: "Custom", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "~2 days/month for field notes, MIS updates, partner communications, and coordination.", checklist: [{ text: "Field visit notes compiled" }, { text: "MIS / database updated" }, { text: "Partner communications responded to" }, { text: "Pending escalations followed up" }, { text: "Leave and attendance recorded" }] },
+      ];
+    },
+  },
+  {
+    id: "rp-base-cluster",
+    name: "RP Work Plan — Base Cluster (2–3 Clusters)",
+    description: "Quarterly work plan for a Resource Person covering 2–3 base clusters. A base cluster is roughly half the activity of a typical cluster (~10 days/month per cluster). Lighter frequency and combined sessions.",
+    category: "Field Programmes",
+    icon: "🏚️",
+    parameters: [
+      { key: "clusterNames", label: "Cluster names (comma-separated)", type: "text", placeholder: "e.g. Hebbal, Bagalur" },
+    ],
+    build(params) {
+      const clusters = String(params.clusterNames || "Base Clusters");
+      return [
+        { title: `WR: Combined Community & Partner Review — ${clusters}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Combined monthly meeting: community group reps + partner team together. Covers WR cases, partner progress, and issues. Run for each base cluster on rotation.", checklist: [{ text: "Community group representatives present" }, { text: "Partner (coordinator + COs) present" }, { text: "Active WR cases reviewed" }, { text: "Previous month action items followed up" }, { text: "Next month priorities agreed" }, { text: "Notes shared with partner within 2 days" }] },
+        { title: `WR: Rights Training (Quarterly) — ${clusters}`, type: "Training", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Quarterly rights training for partner team. Can be run as a joint session across all base clusters in the zone.", checklist: [{ text: "Training topic selected for the quarter" }, { text: "All base cluster COs invited" }, { text: "Training material prepared" }, { text: "Attendance recorded" }, { text: "Follow-up material distributed" }] },
+        { title: `Children: Weekly Centre Visit — ${clusters}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Visit children's centre once a week (½ day). Rotate across clusters if covering more than one.", checklist: [{ text: "Centre activities observed" }, { text: "Coordinator supported" }, { text: "Attendance register reviewed" }, { text: "Learning quality spot-check done" }, { text: "Material needs noted" }] },
+        { title: `Children: Monthly Training — ${clusters}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly children's programme training. Reinforce with coordinator.", checklist: [{ text: "Full session attended" }, { text: "Key points shared with coordinator" }, { text: "Attendance recorded" }] },
+        { title: `Youth: Fortnightly Centre Visit + CAP Review — ${clusters}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Visit youth centre fortnightly (every other Saturday). Lighter than typical given lower scale.", checklist: [{ text: "Visit 1 (fortnight 1): centre visited" }, { text: "Visit 1: youth groups met, CAP reviewed" }, { text: "Visit 2 (fortnight 2): centre visited" }, { text: "Visit 2: youth groups met, CAP reviewed" }, { text: "Issues and wins documented" }] },
+        { title: `Youth: Monthly Training — ${clusters}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly youth programme training.", checklist: [{ text: "Full session attended" }, { text: "Coordinator briefed post-training" }, { text: "Attendance recorded" }] },
+        { title: `Elderly: Monthly Review + Team Training — ${clusters}`, type: "Review", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Combined monthly session: review centre + outreach, then conduct team training in one visit day.", checklist: [{ text: "Centre visited and operations observed" }, { text: "Outreach coverage reviewed" }, { text: "Caregiver welfare checked" }, { text: "Training topic delivered" }, { text: "Action points documented" }] },
+        { title: `Elderly: Field Day with CO — ${clusters}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Spend one day with the community organizer on the field. Base cluster typically has 1 CO.", checklist: [{ text: "Field day with CO completed" }, { text: "Outreach households visited and observed" }, { text: "CO capacity gaps identified" }, { text: "Coaching provided" }, { text: "Observations documented" }] },
+        { title: `Elderly: CSO Referral Mapping — ${clusters}`, type: "Research", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Map and establish CSO / govt service referrals for elderly in all base clusters.", checklist: [{ text: "CSOs / govt services identified" }, { text: "At least 1 new referral contact established per cluster" }, { text: "Referral directory updated" }, { text: "At least 1 referral completed and documented" }] },
+        { title: `Creche: Monthly Rounds — ${clusters}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly visits to all creches across base clusters (~5–6 per cluster). ~1.5 days per cluster.", checklist: [{ text: "All creches in all base clusters visited" }, { text: "Caregiver conduct observed" }, { text: "Child nutrition records reviewed" }, { text: "Hygiene and safety checked" }, { text: "Issues flagged to supervisor" }, { text: "Creche visit log updated" }] },
+        { title: `Creche: Supervisor Review — ${clusters}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with creche supervisors covering all base clusters.", checklist: [{ text: "Supervisors for all clusters attended" }, { text: "Monthly rounds findings discussed" }, { text: "Caregiver concerns addressed" }, { text: "Action items documented" }] },
+        { title: "City / Zonal Team Review", type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly city or zonal review. Present updates across all base clusters.", checklist: [{ text: "Attended review" }, { text: "Update presented for all clusters" }, { text: "Cross-learning shared" }, { text: "Action items noted" }] },
+        { title: `Quarterly Report — ${clusters}`, type: "Review", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Quarterly report covering all base clusters managed in one document.", checklist: [{ text: "Data compiled for all clusters" }, { text: "Partner inputs received" }, { text: "Challenges and learnings written" }, { text: "Next quarter priorities per cluster drafted" }, { text: "Report reviewed with PM and submitted" }] },
+        { title: "Documentation and Desk Work", type: "Custom", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Field notes, MIS updates, communications across 2–3 clusters.", checklist: [{ text: "Field notes compiled for all clusters" }, { text: "MIS updated for all clusters" }, { text: "Partner communications responded to" }, { text: "Leave and attendance recorded" }] },
+      ];
+    },
+  },
+  {
+    id: "rp-full-coverage",
+    name: "RP Work Plan — Full Coverage Cluster",
+    description: "Quarterly work plan for a Resource Person covering one full coverage cluster (saturation mode). 2–4 children's centres, 2+ youth centres, ~22 creches. 35–39 working days/month.",
+    category: "Field Programmes",
+    icon: "🏙️",
+    parameters: [
+      { key: "clusterName", label: "Cluster name", type: "text", placeholder: "e.g. Majestic" },
+      { key: "childrenCentres", label: "Number of children's centres", type: "number", min: 2, max: 6, placeholder: "e.g. 3" },
+      { key: "creches", label: "Number of creches", type: "number", min: 11, max: 50, placeholder: "e.g. 22" },
+    ],
+    build(params) {
+      const cluster = String(params.clusterName || "Cluster");
+      const cc = Number(params.childrenCentres) || 3;
+      const n = Number(params.creches) || 22;
+      const centreChecklist = Array.from({ length: cc }, (_, i) => [
+        { text: `Centre ${i + 1}: visit 1 of 2 this week` },
+        { text: `Centre ${i + 1}: visit 2 of 2 this week` },
+      ]).flat();
+      return [
+        // WR — same as typical
+        { title: `WR: Community Group Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly meeting with all community groups. Full coverage may have more slums — ensure all are represented.", checklist: [{ text: "Pre-meeting agenda circulated" }, { text: "All community groups represented" }, { text: "Active WR cases reviewed" }, { text: "Issues documented" }, { text: "Follow-up actions assigned" }, { text: "Notes shared with partner" }] },
+        { title: `WR: Partner Review Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with partner team. Full coverage may have more COs — plan extra time.", checklist: [{ text: "All COs and coordinator present" }, { text: "Previous month actions reviewed" }, { text: "Pending cases updated" }, { text: "Next month priorities agreed" }] },
+        { title: `WR: Rights Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training on civic amenities, land, housing rights, and welfare schemes.", checklist: [{ text: "Topic selected" }, { text: "Material prepared" }, { text: "All COs attended" }, { text: "Practice included" }, { text: "Attendance recorded" }] },
+        // CHILDREN — multiple centres + weekly school
+        { title: `Children: Centre Visits — All ${cc} Centres (Twice-Weekly) — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: `Visit each of the ${cc} children's centres twice a week. This is the highest-effort item (~8–12 days/month).`, checklist: [...centreChecklist, { text: "Coordinator support given at each centre" }, { text: "Learning quality spot-check in at least 2 centres" }, { text: "Issues and material needs flagged" }] },
+        { title: `Children: Monthly Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly training. With multiple centres, ensure all coordinators are briefed post-session.", checklist: [{ text: "Full session attended" }, { text: `All ${cc} centre coordinators briefed` }, { text: "Attendance recorded" }] },
+        { title: `Children: Weekly Govt School Visit + DI Coordination — ${cluster}`, type: "Meeting", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Weekly school visit (¼ day). Full coverage includes active school-community work and dropout tracking.", checklist: [{ text: "Target school visited this week" }, { text: "School head / teacher met" }, { text: "Out-of-school / dropout follow-up done" }, { text: "DI coordination progressed" }, { text: "Field notes recorded" }] },
+        // YOUTH — multiple centres
+        { title: `Youth: Saturday Visits — All Centres + CAP Review — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Visit all youth centres every Saturday and review CAP progress. Full coverage has 2–3 centres.", checklist: [{ text: "Youth Centre 1 visited" }, { text: "Youth Centre 2 visited" }, { text: "Youth Centre 3 visited (if applicable)" }, { text: "Youth groups met for CAP review in each centre" }, { text: "CAP milestones updated" }, { text: "Each coordinator supported" }] },
+        { title: `Youth: Monthly Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly training. Ensure all centre coordinators are briefed.", checklist: [{ text: "Full session attended" }, { text: "All youth coordinators briefed" }, { text: "Attendance recorded" }] },
+        // ELDERLY — same as typical
+        { title: `Elderly: Monthly Centre and Outreach Review — ${cluster}`, type: "Review", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review of elderly care centre and outreach. No change from typical cluster.", checklist: [{ text: "Centre visited" }, { text: "Outreach coverage reviewed" }, { text: "Caregiver welfare checked" }, { text: "Referral cases followed up" }, { text: "Issues escalated" }] },
+        { title: `Elderly: Monthly Team Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training for the full elderly care team.", checklist: [{ text: "All staff attended" }, { text: "Training topic prepared" }, { text: "Action points documented" }] },
+        { title: `Elderly: Field Day with COs — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "One full day each with CO-1 and CO-2. 2 days/month total.", checklist: [{ text: "Field day with CO-1 completed" }, { text: "Field day with CO-2 completed" }, { text: "Observations documented for both" }, { text: "Coaching provided" }] },
+        { title: `Elderly: CSO Referral Network — ${cluster}`, type: "Research", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Map and maintain referral network. Full coverage = higher referral volume — ensure network is active.", checklist: [{ text: "Referral directory reviewed and updated" }, { text: "At least 2 new contacts added" }, { text: "Referral utilisation data compiled" }, { text: "At least 2 successful referrals documented" }, { text: "Referral gaps identified and actioned" }] },
+        // CRECHES — double
+        { title: `Creche: Monthly Rounds — All ${n} Creches — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: `Monthly 2-hour visit to each of the ${n} creches. Plan as a 2-week rolling schedule (~6 days/month).`, checklist: [{ text: "Week 1: first batch of creches visited" }, { text: "Week 2: second batch visited" }, { text: "Week 3: third batch visited" }, { text: "Week 4: fourth batch visited" }, { text: "Caregiver conduct observed in all creches" }, { text: "Nutrition records reviewed" }, { text: "Safety checks done" }, { text: "Concerns flagged same day" }, { text: `All ${n} creches logged` }] },
+        { title: `Creche: Supervisor Review — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with both creche supervisors.", checklist: [{ text: "Both supervisors present" }, { text: "Rounds findings discussed" }, { text: "Caregiver issues addressed" }, { text: "Expansion pipeline reviewed" }, { text: "Action items documented" }] },
+        // ADMIN
+        { title: "City / Zonal Team Review", type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly city/zonal review. Full coverage RP's cluster is a benchmark — bring detailed updates.", checklist: [{ text: "Attended review" }, { text: "Detailed cluster update presented" }, { text: "Lessons from full coverage shared" }, { text: "Systemic issues flagged to PM" }, { text: "Action items noted" }] },
+        { title: "Quarterly Report and Programme Review", type: "Review", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Most comprehensive quarterly report. Captures the saturation model in practice and informs planning.", checklist: [{ text: "WR data compiled" }, { text: `Children data — all ${cc} centres compiled` }, { text: "Youth data — all centres compiled" }, { text: "Elderly data compiled" }, { text: `Creche data — all ${n} creches compiled` }, { text: "School engagement outcomes documented" }, { text: "Partner inputs received" }, { text: "What-worked / what-didn't section included" }, { text: "Next quarter priorities drafted" }, { text: "Report reviewed with PM and submitted" }] },
+        { title: "Documentation and Desk Work", type: "Custom", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "~2 days/month. Volume is higher in full coverage given more centres and partner touchpoints.", checklist: [{ text: "Field notes from all centres compiled" }, { text: "MIS updated (all domains)" }, { text: "Partner communications responded to" }, { text: "Escalations followed up" }, { text: "Leave and attendance recorded" }] },
+      ];
+    },
   },
   {
     id: "scheme-linkage-drive",
