@@ -17,13 +17,19 @@ type Quarter = {
   goals: QuarterGoal[];
 };
 
-function currentQuarter(): { year: number; quarter: number } {
+// Indian FY: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar
+// `year` = FY year (April start year)
+function currentFYQuarter(): { year: number; quarter: number } {
   const now = new Date();
-  return { year: now.getFullYear(), quarter: Math.floor(now.getMonth() / 3) + 1 };
+  const m = now.getMonth(); // 0-indexed
+  if (m >= 3 && m <= 5) return { year: now.getFullYear(), quarter: 1 }; // Apr-Jun
+  if (m >= 6 && m <= 8) return { year: now.getFullYear(), quarter: 2 }; // Jul-Sep
+  if (m >= 9)           return { year: now.getFullYear(), quarter: 3 }; // Oct-Dec
+  return { year: now.getFullYear() - 1, quarter: 4 };                   // Jan-Mar → prev FY
 }
 
 function isCurrentQuarter(q: Quarter): boolean {
-  const curr = currentQuarter();
+  const curr = currentFYQuarter();
   return q.year === curr.year && q.quarter === curr.quarter;
 }
 
@@ -120,10 +126,10 @@ export default function QuartersView({
               <label className="block text-xs text-stone-500 mb-1">Quarter</label>
               <select value={qNum} onChange={(e) => setQNum(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-sky-400">
-                <option value="1">Q1 (Jan–Mar)</option>
-                <option value="2">Q2 (Apr–Jun)</option>
-                <option value="3">Q3 (Jul–Sep)</option>
-                <option value="4">Q4 (Oct–Dec)</option>
+                <option value="1">Q1 (Apr–Jun)</option>
+                <option value="2">Q2 (Jul–Sep)</option>
+                <option value="3">Q3 (Oct–Dec)</option>
+                <option value="4">Q4 (Jan–Mar)</option>
               </select>
             </div>
           </div>
@@ -157,7 +163,7 @@ export default function QuartersView({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`text-sm font-semibold ${isCurrent ? "text-sky-800" : "text-stone-800"}`}>
-                        Q{q.quarter} {q.year}
+                        Q{q.quarter} FY{q.year} <span className="font-normal text-xs text-stone-400">{["Apr–Jun","Jul–Sep","Oct–Dec","Jan–Mar"][q.quarter-1]}</span>
                       </span>
                       {isCurrent && <span className="text-[10px] font-medium bg-sky-500 text-white px-1.5 py-0.5 rounded">Current</span>}
                     </div>

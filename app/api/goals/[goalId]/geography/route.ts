@@ -9,7 +9,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
   const { goalId } = await params;
   const { type, id } = await req.json();
 
-  if (type === "zone") {
+  if (type === "city") {
+    await prisma.goalCity.upsert({ where: { goalId_cityId: { goalId, cityId: id } }, create: { goalId, cityId: id }, update: {} });
+  } else if (type === "zone") {
     await prisma.goalZone.upsert({ where: { goalId_zoneId: { goalId, zoneId: id } }, create: { goalId, zoneId: id }, update: {} });
   } else if (type === "cluster") {
     await prisma.goalCluster.upsert({ where: { goalId_clusterId: { goalId, clusterId: id } }, create: { goalId, clusterId: id }, update: {} });
@@ -29,7 +31,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ g
   const { goalId } = await params;
   const { type, id } = await req.json();
 
-  if (type === "zone") {
+  if (type === "city") {
+    await prisma.goalCity.deleteMany({ where: { goalId, cityId: id } });
+  } else if (type === "zone") {
     await prisma.goalZone.deleteMany({ where: { goalId, zoneId: id } });
   } else if (type === "cluster") {
     await prisma.goalCluster.deleteMany({ where: { goalId, clusterId: id } });

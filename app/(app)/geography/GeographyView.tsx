@@ -6,195 +6,265 @@ import { MapPin, Plus, ChevronDown, ChevronRight } from "lucide-react";
 
 type GoalStub = { id: string; title: string };
 type Settlement = { id: string; name: string; clusterId: string; goals: { goal: GoalStub }[] };
-type Cluster = { id: string; name: string; zoneId: string; settlements: Settlement[]; goals: { goal: GoalStub }[] };
-type Zone = { id: string; name: string; clusters: Cluster[]; goals: { goal: GoalStub }[] };
+type Cluster   = { id: string; name: string; zoneId: string; settlements: Settlement[]; goals: { goal: GoalStub }[] };
+type Zone      = { id: string; name: string; cityId: string | null; clusters: Cluster[]; goals: { goal: GoalStub }[] };
+type City      = { id: string; name: string; zones: Zone[]; goals: { goal: GoalStub }[] };
 
 export default function GeographyView({
+  initialCities,
   initialZones,
 }: {
+  initialCities: City[];
   initialZones: Zone[];
-  initialClusters: Cluster[];
-  initialSettlements: Settlement[];
   currentUserId: string;
 }) {
-  const [zones, setZones] = useState<Zone[]>(initialZones);
-  const [showZoneForm, setShowZoneForm] = useState(false);
-  const [newZoneName, setNewZoneName] = useState("");
-  const [showClusterForm, setShowClusterForm] = useState<string | null>(null);
-  const [newClusterName, setNewClusterName] = useState("");
-  const [showSettlementForm, setShowSettlementForm] = useState<string | null>(null);
-  const [newSettlementName, setNewSettlementName] = useState("");
-  const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
-  const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
+  const [cities, setCities] = useState<City[]>(initialCities);
+  // Zones not attached to any city
+  const [orphanZones, setOrphanZones] = useState<Zone[]>(initialZones.filter((z) => !z.cityId));
+
   const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setExpanded((p) => { const s = new Set(p); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
-  const createZone = async () => {
-    if (!newZoneName.trim()) return;
-    setSaving(true);
-    const res = await fetch("/api/geography/zones", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newZoneName.trim() }),
-    });
-    if (res.ok) {
-      const z = await res.json();
-      setZones((prev) => [...prev, { ...z, clusters: [], goals: [] }]);
-      setNewZoneName(""); setShowZoneForm(false);
-    }
-    setSaving(false);
-  };
+  // Forms
+  const [cityForm, setCityForm] = useState(false);
+  const [newCityName, setNewCityName] = useState("");
+  const [zoneFormCityId, setZoneFormCityId] = useState<string | null>(null);
+  const [newZoneName, setNewZoneName] = useState("");
+  const [clusterFormZoneId, setClusterFormZoneId] = useState<string | null>(null);
+  const [newClusterName, setNewClusterName] = useState("");
+  const [settlementFormClusterId, setSettlementFormClusterId] = useState<string | null>(null);
+  const [newSettlementName, setNewSettlementName] = useState("");
 
-  const createCluster = async (zoneId: string) => {
-    if (!newClusterName.trim()) return;
+  const createCity = async () => {
+    if (!newCityName.trim()) return;
     setSaving(true);
-    const res = await fetch("/api/geography/clusters", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newClusterName.trim(), zoneId }),
+    const res = await fetch("/api/geography/cities", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newCityName.trim() }),
     });
     if (res.ok) {
       const c = await res.json();
-      setZones((prev) => prev.map((z) =>
-        z.id === zoneId ? { ...z, clusters: [...z.clusters, { ...c, settlements: [], goals: [] }] } : z
-      ));
-      setNewClusterName(""); setShowClusterForm(null);
+      setCities((p) => [...p, { ...c, zones: [], goals: [] }]);
+      setNewCityName(""); setCityForm(false);
     }
     setSaving(false);
   };
 
-  const createSettlement = async (clusterId: string, zoneId: string) => {
+  const createZone = async (cityId: string) => {
+    if (!newZoneName.trim()) return;
+    setSaving(true);
+    const res = await fetch("/api/geography/zones", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newZoneName.trim(), cityId }),
+    });
+    if (res.ok) {
+      const z = await res.json();
+      setCities((p) => p.map((c) =>
+        c.id === cityId ? { ...c, zones: [...c.zones, { ...z, clusters: [], goals: [] }] } : c
+      ));
+      setNewZoneName(""); setZoneFormCityId(null);
+    }
+    setSaving(false);
+  };
+
+  const createCluster = async (zoneId: string, cityId: string) => {
+    if (!newClusterName.trim()) return;
+    setSaving(true);
+    const res = await fetch("/api/geography/clusters", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newClusterName.trim(), zoneId }),
+    });
+    if (res.ok) {
+      const cl = await res.json();
+      setCities((p) => p.map((c) =>
+        c.id === cityId ? {
+          ...c,
+          zones: c.zones.map((z) =>
+            z.id === zoneId ? { ...z, clusters: [...z.clusters, { ...cl, settlements: [], goals: [] }] } : z
+          ),
+        } : c
+      ));
+      setNewClusterName(""); setClusterFormZoneId(null);
+    }
+    setSaving(false);
+  };
+
+  const createSettlement = async (clusterId: string, zoneId: string, cityId: string) => {
     if (!newSettlementName.trim()) return;
     setSaving(true);
     const res = await fetch("/api/geography/settlements", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: newSettlementName.trim(), clusterId }),
     });
     if (res.ok) {
       const s = await res.json();
-      setZones((prev) => prev.map((z) =>
-        z.id === zoneId ? {
-          ...z,
-          clusters: z.clusters.map((cl) =>
-            cl.id === clusterId ? { ...cl, settlements: [...cl.settlements, { ...s, goals: [] }] } : cl
-          )
-        } : z
+      setCities((p) => p.map((c) =>
+        c.id === cityId ? {
+          ...c,
+          zones: c.zones.map((z) =>
+            z.id === zoneId ? {
+              ...z,
+              clusters: z.clusters.map((cl) =>
+                cl.id === clusterId ? { ...cl, settlements: [...cl.settlements, { ...s, goals: [] }] } : cl
+              ),
+            } : z
+          ),
+        } : c
       ));
-      setNewSettlementName(""); setShowSettlementForm(null);
+      setNewSettlementName(""); setSettlementFormClusterId(null);
     }
     setSaving(false);
   };
 
-  const toggleZone = (id: string) => setExpandedZones((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  const toggleCluster = (id: string) => setExpandedClusters((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const inlineInput = (value: string, onChange: (v: string) => void, onEnter: () => void, onEsc: () => void, placeholder: string) => (
+    <input
+      autoFocus
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => { if (e.key === "Enter") onEnter(); if (e.key === "Escape") onEsc(); }}
+      placeholder={placeholder}
+      className="flex-1 px-2.5 py-1.5 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-400"
+    />
+  );
+
+  const addBtn = (label: string, onClick: () => void, disabled?: boolean) => (
+    <button onClick={onClick} disabled={disabled}
+      className="px-2.5 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs rounded-md transition-colors">
+      {label}
+    </button>
+  );
+
+  const cancelBtn = (onClick: () => void) => (
+    <button onClick={onClick} className="px-2 py-1 text-xs text-stone-400 hover:text-stone-600">Cancel</button>
+  );
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <MapPin className="w-5 h-5 text-stone-400" />
-          <h1 className="text-lg font-semibold text-stone-900">Geography</h1>
+          <div>
+            <h1 className="text-lg font-semibold text-stone-900">Geography</h1>
+            <p className="text-xs text-stone-400">City → Zone → Cluster → Settlement</p>
+          </div>
         </div>
-        <button onClick={() => setShowZoneForm(true)}
+        <button onClick={() => setCityForm(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium rounded-lg transition-colors">
-          <Plus className="w-3.5 h-3.5" />
-          Add Zone
+          <Plus className="w-3.5 h-3.5" /> Add City
         </button>
       </div>
 
-      {showZoneForm && (
+      {cityForm && (
         <div className="mb-4 flex gap-2">
-          <input autoFocus value={newZoneName} onChange={(e) => setNewZoneName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") createZone(); if (e.key === "Escape") { setShowZoneForm(false); setNewZoneName(""); } }}
-            placeholder="Zone name…"
-            className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
-          <button onClick={createZone} disabled={!newZoneName.trim() || saving}
-            className="px-3 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm rounded-lg transition-colors">Add</button>
-          <button onClick={() => { setShowZoneForm(false); setNewZoneName(""); }} className="px-3 py-2 text-sm text-stone-400">Cancel</button>
+          {inlineInput(newCityName, setNewCityName, createCity, () => { setCityForm(false); setNewCityName(""); }, "City name…")}
+          {addBtn("Add", createCity, !newCityName.trim() || saving)}
+          {cancelBtn(() => { setCityForm(false); setNewCityName(""); })}
         </div>
       )}
 
-      {zones.length === 0 ? (
+      {cities.length === 0 && orphanZones.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-stone-200 rounded-xl">
-          <p className="text-stone-400 text-sm">No zones yet. Add a zone to get started.</p>
+          <p className="text-stone-400 text-sm">No cities yet. Add a city to get started.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {zones.map((zone) => (
-            <div key={zone.id} className="border border-stone-200 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-stone-50">
-                <button onClick={() => toggleZone(zone.id)} className="flex items-center gap-2 flex-1 text-left">
-                  {expandedZones.has(zone.id) ? <ChevronDown className="w-4 h-4 text-stone-400" /> : <ChevronRight className="w-4 h-4 text-stone-400" />}
-                  <span className="text-sm font-semibold text-stone-800">{zone.name}</span>
-                  <span className="text-xs text-stone-400">{zone.clusters.length} clusters · {zone.goals.length} goals</span>
+          {cities.map((city) => (
+            <div key={city.id} className="border border-stone-200 rounded-xl overflow-hidden">
+              {/* City row */}
+              <div className="flex items-center justify-between px-4 py-3 bg-stone-100">
+                <button onClick={() => toggle(city.id)} className="flex items-center gap-2 flex-1 text-left">
+                  {expanded.has(city.id) ? <ChevronDown className="w-4 h-4 text-stone-500" /> : <ChevronRight className="w-4 h-4 text-stone-500" />}
+                  <span className="text-sm font-bold text-stone-800">{city.name}</span>
+                  <span className="text-xs text-stone-400">{city.zones.length} zones</span>
                 </button>
-                <button onClick={() => setShowClusterForm(zone.id)}
+                <button onClick={() => { setZoneFormCityId(city.id); toggle(city.id); }}
                   className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
-                  <Plus className="w-3.5 h-3.5" />
-                  Cluster
+                  <Plus className="w-3.5 h-3.5" /> Zone
                 </button>
               </div>
 
-              {showClusterForm === zone.id && (
+              {zoneFormCityId === city.id && (
                 <div className="px-4 py-2 border-t border-stone-100 flex gap-2">
-                  <input autoFocus value={newClusterName} onChange={(e) => setNewClusterName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") createCluster(zone.id); if (e.key === "Escape") { setShowClusterForm(null); setNewClusterName(""); } }}
-                    placeholder="Cluster name…"
-                    className="flex-1 px-2.5 py-1.5 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-400" />
-                  <button onClick={() => createCluster(zone.id)} disabled={!newClusterName.trim() || saving}
-                    className="px-2.5 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs rounded-md transition-colors">Add</button>
-                  <button onClick={() => { setShowClusterForm(null); setNewClusterName(""); }} className="px-2 py-1 text-xs text-stone-400">Cancel</button>
+                  {inlineInput(newZoneName, setNewZoneName, () => createZone(city.id), () => { setZoneFormCityId(null); setNewZoneName(""); }, "Zone name…")}
+                  {addBtn("Add", () => createZone(city.id), !newZoneName.trim() || saving)}
+                  {cancelBtn(() => { setZoneFormCityId(null); setNewZoneName(""); })}
                 </div>
               )}
 
-              {expandedZones.has(zone.id) && zone.clusters.map((cluster) => (
-                <div key={cluster.id} className="border-t border-stone-100">
-                  <div className="flex items-center justify-between px-6 py-2 bg-white">
-                    <button onClick={() => toggleCluster(cluster.id)} className="flex items-center gap-2 flex-1 text-left">
-                      {expandedClusters.has(cluster.id) ? <ChevronDown className="w-3.5 h-3.5 text-stone-300" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-300" />}
-                      <span className="text-sm font-medium text-stone-700">{cluster.name}</span>
-                      <span className="text-xs text-stone-400">{cluster.settlements.length} settlements</span>
+              {expanded.has(city.id) && city.zones.map((zone) => (
+                <div key={zone.id} className="border-t border-stone-100">
+                  {/* Zone row */}
+                  <div className="flex items-center justify-between px-6 py-2 bg-stone-50">
+                    <button onClick={() => toggle(`z-${zone.id}`)} className="flex items-center gap-2 flex-1 text-left">
+                      {expanded.has(`z-${zone.id}`) ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
+                      <span className="text-sm font-semibold text-stone-700">{zone.name}</span>
+                      <span className="text-xs text-stone-400">{zone.clusters.length} clusters</span>
                     </button>
-                    <button onClick={() => setShowSettlementForm(cluster.id)}
+                    <button onClick={() => setClusterFormZoneId(zone.id)}
                       className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
-                      <Plus className="w-3 h-3" />
-                      Settlement
+                      <Plus className="w-3 h-3" /> Cluster
                     </button>
                   </div>
 
-                  {showSettlementForm === cluster.id && (
+                  {clusterFormZoneId === zone.id && (
                     <div className="px-6 py-2 border-t border-stone-100 flex gap-2">
-                      <input autoFocus value={newSettlementName} onChange={(e) => setNewSettlementName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") createSettlement(cluster.id, zone.id); if (e.key === "Escape") { setShowSettlementForm(null); setNewSettlementName(""); } }}
-                        placeholder="Settlement name…"
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-400" />
-                      <button onClick={() => createSettlement(cluster.id, zone.id)} disabled={!newSettlementName.trim() || saving}
-                        className="px-2.5 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs rounded-md">Add</button>
-                      <button onClick={() => { setShowSettlementForm(null); setNewSettlementName(""); }} className="px-2 py-1 text-xs text-stone-400">Cancel</button>
+                      {inlineInput(newClusterName, setNewClusterName, () => createCluster(zone.id, city.id), () => { setClusterFormZoneId(null); setNewClusterName(""); }, "Cluster name…")}
+                      {addBtn("Add", () => createCluster(zone.id, city.id), !newClusterName.trim() || saving)}
+                      {cancelBtn(() => { setClusterFormZoneId(null); setNewClusterName(""); })}
                     </div>
                   )}
 
-                  {expandedClusters.has(cluster.id) && cluster.settlements.map((s) => (
-                    <div key={s.id} className="px-10 py-1.5 border-t border-stone-50">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1 h-1 rounded-full bg-stone-300 flex-shrink-0" />
-                        <span className="text-xs text-stone-600">{s.name}</span>
-                        {s.goals.length > 0 && <span className="text-[10px] text-stone-400">({s.goals.length} goals)</span>}
+                  {expanded.has(`z-${zone.id}`) && zone.clusters.map((cluster) => (
+                    <div key={cluster.id} className="border-t border-stone-100">
+                      {/* Cluster row */}
+                      <div className="flex items-center justify-between px-8 py-2 bg-white">
+                        <button onClick={() => toggle(`cl-${cluster.id}`)} className="flex items-center gap-2 flex-1 text-left">
+                          {expanded.has(`cl-${cluster.id}`) ? <ChevronDown className="w-3 h-3 text-stone-300" /> : <ChevronRight className="w-3 h-3 text-stone-300" />}
+                          <span className="text-xs font-medium text-stone-600">{cluster.name}</span>
+                          <span className="text-[10px] text-stone-400">{cluster.settlements.length} settlements</span>
+                        </button>
+                        <button onClick={() => setSettlementFormClusterId(cluster.id)}
+                          className="flex items-center gap-1 text-[10px] text-sky-600 hover:text-sky-700">
+                          <Plus className="w-2.5 h-2.5" /> Settlement
+                        </button>
                       </div>
-                      {s.goals.length > 0 && (
-                        <div className="ml-3 mt-1 space-y-0.5">
-                          {s.goals.map(({ goal }) => (
-                            <Link key={goal.id} href={`/goals/${goal.id}`}
-                              className="block text-[10px] text-sky-600 hover:text-sky-700 truncate">{goal.title}</Link>
-                          ))}
+
+                      {settlementFormClusterId === cluster.id && (
+                        <div className="px-8 py-2 border-t border-stone-100 flex gap-2">
+                          {inlineInput(newSettlementName, setNewSettlementName, () => createSettlement(cluster.id, zone.id, city.id), () => { setSettlementFormClusterId(null); setNewSettlementName(""); }, "Settlement name…")}
+                          {addBtn("Add", () => createSettlement(cluster.id, zone.id, city.id), !newSettlementName.trim() || saving)}
+                          {cancelBtn(() => { setSettlementFormClusterId(null); setNewSettlementName(""); })}
                         </div>
                       )}
+
+                      {expanded.has(`cl-${cluster.id}`) && cluster.settlements.map((s) => (
+                        <div key={s.id} className="px-12 py-1.5 border-t border-stone-50 flex items-center gap-2">
+                          <span className="w-1 h-1 rounded-full bg-stone-300 flex-shrink-0" />
+                          <span className="text-xs text-stone-600">{s.name}</span>
+                          {s.goals.length > 0 && (
+                            <span className="text-[10px] text-stone-400">({s.goals.length} goal{s.goals.length !== 1 ? "s" : ""})</span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
               ))}
             </div>
           ))}
+
+          {/* Orphan zones (no city assigned) */}
+          {orphanZones.length > 0 && (
+            <div className="border border-dashed border-stone-200 rounded-xl p-4">
+              <p className="text-xs font-medium text-stone-400 mb-2">Zones without a city</p>
+              <div className="space-y-1">
+                {orphanZones.map((z) => (
+                  <p key={z.id} className="text-xs text-stone-600">{z.name}</p>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

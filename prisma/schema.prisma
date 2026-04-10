@@ -116,6 +116,7 @@ model Goal {
   metrics     GoalMetric[]
   // Strategic tags
   themes      GoalTheme[]
+  cities      GoalCity[]
   zones       GoalZone[]
   clusters    GoalCluster[]
   settlements GoalSettlement[]
@@ -611,14 +612,36 @@ model GoalTheme {
   @@id([goalId, themeId])
 }
 
-// ── Geography: Zone → Cluster → Settlement ───────────────────────────────────
+// ── Geography: City → Zone → Cluster → Settlement ────────────────────────────
 
-model Zone {
+model City {
   id        String    @id @default(cuid())
   name      String
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
+  zones Zone[]
+  goals GoalCity[]
+}
+
+model GoalCity {
+  goalId String
+  cityId String
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@id([goalId, cityId])
+}
+
+model Zone {
+  id        String    @id @default(cuid())
+  name      String
+  cityId    String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  city     City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
   clusters Cluster[]
   goals    GoalZone[]
 }

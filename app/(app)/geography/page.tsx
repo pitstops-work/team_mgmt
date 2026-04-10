@@ -5,9 +5,37 @@ import GeographyView from "./GeographyView";
 export default async function GeographyPage() {
   const session = await auth();
 
-  const [zones, clusters, settlements] = await Promise.all([
-    prisma.zone.findMany({
+  const [cities, zones] = await Promise.all([
+    prisma.city.findMany({
       where: { deletedAt: null },
+      include: {
+        zones: {
+          where: { deletedAt: null },
+          include: {
+            clusters: {
+              where: { deletedAt: null },
+              include: {
+                settlements: {
+                  where: { deletedAt: null },
+                  include: { goals: { include: { goal: { select: { id: true, title: true } } } } },
+                  orderBy: { name: "asc" },
+                },
+                goals: { include: { goal: { select: { id: true, title: true } } } },
+              },
+              orderBy: { name: "asc" },
+            },
+            goals: { include: { goal: { select: { id: true, title: true } } } },
+          },
+          orderBy: { name: "asc" },
+        },
+        goals: { include: { goal: { select: { id: true, title: true } } } },
+      },
+      orderBy: { name: "asc" },
+    }),
+
+    // Zones not yet assigned to a city
+    prisma.zone.findMany({
+      where: { deletedAt: null, cityId: null },
       include: {
         clusters: {
           where: { deletedAt: null },
@@ -20,23 +48,12 @@ export default async function GeographyPage() {
       },
       orderBy: { name: "asc" },
     }),
-    prisma.cluster.findMany({
-      where: { deletedAt: null },
-      include: { goals: { include: { goal: { select: { id: true, title: true } } } } },
-      orderBy: { name: "asc" },
-    }),
-    prisma.settlement.findMany({
-      where: { deletedAt: null },
-      include: { goals: { include: { goal: { select: { id: true, title: true } } } } },
-      orderBy: { name: "asc" },
-    }),
   ]);
 
   return (
     <GeographyView
+      initialCities={JSON.parse(JSON.stringify(cities))}
       initialZones={JSON.parse(JSON.stringify(zones))}
-      initialClusters={JSON.parse(JSON.stringify(clusters))}
-      initialSettlements={JSON.parse(JSON.stringify(settlements))}
       currentUserId={session!.user!.id!}
     />
   );
