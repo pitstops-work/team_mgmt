@@ -125,7 +125,7 @@ export default function RetrospectiveSection({
           {retros && retros.map((r) => (
             <div key={r.id} className="bg-stone-50 rounded-lg p-3 border border-stone-100 space-y-2">
               <div className="flex items-center gap-1.5">
-                <Avatar user={r.author} size={14} />
+                <Avatar name={r.author.name} image={r.author.image} size="xs" />
                 <span className="text-[10px] text-stone-400">
                   {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </span>

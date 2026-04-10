@@ -141,7 +141,7 @@ export default function CheckinSection({ pitstopId }: { pitstopId: string }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${cfg.cls}`}>{cfg.label}</span>
-                    <Avatar user={c.user} size={14} />
+                    <Avatar name={c.user.name} image={c.user.image} size="xs" />
                     <span className="text-[10px] text-stone-400">{fmtDate(c.date)}</span>
                   </div>
                   {c.note && <p className="text-xs text-stone-600">{c.note}</p>}

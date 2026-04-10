@@ -25,7 +25,7 @@ function LogCard({ log }: { log: StandupLog }) {
   return (
     <div className="bg-white rounded-xl border border-stone-200 p-4 space-y-2.5">
       <div className="flex items-center gap-2">
-        <Avatar user={log.user} size={24} />
+        <Avatar name={log.user.name} image={log.user.image} size="sm" />
         <span className="text-sm font-medium text-stone-800">{log.user.name ?? "—"}</span>
         <span className="ml-auto text-[10px] text-stone-400">{fmtDate(log.date)}</span>
       </div>
@@ -221,7 +221,7 @@ export default function StandupView({
               filterUserId === u.id ? "bg-stone-900 text-white border-stone-900" : "bg-white text-stone-500 border-stone-200 hover:bg-stone-50"
             }`}
           >
-            <Avatar user={u} size={14} />
+            <Avatar name={u.name} image={u.image} size="xs" />
             {u.name ?? u.id}
           </button>
         ))}
