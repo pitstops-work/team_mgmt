@@ -18,6 +18,9 @@ import DecisionsSection from "./DecisionsSection";
 import RisksSection from "./RisksSection";
 import BroadcastsSection from "./BroadcastsSection";
 import MetricsSection from "./MetricsSection";
+import GoalCoOwnersSection from "./GoalCoOwnersSection";
+import GoalThemesSection from "./GoalThemesSection";
+import GoalGeographySection from "./GoalGeographySection";
 
 type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
@@ -257,14 +260,6 @@ export default function GoalDetail({
             )}
             <div className="mt-3 flex items-center gap-2 flex-wrap">
               <OwnerPicker users={users} value={goal.owner.id} onChange={handleGoalOwnerChange} />
-              {goal.coOwners && goal.coOwners.length > 0 && (
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-stone-400">+ co-owners:</span>
-                  {goal.coOwners.map((c) => (
-                    <Avatar key={c.userId} name={c.user.name} image={c.user.image} size="sm" />
-                  ))}
-                </div>
-              )}
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -358,6 +353,16 @@ export default function GoalDetail({
             </button>
           </div>
         )}
+
+        {/* Co-owners, Themes, Geography */}
+        <GoalCoOwnersSection
+          goalId={goal.id}
+          coOwners={goal.coOwners ?? []}
+          users={users}
+          currentOwnerId={goal.owner.id}
+        />
+        <GoalThemesSection goalId={goal.id} />
+        <GoalGeographySection goalId={goal.id} />
 
         {/* Goal-level attachments */}
         <div className="mt-4 pt-4 border-t border-stone-100">

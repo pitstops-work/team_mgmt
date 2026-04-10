@@ -2,6 +2,26 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { goalId } = await params;
+  const [cities, zones, clusters, settlements] = await Promise.all([
+    prisma.goalCity.findMany({ where: { goalId }, include: { city: true } }),
+    prisma.goalZone.findMany({ where: { goalId }, include: { zone: true } }),
+    prisma.goalCluster.findMany({ where: { goalId }, include: { cluster: true } }),
+    prisma.goalSettlement.findMany({ where: { goalId }, include: { settlement: true } }),
+  ]);
+
+  return Response.json({
+    cities: cities.map((r) => ({ ...r.city, type: "city" })),
+    zones: zones.map((r) => ({ ...r.zone, type: "zone" })),
+    clusters: clusters.map((r) => ({ ...r.cluster, type: "cluster" })),
+    settlements: settlements.map((r) => ({ ...r.settlement, type: "settlement" })),
+  });
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
