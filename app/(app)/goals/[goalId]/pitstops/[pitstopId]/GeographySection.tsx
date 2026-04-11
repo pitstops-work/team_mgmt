@@ -172,7 +172,7 @@ export default function GeographySection({ pitstopId }: { pitstopId: string }) {
                   {item.name}
                   <button
                     onClick={() => handleUntag(item.type, item.id)}
-                    className="opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-400 transition-all"
+                    className="opacity-50 hover:opacity-100 text-stone-400 hover:text-red-400 transition-opacity"
                   >
                     <X className="w-2.5 h-2.5" />
                   </button>

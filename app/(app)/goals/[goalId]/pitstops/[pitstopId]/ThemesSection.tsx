@@ -79,7 +79,7 @@ export default function ThemesSection({ pitstopId }: { pitstopId: string }) {
                 >
                   {!t.color && <span className="text-stone-600">{t.name}</span>}
                   {t.color && t.name}
-                  <button onClick={() => handleUntag(t.id)} className="opacity-0 group-hover:opacity-100 transition-all">
+                  <button onClick={() => handleUntag(t.id)} className="opacity-50 hover:opacity-100 transition-opacity">
                     <X className="w-2.5 h-2.5" />
                   </button>
                 </span>

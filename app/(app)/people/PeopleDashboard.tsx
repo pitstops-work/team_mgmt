@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge, GoalStatusBadge } from "@/components/StatusBadge";
-import { AlertCircle, CheckCircle2, Clock, Circle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Circle, ChevronDown, ChevronRight } from "lucide-react";
 
 type Goal = { id: string; title: string; status: string; targetDate: string | null };
 type Pitstop = {
@@ -72,88 +73,9 @@ export default function PeopleDashboard({ users, goals }: { users: User[]; goals
 
       {/* Per-person cards */}
       <div className="space-y-4">
-        {activeUsers.map((user) => {
-          const overdue = user.ownedPitstops.filter(isOverdue);
-          const inProgress = user.ownedPitstops.filter((p) => p.status === "InProgress" && !isOverdue(p));
-          const upcoming = user.ownedPitstops.filter((p) => p.status === "Upcoming");
-          const done = user.ownedPitstops.filter((p) => p.status === "Done");
-
-          // Group pitstops by goal
-          const byGoal = new Map<string, { goal: Pitstop["goal"]; pitstops: Pitstop[] }>();
-          for (const p of user.ownedPitstops) {
-            if (!byGoal.has(p.goalId)) byGoal.set(p.goalId, { goal: p.goal, pitstops: [] });
-            byGoal.get(p.goalId)!.pitstops.push(p);
-          }
-
-          return (
-            <div key={user.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-100 bg-stone-50">
-                <Avatar name={user.name} image={user.image} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-800">{user.name ?? "Unknown"}</p>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-stone-500">
-                  {overdue.length > 0 && (
-                    <span className="flex items-center gap-1 text-red-600 font-medium">
-                      <AlertCircle className="w-3 h-3" />
-                      {overdue.length} overdue
-                    </span>
-                  )}
-                  <span>{inProgress.length} in progress</span>
-                  <span>{upcoming.length} upcoming</span>
-                  <span className="text-emerald-600">{done.length} done</span>
-                  <WorkloadBar active={inProgress.length + upcoming.length} />
-                </div>
-              </div>
-
-              {/* Pitstops grouped by goal */}
-              <div className="divide-y divide-stone-100">
-                {Array.from(byGoal.values()).map(({ goal, pitstops }) => (
-                  <div key={goal.id} className="px-4 py-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Link
-                        href={`/goals/${goal.id}`}
-                        className="text-xs font-medium text-stone-500 hover:text-sky-600 truncate"
-                      >
-                        {goal.title}
-                      </Link>
-                      <GoalStatusBadge status={goal.status as any} />
-                    </div>
-                    <div className="space-y-1">
-                      {pitstops
-                        .sort((a, b) => {
-                          const order = ["InProgress", "Upcoming", "Done"];
-                          return order.indexOf(a.status) - order.indexOf(b.status);
-                        })
-                        .map((p) => (
-                          <Link
-                            key={p.id}
-                            href={`/goals/${p.goalId}/pitstops/${p.id}`}
-                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-stone-50 group"
-                          >
-                            {statusIcon(p)}
-                            <span className={`text-sm flex-1 truncate ${isOverdue(p) ? "text-red-700" : "text-stone-700"}`}>
-                              {p.title}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <PitstopStatusBadge status={p.status as any} />
-                              {p.targetDate && (
-                                <span className={`text-xs ${isOverdue(p) ? "text-red-500 font-medium" : "text-stone-400"}`}>
-                                  {isOverdue(p) ? "due " : ""}
-                                  {new Date(p.targetDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                </span>
-                              )}
-                            </div>
-                          </Link>
-                        ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+        {activeUsers.map((user) => (
+          <PersonCard key={user.id} user={user} />
+        ))}
 
         {activeUsers.length === 0 && (
           <div className="text-center py-16 text-stone-400 text-sm">
@@ -161,6 +83,101 @@ export default function PeopleDashboard({ users, goals }: { users: User[]; goals
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function PersonCard({ user }: { user: User }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  const overdue = user.ownedPitstops.filter(isOverdue);
+  const inProgress = user.ownedPitstops.filter((p) => p.status === "InProgress" && !isOverdue(p));
+  const upcoming = user.ownedPitstops.filter((p) => p.status === "Upcoming");
+  const done = user.ownedPitstops.filter((p) => p.status === "Done");
+
+  const byGoal = new Map<string, { goal: Pitstop["goal"]; pitstops: Pitstop[] }>();
+  for (const p of user.ownedPitstops) {
+    if (!byGoal.has(p.goalId)) byGoal.set(p.goalId, { goal: p.goal, pitstops: [] });
+    byGoal.get(p.goalId)!.pitstops.push(p);
+  }
+
+  return (
+    <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+      {/* Header — tappable to collapse */}
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        className="w-full flex items-center gap-3 px-4 py-3 border-b border-stone-100 bg-stone-50 text-left"
+      >
+        <Avatar name={user.name} image={user.image} size="sm" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-stone-800 truncate">{user.name ?? "Unknown"}</p>
+          {/* Status summary — always visible, wraps naturally */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-stone-500">
+            {overdue.length > 0 && (
+              <span className="flex items-center gap-1 text-red-600 font-medium">
+                <AlertCircle className="w-3 h-3" />
+                {overdue.length} overdue
+              </span>
+            )}
+            <span>{inProgress.length} in progress</span>
+            <span>{upcoming.length} upcoming</span>
+            <span className="text-emerald-600">{done.length} done</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <WorkloadBar active={inProgress.length + upcoming.length} />
+          {collapsed
+            ? <ChevronRight className="w-4 h-4 text-stone-400" />
+            : <ChevronDown className="w-4 h-4 text-stone-400" />}
+        </div>
+      </button>
+
+      {/* Pitstops grouped by goal */}
+      {!collapsed && (
+        <div className="divide-y divide-stone-100">
+          {Array.from(byGoal.values()).map(({ goal, pitstops }) => (
+            <div key={goal.id} className="px-4 py-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Link
+                  href={`/goals/${goal.id}`}
+                  className="text-xs font-medium text-stone-500 hover:text-sky-600 truncate"
+                >
+                  {goal.title}
+                </Link>
+                <GoalStatusBadge status={goal.status as any} />
+              </div>
+              <div className="space-y-1">
+                {pitstops
+                  .sort((a, b) => {
+                    const order = ["InProgress", "Upcoming", "Done"];
+                    return order.indexOf(a.status) - order.indexOf(b.status);
+                  })
+                  .map((p) => (
+                    <Link
+                      key={p.id}
+                      href={`/goals/${p.goalId}/pitstops/${p.id}`}
+                      className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-stone-50 group"
+                    >
+                      {statusIcon(p)}
+                      <span className={`text-sm flex-1 truncate ${isOverdue(p) ? "text-red-700" : "text-stone-700"}`}>
+                        {p.title}
+                      </span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <PitstopStatusBadge status={p.status as any} />
+                        {p.targetDate && (
+                          <span className={`text-xs ${isOverdue(p) ? "text-red-500 font-medium" : "text-stone-400"}`}>
+                            {isOverdue(p) ? "due " : ""}
+                            {new Date(p.targetDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
