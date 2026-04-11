@@ -109,7 +109,7 @@ export default function AIAssistant() {
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className={`fixed bottom-[4.5rem] right-4 sm:bottom-6 sm:right-6 z-[55] w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-all ${
+        className={`fixed bottom-[4.5rem] left-4 sm:bottom-6 sm:left-auto sm:right-6 z-[55] w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-all ${
           open ? "bg-stone-800 text-white" : "bg-sky-500 hover:bg-sky-600 text-white"
         }`}
         title="AI Assistant"
@@ -119,7 +119,7 @@ export default function AIAssistant() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed inset-x-2 bottom-20 sm:bottom-20 sm:left-auto sm:right-6 sm:w-96 z-[55] h-[65vh] sm:h-[600px] bg-white rounded-2xl shadow-2xl border border-stone-200 flex flex-col overflow-hidden">
+        <div className="fixed inset-x-2 bottom-20 sm:bottom-20 sm:inset-x-auto sm:left-auto sm:right-6 sm:w-96 z-[55] h-[65vh] sm:h-[600px] bg-white rounded-2xl shadow-2xl border border-stone-200 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between bg-gradient-to-r from-sky-500 to-violet-500">
             <div className="flex items-center gap-2">

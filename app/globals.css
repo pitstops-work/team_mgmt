@@ -54,3 +54,10 @@ button:active, a:active, [role="button"]:active {
 .pb-safe {
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
+
+/* Prevent iOS from zooming in on input focus (requires font-size >= 16px on mobile) */
+@media (max-width: 640px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
