@@ -289,7 +289,7 @@ export default function ReviewView({
           <ClipboardCheck className="w-5 h-5 text-stone-400" /> Fortnightly Review
         </h1>
         <p className="text-sm text-stone-400 mt-0.5">
-          Committed vs. delivered — honest shared visibility for the team
+          Committed vs. delivered — shared visibility for the team
         </p>
       </div>
 
