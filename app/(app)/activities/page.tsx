@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { generateCalendarToken } from "@/lib/calendarToken";
 import EventsCalendar from "./EventsCalendar";
 
 export default async function ActivitiesPage() {
@@ -56,6 +57,8 @@ export default async function ActivitiesPage() {
     }),
   ]);
 
+  const calendarToken = session?.user?.id ? generateCalendarToken(session.user.id) : null;
+
   return (
     <EventsCalendar
       events={JSON.parse(JSON.stringify(events))}
@@ -64,6 +67,7 @@ export default async function ActivitiesPage() {
       currentUserId={session!.user!.id!}
       zones={JSON.parse(JSON.stringify(zones))}
       clusters={JSON.parse(JSON.stringify(clusters))}
+      calendarToken={calendarToken}
     />
   );
 }

@@ -353,13 +353,14 @@ function EventCard({ ev, onEdit, onDelete }: { ev: PitstopEvent; onEdit: () => v
 type ZoneGeo    = { id: string; name: string; goals: { goalId: string }[] };
 type ClusterGeo = { id: string; name: string; zone: { name: string }; goals: { goalId: string }[] };
 
-export default function EventsCalendar({ events: initialEvents, pitstops, users, currentUserId, zones = [], clusters = [] }: {
+export default function EventsCalendar({ events: initialEvents, pitstops, users, currentUserId, zones = [], clusters = [], calendarToken = null }: {
   events: PitstopEvent[];
   pitstops: PitstopRef[];
   users: User[];
   currentUserId: string;
   zones?: ZoneGeo[];
   clusters?: ClusterGeo[];
+  calendarToken?: string | null;
 }) {
   const today = new Date(); today.setHours(12, 0, 0, 0);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -371,6 +372,30 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
   const [geoFilter, setGeoFilter] = useState<{ type: "zone" | "cluster"; id: string; name: string } | null>(null);
+  const [showSubscribe, setShowSubscribe] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const subscribeRef = useRef<HTMLDivElement>(null);
+
+  // Close subscribe panel on outside click
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (subscribeRef.current && !subscribeRef.current.contains(e.target as Node)) setShowSubscribe(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const feedUrl = calendarToken
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/api/calendar/feed.ics?token=${calendarToken}`
+    : null;
+
+  function copyFeedUrl() {
+    if (!feedUrl) return;
+    navigator.clipboard.writeText(feedUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   const allGoals = Array.from(new Map(pitstops.map(p => [p.goal.id, p.goal])).values())
     .sort((a, b) => a.title.localeCompare(b.title));
@@ -492,6 +517,72 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
               className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium rounded-lg transition-colors">
               <Plus className="w-3.5 h-3.5" /> New
             </button>
+            {/* Subscribe to calendar feed */}
+            {feedUrl && (
+              <div ref={subscribeRef} className="relative">
+                <button
+                  onClick={() => setShowSubscribe(o => !o)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border rounded-lg transition-colors ${showSubscribe ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50"}`}
+                  title="Subscribe to calendar"
+                >
+                  <CalendarClock className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Subscribe</span>
+                </button>
+                {showSubscribe && (
+                  <div className="absolute top-full right-0 mt-2 z-50 w-80 bg-white border border-stone-200 rounded-xl shadow-xl p-4 space-y-3">
+                    <div>
+                      <p className="text-xs font-bold text-stone-800 mb-0.5">Sync to your calendar</p>
+                      <p className="text-[11px] text-stone-400">Subscribe to this feed in Outlook, Google Calendar, or any iCal-compatible app. Updates automatically.</p>
+                    </div>
+                    {/* Feed URL */}
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        readOnly
+                        value={feedUrl}
+                        className="flex-1 text-[10px] text-stone-500 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 font-mono truncate focus:outline-none"
+                        onClick={e => (e.target as HTMLInputElement).select()}
+                      />
+                      <button
+                        onClick={copyFeedUrl}
+                        className={`flex-shrink-0 px-2 py-1.5 text-[10px] font-semibold rounded-lg border transition-colors ${copied ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "border-stone-200 text-stone-600 hover:bg-stone-50"}`}
+                      >
+                        {copied ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                    {/* Quick-add links */}
+                    <div className="flex flex-col gap-1.5">
+                      <a
+                        href={`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(feedUrl)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-200 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors"
+                      >
+                        <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                          <rect x="2" y="2" width="9" height="9" rx="1.5" fill="#f25022"/>
+                          <rect x="13" y="2" width="9" height="9" rx="1.5" fill="#7fba00"/>
+                          <rect x="2" y="13" width="9" height="9" rx="1.5" fill="#00a4ef"/>
+                          <rect x="13" y="13" width="9" height="9" rx="1.5" fill="#ffb900"/>
+                        </svg>
+                        Add to Outlook / Microsoft 365
+                      </a>
+                      <a
+                        href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feedUrl)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-200 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors"
+                      >
+                        <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+                          <path d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#1a73e8"/>
+                          <path d="M8 10h8M8 14h5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+                        </svg>
+                        Add to Google Calendar
+                      </a>
+                    </div>
+                    <p className="text-[10px] text-stone-300">This URL is personal — don&apos;t share it.</p>
+                  </div>
+                )}
+              </div>
+            )}
             <button onClick={goToday} className="px-2.5 py-1 text-xs font-medium text-stone-600 border border-stone-200 rounded-md hover:bg-stone-50 transition-colors">
               Today
             </button>
