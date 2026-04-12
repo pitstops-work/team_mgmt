@@ -82,10 +82,10 @@ export async function GET(req: NextRequest) {
   ];
 
   for (const ev of events) {
-    const dtStart = fmtDt(ev.scheduledAt);
-    const dtEnd = ev.endsAt ? fmtDt(ev.endsAt) : fmtDt(
-      new Date(new Date(ev.scheduledAt).getTime() + 60 * 60 * 1000).toISOString()
-    );
+    const dtStart = fmtDt(ev.scheduledAt.toISOString());
+    const dtEnd = ev.endsAt
+      ? fmtDt(ev.endsAt.toISOString())
+      : fmtDt(new Date(ev.scheduledAt.getTime() + 60 * 60 * 1000).toISOString());
 
     // Build description
     const pitstopLines = ev.pitstops.map(
