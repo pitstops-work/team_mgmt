@@ -532,9 +532,10 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                   <div className="absolute top-full right-0 mt-2 z-50 w-80 bg-white border border-stone-200 rounded-xl shadow-xl p-4 space-y-3">
                     <div>
                       <p className="text-xs font-bold text-stone-800 mb-0.5">Sync to your calendar</p>
-                      <p className="text-[11px] text-stone-400">Subscribe to this feed in Outlook, Google Calendar, or any iCal-compatible app. Updates automatically.</p>
+                      <p className="text-[11px] text-stone-400">Auto-updates in any iCal app. Copy the URL and subscribe manually — the one-click links below lose auth after sign-in.</p>
                     </div>
-                    {/* Feed URL */}
+
+                    {/* Feed URL + copy */}
                     <div className="flex items-center gap-1.5">
                       <input
                         readOnly
@@ -549,35 +550,40 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                         {copied ? "Copied!" : "Copy"}
                       </button>
                     </div>
-                    {/* Quick-add links */}
-                    <div className="flex flex-col gap-1.5">
-                      <a
-                        href={`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(feedUrl)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-200 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors"
-                      >
-                        <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+
+                    {/* Outlook instructions */}
+                    <div className="rounded-lg bg-stone-50 border border-stone-100 p-3 space-y-1">
+                      <p className="text-[11px] font-semibold text-stone-700 flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
                           <rect x="2" y="2" width="9" height="9" rx="1.5" fill="#f25022"/>
                           <rect x="13" y="2" width="9" height="9" rx="1.5" fill="#7fba00"/>
                           <rect x="2" y="13" width="9" height="9" rx="1.5" fill="#00a4ef"/>
                           <rect x="13" y="13" width="9" height="9" rx="1.5" fill="#ffb900"/>
                         </svg>
-                        Add to Outlook / Microsoft 365
-                      </a>
-                      <a
-                        href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feedUrl)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-200 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors"
-                      >
-                        <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
-                          <path d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#1a73e8"/>
-                          <path d="M8 10h8M8 14h5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-                        </svg>
-                        Add to Google Calendar
-                      </a>
+                        Outlook
+                      </p>
+                      <ol className="text-[10px] text-stone-500 space-y-0.5 list-none">
+                        <li>1. Copy the URL above</li>
+                        <li>2. Open Outlook → Calendar</li>
+                        <li>3. <span className="font-medium">Add calendar → Subscribe from web</span></li>
+                        <li>4. Paste the URL → Subscribe</li>
+                      </ol>
                     </div>
+
+                    {/* Google Calendar */}
+                    <a
+                      href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feedUrl)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-200 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors"
+                    >
+                      <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+                        <path d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#1a73e8"/>
+                        <path d="M8 10h8M8 14h5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+                      </svg>
+                      Add to Google Calendar
+                    </a>
+
                     <p className="text-[10px] text-stone-300">This URL is personal — don&apos;t share it.</p>
                   </div>
                 )}
