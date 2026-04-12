@@ -124,6 +124,10 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             <MapPin className="w-3.5 h-3.5 text-stone-500" />
             Geography
           </NavLink>
+          <NavLink href="/map" active={pathname === "/map"}>
+            <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+            Programme Map
+          </NavLink>
           <NavLink href="/quarters" active={pathname.startsWith("/quarters")}>
             <CalendarRange className="w-3.5 h-3.5 text-stone-500" />
             Quarters
@@ -218,6 +222,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
                 { href: "/risks", icon: <ShieldAlert className="w-5 h-5" />, label: "Risks" },
                 { href: "/themes", icon: <Tag className="w-5 h-5" />, label: "Themes" },
                 { href: "/geography", icon: <MapPin className="w-5 h-5" />, label: "Geography" },
+                { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map" },
                 { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />, label: "Quarters" },
                 { href: "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
               ].map(item => (

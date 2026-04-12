@@ -4,13 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Target, ChevronRight, Layers } from "lucide-react";
+import { Plus, Target, ChevronRight, Layers, LayoutDashboard, ListChecks } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge } from "@/components/StatusBadge";
 import CreateGoalModal from "./CreateGoalModal";
 import TemplatePickerModal from "@/components/TemplatePickerModal";
 import { qk } from "@/lib/query-keys";
 import { fetchGoal, fetchGoals } from "@/lib/api-client";
+import OrgOverview, { type OverviewData } from "./OrgOverview";
 
 type Goal = {
   id: string;
@@ -34,9 +35,12 @@ interface Props {
   searchResults: SearchResults | null;
   users: { id: string; name: string | null; image: string | null }[];
   programs: { id: string; title: string }[];
+  overviewData: OverviewData;
+  initialTab: "overview" | "goals";
 }
 
-export default function GoalsDashboard({ initialGoals, currentUserId, searchResults, users, programs }: Props) {
+export default function GoalsDashboard({ initialGoals, currentUserId, searchResults, users, programs, overviewData, initialTab }: Props) {
+  const [activeTab, setActiveTab] = useState<"overview" | "goals">(initialTab);
   const [showCreate, setShowCreate] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
   const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">("All");
@@ -124,29 +128,62 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      {/* Page header + tabs */}
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-semibold text-stone-900">Goals</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Track progress across the team</p>
+          <h1 className="text-xl font-semibold text-stone-900">Dashboard</h1>
+          <p className="text-sm text-stone-500 mt-0.5">Goals and programme overview</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowTemplate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium rounded-lg transition-colors"
-          >
-            <Layers className="w-4 h-4" />
-            From Template
-          </button>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Goal
-          </button>
-        </div>
+        {activeTab === "goals" && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTemplate(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium rounded-lg transition-colors"
+            >
+              <Layers className="w-4 h-4" />
+              From Template
+            </button>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Goal
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Tab switcher */}
+      <div className="flex gap-0.5 mb-6 bg-stone-100 rounded-lg p-0.5 w-fit">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "overview" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"
+          }`}
+        >
+          <LayoutDashboard className="w-3.5 h-3.5" />
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab("goals")}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "goals" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"
+          }`}
+        >
+          <ListChecks className="w-3.5 h-3.5" />
+          Goals
+        </button>
+      </div>
+
+      {/* Overview tab */}
+      {activeTab === "overview" && (
+        <OrgOverview overviewData={overviewData} goals={goals} users={users} />
+      )}
+
+      {/* Goals tab */}
+      {activeTab === "goals" && (<div>
 
       <div className="flex flex-wrap gap-1 mb-4">
         {(["All", "Mine", "Active", "Paused", "Complete"] as const).map((f) => (
@@ -239,6 +276,7 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
           )}
         </>
       )}
+      </div>)}
 
       {showCreate && (
         <CreateGoalModal

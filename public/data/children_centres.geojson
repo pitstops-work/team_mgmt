@@ -1,0 +1,272 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.54767131818181,
+          12.963483818181817
+        ]
+      },
+      "properties": {
+        "name": "Arfath Nagar I & II",
+        "centre_type": "Children Centre",
+        "cluster": "JJR_Nagar",
+        "zone": "Central",
+        "partner": "ActionAid",
+        "layer_key": "children_centres",
+        "matched_settlement": "Arfath Nagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.58454033333334,
+          12.956901666666667
+        ]
+      },
+      "properties": {
+        "name": "Vinoba nagar",
+        "centre_type": "Children Centre",
+        "cluster": "KR_Market",
+        "zone": "Central",
+        "partner": "ActionAid",
+        "layer_key": "children_centres",
+        "matched_settlement": "Vinobha Nagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.58518819999999,
+          13.092616133333333
+        ]
+      },
+      "properties": {
+        "name": "Ambedkar Quarters",
+        "centre_type": "Children Centre",
+        "cluster": "Yeshwantpur",
+        "zone": "West",
+        "partner": "SAMA",
+        "layer_key": "children_centres",
+        "matched_settlement": "AMBEDKAR NAGAR"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.501223375,
+          13.016498625
+        ]
+      },
+      "properties": {
+        "name": "Gulbarga Slum",
+        "centre_type": "Children Centre",
+        "cluster": "Peenya_North",
+        "zone": "North",
+        "partner": "Sangama",
+        "layer_key": "children_centres",
+        "matched_settlement": "Gulbarga Slum"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.69886219480519,
+          12.925197896103896
+        ]
+      },
+      "properties": {
+        "name": "Boganahalli Community",
+        "centre_type": "Children Centre",
+        "cluster": "Bellandur",
+        "zone": "South",
+        "partner": "Gubbachi",
+        "layer_key": "children_centres",
+        "matched_settlement": "Boganahalli Community"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5979775,
+          12.923803
+        ]
+      },
+      "properties": {
+        "name": "Urs colony",
+        "centre_type": "Children Centre",
+        "cluster": "Jayanagar",
+        "zone": "South",
+        "partner": "Maarga",
+        "layer_key": "children_centres",
+        "matched_settlement": "Urs colony"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.58518819999999,
+          13.092616133333333
+        ]
+      },
+      "properties": {
+        "name": "Ambedkar nagar II",
+        "centre_type": "Children Centre",
+        "cluster": "Yeshwantpur",
+        "zone": "West",
+        "partner": "SAMA",
+        "layer_key": "children_centres",
+        "matched_settlement": "AMBEDKAR NAGAR"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6305415,
+          13.104804666666666
+        ]
+      },
+      "properties": {
+        "name": "Ittige Factory",
+        "centre_type": "Children Centre",
+        "cluster": "Jakkur",
+        "zone": "North",
+        "partner": "Sangama",
+        "layer_key": "children_centres",
+        "matched_settlement": "Ittige Factory"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5029744,
+          13.00446444
+        ]
+      },
+      "properties": {
+        "name": "Maruthi Nagar B",
+        "centre_type": "Children Centre",
+        "cluster": "Peenya_North",
+        "zone": "North",
+        "partner": "Sangama",
+        "layer_key": "children_centres",
+        "matched_settlement": "Maruthi Nagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.656763,
+          13.14731890909091
+        ]
+      },
+      "properties": {
+        "name": "Razakpalya",
+        "centre_type": "Children Centre",
+        "cluster": "Bagalur",
+        "zone": "North",
+        "partner": "SIEDS",
+        "layer_key": "children_centres",
+        "matched_settlement": "Razack Palya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5557708125,
+          12.9665518125
+        ]
+      },
+      "properties": {
+        "name": "Harikunte",
+        "centre_type": "Children Centre",
+        "cluster": "Rayapuram",
+        "zone": "Central",
+        "partner": "Thamate",
+        "layer_key": "children_centres",
+        "matched_settlement": "Harikunte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.51457336,
+          13.054476119999999
+        ]
+      },
+      "properties": {
+        "name": "Muneshwara Block",
+        "centre_type": "Children Centre",
+        "cluster": "Dasarahalli",
+        "zone": "West",
+        "partner": "Thamate",
+        "layer_key": "children_centres",
+        "matched_settlement": "Munneshwara block"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6834863574484,
+          12.9347970823635
+        ]
+      },
+      "properties": {
+        "name": "Kariyammana agrahara Vatara KA",
+        "centre_type": "Children Centre",
+        "cluster": "Bellandur",
+        "zone": "South",
+        "partner": "Gubbachi",
+        "layer_key": "children_centres",
+        "matched_settlement": "Kariyammana Agrahara"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.553,
+          13.025
+        ]
+      },
+      "properties": {
+        "name": "Sunnadgudu",
+        "centre_type": "Children Centre",
+        "cluster": "Yeshwantpur",
+        "zone": "West",
+        "partner": "",
+        "layer_key": "children_centres",
+        "matched_settlement": "",
+        "note": "Approx location - settlement not in KML; placed at Yeshwantpur cluster area"
+      }
+    }
+  ]
+}

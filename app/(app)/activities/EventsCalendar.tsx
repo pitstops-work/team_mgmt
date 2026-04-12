@@ -350,11 +350,16 @@ function EventCard({ ev, onEdit, onDelete }: { ev: PitstopEvent; onEdit: () => v
 
 // ── Main calendar ─────────────────────────────────────────────────────────────
 
-export default function EventsCalendar({ events: initialEvents, pitstops, users, currentUserId }: {
+type ZoneGeo    = { id: string; name: string; goals: { goalId: string }[] };
+type ClusterGeo = { id: string; name: string; zone: { name: string }; goals: { goalId: string }[] };
+
+export default function EventsCalendar({ events: initialEvents, pitstops, users, currentUserId, zones = [], clusters = [] }: {
   events: PitstopEvent[];
   pitstops: PitstopRef[];
   users: User[];
   currentUserId: string;
+  zones?: ZoneGeo[];
+  clusters?: ClusterGeo[];
 }) {
   const today = new Date(); today.setHours(12, 0, 0, 0);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -365,9 +370,22 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   const [editEvent, setEditEvent] = useState<PitstopEvent | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
+  const [geoFilter, setGeoFilter] = useState<{ type: "zone" | "cluster"; id: string; name: string } | null>(null);
 
   const allGoals = Array.from(new Map(pitstops.map(p => [p.goal.id, p.goal])).values())
     .sort((a, b) => a.title.localeCompare(b.title));
+
+  // Build goalId → zone/cluster membership maps
+  const goalZoneMap = new Map<string, Set<string>>();
+  const goalClusterMap = new Map<string, Set<string>>();
+  zones.forEach(z => z.goals.forEach(g => {
+    if (!goalZoneMap.has(g.goalId)) goalZoneMap.set(g.goalId, new Set());
+    goalZoneMap.get(g.goalId)!.add(z.id);
+  }));
+  clusters.forEach(c => c.goals.forEach(g => {
+    if (!goalClusterMap.has(g.goalId)) goalClusterMap.set(g.goalId, new Set());
+    goalClusterMap.get(g.goalId)!.add(c.id);
+  }));
 
   const filteredEvents = events.filter(ev => {
     if (selectedUsers.size > 0) {
@@ -375,6 +393,11 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
       if (![...selectedUsers].some(uid => ids.has(uid))) return false;
     }
     if (selectedGoals.size > 0 && !ev.pitstops.some(({ pitstop }) => selectedGoals.has(pitstop.goal.id))) return false;
+    if (geoFilter) {
+      const map = geoFilter.type === "zone" ? goalZoneMap : goalClusterMap;
+      const matches = ev.pitstops.some(({ pitstop }) => map.get(pitstop.goal.id)?.has(geoFilter.id));
+      if (!matches) return false;
+    }
     return true;
   });
 
@@ -449,7 +472,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
     setEvents(prev => prev.filter(e => e.id !== id));
   };
 
-  const hasFilters = selectedUsers.size > 0 || selectedGoals.size > 0;
+  const hasFilters = selectedUsers.size > 0 || selectedGoals.size > 0 || !!geoFilter;
 
   return (
     <div className="flex flex-col h-full">
@@ -503,8 +526,41 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
           </div>
           <div className="w-px h-4 bg-stone-200 flex-shrink-0" />
           <GoalPicker goals={allGoals} selected={selectedGoals} onChange={setSelectedGoals} />
+          {(zones.length > 0 || clusters.length > 0) && (
+            <>
+              <div className="w-px h-4 bg-stone-200 flex-shrink-0" />
+              <select
+                value={geoFilter ? `${geoFilter.type}:${geoFilter.id}` : ""}
+                onChange={e => {
+                  if (!e.target.value) { setGeoFilter(null); return; }
+                  const [type, id] = e.target.value.split(":");
+                  const name = type === "zone"
+                    ? zones.find(z => z.id === id)?.name ?? id
+                    : clusters.find(c => c.id === id)?.name ?? id;
+                  setGeoFilter({ type: type as "zone" | "cluster", id, name });
+                }}
+                className={`flex-shrink-0 px-2.5 py-1 text-xs border rounded-lg transition-colors outline-none ${geoFilter ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"}`}
+              >
+                <option value="">All Areas</option>
+                {zones.length > 0 && (
+                  <optgroup label="Zones">
+                    {zones.map(z => <option key={z.id} value={`zone:${z.id}`}>{z.name} Zone</option>)}
+                  </optgroup>
+                )}
+                {clusters.length > 0 && (
+                  <optgroup label="Clusters">
+                    {clusters.map(c => (
+                      <option key={c.id} value={`cluster:${c.id}`}>
+                        {c.name.replace(/_/g, " ")} ({c.zone.name})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </>
+          )}
           {hasFilters && (
-            <button onClick={() => { setSelectedUsers(new Set()); setSelectedGoals(new Set()); }}
+            <button onClick={() => { setSelectedUsers(new Set()); setSelectedGoals(new Set()); setGeoFilter(null); }}
               className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 flex-shrink-0">
               <X className="w-3 h-3" /> Clear
             </button>

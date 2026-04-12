@@ -1,0 +1,578 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.59319,
+              12.911975
+            ],
+            [
+              77.593276,
+              12.910312
+            ],
+            [
+              77.594837,
+              12.910396
+            ],
+            [
+              77.594719,
+              12.912717
+            ],
+            [
+              77.59319,
+              12.911975
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Ragigudda",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Jayanagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.595306,
+              12.921075
+            ],
+            [
+              77.595346,
+              12.920647
+            ],
+            [
+              77.59583,
+              12.920654
+            ],
+            [
+              77.595811,
+              12.921217
+            ],
+            [
+              77.59529,
+              12.921172
+            ],
+            [
+              77.595306,
+              12.921049
+            ],
+            [
+              77.595306,
+              12.921075
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "IG colony jayanagar",
+        "description": "",
+        "layer": "maarga"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.597295,
+              12.924493
+            ],
+            [
+              77.597322,
+              12.923228
+            ],
+            [
+              77.598727,
+              12.923155
+            ],
+            [
+              77.598754,
+              12.923536
+            ],
+            [
+              77.598604,
+              12.923531
+            ],
+            [
+              77.597874,
+              12.923573
+            ],
+            [
+              77.597949,
+              12.924415
+            ],
+            [
+              77.597295,
+              12.924493
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Urs colony",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Jayanagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                77.590642,
+                12.928348
+              ],
+              [
+                77.590642,
+                12.928352
+              ],
+              [
+                77.590606,
+                12.928349
+              ],
+              [
+                77.590642,
+                12.928348
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                77.590642,
+                12.928348
+              ],
+              [
+                77.590642,
+                12.927799
+              ],
+              [
+                77.591503,
+                12.927816
+              ],
+              [
+                77.591453,
+                12.928297
+              ],
+              [
+                77.591453,
+                12.928336
+              ],
+              [
+                77.590642,
+                12.928348
+              ]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Ms Building",
+        "description": "",
+        "layer": "maarga"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.591494,
+              12.935095
+            ],
+            [
+              77.591478,
+              12.93485
+            ],
+            [
+              77.59269,
+              12.934792
+            ],
+            [
+              77.59262,
+              12.935132
+            ],
+            [
+              77.591478,
+              12.935142
+            ],
+            [
+              77.591494,
+              12.935095
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Katerappa slum",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Jayanagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.591647,
+              12.935827
+            ],
+            [
+              77.59158,
+              12.935466
+            ],
+            [
+              77.592752,
+              12.93544
+            ],
+            [
+              77.592712,
+              12.93589
+            ],
+            [
+              77.591671,
+              12.935874
+            ],
+            [
+              77.591647,
+              12.935827
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Kaveramma temple",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Jayanagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                77.616265,
+                12.946069
+              ],
+              [
+                77.616232,
+                12.946191
+              ],
+              [
+                77.616264,
+                12.946066
+              ],
+              [
+                77.616265,
+                12.946069
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                77.616265,
+                12.946069
+              ],
+              [
+                77.616522,
+                12.945125
+              ],
+              [
+                77.617938,
+                12.944539
+              ],
+              [
+                77.619193,
+                12.947456
+              ],
+              [
+                77.617166,
+                12.948858
+              ],
+              [
+                77.616265,
+                12.946069
+              ]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Rajendranagar",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.617237,
+              12.948921
+            ],
+            [
+              77.619185,
+              12.947526
+            ],
+            [
+              77.619287,
+              12.947614
+            ],
+            [
+              77.617286,
+              12.949036
+            ],
+            [
+              77.617237,
+              12.948921
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Shashthrinagar",
+        "description": "",
+        "layer": "maarga",
+        "zone": "North",
+        "cluster": "Majestic"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.617366,
+              12.949193
+            ],
+            [
+              77.617254,
+              12.949073
+            ],
+            [
+              77.619228,
+              12.947871
+            ],
+            [
+              77.620156,
+              12.949047
+            ],
+            [
+              77.618085,
+              12.950286
+            ],
+            [
+              77.617366,
+              12.949193
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Ambedkarnagar",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.61886,
+              12.951949
+            ],
+            [
+              77.618935,
+              12.951709
+            ],
+            [
+              77.620175,
+              12.951845
+            ],
+            [
+              77.621264,
+              12.951369
+            ],
+            [
+              77.621317,
+              12.951604
+            ],
+            [
+              77.620201,
+              12.951981
+            ],
+            [
+              77.619547,
+              12.952111
+            ],
+            [
+              77.61886,
+              12.951949
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Samathanagar",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.619166,
+              12.95272
+            ],
+            [
+              77.618938,
+              12.952318
+            ],
+            [
+              77.61922,
+              12.952232
+            ],
+            [
+              77.619434,
+              12.952642
+            ],
+            [
+              77.619166,
+              12.95272
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Samathanagar 2",
+        "description": "marenalli",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.617019,
+              12.948965
+            ],
+            [
+              77.616456,
+              12.948468
+            ],
+            [
+              77.616096,
+              12.94678
+            ],
+            [
+              77.61644,
+              12.946795
+            ],
+            [
+              77.617019,
+              12.948965
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Geethanjali slum",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.624268,
+              12.946109
+            ],
+            [
+              77.62415,
+              12.9459
+            ],
+            [
+              77.625619,
+              12.945032
+            ],
+            [
+              77.625609,
+              12.945502
+            ],
+            [
+              77.624268,
+              12.946109
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Indragandhi colony Ejipura",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    }
+  ]
+}

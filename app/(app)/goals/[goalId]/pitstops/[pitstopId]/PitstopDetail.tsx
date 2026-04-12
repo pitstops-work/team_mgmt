@@ -46,7 +46,6 @@ type Pitstop = {
   startDate?: string | null;
   targetDate?: string | null;
   completedAt?: string | null;
-  estimatedHours?: number | null;
   goal: { id: string; title: string; targetDate?: string | null };
   attachments: Attachment[];
   checklistItems: ChecklistItem[];
@@ -290,7 +289,7 @@ export default function PitstopDetail({
     }
   };
 
-  const handleSaveEdit = async (data: { title: string; type: string; customType: string; status: string; notes: string; estimatedHours: string }) => {
+  const handleSaveEdit = async (data: { title: string; type: string; customType: string; status: string; notes: string }) => {
     const res = await fetch(`/api/pitstops/${pitstop.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -300,7 +299,6 @@ export default function PitstopDetail({
         customType: data.type === "Custom" ? data.customType : null,
         status: data.status,
         notes: data.notes || null,
-        estimatedHours: data.estimatedHours ? parseFloat(data.estimatedHours) : null,
       }),
     });
     if (res.ok) {
@@ -312,7 +310,6 @@ export default function PitstopDetail({
         customType: updated.customType,
         status: updated.status,
         notes: updated.notes,
-        estimatedHours: updated.estimatedHours,
       }));
       setShowEdit(false);
     }
@@ -832,14 +829,13 @@ function EditPitstopModal({
 }: {
   pitstop: Pitstop;
   onClose: () => void;
-  onSave: (data: { title: string; type: string; customType: string; status: string; notes: string; estimatedHours: string }) => Promise<void>;
+  onSave: (data: { title: string; type: string; customType: string; status: string; notes: string }) => Promise<void>;
 }) {
   const [title, setTitle]       = useState(pitstop.title);
   const [type, setType]         = useState(pitstop.type);
   const [customType, setCustomType] = useState(pitstop.customType ?? "");
   const [status, setStatus]     = useState<"Upcoming" | "InProgress" | "Done">(pitstop.status);
   const [notes, setNotes]       = useState(pitstop.notes ?? "");
-  const [estimatedHours, setEstimatedHours] = useState(pitstop.estimatedHours != null ? String(pitstop.estimatedHours) : "");
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
 
@@ -848,7 +844,7 @@ function EditPitstopModal({
     if (!title.trim()) { setError("Title is required."); return; }
     if (type === "Custom" && !customType.trim()) { setError("Enter a name for the custom type."); return; }
     setLoading(true);
-    await onSave({ title: title.trim(), type, customType: customType.trim(), status, notes, estimatedHours });
+    await onSave({ title: title.trim(), type, customType: customType.trim(), status, notes });
     setLoading(false);
   };
 
@@ -892,18 +888,6 @@ function EditPitstopModal({
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
             </div>
           )}
-          <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">Estimated hours</label>
-            <input
-              type="number"
-              min="0"
-              step="0.5"
-              value={estimatedHours}
-              onChange={e => setEstimatedHours(e.target.value)}
-              placeholder="e.g. 4"
-              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
-            />
-          </div>
           <div>
             <label className="block text-xs font-medium text-stone-600 mb-1">Notes</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}

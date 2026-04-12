@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <PushSubscriber />
       <div className="flex h-screen overflow-hidden">
         <AppNav user={session.user} unreadCount={unreadCount} />
-        <main className="flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>
+        <main className="relative flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>
         <AIAssistant />
       </div>
       </QueryProvider>

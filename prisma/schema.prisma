@@ -94,6 +94,7 @@ model Goal {
   title       String
   description String?
   status      GoalStatus @default(Active)
+  isTemplate  Boolean    @default(false)
   recurrence  Recurrence @default(None)
   targetDate  DateTime?
   ownerId     String
@@ -136,7 +137,6 @@ model Pitstop {
   customType      String?
   order           Int               @default(0)
   recurrence      PitstopRecurrence @default(None)
-  estimatedHours  Float?
   startDate       DateTime?
   targetDate      DateTime?
   completedAt     DateTime?
@@ -949,4 +949,25 @@ model PushSubscription {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── Janadhikara Programme Map ─────────────────────────────────────────────────
+
+model MapFeature {
+  id          String   @id @default(cuid())
+  name        String
+  cluster     String   @default("")
+  zone        String   @default("")
+  partner     String   @default("")
+  description String   @default("")
+  type        String   @default("other")
+  lat         Float
+  lng         Float
+  createdAt   DateTime @default(now())
+}
+
+model SettlementNote {
+  settlement String   @id
+  note       String   @default("")
+  updatedAt  DateTime @updatedAt
 }

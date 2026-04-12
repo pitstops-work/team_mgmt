@@ -5,7 +5,7 @@ import EventsCalendar from "./EventsCalendar";
 export default async function ActivitiesPage() {
   const session = await auth();
 
-  const [events, pitstops, users] = await Promise.all([
+  const [events, pitstops, users, zones, clusters] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: { deletedAt: null },
       include: {
@@ -39,6 +39,21 @@ export default async function ActivitiesPage() {
       select: { id: true, name: true, image: true },
       orderBy: { name: "asc" },
     }),
+    prisma.zone.findMany({
+      select: {
+        id: true, name: true,
+        goals: { select: { goalId: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.cluster.findMany({
+      select: {
+        id: true, name: true,
+        zone: { select: { name: true } },
+        goals: { select: { goalId: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return (
@@ -47,6 +62,8 @@ export default async function ActivitiesPage() {
       pitstops={JSON.parse(JSON.stringify(pitstops))}
       users={JSON.parse(JSON.stringify(users))}
       currentUserId={session!.user!.id!}
+      zones={JSON.parse(JSON.stringify(zones))}
+      clusters={JSON.parse(JSON.stringify(clusters))}
     />
   );
 }

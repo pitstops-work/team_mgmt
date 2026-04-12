@@ -1,0 +1,119 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.54767131818181,
+          12.963483818181817
+        ]
+      },
+      "properties": {
+        "name": "Arfath Nagar I & II",
+        "centre_type": "Youth Centre",
+        "cluster": "JJR_Nagar",
+        "zone": "Central",
+        "partner": "ActionAid",
+        "layer_key": "youth_centres",
+        "matched_settlement": "Arfath Nagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.56781283333333,
+          12.965852833333335
+        ]
+      },
+      "properties": {
+        "name": "Cheluvadipalya",
+        "centre_type": "Youth Centre",
+        "cluster": "KR_Market",
+        "zone": "Central",
+        "partner": "ActionAid",
+        "layer_key": "youth_centres",
+        "matched_settlement": "Cheluvadipalya"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.56286016666667,
+          12.974051666666668
+        ]
+      },
+      "properties": {
+        "name": "Swathanthra Nagar",
+        "centre_type": "Youth Centre",
+        "cluster": "JJR_Nagar",
+        "zone": "Central",
+        "partner": "ActionAid",
+        "layer_key": "youth_centres",
+        "matched_settlement": "Ashwath Nagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.58518819999999,
+          13.092616133333333
+        ]
+      },
+      "properties": {
+        "name": "Ambedkar Nagar",
+        "centre_type": "Youth Centre",
+        "cluster": "Yeshwantpur",
+        "zone": "West",
+        "partner": "SAMA",
+        "layer_key": "youth_centres",
+        "matched_settlement": "AMBEDKAR NAGAR"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6686328,
+          13.1331366
+        ]
+      },
+      "properties": {
+        "name": "Bagalur",
+        "centre_type": "Youth Centre",
+        "cluster": "Bagalur",
+        "zone": "North",
+        "partner": "SIEDS",
+        "layer_key": "youth_centres",
+        "matched_settlement": "bagalur"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.70844836363636,
+          12.714947272727272
+        ]
+      },
+      "properties": {
+        "name": "Sudham Nagar",
+        "centre_type": "Youth Centre",
+        "cluster": "Anekal",
+        "zone": "South",
+        "partner": "SIEDS",
+        "layer_key": "youth_centres",
+        "matched_settlement": "Sudham Nagar"
+      }
+    }
+  ]
+}

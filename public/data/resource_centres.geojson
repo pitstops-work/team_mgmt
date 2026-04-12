@@ -1,0 +1,380 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.514322,
+          13.01454
+        ]
+      },
+      "properties": {
+        "name": "Rajgopal Nagar RC Sangama",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.503673,
+          13.00502
+        ]
+      },
+      "properties": {
+        "name": "Hegganahalli RC Sangama",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.624242,
+          13.058142
+        ]
+      },
+      "properties": {
+        "name": "Thanisandra Sangama",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.630892,
+          13.106658
+        ]
+      },
+      "properties": {
+        "name": "Jakkur RC Sangama",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.565824,
+          12.965339
+        ]
+      },
+      "properties": {
+        "name": "Cheluvadipalya KR Market -Actionaid",
+        "description": "No.45 5th Cross Jai Bheem Nagar Cheluvadipalya Bangalore -560018",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.54521,
+          12.950914
+        ]
+      },
+      "properties": {
+        "name": "Gali Anjenaya RC Actionaid",
+        "description": "No.30 2nd Main 3rd Cross NTY Layout Narasimhaiah Colony Mysore Road Bangalore - 560026",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.552752,
+          12.958912
+        ]
+      },
+      "properties": {
+        "name": "JJR Nagar RC-Actionaid",
+        "description": "No.11 1st Cross Old Guddadahalli New Tollgate Mysore Road Bangalore -560026",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.548434,
+          12.963757
+        ]
+      },
+      "properties": {
+        "name": "Padarayanapura - Actionaid",
+        "description": "No.7/3 11th Main C Cross Near Ruby Clinic Arfath Nagar Padarayanapura Bangalore - 560026",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.552853,
+          12.96713
+        ]
+      },
+      "properties": {
+        "name": "Rayapuram Thamate",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5271666666667,
+          13.0341111111111
+        ]
+      },
+      "properties": {
+        "name": "peenya RC - CFAR",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.4312777777778,
+          12.8716944444444
+        ]
+      },
+      "properties": {
+        "name": "Kabbalamma palya - CFAR",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5683055555556,
+          12.9905277777778
+        ]
+      },
+      "properties": {
+        "name": "Subhash nagar - CFAR",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5975098690203,
+          12.9235336993552
+        ]
+      },
+      "properties": {
+        "name": "Jayanagar - Maarga",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.475002,
+          12.96247
+        ]
+      },
+      "properties": {
+        "name": "Ullalu Upanagara Bus stand",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.51901,
+          13.050499
+        ]
+      },
+      "properties": {
+        "name": "Mallasandra Thamate",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.536614,
+          12.937051
+        ]
+      },
+      "properties": {
+        "name": "nayandahalli CFAR",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.515527,
+          13.0297422362746
+        ]
+      },
+      "properties": {
+        "name": "Narayanapura Thamate",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6721596534351,
+          13.1426597674867
+        ]
+      },
+      "properties": {
+        "name": "Bagalur SIEDS",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.55332,
+          13.02254
+        ]
+      },
+      "properties": {
+        "name": "Yeswanthpur- Janashayog",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6178055555555,
+          12.9479722222222
+        ]
+      },
+      "properties": {
+        "name": "Rajendera nagar - Maarga",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.7011388888889,
+          12.7065
+        ]
+      },
+      "properties": {
+        "name": "Anekal - SIEDS",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.56582,
+          12.96533
+        ]
+      },
+      "properties": {
+        "name": "Cheluvadipalaya - Actionaid",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5781547,
+          13.0458859824583
+        ]
+      },
+      "properties": {
+        "name": "Bhoopasandra Sangama",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6834863574484,
+          12.9347970823635
+        ]
+      },
+      "properties": {
+        "name": "Kariyammana Agrahara",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6998579675771,
+          12.9257411833916
+        ]
+      },
+      "properties": {
+        "name": "Bhoganhalli gubbachi",
+        "description": "",
+        "layer": "Resource centres"
+      }
+    }
+  ]
+}

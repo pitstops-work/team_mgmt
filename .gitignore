@@ -51,3 +51,4 @@ next-env.d.ts
 
 /app/generated/prisma
 Inventory_Images/
+.env*.local
