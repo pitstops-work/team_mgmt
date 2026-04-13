@@ -41,10 +41,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
   const { goalId } = await params;
   const data = await req.json();
 
-  // Check if status is changing so we can notify followers
-  const existing = data.status
-    ? await prisma.goal.findUnique({ where: { id: goalId }, select: { status: true, title: true, followers: { select: { userId: true } } } })
-    : null;
+  // Fetch existing goal for change detection
+  const existing = await prisma.goal.findUnique({
+    where: { id: goalId },
+    select: { status: true, title: true, targetDate: true, followers: { select: { userId: true } } },
+  });
 
   const goal = await prisma.goal.update({
     where: { id: goalId },
@@ -65,7 +66,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       where: { goalId, deletedAt: null, ownerInherited: true },
       data: { ownerId: data.ownerId || null },
     });
-    // New goal owner auto-follows the goal
     if (data.ownerId) {
       await prisma.goalFollow.upsert({
         where: { userId_goalId: { userId: data.ownerId, goalId } },
@@ -75,8 +75,55 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
     }
   }
 
+  const link = `/goals/${goalId}`;
+
+  // ── Deadline change: log decision + notify all users ──────────────────────
+  if (
+    existing &&
+    data.targetDate &&
+    data.deadlineChangeReason &&
+    existing.targetDate &&
+    new Date(data.targetDate).toDateString() !== new Date(existing.targetDate).toDateString()
+  ) {
+    const oldDate = existing.targetDate.toISOString().slice(0, 10);
+    const newDate = new Date(data.targetDate).toISOString().slice(0, 10);
+    const changer = await prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true } });
+
+    // Log as a Decision record
+    await prisma.decision.create({
+      data: {
+        goalId,
+        createdById: session.user.id,
+        title: `Deadline changed: "${existing.title}"`,
+        description: data.deadlineChangeReason,
+        rationale: `Changed from ${oldDate} to ${newDate} by ${changer?.name ?? "someone"}`,
+        status: "Made",
+      },
+    });
+
+    // Notify every user except the one making the change
+    const allUsers = await prisma.user.findMany({ select: { id: true } });
+    const notifyUsers = allUsers.filter((u) => u.id !== session.user.id);
+    if (notifyUsers.length > 0) {
+      await prisma.notification.createMany({
+        data: notifyUsers.map((u) => ({
+          userId: u.id,
+          type: "EscalationAlert" as const,
+          title: `Deadline changed: "${existing.title}"`,
+          body: `${changer?.name ?? "Someone"} moved the deadline from ${oldDate} to ${newDate}. Reason: ${data.deadlineChangeReason}`,
+          link,
+        })),
+      });
+      sendPushToUsers(notifyUsers.map((u) => u.id), {
+        title: `Deadline changed: "${existing.title}"`,
+        body: `${changer?.name ?? "Someone"}: ${data.deadlineChangeReason}`,
+        link,
+      });
+    }
+  }
+
+  // ── Status change: notify followers ───────────────────────────────────────
   if (existing && data.status && existing.status !== data.status) {
-    const link = `/goals/${goalId}`;
     const notifications = existing.followers
       .filter((f) => f.userId !== session.user.id)
       .map((f) => ({
@@ -88,8 +135,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       }));
     if (notifications.length > 0) {
       await prisma.notification.createMany({ data: notifications });
-      const recipientIds = notifications.map((n) => n.userId);
-      sendPushToUsers(recipientIds, { title: `"${existing.title}" is now ${data.status}`, body: `Status changed from ${existing.status} to ${data.status}`, link: `/goals/${goalId}` });
+      sendPushToUsers(notifications.map((n) => n.userId), {
+        title: `"${existing.title}" is now ${data.status}`,
+        body: `Status changed from ${existing.status} to ${data.status}`,
+        link,
+      });
     }
   }
 
