@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 function fmt(date: Date | string | null | undefined): string {
   if (!date) return "none";
@@ -250,71 +251,43 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Failed to load app data" }, { status: 500 });
   }
 
+  const apiKey = process.env.GEMINI_API_KEY ?? "";
+  if (!apiKey) console.error("[ai] GEMINI_API_KEY is not set");
+
+  const systemInstruction = `${SYSTEM_PROMPT}\n\n--- APP DATA ---\n${context}--- END APP DATA ---`;
+
   type OAIMessage = { role: string; content: string };
-  const oaiMessages = [
-    { role: "system", content: `${SYSTEM_PROMPT}\n\n--- APP DATA ---\n${context}--- END APP DATA ---` },
-    ...(messages as OAIMessage[]),
-  ];
+  const history = (messages as OAIMessage[]).slice(0, -1).map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+  const lastUserMessage = (messages as OAIMessage[])[messages.length - 1].content;
 
-  const apiKey = process.env.OPENROUTER_API_KEY ?? "";
-  if (!apiKey) console.error("[ai] OPENROUTER_API_KEY is not set");
-
-  let upstreamRes: Response;
+  let geminiStream: AsyncIterable<import("@google/generative-ai").EnhancedGenerateContentResponse>;
   try {
-    upstreamRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://pitstop.janadhikara.org",
-        "X-Title": "Pitstop",
-      },
-      body: JSON.stringify({
-        model: "google/gemma-4-31b-it:free",
-        messages: oaiMessages,
-        max_tokens: 2048,
-        temperature: 0.3,
-        stream: true,
-      }),
-      signal: AbortSignal.timeout(60_000),
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction,
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
     });
-    console.log(`[ai] openrouter stream started — status ${upstreamRes.status}`);
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessageStream(lastUserMessage);
+    geminiStream = result.stream;
+    console.log("[ai] gemini stream started");
   } catch (err) {
-    console.error("[ai] openrouter request failed:", err);
+    console.error("[ai] gemini request failed:", err);
     return Response.json({ error: "AI request failed" }, { status: 502 });
   }
 
-  if (!upstreamRes.ok) {
-    const body = await upstreamRes.text();
-    console.error(`[ai] openrouter error ${upstreamRes.status}:`, body);
-    return Response.json({ error: "AI request failed" }, { status: 502 });
-  }
-
-  // Parse OpenAI SSE stream and forward text chunks
   const encoder = new TextEncoder();
   let totalChars = 0;
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        const reader = upstreamRes.body!.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6).trim();
-            if (data === "[DONE]") continue;
-            try {
-              const json = JSON.parse(data);
-              const text = json.choices?.[0]?.delta?.content;
-              if (text) { controller.enqueue(encoder.encode(text)); totalChars += text.length; }
-            } catch {}
-          }
+        for await (const chunk of geminiStream) {
+          const text = chunk.text();
+          if (text) { controller.enqueue(encoder.encode(text)); totalChars += text.length; }
         }
         console.log(`[ai] stream complete — ${totalChars} chars`);
       } catch (err) {
