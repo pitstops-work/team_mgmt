@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -155,13 +155,6 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             <HelpCircle className="w-3.5 h-3.5 text-stone-500" />
             Manual
           </NavLink>
-          <button
-            onClick={() => document.dispatchEvent(new CustomEvent("pitstop-ai-open"))}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-sky-600 hover:bg-sky-50 font-medium"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Pitstop AI
-          </button>
         </div>
 
         {/* User */}
@@ -249,11 +242,6 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
                   {item.label}
                 </Link>
               ))}
-              <div className="h-px bg-stone-100 my-1 mx-4" />
-              <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-stone-500">
-                <Sparkles className="w-5 h-5 text-sky-400" />
-                AI Assistant — tap ✦ button
-              </div>
               <div className="px-1">
                 <PWAInstallButton />
               </div>
