@@ -404,7 +404,7 @@ export default function PitstopDetail({
                 </span>
                 <button
                   onClick={() => handleDeleteCheckItem(item.id)}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 text-stone-300 hover:text-red-400 transition-all"
+                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-0.5 text-stone-300 hover:text-red-400 active:text-red-400 transition-all"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -483,7 +483,7 @@ export default function PitstopDetail({
                   {dep.blockedBy.status === "Done" && <Unlock className="w-3 h-3 text-emerald-400 flex-shrink-0" />}
                   <button
                     onClick={() => handleRemoveDep(dep.blockedBy.id)}
-                    className="opacity-0 group-hover:opacity-100 p-0.5 text-stone-300 hover:text-red-400 transition-all"
+                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-0.5 text-stone-300 hover:text-red-400 active:text-red-400 transition-all"
                   >
                     <X className="w-3 h-3" />
                   </button>
