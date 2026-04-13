@@ -278,30 +278,55 @@ export async function POST(req: NextRequest) {
   const { messages } = await req.json();
   if (!messages?.length) return Response.json({ error: "No messages" }, { status: 400 });
 
-  const context = await buildContext(session.user.id);
-  const today = new Date().toISOString().slice(0, 10);
+  const userQuery = messages[messages.length - 1]?.content ?? "";
+  console.log(`[ai] user=${session.user.id} turn=${messages.length} query="${userQuery.slice(0, 120)}"`);
 
+  let context: string;
+  try {
+    const t0 = Date.now();
+    context = await buildContext(session.user.id);
+    console.log(`[ai] context built in ${Date.now() - t0}ms — ${context.length} chars`);
+  } catch (err) {
+    console.error("[ai] buildContext failed:", err);
+    return Response.json({ error: "Failed to load app data" }, { status: 500 });
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
   const systemMessage = `${SYSTEM_PROMPT}\n\nToday's date: ${today}\n\n--- APP DATA ---\n${context}--- END APP DATA ---`;
 
-  const stream = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [
-      { role: "system", content: systemMessage },
-      ...messages,
-    ],
-    stream: true,
-    max_tokens: 2048,
-    temperature: 0.3,
-  });
+  let stream: Awaited<ReturnType<typeof groq.chat.completions.create>>;
+  try {
+    stream = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: systemMessage },
+        ...messages,
+      ],
+      stream: true,
+      max_tokens: 2048,
+      temperature: 0.3,
+    });
+    console.log(`[ai] groq stream started`);
+  } catch (err) {
+    console.error("[ai] groq request failed:", err);
+    return Response.json({ error: "AI request failed" }, { status: 502 });
+  }
 
   const encoder = new TextEncoder();
+  let totalChars = 0;
   const readable = new ReadableStream({
     async start(controller) {
-      for await (const chunk of stream) {
-        const text = chunk.choices[0]?.delta?.content ?? "";
-        if (text) controller.enqueue(encoder.encode(text));
+      try {
+        for await (const chunk of stream) {
+          const text = chunk.choices[0]?.delta?.content ?? "";
+          if (text) { controller.enqueue(encoder.encode(text)); totalChars += text.length; }
+        }
+        console.log(`[ai] stream complete — ${totalChars} chars`);
+      } catch (err) {
+        console.error("[ai] stream error:", err);
+      } finally {
+        controller.close();
       }
-      controller.close();
     },
   });
 
