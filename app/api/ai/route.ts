@@ -256,13 +256,16 @@ export async function POST(req: NextRequest) {
     ...(messages as OAIMessage[]),
   ];
 
+  const apiKey = process.env.OPENROUTER_API_KEY ?? "";
+  if (!apiKey) console.error("[ai] OPENROUTER_API_KEY is not set");
+
   let upstreamRes: Response;
   try {
     upstreamRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY ?? ""}`,
+        "Authorization": `Bearer ${apiKey}`,
         "HTTP-Referer": "https://pitstop.janadhikara.org",
         "X-Title": "Pitstop",
       },
