@@ -147,6 +147,13 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             <Settings className="w-3.5 h-3.5 text-stone-500" />
             Settings
           </NavLink>
+          <button
+            onClick={() => document.dispatchEvent(new CustomEvent("pitstop-ai-open"))}
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-sky-600 hover:bg-sky-50 font-medium"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Pitstop AI
+          </button>
         </div>
 
         {/* User */}
