@@ -59,7 +59,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
         </div>
 
         {/* Nav links */}
-        <div className="flex-1 px-3 py-3 space-y-0.5">
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-0.5">
           <NavLink href="/home" active={pathname === "/home"}>
             <LayoutDashboard className="w-3.5 h-3.5 text-stone-500" />
             Home
