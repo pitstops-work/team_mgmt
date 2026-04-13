@@ -264,7 +264,7 @@ export async function POST(req: NextRequest) {
   }));
   const lastUserMessage = (messages as OAIMessage[])[messages.length - 1].content;
 
-  let result: Awaited<ReturnType<ReturnType<typeof genAI.getGenerativeModel>["startChat"]>["sendMessageStream"]>;
+  let geminiStream: AsyncIterable<import("@google/generative-ai").EnhancedGenerateContentResponse>;
   try {
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
@@ -272,7 +272,8 @@ export async function POST(req: NextRequest) {
       generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
     });
     const chat = model.startChat({ history });
-    result = await chat.sendMessageStream(lastUserMessage);
+    const result = await chat.sendMessageStream(lastUserMessage);
+    geminiStream = result.stream;
     console.log(`[ai] gemini stream started`);
   } catch (err) {
     console.error("[ai] gemini request failed:", err);
@@ -284,7 +285,7 @@ export async function POST(req: NextRequest) {
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of result.stream) {
+        for await (const chunk of geminiStream) {
           const text = chunk.text();
           if (text) { controller.enqueue(encoder.encode(text)); totalChars += text.length; }
         }
