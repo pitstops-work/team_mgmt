@@ -203,12 +203,12 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
       {showMore && (
         <div className="sm:hidden fixed inset-0 z-[60]" onClick={() => setShowMore(false)}>
           <div className="absolute inset-0 bg-black/30" />
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl pb-safe" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-stone-100">
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex-shrink-0 flex items-center justify-between px-5 pt-4 pb-2 border-b border-stone-100">
               <p className="text-sm font-semibold text-stone-800">Menu</p>
               <button onClick={() => setShowMore(false)} className="p-1 text-stone-400"><X className="w-5 h-5" /></button>
             </div>
-            <div className="px-3 py-2 space-y-0.5 pb-8">
+            <div className="overflow-y-auto px-3 py-2 space-y-0.5 pb-8">
               {[
                 { href: "/dashboard", icon: <span className="text-xl leading-none">◈</span>, label: "Goals" },
                 { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
