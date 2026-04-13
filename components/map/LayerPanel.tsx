@@ -1,6 +1,7 @@
 "use client";
 
 import { LAYERS, type LayerKey } from "@/lib/layers";
+import { type MapFilter } from "@/lib/mapFilter";
 
 interface LayerPanelProps {
   visibleLayers: Set<LayerKey>;
@@ -15,10 +16,9 @@ interface LayerPanelProps {
   clusterIndex: Record<string, { zone: string; settlements: string[] }>;
   tab: "layers" | "zones" | "clusters";
   onTabChange: (t: "layers" | "zones" | "clusters") => void;
-  selectedPartner: LayerKey | null;
+  mapFilter: MapFilter | null;
   onPartnerFilter: (key: LayerKey | null) => void;
-  partnerZones: Set<string> | null;
-  partnerClusters: Set<string> | null;
+  onClearFilter: () => void;
 }
 
 const ZONE_COLORS: Record<string, string> = {
@@ -55,10 +55,9 @@ export default function LayerPanel({
   clusterIndex,
   tab,
   onTabChange,
-  selectedPartner,
+  mapFilter,
   onPartnerFilter,
-  partnerZones,
-  partnerClusters,
+  onClearFilter,
 }: LayerPanelProps) {
   const polygonLayers = LAYERS.filter((l) => l.type === "polygon");
   const pointLayers = LAYERS.filter((l) => l.type === "point");
@@ -121,35 +120,15 @@ export default function LayerPanel({
         </div>
       </div>
 
-      {/* Partner filter banner */}
-      {selectedPartner && (
+      {/* Active filter banner — shown for any filter source */}
+      {mapFilter && (
         <div className="px-3 py-2 bg-indigo-50 border-b border-indigo-200 flex items-center justify-between flex-shrink-0">
-          <div className="text-xs font-semibold text-indigo-800">
-            Filtered: {LAYERS.find(l => l.key === selectedPartner)?.label}
+          <div className="text-xs font-semibold text-indigo-800 truncate pr-2">
+            {mapFilter.label}
           </div>
           <button
-            onClick={() => onPartnerFilter(null)}
-            className="text-xs text-indigo-600 hover:text-indigo-900 font-bold"
-          >
-            ✕ Clear
-          </button>
-        </div>
-      )}
-
-      {/* Active zone/cluster banner */}
-      {(activeZone || activeCluster) && (
-        <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between flex-shrink-0">
-          <div className="text-xs font-semibold text-amber-800">
-            {activeCluster
-              ? `Cluster: ${activeCluster.replace(/_/g, " ")}`
-              : `Zone: ${activeZone}`}
-          </div>
-          <button
-            onClick={() => {
-              onZoneSelect(null);
-              onClusterSelect(null);
-            }}
-            className="text-xs text-amber-600 hover:text-amber-900 font-bold"
+            onClick={onClearFilter}
+            className="text-xs text-indigo-600 hover:text-indigo-900 font-bold flex-shrink-0"
           >
             ✕ Clear
           </button>
@@ -185,19 +164,22 @@ export default function LayerPanel({
               <div className="space-y-0.5">
                 {polygonLayers.map((layer) => {
                   const active = visibleLayers.has(layer.key);
-                  const isFiltered = selectedPartner === layer.key;
-                  const dimmed = selectedPartner && !isFiltered;
+                  const isFiltered = mapFilter?.source === "partner" && mapFilter.partnerKeys.has(layer.key);
+                  const isHighlighted = mapFilter && mapFilter.partnerKeys.has(layer.key);
+                  const dimmed = mapFilter && mapFilter.partnerKeys.size > 0 && !mapFilter.partnerKeys.has(layer.key);
                   return (
                     <div key={layer.key} className="flex items-center gap-1">
                       {/* Partner name — click to cross-filter */}
                       <button
                         onClick={() => onPartnerFilter(isFiltered ? null : layer.key)}
-                        title={isFiltered ? "Clear partner filter" : `Filter all layers to ${layer.label}`}
+                        title={isFiltered ? "Clear filter" : `Filter all layers to ${layer.label}`}
                         className={`flex-1 flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left transition-colors ${
                           isFiltered
                             ? "bg-indigo-50 ring-1 ring-indigo-400 text-indigo-900"
+                            : isHighlighted
+                            ? "bg-indigo-50/60 text-indigo-800"
                             : dimmed
-                            ? "opacity-40 hover:opacity-70 text-slate-600 hover:bg-slate-50"
+                            ? "opacity-35 hover:opacity-60 text-slate-600 hover:bg-slate-50"
                             : active ? "bg-slate-100 text-slate-800" : "text-slate-400 hover:bg-slate-50"
                         }`}
                       >
@@ -294,11 +276,11 @@ export default function LayerPanel({
         {tab === "zones" && (
           <div className="px-3 py-3">
             <p className="text-xs text-slate-400 mb-3">
-              {partnerZones ? `Showing zones for ${LAYERS.find(l => l.key === selectedPartner)?.label}.` : "Click a zone to highlight its settlements on the map."}
+              {mapFilter?.zones.size ? `Filtered to ${mapFilter.zones.size} zone(s).` : "Click a zone to highlight its settlements on the map."}
             </p>
             <div className="space-y-2">
               {Object.entries(zoneIndex).sort()
-                .filter(([zone]) => !partnerZones || partnerZones.has(zone))
+                .filter(([zone]) => !mapFilter?.zones.size || mapFilter.zones.has(zone))
                 .map(([zone, settlements]) => {
                 const isActive = activeZone === zone && !activeCluster;
                 const color = ZONE_COLORS[zone] ?? "#64748b";
@@ -353,11 +335,11 @@ export default function LayerPanel({
         {tab === "clusters" && (
           <div className="px-3 py-3">
             <p className="text-xs text-slate-400 mb-3">
-              {partnerClusters ? `Showing clusters for ${LAYERS.find(l => l.key === selectedPartner)?.label}.` : "Click a cluster to focus on it."}
+              {mapFilter?.clusters.size ? `Filtered to ${mapFilter.clusters.size} cluster(s).` : "Click a cluster to focus on it."}
             </p>
             {Object.entries(clustersByZone)
               .sort(([a], [b]) => a.localeCompare(b))
-              .filter(([zone]) => !partnerZones || partnerZones.has(zone))
+              .filter(([zone]) => !mapFilter?.zones.size || mapFilter.zones.has(zone))
               .map(([zone, clusters]) => (
                 <div key={zone} className="mb-4">
                   <div className="flex items-center gap-1.5 mb-1.5">
@@ -371,7 +353,7 @@ export default function LayerPanel({
                   </div>
                   <div className="space-y-1">
                     {clusters.sort()
-                      .filter(c => !partnerClusters || partnerClusters.has(c))
+                      .filter(c => !mapFilter?.clusters.size || mapFilter.clusters.has(c))
                       .map((cluster) => {
                       const data = clusterIndex[cluster];
                       const isActive = activeCluster === cluster;

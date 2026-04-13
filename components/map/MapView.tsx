@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LAYERS, type LayerConfig, type LayerKey } from "@/lib/layers";
+import { type MapFilter, settlementMatchesFilter, centreMatchesFilter } from "@/lib/mapFilter";
 
 export interface SettlementFeature {
   name: string;
@@ -37,7 +38,8 @@ interface MapViewProps {
   onClusterSelect: (cluster: string | null) => void;
   flyToRef: React.MutableRefObject<((latlng: [number, number], zoom?: number) => void) | null>;
   openPopupRef: React.MutableRefObject<((layerKey: LayerKey, featureIdx: number) => void) | null>;
-  partnerFilter: string | null; // partner label e.g. "Sangama" — filters centre points
+  mapFilter: MapFilter | null;
+  onCentreClick?: (partner: string, zone: string, cluster: string) => void;
 }
 
 interface FeatureLayer {
@@ -104,14 +106,24 @@ function makeProgrammeCentrePopup(
 const CENTRE_LAYER_KEYS: LayerKey[] = ["children_centres", "youth_centres", "creches", "resource_centres"];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildCentreLayer(layerConfig: LayerConfig, group: L.LayerGroup, geojson: any, partnerFilter: string | null) {
+function buildCentreLayer(
+  layerConfig: LayerConfig,
+  group: L.LayerGroup,
+  geojson: any,
+  mapFilter: MapFilter | null,
+  onCentreClick?: (partner: string, zone: string, cluster: string) => void
+) {
   group.clearLayers();
   const isProgrammeCentre = ["children_centres", "youth_centres", "creches"].includes(layerConfig.key);
   L.geoJSON(geojson, {
     filter: (feature) => {
-      if (!partnerFilter) return true;
-      const p = (feature.properties?.partner ?? "") as string;
-      return p.toLowerCase() === partnerFilter.toLowerCase();
+      if (!mapFilter) return true;
+      return centreMatchesFilter(
+        mapFilter,
+        feature.properties?.partner ?? "",
+        feature.properties?.zone ?? "",
+        feature.properties?.cluster ?? ""
+      );
     },
     pointToLayer: (_f, latlng) =>
       L.circleMarker(latlng, {
@@ -133,6 +145,11 @@ function buildCentreLayer(layerConfig: LayerConfig, group: L.LayerGroup, geojson
       } else {
         layer.bindPopup(makeRCPopup(name, props.description || ""), { maxWidth: 300 });
       }
+      if (onCentreClick) {
+        layer.on("click", () => {
+          onCentreClick(props.partner || "", props.zone || "", props.cluster || "");
+        });
+      }
     },
   }).addTo(group);
 }
@@ -140,8 +157,8 @@ function buildCentreLayer(layerConfig: LayerConfig, group: L.LayerGroup, geojson
 export default function MapView({
   visibleLayers, onFeatureAdded, customFeatures,
   activeZone, activeCluster, onSettlementClick,
-  onZoneSelect, onClusterSelect,
-  flyToRef, openPopupRef, partnerFilter,
+  onZoneSelect, onClusterSelect, onCentreClick,
+  flyToRef, openPopupRef, mapFilter,
 }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -174,11 +191,13 @@ export default function MapView({
   const visibleLayersRef = useRef(visibleLayers);
   useEffect(() => { visibleLayersRef.current = visibleLayers; }, [visibleLayers]);
 
-  // Store raw GeoJSON for centre layers so we can rebuild with partner filter
+  // Store raw GeoJSON for centre layers so we can rebuild with map filter
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const centreGeoJSONRef = useRef<Partial<Record<LayerKey, any>>>({});
-  const partnerFilterRef = useRef(partnerFilter);
-  useEffect(() => { partnerFilterRef.current = partnerFilter; }, [partnerFilter]);
+  const mapFilterRef = useRef(mapFilter);
+  useEffect(() => { mapFilterRef.current = mapFilter; }, [mapFilter]);
+  const onCentreClickRef = useRef(onCentreClick);
+  useEffect(() => { onCentreClickRef.current = onCentreClick; }, [onCentreClick]);
 
   // Swap tile layer when basemap changes
   useEffect(() => {
@@ -279,11 +298,14 @@ export default function MapView({
               },
             }).addTo(group);
           } else {
-            // Store raw GeoJSON for centre layers (needed for partner filter rebuilds)
+            // Store raw GeoJSON for centre layers (needed for map filter rebuilds)
             if (CENTRE_LAYER_KEYS.includes(layerConfig.key)) {
               centreGeoJSONRef.current[layerConfig.key] = geojson;
             }
-            buildCentreLayer(layerConfig, group, geojson, partnerFilterRef.current);
+            buildCentreLayer(
+              layerConfig, group, geojson, mapFilterRef.current,
+              (p, z, c) => onCentreClickRef.current?.(p, z, c)
+            );
           }
         });
     });
@@ -355,37 +377,45 @@ export default function MapView({
         if (map.hasLayer(group)) map.removeLayer(group);
       }
     });
-    // Re-apply zone/cluster highlight so newly-visible layers get correct styles
-    applyZoneClusterHighlight(activeZone, activeCluster, visibleLayers);
+    // Re-apply filter styles so newly-visible layers get correct styles
+    applyZoneClusterHighlight(mapFilterRef.current, visibleLayers);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleLayers]);
 
-  // Rebuild centre layer groups when partner filter changes
+  // Rebuild centre layer groups when map filter changes
   useEffect(() => {
     CENTRE_LAYER_KEYS.forEach((key) => {
       const layerConfig = LAYERS.find((l) => l.key === key);
       const group = layerGroupsRef.current[key];
       const geojson = centreGeoJSONRef.current[key];
       if (layerConfig && group && geojson) {
-        buildCentreLayer(layerConfig, group, geojson, partnerFilter);
+        buildCentreLayer(
+          layerConfig, group, geojson, mapFilter,
+          (p, z, c) => onCentreClickRef.current?.(p, z, c)
+        );
       }
     });
+    // Also re-apply settlement styling
+    applyZoneClusterHighlight(mapFilter, visibleLayersRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [partnerFilter]);
+  }, [mapFilter]);
 
   function applyZoneClusterHighlight(
-    zone: string | null, cluster: string | null, visible: Set<LayerKey>
+    filter: MapFilter | null, visible: Set<LayerKey>
   ) {
     const map = mapRef.current;
     if (!map) return;
+    const hasFilter = filter && (
+      filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0
+    );
     allFeatureLayers.current.forEach(({ leafletLayer, props, baseColor }) => {
       // Only touch polygons whose layer group is currently visible
       if (!visible.has(props.layer as LayerKey)) return;
-      if (!zone && !cluster) {
+      if (!hasFilter) {
         leafletLayer.setStyle({ fillColor: baseColor, fillOpacity: 0.25, opacity: 0.9, weight: 2 });
         return;
       }
-      const matches = cluster ? props.cluster === cluster : props.zone === zone;
+      const matches = settlementMatchesFilter(filter!, props.layer, props.zone, props.cluster);
       if (matches) {
         leafletLayer.setStyle({ fillColor: baseColor, fillOpacity: 0.55, opacity: 1, weight: 2.5 });
         leafletLayer.bringToFront();
@@ -398,7 +428,7 @@ export default function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    applyZoneClusterHighlight(activeZone, activeCluster, visibleLayersRef.current);
+    // FlyTo behavior based on zone/cluster selection
     if (activeZone && !activeCluster && ZONE_BOUNDS[activeZone]) {
       map.flyToBounds(ZONE_BOUNDS[activeZone], { duration: 0.8, padding: [30, 30] });
     } else if (!activeZone && !activeCluster) {
