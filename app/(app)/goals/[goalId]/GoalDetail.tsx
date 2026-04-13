@@ -464,7 +464,7 @@ export default function GoalDetail({
 
       {/* Checklist panel (Route Map drill-down) */}
       {panelPitstop && (
-        <div className="fixed right-0 top-0 bottom-0 w-80 bg-white shadow-2xl border-l border-stone-200 z-40 flex flex-col">
+        <div className="fixed right-0 top-0 bottom-16 sm:bottom-0 w-full sm:w-80 bg-white shadow-2xl border-l border-stone-200 z-40 flex flex-col">
           <div className="flex items-start justify-between px-4 py-4 border-b border-stone-100">
             <div className="min-w-0 pr-2">
               <p className="text-[10px] text-stone-400 uppercase tracking-wide mb-0.5">Checklist</p>
