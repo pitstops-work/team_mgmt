@@ -53,6 +53,7 @@ export default function MapDashboard() {
   const [featureCounts, setFeatureCounts] = useState<Partial<Record<LayerKey, number>>>({});
   const [customFeatures, setCustomFeatures] = useState<CustomFeature[]>([]);
   const [customPolygons, setCustomPolygons] = useState<CustomPolygonFeature[]>([]);
+  const [dbPartners, setDbPartners] = useState<{ key: string; label: string; color: string }[]>([]);
   // Sidebar closed by default; opens on desktop via useEffect
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeZone, setActiveZone] = useState<string | null>(null);
@@ -93,6 +94,10 @@ export default function MapDashboard() {
         const fc = await r.json();
         setCustomPolygons(fc.features ?? []);
       }
+    } catch {}
+    try {
+      const r = await fetch("/api/map/partners");
+      if (r.ok) setDbPartners(await r.json());
     } catch {}
   }
 
@@ -248,6 +253,7 @@ export default function MapDashboard() {
           flyToRef={flyToRef}
           openPopupRef={openPopupRef}
           mapFilter={mapFilter}
+          dbPartners={dbPartners}
         />
 
         {/* Settlement detail sidebar */}

@@ -80,10 +80,14 @@ function SettlementTree({
   grouped,
   customPolygons,
   color,
+  allPartners,
+  onReassign,
 }: {
   grouped: Record<string, Record<string, string[]>>;
   customPolygons: CustomPolygon[];
   color: string;
+  allPartners: { key: string; label: string }[];
+  onReassign: (polygonId: string, newPartnerKey: string) => void;
 }) {
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
   const toggleZone = (z: string) =>
@@ -144,20 +148,28 @@ function SettlementTree({
         {/* Custom polygons for this partner */}
         {customPolygons.length > 0 && (
           <div className="rounded-lg overflow-hidden border border-slate-100">
-            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 text-left">
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50">
               <span className="text-xs font-semibold text-slate-700">Custom settlements</span>
               <span className="ml-auto text-[10px] text-slate-400">{customPolygons.length} drawn</span>
             </div>
-            <div className="px-3 py-2">
-              <div className="flex flex-wrap gap-1">
-                {customPolygons.map((p) => (
-                  <span key={p.id} className="text-[11px] bg-white border border-dashed border-slate-300 rounded-md px-2 py-0.5 text-slate-600 flex items-center gap-1">
-                    <MapPin className="w-2.5 h-2.5 text-slate-300" />
-                    {p.name}
-                    {p.zone && <span className="text-slate-400">· {p.zone}</span>}
-                  </span>
-                ))}
-              </div>
+            <div className="px-3 py-2 space-y-1">
+              {customPolygons.map((p) => (
+                <div key={p.id} className="flex items-center gap-2">
+                  <MapPin className="w-3 h-3 text-slate-300 flex-shrink-0" />
+                  <span className="text-xs text-slate-600 flex-1">{p.name}</span>
+                  {p.zone && <span className="text-[10px] text-slate-400">{p.zone}</span>}
+                  <select
+                    className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 text-slate-500 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    value=""
+                    onChange={(e) => { if (e.target.value) onReassign(p.id, e.target.value); }}
+                  >
+                    <option value="">Move to…</option>
+                    {allPartners.map((ap) => (
+                      <option key={ap.key} value={ap.key}>{ap.label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -173,7 +185,8 @@ function PartnerCard({
   features,
   centres,
   customPolygons,
-  onAddPartner,
+  allPartners,
+  onReassign,
 }: {
   layerKey: string;
   label: string;
@@ -181,7 +194,8 @@ function PartnerCard({
   features: GeoFeature[];
   centres: Array<{ name: string; type: string; zone?: string }>;
   customPolygons: CustomPolygon[];
-  onAddPartner?: () => void;
+  allPartners: { key: string; label: string }[];
+  onReassign: (polygonId: string, newPartnerKey: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const grouped = groupByZoneCluster(features);
@@ -205,14 +219,9 @@ function PartnerCard({
       {expanded && (
         <div className="px-4 pb-4 border-t border-slate-100 pt-3 space-y-3">
           {features.length > 0 || customPolygons.length > 0 ? (
-            <SettlementTree grouped={grouped} customPolygons={customPolygons} color={color} />
+            <SettlementTree grouped={grouped} customPolygons={customPolygons} color={color} allPartners={allPartners} onReassign={onReassign} />
           ) : (
-            <div className="text-xs text-slate-400 italic py-2">
-              No settlements mapped yet.
-              {onAddPartner && (
-                <button onClick={onAddPartner} className="ml-1 text-indigo-500 hover:underline">Add on map →</button>
-              )}
-            </div>
+            <div className="text-xs text-slate-400 italic py-2">No settlements mapped yet.</div>
           )}
           <CentreList centres={centres} />
         </div>
@@ -221,13 +230,27 @@ function PartnerCard({
   );
 }
 
-export default function PartnersPage({ dbPartners: initialDbPartners, customPolygons }: PartnersPageProps) {
+export default function PartnersPage({ dbPartners: initialDbPartners, customPolygons: initialCustomPolygons }: PartnersPageProps) {
   const geoData = useGeoData();
   const [dbPartners, setDbPartners] = useState<DBPartner[]>(initialDbPartners);
+  const [customPolygons, setCustomPolygons] = useState<CustomPolygon[]>(initialCustomPolygons);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ label: "", key: "", color: "#6366f1" });
   const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState("");
+
+  async function handleReassign(polygonId: string, newPartnerKey: string) {
+    const res = await fetch(`/api/map/polygons/${polygonId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ partnerKey: newPartnerKey }),
+    });
+    if (res.ok) {
+      setCustomPolygons((prev) =>
+        prev.map((p) => p.id === polygonId ? { ...p, partnerKey: newPartnerKey } : p)
+      );
+    }
+  }
 
   async function handleAddSave() {
     setAddError("");
@@ -290,6 +313,15 @@ export default function PartnersPage({ dbPartners: initialDbPartners, customPoly
 
   const customDbPartners = dbPartners.filter((p) => !p.isBuiltIn);
 
+  // All partners (built-in + custom DB) for the reassign dropdown
+  const allPartners = [
+    ...builtInKeys.map((key) => {
+      const layer = LAYERS.find((l) => l.key === key)!;
+      return { key, label: layer.label };
+    }),
+    ...customDbPartners.map((p) => ({ key: p.key, label: p.label })),
+  ];
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -327,6 +359,8 @@ export default function PartnersPage({ dbPartners: initialDbPartners, customPoly
                 features={features}
                 centres={centres}
                 customPolygons={customPoly}
+                allPartners={allPartners}
+                onReassign={handleReassign}
               />
             );
           })}
@@ -349,6 +383,8 @@ export default function PartnersPage({ dbPartners: initialDbPartners, customPoly
                     features={features}
                     centres={centres}
                     customPolygons={customPoly}
+                    allPartners={allPartners}
+                    onReassign={handleReassign}
                   />
                 );
               })}

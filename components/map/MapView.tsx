@@ -58,6 +58,7 @@ interface MapViewProps {
   openPopupRef: React.MutableRefObject<((layerKey: LayerKey, featureIdx: number) => void) | null>;
   mapFilter: MapFilter | null;
   onCentreClick?: (partner: string, zone: string, cluster: string) => void;
+  dbPartners?: { key: string; label: string; color: string }[];
 }
 
 interface FeatureLayer {
@@ -176,7 +177,7 @@ export default function MapView({
   visibleLayers, onFeatureAdded, customFeatures, customPolygons = [],
   activeZone, activeCluster, onSettlementClick,
   onZoneSelect, onClusterSelect, onCentreClick,
-  flyToRef, openPopupRef, mapFilter,
+  flyToRef, openPopupRef, mapFilter, dbPartners = [],
 }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -201,7 +202,11 @@ export default function MapView({
   // Zone→cluster index for dropdowns
   const [zoneClusterIndex, setZoneClusterIndex] = useState<Record<string, string[]>>({});
   const ZONES = ["Central", "West", "North", "South"];
-  const partnerOptions = LAYERS.filter((l) => l.type === "polygon" && l.key !== "custom_settlements");
+  const builtInPartnerOptions = LAYERS.filter((l) => l.type === "polygon" && l.key !== "custom_settlements");
+  const partnerOptions = [
+    ...builtInPartnerOptions,
+    ...dbPartners.filter((d) => !builtInPartnerOptions.some((b) => b.key === d.key)),
+  ];
 
   // Draw mode state
   const [drawMode, setDrawMode] = useState(false);
