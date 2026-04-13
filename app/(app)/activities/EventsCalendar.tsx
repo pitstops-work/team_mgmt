@@ -27,6 +27,14 @@ type PitstopEvent = {
   attendees: Attendee[];
 };
 type ViewMode = "day" | "week" | "month";
+type ExternalCalEvent = {
+  uid: string;
+  title: string;
+  start: string;
+  end: string;
+  location: string | null;
+  allDay: boolean;
+};
 
 const TYPE_COLORS: Record<string, string> = {
   Meeting: "bg-sky-50 border-sky-200 text-sky-800",
@@ -348,6 +356,31 @@ function EventCard({ ev, onEdit, onDelete }: { ev: PitstopEvent; onEdit: () => v
   );
 }
 
+// ── External event card (read-only, grey) ────────────────────────────────────
+
+function ExternalEventCard({ ev }: { ev: ExternalCalEvent }) {
+  const time = ev.allDay ? "All day" : fmtTime(ev.start);
+  return (
+    <div className="px-3 py-2.5 rounded-xl border bg-stone-50 border-stone-200 opacity-80">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide">My Calendar</span>
+            <span className="text-[10px] text-stone-400">{time}</span>
+          </div>
+          <p className="text-sm font-semibold text-stone-500 leading-snug">{ev.title}</p>
+          {ev.location && (
+            <div className="flex items-center gap-1 mt-1">
+              <MapPin className="w-3 h-3 text-stone-400 flex-shrink-0" />
+              <span className="text-xs text-stone-400 truncate">{ev.location}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main calendar ─────────────────────────────────────────────────────────────
 
 type ZoneGeo    = { id: string; name: string; goals: { goalId: string }[] };
@@ -375,6 +408,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [copied, setCopied] = useState(false);
   const subscribeRef = useRef<HTMLDivElement>(null);
+  const [externalEvents, setExternalEvents] = useState<ExternalCalEvent[]>([]);
 
   // Close subscribe panel on outside click
   useEffect(() => {
@@ -383,6 +417,14 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  // Fetch external calendar events (personal Outlook/Google iCal)
+  useEffect(() => {
+    fetch("/api/calendar/external")
+      .then(r => r.json())
+      .then(d => { if (d.events) setExternalEvents(d.events); })
+      .catch(() => {});
   }, []);
 
   const feedUrl = calendarToken
@@ -431,6 +473,13 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
     const ymd = ev.scheduledAt.slice(0, 10);
     if (!eventMap.has(ymd)) eventMap.set(ymd, []);
     eventMap.get(ymd)!.push(ev);
+  }
+
+  const extEventMap = new Map<string, ExternalCalEvent[]>();
+  for (const ev of externalEvents) {
+    const ymd = ev.start.slice(0, 10);
+    if (!extEventMap.has(ymd)) extEventMap.set(ymd, []);
+    extEventMap.get(ymd)!.push(ev);
   }
 
   const year = anchorDate.getFullYear();
@@ -682,6 +731,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                 if (!date) return <div key={i} className="bg-stone-50 min-h-[48px] sm:min-h-[96px]" />;
                 const ymd = toYMD(date);
                 const dayEvs = eventMap.get(ymd) ?? [];
+                const extEvs = extEventMap.get(ymd) ?? [];
                 const isToday = ymd === todayYMD;
                 const isSelected = ymd === selectedDate;
                 return (
@@ -692,8 +742,11 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                     </span>
                     {/* Mobile: dots */}
                     <div className="flex flex-wrap gap-0.5 sm:hidden">
-                      {dayEvs.slice(0, 4).map((ev, ei) => (
+                      {dayEvs.slice(0, 3).map((ev, ei) => (
                         <span key={ei} className={`w-1.5 h-1.5 rounded-full ${TYPE_DOT[ev.type]}`} />
+                      ))}
+                      {extEvs.slice(0, 2).map((ev) => (
+                        <span key={ev.uid} className="w-1.5 h-1.5 rounded-full bg-stone-400" />
                       ))}
                     </div>
                     {/* Desktop: labels */}
@@ -704,7 +757,13 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                           <span className={`truncate ${ev.status === "Cancelled" ? "line-through" : ""}`}>{ev.title}</span>
                         </div>
                       ))}
-                      {dayEvs.length > 3 && <p className="text-[10px] text-stone-400 px-1">+{dayEvs.length - 3}</p>}
+                      {extEvs.slice(0, dayEvs.length < 3 ? 3 - dayEvs.length : 0).map((ev) => (
+                        <div key={ev.uid} className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] border truncate bg-stone-50 border-stone-200 text-stone-500 italic">
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-stone-400" />
+                          <span className="truncate">{ev.title}</span>
+                        </div>
+                      ))}
+                      {(dayEvs.length + extEvs.length > 3) && <p className="text-[10px] text-stone-400 px-1">+{dayEvs.length + extEvs.length - 3}</p>}
                     </div>
                   </button>
                 );
@@ -741,10 +800,14 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-                {selectedDayEvents.length === 0 ? (
+                {selectedDayEvents.length === 0 && (extEventMap.get(selectedDate) ?? []).length === 0 ? (
                   <p className="text-xs text-stone-400 text-center py-8">No activities. Tap Add to schedule one.</p>
-                ) : selectedDayEvents.map(ev => (
+                ) : null}
+                {selectedDayEvents.map(ev => (
                   <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} />
+                ))}
+                {(extEventMap.get(selectedDate) ?? []).map(ev => (
+                  <ExternalEventCard key={ev.uid} ev={ev} />
                 ))}
               </div>
             </div>
@@ -759,6 +822,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
             {weekDays.map(d => {
               const ymd = toYMD(d);
               const dayEvs = (eventMap.get(ymd) ?? []).sort((a,b) => a.scheduledAt.localeCompare(b.scheduledAt));
+              const extEvs = (extEventMap.get(ymd) ?? []).sort((a,b) => a.start.localeCompare(b.start));
               const isToday = ymd === todayYMD;
               return (
                 <div key={ymd}>
@@ -771,12 +835,15 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                       className="ml-auto text-[11px] text-stone-400 hover:text-sky-600 flex items-center gap-0.5 transition-colors">
                       <Plus className="w-3 h-3" /> Add
                     </button>
-                    {dayEvs.length === 0 && <span className="text-[11px] text-stone-300">nothing scheduled</span>}
+                    {dayEvs.length === 0 && extEvs.length === 0 && <span className="text-[11px] text-stone-300">nothing scheduled</span>}
                   </div>
-                  {dayEvs.length > 0 && (
+                  {(dayEvs.length > 0 || extEvs.length > 0) && (
                     <div className="space-y-2">
                       {dayEvs.map(ev => (
                         <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} />
+                      ))}
+                      {extEvs.map(ev => (
+                        <ExternalEventCard key={ev.uid} ev={ev} />
                       ))}
                     </div>
                   )}

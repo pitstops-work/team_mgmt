@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, RefreshCw, Users, KeyRound } from "lucide-react";
+import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 type Member = { id: string; name: string | null; email: string | null; image: string | null };
@@ -19,10 +19,18 @@ export default function SettingsPage() {
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
 
+  const [externalCalUrl, setExternalCalUrl] = useState("");
+  const [calSaving, setCalSaving] = useState(false);
+  const [calError, setCalError] = useState<string | null>(null);
+  const [calSuccess, setCalSuccess] = useState(false);
+
   useEffect(() => {
     Promise.all([
       fetch("/api/invite-code").then((r) => r.json()).then((d) => setCode(d.code)),
       fetch("/api/users").then((r) => r.json()).then(setMembers),
+      fetch("/api/account/external-calendar").then((r) => r.json()).then((d) => {
+        if (d.url) setExternalCalUrl(d.url);
+      }),
     ]);
   }, []);
 
@@ -66,6 +74,22 @@ export default function SettingsPage() {
       setNewPassword("");
       setConfirmPassword("");
     }
+  };
+
+  const handleSaveCalUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCalError(null);
+    setCalSuccess(false);
+    setCalSaving(true);
+    const res = await fetch("/api/account/external-calendar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: externalCalUrl }),
+    });
+    const data = await res.json();
+    setCalSaving(false);
+    if (!res.ok) setCalError(data.error ?? "Something went wrong");
+    else setCalSuccess(true);
   };
 
   return (
@@ -156,6 +180,57 @@ export default function SettingsPage() {
           >
             {pwSaving ? "Saving…" : "Update password"}
           </button>
+        </form>
+      </section>
+
+      {/* External Calendar */}
+      <section className="mb-10">
+        <div className="flex items-center gap-2 mb-1">
+          <CalendarDays className="w-4 h-4 text-stone-400" />
+          <h2 className="text-sm font-semibold text-stone-700">My Outlook / Google Calendar</h2>
+        </div>
+        <p className="text-xs text-stone-500 mb-4">
+          Paste your calendar&apos;s iCal (.ics) subscription URL here. Your personal events will appear
+          in grey on the Activities calendar — read-only, visible only to you.
+        </p>
+        <details className="mb-3 text-xs text-stone-400 group">
+          <summary className="cursor-pointer hover:text-stone-600 select-none">How to get the URL from Outlook</summary>
+          <ol className="mt-2 space-y-1 pl-4 list-decimal text-stone-500">
+            <li>Open <strong>Outlook on the web</strong> (outlook.office.com or outlook.live.com)</li>
+            <li>Go to <strong>Calendar → Settings (gear icon) → View all Outlook settings</strong></li>
+            <li>Select <strong>Calendar → Shared calendars</strong></li>
+            <li>Under <strong>Publish a calendar</strong>, choose your calendar and set permissions to <em>Can view all details</em></li>
+            <li>Click <strong>Publish</strong> — copy the <strong>ICS</strong> link (not the HTML one)</li>
+          </ol>
+        </details>
+        <form onSubmit={handleSaveCalUrl} className="space-y-3 max-w-lg">
+          <input
+            type="url"
+            placeholder="https://outlook.live.com/owa/calendar/…/calendar.ics"
+            value={externalCalUrl}
+            onChange={(e) => { setExternalCalUrl(e.target.value); setCalSuccess(false); }}
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white font-mono"
+          />
+          {calError && <p className="text-xs text-red-500">{calError}</p>}
+          {calSuccess && <p className="text-xs text-emerald-600">Calendar URL saved. Your events will appear on Activities.</p>}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={calSaving}
+              className="px-4 py-2 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+            >
+              {calSaving ? "Saving…" : "Save"}
+            </button>
+            {externalCalUrl && (
+              <button
+                type="button"
+                onClick={() => { setExternalCalUrl(""); setCalSuccess(false); }}
+                className="px-4 py-2 text-sm text-stone-500 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </form>
       </section>
 
