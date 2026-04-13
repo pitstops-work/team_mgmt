@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, CalendarDays, ChevronDown, X, CalendarClock } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, ChevronDown, X, CalendarClock, Check } from "lucide-react";
 
 type Owner = { id: string; name: string | null; image: string | null };
 type Pitstop = {
@@ -75,50 +75,44 @@ function GoalPicker({ goals, selected, onChange }: {
   onChange: (next: Set<string>) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
-  const filtered = goals.filter(g => g.title.toLowerCase().includes(query.toLowerCase()));
   const toggle = (id: string) => { const n = new Set(selected); n.has(id) ? n.delete(id) : n.add(id); onChange(n); };
   const label = selected.size === 0 ? "All Goals"
-    : selected.size === 1 ? goals.find(g => selected.has(g.id))?.title ?? "1 goal"
+    : selected.size === 1 ? (goals.find(g => selected.has(g.id))?.title ?? "1 goal")
     : `${selected.size} goals`;
   return (
     <div ref={ref} className="relative flex-shrink-0">
       <button onClick={() => setOpen(v => !v)}
         className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${selected.size > 0 ? "bg-sky-50 border-sky-300 text-sky-700" : "bg-white border-stone-200 text-stone-600 hover:border-stone-300"}`}>
-        <span className="max-w-[120px] truncate">{label}</span>
+        <span className="max-w-[140px] truncate">{label}</span>
         <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
       </button>
-      {selected.size > 0 && (
-        <button onClick={() => onChange(new Set())}
-          className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-sky-500 text-white rounded-full flex items-center justify-center hover:bg-sky-600">
-          <X className="w-2.5 h-2.5" />
-        </button>
-      )}
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-60 bg-white border border-stone-200 rounded-xl shadow-lg z-30 overflow-hidden">
-          <div className="p-2 border-b border-stone-100">
-            <input autoFocus type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search goals..."
-              className="w-full px-2 py-1 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-400" />
+        <div className="absolute top-full left-0 mt-1 w-72 bg-white border border-stone-200 rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="px-3 py-2 border-b border-stone-100 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+            Filter by Goal
           </div>
-          <div className="max-h-52 overflow-y-auto">
-            {filtered.map(g => (
-              <label key={g.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-stone-50 cursor-pointer">
-                <input type="checkbox" checked={selected.has(g.id)} onChange={() => toggle(g.id)}
-                  className="w-3.5 h-3.5 rounded border-stone-300 text-sky-500 focus:ring-sky-400" />
-                <span className="text-xs text-stone-700">{g.title}</span>
-              </label>
+          <div className="max-h-64 overflow-y-auto">
+            {goals.map(g => (
+              <button key={g.id} onClick={() => toggle(g.id)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-0">
+                <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selected.has(g.id) ? "bg-sky-500 border-sky-500" : "border-stone-300 bg-white"}`}>
+                  {selected.has(g.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                </span>
+                <span className="text-xs text-stone-700 leading-snug">{g.title}</span>
+              </button>
             ))}
-            {filtered.length === 0 && <p className="px-3 py-2 text-xs text-stone-400">No goals found.</p>}
           </div>
           {selected.size > 0 && (
             <div className="border-t border-stone-100 px-3 py-2">
-              <button onClick={() => onChange(new Set())} className="text-xs text-stone-400 hover:text-stone-600">Clear</button>
+              <button onClick={() => onChange(new Set())} className="w-full text-xs text-stone-400 hover:text-stone-600 py-1 text-center">
+                Clear filter
+              </button>
             </div>
           )}
         </div>

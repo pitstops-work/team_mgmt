@@ -91,31 +91,36 @@ function GoalPicker({ goals, selected, onChange }: {
     const next = new Set(selected); next.has(id) ? next.delete(id) : next.add(id); onChange(next);
   };
   const label = selected.size === 0 ? "All Goals"
-    : selected.size === 1 ? goals.find(g => selected.has(g.id))?.title ?? "1 goal"
+    : selected.size === 1 ? (goals.find(g => selected.has(g.id))?.title ?? "1 goal")
     : `${selected.size} goals`;
   return (
     <div ref={ref} className="relative flex-shrink-0">
       <button onClick={() => setOpen(o => !o)}
         className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg transition-colors ${selected.size > 0 ? "border-sky-400 bg-sky-50 text-sky-700" : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"}`}>
-        {label}
-        <ChevronDown className="w-3 h-3 opacity-60" />
+        <span className="max-w-[140px] truncate">{label}</span>
+        <ChevronDown className="w-3 h-3 opacity-60 flex-shrink-0" />
       </button>
       {open && (
-        <div className="absolute top-full mt-1 right-0 z-30 w-64 bg-white border border-stone-200 rounded-xl shadow-lg overflow-hidden">
-          <div className="max-h-56 overflow-y-auto p-1">
+        <div className="absolute top-full mt-1 left-0 z-50 w-72 bg-white border border-stone-200 rounded-xl shadow-xl overflow-hidden">
+          <div className="px-3 py-2 border-b border-stone-100 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+            Filter by Goal
+          </div>
+          <div className="max-h-64 overflow-y-auto">
             {goals.map(g => (
               <button key={g.id} onClick={() => toggle(g.id)}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left hover:bg-stone-50 transition-colors">
-                <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(g.id) ? "bg-sky-500 border-sky-500" : "border-stone-300"}`}>
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-0">
+                <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selected.has(g.id) ? "bg-sky-500 border-sky-500" : "border-stone-300 bg-white"}`}>
                   {selected.has(g.id) && <Check className="w-2.5 h-2.5 text-white" />}
                 </span>
-                <span className="truncate text-stone-700">{g.title}</span>
+                <span className="text-xs text-stone-700 leading-snug">{g.title}</span>
               </button>
             ))}
           </div>
           {selected.size > 0 && (
-            <div className="border-t border-stone-100 p-1">
-              <button onClick={() => onChange(new Set())} className="w-full text-xs text-stone-400 hover:text-stone-600 py-1.5 text-center">Clear</button>
+            <div className="border-t border-stone-100 px-3 py-2">
+              <button onClick={() => onChange(new Set())} className="w-full text-xs text-stone-400 hover:text-stone-600 py-1 text-center">
+                Clear filter
+              </button>
             </div>
           )}
         </div>
