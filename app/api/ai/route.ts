@@ -72,10 +72,10 @@ async function buildContext(userId: string): Promise<string> {
       orderBy: { name: "asc" },
     }),
     prisma.standupLog.findMany({
-      where: { createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } },
+      where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
       include: { user: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: 8,
     }),
     prisma.decision.findMany({
       where: { deletedAt: null },
@@ -87,44 +87,8 @@ async function buildContext(userId: string): Promise<string> {
 
   const me = users.find(u => u.id === userId);
 
-  let ctx = `CURRENT USER: ${me?.name ?? "Unknown"}\n`;
-  ctx += `TEAM: ${users.map(u => u.name).join(", ")}\n\n`;
-
-  // ── Programs ──────────────────────────────────────────────────────────────
-  if (programs.length > 0) {
-    ctx += `PROGRAMS:\n`;
-    for (const p of programs) {
-      const goalTitles = p.goals.map(g => `"${g.goal.title}" (${g.goal.status})`).join(", ");
-      ctx += `  - "${p.title}": ${goalTitles || "no goals"}\n`;
-    }
-    ctx += "\n";
-  }
-
-  // ── Geography ─────────────────────────────────────────────────────────────
-  if (zones.length > 0) {
-    const clustersByZone = clusters.reduce((acc, c) => {
-      const z = c.zone.name;
-      if (!acc[z]) acc[z] = [];
-      acc[z].push(c.name.replace(/_/g, " "));
-      return acc;
-    }, {} as Record<string, string[]>);
-    ctx += `GEOGRAPHY:\n`;
-    for (const z of zones) {
-      const cs = clustersByZone[z.name]?.join(", ") ?? "no clusters";
-      ctx += `  - Zone: ${z.name} → Clusters: ${cs}\n`;
-    }
-    ctx += "\n";
-  }
-
-  // ── Themes ────────────────────────────────────────────────────────────────
-  if (themes.length > 0) {
-    ctx += `THEMES:\n`;
-    for (const t of themes) {
-      const goalSet = new Set(t.pitstops.map(p => p.pitstop.goal.title));
-      ctx += `  - "${t.name}": spans goals: ${[...goalSet].map(g => `"${g}"`).join(", ") || "none yet"}\n`;
-    }
-    ctx += "\n";
-  }
+  let ctx = `TODAY: ${new Date().toISOString().slice(0, 10)}\n`;
+  ctx += `USER: ${me?.name ?? "Unknown"} | TEAM: ${users.map(u => u.name).join(", ")}\n\n`;
 
   // ── Goals & Pitstops ──────────────────────────────────────────────────────
   ctx += `GOALS & PITSTOPS:\n`;
@@ -136,42 +100,44 @@ async function buildContext(userId: string): Promise<string> {
     ).length;
     const programNames = g.programs.map(p => p.program.title).join(", ");
     const themeNames = g.themes.map(t => t.theme.name).join(", ");
-    const zoneNames = g.zones.map(z => z.zone.name).join(", ");
-    const clusterNames = g.clusters.map(c => c.cluster.name.replace(/_/g, " ")).join(", ");
+    const geo = [...g.zones.map(z => z.zone.name), ...g.clusters.map(c => c.cluster.name.replace(/_/g, " "))].join(", ");
 
-    ctx += `\nGoal: "${g.title}"`;
-    ctx += ` | Status: ${g.status} | Owner: ${g.owner?.name ?? "Unassigned"}`;
-    ctx += ` | Target: ${fmt(g.targetDate)} | Progress: ${donePitstops}/${totalPitstops} pitstops done`;
-    if (overduePitstops > 0) ctx += ` | ⚠ ${overduePitstops} overdue pitstop(s)`;
-    if (programNames) ctx += ` | Program: ${programNames}`;
+    ctx += `\nGoal: "${g.title}" | ${g.status} | Owner: ${g.owner?.name ?? "Unassigned"}`;
+    ctx += ` | Target: ${fmt(g.targetDate)} | ${donePitstops}/${totalPitstops} done`;
+    if (overduePitstops > 0) ctx += ` | ⚠${overduePitstops} overdue`;
+    if (programNames) ctx += ` | ${programNames}`;
     if (themeNames) ctx += ` | Themes: ${themeNames}`;
-    if (zoneNames) ctx += ` | Zones: ${zoneNames}`;
-    if (clusterNames) ctx += ` | Clusters: ${clusterNames}`;
-    if (g.description) ctx += `\n  Description: ${g.description.slice(0, 200)}`;
+    if (geo) ctx += ` | ${geo}`;
+    if (g.description) ctx += ` | ${g.description.slice(0, 80)}`;
 
     // Metrics
     for (const m of g.metrics) {
       const latest = m.dataPoints[0];
-      ctx += `\n  Metric: "${m.name}" | Target: ${m.target ?? "none"} ${m.unit ?? ""}`;
-      if (latest) ctx += ` | Latest: ${latest.value} (${fmt(latest.date)})`;
+      ctx += `\n  Metric: ${m.name} target=${m.target ?? "?"} ${m.unit ?? ""}`;
+      if (latest) ctx += ` latest=${latest.value} (${fmt(latest.date)})`;
     }
 
-    // Pitstops
+    // Pitstops — done ones compressed to a single short line
     for (const p of g.pitstops) {
+      const isOverdue = p.status !== "Done" && p.targetDate && new Date(p.targetDate) < today;
+
+      if (p.status === "Done") {
+        ctx += `\n  - [Done] "${p.title}"${p.owner ? ` (${p.owner.name})` : ""}`;
+        continue;
+      }
+
       const totalItems = p.checklistItems.length;
       const doneItems = p.checklistItems.filter(c => c.checked).length;
-      const isOverdue = p.status !== "Done" && p.targetDate && new Date(p.targetDate) < today;
-      const checklist = totalItems > 0 ? ` | Checklist: ${doneItems}/${totalItems}` : "";
-      const start = p.startDate ? ` | Start: ${fmt(p.startDate)}` : "";
-      const target = p.targetDate ? ` | Due: ${fmt(p.targetDate)}` : "";
-      const owner = p.owner ? ` | Owner: ${p.owner.name}` : "";
-      const pThemes = p.themes.length ? ` | Themes: ${p.themes.map(t => t.theme.name).join(", ")}` : "";
-      const overdueFlag = isOverdue ? " ⚠OVERDUE" : "";
-      ctx += `\n  - Pitstop: "${p.title}" | ${p.type} | ${p.status}${overdueFlag}${start}${target}${owner}${checklist}${pThemes}`;
-      // Only include checklist detail for active pitstops to save tokens
-      if (p.status !== "Done" && totalItems > 0) {
+      const checklist = totalItems > 0 ? ` | CL:${doneItems}/${totalItems}` : "";
+      const start = p.startDate ? ` Start:${fmt(p.startDate)}` : "";
+      const target = p.targetDate ? ` Due:${fmt(p.targetDate)}` : "";
+      const owner = p.owner ? ` | ${p.owner.name}` : "";
+      ctx += `\n  - "${p.title}" | ${p.type} | ${p.status}${isOverdue ? " ⚠OVERDUE" : ""}${start}${target}${owner}${checklist}`;
+
+      // Remaining checklist only for InProgress
+      if (p.status === "InProgress" && totalItems > 0) {
         const unchecked = p.checklistItems.filter(c => !c.checked).map(c => c.text);
-        if (unchecked.length > 0) ctx += `\n      Remaining: ${unchecked.slice(0, 5).join(" | ")}${unchecked.length > 5 ? ` (+${unchecked.length - 5} more)` : ""}`;
+        if (unchecked.length > 0) ctx += `\n      Remaining: ${unchecked.slice(0, 3).join(" | ")}${unchecked.length > 3 ? ` +${unchecked.length - 3}` : ""}`;
       }
     }
   }
@@ -207,12 +173,12 @@ async function buildContext(userId: string): Promise<string> {
 
   // ── Recent field notes ─────────────────────────────────────────────────────
   if (recentNotes.length > 0) {
-    ctx += `\nRECENT FIELD NOTES (last 2 weeks):\n`;
+    ctx += `\nFIELD NOTES (last 7 days):\n`;
     for (const n of recentNotes) {
-      ctx += `  - ${fmt(n.date)} | ${n.user.name}: `;
-      if (n.yesterday) ctx += `Done: ${n.yesterday.slice(0, 120)} `;
-      if (n.today) ctx += `Next: ${n.today.slice(0, 120)} `;
-      if (n.blockers) ctx += `Blockers: ${n.blockers.slice(0, 80)}`;
+      ctx += `  ${fmt(n.date)} ${n.user.name}:`;
+      if (n.yesterday) ctx += ` Done:${n.yesterday.slice(0, 80)}`;
+      if (n.today) ctx += ` Next:${n.today.slice(0, 80)}`;
+      if (n.blockers) ctx += ` Block:${n.blockers.slice(0, 50)}`;
       ctx += "\n";
     }
   }
@@ -291,8 +257,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Failed to load app data" }, { status: 500 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const systemMessage = `${SYSTEM_PROMPT}\n\nToday's date: ${today}\n\n--- APP DATA ---\n${context}--- END APP DATA ---`;
+  const systemMessage = `${SYSTEM_PROMPT}\n\n--- APP DATA ---\n${context}--- END APP DATA ---`;
 
   let stream: Awaited<ReturnType<typeof groq.chat.completions.create>>;
   try {
