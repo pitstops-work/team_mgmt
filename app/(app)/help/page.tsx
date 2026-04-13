@@ -59,7 +59,7 @@ const SECTIONS = [
           {
             step: "1", title: "Create a Goal", href: "/dashboard",
             items: [
-              "Write a title that is an outcome, not an action. "Creche enrolment reaches 150" is better than "Do creche work".",
+              'Write a title that is an outcome, not an action. "Creche enrolment reaches 150" is better than "Do creche work".',
               "Assign an owner — the person accountable, not necessarily doing all the work.",
               "Set a target date.",
               "Tag it to a Program, Zone, and Cluster. This drives the map and geo-filtered views.",
@@ -68,7 +68,7 @@ const SECTIONS = [
           {
             step: "2", title: "Break it into Pitstops", href: null,
             items: [
-              "Each pitstop should represent a real deliverable — something you can point to and say "this is done."",
+              'Each pitstop should represent a real deliverable — something you can point to and say "this is done."',
               "Set a start date and target date. These appear on the Gantt chart and timeline.",
               "Assign an owner. The pitstop owner is responsible for this specific piece.",
               "Choose a type: Meeting, Workshop, Visit, Training, Report, Review, or Other.",
