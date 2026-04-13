@@ -972,3 +972,26 @@ model SettlementNote {
   note       String   @default("")
   updatedAt  DateTime @updatedAt
 }
+
+model MapPartner {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  label        String
+  color        String   @default("#6366f1")
+  contactName  String?
+  contactPhone String?
+  notes        String?
+  isBuiltIn    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model MapPolygon {
+  id          String   @id @default(cuid())
+  name        String
+  partnerKey  String
+  zone        String   @default("")
+  cluster     String   @default("")
+  description String   @default("")
+  coordinates Json
+  createdAt   DateTime @default(now())
+}

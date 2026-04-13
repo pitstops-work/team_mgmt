@@ -11,7 +11,7 @@ import { LAYERS, type LayerKey } from "@/lib/layers";
 import { useGeoData } from "@/lib/useGeoData";
 import { type MapFilter, computeMapFilter } from "@/lib/mapFilter";
 
-import type { SettlementFeature } from "./MapView";
+import type { SettlementFeature, CustomPolygonFeature } from "./MapView";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
 
@@ -33,7 +33,7 @@ interface ZoneClusterIndex {
 async function loadCounts(): Promise<Partial<Record<LayerKey, number>>> {
   const counts: Partial<Record<LayerKey, number>> = {};
   await Promise.all(
-    LAYERS.map(async (l) => {
+    LAYERS.filter((l) => l.file).map(async (l) => {
       try {
         const r = await fetch(l.file);
         const data = await r.json();
@@ -52,6 +52,7 @@ export default function MapDashboard() {
   );
   const [featureCounts, setFeatureCounts] = useState<Partial<Record<LayerKey, number>>>({});
   const [customFeatures, setCustomFeatures] = useState<CustomFeature[]>([]);
+  const [customPolygons, setCustomPolygons] = useState<CustomPolygonFeature[]>([]);
   // Sidebar closed by default; opens on desktop via useEffect
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeZone, setActiveZone] = useState<string | null>(null);
@@ -85,6 +86,13 @@ export default function MapDashboard() {
     try {
       const r = await fetch("/api/map/features");
       if (r.ok) setCustomFeatures(await r.json());
+    } catch {}
+    try {
+      const r = await fetch("/api/map/polygons");
+      if (r.ok) {
+        const fc = await r.json();
+        setCustomPolygons(fc.features ?? []);
+      }
     } catch {}
   }
 
@@ -230,6 +238,7 @@ export default function MapDashboard() {
           visibleLayers={visibleLayers}
           onFeatureAdded={fetchCustomFeatures}
           customFeatures={customFeatures}
+          customPolygons={customPolygons}
           activeZone={activeZone}
           activeCluster={activeCluster}
           onSettlementClick={handleSettlementClick}

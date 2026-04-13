@@ -12,7 +12,8 @@ export type LayerKey =
   | "children_centres"
   | "youth_centres"
   | "creches"
-  | "custom";
+  | "custom"
+  | "custom_settlements";
 
 export interface LayerConfig {
   key: LayerKey;
@@ -120,6 +121,14 @@ export const LAYERS: LayerConfig[] = [
     color: "#ec4899",
     type: "point",
     description: "Creche programme centres",
+  },
+  {
+    key: "custom_settlements",
+    label: "Custom Settlements",
+    file: "",
+    color: "#6366f1",
+    type: "polygon",
+    description: "User-added settlement polygons",
   },
 ];
 

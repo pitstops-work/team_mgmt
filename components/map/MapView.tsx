@@ -27,10 +27,28 @@ interface CustomFeature {
   createdAt: string;
 }
 
+export interface CustomPolygonFeature {
+  type: "Feature";
+  properties: {
+    id: string;
+    name: string;
+    partnerKey: string;
+    zone: string;
+    cluster: string;
+    description: string;
+    createdAt: string;
+  };
+  geometry: {
+    type: "Polygon";
+    coordinates: number[][][];
+  };
+}
+
 interface MapViewProps {
   visibleLayers: Set<LayerKey>;
   onFeatureAdded: () => void;
   customFeatures: CustomFeature[];
+  customPolygons?: CustomPolygonFeature[];
   activeZone: string | null;
   activeCluster: string | null;
   onSettlementClick: (f: SettlementFeature) => void;
@@ -155,7 +173,7 @@ function buildCentreLayer(
 }
 
 export default function MapView({
-  visibleLayers, onFeatureAdded, customFeatures,
+  visibleLayers, onFeatureAdded, customFeatures, customPolygons = [],
   activeZone, activeCluster, onSettlementClick,
   onZoneSelect, onClusterSelect, onCentreClick,
   flyToRef, openPopupRef, mapFilter,
@@ -180,6 +198,20 @@ export default function MapView({
   const [showClusters, setShowClusters] = useState(false);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
 
+  // Zone→cluster index for dropdowns
+  const [zoneClusterIndex, setZoneClusterIndex] = useState<Record<string, string[]>>({});
+  const ZONES = ["Central", "West", "North", "South"];
+  const partnerOptions = LAYERS.filter((l) => l.type === "polygon" && l.key !== "custom_settlements");
+
+  // Draw mode state
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawVertices, setDrawVertices] = useState<L.LatLng[]>([]);
+  const [pendingPolygon, setPendingPolygon] = useState<L.LatLng[] | null>(null);
+  const [polyFormData, setPolyFormData] = useState({ name: "", zone: "", cluster: "", partner: "", description: "" });
+  const [polySaving, setPolySaving] = useState(false);
+  const drawPreviewRef = useRef<L.LayerGroup | null>(null);
+  const customPolygonLayerRef = useRef<L.LayerGroup | null>(null);
+
   const onZoneSelectRef = useRef(onZoneSelect);
   const onClusterSelectRef = useRef(onClusterSelect);
   useEffect(() => { onZoneSelectRef.current = onZoneSelect; }, [onZoneSelect]);
@@ -198,6 +230,21 @@ export default function MapView({
   useEffect(() => { mapFilterRef.current = mapFilter; }, [mapFilter]);
   const onCentreClickRef = useRef(onCentreClick);
   useEffect(() => { onCentreClickRef.current = onCentreClick; }, [onCentreClick]);
+
+  // Load zone→cluster index for form dropdowns
+  useEffect(() => {
+    fetch("/data/zone_cluster_index.json")
+      .then((r) => r.json())
+      .then((data: { clusters: Record<string, { zone: string }> }) => {
+        const idx: Record<string, string[]> = {};
+        Object.entries(data.clusters).forEach(([cluster, info]) => {
+          if (!idx[info.zone]) idx[info.zone] = [];
+          idx[info.zone].push(cluster);
+        });
+        setZoneClusterIndex(idx);
+      })
+      .catch(() => {});
+  }, []);
 
   // Swap tile layer when basemap changes
   useEffect(() => {
@@ -242,7 +289,7 @@ export default function MapView({
       setTimeout(() => (layer as L.Layer & { openPopup: () => void }).openPopup?.(), 750);
     };
 
-    LAYERS.forEach((layerConfig) => {
+    LAYERS.filter((l) => l.file).forEach((layerConfig) => {
       const group = L.layerGroup().addTo(map);
       layerGroupsRef.current[layerConfig.key] = group;
       featureLayersByKey.current[layerConfig.key] = [];
@@ -311,6 +358,8 @@ export default function MapView({
     });
 
     customLayerRef.current = L.layerGroup().addTo(map);
+    drawPreviewRef.current = L.layerGroup().addTo(map);
+    customPolygonLayerRef.current = L.layerGroup().addTo(map);
 
     // ── Boundary layers (zone + cluster) — loaded once, toggled via state ──
     const zoneBoundaryGroup = L.layerGroup();
@@ -368,7 +417,7 @@ export default function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    LAYERS.forEach((layerConfig) => {
+    LAYERS.filter((l) => l.file).forEach((layerConfig) => {
       const group = layerGroupsRef.current[layerConfig.key];
       if (!group) return;
       if (visibleLayers.has(layerConfig.key)) {
@@ -498,8 +547,8 @@ export default function MapView({
 
   useEffect(() => {
     const c = containerRef.current;
-    if (c) c.style.cursor = addMode ? "crosshair" : "";
-  }, [addMode]);
+    if (c) c.style.cursor = (addMode || drawMode) ? "crosshair" : "";
+  }, [addMode, drawMode]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -508,6 +557,128 @@ export default function MapView({
     map.on("click", handler);
     return () => { map.off("click", handler); };
   }, [addMode]);
+
+  // Draw mode: add vertex on click, finish on dblclick
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!drawMode) return;
+
+    const clickHandler = (e: L.LeafletMouseEvent) => {
+      // Ignore double-click's second click event by checking detail
+      setDrawVertices((prev) => [...prev, e.latlng]);
+    };
+    const dblClickHandler = (e: L.LeafletMouseEvent) => {
+      L.DomEvent.stopPropagation(e);
+      setDrawVertices((prev) => {
+        if (prev.length >= 3) {
+          setPendingPolygon(prev);
+          setDrawMode(false);
+          return [];
+        }
+        return prev;
+      });
+    };
+
+    map.on("click", clickHandler);
+    map.on("dblclick", dblClickHandler);
+    map.doubleClickZoom.disable();
+    return () => {
+      map.off("click", clickHandler);
+      map.off("dblclick", dblClickHandler);
+      map.doubleClickZoom.enable();
+    };
+  }, [drawMode]);
+
+  // Render draw preview
+  useEffect(() => {
+    const group = drawPreviewRef.current;
+    if (!group) return;
+    group.clearLayers();
+    if (drawVertices.length === 0) return;
+
+    // Draw dots for each vertex
+    drawVertices.forEach((v) => {
+      L.circleMarker(v, { radius: 5, fillColor: "#6366f1", color: "white", weight: 2, fillOpacity: 1 }).addTo(group);
+    });
+
+    // Draw preview polygon outline if 3+ vertices
+    if (drawVertices.length >= 3) {
+      L.polygon(drawVertices, {
+        color: "#6366f1",
+        weight: 2,
+        dashArray: "6 4",
+        fillColor: "#6366f1",
+        fillOpacity: 0.12,
+      }).addTo(group);
+    } else if (drawVertices.length >= 2) {
+      L.polyline(drawVertices, { color: "#6366f1", weight: 2, dashArray: "6 4" }).addTo(group);
+    }
+  }, [drawVertices]);
+
+  // Render custom polygons from DB
+  useEffect(() => {
+    const group = customPolygonLayerRef.current;
+    if (!group) return;
+    group.clearLayers();
+
+    customPolygons.forEach((feature) => {
+      const props = feature.properties;
+      const partnerLayer = LAYERS.find((l) => l.key === props.partnerKey);
+      const color = partnerLayer?.color ?? "#6366f1";
+
+      // Convert GeoJSON [lng,lat] coordinates to Leaflet [lat,lng]
+      const latlngs = feature.geometry.coordinates[0].map(
+        (c) => [c[1], c[0]] as [number, number]
+      );
+
+      const poly = L.polygon(latlngs, {
+        color,
+        weight: 2,
+        opacity: 0.9,
+        fillColor: color,
+        fillOpacity: 0.25,
+      });
+
+      poly.bindPopup(`
+        <div class="map-popup">
+          <span class="badge" style="background:${color}">${partnerLayer?.label ?? props.partnerKey}</span>
+          <h3>${props.name}</h3>
+          ${props.zone || props.cluster ? `<div class="info" style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+            ${props.zone ? `<span style="background:#e0e7ff;color:#4338ca;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700">${props.zone}</span>` : ""}
+            ${props.cluster ? `<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600">${props.cluster.replace(/_/g, " ")}</span>` : ""}
+          </div>` : ""}
+          ${props.description ? `<div class="info" style="margin-top:6px">${props.description}</div>` : ""}
+          <div class="info" style="margin-top:6px;color:#94a3b8;font-size:11px">Custom Settlement</div>
+        </div>
+      `, { maxWidth: 300 });
+
+      poly.on("mouseover", () => poly.setStyle({ fillOpacity: 0.5, weight: 3 }));
+      poly.on("mouseout", () => poly.setStyle({ fillOpacity: 0.25, weight: 2 }));
+
+      // Register in allFeatureLayers for cross-filter support
+      allFeatureLayers.current.push({
+        leafletLayer: poly,
+        props: { zone: props.zone, cluster: props.cluster, name: props.name, layer: "custom_settlements" },
+        baseColor: color,
+      });
+
+      group.addLayer(poly);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customPolygons]);
+
+  // Toggle custom polygon layer visibility
+  useEffect(() => {
+    const map = mapRef.current;
+    const group = customPolygonLayerRef.current;
+    if (!map || !group) return;
+    if (visibleLayers.has("custom_settlements")) {
+      if (!map.hasLayer(group)) group.addTo(map);
+    } else {
+      if (map.hasLayer(group)) map.removeLayer(group);
+    }
+  }, [visibleLayers]);
 
   useEffect(() => {
     const layer = customLayerRef.current;
@@ -552,6 +723,31 @@ export default function MapView({
     } finally { setSaving(false); }
   }
 
+  async function handlePolySave() {
+    if (!pendingPolygon || !polyFormData.name.trim()) return;
+    setPolySaving(true);
+    try {
+      const coordinates = pendingPolygon.map((v) => ({ lat: v.lat, lng: v.lng }));
+      const res = await fetch("/api/map/polygons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: polyFormData.name,
+          partnerKey: polyFormData.partner || "custom_settlements",
+          zone: polyFormData.zone,
+          cluster: polyFormData.cluster,
+          description: polyFormData.description,
+          coordinates,
+        }),
+      });
+      if (res.ok) {
+        setPendingPolygon(null);
+        setPolyFormData({ name: "", zone: "", cluster: "", partner: "", description: "" });
+        onFeatureAdded();
+      }
+    } finally { setPolySaving(false); }
+  }
+
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
@@ -592,19 +788,36 @@ export default function MapView({
       </div>
 
       <div className="absolute bottom-28 sm:bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-2">
-        {!addMode ? (
-          <button
-            onClick={() => setAddMode(true)}
-            className="bg-white border border-slate-200 shadow-lg px-4 py-2 rounded-full text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-2"
-          >
-            <span className="text-base">+</span> Add New Point
-          </button>
-        ) : (
+        {!addMode && !drawMode ? (
+          <>
+            <button
+              onClick={() => setAddMode(true)}
+              className="bg-white border border-slate-200 shadow-lg px-4 py-2 rounded-full text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-2"
+            >
+              <span className="text-base">+</span> Add New Point
+            </button>
+            <button
+              onClick={() => { setDrawMode(true); setDrawVertices([]); }}
+              className="bg-white border border-indigo-200 shadow-lg px-4 py-2 rounded-full text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              Draw Settlement
+            </button>
+          </>
+        ) : addMode ? (
           <div className="bg-amber-50 border border-amber-300 shadow-lg px-4 py-2 rounded-full text-sm font-semibold text-amber-800 flex items-center gap-3">
             <span>Click on map to place point</span>
             <button onClick={() => { setAddMode(false); setPendingLatLng(null); }} className="text-amber-600 hover:text-amber-900">✕ Cancel</button>
           </div>
-        )}
+        ) : drawMode ? (
+          <div className="bg-indigo-50 border border-indigo-300 shadow-lg px-4 py-2 rounded-full text-sm font-semibold text-indigo-800 flex items-center gap-3">
+            <span>Click to add vertices · Double-click to finish (min 3 points)</span>
+            <span className="text-indigo-500 font-bold">{drawVertices.length} pts</span>
+            <button onClick={() => { setDrawMode(false); setDrawVertices([]); drawPreviewRef.current?.clearLayers(); }} className="text-indigo-600 hover:text-indigo-900">✕ Cancel</button>
+          </div>
+        ) : null}
       </div>
 
       {pendingLatLng && (
@@ -624,31 +837,42 @@ export default function MapView({
               />
             </div>
             <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Zone</label>
+              <select
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={formData.zone}
+                onChange={(e) => setFormData((f) => ({ ...f, zone: e.target.value, cluster: "" }))}
+              >
+                <option value="">— Select zone —</option>
+                {ZONES.map((z) => <option key={z} value={z}>{z}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Cluster</label>
-              <input
+              <select
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 value={formData.cluster}
                 onChange={(e) => setFormData((f) => ({ ...f, cluster: e.target.value }))}
-                placeholder="e.g. Peenya West"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Zone</label>
-              <input
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                value={formData.zone}
-                onChange={(e) => setFormData((f) => ({ ...f, zone: e.target.value }))}
-                placeholder="e.g. North"
-              />
+                disabled={!formData.zone}
+              >
+                <option value="">— Select cluster —</option>
+                {(zoneClusterIndex[formData.zone] ?? []).sort().map((c) => (
+                  <option key={c} value={c}>{c.replace(/_/g, " ")}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Partner NGO</label>
-              <input
+              <select
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 value={formData.partner}
                 onChange={(e) => setFormData((f) => ({ ...f, partner: e.target.value }))}
-                placeholder="e.g. Sangama"
-              />
+              >
+                <option value="">— Select partner —</option>
+                {partnerOptions.map((l) => (
+                  <option key={l.key} value={l.key}>{l.label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Type</label>
@@ -700,6 +924,91 @@ export default function MapView({
               </button>
               <button
                 onClick={() => setPendingLatLng(null)}
+                className="flex-1 border border-slate-200 rounded-lg py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draw Settlement form panel */}
+      {pendingPolygon && (
+        <div className="absolute top-16 left-3 right-3 sm:top-4 sm:right-4 sm:left-auto sm:w-80 z-20 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-100 bg-indigo-50 flex items-center justify-between">
+            <span className="text-sm font-bold text-indigo-800">New Settlement Polygon</span>
+            <span className="text-xs text-indigo-500">{pendingPolygon.length} vertices</span>
+          </div>
+          <div className="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Settlement Name *</label>
+              <input
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={polyFormData.name}
+                onChange={(e) => setPolyFormData((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Mattikere Slum"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Zone</label>
+              <select
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={polyFormData.zone}
+                onChange={(e) => setPolyFormData((f) => ({ ...f, zone: e.target.value, cluster: "" }))}
+              >
+                <option value="">— Select zone —</option>
+                {ZONES.map((z) => <option key={z} value={z}>{z}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Cluster</label>
+              <select
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={polyFormData.cluster}
+                onChange={(e) => setPolyFormData((f) => ({ ...f, cluster: e.target.value }))}
+                disabled={!polyFormData.zone}
+              >
+                <option value="">— Select cluster —</option>
+                {(zoneClusterIndex[polyFormData.zone] ?? []).sort().map((c) => (
+                  <option key={c} value={c}>{c.replace(/_/g, " ")}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Partner NGO</label>
+              <select
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={polyFormData.partner}
+                onChange={(e) => setPolyFormData((f) => ({ ...f, partner: e.target.value }))}
+              >
+                <option value="">— Select partner —</option>
+                {partnerOptions.map((l) => (
+                  <option key={l.key} value={l.key}>{l.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Notes</label>
+              <textarea
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                rows={2}
+                value={polyFormData.description}
+                onChange={(e) => setPolyFormData((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Address, households, observations…"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handlePolySave}
+                disabled={!polyFormData.name.trim() || polySaving}
+                className="flex-1 bg-indigo-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 hover:bg-indigo-700 transition-colors"
+              >
+                {polySaving ? "Saving…" : "Save Settlement"}
+              </button>
+              <button
+                onClick={() => { setPendingPolygon(null); drawPreviewRef.current?.clearLayers(); }}
                 className="flex-1 border border-slate-200 rounded-lg py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
               >
                 Cancel
