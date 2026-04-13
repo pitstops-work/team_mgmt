@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Sparkles, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -147,6 +147,10 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             <Settings className="w-3.5 h-3.5 text-stone-500" />
             Settings
           </NavLink>
+          <NavLink href="/help" active={pathname === "/help"}>
+            <HelpCircle className="w-3.5 h-3.5 text-stone-500" />
+            Manual
+          </NavLink>
           <button
             onClick={() => document.dispatchEvent(new CustomEvent("pitstop-ai-open"))}
             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors text-sky-600 hover:bg-sky-50 font-medium"
@@ -232,6 +236,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
                 { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map" },
                 { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />, label: "Quarters" },
                 { href: "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
+                { href: "/help", icon: <HelpCircle className="w-5 h-5" />, label: "Manual" },
               ].map(item => (
                 <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname === item.href ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
