@@ -132,7 +132,7 @@ export default function AIAssistant() {
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-white" />
               <span className="text-sm font-semibold text-white">Pitstop AI</span>
-              <span className="text-[10px] text-white/70 bg-white/20 px-1.5 py-0.5 rounded-full">Gemini 2.5</span>
+              <span className="text-[10px] text-white/70 bg-white/20 px-1.5 py-0.5 rounded-full">Gemma 4</span>
             </div>
             <div className="flex items-center gap-1">
               {messages.length > 0 && (
@@ -210,7 +210,7 @@ export default function AIAssistant() {
                 <Send className="w-3.5 h-3.5" />
               </button>
             </div>
-            <p className="text-[10px] text-stone-300 mt-1.5 text-center">Powered by Google · Gemini 2.5 Pro</p>
+            <p className="text-[10px] text-stone-300 mt-1.5 text-center">Powered by Google · Gemma 4 31B</p>
           </div>
         </div>
       )}

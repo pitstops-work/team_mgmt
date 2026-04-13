@@ -270,7 +270,7 @@ export async function POST(req: NextRequest) {
         "X-Title": "Pitstop",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro-exp-03-25:free",
+        model: "google/gemma-4-31b-it:free",
         messages: oaiMessages,
         max_tokens: 2048,
         temperature: 0.3,
