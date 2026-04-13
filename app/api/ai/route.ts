@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import Groq from "groq-sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
 
 function fmt(date: Date | string | null | undefined): string {
   if (!date) return "none";
@@ -72,10 +72,10 @@ async function buildContext(userId: string): Promise<string> {
       orderBy: { name: "asc" },
     }),
     prisma.standupLog.findMany({
-      where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      where: { createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } },
       include: { user: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
-      take: 8,
+      take: 20,
     }),
     prisma.decision.findMany({
       where: { deletedAt: null },
@@ -108,7 +108,7 @@ async function buildContext(userId: string): Promise<string> {
     if (programNames) ctx += ` | ${programNames}`;
     if (themeNames) ctx += ` | Themes: ${themeNames}`;
     if (geo) ctx += ` | ${geo}`;
-    if (g.description) ctx += ` | ${g.description.slice(0, 80)}`;
+    if (g.description) ctx += `\n  Description: ${g.description.slice(0, 200)}`;
 
     // Metrics
     for (const m of g.metrics) {
@@ -121,23 +121,19 @@ async function buildContext(userId: string): Promise<string> {
     for (const p of g.pitstops) {
       const isOverdue = p.status !== "Done" && p.targetDate && new Date(p.targetDate) < today;
 
-      if (p.status === "Done") {
-        ctx += `\n  - [Done] "${p.title}"${p.owner ? ` (${p.owner.name})` : ""}`;
-        continue;
-      }
-
       const totalItems = p.checklistItems.length;
       const doneItems = p.checklistItems.filter(c => c.checked).length;
-      const checklist = totalItems > 0 ? ` | CL:${doneItems}/${totalItems}` : "";
-      const start = p.startDate ? ` Start:${fmt(p.startDate)}` : "";
-      const target = p.targetDate ? ` Due:${fmt(p.targetDate)}` : "";
-      const owner = p.owner ? ` | ${p.owner.name}` : "";
-      ctx += `\n  - "${p.title}" | ${p.type} | ${p.status}${isOverdue ? " ⚠OVERDUE" : ""}${start}${target}${owner}${checklist}`;
+      const checklist = totalItems > 0 ? ` | Checklist: ${doneItems}/${totalItems}` : "";
+      const start = p.startDate ? ` | Start: ${fmt(p.startDate)}` : "";
+      const target = p.targetDate ? ` | Due: ${fmt(p.targetDate)}` : "";
+      const owner = p.owner ? ` | Owner: ${p.owner.name}` : "";
+      const pThemes = p.themes.length ? ` | Themes: ${p.themes.map(t => t.theme.name).join(", ")}` : "";
+      ctx += `\n  - "${p.title}" | ${p.type} | ${p.status}${isOverdue ? " ⚠OVERDUE" : ""}${start}${target}${owner}${checklist}${pThemes}`;
 
-      // Remaining checklist only for InProgress
-      if (p.status === "InProgress" && totalItems > 0) {
+      // Remaining checklist items for active pitstops
+      if (p.status !== "Done" && totalItems > 0) {
         const unchecked = p.checklistItems.filter(c => !c.checked).map(c => c.text);
-        if (unchecked.length > 0) ctx += `\n      Remaining: ${unchecked.slice(0, 3).join(" | ")}${unchecked.length > 3 ? ` +${unchecked.length - 3}` : ""}`;
+        if (unchecked.length > 0) ctx += `\n      Remaining: ${unchecked.slice(0, 5).join(" | ")}${unchecked.length > 5 ? ` (+${unchecked.length - 5} more)` : ""}`;
       }
     }
   }
@@ -173,12 +169,12 @@ async function buildContext(userId: string): Promise<string> {
 
   // ── Recent field notes ─────────────────────────────────────────────────────
   if (recentNotes.length > 0) {
-    ctx += `\nFIELD NOTES (last 7 days):\n`;
+    ctx += `\nRECENT FIELD NOTES (last 2 weeks):\n`;
     for (const n of recentNotes) {
-      ctx += `  ${fmt(n.date)} ${n.user.name}:`;
-      if (n.yesterday) ctx += ` Done:${n.yesterday.slice(0, 80)}`;
-      if (n.today) ctx += ` Next:${n.today.slice(0, 80)}`;
-      if (n.blockers) ctx += ` Block:${n.blockers.slice(0, 50)}`;
+      ctx += `  - ${fmt(n.date)} | ${n.user.name}: `;
+      if (n.yesterday) ctx += `Done: ${n.yesterday.slice(0, 120)} `;
+      if (n.today) ctx += `Next: ${n.today.slice(0, 120)} `;
+      if (n.blockers) ctx += `Blockers: ${n.blockers.slice(0, 80)}`;
       ctx += "\n";
     }
   }
@@ -257,23 +253,29 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Failed to load app data" }, { status: 500 });
   }
 
-  const systemMessage = `${SYSTEM_PROMPT}\n\n--- APP DATA ---\n${context}--- END APP DATA ---`;
+  const systemInstruction = `${SYSTEM_PROMPT}\n\n--- APP DATA ---\n${context}--- END APP DATA ---`;
 
-  let stream: Awaited<ReturnType<typeof groq.chat.completions.create>>;
+  // Convert OpenAI-format messages to Gemini format
+  // History = all messages except the last; last message is sent via sendMessageStream
+  type OAIMessage = { role: string; content: string };
+  const history = (messages as OAIMessage[]).slice(0, -1).map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+  const lastUserMessage = (messages as OAIMessage[])[messages.length - 1].content;
+
+  let result: Awaited<ReturnType<ReturnType<typeof genAI.getGenerativeModel>["startChat"]>["sendMessageStream"]>;
   try {
-    stream = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: systemMessage },
-        ...messages,
-      ],
-      stream: true,
-      max_tokens: 2048,
-      temperature: 0.3,
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction,
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
     });
-    console.log(`[ai] groq stream started`);
+    const chat = model.startChat({ history });
+    result = await chat.sendMessageStream(lastUserMessage);
+    console.log(`[ai] gemini stream started`);
   } catch (err) {
-    console.error("[ai] groq request failed:", err);
+    console.error("[ai] gemini request failed:", err);
     return Response.json({ error: "AI request failed" }, { status: 502 });
   }
 
@@ -282,8 +284,8 @@ export async function POST(req: NextRequest) {
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of stream) {
-          const text = chunk.choices[0]?.delta?.content ?? "";
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
           if (text) { controller.enqueue(encoder.encode(text)); totalChars += text.length; }
         }
         console.log(`[ai] stream complete — ${totalChars} chars`);
