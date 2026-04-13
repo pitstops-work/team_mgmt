@@ -53,6 +53,8 @@ model User {
   // Broadcasts & Metrics
   broadcasts           GoalBroadcast[]
   metricDataPoints     MetricDataPoint[]
+  // Needs assessment
+  assessments          SettlementAssessment[]
 }
 
 model Account {
@@ -91,38 +93,49 @@ model VerificationToken {
 }
 
 model Goal {
-  id          String     @id @default(cuid())
+  id          String      @id @default(cuid())
   title       String
   description String?
-  status      GoalStatus @default(Active)
-  isTemplate  Boolean    @default(false)
-  recurrence  Recurrence @default(None)
+  status      GoalStatus  @default(Active)
+  isTemplate  Boolean     @default(false)
+  recurrence  Recurrence  @default(None)
   targetDate  DateTime?
   ownerId     String
   deletedAt   DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  owner       User          @relation(fields: [ownerId], references: [id])
-  pitstops    Pitstop[]
-  attachments Attachment[]
-  followers   GoalFollow[]
-  programs    ProgramGoal[]
+  // Needs assessment linkage
+  needsDomain       NeedsDomain?
+  parameter         Float?        // headline number this goal contributes when Done
+  needsSettlementId String?
+  needsClusterId    String?
+  needsZoneId       String?
+
+  owner            User             @relation(fields: [ownerId], references: [id])
+  pitstops         Pitstop[]
+  attachments      Attachment[]
+  followers        GoalFollow[]
+  programs         ProgramGoal[]
   // Co-ownership
-  coOwners    GoalCoOwner[]
+  coOwners         GoalCoOwner[]
   // Decisions, risks, broadcasts
-  decisions   Decision[]
-  risks       Risk[]
-  broadcasts  GoalBroadcast[]
+  decisions        Decision[]
+  risks            Risk[]
+  broadcasts       GoalBroadcast[]
   // Metrics/KPIs
-  metrics     GoalMetric[]
+  metrics          GoalMetric[]
   // Strategic tags
-  themes      GoalTheme[]
-  cities      GoalCity[]
-  zones       GoalZone[]
-  clusters    GoalCluster[]
-  settlements GoalSettlement[]
-  quarters    GoalQuarter[]
+  themes           GoalTheme[]
+  cities           GoalCity[]
+  zones            GoalZone[]
+  clusters         GoalCluster[]
+  settlements      GoalSettlement[]
+  quarters         GoalQuarter[]
+  // Needs geography
+  needsSettlement  Settlement?      @relation("GoalNeedsSettlement", fields: [needsSettlementId], references: [id])
+  needsCluster     Cluster?         @relation("GoalNeedsCluster", fields: [needsClusterId], references: [id])
+  needsZone        Zone?            @relation("GoalNeedsZone", fields: [needsZoneId], references: [id])
 }
 
 model Pitstop {
@@ -669,10 +682,11 @@ model Zone {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  city     City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
-  clusters Cluster[]
-  goals    GoalZone[]
-  pitstops PitstopZone[]
+  city       City?        @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  clusters   Cluster[]
+  goals      GoalZone[]
+  pitstops   PitstopZone[]
+  needsGoals Goal[]       @relation("GoalNeedsZone")
 }
 
 model Cluster {
@@ -682,10 +696,11 @@ model Cluster {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  zone        Zone          @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  zone        Zone             @relation(fields: [zoneId], references: [id], onDelete: Cascade)
   settlements Settlement[]
   goals       GoalCluster[]
   pitstops    PitstopCluster[]
+  needsGoals  Goal[]           @relation("GoalNeedsCluster")
 }
 
 model Settlement {
@@ -695,9 +710,11 @@ model Settlement {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  cluster  Cluster          @relation(fields: [clusterId], references: [id], onDelete: Cascade)
-  goals    GoalSettlement[]
-  pitstops PitstopSettlement[]
+  cluster      Cluster               @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  goals        GoalSettlement[]
+  pitstops     PitstopSettlement[]
+  assessments  SettlementAssessment[]
+  needsGoals   Goal[]                @relation("GoalNeedsSettlement")
 }
 
 model GoalZone {
@@ -994,4 +1011,255 @@ model MapPolygon {
   description String   @default("")
   coordinates Json
   createdAt   DateTime @default(now())
+}
+
+// ── Needs Assessment ──────────────────────────────────────────────────────────
+
+enum NeedsDomain {
+  Creche
+  ChildrenCentre
+  YouthGroup
+  ElderlyKitchen
+  PalliativeSupport
+  CommunityToilet
+  WaterATM
+  Entitlement
+}
+
+// Admin-configurable formula denominators per domain
+model NeedsFormulaConfig {
+  domain      NeedsDomain @id
+  denominator Int         @default(1)
+  description String?
+  updatedAt   DateTime    @updatedAt
+}
+
+// Entitlement schemes (hierarchical — BoCW parent + 14 children)
+model EntitlementScheme {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  parentId    String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  parent     EntitlementScheme?  @relation("SchemeHierarchy", fields: [parentId], references: [id])
+  children   EntitlementScheme[] @relation("SchemeHierarchy")
+  baselines  EntitlementBaseline[]
+}
+
+// One row per survey per settlement — versioned (history preserved)
+model SettlementAssessment {
+  id             String   @id @default(cuid())
+  settlementId   String
+  assessmentYear Int
+  assessedById   String
+  assessedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  // Population (drives target calculations)
+  totalHouseholds Int @default(0)
+  children6m3yr   Int @default(0)
+  children4to14   Int @default(0)
+  youth15to21     Int @default(0)
+  elderly60plus   Int @default(0)
+
+  // Existing infrastructure (gap = target − existing − apf_actuals)
+  existingCreches           Int @default(0)
+  existingChildrenCentres   Int @default(0)
+  existingYouthGroups       Int @default(0)
+  existingElderlyKitchens   Int @default(0)
+  existingPalliativeUnits   Int @default(0)
+  existingCommunityToilets  Int @default(0)
+  existingWaterATMs         Int @default(0)
+
+  // Settlement profile (Section 2)
+  settlementType    String?
+  composition       String?
+  predominantGroups String?
+  languages         String?
+  yearsEstablished  Int?
+
+  // Land & Tenure (Section 3)
+  landOwnership      String?
+  legalStatus        String?
+  hakkupatraEligible Int?
+
+  // Priority issues & notes (Sections 11–12)
+  priorityIssues  String?
+  enumeratorNotes String?
+
+  settlement    Settlement          @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  assessedBy    User                @relation(fields: [assessedById], references: [id])
+
+  // Civic baseline sections (1-to-1 per assessment)
+  roads         RoadBaseline?
+  water         WaterBaseline?
+  sanitation    SanitationBaseline?
+  drainageSewer DrainageSewerBaseline?
+  drainageStorm DrainageStormBaseline?
+  waste         WasteBaseline?
+  electricity   ElectricityBaseline?
+  facilities    FacilitiesBaseline?
+  safety        SafetyBaseline?
+
+  entitlements  EntitlementBaseline[]
+
+  @@index([settlementId, assessedAt])
+}
+
+// Section 4 — Roads
+model RoadBaseline {
+  assessmentId  String  @id
+  roadType      String?  // CONCRETE|GRAVEL|MUD|NONE
+  condition     String?  // GOOD|DAMAGED|VERY_POOR
+  accessibility String?  // MOTORABLE|TWO_WHEELER|PEDESTRIAN
+  unusableInRain Boolean @default(false)
+  remarks       String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Section 5 — Water
+model WaterBaseline {
+  assessmentId         String  @id
+  drinkingSource       String?  // PIPED|PUBLIC_TAP|BOREWELL|TANKER|PACKAGED|OTHER
+  treatsDrinkingWater  Boolean @default(false)
+  treatmentMethod      String?
+  waterQuality         String?  // GOOD|ACCEPTABLE|POOR
+  poorQualityReason    String?
+  nonPotableSource     String?
+  nonPotableSufficient Boolean @default(true)
+  nonPotableIssues     String?
+  remarks              String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Section 6 — Sanitation
+model SanitationBaseline {
+  assessmentId        String  @id
+  individualToiletPct Float   @default(0)
+  sharedToiletPct     Float   @default(0)
+  openDefecationPct   Float   @default(0)
+  communityToiletCount Int    @default(0)
+  toiletSeats         Int     @default(0)
+  bathCount           Int     @default(0)
+  urinalCount         Int     @default(0)
+  toiletsPaid         Boolean @default(false)
+  toiletFee           Float?
+  toiletCondition     String?  // GOOD|FAIR|POOR|NOT_USABLE
+  toiletsSufficient   Boolean @default(false)
+  sewerConnection     String?  // SEWER_LINE|SEPTIC_TANK|OPEN_DRAIN|NONE
+  blockageFrequency   String?  // FREQUENTLY|OCCASIONALLY|NO_ISSUES
+  bathingFacilities   String?  // ADEQUATE|LIMITED|NONE
+  remarks             String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Section 7A — Sewer/Wastewater Drainage
+model DrainageSewerBaseline {
+  assessmentId      String  @id
+  disposalType      String?  // UNDERGROUND|SEPTIC_INDIVIDUAL|SEPTIC_SHARED|OPEN_DRAINS|NONE
+  coverage          String?  // MOST|SOME|VERY_FEW|NONE
+  condition         String?  // GOOD|NEEDS_REPAIR|POOR
+  issues            String?  // JSON array
+  blockageFrequency String?  // FREQUENTLY|OCCASIONALLY|RARE
+  safeDisposal      Boolean @default(false)
+  remarks           String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Section 7B — Storm Water Drainage
+model DrainageStormBaseline {
+  assessmentId       String  @id
+  drainType          String?  // COVERED|OPEN|MIXED|NONE
+  drainCondition     String?  // CLEAN|PARTIALLY_CLOGGED|FULLY_CLOGGED|DAMAGED
+  connectivity       String?  // WELL_CONNECTED|PARTIALLY|NOT_CONNECTED
+  floodingOccurs     Boolean @default(false)
+  floodFrequency     String?  // EVERY_RAIN|HEAVY_ONLY|OCCASIONALLY
+  floodLevel         String?  // ANKLE|KNEE|ABOVE_KNEE
+  stagnationDuration String?  // UNDER_1H|1_6H|OVER_6H|OVER_1D
+  floodCauses        String?  // JSON array
+  floodLocations     String?
+  remarks            String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Section 8 — Solid Waste
+model WasteBaseline {
+  assessmentId       String  @id
+  collectionType     String?  // DOOR_TO_DOOR|COMMUNITY_BINS|NONE
+  frequency          String?  // DAILY|ALTERNATE|WEEKLY|IRREGULAR
+  informalDumpsCount Int     @default(0)
+  remarks            String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Section 9 — Electricity & Street Lighting
+model ElectricityBaseline {
+  assessmentId           String  @id
+  hhWithConnection       Int     @default(0)
+  hhWithoutConnection    Int     @default(0)
+  avgHoursPerDay         Float?
+  connectionTypes        String?  // JSON array
+  supplyNature           String?  // REGULAR|FREQUENT_CUTS|VERY_UNRELIABLE
+  totalStreetlights      Int     @default(0)
+  functionalStreetlights Int     @default(0)
+  streetlightAdequacy    String?  // ADEQUATE|FEW|NONE
+  priorityStreets        String?
+  remarks                String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Section 10 — Community Facilities
+model FacilitiesBaseline {
+  assessmentId     String  @id
+  anganwadiCount   Int     @default(0)
+  hasSchool        Boolean @default(false)
+  hasPHC           Boolean @default(false)
+  hasNammaClinic   Boolean @default(false)
+  hasRationShop    Boolean @default(false)
+  hasCommunityHall Boolean @default(false)
+  hasLibrary       Boolean @default(false)
+  hasPark          Boolean @default(false)
+  hasPlayground    Boolean @default(false)
+  distanceToSchool  Float?
+  distanceToHealth  Float?
+  distanceToBusStop Float?
+  remarks           String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Section 11 — Safety
+model SafetyBaseline {
+  assessmentId       String  @id
+  blindSpotsCount    Int     @default(0)
+  blindSpotTypes     String?  // JSON array
+  activitiesObserved String?  // JSON array
+  remarks            String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+// Entitlement tracking per scheme per assessment
+model EntitlementBaseline {
+  id                 String @id @default(cuid())
+  assessmentId       String
+  schemeId           String
+  eligibleHouseholds Int    @default(0)
+  enrolledHouseholds Int    @default(0)
+  notes              String?
+
+  assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  scheme     EntitlementScheme    @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, schemeId])
 }

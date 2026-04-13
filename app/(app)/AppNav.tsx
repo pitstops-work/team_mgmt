@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -124,6 +124,10 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             <MapPin className="w-3.5 h-3.5 text-stone-500" />
             Geography
           </NavLink>
+          <NavLink href="/needs" active={pathname.startsWith("/needs")}>
+            <BarChart3 className="w-3.5 h-3.5 text-stone-500" />
+            Needs Assessment
+          </NavLink>
           <NavLink href="/map" active={pathname === "/map"}>
             <MapPin className="w-3.5 h-3.5 text-indigo-500" />
             Programme Map
@@ -230,6 +234,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
                 { href: "/risks", icon: <ShieldAlert className="w-5 h-5" />, label: "Risks" },
                 { href: "/themes", icon: <Tag className="w-5 h-5" />, label: "Themes" },
                 { href: "/geography", icon: <MapPin className="w-5 h-5" />, label: "Geography" },
+                { href: "/needs", icon: <BarChart3 className="w-5 h-5" />, label: "Needs Assessment" },
                 { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map" },
                 { href: "/partners", icon: <Users className="w-5 h-5" />, label: "Partners" },
                 { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />, label: "Quarters" },
