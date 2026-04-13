@@ -132,7 +132,7 @@ export default function AIAssistant() {
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-white" />
               <span className="text-sm font-semibold text-white">Pitstop AI</span>
-              <span className="text-[10px] text-white/70 bg-white/20 px-1.5 py-0.5 rounded-full">Gemini Flash</span>
+              <span className="text-[10px] text-white/70 bg-white/20 px-1.5 py-0.5 rounded-full">Gemini 2.0 Flash</span>
             </div>
             <div className="flex items-center gap-1">
               {messages.length > 0 && (
