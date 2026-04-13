@@ -260,10 +260,11 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
         </div>
 
         {/* Filter bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          {/* User pills — scrollable on mobile */}
+          <div className="flex items-center gap-1 overflow-x-auto flex-1 pb-1 no-scrollbar">
             <button onClick={() => setSelectedUsers(new Set())}
-              className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${selectedUsers.size === 0 ? "bg-stone-900 text-white border-stone-900" : "text-stone-500 border-stone-200 hover:border-stone-300 hover:bg-stone-50"}`}>
+              className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors flex-shrink-0 ${selectedUsers.size === 0 ? "bg-stone-900 text-white border-stone-900" : "text-stone-500 border-stone-200 hover:border-stone-300 hover:bg-stone-50"}`}>
               All
             </button>
             {allUsers.map(u => (
@@ -276,6 +277,7 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
               </button>
             ))}
           </div>
+          {/* Goal picker — outside overflow container so dropdown isn't clipped */}
           <div className="h-4 w-px bg-stone-200 flex-shrink-0" />
           <GoalPicker goals={allGoals} selected={selectedGoals} onChange={setSelectedGoals} />
           {activeFilterCount > 0 && (
