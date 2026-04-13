@@ -18,7 +18,7 @@ async function buildContext(userId: string): Promise<string> {
       where: { deletedAt: null },
       include: {
         owner: { select: { id: true, name: true } },
-        programs: { select: { program: { select: { name: true } } } },
+        programs: { select: { program: { select: { title: true } } } },
         themes: { select: { theme: { select: { name: true } } } },
         zones: { select: { zone: { select: { name: true } } } },
         clusters: { select: { cluster: { select: { name: true } } } },
@@ -64,7 +64,7 @@ async function buildContext(userId: string): Promise<string> {
     }),
     prisma.program.findMany({
       where: { deletedAt: null },
-      select: { name: true, goals: { select: { goal: { select: { title: true, status: true } } } } },
+      select: { title: true, goals: { select: { goal: { select: { title: true, status: true } } } } },
     }),
     prisma.zone.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
     prisma.cluster.findMany({
@@ -95,7 +95,7 @@ async function buildContext(userId: string): Promise<string> {
     ctx += `PROGRAMS:\n`;
     for (const p of programs) {
       const goalTitles = p.goals.map(g => `"${g.goal.title}" (${g.goal.status})`).join(", ");
-      ctx += `  - "${p.name}": ${goalTitles || "no goals"}\n`;
+      ctx += `  - "${p.title}": ${goalTitles || "no goals"}\n`;
     }
     ctx += "\n";
   }
@@ -134,7 +134,7 @@ async function buildContext(userId: string): Promise<string> {
     const overduePitstops = g.pitstops.filter(p =>
       p.status !== "Done" && p.targetDate && new Date(p.targetDate) < today
     ).length;
-    const programNames = g.programs.map(p => p.program.name).join(", ");
+    const programNames = g.programs.map(p => p.program.title).join(", ");
     const themeNames = g.themes.map(t => t.theme.name).join(", ");
     const zoneNames = g.zones.map(z => z.zone.name).join(", ");
     const clusterNames = g.clusters.map(c => c.cluster.name.replace(/_/g, " ")).join(", ");
