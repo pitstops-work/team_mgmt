@@ -650,10 +650,11 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
         </div>
 
         {/* Filter bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* User pills — scrollable on mobile */}
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar flex-shrink-0 max-w-full">
             <button onClick={() => setSelectedUsers(new Set())}
-              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${selectedUsers.size === 0 ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-500 hover:border-stone-300"}`}>
+              className={`px-2.5 py-1 text-xs rounded-full border transition-colors flex-shrink-0 ${selectedUsers.size === 0 ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-500 hover:border-stone-300"}`}>
               All
             </button>
             {users.map(u => {
@@ -671,6 +672,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
             })}
           </div>
           <div className="w-px h-4 bg-stone-200 flex-shrink-0" />
+          {/* GoalPicker is outside overflow container so its dropdown isn't clipped */}
           <GoalPicker goals={allGoals} selected={selectedGoals} onChange={setSelectedGoals} />
           {(zones.length > 0 || clusters.length > 0) && (
             <>

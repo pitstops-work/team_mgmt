@@ -9,6 +9,8 @@ import SettlementSidebar from "./SettlementSidebar";
 import ZoneClusterSidebar from "./ZoneClusterSidebar";
 import { LAYERS, type LayerKey } from "@/lib/layers";
 import { useGeoData } from "@/lib/useGeoData";
+
+const POLYGON_LAYER_KEYS: LayerKey[] = ["sangama","cfar","actionaid","gubbachi","sieds","janasha","maarga","thamate"];
 import type { SettlementFeature } from "./MapView";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
@@ -58,6 +60,7 @@ export default function MapDashboard() {
   const [tab, setTab] = useState<"layers" | "zones" | "clusters">("layers");
   const [statsOpen, setStatsOpen] = useState(false);
   const [selectedSettlement, setSelectedSettlement] = useState<SettlementFeature | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<LayerKey | null>(null);
 
   const flyToRef = useRef<((latlng: [number, number], zoom?: number) => void) | null>(null);
   const openPopupRef = useRef<((layerKey: LayerKey, featureIdx: number) => void) | null>(null);
@@ -111,6 +114,34 @@ export default function MapDashboard() {
     setStatsOpen(false);
   }, []);
 
+  const handlePartnerFilter = useCallback((key: LayerKey | null) => {
+    setSelectedPartner(key);
+    if (key) {
+      // Show only the selected partner's settlement layer; keep all centre layers visible
+      setVisibleLayers(prev => {
+        const next = new Set(prev);
+        POLYGON_LAYER_KEYS.forEach(k => {
+          if (k === key) next.add(k);
+          else next.delete(k);
+        });
+        return next;
+      });
+    } else {
+      // Restore all polygon layers
+      setVisibleLayers(new Set(LAYERS.map(l => l.key)));
+    }
+  }, []);
+
+  // Derive zones and clusters that belong to the selected partner
+  const partnerZones = selectedPartner && geoData
+    ? new Set((geoData.settlements[selectedPartner] ?? []).map(f => f.properties.zone).filter(Boolean) as string[])
+    : null;
+  const partnerClusters = selectedPartner && geoData
+    ? new Set((geoData.settlements[selectedPartner] ?? []).map(f => f.properties.cluster).filter(Boolean) as string[])
+    : null;
+
+  const partnerLabel = selectedPartner ? (LAYERS.find(l => l.key === selectedPartner)?.label ?? null) : null;
+
   return (
     <div className="flex h-full w-full overflow-hidden bg-slate-100">
 
@@ -149,6 +180,10 @@ export default function MapDashboard() {
           clusterIndex={zoneClusterIndex.clusters}
           tab={tab}
           onTabChange={setTab}
+          selectedPartner={selectedPartner}
+          onPartnerFilter={handlePartnerFilter}
+          partnerZones={partnerZones}
+          partnerClusters={partnerClusters}
         />
       </aside>
 
@@ -194,6 +229,7 @@ export default function MapDashboard() {
           onClusterSelect={handleClusterSelect}
           flyToRef={flyToRef}
           openPopupRef={openPopupRef}
+          partnerFilter={partnerLabel}
         />
 
         {/* Settlement detail sidebar */}

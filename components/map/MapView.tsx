@@ -37,6 +37,7 @@ interface MapViewProps {
   onClusterSelect: (cluster: string | null) => void;
   flyToRef: React.MutableRefObject<((latlng: [number, number], zoom?: number) => void) | null>;
   openPopupRef: React.MutableRefObject<((layerKey: LayerKey, featureIdx: number) => void) | null>;
+  partnerFilter: string | null; // partner label e.g. "Sangama" — filters centre points
 }
 
 interface FeatureLayer {
@@ -100,11 +101,47 @@ function makeProgrammeCentrePopup(
   `;
 }
 
+const CENTRE_LAYER_KEYS: LayerKey[] = ["children_centres", "youth_centres", "creches", "resource_centres"];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildCentreLayer(layerConfig: LayerConfig, group: L.LayerGroup, geojson: any, partnerFilter: string | null) {
+  group.clearLayers();
+  const isProgrammeCentre = ["children_centres", "youth_centres", "creches"].includes(layerConfig.key);
+  L.geoJSON(geojson, {
+    filter: (feature) => {
+      if (!partnerFilter) return true;
+      const p = (feature.properties?.partner ?? "") as string;
+      return p.toLowerCase() === partnerFilter.toLowerCase();
+    },
+    pointToLayer: (_f, latlng) =>
+      L.circleMarker(latlng, {
+        radius: isProgrammeCentre ? 9 : 8,
+        fillColor: layerConfig.color,
+        color: "white",
+        weight: isProgrammeCentre ? 3 : 2.5,
+        opacity: 1, fillOpacity: 1,
+      }),
+    onEachFeature: (feature, layer) => {
+      const props = feature.properties ?? {};
+      const name = props.name || layerConfig.label;
+      if (isProgrammeCentre) {
+        layer.bindPopup(makeProgrammeCentrePopup(
+          props.centre_type || layerConfig.label, name,
+          props.partner || "", props.zone || "", props.cluster || "",
+          layerConfig.color, props.note || ""
+        ), { maxWidth: 300 });
+      } else {
+        layer.bindPopup(makeRCPopup(name, props.description || ""), { maxWidth: 300 });
+      }
+    },
+  }).addTo(group);
+}
+
 export default function MapView({
   visibleLayers, onFeatureAdded, customFeatures,
   activeZone, activeCluster, onSettlementClick,
   onZoneSelect, onClusterSelect,
-  flyToRef, openPopupRef,
+  flyToRef, openPopupRef, partnerFilter,
 }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -136,6 +173,12 @@ export default function MapView({
 
   const visibleLayersRef = useRef(visibleLayers);
   useEffect(() => { visibleLayersRef.current = visibleLayers; }, [visibleLayers]);
+
+  // Store raw GeoJSON for centre layers so we can rebuild with partner filter
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const centreGeoJSONRef = useRef<Partial<Record<LayerKey, any>>>({});
+  const partnerFilterRef = useRef(partnerFilter);
+  useEffect(() => { partnerFilterRef.current = partnerFilter; }, [partnerFilter]);
 
   // Swap tile layer when basemap changes
   useEffect(() => {
@@ -236,31 +279,11 @@ export default function MapView({
               },
             }).addTo(group);
           } else {
-            const isProgrammeCentre = ["children_centres", "youth_centres", "creches"].includes(layerConfig.key);
-            L.geoJSON(geojson, {
-              pointToLayer: (_f, latlng) =>
-                L.circleMarker(latlng, {
-                  radius: isProgrammeCentre ? 9 : 8,
-                  fillColor: layerConfig.color,
-                  color: "white",
-                  weight: isProgrammeCentre ? 3 : 2.5,
-                  opacity: 1, fillOpacity: 1,
-                }),
-              onEachFeature: (feature, layer) => {
-                const props = feature.properties ?? {};
-                const name = props.name || layerConfig.label;
-                if (isProgrammeCentre) {
-                  layer.bindPopup(makeProgrammeCentrePopup(
-                    props.centre_type || layerConfig.label, name,
-                    props.partner || "", props.zone || "", props.cluster || "",
-                    layerConfig.color, props.note || ""
-                  ), { maxWidth: 300 });
-                } else {
-                  layer.bindPopup(makeRCPopup(name, props.description || ""), { maxWidth: 300 });
-                }
-                featureLayersByKey.current[layerConfig.key]!.push(layer);
-              },
-            }).addTo(group);
+            // Store raw GeoJSON for centre layers (needed for partner filter rebuilds)
+            if (CENTRE_LAYER_KEYS.includes(layerConfig.key)) {
+              centreGeoJSONRef.current[layerConfig.key] = geojson;
+            }
+            buildCentreLayer(layerConfig, group, geojson, partnerFilterRef.current);
           }
         });
     });
@@ -336,6 +359,19 @@ export default function MapView({
     applyZoneClusterHighlight(activeZone, activeCluster, visibleLayers);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleLayers]);
+
+  // Rebuild centre layer groups when partner filter changes
+  useEffect(() => {
+    CENTRE_LAYER_KEYS.forEach((key) => {
+      const layerConfig = LAYERS.find((l) => l.key === key);
+      const group = layerGroupsRef.current[key];
+      const geojson = centreGeoJSONRef.current[key];
+      if (layerConfig && group && geojson) {
+        buildCentreLayer(layerConfig, group, geojson, partnerFilter);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partnerFilter]);
 
   function applyZoneClusterHighlight(
     zone: string | null, cluster: string | null, visible: Set<LayerKey>
