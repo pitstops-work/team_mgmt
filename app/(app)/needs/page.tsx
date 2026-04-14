@@ -62,6 +62,7 @@ type GoalRow = {
   status: string;
   needsDomain: string | null;
   parameter: number | null;
+  outcomeCount: number | null;
   needsSettlementId: string | null;
   needsClusterId: string | null;
   needsZoneId: string | null;
@@ -121,13 +122,19 @@ function computeStats(
   }
 
   // Aggregate goal actuals per domain
+  // For Complete goals: use outcomeCount (actual delivered) → parameter (planned) → metric
+  // For Active goals: use parameter (planned) as in-progress contribution
   const actuals: Record<string, { done: number; inProgress: number }> = {};
   for (const g of goals) {
     if (!g.needsDomain) continue;
     if (!actuals[g.needsDomain]) actuals[g.needsDomain] = { done: 0, inProgress: 0 };
-    const val = g.parameter ?? g.metrics[0]?.current ?? 0;
-    if (g.status === "Complete")   actuals[g.needsDomain].done       += val;
-    else if (g.status === "Active") actuals[g.needsDomain].inProgress += val;
+    if (g.status === "Complete") {
+      const val = g.outcomeCount ?? g.parameter ?? g.metrics[0]?.current ?? 0;
+      actuals[g.needsDomain].done += val;
+    } else if (g.status === "Active") {
+      const val = g.parameter ?? g.metrics[0]?.current ?? 0;
+      actuals[g.needsDomain].inProgress += val;
+    }
   }
 
   const domains: DomainStats = {};
@@ -213,7 +220,7 @@ export default async function NeedsPage() {
     prisma.goal.findMany({
       where: { needsDomain: { not: null }, deletedAt: null },
       select: {
-        status: true, needsDomain: true, parameter: true,
+        status: true, needsDomain: true, parameter: true, outcomeCount: true,
         needsSettlementId: true, needsClusterId: true, needsZoneId: true,
         metrics: { where: { deletedAt: null }, select: { current: true }, take: 1 },
       },

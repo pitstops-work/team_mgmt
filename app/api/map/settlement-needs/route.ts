@@ -84,7 +84,7 @@ export async function GET(request: Request) {
         { needsClusterId: settlement.clusterId },
       ],
     },
-    select: { status: true, needsDomain: true, parameter: true, metrics: { where: { deletedAt: null }, select: { current: true }, take: 1 } },
+    select: { status: true, needsDomain: true, parameter: true, outcomeCount: true, metrics: { where: { deletedAt: null }, select: { current: true }, take: 1 } },
   });
 
   const actuals: Record<string, { done: number; inProgress: number }> = {};
@@ -92,9 +92,13 @@ export async function GET(request: Request) {
     if (!g.needsDomain) continue;
     const d = g.needsDomain as string;
     if (!actuals[d]) actuals[d] = { done: 0, inProgress: 0 };
-    const val = g.parameter ?? g.metrics[0]?.current ?? 0;
-    if (g.status === "Complete") actuals[d].done += val;
-    else if (g.status === "Active") actuals[d].inProgress += val;
+    if (g.status === "Complete") {
+      const val = (g as { outcomeCount?: number | null }).outcomeCount ?? g.parameter ?? g.metrics[0]?.current ?? 0;
+      actuals[d].done += val;
+    } else if (g.status === "Active") {
+      const val = g.parameter ?? g.metrics[0]?.current ?? 0;
+      actuals[d].inProgress += val;
+    }
   }
 
   return NextResponse.json({ settlement, assessment, pop, existing, targets, actuals, formulas });

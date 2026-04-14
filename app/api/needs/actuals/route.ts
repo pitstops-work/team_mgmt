@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
       status: true,
       needsDomain: true,
       parameter: true,
+      outcomeCount: true,
       metrics: {
         where: { deletedAt: null },
         select: { current: true },
@@ -83,7 +84,9 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Aggregate per domain: Done goals use parameter, InProgress use metric.current
+  // Aggregate per domain
+  // Complete goals: outcomeCount (actual delivered) > parameter (planned) > metric
+  // Active goals: parameter (planned) > metric (current progress)
   const domainMap: Record<string, { done: number; inProgress: number }> = {};
 
   // Pre-initialise all active domains so callers always get a full map
@@ -95,11 +98,12 @@ export async function GET(req: NextRequest) {
   for (const goal of goals) {
     if (!goal.needsDomain) continue;
     const domain = goal.needsDomain as string;
-    const value = goal.parameter ?? goal.metrics[0]?.current ?? 0;
 
     if (goal.status === "Complete") {
+      const value = goal.outcomeCount ?? goal.parameter ?? goal.metrics[0]?.current ?? 0;
       domainMap[domain].done += value;
     } else if (goal.status === "Active") {
+      const value = goal.parameter ?? goal.metrics[0]?.current ?? 0;
       domainMap[domain].inProgress += value;
     }
   }

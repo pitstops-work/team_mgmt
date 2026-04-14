@@ -12,6 +12,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ goa
     where: { id: goalId, deletedAt: null },
     include: {
       owner: { select: { id: true, name: true, image: true } },
+      // Needs fields exposed so GoalDetail can pass to EditGoalModal
+      // (needsDomain, parameter, outcomeCount selected via findUnique — all scalar fields included by default)
       attachments: { where: { goalId: { not: null } }, orderBy: { createdAt: "asc" } },
       followers: { select: { userId: true } },
       coOwners: { select: { userId: true, user: { select: { id: true, name: true, image: true } } } },
@@ -56,6 +58,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
       recurrence: data.recurrence,
       targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
+      // Actual count achieved — only set when provided explicitly (allows clearing with null)
+      ...(data.outcomeCount !== undefined ? { outcomeCount: data.outcomeCount } : {}),
     },
     include: { owner: { select: { id: true, name: true, image: true } }, pitstops: { select: { id: true, status: true } } },
   });

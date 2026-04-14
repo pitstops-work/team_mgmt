@@ -107,7 +107,8 @@ model Goal {
 
   // Needs assessment linkage
   needsDomain       String?
-  parameter         Float?        // headline number this goal contributes when Done
+  parameter         Float?        // planned headline number for this goal
+  outcomeCount      Float?        // actual count achieved on completion (if different from parameter)
   needsSettlementId String?
   needsClusterId    String?
   needsZoneId       String?

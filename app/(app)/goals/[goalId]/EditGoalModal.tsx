@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Lock } from "lucide-react";
+import { X, Lock, CheckCircle2 } from "lucide-react";
 import { toDateInput } from "@/lib/timeline";
 
 type Recurrence = "None" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
@@ -13,6 +13,9 @@ interface Goal {
   status: "Active" | "Paused" | "Complete";
   recurrence: Recurrence;
   targetDate?: string | null;
+  needsDomain?: string | null;
+  parameter?: number | null;
+  outcomeCount?: number | null;
 }
 
 interface Props {
@@ -28,17 +31,26 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
   const [recurrence, setRecurrence] = useState<Recurrence>(goal.recurrence ?? "None");
   const [targetDate, setTargetDate] = useState(toDateInput(goal.targetDate));
   const [deadlineReason, setDeadlineReason] = useState("");
+  const [outcomeCount, setOutcomeCount] = useState<string>(
+    goal.outcomeCount != null ? String(goal.outcomeCount) : ""
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const originalDate = toDateInput(goal.targetDate);
   const deadlineChanged = !!originalDate && targetDate !== originalDate;
 
+  // Show outcome field when: has a needsDomain with a parameter AND being set to Complete
+  const isNeedsDomainGoal = !!goal.needsDomain && goal.parameter != null;
+  const showOutcomeField = isNeedsDomainGoal && status === "Complete";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !targetDate) return;
     setLoading(true);
     setError("");
+
+    const parsedOutcome = outcomeCount !== "" ? parseFloat(outcomeCount) : null;
 
     const res = await fetch(`/api/goals/${goal.id}`, {
       method: "PATCH",
@@ -50,12 +62,21 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
         recurrence,
         targetDate,
         ...(deadlineChanged && { deadlineChangeReason: deadlineReason.trim() }),
+        // Always send outcomeCount when it's a needs-domain goal being completed
+        ...(isNeedsDomainGoal ? { outcomeCount: parsedOutcome } : {}),
       }),
     });
 
     setLoading(false);
     if (res.ok) {
-      onUpdated({ title: title.trim(), description: description.trim() || null, status, recurrence, targetDate });
+      onUpdated({
+        title: title.trim(),
+        description: description.trim() || null,
+        status,
+        recurrence,
+        targetDate,
+        ...(isNeedsDomainGoal ? { outcomeCount: parsedOutcome } : {}),
+      });
       onClose();
     } else {
       setError("Something went wrong.");
@@ -121,6 +142,36 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
             </div>
           </div>
 
+          {/* Outcome count — shown when completing a needs-domain goal */}
+          {showOutcomeField && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+              <p className="text-xs font-medium text-emerald-800 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                How many {goal.needsDomain?.replace(/([A-Z])/g, ' $1').trim().toLowerCase()}s were actually established?
+              </p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={outcomeCount}
+                  onChange={(e) => setOutcomeCount(e.target.value)}
+                  placeholder={String(goal.parameter)}
+                  className="w-24 px-3 py-1.5 text-sm border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+                />
+                <span className="text-xs text-emerald-700">
+                  planned: <span className="font-semibold">{goal.parameter}</span>
+                </span>
+                {outcomeCount !== "" && parseFloat(outcomeCount) < (goal.parameter ?? 0) && (
+                  <span className="text-xs text-amber-600 font-medium">
+                    {(goal.parameter ?? 0) - parseFloat(outcomeCount)} short of target
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-emerald-600">Leave blank to use the planned number ({goal.parameter}).</p>
+            </div>
+          )}
+
           {deadlineChanged && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
               <p className="text-xs font-medium text-amber-800 flex items-center gap-1.5">
@@ -128,7 +179,6 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
                 Deadline is locked. All team members will be notified of this change.
               </p>
               <textarea
-                autoFocus
                 value={deadlineReason}
                 onChange={(e) => setDeadlineReason(e.target.value)}
                 placeholder="Why is the deadline changing? (required)"

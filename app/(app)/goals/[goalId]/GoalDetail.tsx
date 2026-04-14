@@ -56,6 +56,9 @@ type Goal = {
   status: "Active" | "Paused" | "Complete";
   recurrence: Recurrence;
   targetDate?: string | null;
+  needsDomain?: string | null;
+  parameter?: number | null;
+  outcomeCount?: number | null;
   owner: User;
   attachments: Attachment[];
   pitstops: Pitstop[];
@@ -333,6 +336,33 @@ export default function GoalDetail({
               return chip ? (
                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${chip.cls}`}>{chip.label}</span>
               ) : null;
+            })()}
+          </div>
+        )}
+
+        {/* Outcome vs planned — shown when goal is complete and has a needs domain */}
+        {goal.status === "Complete" && goal.needsDomain && goal.parameter != null && (
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            <span className="text-stone-400">Outcome:</span>
+            {(() => {
+              const actual = goal.outcomeCount ?? goal.parameter;
+              const planned = goal.parameter;
+              const short = planned - actual;
+              return (
+                <>
+                  <span className={`font-semibold ${short > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                    {actual} {goal.needsDomain.replace(/([A-Z])/g, ' $1').trim().toLowerCase()}s
+                  </span>
+                  <span className="text-stone-300">·</span>
+                  <span className="text-stone-400">planned {planned}</span>
+                  {short > 0 && (
+                    <span className="text-amber-500 font-medium">{short} short</span>
+                  )}
+                  {short <= 0 && goal.outcomeCount != null && (
+                    <span className="text-emerald-500">target met</span>
+                  )}
+                </>
+              );
             })()}
           </div>
         )}
