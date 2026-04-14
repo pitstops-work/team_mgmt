@@ -2,6 +2,25 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
+// Convert empty strings / undefined to null for Float? schema fields
+function toFloat(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+type Rec = Record<string, unknown>;
+
+function sanitizeSanitation(s: Rec): Rec {
+  return { ...s, toiletFee: toFloat(s.toiletFee) };
+}
+function sanitizeElectricity(e: Rec): Rec {
+  return { ...e, avgHoursPerDay: toFloat(e.avgHoursPerDay) };
+}
+function sanitizeFacilities(f: Rec): Rec {
+  return { ...f, distanceToSchool: toFloat(f.distanceToSchool), distanceToHealth: toFloat(f.distanceToHealth), distanceToBusStop: toFloat(f.distanceToBusStop) };
+}
+
 // GET /api/needs/assessments?settlementId=xxx  → history list for a settlement
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -92,12 +111,12 @@ export async function POST(req: NextRequest) {
       // Sections (upsert inline via nested create)
       roads: roads ? { create: roads } : undefined,
       water: water ? { create: water } : undefined,
-      sanitation: sanitation ? { create: sanitation } : undefined,
+      sanitation: sanitation ? { create: sanitizeSanitation(sanitation) } : undefined,
       drainageSewer: drainageSewer ? { create: drainageSewer } : undefined,
       drainageStorm: drainageStorm ? { create: drainageStorm } : undefined,
       waste: waste ? { create: waste } : undefined,
-      electricity: electricity ? { create: electricity } : undefined,
-      facilities: facilities ? { create: facilities } : undefined,
+      electricity: electricity ? { create: sanitizeElectricity(electricity) } : undefined,
+      facilities: facilities ? { create: sanitizeFacilities(facilities) } : undefined,
       safety: safety ? { create: safety } : undefined,
       // Entitlements
       entitlements: entitlements?.length ? {

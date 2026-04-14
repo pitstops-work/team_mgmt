@@ -2,6 +2,24 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
+function toFloat(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+type Rec = Record<string, unknown>;
+
+function sanitizeSanitation(s: Rec): Rec {
+  return { ...s, toiletFee: toFloat(s.toiletFee) };
+}
+function sanitizeElectricity(e: Rec): Rec {
+  return { ...e, avgHoursPerDay: toFloat(e.avgHoursPerDay) };
+}
+function sanitizeFacilities(f: Rec): Rec {
+  return { ...f, distanceToSchool: toFloat(f.distanceToSchool), distanceToHealth: toFloat(f.distanceToHealth), distanceToBusStop: toFloat(f.distanceToBusStop) };
+}
+
 // GET /api/needs/assessments/[id]
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -77,7 +95,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await prisma.waterBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...water }, update: water });
   }
   if (sanitation !== undefined) {
-    await prisma.sanitationBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...sanitation }, update: sanitation });
+    const s = sanitizeSanitation(sanitation);
+    await prisma.sanitationBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...s }, update: s });
   }
   if (drainageSewer !== undefined) {
     await prisma.drainageSewerBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...drainageSewer }, update: drainageSewer });
@@ -89,10 +108,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await prisma.wasteBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...waste }, update: waste });
   }
   if (electricity !== undefined) {
-    await prisma.electricityBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...electricity }, update: electricity });
+    const e = sanitizeElectricity(electricity);
+    await prisma.electricityBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...e }, update: e });
   }
   if (facilities !== undefined) {
-    await prisma.facilitiesBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...facilities }, update: facilities });
+    const f = sanitizeFacilities(facilities);
+    await prisma.facilitiesBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...f }, update: f });
   }
   if (safety !== undefined) {
     await prisma.safetyBaseline.upsert({ where: { assessmentId: id }, create: { assessmentId: id, ...safety }, update: safety });
