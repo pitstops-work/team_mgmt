@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -182,6 +182,10 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
   const [showHistory, setShowHistory] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const isMountedRef = useRef(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSaveRef = useRef<(createNew?: boolean) => Promise<void>>(async () => {});
 
   // ── Load a specific historical assessment into form state ────────────────────
   function loadAssessment(a: Assessment | null) {
@@ -496,8 +500,9 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
   }
 
   // ── Save ────────────────────────────────────────────────────────────────────
-  async function handleSave(createNew = false) {
+  const handleSave = useCallback(async (createNew = false) => {
     setSaving(true);
+    setSaveError(null);
     const payload = {
       settlementId: settlement.id,
       assessmentYear: year,
@@ -541,11 +546,29 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
         if (createNew) router.refresh();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSaveError(err?.error ?? "Failed to save. Please try again.");
       }
+    } catch {
+      setSaveError("Network error. Please check your connection.");
     } finally {
       setSaving(false);
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId, year, pop, existing, profile, tenure, roads, water, sanitation, drainSewer, drainStorm, waste, electricity, facilities, safety, priorityIssues, enumeratorNotes, entitlementData]);
+
+  // Keep ref current so auto-save timer always calls the latest closure
+  useEffect(() => { handleSaveRef.current = handleSave; });
+
+  // ── Auto-save: debounce 2s after any form field change ──────────────────────
+  useEffect(() => {
+    if (!isMountedRef.current) { isMountedRef.current = true; return; }
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => { handleSaveRef.current(false); }, 2000);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pop, existing, profile, tenure, roads, water, sanitation, drainSewer, drainStorm, waste, electricity, facilities, safety, priorityIssues, enumeratorNotes, entitlementData, year]);
 
   const priorityOptions = ["Water supply", "Sanitation", "Drainage", "Waste management", "Roads", "Electricity", "Housing security"];
 
@@ -575,7 +598,8 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {saveError && <span className="text-xs text-red-500 max-w-[160px] text-right">{saveError}</span>}
           {settlement.assessments.length > 1 && (
             <button onClick={() => setShowHistory(h => !h)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50">
               <History className="w-3.5 h-3.5" /> History ({settlement.assessments.length})
@@ -1044,10 +1068,13 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
       </div>
 
       {/* Bottom save bar */}
-      <div className="sticky bottom-4 mt-6 flex justify-end gap-2">
+      <div className="sticky bottom-4 mt-6 flex items-center justify-end gap-2 flex-wrap">
+        {saveError && <span className="text-xs text-red-500 flex-1 text-right pr-2">{saveError}</span>}
+        {saving && <span className="text-xs text-stone-400">Auto-saving…</span>}
+        {saved && !saving && <span className="text-xs text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Saved</span>}
         <button onClick={() => handleSave(false)} disabled={saving}
           className="flex items-center gap-2 px-5 py-2.5 bg-sky-500 text-white text-sm font-medium rounded-xl shadow-lg hover:bg-sky-600 disabled:opacity-50 transition-colors">
-          {saving ? "Saving..." : saved ? <><CheckCircle2 className="w-4 h-4" /> Saved!</> : <><Save className="w-4 h-4" /> Save Assessment</>}
+          <Save className="w-4 h-4" /> Save now
         </button>
         <button onClick={() => handleSave(true)} disabled={saving}
           className="flex items-center gap-2 px-4 py-2.5 bg-white border border-sky-300 text-sky-600 text-sm font-medium rounded-xl shadow-lg hover:bg-sky-50 disabled:opacity-50 transition-colors">
