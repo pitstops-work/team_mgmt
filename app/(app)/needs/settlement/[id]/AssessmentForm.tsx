@@ -183,6 +183,118 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // ── Load a specific historical assessment into form state ────────────────────
+  function loadAssessment(a: Assessment | null) {
+    if (!a) return;
+    setYear(a.assessmentYear);
+    setPop({
+      totalHouseholds: a.totalHouseholds,
+      children6m3yr: a.children6m3yr,
+      children4to14: a.children4to14,
+      youth15to21: a.youth15to21,
+      elderly60plus: a.elderly60plus,
+    });
+    setExisting({
+      existingCreches: a.existingCreches,
+      existingChildrenCentres: a.existingChildrenCentres,
+      existingYouthGroups: a.existingYouthGroups,
+      existingElderlyKitchens: a.existingElderlyKitchens,
+      existingPalliativeUnits: a.existingPalliativeUnits,
+      existingCommunityToilets: a.existingCommunityToilets,
+      existingWaterATMs: a.existingWaterATMs,
+    });
+    setProfile({
+      settlementType: a.settlementType ?? "",
+      composition: a.composition ?? "",
+      predominantGroups: a.predominantGroups ?? "",
+      languages: a.languages ?? "",
+      yearsEstablished: a.yearsEstablished ?? "",
+    });
+    setTenure({
+      landOwnership: a.landOwnership ?? "",
+      legalStatus: a.legalStatus ?? "",
+      hakkupatraEligible: a.hakkupatraEligible ?? "",
+    });
+    setRoads({
+      roadType: s(a.roads?.roadType), condition: s(a.roads?.condition),
+      accessibility: s(a.roads?.accessibility), unusableInRain: b(a.roads?.unusableInRain),
+      remarks: s(a.roads?.remarks),
+    });
+    setWater({
+      drinkingSource: s(a.water?.drinkingSource),
+      treatsDrinkingWater: b(a.water?.treatsDrinkingWater), treatmentMethod: s(a.water?.treatmentMethod),
+      waterQuality: s(a.water?.waterQuality), poorQualityReason: s(a.water?.poorQualityReason),
+      nonPotableSource: s(a.water?.nonPotableSource),
+      nonPotableSufficient: a.water ? b(a.water.nonPotableSufficient) : true,
+      remarks: s(a.water?.remarks),
+    });
+    setSanitation({
+      individualToiletPct: n(a.sanitation?.individualToiletPct),
+      sharedToiletPct: n(a.sanitation?.sharedToiletPct),
+      openDefecationPct: n(a.sanitation?.openDefecationPct),
+      communityToiletCount: n(a.sanitation?.communityToiletCount),
+      toiletSeats: n(a.sanitation?.toiletSeats),
+      bathCount: n(a.sanitation?.bathCount),
+      urinalCount: n(a.sanitation?.urinalCount),
+      toiletsPaid: b(a.sanitation?.toiletsPaid),
+      toiletFee: s(a.sanitation?.toiletFee),
+      toiletCondition: s(a.sanitation?.toiletCondition),
+      toiletsSufficient: b(a.sanitation?.toiletsSufficient),
+      sewerConnection: s(a.sanitation?.sewerConnection),
+      blockageFrequency: s(a.sanitation?.blockageFrequency),
+      bathingFacilities: s(a.sanitation?.bathingFacilities),
+      remarks: s(a.sanitation?.remarks),
+    });
+    setDrainSewer({
+      disposalType: s(a.drainageSewer?.disposalType), coverage: s(a.drainageSewer?.coverage),
+      condition: s(a.drainageSewer?.condition), issues: s(a.drainageSewer?.issues),
+      blockageFrequency: s(a.drainageSewer?.blockageFrequency),
+      safeDisposal: b(a.drainageSewer?.safeDisposal), remarks: s(a.drainageSewer?.remarks),
+    });
+    setDrainStorm({
+      drainType: s(a.drainageStorm?.drainType), drainCondition: s(a.drainageStorm?.drainCondition),
+      connectivity: s(a.drainageStorm?.connectivity), floodingOccurs: b(a.drainageStorm?.floodingOccurs),
+      floodFrequency: s(a.drainageStorm?.floodFrequency), floodLevel: s(a.drainageStorm?.floodLevel),
+      stagnationDuration: s(a.drainageStorm?.stagnationDuration), remarks: s(a.drainageStorm?.remarks),
+    });
+    setWaste({
+      collectionType: s(a.waste?.collectionType), frequency: s(a.waste?.frequency),
+      informalDumpsCount: n(a.waste?.informalDumpsCount), remarks: s(a.waste?.remarks),
+    });
+    setElectricity({
+      hhWithConnection: n(a.electricity?.hhWithConnection),
+      hhWithoutConnection: n(a.electricity?.hhWithoutConnection),
+      avgHoursPerDay: n(a.electricity?.avgHoursPerDay),
+      supplyNature: s(a.electricity?.supplyNature),
+      totalStreetlights: n(a.electricity?.totalStreetlights),
+      functionalStreetlights: n(a.electricity?.functionalStreetlights),
+      streetlightAdequacy: s(a.electricity?.streetlightAdequacy),
+      remarks: s(a.electricity?.remarks),
+    });
+    setFacilities({
+      anganwadiCount: n(a.facilities?.anganwadiCount),
+      hasSchool: b(a.facilities?.hasSchool), hasPHC: b(a.facilities?.hasPHC),
+      hasNammaClinic: b(a.facilities?.hasNammaClinic), hasRationShop: b(a.facilities?.hasRationShop),
+      hasCommunityHall: b(a.facilities?.hasCommunityHall), hasLibrary: b(a.facilities?.hasLibrary),
+      hasPark: b(a.facilities?.hasPark), hasPlayground: b(a.facilities?.hasPlayground),
+      distanceToSchool: n(a.facilities?.distanceToSchool),
+      distanceToHealth: n(a.facilities?.distanceToHealth),
+      distanceToBusStop: n(a.facilities?.distanceToBusStop),
+      remarks: s(a.facilities?.remarks),
+    });
+    setSafety({ blindSpotsCount: n(a.safety?.blindSpotsCount), remarks: s(a.safety?.remarks) });
+    setPriorityIssues(() => {
+      if (a.priorityIssues) { try { return JSON.parse(a.priorityIssues as unknown as string); } catch { return []; } }
+      return [];
+    });
+    setEnumeratorNotes(a.enumeratorNotes ?? "");
+    const entMap: Record<string, { eligible: number; enrolled: number; notes: string }> = {};
+    for (const e of a.entitlements ?? []) {
+      entMap[e.scheme.id] = { eligible: e.eligibleHouseholds, enrolled: e.enrolledHouseholds, notes: e.notes ?? "" };
+    }
+    setEntitlementData(entMap);
+  }
+
   // Build formula lookup
   const formulaMap = Object.fromEntries(formulas.map(f => [f.domain, f.denominator]));
 
@@ -486,13 +598,16 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
           <div className="px-4 py-2.5 bg-stone-50 border-b border-stone-100 text-xs font-semibold text-stone-600">Assessment History</div>
           <div className="divide-y divide-stone-100">
             {settlement.assessments.map(a => (
-              <button key={a.id} onClick={() => { setEditingId(a.id); setShowHistory(false); }}
+              <button key={a.id} onClick={() => { setEditingId(a.id); loadAssessment(a); setShowHistory(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50 text-left ${editingId === a.id ? "bg-sky-50" : ""}`}>
                 <span className="text-xs font-medium text-stone-700">{a.assessmentYear}</span>
                 <span className="text-xs text-stone-400">{new Date(a.assessedAt).toLocaleDateString("en-IN")}</span>
                 <span className="text-xs text-stone-400">by {a.assessedBy.name}</span>
                 <span className="ml-auto text-xs text-stone-500">{a.totalHouseholds} HH</span>
-                {editingId === a.id && <span className="text-[10px] bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded">Editing</span>}
+                {editingId === a.id
+                  ? <span className="text-[10px] bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded">Editing</span>
+                  : <span className="text-[10px] text-stone-400 hover:text-sky-600">Load →</span>
+                }
               </button>
             ))}
           </div>

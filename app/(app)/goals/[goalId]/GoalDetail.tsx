@@ -21,6 +21,7 @@ import MetricsSection from "./MetricsSection";
 import GoalCoOwnersSection from "./GoalCoOwnersSection";
 import GoalThemesSection from "./GoalThemesSection";
 import GoalGeographySection from "./GoalGeographySection";
+import GoalNeedsSection from "./GoalNeedsSection";
 
 type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
@@ -363,6 +364,7 @@ export default function GoalDetail({
         />
         <GoalThemesSection goalId={goal.id} />
         <GoalGeographySection goalId={goal.id} />
+        <GoalNeedsSection goalId={goal.id} />
 
         {/* Goal-level attachments */}
         <div className="mt-4 pt-4 border-t border-stone-100">

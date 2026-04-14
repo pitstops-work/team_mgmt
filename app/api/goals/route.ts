@@ -23,12 +23,19 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, description, status, targetDate } = await req.json();
+  const { title, description, status, targetDate, needsDomain, parameter, needsSettlementId, needsClusterId, needsZoneId } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
   if (!targetDate) return Response.json({ error: "Target date required" }, { status: 400 });
 
   const goal = await prisma.goal.create({
-    data: { title, description, status: status ?? "Active", ownerId: session.user.id, targetDate: new Date(targetDate) },
+    data: {
+      title, description, status: status ?? "Active", ownerId: session.user.id, targetDate: new Date(targetDate),
+      ...(needsDomain && { needsDomain }),
+      ...(parameter != null && { parameter: Number(parameter) }),
+      ...(needsSettlementId && { needsSettlementId }),
+      ...(needsClusterId && { needsClusterId }),
+      ...(needsZoneId && { needsZoneId }),
+    },
     include: {
       owner: { select: { id: true, name: true, image: true } },
       pitstops: { select: { id: true, status: true } },

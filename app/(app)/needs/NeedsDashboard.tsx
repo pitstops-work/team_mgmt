@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight, ChevronDown, ClipboardList, MapPin, Building2, Layers, CheckCircle2, Clock } from "lucide-react";
+import type { CityStats, DomainSummary } from "./page";
 
 type Assessment = { id: string; assessmentYear: number; assessedAt: string; totalHouseholds: number };
 type Settlement = { id: string; name: string; assessments: Assessment[] };
@@ -10,15 +11,67 @@ type Cluster = { id: string; name: string; settlements: Settlement[] };
 type Zone = { id: string; name: string; clusters: Cluster[] };
 type City = { id: string; name: string; zones: Zone[] };
 
-export default function NeedsDashboard({ cities }: { cities: City[]; currentUserId: string }) {
+const DOMAINS: { key: keyof CityStats["domains"]; label: string; color: string }[] = [
+  { key: "Creche",            label: "Creches",        color: "#ec4899" },
+  { key: "ChildrenCentre",    label: "Children Ctr",   color: "#f97316" },
+  { key: "YouthGroup",        label: "Youth Groups",   color: "#8b5cf6" },
+  { key: "ElderlyKitchen",    label: "Elderly Kitchen",color: "#10b981" },
+  { key: "PalliativeSupport", label: "Palliative",     color: "#6366f1" },
+  { key: "CommunityToilet",   label: "Toilets",        color: "#0ea5e9" },
+  { key: "WaterATM",          label: "Water ATMs",     color: "#14b8a6" },
+];
+
+function DomainCard({ label, color, d }: { label: string; color: string; d: DomainSummary }) {
+  const pct = d.apfTarget > 0 ? Math.min(100, Math.round((d.done / d.apfTarget) * 100)) : d.done > 0 ? 100 : 0;
+  return (
+    <div className="rounded-xl border border-stone-100 p-3 space-y-2">
+      <div className="flex items-center gap-1.5">
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+        <span className="text-xs font-semibold text-stone-700 truncate">{label}</span>
+      </div>
+      <div className="grid grid-cols-3 text-center gap-1">
+        <div>
+          <p className="text-sm font-bold text-stone-800">{d.apfTarget}</p>
+          <p className="text-[9px] text-stone-400">APF target</p>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-emerald-600">{d.done}</p>
+          <p className="text-[9px] text-stone-400">done</p>
+        </div>
+        <div>
+          <p className={`text-sm font-bold ${d.gap > 0 ? "text-red-500" : "text-emerald-500"}`}>
+            {d.gap > 0 ? `-${d.gap}` : "✓"}
+          </p>
+          <p className="text-[9px] text-stone-400">gap</p>
+        </div>
+      </div>
+      <div className="h-1 bg-stone-100 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <div className="flex justify-between text-[9px] text-stone-400">
+        <span>ex:{d.existing}</span>
+        {d.inProgress > 0 && <span className="text-amber-500">+{d.inProgress} active</span>}
+        <span>{pct}%</span>
+      </div>
+    </div>
+  );
+}
+
+export default function NeedsDashboard({ cities, totalSettlements, cityStats }: {
+  cities: City[];
+  currentUserId: string;
+  totalSettlements: number;
+  cityStats: CityStats;
+}) {
   const [openZones, setOpenZones] = useState<Set<string>>(new Set());
   const [openClusters, setOpenClusters] = useState<Set<string>>(new Set());
+  const [showOverview, setShowOverview] = useState(true);
 
   const toggleZone = (id: string) => setOpenZones(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleCluster = (id: string) => setOpenClusters(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const totalSettlements = cities.flatMap(c => c.zones.flatMap(z => z.clusters.flatMap(cl => cl.settlements))).length;
-  const assessed = cities.flatMap(c => c.zones.flatMap(z => z.clusters.flatMap(cl => cl.settlements.filter(s => s.assessments.length > 0)))).length;
+  const assessed = cityStats.assessedCount;
+  const coveragePct = totalSettlements > 0 ? Math.round((assessed / totalSettlements) * 100) : 0;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -32,12 +85,36 @@ export default function NeedsDashboard({ cities }: { cities: City[]; currentUser
           Settlement-level baseline survey — population, civic amenities, entitlements
         </p>
         <div className="flex items-center gap-4 mt-3">
-          <span className="text-xs text-stone-500">{assessed} / {totalSettlements} settlements assessed</span>
+          <span className="text-xs text-stone-500">{assessed} / {totalSettlements} settlements assessed ({coveragePct}%)</span>
           <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
-            <div className="h-full bg-sky-400 rounded-full transition-all" style={{ width: totalSettlements > 0 ? `${(assessed / totalSettlements) * 100}%` : "0%" }} />
+            <div className="h-full bg-sky-400 rounded-full transition-all" style={{ width: `${coveragePct}%` }} />
           </div>
         </div>
+        {cityStats.totalHH > 0 && (
+          <p className="text-xs text-stone-400 mt-1">{cityStats.totalHH.toLocaleString()} total households across assessed settlements</p>
+        )}
       </div>
+
+      {/* City-wide overview */}
+      {cityStats.assessedCount > 0 && (
+        <div className="mb-6 border border-stone-200 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setShowOverview(o => !o)}
+            className="w-full flex items-center gap-2 px-4 py-3 bg-stone-50 hover:bg-stone-100 transition-colors text-left"
+          >
+            {showOverview ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
+            <span className="text-sm font-semibold text-stone-700">City-wide Needs Overview</span>
+            <span className="ml-auto text-xs text-stone-400">across {assessed} assessed settlements</span>
+          </button>
+          {showOverview && (
+            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {DOMAINS.map(({ key, label, color }) => (
+                <DomainCard key={key} label={label} color={color} d={cityStats.domains[key]} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Hierarchy */}
       <div className="space-y-3">

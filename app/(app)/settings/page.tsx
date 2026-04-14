@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays } from "lucide-react";
+import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import Avatar from "@/components/Avatar";
 
 type Member = { id: string; name: string | null; email: string | null; image: string | null };
@@ -95,6 +96,23 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <h1 className="text-xl font-semibold text-stone-900 mb-8">Settings</h1>
+
+      {/* Needs Assessment */}
+      <section className="mb-10">
+        <h2 className="text-sm font-semibold text-stone-700 mb-1">Needs Assessment</h2>
+        <p className="text-xs text-stone-500 mb-3">Configure target formulas and entitlement schemes.</p>
+        <Link
+          href="/settings/needs"
+          className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+        >
+          <Target className="w-4 h-4 text-sky-500" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-stone-800">Formulas &amp; Schemes</p>
+            <p className="text-xs text-stone-400">Target denominators · Entitlement scheme list</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-stone-300" />
+        </Link>
+      </section>
 
       {/* Invite code */}
       <section className="mb-10">

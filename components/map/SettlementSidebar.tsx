@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { GeoData } from "@/lib/useGeoData";
 import type { SettlementFeature } from "./MapView";
+import NeedsPanel from "./NeedsPanel";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -58,6 +59,7 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
   const [noteSaved, setNoteSaved] = useState(false);
   const [clusterData, setClusterData] = useState<ClusterPitstop[]>([]);
   const [activities, setActivities] = useState<ClusterActivity[]>([]);
+  const [activeTab, setActiveTab] = useState<"programme" | "needs">("programme");
   const prevName = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
@@ -68,6 +70,7 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
     setNoteDirty(false);
     setClusterData([]);
     setActivities([]);
+    setActiveTab("programme");
 
     fetch(`/api/map/notes?settlement=${encodeURIComponent(feature.name)}`)
       .then((r) => r.json())
@@ -215,162 +218,184 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
             </div>
           </div>
 
+          {/* Tab bar */}
+          <div className="flex-shrink-0 flex border-b border-slate-100">
+            {(["programme", "needs"] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2 text-xs font-semibold capitalize transition-colors ${activeTab === tab ? "text-sky-600 border-b-2 border-sky-500" : "text-slate-400 hover:text-slate-600"}`}>
+                {tab === "programme" ? "Programme" : "Needs"}
+              </button>
+            ))}
+          </div>
+
           {/* Scrollable body */}
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {/* Household count */}
-            {feature.description && (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">Households</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold text-slate-800">
-                    {parseHH(feature.description) ?? "—"}
-                  </span>
-                  {!parseHH(feature.description) && (
-                    <span className="text-sm text-slate-500">{feature.description}</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Programme Centres */}
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
-                Programme in this settlement
-              </p>
-              {colocated.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">No centres recorded here</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {colocated.map((c, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
-                      style={{ background: c.color + "15" }}
-                    >
-                      <span className="text-base">{c.emoji}</span>
-                      <div>
-                        <div className="text-xs font-bold" style={{ color: c.color }}>{c.label}</div>
-                        <div className="text-xs text-slate-500">{c.name}</div>
-                      </div>
+            {activeTab === "programme" && (
+              <>
+                {/* Household count */}
+                {feature.description && (
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">Households</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-bold text-slate-800">
+                        {parseHH(feature.description) ?? "—"}
+                      </span>
+                      {!parseHH(feature.description) && (
+                        <span className="text-sm text-slate-500">{feature.description}</span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Active Goals & Pitstops for this cluster */}
-            {feature.cluster && (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
-                  Cluster Goals & Pitstops
-                </p>
-                {clusterData.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No active goals for this cluster</p>
-                ) : (
-                  <div className="space-y-3">
-                    {clusterData.map((goal) => (
-                      <div key={goal.goalId} className="rounded-lg border border-slate-100 overflow-hidden">
-                        <div className="px-3 py-2 bg-slate-50 flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-slate-700 truncate flex-1">{goal.goalTitle}</span>
-                          <span
-                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                            style={{
-                              background: (STATUS_COLORS[goal.goalStatus] ?? "#94a3b8") + "20",
-                              color: STATUS_COLORS[goal.goalStatus] ?? "#94a3b8",
-                            }}
-                          >
-                            {goal.goalStatus}
-                          </span>
-                        </div>
-                        {goal.pitstops.length > 0 && (
-                          <div className="divide-y divide-slate-50">
-                            {goal.pitstops.map((p) => (
-                              <div key={p.id} className="px-3 py-1.5 flex items-center gap-2">
-                                <span
-                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                  style={{ background: STATUS_COLORS[p.status] ?? "#94a3b8" }}
-                                />
-                                <span className="text-xs text-slate-600 flex-1 truncate">{p.title}</span>
-                                {p.targetDate && (
-                                  <span className="text-[10px] text-slate-400 flex-shrink-0">
-                                    {new Date(p.targetDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Cluster activities */}
-            {feature.cluster && activities.length > 0 && (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
-                  Cluster Activities
-                </p>
-                <div className="space-y-1.5">
-                  {activities.map((a) => {
-                    const isPast = new Date(a.scheduledAt) < new Date();
-                    const TYPE_COLOR: Record<string, string> = {
-                      Meeting: "#0ea5e9", Visit: "#8b5cf6", Event: "#f59e0b",
-                    };
-                    const color = TYPE_COLOR[a.type] ?? "#64748b";
-                    return (
-                      <div key={a.id}
-                        className="rounded-lg border border-slate-100 px-3 py-2 flex items-start gap-2"
-                        style={{ opacity: isPast && a.status !== "Done" ? 0.65 : 1 }}
-                      >
-                        <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1" style={{ background: color }} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-slate-700 truncate">{a.title}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
-                            {a.type} · {new Date(a.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                            {a.location ? ` · ${a.location}` : ""}
-                          </p>
+                {/* Programme Centres */}
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                    Programme in this settlement
+                  </p>
+                  {colocated.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No centres recorded here</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {colocated.map((c, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
+                          style={{ background: c.color + "15" }}
+                        >
+                          <span className="text-base">{c.emoji}</span>
+                          <div>
+                            <div className="text-xs font-bold" style={{ color: c.color }}>{c.label}</div>
+                            <div className="text-xs text-slate-500">{c.name}</div>
+                          </div>
                         </div>
-                        {a.status !== "Scheduled" && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                            style={{ background: color + "20", color }}>
-                            {a.status}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
+
+                {/* Active Goals & Pitstops for this cluster */}
+                {feature.cluster && (
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                      Cluster Goals & Pitstops
+                    </p>
+                    {clusterData.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No active goals for this cluster</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {clusterData.map((goal) => (
+                          <div key={goal.goalId} className="rounded-lg border border-slate-100 overflow-hidden">
+                            <div className="px-3 py-2 bg-slate-50 flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold text-slate-700 truncate flex-1">{goal.goalTitle}</span>
+                              <span
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                style={{
+                                  background: (STATUS_COLORS[goal.goalStatus] ?? "#94a3b8") + "20",
+                                  color: STATUS_COLORS[goal.goalStatus] ?? "#94a3b8",
+                                }}
+                              >
+                                {goal.goalStatus}
+                              </span>
+                            </div>
+                            {goal.pitstops.length > 0 && (
+                              <div className="divide-y divide-slate-50">
+                                {goal.pitstops.map((p) => (
+                                  <div key={p.id} className="px-3 py-1.5 flex items-center gap-2">
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                      style={{ background: STATUS_COLORS[p.status] ?? "#94a3b8" }}
+                                    />
+                                    <span className="text-xs text-slate-600 flex-1 truncate">{p.title}</span>
+                                    {p.targetDate && (
+                                      <span className="text-[10px] text-slate-400 flex-shrink-0">
+                                        {new Date(p.targetDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Cluster activities */}
+                {feature.cluster && activities.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                      Cluster Activities
+                    </p>
+                    <div className="space-y-1.5">
+                      {activities.map((a) => {
+                        const isPast = new Date(a.scheduledAt) < new Date();
+                        const TYPE_COLOR: Record<string, string> = {
+                          Meeting: "#0ea5e9", Visit: "#8b5cf6", Event: "#f59e0b",
+                        };
+                        const color = TYPE_COLOR[a.type] ?? "#64748b";
+                        return (
+                          <div key={a.id}
+                            className="rounded-lg border border-slate-100 px-3 py-2 flex items-start gap-2"
+                            style={{ opacity: isPast && a.status !== "Done" ? 0.65 : 1 }}
+                          >
+                            <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1" style={{ background: color }} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-slate-700 truncate">{a.title}</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                {a.type} · {new Date(a.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                {a.location ? ` · ${a.location}` : ""}
+                              </p>
+                            </div>
+                            {a.status !== "Scheduled" && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                style={{ background: color + "20", color }}>
+                                {a.status}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">Notes</p>
+                  <textarea
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none text-slate-700 placeholder:text-slate-300"
+                    rows={4}
+                    placeholder="Add programme notes, observations, contacts…"
+                    value={note}
+                    onChange={(e) => { setNote(e.target.value); setNoteDirty(true); setNoteSaved(false); }}
+                    onBlur={saveNote}
+                  />
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-xs text-slate-400">Auto-saves on blur</span>
+                    {noteSaving && <span className="text-xs text-slate-400">Saving…</span>}
+                    {noteSaved && <span className="text-xs text-emerald-600 font-semibold">Saved ✓</span>}
+                    {noteDirty && !noteSaving && (
+                      <button
+                        onClick={saveNote}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                      >
+                        Save now
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
 
-            {/* Notes */}
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">Notes</p>
-              <textarea
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none text-slate-700 placeholder:text-slate-300"
-                rows={4}
-                placeholder="Add programme notes, observations, contacts…"
-                value={note}
-                onChange={(e) => { setNote(e.target.value); setNoteDirty(true); setNoteSaved(false); }}
-                onBlur={saveNote}
+            {activeTab === "needs" && (
+              <NeedsPanel
+                mode="settlement"
+                name={feature.name}
+                cluster={feature.cluster ?? undefined}
               />
-              <div className="flex items-center justify-between mt-1.5">
-                <span className="text-xs text-slate-400">Auto-saves on blur</span>
-                {noteSaving && <span className="text-xs text-slate-400">Saving…</span>}
-                {noteSaved && <span className="text-xs text-emerald-600 font-semibold">Saved ✓</span>}
-                {noteDirty && !noteSaving && (
-                  <button
-                    onClick={saveNote}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
-                  >
-                    Save now
-                  </button>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         </>
       )}

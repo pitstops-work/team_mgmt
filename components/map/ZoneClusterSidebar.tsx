@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { GeoData } from "@/lib/useGeoData";
+import NeedsPanel from "./NeedsPanel";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -55,6 +56,7 @@ export default function ZoneClusterSidebar({
   const [goals, setGoals] = useState<GoalWithPitstops[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<"goals" | "needs">("goals");
   const prevKey = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
@@ -66,6 +68,7 @@ export default function ZoneClusterSidebar({
     prevKey.current = key;
     setGoals([]);
     setExpandedGoals(new Set());
+    setActiveTab("goals");
     setLoading(true);
 
     const param = type === "cluster"
@@ -201,96 +204,118 @@ export default function ZoneClusterSidebar({
             ) : null}
           </div>
 
-          {/* Goals list */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="flex gap-1">
-                  {[0, 150, 300].map(d => (
-                    <span key={d} className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
-                  ))}
-                </div>
-              </div>
-            ) : goals.length === 0 ? (
-              <div className="py-8 text-center">
-                <p className="text-xs text-slate-400">No goals tagged to this {typeLabel.toLowerCase()}.</p>
-                <p className="text-[10px] text-slate-300 mt-1">Tag goals via Geography on the goal page.</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">
-                  Goals ({goals.length})
-                </p>
-                {goals.map(goal => {
-                  const done = goal.pitstops.filter(p => p.status === "Done").length;
-                  const total = goal.pitstops.length;
-                  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                  const expanded = expandedGoals.has(goal.id);
-                  const activePitstops = goal.pitstops.filter(p => p.status !== "Done");
-
-                  return (
-                    <div key={goal.id} className="rounded-xl border border-slate-100 overflow-hidden">
-                      {/* Goal header row */}
-                      <div
-                        className="px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-slate-50 transition-colors"
-                        onClick={() => toggleGoal(goal.id)}
-                      >
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ background: STATUS_COLOR[goal.status] ?? "#94a3b8" }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{goal.title}</p>
-                          {total > 0 && (
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <div className="flex-1 h-0.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-sky-400 rounded-full" style={{ width: `${pct}%` }} />
-                              </div>
-                              <span className="text-[10px] text-slate-400 flex-shrink-0">{done}/{total}</span>
-                            </div>
-                          )}
-                        </div>
-                        <Link
-                          href={`/goals/${goal.id}`}
-                          onClick={e => e.stopPropagation()}
-                          className="flex-shrink-0 text-[10px] text-sky-500 hover:text-sky-700 px-1.5 py-0.5 rounded border border-sky-200 hover:border-sky-300 transition-colors"
-                        >
-                          Open
-                        </Link>
-                      </div>
-
-                      {/* Expanded pitstops */}
-                      {expanded && activePitstops.length > 0 && (
-                        <div className="border-t border-slate-50 divide-y divide-slate-50">
-                          {activePitstops.slice(0, 8).map(p => (
-                            <Link
-                              key={p.id}
-                              href={`/goals/${goal.id}/pitstops/${p.id}`}
-                              className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 transition-colors"
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[p.status] ?? "bg-slate-300"}`} />
-                              <span className="flex-1 text-xs text-slate-600 truncate">{p.title}</span>
-                              {p.targetDate && (
-                                <span className={`text-[10px] flex-shrink-0 ${new Date(p.targetDate) < new Date() ? "text-red-400 font-semibold" : "text-slate-400"}`}>
-                                  {fmtDate(p.targetDate)}
-                                </span>
-                              )}
-                            </Link>
-                          ))}
-                          {activePitstops.length > 8 && (
-                            <p className="px-3 py-1.5 text-[10px] text-slate-400">+{activePitstops.length - 8} more</p>
-                          )}
-                        </div>
-                      )}
-                      {expanded && activePitstops.length === 0 && (
-                        <p className="px-3 py-2 text-[10px] text-slate-400 border-t border-slate-50">All pitstops done.</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            )}
+          {/* Tab bar */}
+          <div className="flex-shrink-0 flex border-b border-slate-100">
+            {(["goals", "needs"] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2 text-xs font-semibold capitalize transition-colors ${activeTab === tab ? "text-sky-600 border-b-2 border-sky-500" : "text-slate-400 hover:text-slate-600"}`}>
+                {tab === "goals" ? "Goals" : "Needs"}
+              </button>
+            ))}
           </div>
+
+          {/* Goals tab */}
+          {activeTab === "goals" && (
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex gap-1">
+                    {[0, 150, 300].map(d => (
+                      <span key={d} className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                    ))}
+                  </div>
+                </div>
+              ) : goals.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-xs text-slate-400">No goals tagged to this {typeLabel.toLowerCase()}.</p>
+                  <p className="text-[10px] text-slate-300 mt-1">Tag goals via Geography on the goal page.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">
+                    Goals ({goals.length})
+                  </p>
+                  {goals.map(goal => {
+                    const done = goal.pitstops.filter(p => p.status === "Done").length;
+                    const total = goal.pitstops.length;
+                    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                    const expanded = expandedGoals.has(goal.id);
+                    const activePitstops = goal.pitstops.filter(p => p.status !== "Done");
+
+                    return (
+                      <div key={goal.id} className="rounded-xl border border-slate-100 overflow-hidden">
+                        {/* Goal header row */}
+                        <div
+                          className="px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-slate-50 transition-colors"
+                          onClick={() => toggleGoal(goal.id)}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ background: STATUS_COLOR[goal.status] ?? "#94a3b8" }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-slate-800 truncate">{goal.title}</p>
+                            {total > 0 && (
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <div className="flex-1 h-0.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-sky-400 rounded-full" style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="text-[10px] text-slate-400 flex-shrink-0">{done}/{total}</span>
+                              </div>
+                            )}
+                          </div>
+                          <Link
+                            href={`/goals/${goal.id}`}
+                            onClick={e => e.stopPropagation()}
+                            className="flex-shrink-0 text-[10px] text-sky-500 hover:text-sky-700 px-1.5 py-0.5 rounded border border-sky-200 hover:border-sky-300 transition-colors"
+                          >
+                            Open
+                          </Link>
+                        </div>
+
+                        {/* Expanded pitstops */}
+                        {expanded && activePitstops.length > 0 && (
+                          <div className="border-t border-slate-50 divide-y divide-slate-50">
+                            {activePitstops.slice(0, 8).map(p => (
+                              <Link
+                                key={p.id}
+                                href={`/goals/${goal.id}/pitstops/${p.id}`}
+                                className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 transition-colors"
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[p.status] ?? "bg-slate-300"}`} />
+                                <span className="flex-1 text-xs text-slate-600 truncate">{p.title}</span>
+                                {p.targetDate && (
+                                  <span className={`text-[10px] flex-shrink-0 ${new Date(p.targetDate) < new Date() ? "text-red-400 font-semibold" : "text-slate-400"}`}>
+                                    {fmtDate(p.targetDate)}
+                                  </span>
+                                )}
+                              </Link>
+                            ))}
+                            {activePitstops.length > 8 && (
+                              <p className="px-3 py-1.5 text-[10px] text-slate-400">+{activePitstops.length - 8} more</p>
+                            )}
+                          </div>
+                        )}
+                        {expanded && activePitstops.length === 0 && (
+                          <p className="px-3 py-2 text-[10px] text-slate-400 border-t border-slate-50">All pitstops done.</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Needs tab */}
+          {activeTab === "needs" && name && type && (
+            <div className="flex-1 overflow-y-auto p-3">
+              <NeedsPanel
+                mode={type}
+                name={name.replace(/_/g, " ")}
+              />
+            </div>
+          )}
         </>
       )}
     </div>
