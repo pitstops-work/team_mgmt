@@ -86,9 +86,9 @@ export default function LayerPanel({
       <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
         <div className="flex items-center gap-2 mb-0.5">
           <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center">
-            <span className="text-white text-xs font-bold">J</span>
+            <span className="text-white text-xs font-bold">U</span>
           </div>
-          <span className="font-bold text-slate-800 text-sm">Janadhikara</span>
+          <span className="font-bold text-slate-800 text-sm">Urban Program</span>
         </div>
         <p className="text-xs text-slate-400 pl-8">Bangalore Programme Map</p>
       </div>

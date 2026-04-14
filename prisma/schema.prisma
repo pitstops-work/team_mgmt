@@ -969,7 +969,7 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// ── Janadhikara Programme Map ─────────────────────────────────────────────────
+// ── Urban Programme Map ───────────────────────────────────────────────────────
 
 model MapFeature {
   id          String   @id @default(cuid())

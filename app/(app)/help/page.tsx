@@ -250,7 +250,7 @@ export default function HelpPage() {
         ))}
       </div>
 
-      <p className="mt-12 text-xs text-stone-300 text-center">Pitstop — built for Janadhikara, Bangalore 2026</p>
+      <p className="mt-12 text-xs text-stone-300 text-center">Pitstop — built for Urban Program, Bangalore 2026</p>
     </div>
   );
 }

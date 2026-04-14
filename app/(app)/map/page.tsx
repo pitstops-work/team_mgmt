@@ -1,6 +1,6 @@
 import MapDashboard from "@/components/map/MapDashboard";
 
-export const metadata = { title: "Programme Map · Janadhikara" };
+export const metadata = { title: "Programme Map · Urban Program" };
 
 // The map page needs to fill the full viewport area that `main` occupies.
 // `main` in AppLayout has overflow-y-auto which prevents h-full from working

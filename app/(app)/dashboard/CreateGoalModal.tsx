@@ -9,13 +9,80 @@ const DOMAIN_LABELS: Record<NeedsDomain, string> = {
   ElderlyKitchen: "Elderly Kitchen", PalliativeSupport: "Palliative Support",
   CommunityToilet: "Community Toilet", WaterATM: "Water ATM",
 };
-type GeoScope = "settlement" | "cluster" | "zone";
-interface GeoItem { id: string; name: string; sub?: string }
+
+interface RawGeo {
+  cities: { id: string; name: string }[];
+  zones: { id: string; name: string; cityId: string }[];
+  clusters: { id: string; name: string; zoneId: string }[];
+  settlements: { id: string; name: string; clusterId: string }[];
+}
+
+type GeoVal = { cityId: string; zoneId: string; clusterId: string; settlementId: string };
 
 interface Props {
   onClose: () => void;
   onCreated: (goal: unknown) => void;
 }
+
+// ── Cascading geo picker (same logic as GoalNeedsSection) ────────────────────
+
+function GeoPicker({ geo, value, onChange }: { geo: RawGeo; value: GeoVal; onChange: (v: GeoVal) => void }) {
+  const { cityId, zoneId, clusterId, settlementId } = value;
+  const sel = "w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white";
+
+  const filteredZones = cityId ? geo.zones.filter(z => z.cityId === cityId) : geo.zones;
+  const filteredClusters = zoneId ? geo.clusters.filter(cl => cl.zoneId === zoneId) : geo.clusters;
+  const filteredSettlements = clusterId ? geo.settlements.filter(s => s.clusterId === clusterId) : geo.settlements;
+
+  return (
+    <div className="space-y-1.5">
+      <div>
+        <label className="block text-[10px] text-stone-400 mb-0.5">City</label>
+        <select value={cityId} onChange={e => onChange({ cityId: e.target.value, zoneId: "", clusterId: "", settlementId: "" })} className={sel}>
+          <option value="">All cities</option>
+          {geo.cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="block text-[10px] text-stone-400 mb-0.5">Zone <span className="text-stone-300">(assign here or go deeper)</span></label>
+        <select value={zoneId} onChange={e => onChange({ cityId, zoneId: e.target.value, clusterId: "", settlementId: "" })} className={sel}>
+          <option value="">— select zone —</option>
+          {filteredZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+        </select>
+      </div>
+      {zoneId && (
+        <div>
+          <label className="block text-[10px] text-stone-400 mb-0.5">Cluster <span className="text-stone-300">(optional)</span></label>
+          <select value={clusterId} onChange={e => onChange({ cityId, zoneId, clusterId: e.target.value, settlementId: "" })} className={sel}>
+            <option value="">— all clusters in zone —</option>
+            {filteredClusters.map(cl => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
+          </select>
+        </div>
+      )}
+      {clusterId && (
+        <div>
+          <label className="block text-[10px] text-stone-400 mb-0.5">Settlement <span className="text-stone-300">(optional)</span></label>
+          <select value={settlementId} onChange={e => onChange({ cityId, zoneId, clusterId, settlementId: e.target.value })} className={sel}>
+            <option value="">— all settlements in cluster —</option>
+            {filteredSettlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+      )}
+      {(settlementId || clusterId || zoneId) && (
+        <p className="text-[10px] text-sky-600 font-medium">
+          Actuals will count toward:{" "}
+          {settlementId
+            ? `settlement — ${geo.settlements.find(s => s.id === settlementId)?.name}`
+            : clusterId
+            ? `cluster — ${geo.clusters.find(cl => cl.id === clusterId)?.name}`
+            : `zone — ${geo.zones.find(z => z.id === zoneId)?.name}`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
 
 export default function CreateGoalModal({ onClose, onCreated }: Props) {
   const [title, setTitle] = useState("");
@@ -29,31 +96,14 @@ export default function CreateGoalModal({ onClose, onCreated }: Props) {
   const [showNeeds, setShowNeeds] = useState(false);
   const [needsDomain, setNeedsDomain] = useState<NeedsDomain | "">("");
   const [parameter, setParameter] = useState("");
-  const [geoScope, setGeoScope] = useState<GeoScope>("settlement");
-  const [geoId, setGeoId] = useState("");
-  const [geoItems, setGeoItems] = useState<{ zones: GeoItem[]; clusters: GeoItem[]; settlements: GeoItem[] } | null>(null);
+  const [geoVal, setGeoVal] = useState<GeoVal>({ cityId: "", zoneId: "", clusterId: "", settlementId: "" });
+  const [geo, setGeo] = useState<RawGeo | null>(null);
 
   useEffect(() => {
-    if (showNeeds && !geoItems) {
-      fetch("/api/geography").then(r => r.json()).then(geo => {
-        setGeoItems({
-          zones: (geo.zones ?? []).map((z: { id: string; name: string }) => ({ id: z.id, name: z.name })),
-          clusters: (geo.clusters ?? []).map((cl: { id: string; name: string; zoneId?: string }) => {
-            const zone = (geo.zones ?? []).find((z: { id: string; name: string }) => z.id === cl.zoneId);
-            return { id: cl.id, name: cl.name, sub: zone?.name };
-          }),
-          settlements: (geo.settlements ?? []).map((s: { id: string; name: string; clusterId?: string }) => {
-            const cluster = (geo.clusters ?? []).find((cl: { id: string }) => cl.id === s.clusterId);
-            return { id: s.id, name: s.name, sub: cluster?.name };
-          }),
-        });
-      });
+    if (showNeeds && !geo) {
+      fetch("/api/geography").then(r => r.json()).then(setGeo);
     }
-  }, [showNeeds, geoItems]);
-
-  const currentGeoItems = geoItems
-    ? (geoScope === "zone" ? geoItems.zones : geoScope === "cluster" ? geoItems.clusters : geoItems.settlements)
-    : [];
+  }, [showNeeds, geo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,9 +114,9 @@ export default function CreateGoalModal({ onClose, onCreated }: Props) {
     const needsPayload = showNeeds && needsDomain ? {
       needsDomain,
       ...(parameter && { parameter: parseFloat(parameter) }),
-      ...(geoId && geoScope === "settlement" && { needsSettlementId: geoId }),
-      ...(geoId && geoScope === "cluster" && { needsClusterId: geoId }),
-      ...(geoId && geoScope === "zone" && { needsZoneId: geoId }),
+      ...(geoVal.settlementId && { needsSettlementId: geoVal.settlementId }),
+      ...(geoVal.clusterId && !geoVal.settlementId && { needsClusterId: geoVal.clusterId }),
+      ...(geoVal.zoneId && !geoVal.clusterId && !geoVal.settlementId && { needsZoneId: geoVal.zoneId }),
     } : {};
 
     try {
@@ -87,7 +137,7 @@ export default function CreateGoalModal({ onClose, onCreated }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-stone-900">New Goal</h2>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="w-5 h-5" /></button>
@@ -130,7 +180,6 @@ export default function CreateGoalModal({ onClose, onCreated }: Props) {
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
               />
             </div>
-
             <div className="flex-1">
               <label className="block text-xs font-medium text-stone-600 mb-1">Status</label>
               <select
@@ -155,10 +204,10 @@ export default function CreateGoalModal({ onClose, onCreated }: Props) {
               <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${showNeeds ? "rotate-180" : ""}`} />
             </button>
             {showNeeds && (
-              <div className="px-3 pb-3 pt-1 space-y-3 border-t border-stone-100">
+              <div className="px-3 pb-3 pt-2 space-y-3 border-t border-stone-100">
                 <div>
                   <label className="block text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-1">Domain</label>
-                  <select value={needsDomain} onChange={e => { setNeedsDomain(e.target.value as NeedsDomain | ""); setGeoId(""); }}
+                  <select value={needsDomain} onChange={e => { setNeedsDomain(e.target.value as NeedsDomain | ""); setGeoVal({ cityId: "", zoneId: "", clusterId: "", settlementId: "" }); }}
                     className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
                     <option value="">— not linked —</option>
                     {(Object.entries(DOMAIN_LABELS) as [NeedsDomain, string][]).map(([k, l]) => (
@@ -177,22 +226,11 @@ export default function CreateGoalModal({ onClose, onCreated }: Props) {
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-1">Counts toward</label>
-                      <div className="flex gap-1 mb-2">
-                        {(["settlement", "cluster", "zone"] as const).map(scope => (
-                          <button key={scope} type="button"
-                            onClick={() => { setGeoScope(scope); setGeoId(""); }}
-                            className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors capitalize ${geoScope === scope ? "border-sky-400 bg-sky-50 text-sky-600 font-semibold" : "border-stone-200 text-stone-500"}`}>
-                            {scope}
-                          </button>
-                        ))}
-                      </div>
-                      <select value={geoId} onChange={e => setGeoId(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
-                        <option value="">— select {geoScope} —</option>
-                        {currentGeoItems.map(item => (
-                          <option key={item.id} value={item.id}>{item.name}{item.sub ? ` (${item.sub})` : ""}</option>
-                        ))}
-                      </select>
+                      {!geo ? (
+                        <p className="text-[10px] text-stone-400">Loading geography…</p>
+                      ) : (
+                        <GeoPicker geo={geo} value={geoVal} onChange={setGeoVal} />
+                      )}
                     </div>
                   </>
                 )}

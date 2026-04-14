@@ -192,4 +192,4 @@ The pyramid is: *Programme → Plan → Goals → Pitstops → Checklists*, with
 
 ---
 
-*Pitstop is built for Janadhikara — Bangalore, 2026.*
+*Pitstop is built for Urban Program — Bangalore, 2026.*
