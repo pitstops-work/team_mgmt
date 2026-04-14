@@ -255,6 +255,23 @@ export default async function NeedsPage() {
   // City-wide stats
   const cityStats = computeStats(latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length);
 
+  // Per-city stats (for city toggle)
+  const cityStatsMap: Record<string, { name: string; stats: LevelStats }> = {};
+  for (const city of cities) {
+    const cityZoneIds = new Set(city.zones.map(z => z.id));
+    const citySettlements = city.zones.flatMap(z => z.clusters.flatMap(c => c.settlements));
+    const cityAssessments = citySettlements.map(s => assessmentBySettlement[s.id]).filter(Boolean) as unknown as AssessmentRow[];
+    const cityGoals = goals.filter(g =>
+      (g.needsZoneId        && cityZoneIds.has(g.needsZoneId)) ||
+      (g.needsClusterId     && cityZoneIds.has(clusterToZone[g.needsClusterId])) ||
+      (g.needsSettlementId  && cityZoneIds.has(settlementToZone[g.needsSettlementId]))
+    );
+    cityStatsMap[city.id] = {
+      name: city.name,
+      stats: computeStats(cityAssessments, cityGoals, domainConfigs, citySettlements.length),
+    };
+  }
+
   // Per-zone stats
   const zoneStatsMap: Record<string, { name: string; cityName: string; stats: LevelStats }> = {};
   for (const city of cities) {
@@ -320,6 +337,7 @@ export default async function NeedsPage() {
       totalSettlements={allSettlements.length}
       domainConfigs={domainConfigs}
       cityStats={cityStats}
+      cityStatsMap={JSON.parse(JSON.stringify(cityStatsMap))}
       zoneStats={JSON.parse(JSON.stringify(zoneStatsMap))}
       clusterStats={JSON.parse(JSON.stringify(clusterStatsMap))}
       settlementStats={JSON.parse(JSON.stringify(settlementStatsMap))}
