@@ -80,8 +80,10 @@ const s = (v: unknown): string => (v == null ? "" : String(v));
 const b = (v: unknown): boolean => Boolean(v);
 const n = (v: unknown): number => (v == null ? 0 : Number(v));
 
+// Denominator is BOTH divisor and minimum viable threshold:
+// floor(pop / denom) → 0 when pop < denom (not enough people to justify the facility)
 function calcTarget(population: number, denominator: number) {
-  return population > 0 ? Math.ceil(population / denominator) : 0;
+  return Math.floor(population / denominator);
 }
 
 function domainActual(goals: GoalActual[], domain: string) {
@@ -517,9 +519,9 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
     if (f.domainType === "boolean") {
       const popVal = f.populationField ? (POP_MAP[f.populationField] ?? 0) : pop.totalHouseholds;
       t = popVal > 0 ? 1 : 0;
-    } else if (f.populationField && f.denominator) {
+    } else if (f.populationField && f.denominator != null) {
       const popVal = POP_MAP[f.populationField] ?? 0;
-      t = calcTarget(popVal, f.denominator);
+      t = calcTarget(popVal, f.denominator); // floor — 0 when pop < denom (not viable)
     }
     targets[f.domain] = t;
     apfTargets[f.domain] = Math.max(0, t - (EXISTING_MAP[f.domain] ?? 0));

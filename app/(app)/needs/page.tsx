@@ -68,22 +68,28 @@ type GoalRow = {
   metrics: { current: number }[];
 };
 
-// ── Formula: how many units needed from assessed population ──────────────────
+// ── Formula: how many units needed for a single settlement's population ───────
+// Count domains: denominator is BOTH the divisor AND the minimum viable threshold.
+//   floor(pop / denom) — naturally 0 when pop < denom (not viable to establish).
+// Boolean domains: evaluated per settlement (1 if any relevant population, else 0).
+//   At aggregate levels we sum per-settlement booleans so city shows
+//   "N settlements need a referral system", not just 1.
 
 function formulaTarget(pop: PopFields, cfg: DomainConfig): number {
   if (cfg.domainType === "boolean") {
-    // Boolean domains: need 1 if any relevant population exists
     const field = cfg.populationField as keyof PopFields | null;
-    if (field) return pop[field] > 0 ? 1 : 0;
-    return pop.totalHouseholds > 0 ? 1 : 0;
+    const popVal = field ? pop[field] : pop.totalHouseholds;
+    return popVal > 0 ? 1 : 0;
   }
-  // Count domains
   if (!cfg.populationField || !cfg.denominator) return 0;
-  const pop2 = pop[cfg.populationField as keyof PopFields] ?? 0;
-  return pop2 > 0 ? Math.ceil(pop2 / cfg.denominator) : 0;
+  const popVal = pop[cfg.populationField as keyof PopFields] ?? 0;
+  return Math.floor(popVal / cfg.denominator);   // 0 when pop < denom (not viable)
 }
 
 // ── Aggregate stats for a set of assessments + goals ────────────────────────
+// Targets are computed PER assessment then summed — this ensures boolean domains
+// count correctly at zone/cluster/city level, and count domains respect the
+// per-settlement viability threshold.
 
 function computeStats(
   assessments: AssessmentRow[],
@@ -91,25 +97,27 @@ function computeStats(
   domainConfigs: DomainConfig[],
   totalCount: number,
 ): LevelStats {
-  // Sum population across all assessments
-  const totalPop: PopFields = assessments.reduce(
-    (acc, a) => ({
-      totalHouseholds: acc.totalHouseholds + (a.totalHouseholds ?? 0),
-      children6m3yr:   acc.children6m3yr   + (a.children6m3yr   ?? 0),
-      children4to14:   acc.children4to14   + (a.children4to14   ?? 0),
-      youth15to21:     acc.youth15to21     + (a.youth15to21     ?? 0),
-      elderly60plus:   acc.elderly60plus   + (a.elderly60plus   ?? 0),
-    }),
-    { totalHouseholds: 0, children6m3yr: 0, children4to14: 0, youth15to21: 0, elderly60plus: 0 },
-  );
+  const totalHH = assessments.reduce((s, a) => s + (Number(a.totalHouseholds) || 0), 0);
 
-  // Sum existing infrastructure
-  const existing: Record<string, number> = {};
-  for (const cfg of domainConfigs) {
-    const col = EXISTING_FIELD_MAP[cfg.domain];
-    existing[cfg.domain] = col
-      ? assessments.reduce((s, a) => s + (Number(a[col]) || 0), 0)
-      : 0;
+  // Initialise per-domain accumulators
+  const targetSum: Record<string, number> = {};
+  const existing:  Record<string, number> = {};
+  for (const cfg of domainConfigs) { targetSum[cfg.domain] = 0; existing[cfg.domain] = 0; }
+
+  // Per-assessment: compute target + sum existing
+  for (const a of assessments) {
+    const pop: PopFields = {
+      totalHouseholds: Number(a.totalHouseholds) || 0,
+      children6m3yr:   Number(a.children6m3yr)   || 0,
+      children4to14:   Number(a.children4to14)   || 0,
+      youth15to21:     Number(a.youth15to21)     || 0,
+      elderly60plus:   Number(a.elderly60plus)   || 0,
+    };
+    for (const cfg of domainConfigs) {
+      targetSum[cfg.domain] += formulaTarget(pop, cfg);
+      const col = EXISTING_FIELD_MAP[cfg.domain];
+      if (col) existing[cfg.domain] += Number(a[col]) || 0;
+    }
   }
 
   // Aggregate goal actuals per domain
@@ -124,8 +132,8 @@ function computeStats(
 
   const domains: DomainStats = {};
   for (const cfg of domainConfigs) {
-    const target    = formulaTarget(totalPop, cfg);
-    const ex        = existing[cfg.domain] ?? 0;
+    const target = targetSum[cfg.domain];
+    const ex     = existing[cfg.domain] ?? 0;
     const apfTarget = Math.max(0, target - ex);
     const done      = actuals[cfg.domain]?.done      ?? 0;
     const inProg    = actuals[cfg.domain]?.inProgress ?? 0;
@@ -140,7 +148,7 @@ function computeStats(
   }
 
   return {
-    totalHH: totalPop.totalHouseholds,
+    totalHH,
     assessedCount: assessments.length,
     totalCount,
     domains,

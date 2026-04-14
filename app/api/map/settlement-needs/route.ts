@@ -6,15 +6,20 @@ export function calcTargets(
   pop: { totalHouseholds: number; children6m3yr: number; children4to14: number; youth15to21: number; elderly60plus: number },
   formulas: Record<string, number | null>
 ) {
-  const ceil = (v: number, d: number) => (v > 0 ? Math.ceil(v / d) : 0);
+  // floor = denominator is both divisor AND minimum viable threshold (0 when pop < denom)
+  const flr = (v: number, d: number | null | undefined) => d ? Math.floor(v / d) : 0;
   return {
-    Creche:           ceil(pop.children6m3yr,     formulas["Creche"]           ?? 20),
-    ChildrenCentre:   ceil(pop.children4to14,     formulas["ChildrenCentre"]   ?? 500),
-    YouthGroup:       ceil(pop.youth15to21,        formulas["YouthGroup"]       ?? 30),
-    ElderlyKitchen:   ceil(pop.elderly60plus,      formulas["ElderlyKitchen"]   ?? 50),
-    PalliativeSupport:ceil(pop.elderly60plus,      formulas["PalliativeSupport"]?? 100),
-    CommunityToilet:  ceil(pop.totalHouseholds,    formulas["CommunityToilet"]  ?? 200),
-    WaterATM:         ceil(pop.totalHouseholds,    formulas["WaterATM"]         ?? 250),
+    Creche:              flr(pop.children6m3yr,  formulas["Creche"]             ?? 20),
+    ChildrenCentre:      flr(pop.children4to14,  formulas["ChildrenCentre"]     ?? 500),
+    YouthGroup:          flr(pop.youth15to21,     formulas["YouthGroup"]         ?? 30),
+    YouthResourceCentre: flr(pop.youth15to21,     formulas["YouthResourceCentre"]?? 1500),
+    ElderlyKitchen:      flr(pop.elderly60plus,   formulas["ElderlyKitchen"]     ?? 50),
+    ElderlyCentre:       flr(pop.elderly60plus,   formulas["ElderlyCentre"]      ?? 1000),
+    PalliativeSupport:   flr(pop.elderly60plus,   formulas["PalliativeSupport"]  ?? 100),
+    CommunityToilet:     flr(pop.totalHouseholds, formulas["CommunityToilet"]    ?? 200),
+    WaterATM:            flr(pop.totalHouseholds, formulas["WaterATM"]           ?? 250),
+    // Boolean domains: 1 per settlement if relevant pop exists
+    ReferralSystem: pop.elderly60plus > 0 ? 1 : 0,
   };
 }
 
