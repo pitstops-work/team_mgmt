@@ -3,12 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Target, ChevronDown } from "lucide-react";
 
-type NeedsDomain = "Creche" | "ChildrenCentre" | "YouthGroup" | "ElderlyKitchen" | "PalliativeSupport" | "CommunityToilet" | "WaterATM";
-const DOMAIN_LABELS: Record<NeedsDomain, string> = {
-  Creche: "Creche", ChildrenCentre: "Children Centre", YouthGroup: "Youth Group",
-  ElderlyKitchen: "Elderly Kitchen", PalliativeSupport: "Palliative Support",
-  CommunityToilet: "Community Toilet", WaterATM: "Water ATM",
-};
+interface DomainConfig { domain: string; label: string; color: string }
 
 interface RawGeo {
   cities: { id: string; name: string }[];
@@ -94,14 +89,21 @@ export default function CreateGoalModal({ onClose, onCreated }: Props) {
 
   // Needs section
   const [showNeeds, setShowNeeds] = useState(false);
-  const [needsDomain, setNeedsDomain] = useState<NeedsDomain | "">("");
+  const [needsDomain, setNeedsDomain] = useState("");
   const [parameter, setParameter] = useState("");
   const [geoVal, setGeoVal] = useState<GeoVal>({ cityId: "", zoneId: "", clusterId: "", settlementId: "" });
   const [geo, setGeo] = useState<RawGeo | null>(null);
+  const [domains, setDomains] = useState<DomainConfig[]>([]);
 
   useEffect(() => {
     if (showNeeds && !geo) {
-      fetch("/api/geography").then(r => r.json()).then(setGeo);
+      Promise.all([
+        fetch("/api/geography").then(r => r.json()),
+        fetch("/api/needs/formulas").then(r => r.json()),
+      ]).then(([geoData, domainData]) => {
+        setGeo(geoData);
+        setDomains(domainData);
+      });
     }
   }, [showNeeds, geo]);
 
@@ -207,11 +209,11 @@ export default function CreateGoalModal({ onClose, onCreated }: Props) {
               <div className="px-3 pb-3 pt-2 space-y-3 border-t border-stone-100">
                 <div>
                   <label className="block text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-1">Domain</label>
-                  <select value={needsDomain} onChange={e => { setNeedsDomain(e.target.value as NeedsDomain | ""); setGeoVal({ cityId: "", zoneId: "", clusterId: "", settlementId: "" }); }}
+                  <select value={needsDomain} onChange={e => { setNeedsDomain(e.target.value); setGeoVal({ cityId: "", zoneId: "", clusterId: "", settlementId: "" }); }}
                     className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
                     <option value="">— not linked —</option>
-                    {(Object.entries(DOMAIN_LABELS) as [NeedsDomain, string][]).map(([k, l]) => (
-                      <option key={k} value={k}>{l}</option>
+                    {domains.map(d => (
+                      <option key={d.domain} value={d.domain}>{d.label}</option>
                     ))}
                   </select>
                 </div>

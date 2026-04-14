@@ -3,29 +3,7 @@
 import { useEffect, useState } from "react";
 import { Target, X, ChevronDown } from "lucide-react";
 
-type NeedsDomain =
-  | "Creche" | "ChildrenCentre" | "YouthGroup" | "ElderlyKitchen"
-  | "PalliativeSupport" | "CommunityToilet" | "WaterATM";
-
-const DOMAIN_LABELS: Record<NeedsDomain, string> = {
-  Creche: "Creche",
-  ChildrenCentre: "Children Centre",
-  YouthGroup: "Youth Group",
-  ElderlyKitchen: "Elderly Kitchen",
-  PalliativeSupport: "Palliative Support",
-  CommunityToilet: "Community Toilet",
-  WaterATM: "Water ATM",
-};
-
-const DOMAIN_COLORS: Record<NeedsDomain, string> = {
-  Creche: "#ec4899",
-  ChildrenCentre: "#f97316",
-  YouthGroup: "#8b5cf6",
-  ElderlyKitchen: "#10b981",
-  PalliativeSupport: "#6366f1",
-  CommunityToilet: "#0ea5e9",
-  WaterATM: "#14b8a6",
-};
+interface DomainConfig { domain: string; label: string; color: string }
 
 interface RawGeo {
   cities: { id: string; name: string }[];
@@ -38,7 +16,7 @@ interface RawGeo {
 type GeoVal = { cityId: string; zoneId: string; clusterId: string; settlementId: string };
 
 interface NeedsState {
-  needsDomain: NeedsDomain | null;
+  needsDomain: string | null;
   parameter: number | null;
   needsSettlementId: string | null;
   needsClusterId: string | null;
@@ -189,6 +167,7 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<NeedsState | null>(null);
   const [geo, setGeo] = useState<RawGeo | null>(null);
+  const [domains, setDomains] = useState<DomainConfig[]>([]);
   const [pickerVal, setPickerVal] = useState<GeoVal>({ cityId: "", zoneId: "", clusterId: "", settlementId: "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -199,13 +178,17 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
     Promise.all([
       fetch(`/api/goals/${goalId}/needs`).then(r => r.json()),
       fetch("/api/geography").then(r => r.json()),
-    ]).then(([needs, geoData]: [NeedsState, RawGeo]) => {
+      fetch("/api/needs/formulas").then(r => r.json()),
+    ]).then(([needs, geoData, domainData]: [NeedsState, RawGeo, DomainConfig[]]) => {
       setState(needs);
       setGeo(geoData);
+      setDomains(domainData);
       setPickerVal(resolveGeoVal(needs, geoData));
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const domainMap = Object.fromEntries(domains.map(d => [d.domain, d]));
 
   const patch = async (update: Partial<NeedsState & Record<string, unknown>>) => {
     setSaving(true);
@@ -223,7 +206,7 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
     setSaving(false);
   };
 
-  const handleDomainChange = (domain: NeedsDomain | "") => {
+  const handleDomainChange = (domain: string) => {
     patch({ needsDomain: domain || null });
   };
 
@@ -257,7 +240,7 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
     ? "Settlement" : state?.needsClusterId ? "Cluster" : state?.needsZoneId ? "Zone" : null;
 
   const hasNeeds = state && (state.needsDomain || state.needsSettlementId || state.needsClusterId || state.needsZoneId);
-  const domainColor = state?.needsDomain ? DOMAIN_COLORS[state.needsDomain] : undefined;
+  const domainColor = state?.needsDomain ? domainMap[state.needsDomain]?.color : undefined;
 
   return (
     <div className="pt-4 border-t border-stone-100">
@@ -270,9 +253,9 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
         {hasNeeds && state?.needsDomain && (
           <span
             className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white"
-            style={{ background: DOMAIN_COLORS[state.needsDomain] }}
+            style={{ background: domainMap[state.needsDomain]?.color ?? "#6b7280" }}
           >
-            {DOMAIN_LABELS[state.needsDomain]}
+            {domainMap[state.needsDomain]?.label ?? state.needsDomain}
           </span>
         )}
         {currentGeoName && (
@@ -296,13 +279,13 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
                 </label>
                 <select
                   value={state.needsDomain ?? ""}
-                  onChange={e => handleDomainChange(e.target.value as NeedsDomain | "")}
+                  onChange={e => handleDomainChange(e.target.value)}
                   className="w-full px-3 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
                   style={domainColor ? { borderColor: domainColor + "80", color: domainColor } : {}}
                 >
                   <option value="">— not linked to a needs domain —</option>
-                  {(Object.entries(DOMAIN_LABELS) as [NeedsDomain, string][]).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
+                  {domains.map(d => (
+                    <option key={d.domain} value={d.domain}>{d.label}</option>
                   ))}
                 </select>
               </div>

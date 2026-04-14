@@ -1,48 +1,74 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, Plus, Trash2, GripVertical, Check } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, GripVertical, Check, X } from "lucide-react";
 import Link from "next/link";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-interface Formula { domain: string; denominator: number }
+interface DomainConfig {
+  domain: string;
+  label: string;
+  color: string;
+  domainType: string;
+  populationField: string | null;
+  denominator: number | null;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
 interface Scheme { id: string; name: string; parentId: string | null; sortOrder: number; isActive: boolean }
 
-const DOMAIN_META: Record<string, { label: string; population: string; color: string }> = {
-  Creche:           { label: "Creche",           population: "children 6m–3yr",  color: "#ec4899" },
-  ChildrenCentre:   { label: "Children Centre",  population: "children 4–14yr",  color: "#f97316" },
-  YouthGroup:       { label: "Youth Group",      population: "youth 15–21yr",    color: "#8b5cf6" },
-  ElderlyKitchen:   { label: "Elderly Kitchen",  population: "elderly 60+",      color: "#10b981" },
-  PalliativeSupport:{ label: "Palliative",       population: "elderly 60+",      color: "#6366f1" },
-  CommunityToilet:  { label: "Community Toilet", population: "total households", color: "#0ea5e9" },
-  WaterATM:         { label: "Water ATM",        population: "total households", color: "#14b8a6" },
-};
+const POP_FIELDS = [
+  { value: "children6m3yr",   label: "Children 6m–3yr" },
+  { value: "children4to14",   label: "Children 4–14yr" },
+  { value: "youth15to21",     label: "Youth 15–21yr" },
+  { value: "elderly60plus",   label: "Elderly 60+" },
+  { value: "totalHouseholds", label: "Total Households" },
+];
 
-// ── Formulas section ───────────────────────────────────────────────────────
+// ── Domains / Formulas section ──────────────────────────────────────────────
 
 function FormulasSection() {
-  const [formulas, setFormulas] = useState<Formula[]>([]);
+  const [domains, setDomains] = useState<DomainConfig[]>([]);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+
+  // New domain form state
+  const [newKey, setNewKey]               = useState("");
+  const [newLabel, setNewLabel]           = useState("");
+  const [newColor, setNewColor]           = useState("#6b7280");
+  const [newType, setNewType]             = useState("count");
+  const [newPopField, setNewPopField]     = useState("totalHouseholds");
+  const [newDenom, setNewDenom]           = useState("");
+  const [newDesc, setNewDesc]             = useState("");
+  const [adding, setAdding]               = useState(false);
+  const [addError, setAddError]           = useState("");
 
   useEffect(() => {
     fetch("/api/needs/formulas")
       .then(r => r.json())
-      .then((data: Formula[]) => {
-        setFormulas(data);
+      .then((data: DomainConfig[]) => {
+        setDomains(data);
         const init: Record<string, string> = {};
-        data.forEach(f => { init[f.domain] = String(f.denominator); });
+        data.forEach(d => { init[d.domain] = d.denominator != null ? String(d.denominator) : ""; });
         setEdits(init);
       });
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    const updates = Object.entries(edits)
-      .map(([domain, val]) => ({ domain, denominator: parseFloat(val) || 1 }))
-      .filter(u => !isNaN(u.denominator) && u.denominator > 0);
+    const updates = domains
+      .filter(d => edits[d.domain] !== undefined && String(d.denominator ?? "") !== edits[d.domain])
+      .map(d => ({
+        domain: d.domain,
+        denominator: edits[d.domain] === "" ? null : parseFloat(edits[d.domain]) || null,
+      }));
+
+    if (updates.length === 0) { setSaving(false); return; }
 
     const res = await fetch("/api/needs/formulas", {
       method: "PATCH",
@@ -50,54 +76,204 @@ function FormulasSection() {
       body: JSON.stringify(updates),
     });
     if (res.ok) {
-      const updated: Formula[] = await res.json();
-      setFormulas(updated);
+      const updated: DomainConfig[] = await res.json();
+      setDomains(updated.filter(d => d.isActive !== false));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
     setSaving(false);
   };
 
-  const isDirty = formulas.some(f => edits[f.domain] !== undefined && String(f.denominator) !== edits[f.domain]);
+  const handleAdd = async () => {
+    if (!newKey.trim() || !newLabel.trim()) { setAddError("Key and label are required"); return; }
+    setAdding(true);
+    setAddError("");
+    const res = await fetch("/api/needs/formulas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        key: newKey.trim(),
+        label: newLabel.trim(),
+        color: newColor,
+        domainType: newType,
+        populationField: newType === "boolean" ? null : newPopField,
+        denominator: newType === "boolean" ? null : (newDenom ? parseFloat(newDenom) : null),
+        description: newDesc.trim() || null,
+      }),
+    });
+    if (res.ok) {
+      const created: DomainConfig = await res.json();
+      setDomains(prev => [...prev, created]);
+      setEdits(prev => ({ ...prev, [created.domain]: created.denominator != null ? String(created.denominator) : "" }));
+      setNewKey(""); setNewLabel(""); setNewColor("#6b7280"); setNewType("count");
+      setNewPopField("totalHouseholds"); setNewDenom(""); setNewDesc("");
+      setShowAdd(false);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setAddError(err?.error ?? "Failed to add domain");
+    }
+    setAdding(false);
+  };
+
+  const isDirty = domains.some(d => edits[d.domain] !== undefined && String(d.denominator ?? "") !== edits[d.domain]);
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-stone-800">Target Formulas</h2>
-          <p className="text-xs text-stone-400 mt-0.5">1 unit per N population — used to calculate how many of each type are needed.</p>
+          <h2 className="text-sm font-semibold text-stone-800">Needs Domains</h2>
+          <p className="text-xs text-stone-400 mt-0.5">Configure target formulas (1 unit per N population) and add new need types.</p>
         </div>
-        {isDirty && (
+        <div className="flex items-center gap-2">
+          {isDirty && (
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+            >
+              {saving ? "Saving…" : saved ? <><Check className="w-3.5 h-3.5" /> Saved</> : "Save"}
+            </button>
+          )}
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+            onClick={() => setShowAdd(o => !o)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg transition-colors"
           >
-            {saving ? "Saving…" : saved ? <><Check className="w-3.5 h-3.5" /> Saved</> : "Save"}
+            <Plus className="w-3.5 h-3.5" /> Add Domain
           </button>
-        )}
+        </div>
       </div>
 
-      <div className="divide-y divide-stone-100 rounded-xl border border-stone-200 overflow-hidden">
-        {Object.entries(DOMAIN_META).map(([domain, meta]) => (
-          <div key={domain} className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-stone-50 transition-colors">
-            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: meta.color }} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-stone-800">{meta.label}</p>
-              <p className="text-[11px] text-stone-400">based on {meta.population}</p>
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <span className="text-xs text-stone-400">1 per</span>
+      {/* Add domain form */}
+      {showAdd && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-sky-700">New Need Domain</p>
+            <button onClick={() => { setShowAdd(false); setAddError(""); }} className="text-stone-400 hover:text-stone-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Key (no spaces)</label>
               <input
-                type="number"
-                min={1}
-                step={1}
-                value={edits[domain] ?? ""}
-                onChange={e => setEdits(prev => ({ ...prev, [domain]: e.target.value }))}
-                className="w-20 px-2 py-1 text-sm text-right border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+                value={newKey}
+                onChange={e => setNewKey(e.target.value.replace(/\s/g, ""))}
+                placeholder="e.g. CommunityLibrary"
+                className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
               />
-              <span className="text-xs text-stone-400 w-12 truncate">{meta.population.split(" ")[0]}s</span>
             </div>
+            <div>
+              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Label</label>
+              <input
+                value={newLabel}
+                onChange={e => setNewLabel(e.target.value)}
+                placeholder="e.g. Community Library"
+                className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Type</label>
+              <select
+                value={newType}
+                onChange={e => setNewType(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              >
+                <option value="count">Count (1 per N population)</option>
+                <option value="boolean">Boolean (yes/no per settlement)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Color</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={newColor}
+                  onChange={e => setNewColor(e.target.value)}
+                  className="w-8 h-8 rounded border border-sky-200 cursor-pointer"
+                />
+                <span className="text-xs text-stone-500 font-mono">{newColor}</span>
+              </div>
+            </div>
+            {newType === "count" && (
+              <>
+                <div>
+                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Population base</label>
+                  <select
+                    value={newPopField}
+                    onChange={e => setNewPopField(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                  >
+                    {POP_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Denominator (1 per N)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newDenom}
+                    onChange={e => setNewDenom(e.target.value)}
+                    placeholder="e.g. 500"
+                    className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                  />
+                </div>
+              </>
+            )}
+            <div className="col-span-2">
+              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Description (optional)</label>
+              <input
+                value={newDesc}
+                onChange={e => setNewDesc(e.target.value)}
+                placeholder="Brief description of this need type"
+                className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              />
+            </div>
+          </div>
+          {addError && <p className="text-xs text-red-500">{addError}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={handleAdd}
+              disabled={adding || !newKey.trim() || !newLabel.trim()}
+              className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+            >
+              {adding ? "Adding…" : "Add Domain"}
+            </button>
+            <button onClick={() => { setShowAdd(false); setAddError(""); }} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Existing domains list */}
+      <div className="divide-y divide-stone-100 rounded-xl border border-stone-200 overflow-hidden">
+        {domains.length === 0 && (
+          <p className="px-4 py-6 text-xs text-stone-400 text-center">Loading…</p>
+        )}
+        {domains.map(d => (
+          <div key={d.domain} className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-stone-50 transition-colors">
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: d.color }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-stone-800">{d.label}</p>
+              <p className="text-[11px] text-stone-400">
+                {d.domainType === "boolean"
+                  ? "Boolean — yes/no per settlement"
+                  : `${d.populationField ?? "?"} · 1 per ${d.denominator ?? "?"}`}
+              </p>
+            </div>
+            {d.domainType === "count" && (
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className="text-xs text-stone-400">1 per</span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={edits[d.domain] ?? ""}
+                  onChange={e => setEdits(prev => ({ ...prev, [d.domain]: e.target.value }))}
+                  className="w-20 px-2 py-1 text-sm text-right border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -278,7 +454,6 @@ function SchemesSection() {
             ))}
           </div>
         ))}
-        {/* Orphaned children (shouldn't normally exist) */}
         {schemes.filter(s => s.parentId && !schemes.find(p => p.id === s.parentId)).map(s => (
           <SchemeRow key={s.id} scheme={s} />
         ))}
@@ -298,7 +473,7 @@ export default function NeedsSettingsPage() {
         </Link>
         <div>
           <h1 className="text-lg font-bold text-stone-900">Needs Assessment Settings</h1>
-          <p className="text-xs text-stone-400">Configure target formulas and tracked entitlement schemes.</p>
+          <p className="text-xs text-stone-400">Configure target formulas, add new need types, and manage entitlement schemes.</p>
         </div>
       </div>
 

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 // Shared helper — also used by cluster-needs and zone-needs
 export function calcTargets(
   pop: { totalHouseholds: number; children6m3yr: number; children4to14: number; youth15to21: number; elderly60plus: number },
-  formulas: Record<string, number>
+  formulas: Record<string, number | null>
 ) {
   const ceil = (v: number, d: number) => (v > 0 ? Math.ceil(v / d) : 0);
   return {

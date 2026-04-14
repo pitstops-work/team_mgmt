@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight, ChevronDown, ClipboardList, MapPin, Building2, Layers, CheckCircle2, Clock, Home } from "lucide-react";
-import type { LevelStats, DomainStats } from "./page";
+import type { LevelStats, DomainStats, DomainConfig } from "./page";
 
 type Assessment = { id: string; assessmentYear: number; assessedAt: string; totalHouseholds: number };
 type Settlement = { id: string; name: string; assessments: Assessment[] };
@@ -13,19 +13,9 @@ type City = { id: string; name: string; zones: Zone[] };
 
 type ViewLevel = "city" | "zone" | "cluster" | "settlement";
 
-const DOMAINS: { key: keyof DomainStats; label: string; shortLabel: string; color: string }[] = [
-  { key: "Creche",            label: "Creches",         shortLabel: "Crèche",    color: "#ec4899" },
-  { key: "ChildrenCentre",    label: "Children Ctr",    shortLabel: "Children",  color: "#f97316" },
-  { key: "YouthGroup",        label: "Youth Groups",    shortLabel: "Youth",     color: "#8b5cf6" },
-  { key: "ElderlyKitchen",    label: "Elderly Kitchen", shortLabel: "Elderly",   color: "#10b981" },
-  { key: "PalliativeSupport", label: "Palliative",      shortLabel: "Palliative",color: "#6366f1" },
-  { key: "CommunityToilet",   label: "Toilets",         shortLabel: "Toilet",    color: "#0ea5e9" },
-  { key: "WaterATM",          label: "Water ATMs",      shortLabel: "Water",     color: "#14b8a6" },
-];
-
 // ── Domain card for overview grid ─────────────────────────────────────────────
 
-function DomainCard({ label, color, d }: { label: string; color: string; d: LevelStats["domains"][keyof DomainStats] }) {
+function DomainCard({ label, color, d }: { label: string; color: string; d: LevelStats["domains"][string] }) {
   const pct = d.apfTarget > 0 ? Math.min(100, Math.round((d.done / d.apfTarget) * 100)) : d.done > 0 ? 100 : 0;
   return (
     <div className="rounded-xl border border-stone-100 p-3 space-y-2">
@@ -63,7 +53,7 @@ function DomainCard({ label, color, d }: { label: string; color: string; d: Leve
 
 // ── Inline mini bar for table rows ────────────────────────────────────────────
 
-function MiniBar({ d, color }: { d: LevelStats["domains"][keyof DomainStats]; color: string }) {
+function MiniBar({ d, color }: { d: LevelStats["domains"][string]; color: string }) {
   if (d.apfTarget === 0 && d.done === 0) return <span className="text-[10px] text-stone-300">—</span>;
   const pct = d.apfTarget > 0 ? Math.min(100, Math.round((d.done / d.apfTarget) * 100)) : 100;
   return (
@@ -80,7 +70,7 @@ function MiniBar({ d, color }: { d: LevelStats["domains"][keyof DomainStats]; co
 
 // ── Domain table: domain rows with target/done/gap columns ───────────────────
 
-function DomainTable({ domains }: { domains: DomainStats }) {
+function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainConfigs: DomainConfig[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -95,11 +85,12 @@ function DomainTable({ domains }: { domains: DomainStats }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-stone-50">
-          {DOMAINS.map(({ key, label, color }) => {
-            const d = domains[key];
+          {domainConfigs.map(({ domain, label, color }) => {
+            const d = domains[domain];
+            if (!d) return null;
             const pct = d.apfTarget > 0 ? Math.min(100, Math.round((d.done / d.apfTarget) * 100)) : d.done > 0 ? 100 : 0;
             return (
-              <tr key={key}>
+              <tr key={domain}>
                 <td className="py-2 pr-3">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
@@ -132,11 +123,12 @@ function DomainTable({ domains }: { domains: DomainStats }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function NeedsDashboard({
-  cities, totalSettlements, cityStats, zoneStats, clusterStats, settlementStats,
+  cities, totalSettlements, domainConfigs, cityStats, zoneStats, clusterStats, settlementStats,
 }: {
   cities: City[];
   currentUserId: string;
   totalSettlements: number;
+  domainConfigs: DomainConfig[];
   cityStats: LevelStats;
   zoneStats: Record<string, { name: string; cityName: string; stats: LevelStats }>;
   clusterStats: Record<string, { name: string; zoneName: string; cityName: string; stats: LevelStats }>;
@@ -202,13 +194,13 @@ export default function NeedsDashboard({
           {cityStats.assessedCount > 0 && (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {DOMAINS.map(({ key, label, color }) => (
-                  <DomainCard key={key} label={label} color={color} d={cityStats.domains[key]} />
+                {domainConfigs.map(({ domain, label, color }) => (
+                  <DomainCard key={domain} label={label} color={color} d={cityStats.domains[domain]} />
                 ))}
               </div>
               <div className="border border-stone-200 rounded-xl p-4">
                 <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Full breakdown</p>
-                <DomainTable domains={cityStats.domains} />
+                <DomainTable domains={cityStats.domains} domainConfigs={domainConfigs} />
               </div>
             </>
           )}
@@ -241,15 +233,15 @@ export default function NeedsDashboard({
                     <span className="text-xs text-stone-400">{z.stats.assessedCount}/{z.stats.totalCount} assessed</span>
                     {z.stats.totalHH > 0 && <span className="text-xs text-stone-400">{z.stats.totalHH.toLocaleString()} HH</span>}
                     <div className="flex gap-1">
-                      {DOMAINS.map(({ key, color }) => (
-                        <MiniBar key={key} d={z.stats.domains[key]} color={color} />
+                      {domainConfigs.map(({ domain, color }) => (
+                        <MiniBar key={domain} d={z.stats.domains[domain]} color={color} />
                       ))}
                     </div>
                   </div>
                 </button>
                 {isOpen && z.stats.assessedCount > 0 && (
                   <div className="px-4 py-4 border-t border-stone-100">
-                    <DomainTable domains={z.stats.domains} />
+                    <DomainTable domains={z.stats.domains} domainConfigs={domainConfigs} />
                   </div>
                 )}
                 {isOpen && z.stats.assessedCount === 0 && (
@@ -284,15 +276,15 @@ export default function NeedsDashboard({
                     <span className="text-xs text-stone-400">{cl.stats.assessedCount}/{cl.stats.totalCount} assessed</span>
                     {cl.stats.totalHH > 0 && <span className="text-xs text-stone-400">{cl.stats.totalHH.toLocaleString()} HH</span>}
                     <div className="flex gap-1">
-                      {DOMAINS.map(({ key, color }) => (
-                        <MiniBar key={key} d={cl.stats.domains[key]} color={color} />
+                      {domainConfigs.map(({ domain, color }) => (
+                        <MiniBar key={domain} d={cl.stats.domains[domain]} color={color} />
                       ))}
                     </div>
                   </div>
                 </button>
                 {isOpen && cl.stats.assessedCount > 0 && (
                   <div className="px-4 py-4 border-t border-stone-100">
-                    <DomainTable domains={cl.stats.domains} />
+                    <DomainTable domains={cl.stats.domains} domainConfigs={domainConfigs} />
                   </div>
                 )}
                 {isOpen && cl.stats.assessedCount === 0 && (
@@ -308,11 +300,16 @@ export default function NeedsDashboard({
       {view === "settlement" && (
         <div className="space-y-1">
           {/* Table header */}
-          <div className="hidden sm:grid grid-cols-[2fr_1fr_repeat(7,_minmax(0,_1fr))] gap-2 px-4 py-2 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-200">
+          <div
+            className="hidden sm:grid gap-2 px-4 py-2 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-200"
+            style={{ gridTemplateColumns: `2fr 1fr repeat(${domainConfigs.length}, minmax(0, 1fr))` }}
+          >
             <span>Settlement</span>
             <span>HH</span>
-            {DOMAINS.map(d => (
-              <span key={d.key} className="text-center truncate" style={{ color: d.color }}>{d.shortLabel}</span>
+            {domainConfigs.map(d => (
+              <span key={d.domain} className="text-center truncate" style={{ color: d.color }} title={d.label}>
+                {d.label.split(" ")[0]}
+              </span>
             ))}
           </div>
 
@@ -326,7 +323,8 @@ export default function NeedsDashboard({
                     <Link
                       key={s.id}
                       href={`/needs/settlement/${s.id}`}
-                      className="flex sm:grid sm:grid-cols-[2fr_1fr_repeat(7,_minmax(0,_1fr))] gap-2 items-center px-4 py-2.5 hover:bg-sky-50 transition-colors group rounded-lg"
+                      className="flex sm:grid gap-2 items-center px-4 py-2.5 hover:bg-sky-50 transition-colors group rounded-lg"
+                      style={{ gridTemplateColumns: `2fr 1fr repeat(${domainConfigs.length}, minmax(0, 1fr))` }}
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -348,13 +346,13 @@ export default function NeedsDashboard({
                           </div>
                         )}
                       </div>
-                      {assessed && ss && DOMAINS.map(({ key, color }) => (
-                        <div key={key} className="hidden sm:block">
-                          <MiniBar d={ss.stats.domains[key]} color={color} />
+                      {assessed && ss && domainConfigs.map(({ domain, color }) => (
+                        <div key={domain} className="hidden sm:block">
+                          <MiniBar d={ss.stats.domains[domain]} color={color} />
                         </div>
                       ))}
-                      {(!assessed || !ss) && DOMAINS.map(({ key }) => (
-                        <div key={key} className="hidden sm:block" />
+                      {(!assessed || !ss) && domainConfigs.map(({ domain }) => (
+                        <div key={domain} className="hidden sm:block" />
                       ))}
                     </Link>
                   );

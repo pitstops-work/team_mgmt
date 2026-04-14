@@ -1,8 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { NeedsDomain } from "@/app/generated/prisma/enums";
-
 // GET /api/needs/actuals?settlementId=x | clusterId=x | zoneId=x
 // Returns actuals per domain, computed from goals tagged with needsDomain + geography
 export async function GET(req: NextRequest) {
@@ -88,7 +86,9 @@ export async function GET(req: NextRequest) {
   // Aggregate per domain: Done goals use parameter, InProgress use metric.current
   const domainMap: Record<string, { done: number; inProgress: number }> = {};
 
-  for (const domain of Object.values(NeedsDomain) as string[]) {
+  // Pre-initialise all active domains so callers always get a full map
+  const activeDomains = await prisma.needsFormulaConfig.findMany({ where: { isActive: true }, select: { domain: true } });
+  for (const { domain } of activeDomains) {
     domainMap[domain] = { done: 0, inProgress: 0 };
   }
 

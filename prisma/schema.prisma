@@ -106,7 +106,7 @@ model Goal {
   updatedAt   DateTime    @updatedAt
 
   // Needs assessment linkage
-  needsDomain       NeedsDomain?
+  needsDomain       String?
   parameter         Float?        // headline number this goal contributes when Done
   needsSettlementId String?
   needsClusterId    String?
@@ -1015,23 +1015,21 @@ model MapPolygon {
 
 // ── Needs Assessment ──────────────────────────────────────────────────────────
 
-enum NeedsDomain {
-  Creche
-  ChildrenCentre
-  YouthGroup
-  ElderlyKitchen
-  PalliativeSupport
-  CommunityToilet
-  WaterATM
-  Entitlement
-}
+// NeedsDomain is no longer an enum — domain keys are stored as plain strings
+// and configured via NeedsFormulaConfig (admin-editable from /settings/needs)
 
 // Admin-configurable formula denominators per domain
 model NeedsFormulaConfig {
-  domain      NeedsDomain @id
-  denominator Int         @default(1)
-  description String?
-  updatedAt   DateTime    @updatedAt
+  domain          String   @id
+  denominator     Float?
+  description     String?
+  label           String?
+  color           String   @default("#6b7280")
+  domainType      String   @default("count")   // "count" | "boolean"
+  populationField String?                       // "totalHouseholds" | "children6m3yr" | "youth15to21" | "elderly60plus" etc.
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
 }
 
 // Entitlement schemes (hierarchical — BoCW parent + 14 children)
@@ -1066,13 +1064,17 @@ model SettlementAssessment {
   elderly60plus   Int @default(0)
 
   // Existing infrastructure (gap = target − existing − apf_actuals)
-  existingCreches           Int @default(0)
-  existingChildrenCentres   Int @default(0)
-  existingYouthGroups       Int @default(0)
-  existingElderlyKitchens   Int @default(0)
-  existingPalliativeUnits   Int @default(0)
-  existingCommunityToilets  Int @default(0)
-  existingWaterATMs         Int @default(0)
+  existingCreches                Int @default(0)
+  existingChildrenCentres        Int @default(0)
+  existingYouthGroups            Int @default(0)
+  existingYouthResourceCentres   Int @default(0)
+  existingElderlyKitchens        Int @default(0)
+  existingElderlyCentres         Int @default(0)
+  existingPalliativeUnits        Int @default(0)
+  existingPalliativeCareServices Int @default(0)
+  existingReferralSystems        Int @default(0)
+  existingCommunityToilets       Int @default(0)
+  existingWaterATMs              Int @default(0)
 
   // Settlement profile (Section 2)
   settlementType    String?

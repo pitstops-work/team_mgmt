@@ -12,7 +12,15 @@ import {
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type Scheme = { id: string; name: string; parentId: string | null; sortOrder: number };
-type FormulaConfig = { domain: string; denominator: number; description: string };
+type FormulaConfig = {
+  domain: string;
+  denominator: number | null;
+  description: string | null;
+  label: string | null;
+  color: string | null;
+  domainType: string | null;
+  populationField: string | null;
+};
 type GoalActual = { id: string; status: string; title: string; needsDomain: string; parameter: number | null; metrics: { current: number }[] };
 
 type Assessment = {
@@ -28,8 +36,12 @@ type Assessment = {
   existingCreches: number;
   existingChildrenCentres: number;
   existingYouthGroups: number;
+  existingYouthResourceCentres: number;
   existingElderlyKitchens: number;
+  existingElderlyCentres: number;
   existingPalliativeUnits: number;
+  existingPalliativeCareServices: number;
+  existingReferralSystems: number;
   existingCommunityToilets: number;
   existingWaterATMs: number;
   settlementType: string | null;
@@ -202,8 +214,12 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
       existingCreches: a.existingCreches,
       existingChildrenCentres: a.existingChildrenCentres,
       existingYouthGroups: a.existingYouthGroups,
+      existingYouthResourceCentres: a.existingYouthResourceCentres,
       existingElderlyKitchens: a.existingElderlyKitchens,
+      existingElderlyCentres: a.existingElderlyCentres,
       existingPalliativeUnits: a.existingPalliativeUnits,
+      existingPalliativeCareServices: a.existingPalliativeCareServices,
+      existingReferralSystems: a.existingReferralSystems,
       existingCommunityToilets: a.existingCommunityToilets,
       existingWaterATMs: a.existingWaterATMs,
     });
@@ -316,13 +332,17 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
 
   // Existing infrastructure
   const [existing, setExisting] = useState({
-    existingCreches: latest?.existingCreches ?? 0,
-    existingChildrenCentres: latest?.existingChildrenCentres ?? 0,
-    existingYouthGroups: latest?.existingYouthGroups ?? 0,
-    existingElderlyKitchens: latest?.existingElderlyKitchens ?? 0,
-    existingPalliativeUnits: latest?.existingPalliativeUnits ?? 0,
-    existingCommunityToilets: latest?.existingCommunityToilets ?? 0,
-    existingWaterATMs: latest?.existingWaterATMs ?? 0,
+    existingCreches:               latest?.existingCreches               ?? 0,
+    existingChildrenCentres:       latest?.existingChildrenCentres       ?? 0,
+    existingYouthGroups:           latest?.existingYouthGroups           ?? 0,
+    existingYouthResourceCentres:  latest?.existingYouthResourceCentres  ?? 0,
+    existingElderlyKitchens:       latest?.existingElderlyKitchens       ?? 0,
+    existingElderlyCentres:        latest?.existingElderlyCentres        ?? 0,
+    existingPalliativeUnits:       latest?.existingPalliativeUnits       ?? 0,
+    existingPalliativeCareServices:latest?.existingPalliativeCareServices ?? 0,
+    existingReferralSystems:       latest?.existingReferralSystems       ?? 0,
+    existingCommunityToilets:      latest?.existingCommunityToilets      ?? 0,
+    existingWaterATMs:             latest?.existingWaterATMs             ?? 0,
   });
 
   // Profile
@@ -467,26 +487,43 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
     return init;
   });
 
-  // ── Calculated targets ──────────────────────────────────────────────────────
-  const targets = {
-    Creche: calcTarget(pop.children6m3yr, formulaMap["Creche"] ?? 20),
-    ChildrenCentre: calcTarget(pop.children4to14, formulaMap["ChildrenCentre"] ?? 500),
-    YouthGroup: calcTarget(pop.youth15to21, formulaMap["YouthGroup"] ?? 30),
-    ElderlyKitchen: calcTarget(pop.elderly60plus, formulaMap["ElderlyKitchen"] ?? 50),
-    PalliativeSupport: calcTarget(pop.elderly60plus, formulaMap["PalliativeSupport"] ?? 100),
-    CommunityToilet: calcTarget(pop.totalHouseholds, formulaMap["CommunityToilet"] ?? 200),
-    WaterATM: calcTarget(pop.totalHouseholds, formulaMap["WaterATM"] ?? 250),
+  // ── Calculated targets (dynamic, driven by formula configs) ────────────────
+  const POP_MAP: Record<string, number> = {
+    children6m3yr:   pop.children6m3yr,
+    children4to14:   pop.children4to14,
+    youth15to21:     pop.youth15to21,
+    elderly60plus:   pop.elderly60plus,
+    totalHouseholds: pop.totalHouseholds,
   };
 
-  const apfTargets = {
-    Creche: Math.max(0, targets.Creche - existing.existingCreches),
-    ChildrenCentre: Math.max(0, targets.ChildrenCentre - existing.existingChildrenCentres),
-    YouthGroup: Math.max(0, targets.YouthGroup - existing.existingYouthGroups),
-    ElderlyKitchen: Math.max(0, targets.ElderlyKitchen - existing.existingElderlyKitchens),
-    PalliativeSupport: Math.max(0, targets.PalliativeSupport - existing.existingPalliativeUnits),
-    CommunityToilet: Math.max(0, targets.CommunityToilet - existing.existingCommunityToilets),
-    WaterATM: Math.max(0, targets.WaterATM - existing.existingWaterATMs),
+  const EXISTING_MAP: Record<string, number> = {
+    Creche:               existing.existingCreches,
+    ChildrenCentre:       existing.existingChildrenCentres,
+    YouthGroup:           existing.existingYouthGroups,
+    YouthResourceCentre:  existing.existingYouthResourceCentres,
+    ElderlyKitchen:       existing.existingElderlyKitchens,
+    ElderlyCentre:        existing.existingElderlyCentres,
+    PalliativeSupport:    existing.existingPalliativeUnits,
+    PalliativeCareService:existing.existingPalliativeCareServices,
+    ReferralSystem:       existing.existingReferralSystems,
+    CommunityToilet:      existing.existingCommunityToilets,
+    WaterATM:             existing.existingWaterATMs,
   };
+
+  const targets: Record<string, number> = {};
+  const apfTargets: Record<string, number> = {};
+  for (const f of formulas) {
+    let t = 0;
+    if (f.domainType === "boolean") {
+      const popVal = f.populationField ? (POP_MAP[f.populationField] ?? 0) : pop.totalHouseholds;
+      t = popVal > 0 ? 1 : 0;
+    } else if (f.populationField && f.denominator) {
+      const popVal = POP_MAP[f.populationField] ?? 0;
+      t = calcTarget(popVal, f.denominator);
+    }
+    targets[f.domain] = t;
+    apfTargets[f.domain] = Math.max(0, t - (EXISTING_MAP[f.domain] ?? 0));
+  }
 
   // ── Scheme hierarchy ────────────────────────────────────────────────────────
   const parentSchemes = schemes.filter(s => !s.parentId);
@@ -662,21 +699,13 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
             <span className="w-16 text-center">In Progress</span>
             <span className="flex-1 text-right">Gap</span>
           </div>
-          {[
-            { key: "Creche", label: "Creches", existingKey: "existingCreches" as const },
-            { key: "ChildrenCentre", label: "Children Centres", existingKey: "existingChildrenCentres" as const },
-            { key: "YouthGroup", label: "Youth Groups", existingKey: "existingYouthGroups" as const },
-            { key: "ElderlyKitchen", label: "Elderly Kitchens", existingKey: "existingElderlyKitchens" as const },
-            { key: "PalliativeSupport", label: "Palliative Units", existingKey: "existingPalliativeUnits" as const },
-            { key: "CommunityToilet", label: "Community Toilets", existingKey: "existingCommunityToilets" as const },
-            { key: "WaterATM", label: "Water ATMs", existingKey: "existingWaterATMs" as const },
-          ].map(row => {
-            const actuals = domainActual(goals, row.key);
+          {formulas.map(f => {
+            const actuals = domainActual(goals, f.domain);
             return (
-              <NeedsRow key={row.key}
-                label={row.label}
-                existing={existing[row.existingKey]}
-                apfTarget={apfTargets[row.key as keyof typeof apfTargets]}
+              <NeedsRow key={f.domain}
+                label={f.label ?? f.domain}
+                existing={EXISTING_MAP[f.domain] ?? 0}
+                apfTarget={apfTargets[f.domain] ?? 0}
                 done={actuals.done}
                 inProgress={actuals.inProgress}
               />
@@ -700,7 +729,9 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
           <div className="mt-3 p-3 bg-sky-50 rounded-lg text-xs text-sky-700 space-y-1">
             <p className="font-medium text-sky-800">Calculated total targets</p>
             <div className="grid grid-cols-3 gap-1">
-              {Object.entries(targets).map(([k, v]) => <span key={k}>{k.replace(/([A-Z])/g, ' $1').trim()}: <strong>{v}</strong></span>)}
+              {formulas.map(f => (
+                <span key={f.domain}>{f.label ?? f.domain}: <strong>{targets[f.domain] ?? 0}</strong></span>
+              ))}
             </div>
           </div>
         </Section>
@@ -712,8 +743,24 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
             <Field label="Existing Creches"><NumInput value={existing.existingCreches} onChange={v => setExisting(e => ({ ...e, existingCreches: v }))} /></Field>
             <Field label="Existing Children Centres"><NumInput value={existing.existingChildrenCentres} onChange={v => setExisting(e => ({ ...e, existingChildrenCentres: v }))} /></Field>
             <Field label="Existing Youth Groups"><NumInput value={existing.existingYouthGroups} onChange={v => setExisting(e => ({ ...e, existingYouthGroups: v }))} /></Field>
+            <Field label="Existing Youth Resource Centres"><NumInput value={existing.existingYouthResourceCentres} onChange={v => setExisting(e => ({ ...e, existingYouthResourceCentres: v }))} /></Field>
             <Field label="Existing Elderly Kitchens"><NumInput value={existing.existingElderlyKitchens} onChange={v => setExisting(e => ({ ...e, existingElderlyKitchens: v }))} /></Field>
+            <Field label="Existing Elderly Centres"><NumInput value={existing.existingElderlyCentres} onChange={v => setExisting(e => ({ ...e, existingElderlyCentres: v }))} /></Field>
             <Field label="Existing Palliative Units"><NumInput value={existing.existingPalliativeUnits} onChange={v => setExisting(e => ({ ...e, existingPalliativeUnits: v }))} /></Field>
+            <Field label="Palliative Care Service">
+              <Toggle
+                label={existing.existingPalliativeCareServices > 0 ? "Has palliative care service" : "No palliative care service"}
+                value={existing.existingPalliativeCareServices > 0}
+                onChange={v => setExisting(e => ({ ...e, existingPalliativeCareServices: v ? 1 : 0 }))}
+              />
+            </Field>
+            <Field label="Referral System (elderly)">
+              <Toggle
+                label={existing.existingReferralSystems > 0 ? "Has referral system" : "No referral system"}
+                value={existing.existingReferralSystems > 0}
+                onChange={v => setExisting(e => ({ ...e, existingReferralSystems: v ? 1 : 0 }))}
+              />
+            </Field>
             <Field label="Existing Community Toilets"><NumInput value={existing.existingCommunityToilets} onChange={v => setExisting(e => ({ ...e, existingCommunityToilets: v }))} /></Field>
             <Field label="Existing Water ATMs"><NumInput value={existing.existingWaterATMs} onChange={v => setExisting(e => ({ ...e, existingWaterATMs: v }))} /></Field>
           </div>
