@@ -6,7 +6,15 @@ export default async function NotificationsRoute() {
   const session = await auth();
 
   const notifications = await prisma.notification.findMany({
-    where: { userId: session!.user!.id! },
+    where: {
+      userId: session!.user!.id!,
+      NOT: {
+        AND: [
+          { read: true },
+          { type: { in: ["ActivityFollowup", "ActivityMorningNudge"] } },
+        ],
+      },
+    },
     orderBy: { createdAt: "desc" },
     take: 50,
   });

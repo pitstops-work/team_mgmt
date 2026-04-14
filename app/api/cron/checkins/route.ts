@@ -73,6 +73,10 @@ export async function GET(req: NextRequest) {
     }
 
     const daysSinceStart = daysBetween(start, today);
+
+    // Skip pitstops that haven't started yet
+    if (daysSinceStart < 0) continue;
+
     const daysSinceUpdate = daysBetween(lastUpdate, today);
 
     // Condition: no update since start OR last update > half-duration ago

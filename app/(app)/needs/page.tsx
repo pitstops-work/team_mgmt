@@ -12,6 +12,7 @@ export interface DomainConfig {
   populationField: string | null;
   denominator: number | null;
   sortOrder: number;
+  clusterScope: boolean;       // if true, viability minimum is at cluster level, not per-settlement
 }
 
 export interface DomainSummary {
@@ -88,15 +89,18 @@ function formulaTarget(pop: PopFields, cfg: DomainConfig): number {
 }
 
 // ── Aggregate stats for a set of assessments + goals ────────────────────────
-// Targets are computed PER assessment then summed — this ensures boolean domains
-// count correctly at zone/cluster/city level, and count domains respect the
-// per-settlement viability threshold.
+// Settlement-scoped domains: targets computed PER assessment then summed.
+// Cluster-scoped domains (ElderlyCentre, YouthResourceCentre): target computed
+//   from TOTAL population across all assessments — viability check at group level.
+//   At zone/city level callers pass pre-computed cluster targets as overrides
+//   so we never apply the formula to zone/city totals (which would be wrong).
 
 function computeStats(
   assessments: AssessmentRow[],
   goals: GoalRow[],
   domainConfigs: DomainConfig[],
   totalCount: number,
+  clusterScopedOverrides?: Record<string, number>, // pre-computed targets for cluster-scoped domains
 ): LevelStats {
   const totalHH = assessments.reduce((s, a) => s + (Number(a.totalHouseholds) || 0), 0);
 
@@ -105,7 +109,10 @@ function computeStats(
   const existing:  Record<string, number> = {};
   for (const cfg of domainConfigs) { targetSum[cfg.domain] = 0; existing[cfg.domain] = 0; }
 
-  // Per-assessment: compute target + sum existing
+  // Accumulate total pop (needed for cluster-scoped domains when no override provided)
+  const totalPop: PopFields = { totalHouseholds: 0, children6m3yr: 0, children4to14: 0, youth15to21: 0, elderly60plus: 0 };
+
+  // Per-assessment: compute target for non-cluster-scoped + sum existing for all
   for (const a of assessments) {
     const pop: PopFields = {
       totalHouseholds: Number(a.totalHouseholds) || 0,
@@ -114,11 +121,23 @@ function computeStats(
       youth15to21:     Number(a.youth15to21)     || 0,
       elderly60plus:   Number(a.elderly60plus)   || 0,
     };
+    totalPop.totalHouseholds += pop.totalHouseholds;
+    totalPop.children6m3yr   += pop.children6m3yr;
+    totalPop.children4to14   += pop.children4to14;
+    totalPop.youth15to21     += pop.youth15to21;
+    totalPop.elderly60plus   += pop.elderly60plus;
     for (const cfg of domainConfigs) {
-      targetSum[cfg.domain] += formulaTarget(pop, cfg);
+      if (!cfg.clusterScope) targetSum[cfg.domain] += formulaTarget(pop, cfg);
       const col = EXISTING_FIELD_MAP[cfg.domain];
       if (col) existing[cfg.domain] += Number(a[col]) || 0;
     }
+  }
+
+  // Cluster-scoped domains: use override (zone/city) or total pop (cluster call)
+  for (const cfg of domainConfigs.filter(d => d.clusterScope)) {
+    targetSum[cfg.domain] = clusterScopedOverrides !== undefined
+      ? (clusterScopedOverrides[cfg.domain] ?? 0)
+      : formulaTarget(totalPop, cfg);
   }
 
   // Aggregate goal actuals per domain
@@ -236,7 +255,10 @@ export default async function NeedsPage() {
     populationField:f.populationField ?? null,
     denominator:    f.denominator ?? null,
     sortOrder:      f.sortOrder ?? 0,
+    clusterScope:   f.clusterScope ?? false,
   }));
+
+  const clusterScopedDomains = domainConfigs.filter(d => d.clusterScope);
 
   const assessmentBySettlement = Object.fromEntries(latestAssessments.map(a => [a.settlementId, a]));
 
@@ -259,46 +281,8 @@ export default async function NeedsPage() {
 
   const allSettlements = cities.flatMap(c => c.zones.flatMap(z => z.clusters.flatMap(cl => cl.settlements)));
 
-  // City-wide stats
-  const cityStats = computeStats(latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length);
-
-  // Per-city stats (for city toggle)
-  const cityStatsMap: Record<string, { name: string; stats: LevelStats }> = {};
-  for (const city of cities) {
-    const cityZoneIds = new Set(city.zones.map(z => z.id));
-    const citySettlements = city.zones.flatMap(z => z.clusters.flatMap(c => c.settlements));
-    const cityAssessments = citySettlements.map(s => assessmentBySettlement[s.id]).filter(Boolean) as unknown as AssessmentRow[];
-    const cityGoals = goals.filter(g =>
-      (g.needsZoneId        && cityZoneIds.has(g.needsZoneId)) ||
-      (g.needsClusterId     && cityZoneIds.has(clusterToZone[g.needsClusterId])) ||
-      (g.needsSettlementId  && cityZoneIds.has(settlementToZone[g.needsSettlementId]))
-    );
-    cityStatsMap[city.id] = {
-      name: city.name,
-      stats: computeStats(cityAssessments, cityGoals, domainConfigs, citySettlements.length),
-    };
-  }
-
-  // Per-zone stats
-  const zoneStatsMap: Record<string, { name: string; cityName: string; stats: LevelStats }> = {};
-  for (const city of cities) {
-    for (const zone of city.zones) {
-      const zoneSettlements = zone.clusters.flatMap(c => c.settlements);
-      const zoneAssessments = zoneSettlements.map(s => assessmentBySettlement[s.id]).filter(Boolean) as unknown as AssessmentRow[];
-      const zoneGoals = goals.filter(g =>
-        g.needsZoneId === zone.id ||
-        (g.needsClusterId && clusterToZone[g.needsClusterId] === zone.id) ||
-        (g.needsSettlementId && settlementToZone[g.needsSettlementId] === zone.id)
-      );
-      zoneStatsMap[zone.id] = {
-        name: zone.name,
-        cityName: city.name,
-        stats: computeStats(zoneAssessments, zoneGoals, domainConfigs, zoneSettlements.length),
-      };
-    }
-  }
-
-  // Per-cluster stats
+  // ── Per-cluster stats (computed first — zone/city/settlement reference these) ──
+  // cluster-scoped domains use total cluster pop (correct at this level)
   const clusterStatsMap: Record<string, { name: string; zoneName: string; cityName: string; stats: LevelStats }> = {};
   for (const city of cities) {
     for (const zone of city.zones) {
@@ -318,20 +302,108 @@ export default async function NeedsPage() {
     }
   }
 
-  // Per-settlement stats
+  // Helper: build cluster-scoped override targets for a set of clusters
+  // (sums cluster targets — avoids applying formula to zone/city totals which is wrong)
+  function clusterScopedSum(clusterIds: string[]): Record<string, number> {
+    const overrides: Record<string, number> = {};
+    for (const cfg of clusterScopedDomains) {
+      overrides[cfg.domain] = clusterIds.reduce((sum, cid) => {
+        return sum + (clusterStatsMap[cid]?.stats.domains[cfg.domain]?.target ?? 0);
+      }, 0);
+    }
+    return overrides;
+  }
+
+  // ── Per-zone stats ──
+  const zoneStatsMap: Record<string, { name: string; cityName: string; stats: LevelStats }> = {};
+  for (const city of cities) {
+    for (const zone of city.zones) {
+      const zoneSettlements = zone.clusters.flatMap(c => c.settlements);
+      const zoneAssessments = zoneSettlements.map(s => assessmentBySettlement[s.id]).filter(Boolean) as unknown as AssessmentRow[];
+      const zoneGoals = goals.filter(g =>
+        g.needsZoneId === zone.id ||
+        (g.needsClusterId && clusterToZone[g.needsClusterId] === zone.id) ||
+        (g.needsSettlementId && settlementToZone[g.needsSettlementId] === zone.id)
+      );
+      zoneStatsMap[zone.id] = {
+        name: zone.name,
+        cityName: city.name,
+        stats: computeStats(
+          zoneAssessments, zoneGoals, domainConfigs, zoneSettlements.length,
+          clusterScopedSum(zone.clusters.map(c => c.id)),
+        ),
+      };
+    }
+  }
+
+  // ── Per-city stats (city toggle) ──
+  const cityStatsMap: Record<string, { name: string; stats: LevelStats }> = {};
+  for (const city of cities) {
+    const cityZoneIds = new Set(city.zones.map(z => z.id));
+    const cityClusterIds = city.zones.flatMap(z => z.clusters.map(c => c.id));
+    const citySettlements = city.zones.flatMap(z => z.clusters.flatMap(c => c.settlements));
+    const cityAssessments = citySettlements.map(s => assessmentBySettlement[s.id]).filter(Boolean) as unknown as AssessmentRow[];
+    const cityGoals = goals.filter(g =>
+      (g.needsZoneId        && cityZoneIds.has(g.needsZoneId)) ||
+      (g.needsClusterId     && cityZoneIds.has(clusterToZone[g.needsClusterId])) ||
+      (g.needsSettlementId  && cityZoneIds.has(settlementToZone[g.needsSettlementId]))
+    );
+    cityStatsMap[city.id] = {
+      name: city.name,
+      stats: computeStats(
+        cityAssessments, cityGoals, domainConfigs, citySettlements.length,
+        clusterScopedSum(cityClusterIds),
+      ),
+    };
+  }
+
+  // ── City-wide stats (all cities combined) ──
+  const allClusterIds = cities.flatMap(c => c.zones.flatMap(z => z.clusters.map(cl => cl.id)));
+  const cityStats = computeStats(
+    latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length,
+    clusterScopedSum(allClusterIds),
+  );
+
+  // ── Per-settlement stats ──
+  // cluster-scoped domains: assign cluster target to the top-population settlement;
+  // all other settlements in that cluster get 0 for those domains.
   const settlementStatsMap: Record<string, { name: string; clusterName: string; zoneName: string; stats: LevelStats }> = {};
   for (const city of cities) {
     for (const zone of city.zones) {
       for (const cluster of zone.clusters) {
+        // For each cluster-scoped domain, find the settlement with the highest relevant pop
+        const topSettlement: Record<string, string> = {}; // domain → settlementId
+        for (const cfg of clusterScopedDomains) {
+          if (!cfg.populationField) continue;
+          let maxPop = -1;
+          let topId = "";
+          for (const s of cluster.settlements) {
+            const a = assessmentBySettlement[s.id];
+            if (!a) continue;
+            const pop = Number((a as AssessmentRow)[cfg.populationField]) || 0;
+            if (pop > maxPop) { maxPop = pop; topId = s.id; }
+          }
+          if (topId) topSettlement[cfg.domain] = topId;
+        }
+
         for (const s of cluster.settlements) {
           const a = assessmentBySettlement[s.id];
           const sGoals = goals.filter(g => g.needsSettlementId === s.id);
-          settlementStatsMap[s.id] = {
-            name: s.name,
-            clusterName: cluster.name,
-            zoneName: zone.name,
-            stats: computeStats(a ? [a as unknown as AssessmentRow] : [], sGoals, domainConfigs, 1),
-          };
+          const stats = computeStats(a ? [a as unknown as AssessmentRow] : [], sGoals, domainConfigs, 1);
+
+          // Override cluster-scoped domain targets for this settlement
+          for (const cfg of clusterScopedDomains) {
+            const clusterTarget = clusterStatsMap[cluster.id]?.stats.domains[cfg.domain]?.target ?? 0;
+            const isTop = topSettlement[cfg.domain] === s.id;
+            const assignedTarget = isTop ? clusterTarget : 0;
+            const ex = stats.domains[cfg.domain]?.existing ?? 0;
+            const done = stats.domains[cfg.domain]?.done ?? 0;
+            const inProg = stats.domains[cfg.domain]?.inProgress ?? 0;
+            const apfTarget = Math.max(0, assignedTarget - ex);
+            stats.domains[cfg.domain] = { target: assignedTarget, existing: ex, apfTarget, done, inProgress: inProg, gap: Math.max(0, apfTarget - done) };
+          }
+
+          settlementStatsMap[s.id] = { name: s.name, clusterName: cluster.name, zoneName: zone.name, stats };
         }
       }
     }

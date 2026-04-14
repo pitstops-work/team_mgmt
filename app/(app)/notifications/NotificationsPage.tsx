@@ -164,7 +164,13 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
                   <p className={`text-sm font-medium ${n.read ? "text-stone-600" : "text-stone-900"}`}>{n.title}</p>
                   {n.body && <p className="text-xs text-stone-500 mt-0.5">{n.body}</p>}
                   {isFollowup && eventId && (
-                    <ActivityFollowupActions eventId={eventId} onResponded={() => markRead(n.id)} />
+                    <ActivityFollowupActions
+                      eventId={eventId}
+                      onResponded={() => {
+                        fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+                        setNotifications((ns) => ns.filter((x) => x.id !== n.id));
+                      }}
+                    />
                   )}
                 </div>
                 {!n.read && (
