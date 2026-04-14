@@ -34,6 +34,9 @@ interface RawGeo {
   settlements: { id: string; name: string; clusterId: string }[];
 }
 
+// cityId is kept in state (not derived) so the city filter persists after zone is reset
+type GeoVal = { cityId: string; zoneId: string; clusterId: string; settlementId: string };
+
 interface NeedsState {
   needsDomain: NeedsDomain | null;
   parameter: number | null;
@@ -47,20 +50,13 @@ interface NeedsState {
 
 // ── Cascading geo picker ───────────────────────────────────────────────────────
 
-function GeoPicker({
-  geo,
-  value, // { zoneId, clusterId, settlementId }
-  onChange,
-}: {
+function GeoPicker({ geo, value, onChange }: {
   geo: RawGeo;
-  value: { zoneId: string; clusterId: string; settlementId: string };
-  onChange: (update: { zoneId: string; clusterId: string; settlementId: string }) => void;
+  value: GeoVal;
+  onChange: (v: GeoVal) => void;
 }) {
-  const { zoneId, clusterId, settlementId } = value;
-
-  // Derive city from selected zone
-  const selectedZone = geo.zones.find(z => z.id === zoneId);
-  const cityId = selectedZone?.cityId ?? "";
+  const { cityId, zoneId, clusterId, settlementId } = value;
+  const sel = "w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-800";
 
   const filteredZones = cityId
     ? geo.zones.filter(z => z.cityId === cityId)
@@ -72,36 +68,14 @@ function GeoPicker({
     ? geo.settlements.filter(s => s.clusterId === clusterId)
     : geo.settlements;
 
-  const handleCityChange = (newCityId: string) => {
-    // Resetting city clears everything below
-    onChange({ zoneId: "", clusterId: "", settlementId: "" });
-    // If they picked a city, we just use it as a filter — don't store it
-    // Keep city selection in local state via the zone's cityId
-    void newCityId;
-  };
-
-  const handleZoneChange = (newZoneId: string) => {
-    onChange({ zoneId: newZoneId, clusterId: "", settlementId: "" });
-  };
-
-  const handleClusterChange = (newClusterId: string) => {
-    onChange({ zoneId, clusterId: newClusterId, settlementId: "" });
-  };
-
-  const handleSettlementChange = (newSettlementId: string) => {
-    onChange({ zoneId, clusterId, settlementId: newSettlementId });
-  };
-
-  const sel = "w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-800";
-
   return (
     <div className="space-y-1.5">
-      {/* City (filter only) */}
+      {/* City — filter only, stored in state so it persists */}
       <div>
         <label className="block text-[10px] text-stone-400 mb-0.5">City</label>
         <select
           value={cityId}
-          onChange={e => handleCityChange(e.target.value)}
+          onChange={e => onChange({ cityId: e.target.value, zoneId: "", clusterId: "", settlementId: "" })}
           className={sel}
         >
           <option value="">All cities</option>
@@ -111,8 +85,14 @@ function GeoPicker({
 
       {/* Zone */}
       <div>
-        <label className="block text-[10px] text-stone-400 mb-0.5">Zone <span className="text-stone-300">(assign here or go deeper)</span></label>
-        <select value={zoneId} onChange={e => handleZoneChange(e.target.value)} className={sel}>
+        <label className="block text-[10px] text-stone-400 mb-0.5">
+          Zone <span className="text-stone-300">(assign here or go deeper)</span>
+        </label>
+        <select
+          value={zoneId}
+          onChange={e => onChange({ cityId, zoneId: e.target.value, clusterId: "", settlementId: "" })}
+          className={sel}
+        >
           <option value="">— select zone —</option>
           {filteredZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
         </select>
@@ -121,8 +101,14 @@ function GeoPicker({
       {/* Cluster — only shown once a zone is picked */}
       {zoneId && (
         <div>
-          <label className="block text-[10px] text-stone-400 mb-0.5">Cluster <span className="text-stone-300">(optional — narrows down)</span></label>
-          <select value={clusterId} onChange={e => handleClusterChange(e.target.value)} className={sel}>
+          <label className="block text-[10px] text-stone-400 mb-0.5">
+            Cluster <span className="text-stone-300">(optional — narrows down)</span>
+          </label>
+          <select
+            value={clusterId}
+            onChange={e => onChange({ cityId, zoneId, clusterId: e.target.value, settlementId: "" })}
+            className={sel}
+          >
             <option value="">— all clusters in zone —</option>
             {filteredClusters.map(cl => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
           </select>
@@ -132,8 +118,14 @@ function GeoPicker({
       {/* Settlement — only shown once a cluster is picked */}
       {clusterId && (
         <div>
-          <label className="block text-[10px] text-stone-400 mb-0.5">Settlement <span className="text-stone-300">(optional — most specific)</span></label>
-          <select value={settlementId} onChange={e => handleSettlementChange(e.target.value)} className={sel}>
+          <label className="block text-[10px] text-stone-400 mb-0.5">
+            Settlement <span className="text-stone-300">(optional — most specific)</span>
+          </label>
+          <select
+            value={settlementId}
+            onChange={e => onChange({ cityId, zoneId, clusterId, settlementId: e.target.value })}
+            className={sel}
+          >
             <option value="">— all settlements in cluster —</option>
             {filteredSettlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
@@ -155,17 +147,51 @@ function GeoPicker({
   );
 }
 
+// ── Resolve full GeoVal from saved needs state ────────────────────────────────
+
+function resolveGeoVal(needs: NeedsState, geo: RawGeo): GeoVal {
+  if (needs.needsSettlementId) {
+    const settlement = geo.settlements.find(s => s.id === needs.needsSettlementId);
+    const cluster = settlement ? geo.clusters.find(cl => cl.id === settlement.clusterId) : undefined;
+    const zone = cluster ? geo.zones.find(z => z.id === cluster.zoneId) : undefined;
+    return {
+      cityId: zone?.cityId ?? "",
+      zoneId: cluster?.zoneId ?? "",
+      clusterId: settlement?.clusterId ?? "",
+      settlementId: needs.needsSettlementId,
+    };
+  }
+  if (needs.needsClusterId) {
+    const cluster = geo.clusters.find(cl => cl.id === needs.needsClusterId);
+    const zone = cluster ? geo.zones.find(z => z.id === cluster.zoneId) : undefined;
+    return {
+      cityId: zone?.cityId ?? "",
+      zoneId: cluster?.zoneId ?? "",
+      clusterId: needs.needsClusterId,
+      settlementId: "",
+    };
+  }
+  if (needs.needsZoneId) {
+    const zone = geo.zones.find(z => z.id === needs.needsZoneId);
+    return {
+      cityId: zone?.cityId ?? "",
+      zoneId: needs.needsZoneId,
+      clusterId: "",
+      settlementId: "",
+    };
+  }
+  return { cityId: "", zoneId: "", clusterId: "", settlementId: "" };
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function GoalNeedsSection({ goalId }: { goalId: string }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<NeedsState | null>(null);
   const [geo, setGeo] = useState<RawGeo | null>(null);
+  const [pickerVal, setPickerVal] = useState<GeoVal>({ cityId: "", zoneId: "", clusterId: "", settlementId: "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  // Local cascading picker state (derived from state on load, then controlled independently)
-  const [pickerVal, setPickerVal] = useState({ zoneId: "", clusterId: "", settlementId: "" });
 
   useEffect(() => {
     if (!open || state) return;
@@ -176,18 +202,7 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
     ]).then(([needs, geoData]: [NeedsState, RawGeo]) => {
       setState(needs);
       setGeo(geoData);
-      // Initialise picker from existing saved links
-      setPickerVal({
-        zoneId: needs.needsZoneId ?? needs.needsCluster
-          ? (geoData.clusters.find(cl => cl.id === needs.needsClusterId)?.zoneId ?? "")
-          : needs.needsSettlement
-          ? (geoData.clusters.find(cl => cl.id === geoData.settlements.find(s => s.id === needs.needsSettlementId)?.clusterId)?.zoneId ?? "")
-          : needs.needsZoneId ?? "",
-        clusterId: needs.needsClusterId
-          ?? geoData.settlements.find(s => s.id === needs.needsSettlementId)?.clusterId
-          ?? "",
-        settlementId: needs.needsSettlementId ?? "",
-      });
+      setPickerVal(resolveGeoVal(needs, geoData));
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -217,9 +232,9 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
     if (num !== state?.parameter) patch({ parameter: num });
   };
 
-  const handleGeoChange = (val: { zoneId: string; clusterId: string; settlementId: string }) => {
+  const handleGeoChange = (val: GeoVal) => {
     setPickerVal(val);
-    // Assign to the deepest non-empty level
+    // Save deepest non-empty level; clear the others
     if (val.settlementId) {
       patch({ needsSettlementId: val.settlementId, needsClusterId: null, needsZoneId: null });
     } else if (val.clusterId) {
@@ -232,7 +247,7 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
   };
 
   const handleGeoClear = () => {
-    setPickerVal({ zoneId: "", clusterId: "", settlementId: "" });
+    setPickerVal({ cityId: "", zoneId: "", clusterId: "", settlementId: "" });
     patch({ needsSettlementId: null, needsClusterId: null, needsZoneId: null });
   };
 
