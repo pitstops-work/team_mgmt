@@ -44,6 +44,12 @@ export interface CustomPolygonFeature {
   };
 }
 
+export type ProgressHealth = {
+  settlements: Record<string, string>;
+  clusters: Record<string, string>;
+  zones: Record<string, string>;
+} | null;
+
 interface MapViewProps {
   visibleLayers: Set<LayerKey>;
   onFeatureAdded: () => void;
@@ -59,6 +65,8 @@ interface MapViewProps {
   mapFilter: MapFilter | null;
   onCentreClick?: (partner: string, zone: string, cluster: string) => void;
   dbPartners?: { key: string; label: string; color: string }[];
+  progressMode?: boolean;
+  progressHealth?: ProgressHealth;
 }
 
 interface FeatureLayer {
@@ -173,11 +181,18 @@ function buildCentreLayer(
   }).addTo(group);
 }
 
+const HEALTH_COLORS: Record<string, string> = {
+  red:   "#ef4444",
+  amber: "#f59e0b",
+  green: "#10b981",
+};
+
 export default function MapView({
   visibleLayers, onFeatureAdded, customFeatures, customPolygons = [],
   activeZone, activeCluster, onSettlementClick,
   onZoneSelect, onClusterSelect, onCentreClick,
   flyToRef, openPopupRef, mapFilter, dbPartners = [],
+  progressMode = false, progressHealth = null,
 }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -187,6 +202,9 @@ export default function MapView({
   const clusterBoundaryGroupRef = useRef<L.LayerGroup | null>(null);
   const zoneBoundaryLayersRef = useRef<Map<string, L.Path>>(new Map());
   const clusterBoundaryLayersRef = useRef<Map<string, L.Path>>(new Map());
+  // Original fill colors for boundaries (needed to reset after progress mode)
+  const zoneBoundaryColorsRef = useRef<Map<string, string>>(new Map());
+  const clusterBoundaryColorsRef = useRef<Map<string, string>>(new Map());
   const allFeatureLayers = useRef<FeatureLayer[]>([]);
   const featureLayersByKey = useRef<Partial<Record<LayerKey, L.Layer[]>>>({});
 
@@ -389,6 +407,7 @@ export default function MapView({
           (layer as L.Path).on("mouseover", () => (layer as L.Path).setStyle({ fillOpacity: 0.18, weight: 3 }));
           (layer as L.Path).on("mouseout", () => (layer as L.Path).setStyle({ fillOpacity: 0.07, weight: 2.5 }));
           zoneBoundaryLayersRef.current.set(zone, layer as L.Path);
+          zoneBoundaryColorsRef.current.set(zone, feature.properties.color ?? "#64748b");
         },
       }).addTo(zoneBoundaryGroup);
     });
@@ -411,6 +430,7 @@ export default function MapView({
           (layer as L.Path).on("mouseover", () => (layer as L.Path).setStyle({ fillOpacity: 0.22, weight: 2.5 }));
           (layer as L.Path).on("mouseout", () => (layer as L.Path).setStyle({ fillOpacity: 0.09, weight: 1.8 }));
           clusterBoundaryLayersRef.current.set(cluster, layer as L.Path);
+          clusterBoundaryColorsRef.current.set(cluster, feature.properties.color ?? "#64748b");
         },
       }).addTo(clusterBoundaryGroup);
     });
@@ -435,6 +455,66 @@ export default function MapView({
     applyZoneClusterHighlight(mapFilterRef.current, visibleLayers);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleLayers]);
+
+  // ── Progress health colouring ─────────────────────────────────────────────
+  // When progressMode is on: override polygon fill with red/amber/green.
+  // When off: restore all polygons and boundaries to their original colours.
+  useEffect(() => {
+    if (!progressMode || !progressHealth) {
+      // Restore settlement polygons to their original layer colour
+      allFeatureLayers.current.forEach(({ leafletLayer, baseColor }) => {
+        leafletLayer.setStyle({ fillColor: baseColor, color: baseColor, fillOpacity: 0.25, opacity: 0.9, weight: 2 });
+      });
+      // Restore zone boundaries
+      zoneBoundaryLayersRef.current.forEach((layer, zoneName) => {
+        const orig = zoneBoundaryColorsRef.current.get(zoneName) ?? "#64748b";
+        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.07, opacity: 0.85, weight: 2.5 });
+      });
+      // Restore cluster boundaries
+      clusterBoundaryLayersRef.current.forEach((layer, clusterKey) => {
+        const orig = clusterBoundaryColorsRef.current.get(clusterKey) ?? "#64748b";
+        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.09, opacity: 0.8, weight: 1.8 });
+      });
+      return;
+    }
+
+    // Apply health colours — settlement polygons
+    allFeatureLayers.current.forEach(({ leafletLayer, props, baseColor }) => {
+      const key = (props.name ?? "").toLowerCase();
+      const health = progressHealth.settlements[key];
+      const hc = health ? HEALTH_COLORS[health] : null;
+      if (hc) {
+        leafletLayer.setStyle({ fillColor: hc, color: hc, fillOpacity: 0.5, opacity: 1, weight: 2 });
+      } else {
+        // Settlements with no goals: dim
+        leafletLayer.setStyle({ fillColor: baseColor, color: baseColor, fillOpacity: 0.1, opacity: 0.4, weight: 1 });
+      }
+    });
+
+    // Zone boundaries
+    zoneBoundaryLayersRef.current.forEach((layer, zoneName) => {
+      const health = progressHealth.zones[zoneName.toLowerCase()];
+      const hc = health ? HEALTH_COLORS[health] : null;
+      if (hc) {
+        layer.setStyle({ fillColor: hc, color: hc, fillOpacity: 0.22, opacity: 1, weight: 3 });
+      } else {
+        const orig = zoneBoundaryColorsRef.current.get(zoneName) ?? "#64748b";
+        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.05, opacity: 0.5, weight: 2 });
+      }
+    });
+
+    // Cluster boundaries
+    clusterBoundaryLayersRef.current.forEach((layer, clusterKey) => {
+      const health = progressHealth.clusters[clusterKey.toLowerCase()];
+      const hc = health ? HEALTH_COLORS[health] : null;
+      if (hc) {
+        layer.setStyle({ fillColor: hc, color: hc, fillOpacity: 0.18, opacity: 1, weight: 2.5 });
+      } else {
+        const orig = clusterBoundaryColorsRef.current.get(clusterKey) ?? "#64748b";
+        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.06, opacity: 0.5, weight: 1.5 });
+      }
+    });
+  }, [progressMode, progressHealth]);
 
   // Rebuild centre layer groups when map filter changes
   useEffect(() => {
@@ -756,6 +836,25 @@ export default function MapView({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
+
+      {/* Progress mode legend */}
+      {progressMode && (
+        <div className="absolute bottom-28 sm:bottom-6 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-xl border border-slate-200 shadow-lg px-3 py-2.5">
+          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">Goal health</p>
+          <div className="space-y-1.5">
+            {[
+              { color: "#ef4444", label: "Overdue goals" },
+              { color: "#f59e0b", label: "At risk (due <30d)" },
+              { color: "#10b981", label: "On track / done" },
+            ].map(({ color, label }) => (
+              <div key={color} className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: color }} />
+                <span className="text-[10px] text-slate-600">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bottom-right controls: boundary toggles + basemap */}
       <div className="absolute bottom-28 sm:bottom-6 right-3 z-10 flex flex-col gap-1.5 items-end">

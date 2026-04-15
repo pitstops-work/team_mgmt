@@ -63,6 +63,12 @@ export default function MapDashboard() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [selectedSettlement, setSelectedSettlement] = useState<SettlementFeature | null>(null);
   const [mapFilter, setMapFilter] = useState<MapFilter | null>(null);
+  const [progressMode, setProgressMode] = useState(false);
+  const [progressHealth, setProgressHealth] = useState<{
+    settlements: Record<string, string>;
+    clusters: Record<string, string>;
+    zones: Record<string, string>;
+  } | null>(null);
 
   const flyToRef = useRef<((latlng: [number, number], zoom?: number) => void) | null>(null);
   const openPopupRef = useRef<((layerKey: LayerKey, featureIdx: number) => void) | null>(null);
@@ -82,6 +88,18 @@ export default function MapDashboard() {
       .then(setZoneClusterIndex)
       .catch(() => {});
   }, []);
+
+  async function toggleProgress() {
+    const next = !progressMode;
+    setProgressMode(next);
+    if (next && !progressHealth) {
+      try {
+        const r = await fetch("/api/map/progress-health");
+        if (r.ok) setProgressHealth(await r.json());
+      } catch {}
+    }
+    if (!next) setProgressHealth(null);
+  }
 
   async function fetchCustomFeatures() {
     try {
@@ -220,6 +238,23 @@ export default function MapDashboard() {
           {sidebarOpen ? "◀" : "▶"}
         </button>
 
+        {/* Progress mode toggle — desktop only */}
+        <button
+          onClick={toggleProgress}
+          className={`hidden sm:flex absolute top-3 right-28 z-10 border shadow rounded-lg px-3 h-8 items-center gap-1.5 text-xs font-semibold transition-colors ${
+            progressMode
+              ? "bg-emerald-600 text-white border-emerald-600"
+              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+          }`}
+          title="Colour polygons by goal health"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="3" />
+            <path strokeLinecap="round" d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+          </svg>
+          Progress
+        </button>
+
         {/* Stats toggle — desktop only; mobile uses the bottom control bar */}
         <button
           onClick={() => { setStatsOpen((o) => !o); setSelectedSettlement(null); }}
@@ -254,6 +289,8 @@ export default function MapDashboard() {
           openPopupRef={openPopupRef}
           mapFilter={mapFilter}
           dbPartners={dbPartners}
+          progressMode={progressMode}
+          progressHealth={progressHealth}
         />
 
         {/* Settlement detail sidebar */}
