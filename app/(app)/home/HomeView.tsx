@@ -349,8 +349,8 @@ export default function HomeView({
       <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 px-4 sm:px-6 py-4 bg-white border-b border-stone-100">
         <StatCard label="Overdue"         value={overduePitstops.length}                            icon={<AlertTriangle className="w-3.5 h-3.5" />} accent="red"   href="#attention" />
         <StatCard label="Due this week"   value={thisWeekPitstops.filter(p => p.targetDate).length} icon={<Clock className="w-3.5 h-3.5" />}          accent="amber" href="#this-week" />
-        <StatCard label="No plan"         value={noPlanPitstops.length}                              icon={<CalendarDays className="w-3.5 h-3.5" />}    accent="amber" href="/planner" />
-        <StatCard label="Drifting themes" value={driftingThemes.length}                              icon={<Tag className="w-3.5 h-3.5" />}             accent="amber" href="#drifting" />
+        <StatCard label="No plan"         value={noPlanPitstops.length}                              icon={<CalendarDays className="w-3.5 h-3.5" />}    accent="amber" href="/pitstops?noDate=1" />
+        <StatCard label="Drifting themes" value={driftingThemes.length}                              icon={<Tag className="w-3.5 h-3.5" />}             accent="amber" href="/themes" />
       </div>
 
       {/* Main grid */}

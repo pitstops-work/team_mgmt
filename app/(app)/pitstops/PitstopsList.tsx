@@ -17,18 +17,20 @@ type Pitstop = {
 
 const STATUS_ORDER = { InProgress: 0, Upcoming: 1, Done: 2 };
 
-export default function PitstopsList({ pitstops, goals, users }: { pitstops: Pitstop[]; goals: Goal[]; users: User[] }) {
+export default function PitstopsList({ pitstops, goals, users, initialStatus = "", initialNoDate = false }: { pitstops: Pitstop[]; goals: Goal[]; users: User[]; initialStatus?: string; initialNoDate?: boolean }) {
   const [selectedGoal, setSelectedGoal] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState(initialStatus);
+  const [noDateOnly, setNoDateOnly] = useState(initialNoDate);
 
   const filtered = pitstops
     .filter(p => !selectedGoal || p.goal.id === selectedGoal)
     .filter(p => !selectedUser || p.owner?.id === selectedUser)
     .filter(p => !selectedStatus || p.status === selectedStatus)
+    .filter(p => !noDateOnly || !p.targetDate)
     .sort((a, b) => (STATUS_ORDER[a.status as keyof typeof STATUS_ORDER] ?? 3) - (STATUS_ORDER[b.status as keyof typeof STATUS_ORDER] ?? 3));
 
-  const hasFilters = selectedGoal || selectedUser || selectedStatus;
+  const hasFilters = selectedGoal || selectedUser || selectedStatus || noDateOnly;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -41,11 +43,15 @@ export default function PitstopsList({ pitstops, goals, users }: { pitstops: Pit
       <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1 no-scrollbar">
         {/* Status */}
         {(["", "InProgress", "Upcoming", "Done"] as const).map(s => (
-          <button key={s} onClick={() => setSelectedStatus(s)}
-            className={`flex-shrink-0 px-3 py-1.5 text-xs rounded-full border transition-colors ${selectedStatus === s ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-600 hover:border-stone-300"}`}>
+          <button key={s} onClick={() => { setSelectedStatus(s); setNoDateOnly(false); }}
+            className={`flex-shrink-0 px-3 py-1.5 text-xs rounded-full border transition-colors ${selectedStatus === s && !noDateOnly ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-600 hover:border-stone-300"}`}>
             {s === "" ? "All" : s === "InProgress" ? "In Progress" : s}
           </button>
         ))}
+        <button onClick={() => { setSelectedStatus(""); setNoDateOnly(v => !v); }}
+          className={`flex-shrink-0 px-3 py-1.5 text-xs rounded-full border transition-colors ${noDateOnly ? "bg-amber-600 text-white border-amber-600" : "border-stone-200 text-stone-600 hover:border-stone-300"}`}>
+          No date
+        </button>
         <div className="w-px h-4 bg-stone-200 flex-shrink-0" />
         {/* Goal picker */}
         <select value={selectedGoal} onChange={e => setSelectedGoal(e.target.value)}
@@ -60,7 +66,7 @@ export default function PitstopsList({ pitstops, goals, users }: { pitstops: Pit
           {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
         {hasFilters && (
-          <button onClick={() => { setSelectedGoal(""); setSelectedUser(""); setSelectedStatus(""); }}
+          <button onClick={() => { setSelectedGoal(""); setSelectedUser(""); setSelectedStatus(""); setNoDateOnly(false); }}
             className="flex-shrink-0 flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
             <X className="w-3 h-3" /> Clear
           </button>

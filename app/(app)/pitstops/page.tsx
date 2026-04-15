@@ -2,8 +2,13 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import PitstopsList from "./PitstopsList";
 
-export default async function PitstopsPage() {
+export default async function PitstopsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; noDate?: string }>;
+}) {
   await auth();
+  const { status, noDate } = await searchParams;
 
   const [pitstops, goals, users] = await Promise.all([
     prisma.pitstop.findMany({
@@ -26,6 +31,8 @@ export default async function PitstopsPage() {
       pitstops={JSON.parse(JSON.stringify(pitstops))}
       goals={JSON.parse(JSON.stringify(goals))}
       users={JSON.parse(JSON.stringify(users))}
+      initialStatus={status ?? ""}
+      initialNoDate={noDate === "1"}
     />
   );
 }
