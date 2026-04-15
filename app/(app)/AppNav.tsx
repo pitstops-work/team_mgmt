@@ -126,7 +126,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
           </NavLink>
           <NavLink href="/needs" active={pathname.startsWith("/needs")}>
             <BarChart3 className="w-3.5 h-3.5 text-stone-500" />
-            Needs Assessment
+            Field Coverage
           </NavLink>
           <NavLink href="/map" active={pathname === "/map"}>
             <MapPin className="w-3.5 h-3.5 text-indigo-500" />
@@ -234,7 +234,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
                 { href: "/risks", icon: <ShieldAlert className="w-5 h-5" />, label: "Risks" },
                 { href: "/themes", icon: <Tag className="w-5 h-5" />, label: "Themes" },
                 { href: "/geography", icon: <MapPin className="w-5 h-5" />, label: "Geography" },
-                { href: "/needs", icon: <BarChart3 className="w-5 h-5" />, label: "Needs Assessment" },
+                { href: "/needs", icon: <BarChart3 className="w-5 h-5" />, label: "Field Coverage" },
                 { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map" },
                 { href: "/partners", icon: <Users className="w-5 h-5" />, label: "Partners" },
                 { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />, label: "Quarters" },

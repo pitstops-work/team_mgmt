@@ -33,6 +33,33 @@ export interface LevelStats {
   domains: DomainStats;
 }
 
+export interface DomainProgress {
+  overdueGoals: number;
+  atRiskGoals: number;
+  onTrackGoals: number;
+  doneGoals: number;
+  expectedByToday: number;  // planned units due ≤ today
+  actualDone: number;       // delivered units from Complete goals
+  deficit: number;          // positive = behind plan
+}
+
+export interface ProgressSummary {
+  overdueGoals: number;
+  atRiskGoals: number;
+  onTrackGoals: number;
+  doneGoals: number;
+  totalGoals: number;
+  deficit: number;
+  domains: Record<string, DomainProgress>;
+}
+
+export interface MonthlyPoint {
+  month: string;   // "2026-01"
+  label: string;   // "Jan"
+  planned: number; // cumulative planned units with targetDate ≤ end of this month
+  actual: number;  // cumulative delivered units by end of this month
+}
+
 // ── Maps: domain key → DB column for existing-infrastructure counts ──────────
 // These must match the actual column names in SettlementAssessment.
 const EXISTING_FIELD_MAP: Record<string, string> = {
@@ -64,10 +91,13 @@ type GoalRow = {
   needsDomain: string | null;
   parameter: number | null;
   outcomeCount: number | null;
+  targetDate: Date | null;
+  updatedAt: Date;
   needsSettlementId: string | null;
   needsClusterId: string | null;
   needsZoneId: string | null;
   metrics: { current: number }[];
+  pitstops: { status: string }[];
 };
 
 // ── Formula: how many units needed for a single settlement's population ───────
@@ -181,6 +211,98 @@ function computeStats(
   };
 }
 
+// ── Progress: goal health + delivery deficit per set of goals ────────────────
+
+function computeProgress(goals: GoalRow[], today: Date): ProgressSummary {
+  const AT_RISK_DAYS = 30;
+
+  let overdueGoals = 0, atRiskGoals = 0, onTrackGoals = 0, doneGoals = 0;
+  const domains: Record<string, DomainProgress> = {};
+
+  for (const g of goals) {
+    if (!g.needsDomain) continue;
+    if (!domains[g.needsDomain]) {
+      domains[g.needsDomain] = { overdueGoals: 0, atRiskGoals: 0, onTrackGoals: 0, doneGoals: 0, expectedByToday: 0, actualDone: 0, deficit: 0 };
+    }
+    const d = domains[g.needsDomain];
+    const param = g.parameter ?? 0;
+
+    // Track how many units were due by today (for deficit calculation)
+    if (g.targetDate) {
+      const td = new Date(g.targetDate);
+      if (td <= today) d.expectedByToday += param;
+    }
+
+    if (g.status === "Complete") {
+      d.doneGoals++;
+      doneGoals++;
+      d.actualDone += g.outcomeCount ?? param;
+    } else if (g.status === "Active") {
+      const td = g.targetDate ? new Date(g.targetDate) : null;
+      const daysToDeadline = td ? Math.round((td.getTime() - today.getTime()) / 86400000) : Infinity;
+
+      if (td && td < today) {
+        d.overdueGoals++;
+        overdueGoals++;
+      } else if (daysToDeadline <= AT_RISK_DAYS) {
+        const total = g.pitstops.length;
+        const done  = g.pitstops.filter(p => p.status === "Done").length;
+        if (total > 0 && done / total < 0.5) {
+          d.atRiskGoals++;
+          atRiskGoals++;
+        } else {
+          d.onTrackGoals++;
+          onTrackGoals++;
+        }
+      } else {
+        d.onTrackGoals++;
+        onTrackGoals++;
+      }
+    }
+    // Paused goals omitted from health counts
+  }
+
+  let totalDeficit = 0;
+  for (const d of Object.values(domains)) {
+    d.deficit = Math.max(0, d.expectedByToday - d.actualDone);
+    totalDeficit += d.deficit;
+  }
+
+  return {
+    overdueGoals, atRiskGoals, onTrackGoals, doneGoals,
+    totalGoals: overdueGoals + atRiskGoals + onTrackGoals + doneGoals,
+    deficit: totalDeficit,
+    domains,
+  };
+}
+
+// ── Monthly trend: planned vs actual cumulative deliveries ───────────────────
+
+const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function computeMonthlyTrend(goals: GoalRow[], today: Date): MonthlyPoint[] {
+  const year = today.getFullYear();
+  return Array.from({ length: 12 }, (_, i) => {
+    const monthEnd = new Date(year, i + 1, 0, 23, 59, 59, 999);
+
+    // Planned: cumulative goal parameters due on or before end of this month (this year)
+    const planned = goals
+      .filter(g => {
+        if (!g.targetDate) return false;
+        const td = new Date(g.targetDate);
+        return td.getFullYear() === year && td <= monthEnd;
+      })
+      .reduce((s, g) => s + (g.parameter ?? 0), 0);
+
+    // Actual: cumulative delivered by Complete goals whose updatedAt ≤ end of this month
+    const actual = goals
+      .filter(g => g.status === "Complete" && new Date(g.updatedAt) <= monthEnd)
+      .reduce((s, g) => s + (g.outcomeCount ?? g.parameter ?? 0), 0);
+
+    return { month: `${year}-${String(i + 1).padStart(2, "0")}`, label: MONTH_LABELS[i], planned, actual };
+  });
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function NeedsPage() {
@@ -240,8 +362,10 @@ export default async function NeedsPage() {
       where: { needsDomain: { not: null }, deletedAt: null },
       select: {
         status: true, needsDomain: true, parameter: true, outcomeCount: true,
+        targetDate: true, updatedAt: true,
         needsSettlementId: true, needsClusterId: true, needsZoneId: true,
         metrics: { where: { deletedAt: null }, select: { current: true }, take: 1 },
+        pitstops: { where: { deletedAt: null }, select: { status: true } },
       },
     }),
   ]);
@@ -409,6 +533,56 @@ export default async function NeedsPage() {
     }
   }
 
+  // ── Progress maps ──────────────────────────────────────────────────────────
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+
+  const clusterProgressMap: Record<string, ProgressSummary> = {};
+  for (const city of cities) {
+    for (const zone of city.zones) {
+      for (const cluster of zone.clusters) {
+        const clGoals = goals.filter(g =>
+          g.needsClusterId === cluster.id ||
+          (g.needsSettlementId && settlementToCluster[g.needsSettlementId] === cluster.id)
+        );
+        clusterProgressMap[cluster.id] = computeProgress(clGoals, today);
+      }
+    }
+  }
+
+  const zoneProgressMap: Record<string, ProgressSummary> = {};
+  for (const city of cities) {
+    for (const zone of city.zones) {
+      const zoneGoals = goals.filter(g =>
+        g.needsZoneId === zone.id ||
+        (g.needsClusterId && clusterToZone[g.needsClusterId] === zone.id) ||
+        (g.needsSettlementId && settlementToZone[g.needsSettlementId] === zone.id)
+      );
+      zoneProgressMap[zone.id] = computeProgress(zoneGoals, today);
+    }
+  }
+
+  const settlementProgressMap: Record<string, ProgressSummary> = {};
+  for (const s of allSettlements) {
+    const sGoals = goals.filter(g => g.needsSettlementId === s.id);
+    settlementProgressMap[s.id] = computeProgress(sGoals, today);
+  }
+
+  const cityProgressMap: Record<string, ProgressSummary> = {};
+  for (const city of cities) {
+    const cityZoneIds = new Set(city.zones.map(z => z.id));
+    const cityGoals = goals.filter(g =>
+      (g.needsZoneId       && cityZoneIds.has(g.needsZoneId)) ||
+      (g.needsClusterId    && cityZoneIds.has(clusterToZone[g.needsClusterId])) ||
+      (g.needsSettlementId && cityZoneIds.has(settlementToZone[g.needsSettlementId]))
+    );
+    cityProgressMap[city.id] = computeProgress(cityGoals, today);
+  }
+
+  const cityProgress   = computeProgress(goals, today);
+  const monthlyTrend   = computeMonthlyTrend(goals, today);
+  const currentMonth   = today.getMonth(); // 0-indexed
+
   return (
     <NeedsDashboard
       cities={JSON.parse(JSON.stringify(cities))}
@@ -420,6 +594,13 @@ export default async function NeedsPage() {
       zoneStats={JSON.parse(JSON.stringify(zoneStatsMap))}
       clusterStats={JSON.parse(JSON.stringify(clusterStatsMap))}
       settlementStats={JSON.parse(JSON.stringify(settlementStatsMap))}
+      cityProgress={cityProgress}
+      cityProgressMap={JSON.parse(JSON.stringify(cityProgressMap))}
+      zoneProgress={JSON.parse(JSON.stringify(zoneProgressMap))}
+      clusterProgress={JSON.parse(JSON.stringify(clusterProgressMap))}
+      settlementProgress={JSON.parse(JSON.stringify(settlementProgressMap))}
+      monthlyTrend={monthlyTrend}
+      currentMonth={currentMonth}
     />
   );
 }
