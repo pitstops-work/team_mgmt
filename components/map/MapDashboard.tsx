@@ -332,6 +332,18 @@ export default function MapDashboard() {
             Layers
           </button>
           <button
+            onClick={toggleProgress}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold transition-colors active:bg-slate-50 border-r border-slate-100 ${
+              progressMode ? "text-emerald-600" : "text-slate-700"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="3" />
+              <path strokeLinecap="round" d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+            </svg>
+            Progress
+          </button>
+          <button
             onClick={() => { setStatsOpen((o) => !o); setSelectedSettlement(null); }}
             className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold transition-colors active:bg-slate-50 ${
               statsOpen ? "text-indigo-600" : "text-slate-700"

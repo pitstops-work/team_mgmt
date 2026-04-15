@@ -153,7 +153,7 @@ export default function LayerPanel({
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-16 sm:pb-0">
         {/* --- LAYERS TAB --- */}
         {tab === "layers" && (
           <div className="px-3 py-3 space-y-4">
