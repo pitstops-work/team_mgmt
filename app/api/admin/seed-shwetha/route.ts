@@ -12,6 +12,7 @@ const GOALS_DATA = [
     targetDate: new Date("2027-03-31"),
     pitstops: [
       {
+        key: "cluster_meetings" as const,
         title: "Conduct regular meetings with PC, CCs and COs across all North Zone clusters",
         targetDate: new Date("2026-09-30"),
         checklist: [
@@ -23,6 +24,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "community_meetings" as const,
         title: "Attend and support cluster-level community meetings",
         targetDate: new Date("2026-09-30"),
         checklist: [
@@ -33,6 +35,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "cluster_progress" as const,
         title: "Review cluster progress with CC/PC monthly",
         targetDate: new Date("2026-12-31"),
         checklist: [
@@ -44,6 +47,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "cluster_followup" as const,
         title: "Facilitate monthly progress and follow-up discussions with PC and CCs",
         targetDate: new Date("2026-12-31"),
         checklist: [
@@ -55,6 +59,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "collectives_meetings" as const,
         title: "Attend community-level and collectives meetings across all clusters",
         targetDate: new Date("2027-03-31"),
         checklist: [
@@ -72,6 +77,7 @@ const GOALS_DATA = [
     targetDate: new Date("2026-12-31"),
     pitstops: [
       {
+        key: "elderly_nmt" as const,
         title: "Explore NMT partnership for elderly training and capacity building",
         targetDate: new Date("2026-06-30"),
         checklist: [
@@ -85,6 +91,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "elderly_forms" as const,
         title: "Develop elderly assessment forms and data collection/profiling tools",
         targetDate: new Date("2026-07-31"),
         checklist: [
@@ -97,6 +104,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "elderly_field_plan" as const,
         title: "Explore and develop field implementation plans for elderly programme",
         targetDate: new Date("2026-08-31"),
         checklist: [
@@ -108,6 +116,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "elderly_coordination" as const,
         title: "Coordinate with partners for elderly team engagement, joint planning and profiling",
         targetDate: new Date("2026-09-30"),
         checklist: [
@@ -120,6 +129,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "elderly_learning" as const,
         title: "Conduct cluster-level elderly programme learning and sharing meeting",
         targetDate: new Date("2026-10-31"),
         checklist: [
@@ -130,6 +140,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "elderly_followup" as const,
         title: "Oversee and track post-assessment follow-up action plans per individual",
         targetDate: new Date("2027-03-31"),
         checklist: [
@@ -148,6 +159,7 @@ const GOALS_DATA = [
     targetDate: new Date("2026-12-31"),
     pitstops: [
       {
+        key: "water_assessment" as const,
         title: "Coordinate visits to proposed drinking water assessment sites",
         targetDate: new Date("2026-06-30"),
         checklist: [
@@ -159,6 +171,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "water_partner" as const,
         title: "Finalise technical support partner/organisation for drinking water programme",
         targetDate: new Date("2026-08-31"),
         checklist: [
@@ -171,6 +184,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "water_phase1_locs" as const,
         title: "Finalise zones and locations for Phase 1 drinking water implementation",
         targetDate: new Date("2026-09-30"),
         checklist: [
@@ -181,6 +195,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "water_phase1_impl" as const,
         title: "Coordinate with partner for Phase 1 drinking water implementation",
         targetDate: new Date("2026-12-31"),
         checklist: [
@@ -197,6 +212,7 @@ const GOALS_DATA = [
     targetDate: new Date("2027-03-31"),
     pitstops: [
       {
+        key: "pilots_concepts" as const,
         title: "Develop concepts and bring proposals for new pilots",
         targetDate: new Date("2026-09-30"),
         checklist: [
@@ -209,6 +225,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "pilots_locations" as const,
         title: "Support team identification of locations and assessments for new initiatives",
         targetDate: new Date("2026-10-31"),
         checklist: [
@@ -225,6 +242,7 @@ const GOALS_DATA = [
     targetDate: new Date("2027-03-31"),
     pitstops: [
       {
+        key: "sangama_transition" as const,
         title: "Complete Sangama HR profiling for CFAR transition and finalise transition plan",
         targetDate: new Date("2026-06-30"),
         checklist: [
@@ -236,6 +254,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "quarterly_partner" as const,
         title: "Attend and follow up on quarterly partner review meetings",
         targetDate: new Date("2027-03-31"),
         checklist: [
@@ -245,6 +264,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "meeting_calendars" as const,
         title: "Plan meeting calendars and document all partner engagements",
         targetDate: new Date("2026-06-30"),
         checklist: [
@@ -255,6 +275,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "bimonthly_cluster" as const,
         title: "Coordinate bi-monthly cluster-level meetings",
         targetDate: new Date("2026-09-30"),
         checklist: [
@@ -265,6 +286,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "all_partner_sl" as const,
         title: "Participate in all-partner Sharing & Learning meetings",
         targetDate: new Date("2026-12-31"),
         checklist: [
@@ -282,6 +304,7 @@ const GOALS_DATA = [
     targetDate: new Date("2027-03-31"),
     pitstops: [
       {
+        key: "data_quality" as const,
         title: "Ensure cluster-level field data quality across North Zone",
         targetDate: new Date("2026-09-30"),
         checklist: [
@@ -292,6 +315,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "cross_zone" as const,
         title: "Attend cross-zone reviews (Bellandur, Bogenhalli, Anekal) as required",
         targetDate: new Date("2027-03-31"),
         checklist: [
@@ -308,6 +332,7 @@ const GOALS_DATA = [
     targetDate: new Date("2027-03-31"),
     pitstops: [
       {
+        key: "budget_tracking" as const,
         title: "Track programme budgets against actuals and flag variances promptly",
         targetDate: new Date("2027-03-31"),
         checklist: [
@@ -317,6 +342,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "vendor_payments" as const,
         title: "Manage vendor payments for Capacity Building activities",
         targetDate: new Date("2026-09-30"),
         checklist: [
@@ -328,6 +354,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "budget_alignment" as const,
         title: "Ensure final budgets align with approved proposals before execution",
         targetDate: new Date("2027-03-31"),
         checklist: [
@@ -338,6 +365,7 @@ const GOALS_DATA = [
         ],
       },
       {
+        key: "stationery_payments" as const,
         title: "Manage stationery and projector payments for capacity-building activities",
         targetDate: new Date("2027-03-31"),
         checklist: [
@@ -352,21 +380,121 @@ const GOALS_DATA = [
   },
 ];
 
+// Pitstop keys — assigned to each pitstop in GOALS_DATA order, used to link events
+// G0: Cluster & Field Team Coordination
+// G1: Elderly Programme
+// G2: Drinking Water
+// G3: Pilot Programmes
+// G4: Partner Relationship & Transition
+// G5: Sharing & Learning
+// G6: Financial & Programme Management
+type PitstopKey =
+  | "cluster_meetings" | "community_meetings" | "cluster_progress" | "cluster_followup" | "collectives_meetings"
+  | "elderly_nmt" | "elderly_forms" | "elderly_field_plan" | "elderly_coordination" | "elderly_learning" | "elderly_followup"
+  | "water_assessment" | "water_partner" | "water_phase1_locs" | "water_phase1_impl"
+  | "pilots_concepts" | "pilots_locations"
+  | "sangama_transition" | "quarterly_partner" | "meeting_calendars" | "bimonthly_cluster" | "all_partner_sl"
+  | "data_quality" | "cross_zone"
+  | "budget_tracking" | "vendor_payments" | "budget_alignment" | "stationery_payments";
+
 // Q1 Activity plan — 13 weeks Apr 6 – Jun 30 2026
-const ACTIVITIES_DATA = [
-  { week: 1, start: "2026-04-06", end: "2026-04-12", title: "Field visit, RP interview, Elderly assessment follow-up and update annual work objectives", focus: "North Zone: Peenya 1 & 2", summary: "Meeting with PMs and CCs North Zone. Meeting with CCs and COs cluster level. Attend children team capacity building. Drinking water assessment at Pilaganahalli. Online discussion on Elderly Program Assessment sheet. Cluster notes. RP interview.", type: "Visit" },
-  { week: 2, start: "2026-04-13", end: "2026-04-19", title: "Team meeting, Basic Amenities Assessment finalisation, Elderly programme plan and roll-out", focus: "Bagalur & Sanjayanagar", summary: "Meeting with CCs and COs. Elderly Programme roll-out. Complete cluster note for Sanjayanagar. Profiling of Sangama employees for CFAR transition. Visit to NMT elderly centre.", type: "Visit" },
-  { week: 3, start: "2026-04-20", end: "2026-04-26", title: "Community meetings, assessments, Sangama team meeting, Sharing and Learning all-partners", focus: "Bytarayanapura & Jakkur", summary: "Meeting with CCs and COs. Complete cluster note for Bytarayanapura. Profiling of Sangama employees for transition. Community meetings and field assessment with profiled elderly persons.", type: "Visit" },
-  { week: 4, start: "2026-04-27", end: "2026-05-03", title: "Community meeting, partner meeting, Quarterly Review meeting", focus: "Hebbala & Majestic-North; cross-zone Bellandur, Bogenhalli & Anekal", summary: "Quarterly Review with PC/CC/Managers. Drinking water assessment visit. Basic Amenities follow-up. School as safe spaces follow-up and visits. Meeting with field teams.", type: "Review" },
-  { week: 5, start: "2026-05-04", end: "2026-05-10", title: "Team meeting, Basic Amenities Assessment follow-up, Elderly programme", focus: "Bagalur & Sanjayanagar", summary: "Meeting with CCs and COs. Meeting with YLCs. Visit for post-assessment follow-up. Field assessment and meeting for drinking water. Participate in youth meeting.", type: "Visit" },
-  { week: 6, start: "2026-05-11", end: "2026-05-17", title: "Field visits and discussion on post-assessment follow-ups", focus: "Peenya 1 & 2", summary: "Meeting with Elderly programme team CFAR. Visit for post-assessment follow-up. Community meeting with COs. Meeting with elderly persons.", type: "Visit" },
-  { week: 7, start: "2026-05-18", end: "2026-05-24", title: "Community meetings, cluster-level partner meetings", focus: "Bytarayanapura & Jakkur", summary: "Meeting with CCs and COs. Discussion on youth work with teams. Community meetings with COs. Participate in youth meeting.", type: "Meeting" },
-  { week: 8, start: "2026-05-25", end: "2026-05-31", title: "Team meeting, centre visits, Sharing & Learning all-partners", focus: "Hebbala & Majestic-North", summary: "Community visit and meeting with collectives. Basic Amenities and welfare rights team meeting with partners. Meeting and discussion for drinking water. Participate in youth meeting.", type: "Visit" },
-  { week: 9, start: "2026-06-01", end: "2026-06-07", title: "Centre visits, meetings with field teams", focus: "Cross-zone: Bellandur, Bogenhalli & Anekal", summary: "Meeting with CCs and COs. Meeting with CLCs/youth work. Visit for post-assessment follow-up. Discussion with CCs on progress and follow-ups.", type: "Visit" },
-  { week: 10, start: "2026-06-08", end: "2026-06-14", title: "Community meetings, cluster-level partner meetings", focus: "Bagalur & Sanjayanagar", summary: "Meeting with CCs and COs. Meeting with CLCs/youth work. Visit for post-assessment follow-up. Community meetings with COs. Meeting and discussion for drinking water.", type: "Visit" },
-  { week: 11, start: "2026-06-15", end: "2026-06-21", title: "Team meeting, assessment follow-up, Elderly programme", focus: "Peenya 1 & 2", summary: "Meeting with CCs and COs. Discussion on youth work with teams. Community meetings with COs. Meeting and discussion for drinking water.", type: "Meeting" },
-  { week: 12, start: "2026-06-22", end: "2026-06-28", title: "Field visits and discussion on post-assessment follow-ups", focus: "Bytarayanapura & Jakkur", summary: "Community visit and meeting with collectives. Basic Amenities and welfare rights team meeting with partners. Discussion with CCs on progress and follow-ups.", type: "Visit" },
-  { week: 13, start: "2026-06-29", end: "2026-06-30", title: "Community meeting, partner meeting, Quarterly Review meeting", focus: "Hebbala & Majestic-North", summary: "Community visit and meeting with collectives. Basic Amenities and welfare rights team meeting with partners. Meeting and discussion for drinking water.", type: "Review" },
+// pitstopKeys: which pitstops this week's activity relates to
+const ACTIVITIES_DATA: {
+  week: number; start: string; end: string; title: string;
+  focus: string; summary: string; type: string;
+  pitstopKeys: PitstopKey[];
+}[] = [
+  {
+    week: 1, start: "2026-04-06", end: "2026-04-12", type: "Visit",
+    title: "Field visit, RP interview, Elderly assessment follow-up and update annual work objectives",
+    focus: "North Zone: Peenya 1 & 2",
+    summary: "Meeting with PMs and CCs North Zone. Meeting with CCs and COs cluster level. Attend children team capacity building. Drinking water assessment at Pilaganahalli. Online discussion on Elderly Program Assessment sheet. Cluster notes. RP interview.",
+    pitstopKeys: ["cluster_meetings", "community_meetings", "water_assessment", "elderly_nmt"],
+  },
+  {
+    week: 2, start: "2026-04-13", end: "2026-04-19", type: "Visit",
+    title: "Team meeting, Basic Amenities Assessment finalisation, Elderly programme plan and roll-out",
+    focus: "Bagalur & Sanjayanagar",
+    summary: "Meeting with CCs and COs. Elderly Programme roll-out. Complete cluster note for Sanjayanagar. Profiling of Sangama employees for CFAR transition. Visit to NMT elderly centre.",
+    pitstopKeys: ["cluster_meetings", "community_meetings", "elderly_nmt", "elderly_field_plan", "sangama_transition"],
+  },
+  {
+    week: 3, start: "2026-04-20", end: "2026-04-26", type: "Visit",
+    title: "Community meetings, assessments, Sangama team meeting, Sharing and Learning all-partners",
+    focus: "Bytarayanapura & Jakkur",
+    summary: "Meeting with CCs and COs. Complete cluster note for Bytarayanapura. Profiling of Sangama employees for transition. Community meetings and field assessment with profiled elderly persons.",
+    pitstopKeys: ["cluster_meetings", "community_meetings", "sangama_transition", "all_partner_sl", "elderly_coordination"],
+  },
+  {
+    week: 4, start: "2026-04-27", end: "2026-05-03", type: "Meeting",
+    title: "Community meeting, partner meeting, Quarterly Review meeting",
+    focus: "Hebbala & Majestic-North; cross-zone Bellandur, Bogenhalli & Anekal",
+    summary: "Quarterly Review with PC/CC/Managers. Drinking water assessment visit. Basic Amenities follow-up. School as safe spaces follow-up and visits. Meeting with field teams.",
+    pitstopKeys: ["quarterly_partner", "cross_zone", "water_assessment", "community_meetings", "cluster_progress"],
+  },
+  {
+    week: 5, start: "2026-05-04", end: "2026-05-10", type: "Visit",
+    title: "Team meeting, Basic Amenities Assessment follow-up, Elderly programme",
+    focus: "Bagalur & Sanjayanagar",
+    summary: "Meeting with CCs and COs. Meeting with YLCs. Visit for post-assessment follow-up. Field assessment and meeting for drinking water. Participate in youth meeting.",
+    pitstopKeys: ["cluster_meetings", "community_meetings", "elderly_followup", "water_assessment", "collectives_meetings"],
+  },
+  {
+    week: 6, start: "2026-05-11", end: "2026-05-17", type: "Visit",
+    title: "Field visits and discussion on post-assessment follow-ups",
+    focus: "Peenya 1 & 2",
+    summary: "Meeting with Elderly programme team CFAR. Visit for post-assessment follow-up. Community meeting with COs. Meeting with elderly persons.",
+    pitstopKeys: ["elderly_followup", "elderly_coordination", "community_meetings"],
+  },
+  {
+    week: 7, start: "2026-05-18", end: "2026-05-24", type: "Meeting",
+    title: "Community meetings, cluster-level partner meetings",
+    focus: "Bytarayanapura & Jakkur",
+    summary: "Meeting with CCs and COs. Discussion on youth work with teams. Community meetings with COs. Participate in youth meeting.",
+    pitstopKeys: ["cluster_meetings", "community_meetings", "collectives_meetings", "bimonthly_cluster"],
+  },
+  {
+    week: 8, start: "2026-05-25", end: "2026-05-31", type: "Visit",
+    title: "Team meeting, centre visits, Sharing & Learning all-partners",
+    focus: "Hebbala & Majestic-North",
+    summary: "Community visit and meeting with collectives. Basic Amenities and welfare rights team meeting with partners. Meeting and discussion for drinking water. Participate in youth meeting.",
+    pitstopKeys: ["all_partner_sl", "water_assessment", "community_meetings", "collectives_meetings"],
+  },
+  {
+    week: 9, start: "2026-06-01", end: "2026-06-07", type: "Visit",
+    title: "Centre visits, meetings with field teams",
+    focus: "Cross-zone: Bellandur, Bogenhalli & Anekal",
+    summary: "Meeting with CCs and COs. Meeting with CLCs/youth work. Visit for post-assessment follow-up. Discussion with CCs on progress and follow-ups.",
+    pitstopKeys: ["cross_zone", "cluster_meetings", "elderly_followup", "data_quality"],
+  },
+  {
+    week: 10, start: "2026-06-08", end: "2026-06-14", type: "Visit",
+    title: "Community meetings, cluster-level partner meetings",
+    focus: "Bagalur & Sanjayanagar",
+    summary: "Meeting with CCs and COs. Meeting with CLCs/youth work. Visit for post-assessment follow-up. Community meetings with COs. Meeting and discussion for drinking water.",
+    pitstopKeys: ["cluster_meetings", "community_meetings", "elderly_followup", "water_assessment"],
+  },
+  {
+    week: 11, start: "2026-06-15", end: "2026-06-21", type: "Meeting",
+    title: "Team meeting, assessment follow-up, Elderly programme",
+    focus: "Peenya 1 & 2",
+    summary: "Meeting with CCs and COs. Discussion on youth work with teams. Community meetings with COs. Meeting and discussion for drinking water.",
+    pitstopKeys: ["cluster_meetings", "community_meetings", "elderly_followup", "data_quality", "water_assessment"],
+  },
+  {
+    week: 12, start: "2026-06-22", end: "2026-06-28", type: "Visit",
+    title: "Field visits and discussion on post-assessment follow-ups",
+    focus: "Bytarayanapura & Jakkur",
+    summary: "Community visit and meeting with collectives. Basic Amenities and welfare rights team meeting with partners. Discussion with CCs on progress and follow-ups.",
+    pitstopKeys: ["community_meetings", "collectives_meetings", "all_partner_sl", "data_quality"],
+  },
+  {
+    week: 13, start: "2026-06-29", end: "2026-06-30", type: "Meeting",
+    title: "Community meeting, partner meeting, Quarterly Review meeting",
+    focus: "Hebbala & Majestic-North",
+    summary: "Community visit and meeting with collectives. Basic Amenities and welfare rights team meeting with partners. Meeting and discussion for drinking water.",
+    pitstopKeys: ["quarterly_partner", "water_assessment", "community_meetings", "cluster_followup"],
+  },
 ];
 
 export async function GET(req: Request) {
@@ -393,7 +521,24 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: `Shwetha already has ${existing} goals — skipping. Use ?eventsOnly=1 to just add activities, or ?force=1 to re-seed everything.` });
   }
 
-  const created = { goals: 0, pitstops: 0, checklistItems: 0, planItems: 0, events: 0 };
+  const created = { goals: 0, pitstops: 0, checklistItems: 0, planItems: 0, events: 0, eventLinks: 0 };
+
+  // Map from pitstop key → pitstop ID (populated during creation, used when linking events)
+  const pitstopIdMap = new Map<PitstopKey, string>();
+
+  // If eventsOnly, load existing pitstop IDs by title match so we can still link
+  if (eventsOnly) {
+    const existingPitstops = await prisma.pitstop.findMany({
+      where: { ownerId: shwetha.id, deletedAt: null },
+      select: { id: true, title: true },
+    });
+    for (const gd of GOALS_DATA) {
+      for (const pd of gd.pitstops) {
+        const match = existingPitstops.find(p => p.title === pd.title);
+        if (match) pitstopIdMap.set(pd.key, match.id);
+      }
+    }
+  }
 
   // Create goals + pitstops + checklists (skipped if eventsOnly)
   if (!eventsOnly) for (let gi = 0; gi < GOALS_DATA.length; gi++) {
@@ -421,6 +566,7 @@ export async function GET(req: Request) {
           order: pi,
         },
       });
+      pitstopIdMap.set(pd.key, pitstop.id);
       created.pitstops++;
 
       for (let ci = 0; ci < pd.checklist.length; ci++) {
@@ -456,6 +602,17 @@ export async function GET(req: Request) {
     await prisma.pitstopEventAttendee.create({
       data: { eventId: event.id, userId: shwetha.id },
     });
+
+    // Link to relevant pitstops
+    for (const key of act.pitstopKeys) {
+      const pitstopId = pitstopIdMap.get(key);
+      if (pitstopId) {
+        await prisma.pitstopEventPitstop.create({
+          data: { eventId: event.id, pitstopId },
+        });
+        created.eventLinks++;
+      }
+    }
 
     // Also create PlanItem for Planner view
     await prisma.planItem.create({
