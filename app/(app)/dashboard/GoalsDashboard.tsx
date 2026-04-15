@@ -37,13 +37,14 @@ interface Props {
   programs: { id: string; title: string }[];
   overviewData: OverviewData;
   initialTab: "overview" | "goals";
+  initialFilter?: "All" | "Mine" | "Active" | "Paused" | "Complete";
 }
 
-export default function GoalsDashboard({ initialGoals, currentUserId, searchResults, users, programs, overviewData, initialTab }: Props) {
+export default function GoalsDashboard({ initialGoals, currentUserId, searchResults, users, programs, overviewData, initialTab, initialFilter = "All" }: Props) {
   const [activeTab, setActiveTab] = useState<"overview" | "goals">(initialTab);
   const [showCreate, setShowCreate] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
-  const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">("All");
+  const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">(initialFilter);
   const [programFilter, setProgramFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const queryClient = useQueryClient();

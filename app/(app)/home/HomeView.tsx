@@ -122,9 +122,10 @@ function fmtDatetime(iso: string) {
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, icon, accent }: {
+function StatCard({ label, value, icon, accent, href }: {
   label: string; value: number; icon: React.ReactNode;
   accent: "red" | "amber" | "sky" | "stone";
+  href?: string;
 }) {
   const colors = {
     red:   { bg: value > 0 ? "bg-red-50 border-red-200"     : "bg-stone-50 border-stone-200", val: value > 0 ? "text-red-600"   : "text-stone-400" },
@@ -133,12 +134,15 @@ function StatCard({ label, value, icon, accent }: {
     stone: { bg: "bg-stone-50 border-stone-200", val: "text-stone-500" },
   };
   const c = colors[accent];
-  return (
-    <div className={`px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border ${c.bg} flex flex-col gap-0.5`}>
+  const inner = (
+    <>
       <div className="flex items-center gap-1.5 text-stone-400">{icon}<span className="text-[10px] font-medium uppercase tracking-wide">{label}</span></div>
       <p className={`text-2xl font-bold ${c.val}`}>{value}</p>
-    </div>
+    </>
   );
+  const cls = `px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border ${c.bg} flex flex-col gap-0.5${href ? " hover:shadow-sm transition-shadow cursor-pointer" : ""}`;
+  if (href) return <Link href={href} className={cls}>{inner}</Link>;
+  return <div className={cls}>{inner}</div>;
 }
 
 // ── Section header ────────────────────────────────────────────────────────────
@@ -343,10 +347,10 @@ export default function HomeView({
 
       {/* Stats strip */}
       <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 px-4 sm:px-6 py-4 bg-white border-b border-stone-100">
-        <StatCard label="Overdue"      value={overduePitstops.length}                          icon={<AlertTriangle className="w-3.5 h-3.5" />} accent="red" />
-        <StatCard label="Due this week" value={thisWeekPitstops.filter(p => p.targetDate).length} icon={<Clock className="w-3.5 h-3.5" />}         accent="amber" />
-        <StatCard label="No plan"      value={noPlanPitstops.length}                            icon={<CalendarDays className="w-3.5 h-3.5" />}    accent="amber" />
-        <StatCard label="Drifting themes" value={driftingThemes.length} icon={<Tag className="w-3.5 h-3.5" />} accent="amber" />
+        <StatCard label="Overdue"         value={overduePitstops.length}                            icon={<AlertTriangle className="w-3.5 h-3.5" />} accent="red"   href="#attention" />
+        <StatCard label="Due this week"   value={thisWeekPitstops.filter(p => p.targetDate).length} icon={<Clock className="w-3.5 h-3.5" />}          accent="amber" href="#this-week" />
+        <StatCard label="No plan"         value={noPlanPitstops.length}                              icon={<CalendarDays className="w-3.5 h-3.5" />}    accent="amber" href="/planner" />
+        <StatCard label="Drifting themes" value={driftingThemes.length}                              icon={<Tag className="w-3.5 h-3.5" />}             accent="amber" href="#drifting" />
       </div>
 
       {/* Main grid */}
@@ -360,7 +364,7 @@ export default function HomeView({
             <CurrentQuarterCard quarter={currentQuarter} fyYear={fyYear} fyQ={fyQ} />
 
             {/* Needs attention */}
-            <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+            <div id="attention" className="bg-white rounded-xl border border-stone-200 overflow-hidden">
               <div className="px-4 py-3 border-b border-stone-100 flex items-center gap-2">
                 <AlertTriangle className={`w-3.5 h-3.5 ${attentionCount > 0 ? "text-red-400" : "text-stone-300"}`} />
                 <span className="text-xs font-semibold text-stone-600">Needs attention</span>
@@ -513,7 +517,7 @@ export default function HomeView({
 
             {/* Drifting themes */}
             {driftingThemes.length > 0 && (
-              <div>
+              <div id="drifting">
                 <SectionHeader title="Drifting themes" icon={<Tag className="w-3.5 h-3.5" />} href="/themes" />
                 <div className="flex flex-wrap gap-2">
                   {driftingThemes.map(t => (
@@ -572,7 +576,7 @@ export default function HomeView({
             )}
 
             {/* This week */}
-            <div>
+            <div id="this-week">
               <SectionHeader title="This week's pitstops" count={thisWeekPitstops.length} href="/timeline" icon={<Clock className="w-3.5 h-3.5" />} />
               {thisWeekPitstops.length === 0 ? (
                 <p className="text-xs text-stone-400 px-1">No pitstops due or starting this week.</p>

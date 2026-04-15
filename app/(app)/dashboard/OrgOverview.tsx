@@ -81,7 +81,7 @@ function SectionHeader({ icon, title, count }: { icon: React.ReactNode; title: s
   );
 }
 
-function StatCard({ label, value, sub, accent }: { label: string; value: number | string; sub?: string; accent: "red" | "sky" | "emerald" | "amber" | "stone" }) {
+function StatCard({ label, value, sub, accent, href }: { label: string; value: number | string; sub?: string; accent: "red" | "sky" | "emerald" | "amber" | "stone"; href?: string }) {
   const colors = {
     red:     { border: "border-red-200",     bg: "bg-red-50",     val: "text-red-600",     sub: "text-red-400" },
     sky:     { border: "border-sky-200",     bg: "bg-sky-50",     val: "text-sky-600",     sub: "text-sky-400" },
@@ -90,13 +90,16 @@ function StatCard({ label, value, sub, accent }: { label: string; value: number 
     stone:   { border: "border-stone-200",   bg: "bg-white",      val: "text-stone-700",   sub: "text-stone-400" },
   };
   const c = colors[accent];
-  return (
-    <div className={`rounded-xl border ${c.border} ${c.bg} px-4 py-3`}>
+  const inner = (
+    <>
       <p className={`text-2xl font-bold ${c.val}`}>{value}</p>
       <p className="text-xs text-stone-500 mt-0.5">{label}</p>
       {sub && <p className={`text-[10px] mt-0.5 ${c.sub}`}>{sub}</p>}
-    </div>
+    </>
   );
+  const cls = `rounded-xl border ${c.border} ${c.bg} px-4 py-3${href ? " hover:shadow-sm transition-shadow cursor-pointer" : ""}`;
+  if (href) return <Link href={href} className={cls}>{inner}</Link>;
+  return <div className={cls}>{inner}</div>;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -184,13 +187,13 @@ export default function OrgOverview({
         <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-3">Summary</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label="Active goals" value={activeGoals}
-            sub={`${pausedGoals} paused · ${completeGoals} complete`} accent="sky" />
+            sub={`${pausedGoals} paused · ${completeGoals} complete`} accent="sky" href="/dashboard?tab=goals&filter=Active" />
           <StatCard label="Total pitstops" value={totalPitstops}
-            sub={`${upcomingCount} upcoming · ${inProgressCount} in progress`} accent="stone" />
+            sub={`${upcomingCount} upcoming · ${inProgressCount} in progress`} accent="stone" href="/pitstops" />
           <StatCard label="Overdue" value={overduePitstops.length}
-            sub={overduePitstops.length > 0 ? "Need attention" : "All on track"} accent={overduePitstops.length > 0 ? "red" : "stone"} />
+            sub={overduePitstops.length > 0 ? "Need attention" : "All on track"} accent={overduePitstops.length > 0 ? "red" : "stone"} href="#overdue" />
           <StatCard label="Done this month" value={doneThisMonth}
-            sub={`${doneCount} total done`} accent="emerald" />
+            sub={`${doneCount} total done`} accent="emerald" href="/pitstops?status=Done" />
         </div>
       </div>
 
@@ -200,7 +203,7 @@ export default function OrgOverview({
         <div className="lg:col-span-2 space-y-6">
 
           {/* Overdue pitstops */}
-          <div>
+          <div id="overdue">
             <SectionHeader icon={<AlertTriangle className="w-3.5 h-3.5" />} title="Overdue pitstops" count={overduePitstops.length} />
             {overduePitstops.length === 0 ? (
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs text-emerald-700">

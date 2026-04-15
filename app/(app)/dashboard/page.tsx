@@ -5,10 +5,10 @@ import GoalsDashboard from "./GoalsDashboard";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tab?: string }>;
+  searchParams: Promise<{ q?: string; tab?: string; filter?: string }>;
 }) {
   const session = await auth();
-  const { q, tab } = await searchParams;
+  const { q, tab, filter } = await searchParams;
 
   const now = new Date();
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
@@ -177,6 +177,7 @@ export default async function DashboardPage({
       programs={programs}
       overviewData={JSON.parse(JSON.stringify(overviewData))}
       initialTab={(tab === "overview" ? "overview" : "goals") as "overview" | "goals"}
+      initialFilter={(["All","Mine","Active","Paused","Complete"].includes(filter ?? "") ? filter : "All") as "All" | "Mine" | "Active" | "Paused" | "Complete"}
     />
   );
 }
