@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 import { prisma } from "@/lib/prisma";
 import { calcTargets } from "../settlement-needs/route";
 
@@ -6,10 +8,6 @@ import { calcTargets } from "../settlement-needs/route";
 export async function GET(request: Request) {
   const rawZone = new URL(request.url).searchParams.get("zone");
   if (!rawZone) return NextResponse.json({ error: "zone required" }, { status: 400 });
-
-  // Try exact match first, then strip city prefix (e.g. "Chennai – Central" → "Central")
-  const stripped = rawZone.replace(/^.+?[–\-]\s*/u, "").trim();
-  const namesToTry = stripped && stripped !== rawZone ? [rawZone, stripped] : [rawZone];
 
   const zoneInclude = {
     clusters: {
@@ -21,12 +19,47 @@ export async function GET(request: Request) {
   };
 
   let zone = null;
-  for (const name of namesToTry) {
-    zone = await prisma.zone.findFirst({
-      where: { name: { equals: name, mode: "insensitive" }, deletedAt: null },
-      include: zoneInclude,
-    });
-    if (zone) break;
+
+  // If the zone name has a city prefix (e.g. "Chennai – Central"), use cluster names from
+  // zone_cluster_index.json to find the correct DB zone and avoid ambiguity with same-named
+  // Bangalore zones (both cities can have a zone called "Central").
+  const hasPrefix = /^.+?[–\-]\s*/u.test(rawZone);
+  if (hasPrefix) {
+    try {
+      const indexPath = path.join(process.cwd(), "public/data/zone_cluster_index.json");
+      const index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+      const clusterDisplayNames = Object.values(index.clusters as Record<string, { zone: string; display?: string; settlements: string[] }>)
+        .filter((c) => c.zone === rawZone)
+        .map((c) => c.display)
+        .filter((d): d is string => !!d);
+
+      if (clusterDisplayNames.length > 0) {
+        zone = await prisma.zone.findFirst({
+          where: {
+            deletedAt: null,
+            clusters: {
+              some: { name: { in: clusterDisplayNames, mode: "insensitive" }, deletedAt: null },
+            },
+          },
+          include: zoneInclude,
+        });
+      }
+    } catch {
+      // fall through to name-based lookup
+    }
+  }
+
+  // Fallback: exact match, then strip city prefix
+  if (!zone) {
+    const stripped = rawZone.replace(/^.+?[–\-]\s*/u, "").trim();
+    const namesToTry = stripped && stripped !== rawZone ? [rawZone, stripped] : [rawZone];
+    for (const name of namesToTry) {
+      zone = await prisma.zone.findFirst({
+        where: { name: { equals: name, mode: "insensitive" }, deletedAt: null },
+        include: zoneInclude,
+      });
+      if (zone) break;
+    }
   }
 
   if (!zone) return NextResponse.json(null);
