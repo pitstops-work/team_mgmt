@@ -7,7 +7,7 @@ import SearchBox from "./SearchBox";
 import StatsPanel from "./StatsPanel";
 import SettlementSidebar from "./SettlementSidebar";
 import ZoneClusterSidebar from "./ZoneClusterSidebar";
-import { LAYERS, type LayerKey } from "@/lib/layers";
+import { LAYERS, type LayerKey, type MapCity } from "@/lib/layers";
 import { useGeoData } from "@/lib/useGeoData";
 import { type MapFilter, computeMapFilter } from "@/lib/mapFilter";
 
@@ -46,9 +46,15 @@ async function loadCounts(): Promise<Partial<Record<LayerKey, number>>> {
   return counts;
 }
 
+const CITY_CENTERS: Record<MapCity, { latlng: [number, number]; zoom: number }> = {
+  bangalore: { latlng: [12.9716, 77.5946], zoom: 11 },
+  chennai:   { latlng: [13.0827, 80.2707], zoom: 12 },
+};
+
 export default function MapDashboard() {
+  const [activeCity, setActiveCity] = useState<MapCity>("bangalore");
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(
-    new Set(LAYERS.map((l) => l.key))
+    new Set(LAYERS.filter(l => l.city === "bangalore").map((l) => l.key))
   );
   const [featureCounts, setFeatureCounts] = useState<Partial<Record<LayerKey, number>>>({});
   const [customFeatures, setCustomFeatures] = useState<CustomFeature[]>([]);
@@ -72,6 +78,7 @@ export default function MapDashboard() {
 
   const flyToRef = useRef<((latlng: [number, number], zoom?: number) => void) | null>(null);
   const openPopupRef = useRef<((layerKey: LayerKey, featureIdx: number) => void) | null>(null);
+  const flyToCityRef = useRef<((city: MapCity) => void) | null>(null);
 
   const geoData = useGeoData();
 
@@ -182,6 +189,17 @@ export default function MapDashboard() {
     setActiveCluster(null);
   }, []);
 
+  const switchCity = useCallback((city: MapCity) => {
+    setActiveCity(city);
+    setActiveZone(null);
+    setActiveCluster(null);
+    setSelectedSettlement(null);
+    setMapFilter(null);
+    // Show only layers for this city
+    setVisibleLayers(new Set(LAYERS.filter(l => l.city === city).map(l => l.key)));
+    flyToCityRef.current?.(city);
+  }, []);
+
   return (
     <div className="flex h-full w-full overflow-hidden bg-slate-100">
 
@@ -223,6 +241,8 @@ export default function MapDashboard() {
           mapFilter={mapFilter}
           onPartnerFilter={handlePartnerFilter}
           onClearFilter={handleClearFilter}
+          activeCity={activeCity}
+          onCityChange={switchCity}
         />
       </aside>
 
@@ -286,11 +306,13 @@ export default function MapDashboard() {
           onClusterSelect={handleClusterSelect}
           onCentreClick={handleCentreClick}
           flyToRef={flyToRef}
+          flyToCityRef={flyToCityRef}
           openPopupRef={openPopupRef}
           mapFilter={mapFilter}
           dbPartners={dbPartners}
           progressMode={progressMode}
           progressHealth={progressHealth}
+          activeCity={activeCity}
         />
 
         {/* Settlement detail sidebar */}

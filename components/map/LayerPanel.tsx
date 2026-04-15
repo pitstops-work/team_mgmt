@@ -1,6 +1,6 @@
 "use client";
 
-import { LAYERS, type LayerKey } from "@/lib/layers";
+import { LAYERS, type LayerKey, type MapCity } from "@/lib/layers";
 import { type MapFilter } from "@/lib/mapFilter";
 
 interface LayerPanelProps {
@@ -13,12 +13,14 @@ interface LayerPanelProps {
   onZoneSelect: (zone: string | null) => void;
   onClusterSelect: (cluster: string | null) => void;
   zoneIndex: Record<string, string[]>;
-  clusterIndex: Record<string, { zone: string; settlements: string[] }>;
+  clusterIndex: Record<string, { zone: string; settlements: string[]; display?: string }>;
   tab: "layers" | "zones" | "clusters";
   onTabChange: (t: "layers" | "zones" | "clusters") => void;
   mapFilter: MapFilter | null;
   onPartnerFilter: (key: LayerKey | null) => void;
   onClearFilter: () => void;
+  activeCity: MapCity;
+  onCityChange: (city: MapCity) => void;
 }
 
 const ZONE_COLORS: Record<string, string> = {
@@ -26,6 +28,10 @@ const ZONE_COLORS: Record<string, string> = {
   South: "#10b981",
   Central: "#f59e0b",
   West: "#ef4444",
+  // Chennai zones (keyed by full name)
+  "Chennai \u2013 Central": "#f59e0b",
+  "Chennai \u2013 North": "#6366f1",
+  "Chennai \u2013 Resettlement": "#8b5cf6",
 };
 
 const CLUSTER_ZONE_COLORS: Record<string, string> = {
@@ -33,6 +39,9 @@ const CLUSTER_ZONE_COLORS: Record<string, string> = {
   South: "#d1fae5",
   Central: "#fef3c7",
   West: "#fee2e2",
+  "Chennai \u2013 Central": "#fef3c7",
+  "Chennai \u2013 North": "#e0e7ff",
+  "Chennai \u2013 Resettlement": "#ede9fe",
 };
 
 const CLUSTER_ZONE_TEXT: Record<string, string> = {
@@ -40,6 +49,9 @@ const CLUSTER_ZONE_TEXT: Record<string, string> = {
   South: "#065f46",
   Central: "#92400e",
   West: "#991b1b",
+  "Chennai \u2013 Central": "#92400e",
+  "Chennai \u2013 North": "#4338ca",
+  "Chennai \u2013 Resettlement": "#5b21b6",
 };
 
 export default function LayerPanel({
@@ -58,9 +70,12 @@ export default function LayerPanel({
   mapFilter,
   onPartnerFilter,
   onClearFilter,
+  activeCity,
+  onCityChange,
 }: LayerPanelProps) {
-  const polygonLayers = LAYERS.filter((l) => l.type === "polygon");
-  const pointLayers = LAYERS.filter((l) => l.type === "point");
+  // Filter layers by active city
+  const polygonLayers = LAYERS.filter((l) => l.type === "polygon" && l.city === activeCity);
+  const pointLayers   = LAYERS.filter((l) => l.type === "point"   && l.city === activeCity);
 
   const totalSettlements = polygonLayers.reduce(
     (sum, l) => sum + (featureCounts[l.key] ?? 0),
@@ -72,25 +87,44 @@ export default function LayerPanel({
     (featureCounts["creches"] ?? 0) +
     (featureCounts["resource_centres"] ?? 0);
 
-  // Group clusters by zone for display
+  // Group clusters by zone, filtered to active city
+  const cityPrefix = activeCity === "chennai" ? "Chennai" : "";
   const clustersByZone: Record<string, string[]> = {};
   Object.entries(clusterIndex).forEach(([cluster, data]) => {
     const zone = data.zone;
+    // Only include clusters whose zone belongs to the active city
+    const isChennaiZone = zone.startsWith("Chennai");
+    if (activeCity === "chennai" ? !isChennaiZone : isChennaiZone) return;
     if (!clustersByZone[zone]) clustersByZone[zone] = [];
     clustersByZone[zone].push(cluster);
   });
+  void cityPrefix; // suppress unused warning
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
-        <div className="flex items-center gap-2 mb-0.5">
+        <div className="flex items-center gap-2 mb-2">
           <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center">
             <span className="text-white text-xs font-bold">U</span>
           </div>
           <span className="font-bold text-slate-800 text-sm">Urban Program</span>
         </div>
-        <p className="text-xs text-slate-400 pl-8">Bangalore Programme Map</p>
+        {/* City toggle */}
+        <div className="flex rounded-lg overflow-hidden border border-slate-200 text-xs font-semibold">
+          <button
+            onClick={() => onCityChange("bangalore")}
+            className={`flex-1 py-1.5 transition-colors ${activeCity === "bangalore" ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+          >
+            Bangalore
+          </button>
+          <button
+            onClick={() => onCityChange("chennai")}
+            className={`flex-1 py-1.5 transition-colors border-l border-slate-200 ${activeCity === "chennai" ? "bg-sky-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+          >
+            Chennai
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -101,24 +135,26 @@ export default function LayerPanel({
         </div>
         <div className="text-center">
           <div className="text-base font-bold text-indigo-700">{totalCentres}</div>
-          <div className="text-xs text-indigo-400">All Centres</div>
+          <div className="text-xs text-indigo-400">Centres</div>
         </div>
       </div>
-      {/* Centre breakdown */}
-      <div className="px-3 py-2 border-b border-slate-100 grid grid-cols-3 gap-1 flex-shrink-0">
-        <div className="text-center">
-          <div className="text-sm font-bold text-orange-500">{featureCounts["children_centres"] ?? 0}</div>
-          <div className="text-xs text-slate-400 leading-tight">Children</div>
+      {/* Centre breakdown — Bangalore only */}
+      {activeCity === "bangalore" && (
+        <div className="px-3 py-2 border-b border-slate-100 grid grid-cols-3 gap-1 flex-shrink-0">
+          <div className="text-center">
+            <div className="text-sm font-bold text-orange-500">{featureCounts["children_centres"] ?? 0}</div>
+            <div className="text-xs text-slate-400 leading-tight">Children</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-bold text-purple-500">{featureCounts["youth_centres"] ?? 0}</div>
+            <div className="text-xs text-slate-400 leading-tight">Youth</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-bold text-pink-500">{featureCounts["creches"] ?? 0}</div>
+            <div className="text-xs text-slate-400 leading-tight">Creches</div>
+          </div>
         </div>
-        <div className="text-center">
-          <div className="text-sm font-bold text-purple-500">{featureCounts["youth_centres"] ?? 0}</div>
-          <div className="text-xs text-slate-400 leading-tight">Youth</div>
-        </div>
-        <div className="text-center">
-          <div className="text-sm font-bold text-pink-500">{featureCounts["creches"] ?? 0}</div>
-          <div className="text-xs text-slate-400 leading-tight">Creches</div>
-        </div>
-      </div>
+      )}
 
       {/* Active filter banner — shown for any filter source */}
       {mapFilter && (
@@ -280,8 +316,13 @@ export default function LayerPanel({
             </p>
             <div className="space-y-2">
               {Object.entries(zoneIndex).sort()
-                .filter(([zone]) => !mapFilter?.zones.size || mapFilter.zones.has(zone))
+                .filter(([zone]) => {
+                  const isChennai = zone.startsWith("Chennai");
+                  return (activeCity === "chennai" ? isChennai : !isChennai)
+                    && (!mapFilter?.zones.size || mapFilter.zones.has(zone));
+                })
                 .map(([zone, settlements]) => {
+                const displayZone = zone.replace(/^Chennai\s*[–-]\s*/u, "");
                 const isActive = activeZone === zone && !activeCluster;
                 const color = ZONE_COLORS[zone] ?? "#64748b";
                 return (
@@ -311,7 +352,7 @@ export default function LayerPanel({
                           className="text-sm font-bold"
                           style={{ color: isActive ? color : "#1e293b" }}
                         >
-                          {zone}
+                          {displayZone}
                         </span>
                       </div>
                       <span
@@ -348,7 +389,7 @@ export default function LayerPanel({
                       style={{ background: ZONE_COLORS[zone] ?? "#64748b" }}
                     />
                     <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                      {zone} Zone
+                      {zone.replace(/^Chennai\s*[–-]\s*/u, "")} Zone
                     </p>
                   </div>
                   <div className="space-y-1">
@@ -378,7 +419,7 @@ export default function LayerPanel({
                           <span
                             className={`text-xs font-semibold ${isActive ? "" : "text-slate-700"}`}
                           >
-                            {cluster.replace(/_/g, " ")}
+                            {data?.display ?? cluster.replace(/_/g, " ")}
                           </span>
                           <span
                             className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${

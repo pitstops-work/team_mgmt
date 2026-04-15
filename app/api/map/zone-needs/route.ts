@@ -4,20 +4,30 @@ import { calcTargets } from "../settlement-needs/route";
 
 // GET /api/map/zone-needs?zone=NAME
 export async function GET(request: Request) {
-  const zoneName = new URL(request.url).searchParams.get("zone");
-  if (!zoneName) return NextResponse.json({ error: "zone required" }, { status: 400 });
+  const rawZone = new URL(request.url).searchParams.get("zone");
+  if (!rawZone) return NextResponse.json({ error: "zone required" }, { status: 400 });
 
-  const zone = await prisma.zone.findFirst({
-    where: { name: { equals: zoneName, mode: "insensitive" }, deletedAt: null },
-    include: {
-      clusters: {
-        where: { deletedAt: null },
-        include: {
-          settlements: { where: { deletedAt: null }, select: { id: true, name: true } },
-        },
+  // Try exact match first, then strip city prefix (e.g. "Chennai – Central" → "Central")
+  const stripped = rawZone.replace(/^.+?[–\-]\s*/u, "").trim();
+  const namesToTry = stripped && stripped !== rawZone ? [rawZone, stripped] : [rawZone];
+
+  const zoneInclude = {
+    clusters: {
+      where: { deletedAt: null },
+      include: {
+        settlements: { where: { deletedAt: null }, select: { id: true, name: true } },
       },
     },
-  });
+  };
+
+  let zone = null;
+  for (const name of namesToTry) {
+    zone = await prisma.zone.findFirst({
+      where: { name: { equals: name, mode: "insensitive" }, deletedAt: null },
+      include: zoneInclude,
+    });
+    if (zone) break;
+  }
 
   if (!zone) return NextResponse.json(null);
 

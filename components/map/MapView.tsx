@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { LAYERS, type LayerConfig, type LayerKey } from "@/lib/layers";
+import { LAYERS, type LayerConfig, type LayerKey, type MapCity } from "@/lib/layers";
 import { type MapFilter, settlementMatchesFilter, centreMatchesFilter } from "@/lib/mapFilter";
 
 export interface SettlementFeature {
@@ -61,7 +61,9 @@ interface MapViewProps {
   onZoneSelect: (zone: string | null) => void;
   onClusterSelect: (cluster: string | null) => void;
   flyToRef: React.MutableRefObject<((latlng: [number, number], zoom?: number) => void) | null>;
+  flyToCityRef: React.MutableRefObject<((city: MapCity) => void) | null>;
   openPopupRef: React.MutableRefObject<((layerKey: LayerKey, featureIdx: number) => void) | null>;
+  activeCity: MapCity;
   mapFilter: MapFilter | null;
   onCentreClick?: (partner: string, zone: string, cluster: string) => void;
   dbPartners?: { key: string; label: string; color: string }[];
@@ -187,12 +189,18 @@ const HEALTH_COLORS: Record<string, string> = {
   green: "#10b981",
 };
 
+const CITY_CENTERS: Record<MapCity, { latlng: L.LatLngTuple; zoom: number }> = {
+  bangalore: { latlng: [12.9716, 77.5946], zoom: 11 },
+  chennai:   { latlng: [13.0827, 80.2707], zoom: 12 },
+};
+
 export default function MapView({
   visibleLayers, onFeatureAdded, customFeatures, customPolygons = [],
   activeZone, activeCluster, onSettlementClick,
   onZoneSelect, onClusterSelect, onCentreClick,
-  flyToRef, openPopupRef, mapFilter, dbPartners = [],
+  flyToRef, flyToCityRef, openPopupRef, mapFilter, dbPartners = [],
   progressMode = false, progressHealth = null,
+  activeCity = "bangalore",
 }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -303,6 +311,10 @@ export default function MapView({
 
     flyToRef.current = (latlng, zoom = 16) =>
       map.flyTo(latlng, zoom, { duration: 0.7 });
+    flyToCityRef.current = (city: MapCity) => {
+      const { latlng, zoom } = CITY_CENTERS[city];
+      map.flyTo(latlng, zoom, { duration: 0.8 });
+    };
     openPopupRef.current = (layerKey, featureIdx) => {
       const layer = featureLayersByKey.current[layerKey]?.[featureIdx];
       if (!layer) return;
@@ -566,10 +578,11 @@ export default function MapView({
     if (activeZone && !activeCluster && ZONE_BOUNDS[activeZone]) {
       map.flyToBounds(ZONE_BOUNDS[activeZone], { duration: 0.8, padding: [30, 30] });
     } else if (!activeZone && !activeCluster) {
-      map.flyTo(BANGALORE_CENTER, 11, { duration: 0.8 });
+      const { latlng, zoom } = CITY_CENTERS[activeCity];
+      map.flyTo(latlng, zoom, { duration: 0.8 });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeZone, activeCluster]);
+  }, [activeZone, activeCluster, activeCity]);
 
   useEffect(() => {
     const map = mapRef.current;
