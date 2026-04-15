@@ -208,6 +208,29 @@ export default async function HomePage() {
       take: 5,
     }),
 
+    // Drifting themes: have InProgress pitstops not updated in 21 days
+    prisma.theme.findMany({
+      where: {
+        deletedAt: null,
+        goals: {
+          some: {
+            goal: {
+              deletedAt: null,
+              status: { not: "Complete" },
+              pitstops: {
+                some: {
+                  deletedAt: null,
+                  status: "InProgress",
+                  updatedAt: { lt: twentyOneDaysAgo },
+                },
+              },
+            },
+          },
+        },
+      },
+      select: { id: true, name: true, color: true },
+    }),
+
     // Pitstops that are Done but unverified — owned by reports of current user
     prisma.pitstop.findMany({
       where: {
@@ -240,29 +263,6 @@ export default async function HomePage() {
       },
       orderBy: { createdAt: "desc" },
       take: 10,
-    }),
-
-    // Drifting themes: have InProgress pitstops not updated in 21 days
-    prisma.theme.findMany({
-      where: {
-        deletedAt: null,
-        goals: {
-          some: {
-            goal: {
-              deletedAt: null,
-              status: { not: "Complete" },
-              pitstops: {
-                some: {
-                  deletedAt: null,
-                  status: "InProgress",
-                  updatedAt: { lt: twentyOneDaysAgo },
-                },
-              },
-            },
-          },
-        },
-      },
-      select: { id: true, name: true, color: true },
     }),
   ]);
 
