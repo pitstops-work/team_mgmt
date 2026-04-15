@@ -18,46 +18,60 @@ export async function GET(request: Request) {
     },
   };
 
+  // Strip city prefix (e.g. "Chennai – Central" → "Central") and determine city
+  const isChennai = rawZone.startsWith("Chennai");
+  const zoneLookupName = rawZone.replace(/^.+?[–\-]\s*/u, "").trim();
+  const cityKeyword = isChennai ? "Chennai" : "Bangalore";
+
+  // Look up city record so we can scope the zone query to the right city
+  const city = await prisma.city.findFirst({
+    where: { name: { contains: cityKeyword, mode: "insensitive" }, deletedAt: null },
+    select: { id: true },
+  });
+
   let zone = null;
 
-  // Always try cluster-based lookup first using zone_cluster_index.json.
-  // This avoids ambiguity when Bangalore and Chennai share zone names like "North" or "Central".
-  // For Chennai clusters: use the `display` field (en-dash names match DB).
-  // For Bangalore clusters: convert underscore key to spaces (matches DB cluster names).
-  try {
-    const indexPath = path.join(process.cwd(), "public/data/zone_cluster_index.json");
-    const index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
-    const clusterNames = Object.entries(index.clusters as Record<string, { zone: string; display?: string }>)
-      .filter(([, c]) => c.zone === rawZone)
-      .map(([key, c]) => c.display ?? key.replace(/_/g, " "))
-      .filter(Boolean);
-
-    if (clusterNames.length > 0) {
-      zone = await prisma.zone.findFirst({
-        where: {
-          deletedAt: null,
-          clusters: {
-            some: { name: { in: clusterNames, mode: "insensitive" }, deletedAt: null },
-          },
-        },
-        include: zoneInclude,
-      });
-    }
-  } catch {
-    // fall through to name-based lookup
+  // 1. Scoped by city + zone name (most precise when cityId is populated)
+  if (city) {
+    zone = await prisma.zone.findFirst({
+      where: { name: { equals: zoneLookupName, mode: "insensitive" }, deletedAt: null, cityId: city.id },
+      include: zoneInclude,
+    });
   }
 
-  // Fallback: exact match, then strip city prefix
+  // 2. Cluster-based lookup via zone_cluster_index (handles missing cityId)
   if (!zone) {
-    const stripped = rawZone.replace(/^.+?[–\-]\s*/u, "").trim();
-    const namesToTry = stripped && stripped !== rawZone ? [rawZone, stripped] : [rawZone];
-    for (const name of namesToTry) {
-      zone = await prisma.zone.findFirst({
-        where: { name: { equals: name, mode: "insensitive" }, deletedAt: null },
-        include: zoneInclude,
-      });
-      if (zone) break;
-    }
+    try {
+      const indexPath = path.join(process.cwd(), "public/data/zone_cluster_index.json");
+      const index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+      const clusterNames = Object.entries(index.clusters as Record<string, { zone: string; display?: string }>)
+        .filter(([, c]) => c.zone === rawZone)
+        .map(([key, c]) => c.display ?? key.replace(/_/g, " "))
+        .filter(Boolean);
+
+      if (clusterNames.length > 0) {
+        // Use OR of contains checks to work around `in` case-sensitivity limits
+        zone = await prisma.zone.findFirst({
+          where: {
+            deletedAt: null,
+            clusters: {
+              some: {
+                OR: clusterNames.map(n => ({ name: { equals: n, mode: "insensitive" as const }, deletedAt: null })),
+              },
+            },
+          },
+          include: zoneInclude,
+        });
+      }
+    } catch { /* fall through */ }
+  }
+
+  // 3. Plain name fallback
+  if (!zone) {
+    zone = await prisma.zone.findFirst({
+      where: { name: { equals: zoneLookupName, mode: "insensitive" }, deletedAt: null },
+      include: zoneInclude,
+    });
   }
 
   if (!zone) return NextResponse.json(null);
