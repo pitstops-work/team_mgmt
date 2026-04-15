@@ -8,7 +8,8 @@ export default async function ReadinessPage() {
   const session = await auth();
   const currentUserId = session!.user!.id!;
 
-  if (process.env.ADMIN_USER_ID && currentUserId !== process.env.ADMIN_USER_ID) {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (adminEmail && session!.user!.email !== adminEmail) {
     redirect("/dashboard");
   }
 
