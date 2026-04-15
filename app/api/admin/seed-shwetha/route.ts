@@ -383,10 +383,12 @@ export async function GET(req: Request) {
   });
   if (!shwetha) return NextResponse.json({ error: "Shwetha not found — check name in DB" }, { status: 404 });
 
-  // Idempotency check
+  // Idempotency check — bypass with ?force=1
+  const url = new URL(req.url);
+  const force = url.searchParams.get("force") === "1";
   const existing = await prisma.goal.count({ where: { ownerId: shwetha.id, deletedAt: null } });
-  if (existing > 0) {
-    return NextResponse.json({ message: `Shwetha already has ${existing} goals — skipping to avoid duplicates. Delete existing goals first if you want to re-seed.` });
+  if (existing > 0 && !force) {
+    return NextResponse.json({ message: `Shwetha already has ${existing} goals — skipping. Add ?force=1 to seed anyway (will add on top of existing).` });
   }
 
   const created = { goals: 0, pitstops: 0, checklistItems: 0, planItems: 0 };
