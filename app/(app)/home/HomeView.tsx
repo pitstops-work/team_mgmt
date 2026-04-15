@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, CalendarDays, Clock, Bell, ChevronRight, Plus,
-  CalendarRange, Megaphone, Tag,
+  CalendarRange, Megaphone, Tag, ShieldCheck, BadgeCheck,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
@@ -50,6 +50,15 @@ type StandupLog = {
   user: { id: string; name: string | null; image: string | null };
 };
 type StalePitstop = { id: string; title: string; goal: { id: string; title: string } };
+type PendingVerification = {
+  id: string; title: string; completedAt: string | null;
+  goal: { id: string; title: string };
+  owner: { id: string; name: string | null; image: string | null };
+};
+type UnconfirmedGoal = {
+  id: string; title: string; createdAt: string;
+  owner: { id: string; name: string | null; image: string | null };
+};
 
 type HomeData = {
   overduePitstops: OverduePitstop[];
@@ -65,6 +74,8 @@ type HomeData = {
   recentStandups: StandupLog[];
   staleCheckins: StalePitstop[];
   driftingThemes: { id: string; name: string; color: string | null }[];
+  pendingVerifications: PendingVerification[];
+  unconfirmedGoals: UnconfirmedGoal[];
   fyYear: number;
   fyQ: number;
 };
@@ -296,6 +307,7 @@ export default function HomeView({
     overduePitstops, thisWeekPitstops, todayPlanItems, todayActivities,
     noPlanPitstops, goneQuietGoals, flaggedActivities, recentNotifications,
     currentQuarter, recentBroadcasts, driftingThemes, fyYear, fyQ,
+    pendingVerifications = [], unconfirmedGoals = [],
   } = data;
 
   const attentionCount = overduePitstops.length + goneQuietGoals.length + flaggedActivities.length;
@@ -511,6 +523,48 @@ export default function HomeView({
                         style={t.color ? { backgroundColor: t.color } : { backgroundColor: '#d97706' }} />
                       {t.name}
                       <span className="text-[10px] font-normal text-amber-600">21d quiet</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pending verifications */}
+            {pendingVerifications.length > 0 && (
+              <div>
+                <SectionHeader title="Awaiting your review" count={pendingVerifications.length} icon={<ShieldCheck className="w-3.5 h-3.5" />} />
+                <div className="space-y-1.5">
+                  {pendingVerifications.map(p => (
+                    <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-stone-800 truncate">{p.title}</p>
+                        <p className="text-[10px] text-stone-500 truncate">{p.goal.title} · done by {p.owner.name}</p>
+                      </div>
+                      {p.completedAt && (
+                        <span className="text-[10px] text-emerald-600 flex-shrink-0">{fmtDate(p.completedAt)}</span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Unconfirmed goals */}
+            {unconfirmedGoals.length > 0 && (
+              <div>
+                <SectionHeader title="Goals awaiting confirmation" count={unconfirmedGoals.length} icon={<BadgeCheck className="w-3.5 h-3.5" />} />
+                <div className="space-y-1.5">
+                  {unconfirmedGoals.map(g => (
+                    <Link key={g.id} href={`/goals/${g.id}`}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 transition-colors">
+                      <BadgeCheck className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-stone-800 truncate">{g.title}</p>
+                        <p className="text-[10px] text-stone-500 truncate">by {g.owner.name}</p>
+                      </div>
+                      <span className="text-[10px] text-sky-600 flex-shrink-0">{fmtDate(g.createdAt)}</span>
                     </Link>
                   ))}
                 </div>

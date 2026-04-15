@@ -49,6 +49,8 @@ export default async function HomePage() {
     recentStandups,
     staleCheckins,
     driftingThemes,
+    pendingVerifications,
+    unconfirmedGoals,
   ] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, image: true, email: true },
@@ -206,6 +208,40 @@ export default async function HomePage() {
       take: 5,
     }),
 
+    // Pitstops that are Done but unverified — owned by reports of current user
+    prisma.pitstop.findMany({
+      where: {
+        deletedAt: null,
+        status: "Done",
+        verifiedById: null,
+        goal: { deletedAt: null },
+        owner: { reportsToId: currentUserId },
+      },
+      select: {
+        id: true, title: true, completedAt: true,
+        goal: { select: { id: true, title: true } },
+        owner: { select: { id: true, name: true, image: true } },
+      },
+      orderBy: { completedAt: "desc" },
+      take: 10,
+    }),
+
+    // Goals without confirmation — owned by reports of current user
+    prisma.goal.findMany({
+      where: {
+        deletedAt: null,
+        status: { not: "Complete" },
+        confirmedById: null,
+        owner: { reportsToId: currentUserId },
+      },
+      select: {
+        id: true, title: true, createdAt: true,
+        owner: { select: { id: true, name: true, image: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+
     // Drifting themes: have InProgress pitstops not updated in 21 days
     prisma.theme.findMany({
       where: {
@@ -251,6 +287,8 @@ export default async function HomePage() {
     recentStandups: JSON.parse(JSON.stringify(recentStandups)),
     staleCheckins: JSON.parse(JSON.stringify(staleCheckins)),
     driftingThemes: JSON.parse(JSON.stringify(driftingThemes)),
+    pendingVerifications: JSON.parse(JSON.stringify(pendingVerifications)),
+    unconfirmedGoals: JSON.parse(JSON.stringify(unconfirmedGoals)),
     fyYear,
     fyQ,
   };

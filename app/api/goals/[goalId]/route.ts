@@ -17,6 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ goa
       attachments: { where: { goalId: { not: null } }, orderBy: { createdAt: "asc" } },
       followers: { select: { userId: true } },
       coOwners: { select: { userId: true, user: { select: { id: true, name: true, image: true } } } },
+      confirmedBy: { select: { id: true, name: true, image: true } },
       pitstops: {
         where: { deletedAt: null },
         include: {

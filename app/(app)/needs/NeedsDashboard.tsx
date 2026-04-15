@@ -119,7 +119,12 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
 // ── Coverage: Scrollable grid header ─────────────────────────────────────────
 
 function rowCols(n: number) {
-  return `20px 16px 1fr 72px 56px repeat(${n}, 30px)`;
+  return `20px 16px 1fr 72px 56px 40px repeat(${n}, 30px)`;
+}
+
+function SaturationChip({ score }: { score: number }) {
+  const color = score >= 80 ? "text-emerald-600" : score >= 40 ? "text-amber-600" : "text-red-500";
+  return <span className={`text-[10px] font-bold tabular-nums ${color}`}>{score}%</span>;
 }
 
 function DomainHeaderRow({ domainConfigs }: { domainConfigs: DomainConfig[] }) {
@@ -132,6 +137,7 @@ function DomainHeaderRow({ domainConfigs }: { domainConfigs: DomainConfig[] }) {
       <span>Name</span>
       <span className="text-right">Assessed</span>
       <span className="text-right">HH</span>
+      <span className="text-center" title="Saturation: delivered ÷ APF target">Sat</span>
       {domainConfigs.map(d => (
         <span key={d.domain} className="text-center leading-tight" style={{ color: d.color }} title={d.label}>
           {d.label.replace(/([A-Z])/g, ' $1').trim().split(' ').map((w: string) => w[0]).join('').slice(0, 3)}
@@ -375,6 +381,11 @@ export default function NeedsDashboard({
           <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
             <div className="h-full bg-sky-400 rounded-full transition-all" style={{ width: `${coveragePct}%` }} />
           </div>
+          {cityStats.saturationScore > 0 && (
+            <span className="flex-shrink-0 text-xs text-stone-500">
+              Saturation: <SaturationChip score={cityStats.saturationScore} />
+            </span>
+          )}
         </div>
         {cityStats.totalHH > 0 && (
           <p className="text-xs text-stone-400 mt-1">{cityStats.totalHH.toLocaleString()} total households across assessed settlements</p>
@@ -475,6 +486,7 @@ export default function NeedsDashboard({
                             </div>
                             <span className="text-right text-xs text-stone-500 tabular-nums">{z.stats.assessedCount}/{z.stats.totalCount}</span>
                             <span className="text-right text-xs text-stone-500 tabular-nums">{z.stats.totalHH > 0 ? z.stats.totalHH.toLocaleString() : "—"}</span>
+                            <div className="flex justify-center"><SaturationChip score={z.stats.saturationScore} /></div>
                             {domainConfigs.map(({ domain }) => (
                               <div key={domain} className="flex justify-center"><GapChip d={z.stats.domains[domain]} /></div>
                             ))}
@@ -518,6 +530,7 @@ export default function NeedsDashboard({
                             </div>
                             <span className="text-right text-xs text-stone-500 tabular-nums">{cl.stats.assessedCount}/{cl.stats.totalCount}</span>
                             <span className="text-right text-xs text-stone-500 tabular-nums">{cl.stats.totalHH > 0 ? cl.stats.totalHH.toLocaleString() : "—"}</span>
+                            <div className="flex justify-center"><SaturationChip score={cl.stats.saturationScore} /></div>
                             {domainConfigs.map(({ domain }) => (
                               <div key={domain} className="flex justify-center"><GapChip d={cl.stats.domains[domain]} /></div>
                             ))}
@@ -544,9 +557,10 @@ export default function NeedsDashboard({
             <div className="border border-stone-200 rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <div style={{ minWidth: `${380 + domainConfigs.length * 32}px` }}>
-                  <div className="grid items-center gap-x-2 px-3 py-1.5 bg-white border-b border-stone-200 text-[9px] font-semibold text-stone-400 uppercase tracking-wide" style={{ gridTemplateColumns: `1fr 80px repeat(${domainConfigs.length}, 30px)` }}>
+                  <div className="grid items-center gap-x-2 px-3 py-1.5 bg-white border-b border-stone-200 text-[9px] font-semibold text-stone-400 uppercase tracking-wide" style={{ gridTemplateColumns: `1fr 80px 40px repeat(${domainConfigs.length}, 30px)` }}>
                     <span>Settlement</span>
                     <span className="text-right">HH</span>
+                    <span className="text-center" title="Saturation">Sat</span>
                     {domainConfigs.map(d => (
                       <span key={d.domain} className="text-center leading-tight" style={{ color: d.color }} title={d.label}>
                         {d.label.replace(/([A-Z])/g, ' $1').trim().split(' ').map((w: string) => w[0]).join('').slice(0, 3)}
@@ -558,7 +572,7 @@ export default function NeedsDashboard({
                       const ss = settlementStats[s.id];
                       const isAssessed = s.assessments.length > 0;
                       return (
-                        <Link key={s.id} href={`/needs/settlement/${s.id}`} className="grid items-center gap-x-2 px-3 py-2.5 hover:bg-sky-50 transition-colors group" style={{ gridTemplateColumns: `1fr 80px repeat(${domainConfigs.length}, 30px)` }}>
+                        <Link key={s.id} href={`/needs/settlement/${s.id}`} className="grid items-center gap-x-2 px-3 py-2.5 hover:bg-sky-50 transition-colors group" style={{ gridTemplateColumns: `1fr 80px 40px repeat(${domainConfigs.length}, 30px)` }}>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <Home className="w-3 h-3 text-stone-300 flex-shrink-0" />
@@ -572,6 +586,9 @@ export default function NeedsDashboard({
                             ) : (
                               <Clock className="w-3 h-3 text-amber-400" />
                             )}
+                          </div>
+                          <div className="flex justify-center">
+                            {isAssessed && ss ? <SaturationChip score={ss.stats.saturationScore} /> : <span className="text-[10px] text-stone-200">·</span>}
                           </div>
                           {domainConfigs.map(({ domain }) => (
                             <div key={domain} className="flex justify-center">

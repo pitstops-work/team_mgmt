@@ -31,6 +31,7 @@ export interface LevelStats {
   assessedCount: number;
   totalCount: number;
   domains: DomainStats;
+  saturationScore: number;  // 0–100: Σ min(done, apfTarget) / Σ apfTarget × 100
 }
 
 export interface DomainProgress {
@@ -203,11 +204,17 @@ function computeStats(
     };
   }
 
+  // Saturation score: Σ min(done, apfTarget) / Σ apfTarget × 100
+  const totalApfTarget = Object.values(domains).reduce((s, d) => s + d.apfTarget, 0);
+  const totalDelivered = Object.values(domains).reduce((s, d) => s + Math.min(d.done, d.apfTarget), 0);
+  const saturationScore = totalApfTarget > 0 ? Math.round((totalDelivered / totalApfTarget) * 100) : 0;
+
   return {
     totalHH,
     assessedCount: assessments.length,
     totalCount,
     domains,
+    saturationScore,
   };
 }
 

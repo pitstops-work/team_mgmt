@@ -55,6 +55,14 @@ model User {
   metricDataPoints     MetricDataPoint[]
   // Needs assessment
   assessments          SettlementAssessment[]
+  // Reporting structure (for notification routing — not a hard gate)
+  reportsToId          String?
+  reportsTo            User?                 @relation("UserReports", fields: [reportsToId], references: [id])
+  reports              User[]                @relation("UserReports")
+  // Verification / confirmation
+  verifiedPitstops     Pitstop[]             @relation("PitstopVerifier")
+  confirmedGoals       Goal[]                @relation("GoalConfirmer")
+  dateChanges          PitstopDateChange[]   @relation("DateChanger")
 }
 
 model Account {
@@ -104,6 +112,11 @@ model Goal {
   deletedAt   DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  // Confirmation (non-blocking — just records who confirmed and when)
+  confirmedById    String?
+  confirmedAt      DateTime?
+  confirmedBy      User?         @relation("GoalConfirmer", fields: [confirmedById], references: [id])
 
   // Needs assessment linkage
   needsDomain       String?
@@ -159,8 +172,13 @@ model Pitstop {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  // Peer verification (non-blocking — records who verified and when)
+  verifiedById    String?
+  verifiedAt      DateTime?
+
   goal           Goal                @relation(fields: [goalId], references: [id], onDelete: Cascade)
   owner          User?               @relation("PitstopOwner", fields: [ownerId], references: [id])
+  verifiedBy     User?               @relation("PitstopVerifier", fields: [verifiedById], references: [id])
   threads        Thread[]
   attachments    Attachment[]
   checklistItems ChecklistItem[]
@@ -181,6 +199,7 @@ model Pitstop {
   zones          PitstopZone[]
   clusters       PitstopCluster[]
   settlements    PitstopSettlement[]
+  dateChanges    PitstopDateChange[]
 }
 
 model ChecklistItem {
@@ -203,6 +222,22 @@ model PitstopDependency {
   blockedBy Pitstop @relation("BlockingPitstop", fields: [blockedById], references: [id], onDelete: Cascade)
 
   @@unique([blockedId, blockedById])
+}
+
+model PitstopDateChange {
+  id          String   @id @default(cuid())
+  pitstopId   String
+  field       String   @default("targetDate")
+  oldDate     DateTime
+  newDate     DateTime
+  reason      String?
+  changedById String
+  createdAt   DateTime @default(now())
+
+  pitstop   Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  changedBy User    @relation("DateChanger", fields: [changedById], references: [id])
+
+  @@index([pitstopId])
 }
 
 model Thread {
@@ -300,6 +335,8 @@ enum NotificationType {
   CheckinReminder
   EscalationAlert
   BroadcastUpdate
+  PitstopVerified
+  GoalConfirmed
 }
 
 model Notification {

@@ -73,6 +73,40 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     if (auditEntries.length > 0) {
       await prisma.auditLog.createMany({ data: auditEntries });
     }
+
+    // Variance log: record date changes with optional reason
+    const dateChangeEntries: Array<{ id: string; pitstopId: string; field: string; oldDate: Date; newDate: Date; reason: string | null; changedById: string }> = [];
+    if (data.targetDate !== undefined && existing.targetDate) {
+      const newTargetDate = data.targetDate ? new Date(data.targetDate) : null;
+      if (newTargetDate && newTargetDate.getTime() !== existing.targetDate.getTime()) {
+        dateChangeEntries.push({
+          id: crypto.randomUUID(),
+          pitstopId,
+          field: "targetDate",
+          oldDate: existing.targetDate,
+          newDate: newTargetDate,
+          reason: data.reason ?? null,
+          changedById: session.user.id!,
+        });
+      }
+    }
+    if (data.startDate !== undefined && existing.startDate) {
+      const newStartDate = data.startDate ? new Date(data.startDate) : null;
+      if (newStartDate && newStartDate.getTime() !== existing.startDate.getTime()) {
+        dateChangeEntries.push({
+          id: crypto.randomUUID(),
+          pitstopId,
+          field: "startDate",
+          oldDate: existing.startDate,
+          newDate: newStartDate,
+          reason: data.reason ?? null,
+          changedById: session.user.id!,
+        });
+      }
+    }
+    if (dateChangeEntries.length > 0) {
+      await prisma.pitstopDateChange.createMany({ data: dateChangeEntries });
+    }
   }
 
   // Save custom type for reuse

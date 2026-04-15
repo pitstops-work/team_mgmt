@@ -41,6 +41,11 @@ export default async function PitstopPage({
           },
           orderBy: { createdAt: "asc" },
         },
+        verifiedBy: { select: { id: true, name: true, image: true } },
+        dateChanges: {
+          orderBy: { createdAt: "asc" },
+          include: { changedBy: { select: { id: true, name: true, image: true } } },
+        },
       },
     }),
     prisma.user.findMany({ select: { id: true, name: true, image: true } }),

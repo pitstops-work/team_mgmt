@@ -55,6 +55,8 @@ export async function GET(req: NextRequest) {
     recentStandups,
     staleCheckins,
     driftingThemes,
+    pendingVerifications,
+    unconfirmedGoals,
   ] = await Promise.all([
     // Overdue: past target date, not done
     prisma.pitstop.findMany({
@@ -266,6 +268,40 @@ export async function GET(req: NextRequest) {
       },
       select: { id: true, name: true, color: true },
     }),
+
+    // Done pitstops owned by reports of current user, not yet verified
+    prisma.pitstop.findMany({
+      where: {
+        deletedAt: null,
+        status: "Done",
+        verifiedById: null,
+        goal: { deletedAt: null },
+        owner: { reportsToId: currentUserId },
+      },
+      select: {
+        id: true, title: true, completedAt: true,
+        goal: { select: { id: true, title: true } },
+        owner: { select: { id: true, name: true, image: true } },
+      },
+      orderBy: { completedAt: "desc" },
+      take: 10,
+    }),
+
+    // Goals not yet confirmed owned by reports of current user
+    prisma.goal.findMany({
+      where: {
+        deletedAt: null,
+        status: { not: "Complete" },
+        confirmedById: null,
+        owner: { reportsToId: currentUserId },
+      },
+      select: {
+        id: true, title: true, createdAt: true,
+        owner: { select: { id: true, name: true, image: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
   ]);
 
   const plannedIds = new Set(plannedThisWeek.map(r => r.pitstopId));
@@ -290,6 +326,8 @@ export async function GET(req: NextRequest) {
     recentStandups,
     staleCheckins,
     driftingThemes,
+    pendingVerifications,
+    unconfirmedGoals,
     fyYear,
     fyQ,
   });

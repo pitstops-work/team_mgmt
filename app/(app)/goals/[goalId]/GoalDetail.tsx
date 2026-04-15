@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock, X, CheckSquare, ExternalLink, AlertTriangle, Copy } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock, X, CheckSquare, ExternalLink, AlertTriangle, Copy, BadgeCheck } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge, PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
@@ -59,6 +59,9 @@ type Goal = {
   needsDomain?: string | null;
   parameter?: number | null;
   outcomeCount?: number | null;
+  confirmedById?: string | null;
+  confirmedAt?: string | null;
+  confirmedBy?: User | null;
   owner: User;
   attachments: Attachment[];
   pitstops: Pitstop[];
@@ -100,12 +103,28 @@ export default function GoalDetail({
     queryClient.setQueryData<Goal>(qk.goal(initialGoal.id), (old) => old ? updater(old) : old);
   };
 
+  const [confirming, setConfirming] = useState(false);
   const [recurLoading, setRecurLoading] = useState(false);
   const sortedPitstops = [...(goal?.pitstops ?? [])].sort((a, b) => a.order - b.order);
 
   // Prefetch pitstop page on hover
   const prefetchPitstop = (pitstopId: string) => {
     router.prefetch(`/goals/${goal!.id}/pitstops/${pitstopId}`);
+  };
+
+  const handleConfirm = async () => {
+    setConfirming(true);
+    const res = await fetch(`/api/goals/${goal.id}/confirm`, { method: "POST" });
+    if (res.ok) {
+      const updated = await res.json();
+      updateGoal((g) => ({
+        ...g,
+        confirmedById: updated.confirmedById,
+        confirmedAt: updated.confirmedAt,
+        confirmedBy: updated.confirmedBy,
+      }));
+    }
+    setConfirming(false);
   };
 
   const handleRecur = async () => {
@@ -339,6 +358,37 @@ export default function GoalDetail({
             })()}
           </div>
         )}
+
+        {/* Confirmation badge */}
+        <div className="mt-3 flex items-center gap-2">
+          {goal.confirmedById ? (
+            <div className="flex items-center gap-1.5">
+              <BadgeCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-xs text-emerald-700">
+                Confirmed by {goal.confirmedBy?.name ?? "—"}
+                {goal.confirmedAt && <span className="text-emerald-500 font-normal ml-1">· {fmtDate(goal.confirmedAt)}</span>}
+              </span>
+              {goal.confirmedById === currentUserId && (
+                <button
+                  onClick={handleConfirm}
+                  disabled={confirming}
+                  className="text-[10px] text-stone-400 hover:text-red-500 ml-1 transition-colors"
+                >
+                  (remove)
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={handleConfirm}
+              disabled={confirming}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs border border-stone-200 rounded-lg text-stone-500 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition-colors disabled:opacity-50"
+            >
+              <BadgeCheck className="w-3.5 h-3.5" />
+              {confirming ? "Confirming…" : "Confirm goal"}
+            </button>
+          )}
+        </div>
 
         {/* Outcome vs planned — shown when goal is complete and has a needs domain */}
         {goal.status === "Complete" && goal.needsDomain && goal.parameter != null && (

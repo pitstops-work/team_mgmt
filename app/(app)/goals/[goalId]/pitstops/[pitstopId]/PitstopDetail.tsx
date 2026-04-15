@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar, CheckSquare, Lock, Unlock, RefreshCw, Pencil } from "lucide-react";
+import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar, CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
 import OwnerPicker from "@/components/OwnerPicker";
 import Avatar from "@/components/Avatar";
@@ -33,6 +33,15 @@ type ChecklistItem = { id: string; text: string; checked: boolean; order: number
 type DepPitstop = { id: string; title: string; status: string };
 type Dependency = { id: string; blockedBy: DepPitstop };
 type PitstopRecurrence = "None" | "Weekly" | "Monthly" | "Quarterly";
+type DateChange = {
+  id: string;
+  field: string;
+  oldDate: string;
+  newDate: string;
+  reason: string | null;
+  createdAt: string;
+  changedBy: { id: string; name: string | null; image: string | null };
+};
 type Pitstop = {
   id: string;
   title: string;
@@ -46,6 +55,10 @@ type Pitstop = {
   startDate?: string | null;
   targetDate?: string | null;
   completedAt?: string | null;
+  verifiedById?: string | null;
+  verifiedAt?: string | null;
+  verifiedBy?: User | null;
+  dateChanges: DateChange[];
   goal: { id: string; title: string; targetDate?: string | null };
   attachments: Attachment[];
   checklistItems: ChecklistItem[];
@@ -88,6 +101,10 @@ export default function PitstopDetail({
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(
     new Set(initialSubscribedThreadIds)
   );
+  // Verify
+  const [verifying, setVerifying] = useState(false);
+  // Date change reason
+  const [dateReason, setDateReason] = useState("");
   // Checklist
   const [newCheckItem, setNewCheckItem] = useState("");
   const [addingCheck, setAddingCheck] = useState(false);
@@ -277,16 +294,34 @@ export default function PitstopDetail({
     const res = await fetch(`/api/pitstops/${pitstop.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ startDate: startDate || null, targetDate: targetDate || null }),
+      body: JSON.stringify({ startDate: startDate || null, targetDate: targetDate || null, reason: dateReason || null }),
     });
     setSavingDates(false);
     if (res.ok) {
       const updated = await res.json();
-      setPitstop((p) => ({ ...p, startDate: updated.startDate, targetDate: updated.targetDate }));
+      // Refresh dateChanges from server since new record may have been created
+      const fresh = await fetch(`/api/pitstops/${pitstop.id}/date-changes`).then(r => r.json()).catch(() => pitstop.dateChanges);
+      setPitstop((p) => ({ ...p, startDate: updated.startDate, targetDate: updated.targetDate, dateChanges: fresh }));
+      setDateReason("");
       setEditingDates(false);
     } else {
       setDatesError("Failed to save.");
     }
+  };
+
+  const handleVerify = async () => {
+    setVerifying(true);
+    const res = await fetch(`/api/pitstops/${pitstop.id}/verify`, { method: "POST" });
+    if (res.ok) {
+      const updated = await res.json();
+      setPitstop((p) => ({
+        ...p,
+        verifiedById: updated.verifiedById,
+        verifiedAt: updated.verifiedAt,
+        verifiedBy: updated.verifiedBy,
+      }));
+    }
+    setVerifying(false);
   };
 
   const handleSaveEdit = async (data: { title: string; type: string; customType: string; status: string; notes: string }) => {
@@ -535,6 +570,16 @@ export default function PitstopDetail({
                   className="w-full px-2 py-1 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-400"
                 />
               </div>
+              <div>
+                <label className="block text-[10px] text-stone-400 mb-0.5">Reason for change <span className="text-stone-300">(optional)</span></label>
+                <input
+                  type="text"
+                  value={dateReason}
+                  onChange={(e) => setDateReason(e.target.value)}
+                  placeholder="e.g. Field visit rescheduled"
+                  className="w-full px-2 py-1 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-400"
+                />
+              </div>
               {datesError && <p className="text-[10px] text-red-500">{datesError}</p>}
               <button
                 onClick={handleSaveDates}
@@ -563,6 +608,68 @@ export default function PitstopDetail({
             </div>
           )}
         </div>
+
+        {/* Peer verification */}
+        <div className="px-4 py-3 border-b border-stone-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-stone-500 flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Verification
+            </span>
+          </div>
+          {pitstop.verifiedById ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Avatar name={pitstop.verifiedBy?.name} image={pitstop.verifiedBy?.image} size="xs" />
+                <div>
+                  <p className="text-[10px] text-emerald-700 font-medium">Verified by {pitstop.verifiedBy?.name ?? "—"}</p>
+                  <p className="text-[10px] text-stone-400">{pitstop.verifiedAt ? fmtDate(pitstop.verifiedAt) : ""}</p>
+                </div>
+              </div>
+              {pitstop.verifiedById === currentUserId && (
+                <button
+                  onClick={handleVerify}
+                  disabled={verifying}
+                  className="text-[10px] text-stone-400 hover:text-red-500 transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ) : (
+            <div>
+              <p className="text-xs text-stone-400 mb-2">Mark this pitstop as verified once you&apos;ve reviewed the work.</p>
+              <button
+                onClick={handleVerify}
+                disabled={verifying}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-stone-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition-colors disabled:opacity-50"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {verifying ? "Verifying…" : "Verify"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Variance log (date changes) */}
+        {pitstop.dateChanges.length > 0 && (
+          <div className="px-4 py-3 border-b border-stone-100">
+            <span className="text-xs font-medium text-stone-500 flex items-center gap-1 mb-2">
+              <History className="w-3.5 h-3.5" />
+              Date change log
+            </span>
+            <div className="space-y-2">
+              {pitstop.dateChanges.map((dc) => (
+                <div key={dc.id} className="text-[10px] text-stone-500 border-l-2 border-stone-200 pl-2">
+                  <span className="font-medium text-stone-700">{dc.field === "targetDate" ? "Target" : "Start"}</span>
+                  {" "}{fmtDate(dc.oldDate)} → {fmtDate(dc.newDate)}
+                  {dc.reason && <span className="ml-1 italic text-stone-400">"{dc.reason}"</span>}
+                  <div className="text-stone-400 mt-0.5">{dc.changedBy.name} · {fmtDate(dc.createdAt)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Check-ins */}
         {/* Retrospective */}
