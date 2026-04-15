@@ -23,33 +23,55 @@ export function calcTargets(
   };
 }
 
+// Normalise a name coming from GeoJSON: collapse unicode spaces, trim
+function normaliseName(s: string): string {
+  return s.replace(/[\u00a0\u200b\u2009\u202f]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
 // GET /api/map/settlement-needs?settlement=NAME&cluster=CLUSTER_NAME
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const settlementName = url.searchParams.get("settlement");
-  const clusterName    = url.searchParams.get("cluster")?.replace(/_/g, " ");
+  const rawSettlement  = url.searchParams.get("settlement");
+  const rawCluster     = url.searchParams.get("cluster");
 
-  if (!settlementName) return NextResponse.json({ error: "settlement required" }, { status: 400 });
+  if (!rawSettlement) return NextResponse.json({ error: "settlement required" }, { status: 400 });
 
-  // Find settlement in DB: try with cluster constraint first, fall back to name-only
-  let settlement = await prisma.settlement.findFirst({
-    where: {
-      name: { equals: settlementName, mode: "insensitive" },
-      deletedAt: null,
-      ...(clusterName ? { cluster: { name: { equals: clusterName, mode: "insensitive" } } } : {}),
-    },
-    include: { cluster: { include: { zone: true } } },
-  });
+  const settlementName = normaliseName(rawSettlement);
+  const clusterName    = rawCluster ? normaliseName(rawCluster).replace(/_/g, " ") : null;
 
-  // Cluster name mismatch? Try display variant (e.g. "Fort & Park" vs "Fort and Park")
-  if (!settlement && clusterName) {
+  const settleInclude = { cluster: { include: { zone: true } } };
+
+  // 1. Exact match with cluster constraint
+  let settlement = clusterName
+    ? await prisma.settlement.findFirst({
+        where: { name: { equals: settlementName, mode: "insensitive" }, deletedAt: null,
+          cluster: { name: { equals: clusterName, mode: "insensitive" } } },
+        include: settleInclude,
+      })
+    : null;
+
+  // 2. Exact name match without cluster constraint (handles cluster name mismatches)
+  if (!settlement) {
     settlement = await prisma.settlement.findFirst({
-      where: {
-        name: { equals: settlementName, mode: "insensitive" },
-        deletedAt: null,
-      },
-      include: { cluster: { include: { zone: true } } },
+      where: { name: { equals: settlementName, mode: "insensitive" }, deletedAt: null },
+      include: settleInclude,
     });
+  }
+
+  // 3. Fuzzy fallback: first significant word (≥4 chars) as a contains search,
+  //    scoped to the same cluster when possible
+  if (!settlement) {
+    const firstWord = settlementName.split(/[\s,\-–(]+/).find(w => w.length >= 4) ?? "";
+    if (firstWord) {
+      settlement = await prisma.settlement.findFirst({
+        where: {
+          name: { contains: firstWord, mode: "insensitive" },
+          deletedAt: null,
+          ...(clusterName ? { cluster: { name: { contains: clusterName.split(/[\s\-–]+/)[0], mode: "insensitive" } } } : {}),
+        },
+        include: settleInclude,
+      });
+    }
   }
 
   if (!settlement) return NextResponse.json(null);

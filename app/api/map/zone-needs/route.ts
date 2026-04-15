@@ -20,33 +20,31 @@ export async function GET(request: Request) {
 
   let zone = null;
 
-  // If the zone name has a city prefix (e.g. "Chennai – Central"), use cluster names from
-  // zone_cluster_index.json to find the correct DB zone and avoid ambiguity with same-named
-  // Bangalore zones (both cities can have a zone called "Central").
-  const hasPrefix = /^.+?[–\-]\s*/u.test(rawZone);
-  if (hasPrefix) {
-    try {
-      const indexPath = path.join(process.cwd(), "public/data/zone_cluster_index.json");
-      const index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
-      const clusterDisplayNames = Object.values(index.clusters as Record<string, { zone: string; display?: string; settlements: string[] }>)
-        .filter((c) => c.zone === rawZone)
-        .map((c) => c.display)
-        .filter((d): d is string => !!d);
+  // Always try cluster-based lookup first using zone_cluster_index.json.
+  // This avoids ambiguity when Bangalore and Chennai share zone names like "North" or "Central".
+  // For Chennai clusters: use the `display` field (en-dash names match DB).
+  // For Bangalore clusters: convert underscore key to spaces (matches DB cluster names).
+  try {
+    const indexPath = path.join(process.cwd(), "public/data/zone_cluster_index.json");
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+    const clusterNames = Object.entries(index.clusters as Record<string, { zone: string; display?: string }>)
+      .filter(([, c]) => c.zone === rawZone)
+      .map(([key, c]) => c.display ?? key.replace(/_/g, " "))
+      .filter(Boolean);
 
-      if (clusterDisplayNames.length > 0) {
-        zone = await prisma.zone.findFirst({
-          where: {
-            deletedAt: null,
-            clusters: {
-              some: { name: { in: clusterDisplayNames, mode: "insensitive" }, deletedAt: null },
-            },
+    if (clusterNames.length > 0) {
+      zone = await prisma.zone.findFirst({
+        where: {
+          deletedAt: null,
+          clusters: {
+            some: { name: { in: clusterNames, mode: "insensitive" }, deletedAt: null },
           },
-          include: zoneInclude,
-        });
-      }
-    } catch {
-      // fall through to name-based lookup
+        },
+        include: zoneInclude,
+      });
     }
+  } catch {
+    // fall through to name-based lookup
   }
 
   // Fallback: exact match, then strip city prefix
