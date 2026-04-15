@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <NavigationProgress />
       <PushSubscriber />
       <div className="flex h-screen overflow-hidden">
-        <AppNav user={session.user} unreadCount={unreadCount} />
+        <AppNav user={session.user} unreadCount={unreadCount} isAdmin={session.user.email === process.env.ADMIN_EMAIL} />
         <main className="relative flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>
       </div>
       </QueryProvider>

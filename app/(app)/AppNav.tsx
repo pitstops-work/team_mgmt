@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3 } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -15,7 +15,7 @@ interface User {
   image?: string | null;
 }
 
-export default function AppNav({ user, unreadCount }: { user: User; unreadCount: number }) {
+export default function AppNav({ user, unreadCount, isAdmin }: { user: User; unreadCount: number; isAdmin?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -72,6 +72,12 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
             <Users className="w-3.5 h-3.5 text-stone-500" />
             People
           </NavLink>
+          {isAdmin && (
+            <NavLink href="/readiness" active={pathname === "/readiness"}>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              Readiness
+            </NavLink>
+          )}
           <NavLink href="/gantt" active={pathname === "/gantt"}>
             <GanttChartSquare className="w-3.5 h-3.5 text-stone-500" />
             Gantt
@@ -225,6 +231,7 @@ export default function AppNav({ user, unreadCount }: { user: User; unreadCount:
                 { href: "/dashboard", icon: <span className="text-xl leading-none">◈</span>, label: "Goals" },
                 { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
                 { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
+                ...(isAdmin ? [{ href: "/readiness", icon: <ShieldCheck className="w-5 h-5" />, label: "Team Readiness" }] : []),
                 { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
                 { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
                 { href: "/pitstops", icon: <ListTodo className="w-5 h-5" />, label: "All Pitstops" },
