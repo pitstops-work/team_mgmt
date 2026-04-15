@@ -243,57 +243,61 @@
       "jagjeevan ram nagar",
       "kasaraguppe"
     ],
-    "Chennai": [
+    "Chennai \u2013 Central": [
       "Aalayamman Kovil",
-      "Ambedkar Nagar",
       "Annai Sathyanagar (B Block)",
       "Annai Sathyanagar (C Block)",
-      "Appar Nagar",
-      "Apparsami Kovil",
-      "B. Kalyanapuram",
-      "Bhojarajan Nagar",
       "Bishop Line tenament",
-      "C. Kalyanapuram",
-      "Canal Street (Royapuram)",
-      "Desikanandhapuram",
-      "Dhebar Nagar",
       "Dobigana",
       "Dr. Ambedkar Nagar",
       "Dr. Thomas Road",
       "Gandhi Nagar (Puliyanthope)",
-      "Gandhipuram",
       "Giriyappa Road",
       "J.J. Nagar (Puliyanthope)",
-      "J.J. Nagar (Thiruvottiyur)",
       "K.M. Garden",
-      "Kalyani Chetty Nagar",
       "Kamarajapuram",
-      "Kanni Kovil",
       "Kasthuri Bai Colony",
       "MK Ratha Nagar",
-      "MM Garden",
-      "Muthumarriyamman Nagar",
       "Narasimma Nagar",
       "Neelam Badsha Dargha Street",
       "New Thiru Vi Ka Nagar",
       "Pallavan Salai",
       "Pattinapakkam",
-      "Pattinathar Kovil",
       "Ponnappan Street",
-      "R.R. Nagar",
-      "Railway Colony",
       "Sarangapani Street",
       "Sasthiri Nagar",
       "Sathyamurthy Street",
-      "Semmencherry",
-      "Stanley Nagar",
       "Sundhara Puram",
-      "Sundram Powerline",
       "T.V.K. Nagar",
-      "Thulukanathamman Kovil",
       "V.O.C. Nagar",
       "VR Pillai street",
       "Vasugi Nagar"
+    ],
+    "Chennai \u2013 North": [
+      "Ambedkar Nagar",
+      "Appar Nagar",
+      "Apparsami Kovil",
+      "B. Kalyanapuram",
+      "Bhojarajan Nagar",
+      "C. Kalyanapuram",
+      "Canal Street (Royapuram)",
+      "Desikanandhapuram",
+      "Dhebar Nagar",
+      "Gandhipuram",
+      "J.J. Nagar (Thiruvottiyur)",
+      "Kalyani Chetty Nagar",
+      "Kanni Kovil",
+      "MM Garden",
+      "Muthumarriyamman Nagar",
+      "Pattinathar Kovil",
+      "R.R. Nagar",
+      "Railway Colony",
+      "Stanley Nagar",
+      "Sundram Powerline",
+      "Thulukanathamman Kovil"
+    ],
+    "Chennai \u2013 Resettlement": [
+      "Semmencherry"
     ]
   },
   "clusters": {
@@ -635,7 +639,8 @@
       ]
     },
     "Central_Chennai": {
-      "zone": "Chennai",
+      "zone": "Chennai \u2013 Central",
+      "display": "Central Chennai",
       "settlements": [
         "Aalayamman Kovil",
         "Dr. Thomas Road",
@@ -645,10 +650,12 @@
       ]
     },
     "Royapuram_Harbour": {
-      "zone": "Chennai",
+      "zone": "Chennai \u2013 North",
+      "display": "Royapuram\u2013Harbour",
       "settlements": [
         "Ambedkar Nagar",
         "Bhojarajan Nagar",
+        "Bishop Line tenament",
         "Canal Street (Royapuram)",
         "Muthumarriyamman Nagar",
         "R.R. Nagar",
@@ -657,15 +664,23 @@
       ]
     },
     "Fort_and_Park": {
-      "zone": "Chennai",
+      "zone": "Chennai \u2013 Central",
+      "display": "Fort & Park",
       "settlements": [
         "Annai Sathyanagar (B Block)",
         "Annai Sathyanagar (C Block)",
-        "Pallavan Salai"
+        "Dobigana",
+        "Kamarajapuram",
+        "Neelam Badsha Dargha Street",
+        "Pallavan Salai",
+        "Pattinapakkam",
+        "Sarangapani Street",
+        "VR Pillai street"
       ]
     },
     "Tiruvottiyur": {
-      "zone": "Chennai",
+      "zone": "Chennai \u2013 North",
+      "display": "Tiruvottiyur",
       "settlements": [
         "Appar Nagar",
         "Apparsami Kovil",
@@ -677,7 +692,8 @@
       ]
     },
     "Vyasarpadi": {
-      "zone": "Chennai",
+      "zone": "Chennai \u2013 North",
+      "display": "Vyasarpadi",
       "settlements": [
         "B. Kalyanapuram",
         "C. Kalyanapuram",
@@ -688,17 +704,9 @@
         "Sundram Powerline"
       ]
     },
-    "Chennai": {
-      "zone": "Chennai",
-      "settlements": [
-        "Bishop Line tenament",
-        "Dobigana",
-        "Kamarajapuram",
-        "Sarangapani Street"
-      ]
-    },
     "Pulianthope": {
-      "zone": "Chennai",
+      "zone": "Chennai \u2013 Central",
+      "display": "Pulianthope",
       "settlements": [
         "Dr. Ambedkar Nagar",
         "Gandhi Nagar (Puliyanthope)",
@@ -715,16 +723,9 @@
         "Vasugi Nagar"
       ]
     },
-    "Mylapur_and_Marina_Coastal": {
-      "zone": "Chennai",
-      "settlements": [
-        "Neelam Badsha Dargha Street",
-        "Pattinapakkam",
-        "VR Pillai street"
-      ]
-    },
     "Semmenchery": {
-      "zone": "Chennai",
+      "zone": "Chennai \u2013 Resettlement",
+      "display": "Semmenchery",
       "settlements": [
         "Semmencherry"
       ]
