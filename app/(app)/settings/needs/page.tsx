@@ -472,7 +472,7 @@ export default function NeedsSettingsPage() {
           <ChevronLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-lg font-bold text-stone-900">Needs Assessment Settings</h1>
+          <h1 className="text-lg font-bold text-stone-900">Field Coverage Settings</h1>
           <p className="text-xs text-stone-400">Configure target formulas, add new need types, and manage entitlement schemes.</p>
         </div>
       </div>

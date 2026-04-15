@@ -249,7 +249,7 @@ export default function GoalNeedsSection({ goalId }: { goalId: string }) {
         className="flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-700 mb-2 w-full"
       >
         <Target className="w-3.5 h-3.5" />
-        Needs Assessment
+        Field Coverage
         {hasNeeds && state?.needsDomain && (
           <span
             className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white"

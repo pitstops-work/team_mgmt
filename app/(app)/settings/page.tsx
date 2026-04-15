@@ -97,9 +97,9 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <h1 className="text-xl font-semibold text-stone-900 mb-8">Settings</h1>
 
-      {/* Needs Assessment */}
+      {/* Field Coverage */}
       <section className="mb-10">
-        <h2 className="text-sm font-semibold text-stone-700 mb-1">Needs Assessment</h2>
+        <h2 className="text-sm font-semibold text-stone-700 mb-1">Field Coverage</h2>
         <p className="text-xs text-stone-500 mb-3">Configure target formulas and entitlement schemes.</p>
         <Link
           href="/settings/needs"
