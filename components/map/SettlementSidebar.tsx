@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { GeoData } from "@/lib/useGeoData";
 import type { SettlementFeature } from "./MapView";
-import NeedsPanel from "./NeedsPanel";
+import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
+import CreateGoalModal, { type GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -60,6 +61,7 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
   const [clusterData, setClusterData] = useState<ClusterPitstop[]>([]);
   const [activities, setActivities] = useState<ClusterActivity[]>([]);
   const [activeTab, setActiveTab] = useState<"programme" | "needs">("programme");
+  const [goalPrefill, setGoalPrefill] = useState<GoalPrefill | null>(null);
   const prevName = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
@@ -394,12 +396,21 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
                 mode="settlement"
                 name={feature.name}
                 cluster={feature.cluster ?? undefined}
+                onCreateGoal={(ctx: NeedsGoalContext) => setGoalPrefill(ctx)}
               />
             )}
           </div>
         </>
       )}
     </div>
+
+    {goalPrefill && (
+      <CreateGoalModal
+        prefill={goalPrefill}
+        onClose={() => setGoalPrefill(null)}
+        onCreated={() => setGoalPrefill(null)}
+      />
+    )}
     </>
   );
 }

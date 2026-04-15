@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { GeoData } from "@/lib/useGeoData";
-import NeedsPanel from "./NeedsPanel";
+import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
+import CreateGoalModal, { type GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -57,6 +58,7 @@ export default function ZoneClusterSidebar({
   const [loading, setLoading] = useState(false);
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"goals" | "needs">("goals");
+  const [goalPrefill, setGoalPrefill] = useState<GoalPrefill | null>(null);
   const prevKey = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
@@ -131,6 +133,7 @@ export default function ZoneClusterSidebar({
   const typeLabel = type === "zone" ? "Zone" : "Cluster";
 
   return (
+    <>
     <div
       className={[
         "bg-white shadow-2xl z-40 flex flex-col transition-transform duration-300",
@@ -316,11 +319,21 @@ export default function ZoneClusterSidebar({
               <NeedsPanel
                 mode={type}
                 name={displayName}
+                onCreateGoal={(ctx: NeedsGoalContext) => setGoalPrefill(ctx)}
               />
             </div>
           )}
         </>
       )}
     </div>
+
+    {goalPrefill && (
+      <CreateGoalModal
+        prefill={goalPrefill}
+        onClose={() => setGoalPrefill(null)}
+        onCreated={() => setGoalPrefill(null)}
+      />
+    )}
+    </>
   );
 }

@@ -49,8 +49,9 @@ const DOMAINS = [
   { key: "WaterATM",          label: "Water ATMs",       color: "#14b8a6" },
 ];
 
-function NeedsRow({ label, color, existing, apfTarget, done, inProgress }: {
+function NeedsRow({ label, color, existing, apfTarget, done, inProgress, onAdd }: {
   label: string; color: string; existing: number; apfTarget: number; done: number; inProgress: number;
+  onAdd?: () => void;
 }) {
   const gap = Math.max(0, apfTarget - done);
   const pct = apfTarget > 0 ? Math.min(100, Math.round((done / apfTarget) * 100)) : done > 0 ? 100 : 0;
@@ -64,6 +65,16 @@ function NeedsRow({ label, color, existing, apfTarget, done, inProgress }: {
         <span className="text-[10px] font-bold" style={{ color: gap === 0 ? "#10b981" : "#ef4444" }}>
           {gap === 0 ? "✓" : `-${gap}`}
         </span>
+        {onAdd && gap > 0 && (
+          <button
+            onClick={onAdd}
+            title={`Create goal for ${label} gap`}
+            className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 hover:opacity-80 transition-opacity"
+            style={{ background: color }}
+          >
+            +
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-1.5 pl-4">
         <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
@@ -107,15 +118,27 @@ function SatBar({ name, eligible, enrolled }: { name: string; eligible: number; 
   );
 }
 
+export interface NeedsGoalContext {
+  needsDomain: string;
+  domainLabel: string;
+  domainColor: string;
+  gap: number;
+  needsZoneId?: string;
+  needsClusterId?: string;
+  needsSettlementId?: string;
+  geoLabel: string;
+}
+
 interface Props {
   mode: "settlement" | "cluster" | "zone";
   name: string;
   cluster?: string;
   zone?: string;
   settlementId?: string;
+  onCreateGoal?: (ctx: NeedsGoalContext) => void;
 }
 
-export default function NeedsPanel({ mode, name, cluster, settlementId }: Props) {
+export default function NeedsPanel({ mode, name, cluster, settlementId, onCreateGoal }: Props) {
   const [data, setData] = useState<NeedsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"needs" | "civic" | "entitlements">("needs");
@@ -232,16 +255,33 @@ export default function NeedsPanel({ mode, name, cluster, settlementId }: Props)
                 <span>→target</span>
                 <span>gap</span>
               </div>
-              {DOMAINS.map(d => (
-                <NeedsRow key={d.key}
-                  label={d.label}
-                  color={d.color}
-                  existing={data.existing[d.key] ?? 0}
-                  apfTarget={Math.max(0, (data.targets[d.key] ?? 0) - (data.existing[d.key] ?? 0))}
-                  done={data.actuals[d.key]?.done ?? 0}
-                  inProgress={data.actuals[d.key]?.inProgress ?? 0}
-                />
-              ))}
+              {DOMAINS.map(d => {
+                const existing   = data.existing[d.key] ?? 0;
+                const apfTarget  = Math.max(0, (data.targets[d.key] ?? 0) - existing);
+                const done       = data.actuals[d.key]?.done ?? 0;
+                const inProgress = data.actuals[d.key]?.inProgress ?? 0;
+                const gap        = Math.max(0, apfTarget - done);
+                return (
+                  <NeedsRow key={d.key}
+                    label={d.label}
+                    color={d.color}
+                    existing={existing}
+                    apfTarget={apfTarget}
+                    done={done}
+                    inProgress={inProgress}
+                    onAdd={onCreateGoal ? () => onCreateGoal({
+                      needsDomain: d.key,
+                      domainLabel: d.label,
+                      domainColor: d.color,
+                      gap,
+                      needsZoneId:       data.zone?.id,
+                      needsClusterId:    data.cluster?.id,
+                      needsSettlementId: data.settlement?.id,
+                      geoLabel: data.settlement?.name ?? data.cluster?.name ?? data.zone?.name ?? name,
+                    }) : undefined}
+                  />
+                );
+              })}
             </>
           )}
         </div>
