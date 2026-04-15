@@ -1,0 +1,791 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Dr. Ambedkar Nagar",
+        "description": "The settlement consists of eight streets, four of which are very narrow, creating a highly dense and congested living environment. Housing conditions are poor, with more than 150 makeshift or asbestos-roofed houses. Residents largely depend on daily-wage labour, with many employed as auto drivers, construction workers, domestic workers, GCC workers, and slaughterhouse workers. The community is socially diverse, with a notable Muslim population, many of whom are engaged in domestic work and housekeeping. Despite their vulnerable economic status, residents face exploitation in accessing basic entitlements. Internet and e-sevai centres reportedly demand excessive charges for services that should be free or low-cost\u2014for example, up to \u20b915,000 for an income certificate and around \u20b9500 for a voter ID card, which are officially provided free of charge by the government. These practices deepen financial strain and limit access to essential rights and services. To address these vulnerabilities, interventions should focus on civic infrastructure, ensuring affordable and transparent access to government services through entitlement camps or mobile service delivery, and strengthening community awareness and participation in governance to prevent exploitation.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "575",
+        "coordinator": "Jayarani K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.263028,
+            13.10241
+          ],
+          [
+            80.263109,
+            13.102834
+          ],
+          [
+            80.263199,
+            13.103262
+          ],
+          [
+            80.26333,
+            13.104109
+          ],
+          [
+            80.264648,
+            13.103924
+          ],
+          [
+            80.264631,
+            13.103715
+          ],
+          [
+            80.2644,
+            13.103722
+          ],
+          [
+            80.26441,
+            13.103586
+          ],
+          [
+            80.264398,
+            13.103305
+          ],
+          [
+            80.264378,
+            13.103032
+          ],
+          [
+            80.264346,
+            13.103038
+          ],
+          [
+            80.264091,
+            13.10306
+          ],
+          [
+            80.264045,
+            13.102772
+          ],
+          [
+            80.263583,
+            13.102808
+          ],
+          [
+            80.263489,
+            13.102306
+          ],
+          [
+            80.263023,
+            13.102414
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Gandhi Nagar (Puliyanthope)",
+        "description": "The settlement faces critical vulnerabilities in sanitation, housing, and basic services. With only four public toilets serving over 400 families, many residents are forced to bath or defecate in open spaces, compromising safety and dignity. Most of the houses located in road margin. Most households cannot afford individual water connections and depend on shared roadside Metro Water pumps, often leading to long waits and overcrowding. Housing structures, built about 25 years ago, are deteriorating and highly unsafe, especially during floods, when poor drainage and the low-lying terrain cause water to rise to shoulder height. Livelihoods remain precarious, with most women working as domestic or contract housekeeping workers and men in daily-wage jobs such as textiles, auto-rickshaws, and shop work. Major government services are largely absent, leaving residents without adequate support. Need to expand sanitation and water facilities, strengthen drainage, improve housing safety, ensure delivery of entitlements.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "490",
+        "coordinator": "Kaviyarasan S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.268272,
+            13.09817
+          ],
+          [
+            80.267085,
+            13.098478
+          ],
+          [
+            80.267361,
+            13.099039
+          ],
+          [
+            80.267453,
+            13.099191
+          ],
+          [
+            80.267568,
+            13.099349
+          ],
+          [
+            80.267781,
+            13.099489
+          ],
+          [
+            80.268029,
+            13.098859
+          ],
+          [
+            80.26829,
+            13.098252
+          ],
+          [
+            80.268283,
+            13.098209
+          ],
+          [
+            80.268263,
+            13.09816
+          ],
+          [
+            80.268281,
+            13.09817
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "J.J. Nagar (Puliyanthope)",
+        "description": "Eventhough the number of HH is less, the settlement is extremely congested, with houses built close together, narrow pathways allowing only single-person movement, and inadequate ventilation, creating serious health and safety risks. Many homes combine bathing, washing, and living areas due to lack of space. Though every household has a toilet, none are connected to underground sewage; instead, residents rely on an old, damaged drainage line that frequently bursts, causing sewage overflow, rat infestation, and disease outbreaks. Residents have lived here for nearly 40 years but lack patta or legal ownership, leaving them in constant insecurity and unable to access many welfare schemes. Livelihoods are fragile, with about 80% of men and women dependent on slaughterhouse work (Aaduthotti), while others do domestic or daily-wage labour. Many families also lack essential identity documents, further excluding them from government services. Vulnerable groups such as elderly people and transwomen face additional neglect, most children attend government schools. Interventions are needed to improve drainage and housing, ensure proper civic infrastructure, provide identity documents and entitlements, and extend targeted support for elderly, and children\u2019s education.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "96",
+        "coordinator": "Jayarani K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.263288,
+            13.104196
+          ],
+          [
+            80.262867,
+            13.104217
+          ],
+          [
+            80.262798,
+            13.103185
+          ],
+          [
+            80.263161,
+            13.103149
+          ],
+          [
+            80.263226,
+            13.10343
+          ],
+          [
+            80.263271,
+            13.103722
+          ],
+          [
+            80.263314,
+            13.103994
+          ],
+          [
+            80.263292,
+            13.104191
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "K.M. Garden",
+        "description": "The settlement is flood-prone, with houses built in highly vulnerable conditions, including an entire street constructed directly over a closed sewage canal, now functioning as an underground drainage system. Most homes are individual structures but lack proper planning and durability, and many households still rely on firewood for cooking. The area is marked by social and economic vulnerabilities\u2014most women work as domestic workers, street vendors, cooking helpers, or housekeeping staff, while the majority of residents belong to Scheduled Caste communities, including a large number of converted Christians and a few Muslim families. A significant concern is the large number of elderly residents living without proper caregivers, often left idle outside their homes. While one local church supports children by running a free evening tuition centre and Rotary club runs a free tailoring centre within the settlement, there is little else in terms of institutional support or services. To address these challenges, interventions should focus on improving flood resilience, ensuring care and welfare schemes for the elderly.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "1300",
+        "coordinator": "Kaviyarasan S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.258951,
+            13.094382
+          ],
+          [
+            80.259431,
+            13.094445
+          ],
+          [
+            80.259449,
+            13.094821
+          ],
+          [
+            80.260067,
+            13.094871
+          ],
+          [
+            80.260109,
+            13.094495
+          ],
+          [
+            80.26229,
+            13.094621
+          ],
+          [
+            80.262398,
+            13.093784
+          ],
+          [
+            80.258883,
+            13.093641
+          ],
+          [
+            80.25891,
+            13.093826
+          ],
+          [
+            80.258925,
+            13.09402
+          ],
+          [
+            80.258939,
+            13.094384
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Kasthuri Bai Colony",
+        "description": "The settlement faces severe vulnerabilities, with inadequate water supply, poor toilet facilities, and lack of medical care impacting residents\u2019 health, hygiene, and daily living conditions. Most households live below the poverty line, struggling to meet basic expenses, while many lack essential government documents such as ration cards and Aadhaar cards, leaving them excluded from welfare schemes and benefits. Social issues such as child marriage and surrogacy are present, along with persons with disabilities who remain outside mainstream opportunities and government support. The absence of documentation and entitlements perpetuates poverty, limiting any scope for improvement in living standards. The two streets near the canal and roadside, these can be prioritized in the first phase of the program, with scope to expand as the intervention evolves. To address these challenges, interventions should focus on establishing elderly care services, facilitating entitlement access, and strengthening participation in local governance with a focus on civic amenities.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "150",
+        "coordinator": "Jayarani K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.266546,
+            13.108568
+          ],
+          [
+            80.266383,
+            13.10779
+          ],
+          [
+            80.266215,
+            13.10774
+          ],
+          [
+            80.266186,
+            13.107269
+          ],
+          [
+            80.266064,
+            13.107242
+          ],
+          [
+            80.26604,
+            13.10683
+          ],
+          [
+            80.266038,
+            13.106581
+          ],
+          [
+            80.266009,
+            13.106324
+          ],
+          [
+            80.266005,
+            13.106337
+          ],
+          [
+            80.266049,
+            13.106326
+          ],
+          [
+            80.266014,
+            13.106335
+          ],
+          [
+            80.26671,
+            13.106293
+          ],
+          [
+            80.266776,
+            13.107189
+          ],
+          [
+            80.266856,
+            13.107818
+          ],
+          [
+            80.266916,
+            13.108466
+          ],
+          [
+            80.266534,
+            13.108564
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Narasimma Nagar",
+        "description": "This partially selected area is primarily occupied by low-income workers, daily wage labourers, and minority communities engaged in informal sector occupations such as construction work, GCC sanitation work (sweepers), and street vending. Housing conditions are substandard, with many families living in thatched huts, lacking proper sanitation facilities, facing irregular water supply, and having narrow access roads. The settlement is located very close to a canal in a low-lying area, which results in flooding every year.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "51",
+        "coordinator": "Kaviyarasan S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.265433,
+            13.104269
+          ],
+          [
+            80.265953,
+            13.104278
+          ],
+          [
+            80.266504,
+            13.104258
+          ],
+          [
+            80.266473,
+            13.104061
+          ],
+          [
+            80.265448,
+            13.104085
+          ],
+          [
+            80.265435,
+            13.104262
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "New Thiru Vi Ka Nagar",
+        "description": "The settlement, located next to Kasthuribai Colony, faces multiple vulnerabilities. Most houses are makeshift and situated in a low-lying area, with households dependent on shared water and electricity connections from neighboring communities. Around half the population relies on public toilet facilities, while housing units are extremely small and cramped within very narrow streets, some of which are hardly visible from the outside. Social vulnerabilities are also pronounced\u2014many elderly residents live without caregivers, and a significant number of children drop out or attend school irregularly after the 8th standard. Several children in the settlement still lack Aadhaar cards, limiting their access to essential services and entitlements. To address these challenges, interventions focus on elderly care program, establishing cr\u00e8che, facilitating entitlement camps for identity documents, and improving civic amenities through participating in the local governance and strenthening the governance.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "160",
+        "coordinator": "Jayarani K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.265693,
+            13.108167
+          ],
+          [
+            80.266139,
+            13.108126
+          ],
+          [
+            80.266075,
+            13.107281
+          ],
+          [
+            80.265611,
+            13.107315
+          ],
+          [
+            80.265684,
+            13.108162
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ponnappan Street",
+        "description": "In this settlement, at least three streets are particularly vulnerable. The area is predominantly home to Dalit families, with many women working as housekeeping staff. Being low-lying, these streets get flooded during every rainfall, as surrounding houses have been raised in height while these remain sunken. Housing conditions are poor, with most structures being kutcha, and yet even such houses are rented out\u2014many tenants have lived here for over 20 years without security or improvements. Sanitation is another critical issue, as there are no individual toilets; only 4\u20135 houses have basic toilet facilities, forcing most residents to depend on stormwater drains for sewage disposal. To address these issues, interventions focus on establishing elderly care services, facilitating entitlement access, strengthening participation in local governance with focus on civic amenities and supporting patta process.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "91",
+        "coordinator": "Jayarani K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.266477,
+            13.100188
+          ],
+          [
+            80.266527,
+            13.100761
+          ],
+          [
+            80.266133,
+            13.100811
+          ],
+          [
+            80.265978,
+            13.100752
+          ],
+          [
+            80.265909,
+            13.100569
+          ],
+          [
+            80.265497,
+            13.100452
+          ],
+          [
+            80.265491,
+            13.100243
+          ],
+          [
+            80.265741,
+            13.100232
+          ],
+          [
+            80.265991,
+            13.100202
+          ],
+          [
+            80.266477,
+            13.100191
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sasthiri Nagar",
+        "description": "The settlement is densely populated and overcrowded, with 22 streets, half of which are so narrow and unevenly structured that even two-wheelers cannot pass through. Although most houses are pucca and multi-storey, many households\u2014especially tenants who have lived here for over 15 years\u2014still lack PDS cards and other basic documents, leaving them excluded from government services. Nearly 50% of children study in private schools, yet entitlements have not effectively reached the community. Two streets also face an eviction threat due to road expansion, though not immediately. The settlement lies in a low-lying area, making it highly vulnerable during rainfall when sewage blockages and stormwater drain overflows cause flooding. Livelihoods are fragile, with residents largely dependent on daily-wage work in slaughterhouses, housekeeping, sanitation with GCC, domestic work, steel vessel units, auto driving, and rickshaw pulling. To address these issues, interventions should prioritize entitlement access for excluded families, improvements in drainage and civic amenities, establishment of elderly care services and cr\u00e8ches, and support for the patta process, while strengthening community participation in local governance.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "1500",
+        "coordinator": "Kaviyarasan S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.264641,
+            13.104301
+          ],
+          [
+            80.264603,
+            13.103655
+          ],
+          [
+            80.264414,
+            13.103672
+          ],
+          [
+            80.26441,
+            13.103526
+          ],
+          [
+            80.264624,
+            13.103547
+          ],
+          [
+            80.264637,
+            13.103087
+          ],
+          [
+            80.264796,
+            13.103089
+          ],
+          [
+            80.264796,
+            13.103066
+          ],
+          [
+            80.264757,
+            13.102209
+          ],
+          [
+            80.265332,
+            13.102176
+          ],
+          [
+            80.265375,
+            13.104215
+          ],
+          [
+            80.264654,
+            13.104291
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sundhara Puram",
+        "description": "Many huts in the settlement are in severely damaged and aging condition, with several entirely covered in old tarpaulin sheets and others using damaged sheets only for roofing. Despite such poor housing, families spend heavily on education\u2014most children are enrolled in private schools, with parents investing nearly half of their income in the hope of better quality, while a smaller number attend government schools due to cost or proximity. Although access to schooling exists, dropout rates remain a concern. More than 90% are Dalits in the settlement. Livelihoods are insecure, as most residents are daily-wage labourers, leaving households financially strained. Social vulnerabilities are also significant: many elderly residents live without proper caregivers, while widows and trans persons remain excluded from pensions and government welfare schemes. The settlement does have a Health and Wellness Centre functioning as a UPHC sub-centre, but it is often inadequately staffed, with only a nurse available and no doctor on most days. To address these challenges, strengthening public education support to reduce financial burdens, ensuring consistent and comprehensive healthcare services, and extending welfare entitlements\u2014particularly pensions and social protection schemes\u2014to vulnerable groups such as elders, widows, and trans persons.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "250",
+        "coordinator": "Kaviyarasan S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.26763,
+            13.098207
+          ],
+          [
+            80.268351,
+            13.09804
+          ],
+          [
+            80.268523,
+            13.097352
+          ],
+          [
+            80.268574,
+            13.096652
+          ],
+          [
+            80.268248,
+            13.096638
+          ],
+          [
+            80.267921,
+            13.096608
+          ],
+          [
+            80.267965,
+            13.096092
+          ],
+          [
+            80.267802,
+            13.096067
+          ],
+          [
+            80.267793,
+            13.096527
+          ],
+          [
+            80.267783,
+            13.096665
+          ],
+          [
+            80.267648,
+            13.098207
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "T.V.K. Nagar",
+        "description": "The last few streets of the settlement are highly vulnerable, with residents relying solely on tanker lorries for drinking and daily water needs. Houses are densely packed, and two streets remain invisible from the outside, leading to their exclusion from food distribution and relief during floods. Most households lack individual sewage connections, and residents reported that in recent months, sewage and drainage have been directly pumped into the canal, creating serious environmental and hygiene risks. If this continues, the upcoming monsoon could cause sewage overflow into the streets and homes. Many elderly people remain excluded from pensions and live without proper care. To address these issues, interventions should prioritize elderly care services and cr\u00e8ches, facilitate entitlement access, strengthen community participation in local governance with a focus on civic amenities, and support the patta process.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "150",
+        "coordinator": "Kaviyarasan S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.262974,
+            13.105113
+          ],
+          [
+            80.262967,
+            13.105056
+          ],
+          [
+            80.263463,
+            13.104991
+          ],
+          [
+            80.263653,
+            13.105962
+          ],
+          [
+            80.263537,
+            13.106047
+          ],
+          [
+            80.263036,
+            13.106151
+          ],
+          [
+            80.262959,
+            13.105049
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "V.O.C. Nagar",
+        "description": "Out of nearly 1,000 households in the settlement, at least 300 are in need of intervention. These families are primarily daily wage earners, with many elderly residents and children who are not attending Anganwadi. The settlement lies close to the canal, and over the past six months, sewage and drainage have been directly discharged into it. During drain overflows, residents struggle with severe environmental and hygiene risks, which are expected to worsen during the upcoming monsoon. Drinking and household water needs are met only through tanker lorries, and the area is marked by extreme housing density. Most households lack individual sewage connections, further compounding the sanitation crisis. To address these challenges, interventions should focus on establishing elderly care services and cr\u00e8ches, facilitating access to entitlements, strengthening community participation in local governance, and improving civic amenities.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "762",
+        "coordinator": "Jayarani K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.261551,
+            13.106203
+          ],
+          [
+            80.261506,
+            13.106355
+          ],
+          [
+            80.261787,
+            13.106355
+          ],
+          [
+            80.262367,
+            13.106303
+          ],
+          [
+            80.263071,
+            13.106182
+          ],
+          [
+            80.262873,
+            13.104548
+          ],
+          [
+            80.261677,
+            13.104704
+          ],
+          [
+            80.261683,
+            13.104887
+          ],
+          [
+            80.261697,
+            13.10507
+          ],
+          [
+            80.261714,
+            13.105258
+          ],
+          [
+            80.261726,
+            13.105446
+          ],
+          [
+            80.261775,
+            13.106195
+          ],
+          [
+            80.261566,
+            13.106211
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Vasugi Nagar",
+        "description": "In Vasugi Nagar, households are very small\u2014some starting at just 100 square feet\u2014and located along narrow streets close to the canal. A large number of elders live without proper caregivers, while most families rely entirely on daily wage work, with visible levels of joblessness. Even on school days, many children were observed playing in the streets, indicating high numbers of irregular or out-of-school children. Many households also depend fully on public toilet facilities, reflecting inadequate basic infrastructure. To address these challenges, interventions should focus on establishing elderly care services and cr\u00e8ches, facilitating access to entitlements, and strengthening participation in local governance with a focus on improving civic amenities.",
+        "layer": "dbsss",
+        "zone": "Chennai",
+        "cluster": "Pulianthope",
+        "cluster_display": "Pulianthope",
+        "households": "205",
+        "coordinator": "Jayarani K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.266027,
+            13.106288
+          ],
+          [
+            80.26598,
+            13.105879
+          ],
+          [
+            80.266268,
+            13.105783
+          ],
+          [
+            80.266414,
+            13.105741
+          ],
+          [
+            80.266564,
+            13.10573
+          ],
+          [
+            80.266793,
+            13.10573
+          ],
+          [
+            80.267024,
+            13.105726
+          ],
+          [
+            80.26719,
+            13.10577
+          ],
+          [
+            80.267105,
+            13.106404
+          ],
+          [
+            80.266804,
+            13.106473
+          ],
+          [
+            80.266783,
+            13.10622
+          ],
+          [
+            80.266021,
+            13.106281
+          ]
+        ]
+      }
+    }
+  ]
+}

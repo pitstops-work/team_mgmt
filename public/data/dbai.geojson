@@ -1,0 +1,413 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Annai Sathyanagar (B Block)",
+        "description": "The settlement is located on Port Trust land and faces a looming, though not immediate, threat of eviction, with political actors such as HR&CE Minister Sekar Babu playing a crucial role in the process. Housing conditions are poor, with nearly 600 households living in semi-permanent structures\u2014sheet or asbestos roofs with brick walls\u2014while only the Anganwadi centre is of pucca construction. Overcrowding is a major concern, as the Anganwadi is already full and unable to accommodate more children, forcing many to spend their time in the streets even on school working days. The community lacks basic sanitation, with no proper drainage system and only two public toilet complex serving both B and C blocks, compelling some households to connect their wastewater directly into the stormwater drain. Access to essential services is also limited\u2014residents must travel to Triplicane for e-sevai services, and the nearest UPHC is 4 km away, leading many to rely on private clinics in Chepauk and Chintadripet. Livelihoods are fragile, as most residents depend on daily-wage work such as auto driving, plumbing, painting, construction, and domestic or housekeeping services, with around 10% of the population living in rented houses. Facilitating improving sanitation infrastructure, creche and government services within or near the community.",
+        "layer": "dbai",
+        "zone": "Chennai",
+        "cluster": "Fort_and_Park",
+        "cluster_display": "Fort & Park",
+        "households": "750",
+        "coordinator": "Ragul R"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.286292,
+            13.073564
+          ],
+          [
+            80.286555,
+            13.074531
+          ],
+          [
+            80.287322,
+            13.074417
+          ],
+          [
+            80.287019,
+            13.073333
+          ],
+          [
+            80.286301,
+            13.073564
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Annai Sathyanagar (C Block)",
+        "description": "The community faces multiple vulnerabilities, including the absence of a proper drainage connection and public toilets within the block. Residents are forced to depend on a single toilet in B Block. Wastewater management is inadequate, with some households resorting to connecting their outlets directly to the stormwater drain. Housing conditions are precarious, with around 600 families living in semi-permanent structures\u2014sheet roofs with brick walls\u2014on Public Works Department (PwD) land, those who living inrental house, paying ranging from \u20b91,000 to \u20b95,000. Access to essential services is also limited; residents must travel to Triplicane for e-sevai services, while healthcare facilities are far\u2014 the nearest UPHC is about 4 km away, leading many to rely on private clinics in Chepauk and Chintadripet. Livelihoods are largely informal, with men engaged in casual labour such as painting, and women employed in construction and housekeeping, GCC sanitation workers. Facilitating entitlement access, strengthening participation in local governance with focus on basic infrastructure and civic amenities. Both the blocks are overcrowded children in the Anganwadi centre, our creche initiative will be helpful for young working women.",
+        "layer": "dbai",
+        "zone": "Chennai",
+        "cluster": "Fort_and_Park",
+        "cluster_display": "Fort & Park",
+        "households": "600",
+        "coordinator": "Ragul R"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.286086,
+            13.073341
+          ],
+          [
+            80.286901,
+            13.07314
+          ],
+          [
+            80.286541,
+            13.072254
+          ],
+          [
+            80.28564,
+            13.072538
+          ],
+          [
+            80.286088,
+            13.073332
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Neelam Badsha Dargha Street",
+        "description": "The settlement is located along the Buckingham Canal, parallel to the beach road, and both sides of the stretch are highly vulnerable. Housing conditions are precarious, with many families living in makeshift, asbestos-roofed, or semi-pucca houses, often with very limited space or incomplete structures. In several cases, even the walls are temporary, reflecting the fragile nature of shelter. While some concrete houses exist, they too are generally small and semi-permanent. The population primarily consists of daily-wage labourers, and most children attend government schools. A significant concern is the large number of elderly residents who live alone without adequate care, many of whom are unable to access government support or entitlements. To address these challenges, interventions should focus on providing support systems for the elderly, entitlement camps to facilitate access to government schemes and strengthening community participation in local governance with a focus on improving civic amenities and infrastructure.",
+        "layer": "dbai",
+        "zone": "Chennai",
+        "cluster": "Mylapur_and_Marina_Coastal",
+        "cluster_display": "Mylapur & Marina Coastal",
+        "households": "260",
+        "coordinator": "Sagaya Mary Kavitha K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.27902,
+            13.050738
+          ],
+          [
+            80.279224,
+            13.050624
+          ],
+          [
+            80.278829,
+            13.049963
+          ],
+          [
+            80.278477,
+            13.049554
+          ],
+          [
+            80.278323,
+            13.048885
+          ],
+          [
+            80.27876,
+            13.048659
+          ],
+          [
+            80.278675,
+            13.048124
+          ],
+          [
+            80.278039,
+            13.048249
+          ],
+          [
+            80.277919,
+            13.047781
+          ],
+          [
+            80.278945,
+            13.047637
+          ],
+          [
+            80.278765,
+            13.046441
+          ],
+          [
+            80.277366,
+            13.046692
+          ],
+          [
+            80.277546,
+            13.047411
+          ],
+          [
+            80.277769,
+            13.047971
+          ],
+          [
+            80.277966,
+            13.048556
+          ],
+          [
+            80.278224,
+            13.049259
+          ],
+          [
+            80.278481,
+            13.049802
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pallavan Salai",
+        "description": "The settlement consists of three areas\u2014Gandhi Nagar, Sathyavani Muthu (SVM) Nagar, and Indira Gandhi Nagar\u2014housing around 4,000 families according to residents. Living conditions are precarious, with most households in A, B, and C blocks residing in makeshift shelters made of metal sheets or tarpaulins, while only parts of SVM Nagar have relatively stronger concrete houses. Basic services are lacking, as electricity is largely accessed through illegal hook connections, with only a small number of households having legal EB connections. Land tenure is insecure: while a portion of SVM Nagar holds patta, the rest of the community has none, leaving them under constant threat of eviction. This is compounded by the fact that the land is fragmented across Defence, Corporation, and Railway ownership, which authorities cite as a barrier to rebuilding tenements. Residents have already faced evictions, particularly within 100 meters along the Cooum riverbank, creating further instability. The majority of the population belongs to Scheduled Castes, though other communities are also present. In addition, many women live without proper caregivers, and significant gaps remain in the delivery of government entitlements to both elderly residents and vulnerable families. Addressing these vulnerabilities requires interventions focused on securing land tenure through basic entitlements and documents, expanding access to legal electricity connections, strengthening social protection systems for women and elders.",
+        "layer": "dbai",
+        "zone": "Chennai",
+        "cluster": "Fort_and_Park",
+        "cluster_display": "Fort & Park",
+        "households": "1700",
+        "coordinator": "Ragul R"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.276067,
+            13.077975
+          ],
+          [
+            80.276394,
+            13.078009
+          ],
+          [
+            80.276342,
+            13.078201
+          ],
+          [
+            80.276411,
+            13.078377
+          ],
+          [
+            80.280848,
+            13.078368
+          ],
+          [
+            80.280737,
+            13.079087
+          ],
+          [
+            80.279089,
+            13.079129
+          ],
+          [
+            80.277527,
+            13.079012
+          ],
+          [
+            80.277372,
+            13.07897
+          ],
+          [
+            80.277406,
+            13.078527
+          ],
+          [
+            80.276119,
+            13.078544
+          ],
+          [
+            80.275613,
+            13.078594
+          ],
+          [
+            80.275432,
+            13.078768
+          ],
+          [
+            80.27546,
+            13.078981
+          ],
+          [
+            80.275147,
+            13.07911
+          ],
+          [
+            80.274827,
+            13.07901
+          ],
+          [
+            80.274969,
+            13.078435
+          ],
+          [
+            80.27508,
+            13.07826
+          ],
+          [
+            80.275372,
+            13.078226
+          ],
+          [
+            80.275767,
+            13.078051
+          ],
+          [
+            80.276128,
+            13.077967
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pattinapakkam",
+        "description": "These coastal slums face frequent risks from tsunamis, cyclones, and sea-level rise, as seen post-2004 tsunami impacts on 1,356 tenements and 3,000 hutments. Decaying Government Housing Board structures suffer roof collapses and balcony failures during monsoons, posing health hazards. Primarily inhabited by fishermen communities engaged in beachfront fishing, ancillary activities, and small-scale trade. Poor housing quality includes damaged slabs and sealed blocks, limited access to amenities despite proximity to urban areas like Adyar, and inadequate disaster-resilient features.",
+        "layer": "dbai",
+        "zone": "Chennai",
+        "cluster": "Mylapur_and_Marina_Coastal",
+        "cluster_display": "Mylapur & Marina Coastal",
+        "households": "1400",
+        "coordinator": "Sagaya Mary Kavitha K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.276688,
+            13.021112
+          ],
+          [
+            80.27651,
+            13.02197
+          ],
+          [
+            80.276873,
+            13.022352
+          ],
+          [
+            80.277145,
+            13.022285
+          ],
+          [
+            80.277095,
+            13.021821
+          ],
+          [
+            80.277641,
+            13.021685
+          ],
+          [
+            80.277537,
+            13.021329
+          ],
+          [
+            80.277494,
+            13.020924
+          ],
+          [
+            80.277786,
+            13.020869
+          ],
+          [
+            80.277864,
+            13.021036
+          ],
+          [
+            80.27819,
+            13.020928
+          ],
+          [
+            80.278207,
+            13.020367
+          ],
+          [
+            80.277821,
+            13.018628
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "VR Pillai street",
+        "description": "The settlement is located along the Buckingham Canal, parallel to the beach road, and both sides of the stretch remain highly vulnerable. Housing conditions are poor, with many families living in makeshift, asbestos-roofed, or semi-pucca houses. The majority of residents are daily-wage labourers, and while most children attend government schools, many households are unable to access government support or entitlements. Absence of proper sewage connections for several houses along the canal, where toilets are directly linked to the waterbody. Although there is currently no eviction threat, the settlement faces multiple social and infrastructural challenges that leave families insecure and underserved. To address these issues, interventions should prioritize establishing support systems for the elderly, organizing entitlement camps to improve access to welfare schemes, and strengthening community participation in local governance, alongside improvements in civic amenities and sanitation infrastructure.",
+        "layer": "dbai",
+        "zone": "Chennai",
+        "cluster": "Mylapur_and_Marina_Coastal",
+        "cluster_display": "Mylapur & Marina Coastal",
+        "households": "500",
+        "coordinator": "Sagaya Mary Kavitha K"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.277589,
+            13.049903
+          ],
+          [
+            80.278181,
+            13.049627
+          ],
+          [
+            80.277125,
+            13.046725
+          ],
+          [
+            80.276447,
+            13.046709
+          ],
+          [
+            80.276542,
+            13.046918
+          ],
+          [
+            80.276722,
+            13.046834
+          ],
+          [
+            80.276765,
+            13.046984
+          ],
+          [
+            80.276911,
+            13.046893
+          ],
+          [
+            80.2774,
+            13.048205
+          ],
+          [
+            80.277168,
+            13.048322
+          ],
+          [
+            80.277297,
+            13.048782
+          ],
+          [
+            80.277434,
+            13.049434
+          ],
+          [
+            80.277254,
+            13.049376
+          ],
+          [
+            80.277572,
+            13.049886
+          ]
+        ]
+      }
+    }
+  ]
+}

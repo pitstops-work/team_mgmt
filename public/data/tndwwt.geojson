@@ -1,0 +1,905 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Aalayamman Kovil",
+        "description": "This settlement, located adjacent to Dr. Thomas Road, shares a similar socioeconomic profile of their residents. It consists of tenements and thatched-roof houses where overcrowding is common, with multiple family members living in a single small room. Frequent flooding affects the area, and in tenements, even ground floors are inundated with sewage water, creating serious health risks. Many elderly residents live alone, making them highly vulnerable during floods and emergencies. A significant proportion of women work as domestic workers, and there are deserted women, including elderly, who lack support systems. Several families remain excluded from government welfare schemes due to limited awareness and assistance. Some possible interventions could include facilitating access to entitlements, providing targeted support for the elderly and strengthening participation in local governance.",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Central_Chennai",
+        "cluster_display": "Central Chennai",
+        "households": "498",
+        "coordinator": "GABRIN KNOX S"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.245804,
+              13.039048
+            ],
+            [
+              80.246241,
+              13.038814
+            ],
+            [
+              80.245915,
+              13.038363
+            ],
+            [
+              80.245572,
+              13.037685
+            ],
+            [
+              80.245349,
+              13.0372
+            ],
+            [
+              80.245151,
+              13.036473
+            ],
+            [
+              80.244722,
+              13.036515
+            ],
+            [
+              80.244902,
+              13.037217
+            ],
+            [
+              80.245126,
+              13.037928
+            ],
+            [
+              80.245409,
+              13.038471
+            ],
+            [
+              80.245804,
+              13.039048
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "B. Kalyanapuram",
+        "description": "The socio-economic vulnerability within the settlement is varied, with certain pockets showing relative stability while others face more challenges. Many residents live in extreme hardship, including destitute elderly individuals who lack family or community support. Child marriage remains prevalent, often leading to early school dropouts and contributing to a cycle of poverty and malnourishment among young children, as young parents struggle to provide adequate care. Despite the presence of government and aided schools nearby, parental disinterest and lack of awareness hinder children's education. Instances of open defecation persist even where toilets are available, indicating gaps in behavioral change and sanitation awareness. Safety concerns are widespread, with alcoholism, drug use and theft creating an unsafe environment, particularly for women and children, and limiting their access to opportunities. To address these issues, possible interventions could include providing support for the elderly, establishing a creche to support the young mothers and ensure nutrition for the young children, creating community awareness on prevention of child marriage & education for all children and strengthening participation in local governance.",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Vyasarpadi",
+        "cluster_display": "Vyasarpadi",
+        "households": "739",
+        "coordinator": "VINCY U"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.265586,
+              13.1138
+            ],
+            [
+              80.265582,
+              13.112094
+            ],
+            [
+              80.265041,
+              13.112245
+            ],
+            [
+              80.264711,
+              13.112558
+            ],
+            [
+              80.264419,
+              13.112834
+            ],
+            [
+              80.264248,
+              13.113139
+            ],
+            [
+              80.264179,
+              13.113348
+            ],
+            [
+              80.26411,
+              13.113586
+            ],
+            [
+              80.263947,
+              13.11377
+            ],
+            [
+              80.263943,
+              13.113862
+            ],
+            [
+              80.265586,
+              13.1138
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "C. Kalyanapuram",
+        "description": "This community shares similarities with B. Kalyanapuram but faces added vulnerabilities and safety issues due to its proximity to the Vyasarpadi Goods Shed area. Access to drinking water is a challenge, especially for those without an individual water connection. Open defecation is highly prevalent, particularly near the goods shed, as the available toilets are located far from homes and are poorly maintained. Educational neglect is evident, with a large number of school dropouts resulting from parental apathy toward schooling. Additionally, residents struggle with limited awareness and access to government entitlements, making it difficult for them to benefit from available welfare schemes. Potential interventions could include facilitating entitlements, creating awareness regarding dropouts and importance of continued education and strengthening participation in local governance",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Vyasarpadi",
+        "cluster_display": "Vyasarpadi",
+        "households": "120",
+        "coordinator": "VINCY U"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.266999,
+              13.114061
+            ],
+            [
+              80.267343,
+              13.114077
+            ],
+            [
+              80.267274,
+              13.113459
+            ],
+            [
+              80.267248,
+              13.112941
+            ],
+            [
+              80.267248,
+              13.11233
+            ],
+            [
+              80.267248,
+              13.111311
+            ],
+            [
+              80.267025,
+              13.111302
+            ],
+            [
+              80.266965,
+              13.111912
+            ],
+            [
+              80.266999,
+              13.114061
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Desikanandhapuram",
+        "description": "Majority of the houses in the settlement are makeshift metal structures mostly working as daily wage laboureres and domestic workers. They face frequent sewage issues leading to stagnant drainage water which causes health issues. There is a lack of awareness and access to government entitlements and welfare schemes among the residents. There are also many elderly individuals living alone without family or community care. So, there is potential to work in this settlement on entitlements, elderly and strengthening participation in local governance with focus on civic amenities",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Vyasarpadi",
+        "cluster_display": "Vyasarpadi",
+        "households": "133",
+        "coordinator": "VINCY U"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.260026,
+              13.113545
+            ],
+            [
+              80.260421,
+              13.113223
+            ],
+            [
+              80.260738,
+              13.113051
+            ],
+            [
+              80.261596,
+              13.112541
+            ],
+            [
+              80.261451,
+              13.112395
+            ],
+            [
+              80.260845,
+              13.112792
+            ],
+            [
+              80.260532,
+              13.112964
+            ],
+            [
+              80.260185,
+              13.113223
+            ],
+            [
+              80.259931,
+              13.113423
+            ],
+            [
+              80.259876,
+              13.113494
+            ],
+            [
+              80.260026,
+              13.113545
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Dhebar Nagar",
+        "description": "This settlement is similar to C. Kalyanapuram in terms of socio-economic conditions and vulnerabilities due to its proximity to the Vyasarpadi Goods Shed area. Residents face persistent issues such as open defecation, particularly near the goods shed, where toilets are both distant and poorly maintained. The infrastructure remains unsatisfactory, and certain areas are considered unsafe, contributing to a challenging living environment. School dropouts are also a concern, especially among children enrolled in government schools, often due to a lack of parental engagement and support for education. Potential interventions include facilitating entitlements, establishing a creche in the area, creating awareness about the importance of education strengthening particu",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Vyasarpadi",
+        "cluster_display": "Vyasarpadi",
+        "households": "195",
+        "coordinator": "VINCY U"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.267896,
+              13.122997
+            ],
+            [
+              80.267442,
+              13.123005
+            ],
+            [
+              80.266978,
+              13.122888
+            ],
+            [
+              80.267484,
+              13.122788
+            ],
+            [
+              80.267459,
+              13.122211
+            ],
+            [
+              80.26751,
+              13.121592
+            ],
+            [
+              80.267914,
+              13.121442
+            ],
+            [
+              80.267896,
+              13.122997
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Dr. Thomas Road",
+        "description": "The socio-economic vulnerability within the settlement is varied, with the newer blocks showing relative stability while others face severe challenges. The older blocks of tenements, along with makeshift metal sheet houses built between them, are in extremely poor condition, characterized by congested living spaces, inadequate ventilation, leaky roofs, and non-functional toilets, leaving residents highly vulnerable. Most women work as domestic workers or construction labourers and many households lack basic entitlements, and a significant number of elderly individuals live alone without support, increasing their isolation and insecurity. To address these disparities, possible interventions could include facilitating access to entitlements, providing targeted support for the elderly and strengthening participation in local governance.",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Central_Chennai",
+        "cluster_display": "Central Chennai",
+        "households": "988",
+        "coordinator": "GABRIN KNOX S"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.242669,
+              13.035041
+            ],
+            [
+              80.243055,
+              13.034606
+            ],
+            [
+              80.243621,
+              13.035016
+            ],
+            [
+              80.243973,
+              13.035191
+            ],
+            [
+              80.244153,
+              13.035559
+            ],
+            [
+              80.244334,
+              13.035802
+            ],
+            [
+              80.24448,
+              13.036178
+            ],
+            [
+              80.244145,
+              13.036354
+            ],
+            [
+              80.243673,
+              13.03576
+            ],
+            [
+              80.243063,
+              13.035317
+            ],
+            [
+              80.242669,
+              13.035041
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Gandhipuram",
+        "description": "Residents in the community face significant challenges due to a lack of awareness about government entitlements and the absence of basic facilities. Most households do not have formal electricity connections, relying instead on unsafe hook connections from the main line. There is no proper sewage system or functional toilets, contributing to poor sanitation. Women are often forced to take up work due to the presence of alcoholic men in their families, placing additional burdens on them. A large number of children were observed in the area, as the local anganwadi centre is not functioning effectively due to the absence of a teacher and caretaker, leaving children without access to early childhood care and education. During profiling, it was mentioned that there was a high probability of eviction but during subsequent conversations and verifying through other sources, it was identified that there is no immediate eviction threat and hence can be considered now. So, potential interventions could be establishing a creche, facilitating entitlements and strengthening participation in local governance",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Vyasarpadi",
+        "cluster_display": "Vyasarpadi",
+        "households": "383",
+        "coordinator": "VINCY U"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.266462,
+              13.110166
+            ],
+            [
+              80.266861,
+              13.109723
+            ],
+            [
+              80.267295,
+              13.109794
+            ],
+            [
+              80.267775,
+              13.109861
+            ],
+            [
+              80.268333,
+              13.10992
+            ],
+            [
+              80.268882,
+              13.109987
+            ],
+            [
+              80.269466,
+              13.110012
+            ],
+            [
+              80.269921,
+              13.110066
+            ],
+            [
+              80.269814,
+              13.110346
+            ],
+            [
+              80.268951,
+              13.110313
+            ],
+            [
+              80.267904,
+              13.110246
+            ],
+            [
+              80.26696,
+              13.110179
+            ],
+            [
+              80.266462,
+              13.110166
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Giriyappa Road",
+        "description": "The community remains vulnerable due to low awareness about the entitlements and welfare benefits available to them, which limits their ability to secure necessary support and protections. They face challenges in basic amenities like no individual or common toilets, issues with water access as only three taps serve the entire community and there is no dedicated provision for public drinking water. Although there has been verbal communication regarding possible eviction, no formal notice has been issued, indicating that the threat is not immediate. Interventions could include facilitating entitlements and strengthening participation in local governance",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Central_Chennai",
+        "cluster_display": "Central Chennai",
+        "households": "371",
+        "coordinator": "GABRIN KNOX S"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.246257,
+              13.048377
+            ],
+            [
+              80.246549,
+              13.047821
+            ],
+            [
+              80.24679,
+              13.046466
+            ],
+            [
+              80.246837,
+              13.045994
+            ],
+            [
+              80.246815,
+              13.046027
+            ],
+            [
+              80.246871,
+              13.044915
+            ],
+            [
+              80.246798,
+              13.044342
+            ],
+            [
+              80.246811,
+              13.044351
+            ],
+            [
+              80.246558,
+              13.043113
+            ],
+            [
+              80.246451,
+              13.043147
+            ],
+            [
+              80.246657,
+              13.044116
+            ],
+            [
+              80.246785,
+              13.04471
+            ],
+            [
+              80.246755,
+              13.044706
+            ],
+            [
+              80.246794,
+              13.045534
+            ],
+            [
+              80.246682,
+              13.046617
+            ],
+            [
+              80.246682,
+              13.046617
+            ],
+            [
+              80.246654,
+              13.046651
+            ],
+            [
+              80.24647,
+              13.047734
+            ],
+            [
+              80.246195,
+              13.048311
+            ],
+            [
+              80.246257,
+              13.048377
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Kamarajapuram",
+        "description": "The selected 700 houses predominantly consist of metal sheet roof structures, with extremely cramped living conditions\u2014often accommodating 5 to 6 individuals in spaces meant for just two. Residents have very limited awareness of available government schemes, and most possess only basic identification such as ration and Aadhaar cards. Some are unaware of the address listed on their Aadhaar, reflecting a deeper lack of awareness and engagement with formal systems. The settlement suffers from clogged drainage and stagnant rainwater during the monsoon, as houses lack individual sewer connections and rely on poorly maintained public toilets. Water supply is also inadequate, with only two hand pumps serving around 500 households in one part of the settlement. Potential interventions include facilitating entitlements and strengthening participation in local governance with a focus on civic amenities",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Chennai",
+        "cluster_display": "Chennai",
+        "households": "700",
+        "coordinator": "GABRIN KNOX S"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.237906,
+              13.05693
+            ],
+            [
+              80.237513,
+              13.056923
+            ],
+            [
+              80.237562,
+              13.056161
+            ],
+            [
+              80.237593,
+              13.055474
+            ],
+            [
+              80.237562,
+              13.054968
+            ],
+            [
+              80.237375,
+              13.054344
+            ],
+            [
+              80.237448,
+              13.054366
+            ],
+            [
+              80.237249,
+              13.053831
+            ],
+            [
+              80.237558,
+              13.053913
+            ],
+            [
+              80.237864,
+              13.054686
+            ],
+            [
+              80.237947,
+              13.056763
+            ],
+            [
+              80.237906,
+              13.05693
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "MK Ratha Nagar",
+        "description": "The settlement is severely overcrowded and accessing government entitlements is a major challenge, as residents must travel nearly 3 kilometers and many are unaware of the schemes available to them. The socio-economic condition of the community is poor, with most homes being makeshift metal sheet structures. Water access is limited, with only three hand pumps available for the entire street, making daily needs difficult to meet. Most houses lack individual sewer connections, forcing residents to rely on public toilets. The area is highly flood-prone during the monsoon season due to its location next to a canal, further endangering the already vulnerable population. A significant number of elderly residents live alone and in isolation, without adequate support systems. So interventions like facilitation of entitlements, providing elderly care support and strengthening participation in local governance is needed",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Central_Chennai",
+        "cluster_display": "Central Chennai",
+        "households": "330",
+        "coordinator": "GABRIN KNOX S"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.247327,
+              13.049216
+            ],
+            [
+              80.247104,
+              13.048698
+            ],
+            [
+              80.246898,
+              13.048338
+            ],
+            [
+              80.247061,
+              13.04807
+            ],
+            [
+              80.247267,
+              13.04731
+            ],
+            [
+              80.247336,
+              13.046624
+            ],
+            [
+              80.24707,
+              13.046582
+            ],
+            [
+              80.246932,
+              13.047577
+            ],
+            [
+              80.246735,
+              13.048338
+            ],
+            [
+              80.246726,
+              13.048522
+            ],
+            [
+              80.247224,
+              13.049191
+            ],
+            [
+              80.247327,
+              13.049216
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "MM Garden",
+        "description": "The residents of MM Garden represent a highly vulnerable community due to their socially and economically disadvantaged status, poor living conditions, and lack of essential infrastructure. Many elderly live alone, some living in rented houses have additional rent burden (\u20b94,500 or more each month), combined with low and irregular incomes, pushes them into a cycle of debt and insecurity. Inadequate sanitation, unsafe water, and limited healthcare expose them to constant health risks, while poor access to education perpetuates intergenerational poverty. Potential interventions are facilitating entitlements, providing elderly care and strengthening participation in local governance",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Vyasarpadi",
+        "cluster_display": "Vyasarpadi",
+        "households": "384",
+        "coordinator": "VINCY U"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.258382,
+              13.109808
+            ],
+            [
+              80.258412,
+              13.11092
+            ],
+            [
+              80.258592,
+              13.111012
+            ],
+            [
+              80.258846,
+              13.110903
+            ],
+            [
+              80.258983,
+              13.110899
+            ],
+            [
+              80.259275,
+              13.110899
+            ],
+            [
+              80.259554,
+              13.11087
+            ],
+            [
+              80.259622,
+              13.110401
+            ],
+            [
+              80.259614,
+              13.109846
+            ],
+            [
+              80.258382,
+              13.109808
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sarangapani Street",
+        "description": "Many residents in the community lack essential entitlements such as ration cards and pensions, and even those who apply often face rejection due to bureaucratic hurdles or lack of proper documentation. While there is currently no eviction threat for most of the area, the makeshift metal sheet houses located along the roadside remain vulnerable. A majority of women in the community work as domestic workers and are the primary earners, as their husbands often struggle with alcoholism. This pattern of gendered responsibility and substance abuse continues into the next generation, with daughters more likely to take on financial responsibilities while sons are at higher risk of addiction to alcohol or drugs. There is also prevalence of elderly domestic workers who are finding it difficult to continue working due to early aging conditions but are still working out of financial necessity. They need support with entitlements, elderly care and alternate livelihood options for the women where possible",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Chennai",
+        "cluster_display": "Chennai",
+        "households": "550",
+        "coordinator": "GABRIN KNOX S"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.237744,
+              13.049158
+            ],
+            [
+              80.237508,
+              13.048314
+            ],
+            [
+              80.238693,
+              13.048038
+            ],
+            [
+              80.238838,
+              13.048523
+            ],
+            [
+              80.238937,
+              13.048908
+            ],
+            [
+              80.237744,
+              13.049158
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sathyamurthy Street",
+        "description": "",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Central_Chennai",
+        "cluster_display": "Central Chennai",
+        "households": "638",
+        "coordinator": "GABRIN KNOX S"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.245637,
+              13.036121
+            ],
+            [
+              80.245603,
+              13.035774
+            ],
+            [
+              80.245521,
+              13.035297
+            ],
+            [
+              80.244951,
+              13.035352
+            ],
+            [
+              80.245032,
+              13.035707
+            ],
+            [
+              80.245148,
+              13.035849
+            ],
+            [
+              80.245195,
+              13.036159
+            ],
+            [
+              80.245637,
+              13.036121
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sundram Powerline",
+        "description": "Many households in the settlement lack access to basic entitlements such as ration cards, pensions and other welfare benefits and have limited access to healthcare services or anganwadi centres. The housing conditions are extremely poor, with many homes situated at a lower elevation than the road, making them highly prone to flooding during rains. This not only damages property but also places residents in a highly vulnerable and unsafe living situation. They require support with entitlements and strengthening their participation in local governance to improve civic amenities",
+        "layer": "tndwwt",
+        "zone": "Chennai",
+        "cluster": "Vyasarpadi",
+        "cluster_display": "Vyasarpadi",
+        "households": "270",
+        "coordinator": "VINCY U"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              80.262393,
+              13.11214
+            ],
+            [
+              80.262933,
+              13.111772
+            ],
+            [
+              80.263405,
+              13.111455
+            ],
+            [
+              80.264161,
+              13.110903
+            ],
+            [
+              80.264478,
+              13.110652
+            ],
+            [
+              80.264212,
+              13.110535
+            ],
+            [
+              80.26362,
+              13.110945
+            ],
+            [
+              80.263285,
+              13.111221
+            ],
+            [
+              80.262942,
+              13.111354
+            ],
+            [
+              80.262599,
+              13.11153
+            ],
+            [
+              80.262461,
+              13.111706
+            ],
+            [
+              80.262264,
+              13.111948
+            ],
+            [
+              80.262393,
+              13.11214
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

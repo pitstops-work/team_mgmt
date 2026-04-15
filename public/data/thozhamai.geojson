@@ -1,0 +1,55 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Semmencherry",
+        "description": "",
+        "layer": "thozhamai",
+        "zone": "Chennai",
+        "cluster": "Semmenchery",
+        "cluster_display": "Semmenchery",
+        "households": "6908",
+        "coordinator": "AUXILIA. M. CHRISTINA"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.210233,
+            12.879488
+          ],
+          [
+            80.207899,
+            12.875656
+          ],
+          [
+            80.2091,
+            12.872376
+          ],
+          [
+            80.211383,
+            12.871941
+          ],
+          [
+            80.212688,
+            12.877647
+          ],
+          [
+            80.210903,
+            12.878066
+          ],
+          [
+            80.211006,
+            12.879203
+          ],
+          [
+            80.210302,
+            12.879572
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -6,8 +6,15 @@ export type LayerKey =
   | "janasha"
   | "thamate"
   | "maarga"
-
   | "sieds"
+
+  // Chennai partners
+  | "arunodhaya"
+  | "tndwwt"
+  | "dbai"
+  | "dbsss"
+  | "thozhamai"
+
   | "resource_centres"
   | "children_centres"
   | "youth_centres"
@@ -90,6 +97,48 @@ export const LAYERS: LayerConfig[] = [
     type: "polygon",
     description: "Thamate partner settlements",
   },
+  // ── Chennai partners ─────────────────────────────────────────────────────
+  {
+    key: "arunodhaya",
+    label: "Arunodhaya",
+    file: "/data/arunodhaya.geojson",
+    color: "#0ea5e9",
+    type: "polygon",
+    description: "Arunodhaya partner settlements — Chennai",
+  },
+  {
+    key: "tndwwt",
+    label: "TNDWWT",
+    file: "/data/tndwwt.geojson",
+    color: "#16a34a",
+    type: "polygon",
+    description: "TNDWWT partner settlements — Chennai",
+  },
+  {
+    key: "dbai",
+    label: "DBAI",
+    file: "/data/dbai.geojson",
+    color: "#b45309",
+    type: "polygon",
+    description: "DBAI partner settlements — Chennai",
+  },
+  {
+    key: "dbsss",
+    label: "DBSSS",
+    file: "/data/dbsss.geojson",
+    color: "#7c3aed",
+    type: "polygon",
+    description: "DBSSS partner settlements — Chennai",
+  },
+  {
+    key: "thozhamai",
+    label: "Thozhamai",
+    file: "/data/thozhamai.geojson",
+    color: "#be123c",
+    type: "polygon",
+    description: "Thozhamai partner settlements — Chennai",
+  },
+
   {
     key: "resource_centres",
     label: "Resource Centres",

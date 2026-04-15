@@ -159,7 +159,7 @@
       "Kanuramma Temple",
       "Kariyanna Layout",
       "Kashinagara",
-      "Kasturi nagar  Majestic Area",
+      "Kasturi nagar\u00a0 Majestic Area",
       "Kole Basawa Community",
       "Kole Basawa Community Jopadi",
       "Kottigepalya",
@@ -242,6 +242,58 @@
       "ZAKIR COMMUNITY",
       "jagjeevan ram nagar",
       "kasaraguppe"
+    ],
+    "Chennai": [
+      "Aalayamman Kovil",
+      "Ambedkar Nagar",
+      "Annai Sathyanagar (B Block)",
+      "Annai Sathyanagar (C Block)",
+      "Appar Nagar",
+      "Apparsami Kovil",
+      "B. Kalyanapuram",
+      "Bhojarajan Nagar",
+      "Bishop Line tenament",
+      "C. Kalyanapuram",
+      "Canal Street (Royapuram)",
+      "Desikanandhapuram",
+      "Dhebar Nagar",
+      "Dobigana",
+      "Dr. Ambedkar Nagar",
+      "Dr. Thomas Road",
+      "Gandhi Nagar (Puliyanthope)",
+      "Gandhipuram",
+      "Giriyappa Road",
+      "J.J. Nagar (Puliyanthope)",
+      "J.J. Nagar (Thiruvottiyur)",
+      "K.M. Garden",
+      "Kalyani Chetty Nagar",
+      "Kamarajapuram",
+      "Kanni Kovil",
+      "Kasthuri Bai Colony",
+      "MK Ratha Nagar",
+      "MM Garden",
+      "Muthumarriyamman Nagar",
+      "Narasimma Nagar",
+      "Neelam Badsha Dargha Street",
+      "New Thiru Vi Ka Nagar",
+      "Pallavan Salai",
+      "Pattinapakkam",
+      "Pattinathar Kovil",
+      "Ponnappan Street",
+      "R.R. Nagar",
+      "Railway Colony",
+      "Sarangapani Street",
+      "Sasthiri Nagar",
+      "Sathyamurthy Street",
+      "Semmencherry",
+      "Stanley Nagar",
+      "Sundhara Puram",
+      "Sundram Powerline",
+      "T.V.K. Nagar",
+      "Thulukanathamman Kovil",
+      "V.O.C. Nagar",
+      "VR Pillai street",
+      "Vasugi Nagar"
     ]
   },
   "clusters": {
@@ -324,7 +376,7 @@
         "Hanumanthapura Majestic Area",
         "Himalaya Huts",
         "JCW nagara, Majestic Area",
-        "Kasturi nagar  Majestic Area",
+        "Kasturi nagar\u00a0 Majestic Area",
         "Lakshmanpuri, Majestic Area",
         "Minervamill, Majestic Area",
         "Okalipura - 96 Majestic Area",
@@ -580,6 +632,101 @@
         "SIEDS Bagalur resource centre",
         "b s palya",
         "bagalur"
+      ]
+    },
+    "Central_Chennai": {
+      "zone": "Chennai",
+      "settlements": [
+        "Aalayamman Kovil",
+        "Dr. Thomas Road",
+        "Giriyappa Road",
+        "MK Ratha Nagar",
+        "Sathyamurthy Street"
+      ]
+    },
+    "Royapuram_Harbour": {
+      "zone": "Chennai",
+      "settlements": [
+        "Ambedkar Nagar",
+        "Bhojarajan Nagar",
+        "Canal Street (Royapuram)",
+        "Muthumarriyamman Nagar",
+        "R.R. Nagar",
+        "Railway Colony",
+        "Stanley Nagar"
+      ]
+    },
+    "Fort_and_Park": {
+      "zone": "Chennai",
+      "settlements": [
+        "Annai Sathyanagar (B Block)",
+        "Annai Sathyanagar (C Block)",
+        "Pallavan Salai"
+      ]
+    },
+    "Tiruvottiyur": {
+      "zone": "Chennai",
+      "settlements": [
+        "Appar Nagar",
+        "Apparsami Kovil",
+        "J.J. Nagar (Thiruvottiyur)",
+        "Kalyani Chetty Nagar",
+        "Kanni Kovil",
+        "Pattinathar Kovil",
+        "Thulukanathamman Kovil"
+      ]
+    },
+    "Vyasarpadi": {
+      "zone": "Chennai",
+      "settlements": [
+        "B. Kalyanapuram",
+        "C. Kalyanapuram",
+        "Desikanandhapuram",
+        "Dhebar Nagar",
+        "Gandhipuram",
+        "MM Garden",
+        "Sundram Powerline"
+      ]
+    },
+    "Chennai": {
+      "zone": "Chennai",
+      "settlements": [
+        "Bishop Line tenament",
+        "Dobigana",
+        "Kamarajapuram",
+        "Sarangapani Street"
+      ]
+    },
+    "Pulianthope": {
+      "zone": "Chennai",
+      "settlements": [
+        "Dr. Ambedkar Nagar",
+        "Gandhi Nagar (Puliyanthope)",
+        "J.J. Nagar (Puliyanthope)",
+        "K.M. Garden",
+        "Kasthuri Bai Colony",
+        "Narasimma Nagar",
+        "New Thiru Vi Ka Nagar",
+        "Ponnappan Street",
+        "Sasthiri Nagar",
+        "Sundhara Puram",
+        "T.V.K. Nagar",
+        "V.O.C. Nagar",
+        "Vasugi Nagar"
+      ]
+    },
+    "Mylapur_and_Marina_Coastal": {
+      "zone": "Chennai",
+      "settlements": [
+        "Neelam Badsha Dargha Street",
+        "Pattinapakkam",
+        "VR Pillai street"
+      ]
+    },
+    "Semmenchery": {
+      "zone": "Chennai",
+      "settlements": [
+        "Semmencherry"
       ]
     }
   }

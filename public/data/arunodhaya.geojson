@@ -1,0 +1,781 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ambedkar Nagar",
+        "description": "The residents of this settlement, particularly those near the railway track, face severe vulnerabilities including lack of access to water, toilets, and proper drainage, with water often mixing with sewage and entering homes during rains, damaging belongings and causing health issues such as fevers and waterborne diseases. This settlement is mentioned as having partial eviction threat for the houses near the railway tracks identified through secondary sources but there hasn't been any official communication regarding this. Though the settlement has a mix of thatched huts, cement sheet roof and concrete houses, most residents belong to the SC community, with men working as auto drivers, loadmen and GCC sanitation workers and women employed as street vendors, domestic workers and tailors. The area lacks land ownership documents and the local park is poorly maintained and misused by nearby apartment residents for waste dumping, affecting children\u2019s health and limiting community use. To address these issues, interventions are required like establishing creche to support working mothers, facilitating entitlements and strengthening participation in local governance in partial areas which has more vulnerabilities.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Royapuram_Harbour",
+        "cluster_display": "Royapuram\u2013Harbour",
+        "households": "360",
+        "coordinator": "Tharun A"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.272981,
+            13.114018
+          ],
+          [
+            80.273597,
+            13.114037
+          ],
+          [
+            80.273597,
+            13.114219
+          ],
+          [
+            80.275136,
+            13.114203
+          ],
+          [
+            80.275347,
+            13.114702
+          ],
+          [
+            80.274979,
+            13.114788
+          ],
+          [
+            80.274564,
+            13.114842
+          ],
+          [
+            80.27298,
+            13.114015
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Appar Nagar",
+        "description": "This coastal settlement, primarily made up of cement sheet and thatched roof houses, faces significant vulnerabilities due to its geography and infrastructure. Being located near the beach, the area is prone to coastal erosion and frequent flooding, with strong winds often damaging the fragile roofing materials. Though this settlement is mentioned as having eviction threat identified through secondary sources, there hasn't been any official communication regarding this. During heavy rains, seawater enters the streets, damaging household belongings and worsening living conditions. Most residents belong to the lower-middle-class category and engage in a mix of occupations such as fishing, electrical work, housekeeping, rickshaw driving and daily wage labor, with women often employed as domestic workers. Additionally, access to government services remains limited, and many elderly residents have not received benefits like old age or widow pensions. The community currently depends on internet centers for accessing government schemes, indicating a gap in entitlement facilitation. To address these challenges, interventions can include establishing elderly support programs, facilitating entitlements to improve access to welfare schemes and creating safe, structured spaces for children and youth.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Tiruvottiyur",
+        "cluster_display": "Tiruvottiyur",
+        "households": "188",
+        "coordinator": "Swetha S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.306145,
+            13.159818
+          ],
+          [
+            80.305963,
+            13.158849
+          ],
+          [
+            80.306592,
+            13.158678
+          ],
+          [
+            80.306634,
+            13.158959
+          ],
+          [
+            80.306633,
+            13.158957
+          ],
+          [
+            80.306635,
+            13.158955
+          ],
+          [
+            80.306639,
+            13.158955
+          ],
+          [
+            80.306638,
+            13.158959
+          ],
+          [
+            80.306636,
+            13.158961
+          ],
+          [
+            80.307081,
+            13.158826
+          ],
+          [
+            80.307429,
+            13.159865
+          ],
+          [
+            80.306595,
+            13.159964
+          ],
+          [
+            80.306585,
+            13.159652
+          ],
+          [
+            80.306147,
+            13.15981
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Apparsami Kovil",
+        "description": "This settlement, a continuation of Appar Nagar, faces significant vulnerabilities, particularly in the portion closer to the coast. Unlike the area near the main road, which is relatively better off, the coastal section experiences challenges similar to other coastal settlements, including exposure to flooding and harsh weather conditions. Though this settlement is mentioned as having eviction threat identified through secondary sources, there hasn't been any official communication regarding this. The housing primarily consists of makeshift structures, and many elderly residents have not received essential government benefits such as old age or widow pensions. The community\u2019s socio-economic condition is vulnerable and access to entitlements remains a major hurdle. To address these issues, targeted interventions should focus on the coastal section of the settlement and include facilitating entitlements, initiating elderly support programs and supporting in improving infrastructure to mitigate flood risks.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Tiruvottiyur",
+        "cluster_display": "Tiruvottiyur",
+        "households": "73",
+        "coordinator": "Swetha S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.306228,
+            13.160471
+          ],
+          [
+            80.307141,
+            13.160329
+          ],
+          [
+            80.307287,
+            13.160797
+          ],
+          [
+            80.307701,
+            13.16074
+          ],
+          [
+            80.307478,
+            13.159947
+          ],
+          [
+            80.306168,
+            13.160101
+          ],
+          [
+            80.306227,
+            13.160471
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Bishop Line tenament",
+        "description": "This is a tenement settlement, constructed over 30 years ago by TNUHDB, remains highly vulnerable despite being under government housing. The living spaces are cramped, less than 150 sq. ft. per unit, and the aging infrastructure has led to deteriorated drinking water and sewage pipelines, causing structural and sanitation issues. Safety is a major concern due to the absence of a compound wall and residents face high water demand during summers. Most are daily wage labourers and many elderly residents live alone, abandoned by family members who have moved elsewhere due to space constraints. Children, though enrolled in government schools, lack additional educational support, and persons with disabilities struggle to access entitlements due to missing ID cards and limited awareness of government schemes. To address these challenges, interventions should include facilitating entitlements, establishing welfare programs for the elderly and reconstituting and strengthening resident welfare associations to ensure better representation and access to services.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Chennai",
+        "cluster_display": "Chennai",
+        "households": "208",
+        "coordinator": "Shiny Melfer J"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.283843,
+            13.11091
+          ],
+          [
+            80.283957,
+            13.111269
+          ],
+          [
+            80.284373,
+            13.111182
+          ],
+          [
+            80.284283,
+            13.110804
+          ],
+          [
+            80.283842,
+            13.110912
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Bhojarajan Nagar",
+        "description": "This settlement is highly vulnerable, with residents facing severe challenges in accessing basic services.  This settlement is mentioned as having partial eviction threat for the houses near the railway tracks identified through secondary sources but there hasn't been any official communication regarding this. None of the houses have individual water connections, leaving families dependent on irregular lorry water supply. The area lacks proper drainage, drinking water facilities, street lighting and garbage collection and open defecation is common due to the absence of public toilets. Flooding is frequent, especially during the rainy season. Many residents struggle to obtain essential documents like birth certificates, ration cards and health benefit cards, with limited access to e-Sevai services due to distance and daily token restrictions. The presence of destitute elderly and young children in the streets further highlights the socio-economic vulnerability. To address these issues, key interventions should include establishing a creche in the area for the young children, elderly care support, facilitating entitlements and strengthening participation in local governance to improve civic amenities and infrastructure.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Royapuram_Harbour",
+        "cluster_display": "Royapuram\u2013Harbour",
+        "households": "1671",
+        "coordinator": "Tharun A"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.274121,
+            13.110335
+          ],
+          [
+            80.277421,
+            13.10995
+          ],
+          [
+            80.277576,
+            13.110815
+          ],
+          [
+            80.27716,
+            13.111747
+          ],
+          [
+            80.276825,
+            13.112098
+          ],
+          [
+            80.274954,
+            13.112293
+          ],
+          [
+            80.2741,
+            13.110347
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Canal Street (Royapuram)",
+        "description": "This is one of the most underdeveloped and vulnerable settlements, particularly for those living near the canal, where flooding is frequent due to poor drainage and canal overflow during rains. Though there is a possibility of eviction due to proximity to the canal, there hasn't been any official communication in this regard. The area lacks basic infrastructure, including proper sewage and water facilities, reliable electricity and public toilets. Most homes are poorly built, with no individual sewage connections and residents, many of whom are daily wage earners, live in poverty. A large elderly population remains without access to government benefits such as pensions and children often miss school due to lack of parental awareness about education policies and schemes. To address these challenges, urgent interventions are needed, including facilitation of entitlements, providing elderly care services, education awareness programs, after-school support for children and strengthening participation in local governance with focus on basic infrastructure and civic amenities.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Royapuram_Harbour",
+        "cluster_display": "Royapuram\u2013Harbour",
+        "households": "314",
+        "coordinator": "Tharun A"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.270546,
+            13.110343
+          ],
+          [
+            80.27054,
+            13.110335
+          ],
+          [
+            80.270847,
+            13.110385
+          ],
+          [
+            80.272248,
+            13.107559
+          ],
+          [
+            80.272141,
+            13.107336
+          ],
+          [
+            80.270542,
+            13.110332
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Dobigana",
+        "description": "This small settlement of around 150 households is highly vulnerable, having originally been designated for the washermen community\u2019s work but not for residential use. Denied housing elsewhere, residents built makeshift metal sheet homes over generations, resulting in the absence of basic amenities such as drinking water, sewage connections and formal electricity. Most residents work as ironing and washermen, yet lack secure EB connections, which directly affects their livelihoods. The only hand pump available is faulty, leaving families dependent on an unreliable water source. The public toilet, shared with a neighboring settlement, is overcrowded and locked at night, restricting access. During rains, flooding damages homes and belongings, and temporary relocation often leads to theft. The community also struggles with accessing government entitlements due to missing documentation. To address these challenges, interventions should focus on facilitating entitlement access - especially for traditional occupations, support in securing individual EB connections and strengthening participation in local governance with focus on basic infrastructure and civic amenities",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Chennai",
+        "cluster_display": "Chennai",
+        "households": "150",
+        "coordinator": "Shiny Melfer J"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.288559,
+            13.106717
+          ],
+          [
+            80.288645,
+            13.107173
+          ],
+          [
+            80.289467,
+            13.107205
+          ],
+          [
+            80.289444,
+            13.106638
+          ],
+          [
+            80.289427,
+            13.106517
+          ],
+          [
+            80.289405,
+            13.106359
+          ],
+          [
+            80.2894,
+            13.106373
+          ],
+          [
+            80.2894,
+            13.106364
+          ],
+          [
+            80.28941,
+            13.106367
+          ],
+          [
+            80.2894,
+            13.106361
+          ],
+          [
+            80.289405,
+            13.106361
+          ],
+          [
+            80.289402,
+            13.106363
+          ],
+          [
+            80.288557,
+            13.106719
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "J.J. Nagar (Thiruvottiyur)",
+        "description": "This small settlement of approximately 130 households, consisting mostly of thatched roof huts and cement sheet structures, is in a significantly worse socio-economic condition compared to nearby communities. Though this settlement is mentioned as having possible eviction threat identified through secondary sources as they reside on private land, there hasn't been any official communication regarding this. Residents lack access to essential government services such as clean drinking water, sewage connections, public toilets, street lighting, and garbage collection. Despite its size, the settlement is highly vulnerable due to inadequate infrastructure and poor living conditions and as it is situated directly across the road from Pattinathar Koil, they can be worked on together. Interventions could include cr\u00e8ches for children (could be housed in Pattinathar Koil), providing elderly care services, facilitating access to government entitlements and strengthening community participation in local governance with a focus on improving civic amenities and infrastructure.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Tiruvottiyur",
+        "cluster_display": "Tiruvottiyur",
+        "households": "78",
+        "coordinator": "Swetha S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.305102,
+            13.163599
+          ],
+          [
+            80.305516,
+            13.163529
+          ],
+          [
+            80.305831,
+            13.163478
+          ],
+          [
+            80.305657,
+            13.162785
+          ],
+          [
+            80.304929,
+            13.162943
+          ],
+          [
+            80.305102,
+            13.163605
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Kalyani Chetty Nagar",
+        "description": "This small settlement of around 140 households is highly vulnerable, with over two-thirds of the homes being makeshift structures made of thatched roof or metal sheets. Residents lack pattas and face frequent flooding, which submerges homes and damages belongings. Most households do not have individual toilets, and there are no common toilet facilities within the settlement, forcing residents to use those in neighboring areas. The community also has a substantial elderly population living without adequate support. Despite these challenges, the settlement has sufficient space and an existing sewage connection, making it feasible to construct a common toilet. Additionally, the residents have requested the establishment of an elderly home to support their aging population. Addressing these needs through improved sanitation infrastructure and elderly care services would significantly enhance the community\u2019s living conditions and resilience.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Tiruvottiyur",
+        "cluster_display": "Tiruvottiyur",
+        "households": "110",
+        "coordinator": "Swetha S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.305983,
+            13.161418
+          ],
+          [
+            80.305825,
+            13.160266
+          ],
+          [
+            80.30566,
+            13.159349
+          ],
+          [
+            80.305123,
+            13.157289
+          ],
+          [
+            80.304952,
+            13.157331
+          ],
+          [
+            80.305518,
+            13.159328
+          ],
+          [
+            80.305827,
+            13.161392
+          ],
+          [
+            80.306003,
+            13.161424
+          ],
+          [
+            80.305949,
+            13.161417
+          ],
+          [
+            80.305999,
+            13.161434
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Kanni Kovil",
+        "description": "This coastal settlement, divided into two sections, faces severe vulnerabilities, particularly in the area where residents predominantly practice kili joshiyam (parrot astrology). Most homes are huts or cement sheet structures, with few concrete houses, highly susceptible to damage from strong coastal winds and flooding, especially during the rainy season when seawater mixes with drainage and enters homes. The lack of individual drainage connections forces residents to rely on overcrowded public toilets shared with neighboring settlements, many of which are poorly maintained and frequently non-functional. Unsafe electrical connections, with wires hooked directly to transformers, pose serious safety risks. Socio-economic conditions are poor, with many residents unemployed. Children, though attending school, lack structured after-school engagement. To address these challenges, interventions could focus on facilitating entilements, strengthening participation in local governance with focus on improving basic infrastructure\u2014such as safe housing, drainage and sanitation and organising after-school initiatives for children and youth to promote long-term development and prevent engagement in anti-social activities.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Tiruvottiyur",
+        "cluster_display": "Tiruvottiyur",
+        "households": "129",
+        "coordinator": "Swetha S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.305492,
+            13.157084
+          ],
+          [
+            80.306128,
+            13.156963
+          ],
+          [
+            80.30631,
+            13.157527
+          ],
+          [
+            80.306962,
+            13.158432
+          ],
+          [
+            80.305979,
+            13.15873
+          ],
+          [
+            80.305475,
+            13.157084
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Muthumarriyamman Nagar",
+        "description": "This is one of the most underdeveloped and vulnerable settlements, with residents lacking access to basic infrastructure and government support. Located near a canal and close to the railway line, the area is highly flood-prone, with no concrete houses, no individual water or sewage connections and widespread open defecation due to the absence of public toilets. Though there is a possibility of eviction due to proximity to the canal, there hasn't been any official communication in this regard. Most homes are makeshift or asbestos sheet structures and electricity connections are inadequate. The community consists largely of daily wage laborers, including auto drivers and sanitation workers, with many young women already caring for children without employment. A significant number of elderly residents are abandoned and left without support, often seen sitting idle in the streets. To address these challenges, interventions including establishing creches in the area, supporting destitute elderly people, facilitating entitlements to help residents access essential documents and welfare schemes and strengthening local governance participation to facilitate improvement in proper sanitation and drainage infrastructure, provision of drinking water and electricity connections should be considered.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Royapuram_Harbour",
+        "cluster_display": "Royapuram\u2013Harbour",
+        "households": "109",
+        "coordinator": "Tharun A"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.270353,
+            13.110638
+          ],
+          [
+            80.2735,
+            13.110482
+          ],
+          [
+            80.27349,
+            13.110424
+          ],
+          [
+            80.27195,
+            13.110523
+          ],
+          [
+            80.270347,
+            13.110568
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pattinathar Kovil",
+        "description": "This coastal settlement is highly vulnerable due to its geography, the nature of residents' occupations and inadequate infrastructure. Although this is an old, stable community with no threat of eviction, the overall living conditions are poor, with most homes constructed from thatched roofs, tiled sheets or asbestos and only a few concrete structures. Water supply and drainage systems are severely lacking, with many households struggling to access clean drinking water and basic sanitation. The absence of individual sewer connections forces reliance on public toilets, and the area is particularly flood-prone during the monsoon due to its proximity to the coast. There is no active NGO presence apart from Arunodhaya, and many elderly women live in destitution without support. Access to government entitlements remains a challenge, compounded by low awareness and logistical barriers. Women in the community have expressed the need for safe childcare options to enable them to work, and there is a lack of spaces or programs to engage children in skill-building or recreational activities. To address these issues, interventions could include establishing a cr\u00e8che and providing elderly care services, facilitating entitlement access through awareness and support drives, supporting in improving water and sanitation infrastructure and creating safe community spaces for children\u2019s development through sports and skill-based activities.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Tiruvottiyur",
+        "cluster_display": "Tiruvottiyur",
+        "households": "457",
+        "coordinator": "Swetha S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.308381,
+            13.162301
+          ],
+          [
+            80.306658,
+            13.162656
+          ],
+          [
+            80.308385,
+            13.162301
+          ],
+          [
+            80.30902,
+            13.163414
+          ],
+          [
+            80.30748,
+            13.163775
+          ],
+          [
+            80.3074,
+            13.163421
+          ],
+          [
+            80.306795,
+            13.163528
+          ],
+          [
+            80.306656,
+            13.162658
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R.R. Nagar",
+        "description": "This settlement faces significant vulnerabilities, including widespread lack of basic entitlements such as birth certificates, ration cards and health insurance among residents. The nearest government e-Sevai Maiyam is located far from the settlement, making it difficult for residents to access essential services without paying at internet centers. Families living near the canal are under threat of eviction, although no official notice has been issued. The area suffers from severe flooding during the rainy season, with rainwater mixed with drainage entering homes, damaging belongings and causing health issues like skin allergies and viral fevers. The low-lying terrain and overflowing canal exacerbate waterlogging, often forcing residents to seek shelter in nearby Corporation schools. Employment opportunities within the settlement are scarce, compelling most residents to work far from home. Although Housing Board flats were previously present and are now being replaced with tenements, these are excluded from current interventions. To mitigate these challenges, key interventions should include facilitating entitlements and establishing a cr\u00e8che to support working mothers and ensure child safety, focusing particularly on the 1120 houses near the canal.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Royapuram_Harbour",
+        "cluster_display": "Royapuram\u2013Harbour",
+        "households": "845",
+        "coordinator": "Tharun A"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.267857,
+            13.128147
+          ],
+          [
+            80.267748,
+            13.127469
+          ],
+          [
+            80.269062,
+            13.127205
+          ],
+          [
+            80.269613,
+            13.127995
+          ],
+          [
+            80.269112,
+            13.128313
+          ],
+          [
+            80.268492,
+            13.128209
+          ],
+          [
+            80.268179,
+            13.128155
+          ],
+          [
+            80.268019,
+            13.12813
+          ],
+          [
+            80.267876,
+            13.128144
+          ],
+          [
+            80.267861,
+            13.128155
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Railway Colony",
+        "description": "This small settlement of around 150 households is extremely vulnerable due to poor housing conditions, lack of basic amenities, and socio-economic hardships. All homes are makeshift or asbestos-roofed structures, with no concrete houses. Since this was built on railway land, there is a possibility of eviction in the future, though no concrete decisions have been communicated so far. Residents rely on kerosene or wood-burning stoves for cooking, and there is no direct supply of drinking water or access to public toilets\u2014they must cross a railway line to reach corporation water tanks and sanitation facilities. The area lacks street lighting, proper roads, drainage systems, and garbage collection, making daily life difficult and unsafe. Many elderly residents are abandoned and live without support, while children and youth are often seen idle in the streets, with no access to education, employment, or structured activities. To address these challenges, interventions should focus on providing cr\u00e8che facilities for working women, support systems for the elderly, entitlement camps to facilitate access to government schemes and strengthening community participation in local governance with a focus on improving civic amenities and infrastructure.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Royapuram_Harbour",
+        "cluster_display": "Royapuram\u2013Harbour",
+        "households": "173",
+        "coordinator": "Tharun A"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.274817,
+            13.112036
+          ],
+          [
+            80.274178,
+            13.110594
+          ],
+          [
+            80.274237,
+            13.110587
+          ],
+          [
+            80.274863,
+            13.112017
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Stanley Nagar",
+        "description": "This settlement faces significant vulnerabilities, though there is presence of multiple well-built concrete houses giving the impression of better socio-economic conditions, none of the houses have individual water connections, leaving residents dependent on irregular lorry water supply. Since it is located closer to the canal, there is a slight possibility of eviction in the future, though no concrete decision has been communicated. Most women work in low-income jobs such as domestic work, sweeping and sanitation, while the overall community remains confined to blue-collar employment. The socio-economic condition is challenging, with many destitute elderly residents and frequent sewage blockages that compromise hygiene. Children lack guidance and opportunities for higher education and no one from the settlement has entered white-collar professions. To address these issues, interventions should include establishing a cr\u00e8che to support working mothers, providing elderly care services, exploring options to support children and youth in career development related programs and strengthening participation in local governance to improve civic amenities",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Royapuram_Harbour",
+        "cluster_display": "Royapuram\u2013Harbour",
+        "households": "726",
+        "coordinator": "Tharun A"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.272729,
+            13.110355
+          ],
+          [
+            80.27228,
+            13.108274
+          ],
+          [
+            80.271905,
+            13.10832
+          ],
+          [
+            80.2709,
+            13.110381
+          ],
+          [
+            80.272737,
+            13.110355
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Thulukanathamman Kovil",
+        "description": "This coastal settlement, located near Pattinathar Koil, faces challenges similar to other vulnerable coastal communities. Most houses are thatched or metal sheet roof structures, making them highly susceptible to damage from strong winds and flooding. During the rainy season, seawater often contaminates water sources and causes skin-related illnesses. While some households have individual water and sewage connections, many still rely on hand pumps and face frequent drainage blockages. Nearly half the homes, especially those near the beach, lack individual toilets and depend on a shared public facility. The beachside area houses the most socio-economically vulnerable residents, including a large number of elderly individuals, many of whom lack access to government pensions. Women often work both day and night shifts, leaving young children without care, and there is a growing demand for patta regularization, as many original documents have been lost. To address these issues, interventions should focus on constructing establishing elderly care services and cr\u00e8ches, facilitating entitlement access, strengthening participation in local governance with focus on civic amenities and supporting patta process.",
+        "layer": "arunodhaya",
+        "zone": "Chennai",
+        "cluster": "Tiruvottiyur",
+        "cluster_display": "Tiruvottiyur",
+        "households": "256",
+        "coordinator": "Swetha S"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.306668,
+            13.162506
+          ],
+          [
+            80.308331,
+            13.162224
+          ],
+          [
+            80.307705,
+            13.160394
+          ],
+          [
+            80.307215,
+            13.160456
+          ],
+          [
+            80.307409,
+            13.161125
+          ],
+          [
+            80.307645,
+            13.161917
+          ],
+          [
+            80.306593,
+            13.162109
+          ],
+          [
+            80.30666,
+            13.162537
+          ]
+        ]
+      }
+    }
+  ]
+}
