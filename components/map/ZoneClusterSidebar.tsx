@@ -33,7 +33,7 @@ interface Props {
   name: string | null;
   parentZone?: string;
   geoData: GeoData | null;
-  clusterIndex: Record<string, { zone: string; settlements: string[] }>;
+  clusterIndex: Record<string, { zone: string; display?: string; settlements: string[] }>;
   zoneIndex: Record<string, string[]>;
   onClose: () => void;
 }
@@ -124,7 +124,10 @@ export default function ZoneClusterSidebar({
   const mobileClass = isOpen ? "translate-y-0" : "translate-y-full";
   const desktopClass = isOpen ? "sm:translate-x-0" : "sm:translate-x-full";
 
-  const displayName = name?.replace(/_/g, " ") ?? "";
+  // Use display field from index if available (handles en-dashes, &, etc.); else normalise underscores
+  const displayName = (name && type === "cluster" ? clusterIndex[name]?.display : undefined)
+    ?? name?.replace(/_/g, " ")
+    ?? "";
   const typeLabel = type === "zone" ? "Zone" : "Cluster";
 
   return (
@@ -312,7 +315,7 @@ export default function ZoneClusterSidebar({
             <div className="flex-1 overflow-y-auto p-3">
               <NeedsPanel
                 mode={type}
-                name={name.replace(/_/g, " ")}
+                name={displayName}
               />
             </div>
           )}

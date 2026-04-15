@@ -4,19 +4,35 @@ import { calcTargets } from "../settlement-needs/route";
 
 // GET /api/map/cluster-needs?cluster=NAME
 export async function GET(request: Request) {
-  const clusterName = new URL(request.url).searchParams.get("cluster")?.replace(/_/g, " ");
-  if (!clusterName) return NextResponse.json({ error: "cluster required" }, { status: 400 });
+  const rawCluster = new URL(request.url).searchParams.get("cluster");
+  if (!rawCluster) return NextResponse.json({ error: "cluster required" }, { status: 400 });
+  // Normalise: replace underscores with spaces for lookup
+  const clusterName = rawCluster.replace(/_/g, " ");
 
-  const cluster = await prisma.cluster.findFirst({
-    where: { name: { equals: clusterName, mode: "insensitive" }, deletedAt: null },
+  const clusterQuery = {
+    where: { deletedAt: null },
     include: {
-      settlements: {
-        where: { deletedAt: null },
-        select: { id: true, name: true },
-      },
+      settlements: { where: { deletedAt: null }, select: { id: true, name: true } },
       zone: { select: { name: true } },
     },
+  };
+
+  // Try exact match first, then fuzzy (handles en-dash vs hyphen, "&" vs "and", etc.)
+  let cluster = await prisma.cluster.findFirst({
+    where: { name: { equals: clusterName, mode: "insensitive" }, ...clusterQuery.where },
+    include: clusterQuery.include,
   });
+
+  if (!cluster) {
+    // Fallback: find by contains first word of cluster name
+    const firstWord = clusterName.split(/[\s\-–]+/)[0];
+    if (firstWord.length >= 3) {
+      cluster = await prisma.cluster.findFirst({
+        where: { name: { contains: firstWord, mode: "insensitive" }, ...clusterQuery.where },
+        include: clusterQuery.include,
+      });
+    }
+  }
 
   if (!cluster) return NextResponse.json(null);
 

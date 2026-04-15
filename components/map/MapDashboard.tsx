@@ -27,7 +27,7 @@ interface CustomFeature {
 
 interface ZoneClusterIndex {
   zones: Record<string, string[]>;
-  clusters: Record<string, { zone: string; settlements: string[] }>;
+  clusters: Record<string, { zone: string; display?: string; settlements: string[] }>;
 }
 
 async function loadCounts(): Promise<Partial<Record<LayerKey, number>>> {

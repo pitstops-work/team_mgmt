@@ -31,8 +31,8 @@ export async function GET(request: Request) {
 
   if (!settlementName) return NextResponse.json({ error: "settlement required" }, { status: 400 });
 
-  // Find settlement in DB by name + optional cluster constraint
-  const settlement = await prisma.settlement.findFirst({
+  // Find settlement in DB: try with cluster constraint first, fall back to name-only
+  let settlement = await prisma.settlement.findFirst({
     where: {
       name: { equals: settlementName, mode: "insensitive" },
       deletedAt: null,
@@ -40,6 +40,17 @@ export async function GET(request: Request) {
     },
     include: { cluster: { include: { zone: true } } },
   });
+
+  // Cluster name mismatch? Try display variant (e.g. "Fort & Park" vs "Fort and Park")
+  if (!settlement && clusterName) {
+    settlement = await prisma.settlement.findFirst({
+      where: {
+        name: { equals: settlementName, mode: "insensitive" },
+        deletedAt: null,
+      },
+      include: { cluster: { include: { zone: true } } },
+    });
+  }
 
   if (!settlement) return NextResponse.json(null);
 
