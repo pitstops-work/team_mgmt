@@ -383,18 +383,20 @@ export async function GET(req: Request) {
   });
   if (!shwetha) return NextResponse.json({ error: "Shwetha not found — check name in DB" }, { status: 404 });
 
-  // Idempotency check — bypass with ?force=1
   const url = new URL(req.url);
   const force = url.searchParams.get("force") === "1";
+  const eventsOnly = url.searchParams.get("eventsOnly") === "1";
+
+  // Idempotency check — bypass with ?force=1, or skip goals and only add events with ?eventsOnly=1
   const existing = await prisma.goal.count({ where: { ownerId: shwetha.id, deletedAt: null } });
-  if (existing > 0 && !force) {
-    return NextResponse.json({ message: `Shwetha already has ${existing} goals — skipping. Add ?force=1 to seed anyway (will add on top of existing).` });
+  if (existing > 0 && !force && !eventsOnly) {
+    return NextResponse.json({ message: `Shwetha already has ${existing} goals — skipping. Use ?eventsOnly=1 to just add activities, or ?force=1 to re-seed everything.` });
   }
 
-  const created = { goals: 0, pitstops: 0, checklistItems: 0, planItems: 0 };
+  const created = { goals: 0, pitstops: 0, checklistItems: 0, planItems: 0, events: 0 };
 
-  // Create goals + pitstops + checklists
-  for (let gi = 0; gi < GOALS_DATA.length; gi++) {
+  // Create goals + pitstops + checklists (skipped if eventsOnly)
+  if (!eventsOnly) for (let gi = 0; gi < GOALS_DATA.length; gi++) {
     const gd = GOALS_DATA[gi];
     const goal = await prisma.goal.create({
       data: {
@@ -435,8 +437,27 @@ export async function GET(req: Request) {
     }
   }
 
-  // Create Q1 plan items
+  // Create Q1 activities (PitstopEvent — shown in Activities calendar)
+  // and PlanItems (shown in Planner)
   for (const act of ACTIVITIES_DATA) {
+    const eventType = act.type === "Visit" ? "Visit" : "Meeting";
+    const event = await prisma.pitstopEvent.create({
+      data: {
+        title: `W${act.week}: ${act.title}`,
+        description: `Focus: ${act.focus}\n\n${act.summary}`,
+        type: eventType as "Visit" | "Meeting" | "Event",
+        status: "Scheduled",
+        scheduledAt: new Date(act.start),
+        endsAt: new Date(act.end),
+        createdById: shwetha.id,
+      },
+    });
+    // Add Shwetha as attendee
+    await prisma.pitstopEventAttendee.create({
+      data: { eventId: event.id, userId: shwetha.id },
+    });
+
+    // Also create PlanItem for Planner view
     await prisma.planItem.create({
       data: {
         title: `W${act.week}: ${act.title}`,
@@ -448,6 +469,7 @@ export async function GET(req: Request) {
       },
     });
     created.planItems++;
+    created.events++;
   }
 
   return NextResponse.json({
