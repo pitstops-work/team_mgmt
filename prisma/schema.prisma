@@ -14,6 +14,7 @@ model User {
   emailVerified    DateTime?
   image            String?
   password         String?
+  role             String    @default("member")
   bio              String?
   notifyDigest        Boolean   @default(false)
   weeklyCapacity      Float     @default(40)

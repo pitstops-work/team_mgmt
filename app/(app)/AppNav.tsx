@@ -15,7 +15,7 @@ interface User {
   image?: string | null;
 }
 
-export default function AppNav({ user, unreadCount, isAdmin }: { user: User; unreadCount: number; isAdmin?: boolean }) {
+export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user: User; unreadCount: number; isAdmin?: boolean; isViewer?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -174,6 +174,9 @@ export default function AppNav({ user, unreadCount, isAdmin }: { user: User; unr
             <Avatar name={user.name} image={user.image} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-stone-700 truncate">{user.name ?? user.email}</p>
+              {isViewer && (
+                <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">View only</span>
+              )}
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
