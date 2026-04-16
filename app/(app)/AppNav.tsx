@@ -73,6 +73,12 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             People
           </NavLink>
           {isAdmin && (
+            <NavLink href="/settings/users" active={pathname === "/settings/users"}>
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+              Users
+            </NavLink>
+          )}
+          {isAdmin && (
             <NavLink href="/readiness" active={pathname === "/readiness"}>
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
               Readiness
@@ -234,6 +240,7 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
                 { href: "/dashboard", icon: <span className="text-xl leading-none">◈</span>, label: "Goals" },
                 { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
                 { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
+                ...(isAdmin ? [{ href: "/settings/users", icon: <ShieldCheck className="w-5 h-5 text-indigo-500" />, label: "Users" }] : []),
                 ...(isAdmin ? [{ href: "/readiness", icon: <ShieldCheck className="w-5 h-5" />, label: "Team Readiness" }] : []),
                 { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
                 { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
