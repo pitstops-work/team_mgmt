@@ -207,6 +207,8 @@ const SURVEY_SCHEMES = [
   "pension-old-age", "pension-widow", "pension-disability", "bocw-card",
 ];
 
+export const maxDuration = 300; // 5 minutes — XLSX download + parse + upsert takes ~3.5 min
+
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
