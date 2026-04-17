@@ -45,6 +45,7 @@ export default withAuth(
           pathname.startsWith("/login") ||
           pathname.startsWith("/register") ||
           pathname.startsWith("/api/register") ||
+          pathname.startsWith("/api/cron/") ||
           pathname.startsWith("/_next") ||
           pathname.startsWith("/favicon") ||
           pathname.startsWith("/manifest") ||
@@ -61,6 +62,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|data).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|data|api/cron).*)",
   ],
 };
