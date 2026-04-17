@@ -63,7 +63,7 @@ type Assessment = {
   electricity: Record<string, string | number | null> | null;
   facilities: Record<string, string | number | boolean | null> | null;
   safety: Record<string, string | number | null> | null;
-  entitlements: { scheme: { id: string; name: string; parentId: string | null }; eligibleHouseholds: number; enrolledHouseholds: number; notes: string | null }[];
+  entitlements: { scheme: { id: string; name: string; parentId: string | null }; eligibleHouseholds: number; enrolledHouseholds: number; surveyEnrolled: number | null; notes: string | null }[];
 };
 
 type Settlement = {
@@ -310,9 +310,9 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
       return [];
     });
     setEnumeratorNotes(a.enumeratorNotes ?? "");
-    const entMap: Record<string, { eligible: number; enrolled: number; notes: string }> = {};
+    const entMap: Record<string, { eligible: number; enrolled: number; surveyEnrolled: number; notes: string }> = {};
     for (const e of a.entitlements ?? []) {
-      entMap[e.scheme.id] = { eligible: e.eligibleHouseholds, enrolled: e.enrolledHouseholds, notes: e.notes ?? "" };
+      entMap[e.scheme.id] = { eligible: e.eligibleHouseholds, enrolled: e.enrolledHouseholds, surveyEnrolled: e.surveyEnrolled ?? 0, notes: e.notes ?? "" };
     }
     setEntitlementData(entMap);
   }
@@ -478,12 +478,12 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
   });
   const [enumeratorNotes, setEnumeratorNotes] = useState(latest?.enumeratorNotes ?? "");
 
-  // Entitlements
-  const [entitlementData, setEntitlementData] = useState<Record<string, { eligible: number; enrolled: number; notes: string }>>(() => {
-    const init: Record<string, { eligible: number; enrolled: number; notes: string }> = {};
+  // Entitlements — enrolled = NGO-assisted, surveyEnrolled = pre-existing at survey time (read-only, from sync)
+  const [entitlementData, setEntitlementData] = useState<Record<string, { eligible: number; enrolled: number; surveyEnrolled: number; notes: string }>>(() => {
+    const init: Record<string, { eligible: number; enrolled: number; surveyEnrolled: number; notes: string }> = {};
     if (latest?.entitlements) {
       for (const e of latest.entitlements) {
-        init[e.scheme.id] = { eligible: e.eligibleHouseholds, enrolled: e.enrolledHouseholds, notes: e.notes ?? "" };
+        init[e.scheme.id] = { eligible: e.eligibleHouseholds, enrolled: e.enrolledHouseholds, surveyEnrolled: e.surveyEnrolled ?? 0, notes: e.notes ?? "" };
       }
     }
     return init;
@@ -1060,12 +1060,13 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
 
         {/* Section 12 — Entitlements */}
         <Section title="Entitlements" icon={<BadgeCheck className="w-4 h-4" />}>
-          <p className="text-xs text-stone-400 mb-3">Enter eligible and enrolled households per scheme</p>
+          <p className="text-xs text-stone-400 mb-3">Enter eligible and enrolled households per scheme. Saturation = survey baseline + NGO-assisted.</p>
           <div className="space-y-4">
             {parentSchemes.map(parent => {
               const children = childSchemes(parent.id);
-              const parentData = entitlementData[parent.id] ?? { eligible: 0, enrolled: 0, notes: "" };
-              const sat = parentData.eligible > 0 ? Math.round((parentData.enrolled / parentData.eligible) * 100) : null;
+              const parentData = entitlementData[parent.id] ?? { eligible: 0, enrolled: 0, surveyEnrolled: 0, notes: "" };
+              const totalEnrolled = parentData.enrolled + parentData.surveyEnrolled;
+              const sat = parentData.eligible > 0 ? Math.round((totalEnrolled / parentData.eligible) * 100) : null;
               return (
                 <div key={parent.id} className="border border-stone-200 rounded-lg overflow-hidden">
                   <div className="flex items-center gap-3 px-3 py-2 bg-stone-50 border-b border-stone-100">
@@ -1076,19 +1077,25 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
                       </span>
                     )}
                   </div>
-                  <div className="px-3 py-2 grid grid-cols-2 gap-2">
+                  <div className="px-3 py-2 grid grid-cols-3 gap-2">
                     <Field label="Eligible HH">
                       <NumInput value={parentData.eligible} onChange={v => updateEntitlement(parent.id, "eligible", v)} />
                     </Field>
-                    <Field label="Enrolled HH">
+                    <Field label="NGO-assisted HH">
                       <NumInput value={parentData.enrolled} onChange={v => updateEntitlement(parent.id, "enrolled", v)} />
+                    </Field>
+                    <Field label="Survey baseline">
+                      <div className="h-8 flex items-center px-2 bg-stone-50 border border-stone-200 rounded text-sm text-stone-500">
+                        {parentData.surveyEnrolled}
+                      </div>
                     </Field>
                   </div>
                   {children.length > 0 && (
                     <div className="border-t border-stone-100 divide-y divide-stone-100">
                       {children.map(child => {
-                        const d = entitlementData[child.id] ?? { eligible: 0, enrolled: 0, notes: "" };
-                        const cSat = d.eligible > 0 ? Math.round((d.enrolled / d.eligible) * 100) : null;
+                        const d = entitlementData[child.id] ?? { eligible: 0, enrolled: 0, surveyEnrolled: 0, notes: "" };
+                        const cTotal = d.enrolled + d.surveyEnrolled;
+                        const cSat = d.eligible > 0 ? Math.round((cTotal / d.eligible) * 100) : null;
                         return (
                           <div key={child.id} className="px-3 py-2">
                             <div className="flex items-center gap-2 mb-1.5">
@@ -1101,7 +1108,12 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <NumInput value={d.eligible} onChange={v => updateEntitlement(child.id, "eligible", v)} placeholder="Eligible" />
-                              <NumInput value={d.enrolled} onChange={v => updateEntitlement(child.id, "enrolled", v)} placeholder="Enrolled" />
+                              <div>
+                                <NumInput value={d.enrolled} onChange={v => updateEntitlement(child.id, "enrolled", v)} placeholder="NGO-assisted" />
+                                {d.surveyEnrolled > 0 && (
+                                  <p className="text-[10px] text-stone-400 mt-1">Survey: {d.surveyEnrolled} · Total: {cTotal}</p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
