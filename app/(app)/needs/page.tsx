@@ -576,10 +576,13 @@ export default async function NeedsPage() {
       return geo.features?.length ?? 0;
     } catch { return 0; }
   }
+  // GeoJSON counts are the authoritative physical inventory for Bangalore.
+  // They REPLACE assessment totals (not a floor) because assessment forms
+  // may have stale, inflated, or zero values for these domains.
   const geoCounts: Record<string, number> = {
-    ChildrenCentre: readGeoCount("children_centres.geojson"),
-    Creche:         readGeoCount("creches.geojson"),
-    YouthGroup:     readGeoCount("youth_centres.geojson"),
+    ChildrenCentre:      readGeoCount("children_centres.geojson"),
+    Creche:              readGeoCount("creches.geojson"),
+    YouthResourceCentre: readGeoCount("youth_centres.geojson"),  // regional centres ≠ youth groups
   };
 
   function applyGeoOverrides(stats: LevelStats): LevelStats {
@@ -587,9 +590,8 @@ export default async function NeedsPage() {
     for (const [domain, geoCount] of Object.entries(geoCounts)) {
       if (!domains[domain] || geoCount === 0) continue;
       const d = domains[domain];
-      const existing = Math.max(d.existing, geoCount);
-      const apfTarget = Math.max(0, d.target - existing);
-      domains[domain] = { ...d, existing, apfTarget, gap: Math.max(0, apfTarget - d.done) };
+      const apfTarget = Math.max(0, d.target - geoCount);
+      domains[domain] = { ...d, existing: geoCount, apfTarget, gap: Math.max(0, apfTarget - d.done) };
     }
     // Recompute saturation score with updated domains
     const totalTarget = Object.values(domains).reduce((s, d) => s + d.apfTarget, 0);

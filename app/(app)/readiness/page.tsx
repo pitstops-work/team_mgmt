@@ -17,7 +17,7 @@ export default async function ReadinessPage() {
   const now      = new Date();
   const qAhead   = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-  const [users, goals, planItems] = await Promise.all([
+  const [users, goals, planItems, checkins, messages, standupLogs] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, image: true, email: true, lastSeenAt: true },
       orderBy: { name: "asc" },
@@ -45,6 +45,21 @@ export default async function ReadinessPage() {
     prisma.planItem.findMany({
       where: { deletedAt: null },
       select: { id: true, userId: true, type: true, date: true, title: true },
+    }),
+
+    // Fallback activity sources for users who haven't logged in since lastSeenAt was added
+    prisma.pitstopCheckin.findMany({
+      select: { userId: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.message.findMany({
+      where: { deletedAt: null },
+      select: { authorId: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.standupLog.findMany({
+      select: { userId: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -75,8 +90,20 @@ export default async function ReadinessPage() {
       activityTypes[pi.type] = (activityTypes[pi.type] ?? 0) + 1;
     }
 
-    // Last seen: updated on login and every 5 min while the app is open
-    const lastActive = user.lastSeenAt ?? null;
+    // Last seen: use lastSeenAt (set on login + every 5 min in-app) when available.
+    // Fall back to most recent pitstop checkin, message, or standup log for users
+    // who haven't logged in since the lastSeenAt field was introduced.
+    let lastActive: Date | null = user.lastSeenAt ?? null;
+    if (!lastActive) {
+      const candidates: Date[] = [];
+      const c = checkins.find(x => x.userId === user.id);
+      const m = messages.find(x => x.authorId === user.id);
+      const s = standupLogs.find(x => x.userId === user.id);
+      if (c) candidates.push(c.createdAt);
+      if (m) candidates.push(m.createdAt);
+      if (s) candidates.push(s.createdAt);
+      if (candidates.length > 0) lastActive = new Date(Math.max(...candidates.map(d => +d)));
+    }
 
     // FY spread: are pitstops spread beyond Q1 (beyond June 2026)?
     const beyondQ1 = maxDate && maxDate > new Date("2026-06-30");
