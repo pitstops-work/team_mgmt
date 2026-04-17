@@ -7,12 +7,14 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // How many EntitlementBaseline rows have surveyEnrolled > 0?
-  const total = await prisma.entitlementBaseline.count();
-  const withSurvey = await prisma.entitlementBaseline.count({ where: { surveyEnrolled: { gt: 0 } } });
+  const rows = await (prisma as unknown as { $queryRaw: (...args: unknown[]) => Promise<unknown[]> }).$queryRaw`
+    SELECT
+      (SELECT COUNT(*) FROM "EntitlementBaseline") AS total,
+      (SELECT COUNT(*) FROM "EntitlementBaseline" WHERE "surveyEnrolled" > 0) AS with_survey,
+      (SELECT COUNT(*) FROM "EntitlementBaseline" WHERE "surveyEnrolled" IS NULL OR "surveyEnrolled" = 0) AS zero_or_null
+  `;
 
-  // Sample ration-card rows with surveyEnrolled
-  const rationSample = await (prisma as unknown as { $queryRaw: Function }).$queryRaw`
+  const rationSample = await (prisma as unknown as { $queryRaw: (...args: unknown[]) => Promise<unknown[]> }).$queryRaw`
     SELECT eb."assessmentId", eb."schemeId", eb."surveyEnrolled", eb."eligibleHouseholds", s.name as settlement_name
     FROM "EntitlementBaseline" eb
     JOIN "SettlementAssessment" sa ON sa.id = eb."assessmentId"
@@ -22,8 +24,7 @@ export async function GET(req: NextRequest) {
     LIMIT 10
   `;
 
-  // Check what the needs page actually sees for Bangalore ration-card
-  const bangaloreRation = await (prisma as unknown as { $queryRaw: Function }).$queryRaw`
+  const bangaloreRation = await (prisma as unknown as { $queryRaw: (...args: unknown[]) => Promise<unknown[]> }).$queryRaw`
     SELECT
       SUM(eb."surveyEnrolled") as total_survey_enrolled,
       SUM(eb."enrolledHouseholds") as total_ngo_enrolled,
@@ -44,5 +45,5 @@ export async function GET(req: NextRequest) {
       )
   `;
 
-  return Response.json({ total, withSurvey, rationSample, bangaloreRation });
+  return Response.json({ rows, rationSample, bangaloreRation });
 }
