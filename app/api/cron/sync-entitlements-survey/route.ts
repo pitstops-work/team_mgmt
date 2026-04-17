@@ -93,7 +93,32 @@ const C_DISABILITY_PENSION = 126;
 const C_OCCUPATION_WELFARE = 133;
 
 function isYes(val: unknown): boolean {
-  return typeof val === "string" && val.toLowerCase().trim().startsWith("yes");
+  if (typeof val === "boolean") return val;
+  if (typeof val === "number") return val === 1;
+  if (typeof val === "string") {
+    const s = val.toLowerCase().trim();
+    return s.startsWith("yes") || s === "1" || s === "true" || s === "y";
+  }
+  return false;
+}
+
+// Read header row and sample values for key columns from the first sheet of an XLSX buffer.
+function sampleXlsx(buffer: ArrayBuffer): Record<string, { header: string; samples: unknown[] }> {
+  const wb = XLSX.read(Buffer.from(buffer), { type: "buffer", dense: true });
+  const ws = wb.Sheets[wb.SheetNames[0]] as unknown as Record<number, XLSX.CellObject[]>;
+  const cols = { C_HH_CODE, C_SLUM, C_RATION, C_AADHAAR, C_INSURANCE, C_ELDERLY_PENSION, C_WIDOW_PENSION, C_PWD, C_UDID, C_DISABILITY_PENSION, C_OCCUPATION_WELFARE };
+  const header = ws[0] as XLSX.CellObject[];
+  const out: Record<string, { header: string; samples: unknown[] }> = {};
+  for (const [name, idx] of Object.entries(cols)) {
+    const samples: unknown[] = [];
+    for (let r = 1; r <= 20 && ws[r]; r++) {
+      const v = (ws[r] as XLSX.CellObject[])[idx]?.v;
+      if (v !== undefined && v !== null && v !== "") samples.push(v);
+      if (samples.length >= 5) break;
+    }
+    out[name] = { header: String(header?.[idx]?.v ?? ""), samples };
+  }
+  return out;
 }
 
 type SlumCounts = {
@@ -252,12 +277,14 @@ async function runSync() {
   // 2. Download and merge all exports (deduplicated by household_code)
   const slumCounts = new Map<string, SlumCounts>();
   const downloaded: number[] = [];
+  let columnSample: Record<string, { header: string; samples: unknown[] }> | null = null;
 
   for (const exp of allPartnersExports) {
     const url = `https://janadhikara.org/${exp.export_url}`;
     const res = await fetch(url);
     if (!res.ok) continue;  // skip if file gone
     const buf = await res.arrayBuffer();
+    if (!columnSample) columnSample = sampleXlsx(buf);
     mergeXlsx(buf, slumCounts);
     downloaded.push(exp.id);
   }
@@ -352,5 +379,6 @@ async function runSync() {
     unmatched: unmatched.slice(0, 30),
     upserted,
     elapsedSeconds: Math.round((Date.now() - started) / 1000),
+    columnSample,
   });
 }
