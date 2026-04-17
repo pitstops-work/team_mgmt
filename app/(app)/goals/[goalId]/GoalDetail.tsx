@@ -779,25 +779,67 @@ function PitstopRow({
   onDeleted,
   onUpdated,
   onCloned,
-}: {
-  pitstop: Pitstop;
-  goalId: string;
-  users: User[];
-  isFirst: boolean;
-  isLast: boolean;
-  onReorder: (id: string, dir: "up" | "down") => void;
-  onHover: (id: string) => void;
-  onOwnerChange: (ownerId: string) => void;
-  onDeleted: (id: string) => void;
-  onUpdated: (p: Pitstop) => void;
-  onCloned: (p: Pitstop) => void;
-}) {
+  dragHandleProps,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+}: PitstopRowProps & { dragHandleProps?: any }) {
   const totalMessages = pitstop.threads.reduce((sum, t) => sum + t._count.messages, 0);
   const items = pitstop.checklistItems ?? [];
   const incompleteItems = items.filter((i) => !i.checked).length;
   const hasChecklist = items.length > 0;
   const checkedCount = items.filter((i) => i.checked).length;
   const [cloning, setCloning] = useState(false);
+
+  // Inline title editing
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState(pitstop.title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const startEditTitle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditTitle(pitstop.title);
+    setEditingTitle(true);
+    setTimeout(() => titleInputRef.current?.focus(), 0);
+  };
+
+  const commitTitle = async () => {
+    setEditingTitle(false);
+    const trimmed = editTitle.trim();
+    if (!trimmed || trimmed === pitstop.title) return;
+    onUpdated({ ...pitstop, title: trimmed });
+    await fetch(`/api/pitstops/${pitstop.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: trimmed }),
+    });
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") commitTitle();
+    if (e.key === "Escape") { setEditingTitle(false); setEditTitle(pitstop.title); }
+  };
+
+  // Inline target date editing
+  const [editingDate, setEditingDate] = useState(false);
+  const [editDate, setEditDate] = useState(pitstop.targetDate ? pitstop.targetDate.slice(0, 10) : "");
+
+  const startEditDate = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditDate(pitstop.targetDate ? pitstop.targetDate.slice(0, 10) : "");
+    setEditingDate(true);
+  };
+
+  const commitDate = async () => {
+    setEditingDate(false);
+    const newDate = editDate || null;
+    onUpdated({ ...pitstop, targetDate: newDate });
+    await fetch(`/api/pitstops/${pitstop.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetDate: newDate }),
+    });
+  };
 
   const handleClone = async () => {
     setCloning(true);
@@ -828,9 +870,18 @@ function PitstopRow({
   };
 
   return (
-    <div className="bg-white border border-stone-200 rounded-lg hover:border-stone-300 transition-all flex">
-      {/* Reorder controls */}
+    <div className="bg-white border border-stone-200 rounded-lg hover:border-stone-300 transition-all flex group/row">
+      {/* Drag handle + reorder controls */}
       <div className="flex flex-col items-center justify-center px-2 py-2 bg-stone-50 rounded-l-lg border-r border-stone-200 gap-1">
+        <button
+          {...dragHandleProps}
+          className="p-1 rounded text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing transition-colors touch-none opacity-0 group-hover/row:opacity-100"
+          title="Drag to reorder"
+          tabIndex={-1}
+          onClick={e => e.preventDefault()}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
         <button
           onClick={() => onReorder(pitstop.id, "up")}
           disabled={isFirst}
@@ -850,14 +901,40 @@ function PitstopRow({
       </div>
 
       <div className="flex-1 min-w-0">
-        <Link href={`/goals/${goalId}/pitstops/${pitstop.id}`} onMouseEnter={() => onHover(pitstop.id)} onTouchStart={() => onHover(pitstop.id)} className="flex items-start gap-3 px-4 py-3.5">
+        {/* Title + metadata area — not a Link so inline editing works */}
+        <div onMouseEnter={() => onHover(pitstop.id)} className="flex items-start gap-3 px-4 py-3.5">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               {(() => {
                 const h = getPitstopHealth(pitstop);
                 return h !== "none" ? <span className={`w-2 h-2 rounded-full flex-shrink-0 ${HEALTH_DOT[h]}`} title={`Health: ${h}`} /> : null;
               })()}
-              <span className="text-sm font-medium text-stone-900">{pitstop.title}</span>
+              {editingTitle ? (
+                <input
+                  ref={titleInputRef}
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  onBlur={commitTitle}
+                  onKeyDown={handleTitleKeyDown}
+                  onClick={e => e.stopPropagation()}
+                  className="text-sm font-medium text-stone-900 border-b border-sky-400 outline-none bg-transparent flex-1 min-w-0"
+                />
+              ) : (
+                <Link
+                  href={`/goals/${goalId}/pitstops/${pitstop.id}`}
+                  onTouchStart={() => onHover(pitstop.id)}
+                  className="text-sm font-medium text-stone-900 hover:text-sky-700 group/title flex items-center gap-1"
+                >
+                  {pitstop.title}
+                  <button
+                    onClick={startEditTitle}
+                    className="opacity-0 group-hover/title:opacity-100 transition-opacity p-0.5 text-stone-300 hover:text-stone-500"
+                    tabIndex={-1}
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                </Link>
+              )}
               <PitstopStatusBadge status={pitstop.status} />
               {pitstop.priority !== "Medium" && (
                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${pitstop.priority === "High" ? "bg-red-50 border-red-200 text-red-600" : "bg-stone-50 border-stone-200 text-stone-400"}`}>
@@ -888,9 +965,33 @@ function PitstopRow({
                   {pitstop.attachments.length}
                 </span>
               )}
+              {/* Inline target date */}
+              {editingDate ? (
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={e => setEditDate(e.target.value)}
+                  onBlur={commitDate}
+                  autoFocus
+                  onClick={e => e.stopPropagation()}
+                  className="text-xs border-b border-sky-400 outline-none bg-transparent text-stone-600"
+                />
+              ) : (
+                <button
+                  onClick={startEditDate}
+                  className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 group/date"
+                  title="Click to edit target date"
+                >
+                  <Calendar className="w-3 h-3" />
+                  {pitstop.targetDate
+                    ? new Date(pitstop.targetDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                    : <span className="opacity-0 group-hover/row:opacity-60">Add date</span>
+                  }
+                </button>
+              )}
             </div>
           </div>
-        </Link>
+        </div>
 
         <div className="border-t border-stone-100 px-4 py-2 flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1">

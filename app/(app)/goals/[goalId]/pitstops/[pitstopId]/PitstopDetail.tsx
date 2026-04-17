@@ -111,6 +111,34 @@ export default function PitstopDetail({
   // Dependencies
   const [showDepPicker, setShowDepPicker] = useState(false);
 
+  // Inline title editing
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState(pitstop.title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const startEditTitle = () => {
+    setEditTitle(pitstop.title);
+    setEditingTitle(true);
+    setTimeout(() => titleInputRef.current?.focus(), 0);
+  };
+
+  const commitTitle = async () => {
+    setEditingTitle(false);
+    const trimmed = editTitle.trim();
+    if (!trimmed || trimmed === pitstop.title) return;
+    setPitstop(p => ({ ...p, title: trimmed }));
+    await fetch(`/api/pitstops/${pitstop.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: trimmed }),
+    });
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") commitTitle();
+    if (e.key === "Escape") { setEditingTitle(false); setEditTitle(pitstop.title); }
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentThread = pitstop.threads.find((t) => t.id === activeThread);
 
@@ -373,7 +401,24 @@ export default function PitstopDetail({
             {pitstop.goal.title}
           </Link>
           <div className="flex items-start gap-1.5">
-            <h1 className="text-sm font-semibold text-stone-900 leading-snug flex-1">{pitstop.title}</h1>
+            {editingTitle ? (
+              <input
+                ref={titleInputRef}
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                onBlur={commitTitle}
+                onKeyDown={handleTitleKeyDown}
+                className="text-sm font-semibold text-stone-900 leading-snug flex-1 border-b border-sky-400 outline-none bg-transparent"
+              />
+            ) : (
+              <h1
+                className="text-sm font-semibold text-stone-900 leading-snug flex-1 cursor-pointer hover:text-sky-700 transition-colors"
+                onClick={startEditTitle}
+                title="Click to edit title"
+              >
+                {pitstop.title}
+              </h1>
+            )}
             <button onClick={() => setShowEdit(true)} className="p-1 text-stone-300 hover:text-stone-600 transition-colors flex-shrink-0 mt-0.5">
               <Pencil className="w-3.5 h-3.5" />
             </button>
