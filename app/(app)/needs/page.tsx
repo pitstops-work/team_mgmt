@@ -190,7 +190,11 @@ function computeStats(
     if (!g.needsDomain) continue;
     if (!actuals[g.needsDomain]) actuals[g.needsDomain] = { done: 0, inProgress: 0 };
     if (g.status === "Complete") {
-      const val = g.outcomeCount ?? g.parameter ?? g.metrics[0]?.current ?? 0;
+      // Use outcomeCount only if explicitly recorded (> 0); otherwise fall back to parameter.
+      // outcomeCount = 0 means "not filled in yet", not "zero delivered".
+      const val = (g.outcomeCount != null && g.outcomeCount > 0)
+        ? g.outcomeCount
+        : (g.parameter ?? g.metrics[0]?.current ?? 0);
       actuals[g.needsDomain].done += val;
     } else if (g.status === "Active") {
       const val = g.parameter ?? g.metrics[0]?.current ?? 0;

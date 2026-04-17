@@ -44,14 +44,11 @@ export async function GET(request: Request) {
     orderBy: { assessedAt: "desc" },
     distinct: ["settlementId"],
     select: {
-      settlementId: true, totalHouseholds: true,
+      id: true, settlementId: true, totalHouseholds: true,
       children6m3yr: true, children4to14: true, youth15to21: true, elderly60plus: true,
       existingCreches: true, existingChildrenCentres: true, existingYouthGroups: true,
       existingElderlyKitchens: true, existingPalliativeUnits: true,
       existingCommunityToilets: true, existingWaterATMs: true,
-      entitlements: {
-        include: { scheme: { select: { id: true, name: true, parentId: true } } },
-      },
     },
   });
 
@@ -80,15 +77,30 @@ export async function GET(request: Request) {
     { Creche: 0, ChildrenCentre: 0, YouthGroup: 0, ElderlyKitchen: 0, PalliativeSupport: 0, CommunityToilet: 0, WaterATM: 0 }
   );
 
-  // Aggregate entitlements per scheme
+  // Use raw SQL for entitlements — Prisma include silently drops surveyEnrolled due to stale build cache
+  const assessmentIds = assessments.map(a => (a as { id?: string }).id).filter(Boolean) as string[];
+  type EntRow = { schemeId: string; schemeName: string; parentId: string | null; eligibleHouseholds: number; enrolledHouseholds: number; surveyEnrolled: number | null };
+  const rawEnts = assessmentIds.length > 0
+    ? await (prisma as unknown as { $queryRaw: (...a: unknown[]) => Promise<EntRow[]> }).$queryRaw`
+        SELECT eb."schemeId", es.name AS "schemeName", es."parentId",
+          SUM(eb."eligibleHouseholds")::int AS "eligibleHouseholds",
+          SUM(eb."enrolledHouseholds")::int AS "enrolledHouseholds",
+          SUM(COALESCE(eb."surveyEnrolled", 0))::int AS "surveyEnrolled"
+        FROM "EntitlementBaseline" eb
+        JOIN "EntitlementScheme" es ON es.id = eb."schemeId"
+        WHERE eb."assessmentId" = ANY(${assessmentIds})
+          AND eb."eligibleHouseholds" > 0
+        GROUP BY eb."schemeId", es.name, es."parentId"
+      `
+    : [];
   const entitlementMap: Record<string, { name: string; parentId: string | null; eligible: number; enrolled: number }> = {};
-  for (const a of assessments) {
-    for (const e of a.entitlements) {
-      const key = e.scheme.id;
-      if (!entitlementMap[key]) entitlementMap[key] = { name: e.scheme.name, parentId: e.scheme.parentId, eligible: 0, enrolled: 0 };
-      entitlementMap[key].eligible += e.eligibleHouseholds;
-      entitlementMap[key].enrolled += e.enrolledHouseholds + ((e as { surveyEnrolled?: number | null }).surveyEnrolled ?? 0);
-    }
+  for (const e of rawEnts) {
+    entitlementMap[e.schemeId] = {
+      name: e.schemeName,
+      parentId: e.parentId,
+      eligible: Number(e.eligibleHouseholds),
+      enrolled: Number(e.enrolledHouseholds) + Number(e.surveyEnrolled ?? 0),
+    };
   }
 
   // Formula config
