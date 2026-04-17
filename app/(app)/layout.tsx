@@ -6,6 +6,8 @@ import AppNav from "./AppNav";
 import PushSubscriber from "@/components/PushSubscriber";
 import NavigationProgress from "@/components/NavigationProgress";
 import ActivityPing from "@/components/ActivityPing";
+import SearchShortcut from "@/components/SearchShortcut";
+import KeyboardShortcuts from "@/components/KeyboardShortcuts";
 import prisma from "@/lib/prisma";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -22,6 +24,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <NavigationProgress />
       <ActivityPing />
       <PushSubscriber />
+      <SearchShortcut />
+      <KeyboardShortcuts />
       <div className="flex h-screen overflow-hidden">
         <AppNav user={session.user} unreadCount={unreadCount} isAdmin={session.user.email === process.env.ADMIN_EMAIL} isViewer={session.user.role === "viewer"} />
         <main className="relative flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>

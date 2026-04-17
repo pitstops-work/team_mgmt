@@ -248,15 +248,18 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
       )}
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-12 h-12 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Target className="w-6 h-6 text-stone-400" />
+        filter === "All" && !programFilter && !userFilter ? (
+          <div className="text-center py-20">
+            <Target className="w-10 h-10 text-stone-200 mx-auto mb-3" />
+            <p className="text-stone-500 font-medium">No goals yet</p>
+            <p className="text-xs text-stone-400 mt-1">Create your first goal to get started.</p>
+            <button onClick={() => setShowCreate(true)} className="mt-4 px-4 py-2 bg-sky-500 text-white text-sm rounded-lg hover:bg-sky-600">
+              Create Goal
+            </button>
           </div>
-          <p className="text-stone-500 text-sm">No goals yet.</p>
-          <button onClick={() => setShowCreate(true)} className="mt-2 text-sm text-sky-600 hover:text-sky-700">
-            Create the first one
-          </button>
-        </div>
+        ) : (
+          <p className="text-center text-stone-400 text-sm py-16">No goals match your filters.</p>
+        )
       ) : (
         <>
           {myGoals.length > 0 && (

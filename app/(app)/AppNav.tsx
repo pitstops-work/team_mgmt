@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck } from "lucide-react";
@@ -17,16 +17,7 @@ interface User {
 
 export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user: User; unreadCount: number; isAdmin?: boolean; isViewer?: boolean }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [query, setQuery] = useState("");
   const [showMore, setShowMore] = useState(false);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (query.trim()) {
-      router.push(`/dashboard?q=${encodeURIComponent(query.trim())}`); // search lives on goals page
-    }
-  };
 
   return (
     <>
@@ -42,20 +33,16 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
           </Link>
         </div>
 
-        {/* Search */}
+        {/* Search trigger */}
         <div className="px-3 py-3 border-b border-stone-100">
-          <form onSubmit={handleSearch}>
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-stone-50 border border-stone-200 focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-400 transition-all">
-              <Search className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="flex-1 bg-transparent text-xs text-stone-700 placeholder:text-stone-400 outline-none"
-              />
-            </div>
-          </form>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("pitstop:search-open"))}
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-stone-50 border border-stone-200 hover:border-stone-300 hover:bg-stone-100 transition-all text-left"
+          >
+            <Search className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+            <span className="flex-1 text-xs text-stone-400">Search…</span>
+            <kbd className="text-[10px] text-stone-400 border border-stone-200 rounded px-1 py-0.5 bg-white font-sans">⌘K</kbd>
+          </button>
         </div>
 
         {/* Nav links */}

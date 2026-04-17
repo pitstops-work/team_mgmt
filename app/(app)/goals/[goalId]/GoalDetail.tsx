@@ -4,7 +4,10 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock, X, CheckSquare, ExternalLink, AlertTriangle, Copy, BadgeCheck } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Paperclip, MessageSquare, Upload, Bell, BellOff, ChevronUp, ChevronDown, ArrowRight, Flag, Calendar, RefreshCw, Lock, X, CheckSquare, ExternalLink, AlertTriangle, Copy, BadgeCheck, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge, PitstopStatusBadge } from "@/components/StatusBadge";
 import PitstopTypeBadge from "@/components/PitstopTypeBadge";
@@ -106,6 +109,27 @@ export default function GoalDetail({
   const [confirming, setConfirming] = useState(false);
   const [recurLoading, setRecurLoading] = useState(false);
   const sortedPitstops = [...(goal?.pitstops ?? [])].sort((a, b) => a.order - b.order);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const sorted = [...(goal?.pitstops ?? [])].sort((a, b) => a.order - b.order);
+    const oldIndex = sorted.findIndex(p => p.id === active.id);
+    const newIndex = sorted.findIndex(p => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(sorted, oldIndex, newIndex).map((p, i) => ({ ...p, order: i }));
+    updateGoal(g => ({ ...g, pitstops: reordered }));
+
+    await fetch("/api/pitstops/bulk-order", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orders: reordered.map(p => ({ id: p.id, sortOrder: p.order })) }),
+    });
+  };
 
   // Prefetch pitstop page on hover
   const prefetchPitstop = (pitstopId: string) => {
@@ -522,26 +546,30 @@ export default function GoalDetail({
           </button>
         </div>
       ) : (
-        <div className="space-y-2">
-          {sortedPitstops.map((pitstop, idx) => (
-            <PitstopRow
-              key={pitstop.id}
-              pitstop={pitstop}
-              goalId={goal!.id}
-              users={users}
-              isFirst={idx === 0}
-              isLast={idx === sortedPitstops.length - 1}
-              onReorder={handleReorder}
-              onHover={prefetchPitstop}
-              onOwnerChange={(ownerId) => handlePitstopOwnerChange(pitstop.id, ownerId)}
-              onDeleted={(id) => updateGoal((g) => ({ ...g, pitstops: g.pitstops.filter((p) => p.id !== id) }))}
-              onUpdated={(updated) =>
-                updateGoal((g) => ({ ...g, pitstops: g.pitstops.map((p) => (p.id === updated.id ? updated as Pitstop : p)) }))
-              }
-              onCloned={(cloned) => updateGoal((g) => ({ ...g, pitstops: [...g.pitstops, cloned as Pitstop] }))}
-            />
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sortedPitstops.map(p => p.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {sortedPitstops.map((pitstop, idx) => (
+                <SortablePitstopRow
+                  key={pitstop.id}
+                  pitstop={pitstop}
+                  goalId={goal!.id}
+                  users={users}
+                  isFirst={idx === 0}
+                  isLast={idx === sortedPitstops.length - 1}
+                  onReorder={handleReorder}
+                  onHover={prefetchPitstop}
+                  onOwnerChange={(ownerId) => handlePitstopOwnerChange(pitstop.id, ownerId)}
+                  onDeleted={(id) => updateGoal((g) => ({ ...g, pitstops: g.pitstops.filter((p) => p.id !== id) }))}
+                  onUpdated={(updated) =>
+                    updateGoal((g) => ({ ...g, pitstops: g.pitstops.map((p) => (p.id === updated.id ? updated as Pitstop : p)) }))
+                  }
+                  onCloned={(cloned) => updateGoal((g) => ({ ...g, pitstops: [...g.pitstops, cloned as Pitstop] }))}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Checklist panel (Route Map drill-down) */}
@@ -703,6 +731,36 @@ function RouteMap({ pitstops, goalTitle, goalId, onHover, onNodeClick, activePit
           <span className="text-xs font-semibold line-clamp-2">{goalTitle}</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Sortable Pitstop Row wrapper ─────────────────────────────────────────────
+
+type PitstopRowProps = {
+  pitstop: Pitstop;
+  goalId: string;
+  users: User[];
+  isFirst: boolean;
+  isLast: boolean;
+  onReorder: (id: string, dir: "up" | "down") => void;
+  onHover: (id: string) => void;
+  onOwnerChange: (ownerId: string) => void;
+  onDeleted: (id: string) => void;
+  onUpdated: (p: Pitstop) => void;
+  onCloned: (p: Pitstop) => void;
+};
+
+function SortablePitstopRow(props: PitstopRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.pitstop.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <PitstopRow {...props} dragHandleProps={{ ...attributes, ...listeners }} />
     </div>
   );
 }

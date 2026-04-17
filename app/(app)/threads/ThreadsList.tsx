@@ -62,7 +62,13 @@ export default function ThreadsList({ threads, goals }: { threads: Thread[]; goa
       </div>
 
       {/* List */}
-      {filtered.length === 0 ? (
+      {threads.length === 0 ? (
+        <div className="text-center py-20">
+          <MessageSquare className="w-10 h-10 text-stone-200 mx-auto mb-3" />
+          <p className="text-stone-500 font-medium">No threads yet</p>
+          <p className="text-xs text-stone-400 mt-1">Discussions start inside pitstops.</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <p className="text-center text-stone-400 text-sm py-16">No threads match your filters.</p>
       ) : (
         <div className="space-y-2">

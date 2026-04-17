@@ -1,0 +1,58 @@
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export async function sendPasswordResetEmail(email: string, token: string) {
+  const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
+
+  await resend.emails.send({
+    from: "noreply@pitstop.app",
+    to: email,
+    subject: "Reset your Pitstop password",
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reset your password</title>
+</head>
+<body style="margin:0;padding:0;background:#fafaf9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" style="max-width:480px;background:#ffffff;border-radius:16px;border:1px solid #e7e5e4;box-shadow:0 1px 3px rgba(0,0,0,0.06);padding:40px 32px;" cellpadding="0" cellspacing="0">
+          <tr>
+            <td align="center" style="padding-bottom:24px;">
+              <div style="width:40px;height:40px;background:#0ea5e9;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;">
+                <span style="color:#ffffff;font-size:20px;line-height:40px;font-weight:700;">⊙</span>
+              </div>
+              <h1 style="margin:12px 0 0;font-size:18px;font-weight:600;color:#1c1917;">Pitstop</h1>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <h2 style="margin:0 0 8px;font-size:16px;font-weight:600;color:#1c1917;">Reset your password</h2>
+              <p style="margin:0 0 24px;font-size:14px;color:#78716c;line-height:1.5;">
+                We received a request to reset the password for your Pitstop account. Click the button below to choose a new password.
+              </p>
+              <a href="${resetUrl}" style="display:block;text-align:center;background:#0ea5e9;color:#ffffff;font-size:14px;font-weight:500;text-decoration:none;padding:10px 24px;border-radius:8px;margin-bottom:24px;">
+                Reset Password
+              </a>
+              <p style="margin:0 0 8px;font-size:12px;color:#a8a29e;line-height:1.5;">
+                This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.
+              </p>
+              <p style="margin:0;font-size:12px;color:#a8a29e;word-break:break-all;">
+                Or copy this URL: <a href="${resetUrl}" style="color:#0ea5e9;">${resetUrl}</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+  });
+}
