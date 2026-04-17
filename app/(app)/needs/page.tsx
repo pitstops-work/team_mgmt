@@ -404,17 +404,26 @@ export default async function NeedsPage() {
   const assessmentBySettlement = Object.fromEntries(latestAssessments.map(a => [a.settlementId, a]));
 
   // ── Entitlement aggregation ──────────────────────────────────────────────────
+  // Cast to explicit type — Vercel build cache may have a stale generated model
+  // type for EntitlementBaseline that omits surveyEnrolled (added via raw SQL before
+  // migration 0033). The cast ensures TypeScript sees the field regardless of cache state.
+  type EntBaselineRow = {
+    id: string; assessmentId: string; schemeId: string;
+    eligibleHouseholds: number; enrolledHouseholds: number;
+    surveyEnrolled: number | null; notes: string | null;
+    scheme: { id: string; name: string; parentId: string | null };
+  };
   const latestAssessmentIdList = latestAssessments.map(a => (a as { id: string }).id);
   const entBaselines = await prisma.entitlementBaseline.findMany({
     where: { assessmentId: { in: latestAssessmentIdList }, eligibleHouseholds: { gt: 0 } },
     include: { scheme: { select: { id: true, name: true, parentId: true } } },
-  });
+  }) as unknown as EntBaselineRow[];
 
   const assessmentToSettlement = Object.fromEntries(
     latestAssessments.map(a => [(a as { id: string }).id, a.settlementId])
   );
 
-  const settlementEntMap: Record<string, typeof entBaselines> = {};
+  const settlementEntMap: Record<string, EntBaselineRow[]> = {};
   for (const e of entBaselines) {
     const sId = assessmentToSettlement[e.assessmentId];
     if (!sId) continue;
