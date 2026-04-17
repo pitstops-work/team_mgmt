@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import NeedsDashboard from "./NeedsDashboard";
 
+export const dynamic = "force-dynamic";
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface DomainConfig {
