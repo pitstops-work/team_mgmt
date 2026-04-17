@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
         orderBy: { name: "asc" },
         include: {
           settlements: {
-            where: { deletedAt: null },
+            orderBy: { name: "asc" },
             select: { id: true, name: true, deletedAt: true },
           },
         },
