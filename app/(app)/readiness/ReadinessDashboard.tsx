@@ -114,7 +114,7 @@ export default function ReadinessDashboard({ readiness, generatedAt }: Props) {
                 <Avatar name={r.user.name} image={r.user.image} size="sm" />
                 <div>
                   <p className="text-sm font-semibold text-stone-900">{r.user.name ?? r.user.email}</p>
-                  <p className="text-xs text-stone-400">Last active: {daysAgo(r.lastActive)}</p>
+                  <p className="text-xs text-stone-400">Last logged: {daysAgo(r.lastActive)}</p>
                 </div>
               </div>
               <SignalBadge signal={r.signal} />
@@ -236,8 +236,8 @@ export default function ReadinessDashboard({ readiness, generatedAt }: Props) {
       <div className="mt-8 p-4 bg-stone-50 rounded-xl border border-stone-100 text-xs text-stone-500 space-y-1">
         <p className="font-semibold text-stone-600 mb-2">Readiness criteria</p>
         <p><span className="text-emerald-600 font-medium">Ready</span> — has goals + pitstops spread beyond Q1 (FY) + activities planned in next 90 days</p>
-        <p><span className="text-amber-600 font-medium">Partial</span> — has goals + dates, but either FY spread or activities missing</p>
-        <p><span className="text-red-500 font-medium">Not started</span> — no goals, or no pitstop dates set at all</p>
+        <p><span className="text-amber-600 font-medium">Partial</span> — has goals but missing pitstop dates, FY spread beyond Q1, or activities in next 90 days</p>
+        <p><span className="text-red-500 font-medium">Not started</span> — no goals added yet</p>
       </div>
     </div>
   );

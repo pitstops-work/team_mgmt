@@ -26,12 +26,13 @@ export async function POST(req: Request) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { name, email, password, role: req_role } = await req.json();
+  const { name, email: rawEmail, password, role: req_role } = await req.json();
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : rawEmail;
   if (!email || !password) {
     return Response.json({ error: "Email and password required" }, { status: 400 });
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
     return Response.json({ error: "Email already in use" }, { status: 400 });
   }

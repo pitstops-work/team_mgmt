@@ -6,7 +6,6 @@ import ReadinessDashboard from "./ReadinessDashboard";
 // Only accessible to the admin user. Set ADMIN_USER_ID in your .env
 export default async function ReadinessPage() {
   const session = await auth();
-  const currentUserId = session!.user!.id!;
 
   const adminEmail = process.env.ADMIN_EMAIL;
   if (adminEmail && session!.user!.email !== adminEmail) {
@@ -18,7 +17,7 @@ export default async function ReadinessPage() {
   const now      = new Date();
   const qAhead   = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-  const [users, goals, planItems] = await Promise.all([
+  const [users, goals, planItems, standupLogs] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, image: true, email: true },
       orderBy: { name: "asc" },
@@ -31,14 +30,12 @@ export default async function ReadinessPage() {
         title: true,
         status: true,
         ownerId: true,
-        updatedAt: true,
         pitstops: {
           where: { deletedAt: null },
           select: {
             id: true,
             targetDate: true,
             startDate: true,
-            updatedAt: true,
             checklistItems: { select: { id: true } },
           },
         },
@@ -48,6 +45,11 @@ export default async function ReadinessPage() {
     prisma.planItem.findMany({
       where: { deletedAt: null },
       select: { id: true, userId: true, type: true, date: true, title: true },
+    }),
+
+    prisma.standupLog.findMany({
+      select: { userId: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -78,28 +80,24 @@ export default async function ReadinessPage() {
       activityTypes[pi.type] = (activityTypes[pi.type] ?? 0) + 1;
     }
 
-    // Last active: max updatedAt across goals + pitstops
-    const allDates = [
-      ...userGoals.map((g) => g.updatedAt),
-      ...allPitstops.map((p) => p.updatedAt),
-    ];
-    const lastActive = allDates.length > 0
-      ? new Date(Math.max(...allDates.map((d) => +d)))
-      : null;
+    // Last logged: most recent standup log by this user
+    const userStandups = standupLogs.filter((s) => s.userId === user.id);
+    const lastActive = userStandups.length > 0 ? userStandups[0].createdAt : null;
 
     // FY spread: are pitstops spread beyond Q1 (beyond June 2026)?
     const beyondQ1 = maxDate && maxDate > new Date("2026-06-30");
 
     // Readiness signal
+    // "Not started" = truly no goals at all
+    // "Partial" = has goals but missing pitstop dates, FY spread, or activities
+    // "Ready" = goals + pitstop dates spanning beyond Q1 + activities in next 90 days
     let signal: "green" | "amber" | "red";
-    if (userGoals.length === 0 || pitstopsWithDate.length === 0) {
+    if (userGoals.length === 0) {
       signal = "red";
-    } else if (beyondQ1 && activitiesNextQ > 0) {
+    } else if (beyondQ1 && activitiesNextQ > 0 && pitstopsWithDate.length > 0) {
       signal = "green";
-    } else if (beyondQ1 || activitiesNextQ > 0) {
-      signal = "amber";
     } else {
-      signal = "red";
+      signal = "amber";
     }
 
     return {

@@ -3,7 +3,8 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
-  const { name, email, password, inviteCode } = await req.json();
+  const { name, email: rawEmail, password, inviteCode } = await req.json();
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : rawEmail;
 
   if (!email || !password) {
     return Response.json({ error: "Email and password required" }, { status: 400 });
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
     return Response.json({ error: "Email already in use" }, { status: 400 });
   }
