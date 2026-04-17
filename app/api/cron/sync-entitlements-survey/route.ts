@@ -336,7 +336,9 @@ async function runSync() {
         const idx = j * 4;
         return `(concat('sv', to_hex(extract(epoch from now())::bigint), substr(md5(random()::text), 1, 6)), $${idx + 1}, $${idx + 2}, $${idx + 4}::integer, 0, $${idx + 3}::integer)`;
       }).join(", ")}
-      ON CONFLICT ("assessmentId", "schemeId") DO UPDATE SET "surveyEnrolled" = EXCLUDED."surveyEnrolled"
+      ON CONFLICT ("assessmentId", "schemeId") DO UPDATE SET
+        "surveyEnrolled" = EXCLUDED."surveyEnrolled",
+        "eligibleHouseholds" = EXCLUDED."eligibleHouseholds"
     `, ...params);
   }
   const upserted = rows.length;
