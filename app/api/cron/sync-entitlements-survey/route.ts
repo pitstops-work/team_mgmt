@@ -77,20 +77,34 @@ async function loginJanadhikara(): Promise<string> {
 
 // ── XLSX parsing ──────────────────────────────────────────────────────────────
 
-// Column indices (0-based) — verified from allHeaders diagnostic 2026-04-17
-const C_HH_CODE    = 0;   // household_code
-const C_SLUM       = 4;   // slum_name
-const C_RATION     = 37;  // Whether_family_has_a_ration_card
-const C_AGE        = 67;  // Age
-const C_ELDERLY_PENSION = 69;  // Are_you_getting_elderly_pension?
-const C_MARITAL    = 74;  // Marital_Status
-const C_WIDOW_PENSION = 75;    // Are_you_getting_widow_pension?
-const C_AADHAAR    = 98;  // Has_Aadhar_card?
-const C_INSURANCE  = 110; // Are_you_a_beneficiary_of_any_health_insurance?
-const C_PWD        = 115; // Is_PwD?
-const C_UDID       = 119; // Are_they_having_UDID_Card?
-const C_DISABILITY_PENSION = 120; // Are_you_getting_Disability_pension_and_other_benifits?
-const C_OCCUPATION_WELFARE = 126; // Are_you_registered_under_the_specific_occupation_welfare_scheme_...
+// Detect column indices dynamically from the header row so cached builds can't use stale constants.
+// Maps a substring to find (lowercase) → column key name.
+const HEADER_PATTERNS: Record<string, string> = {
+  "household_code":                        "HH_CODE",
+  "slum_name":                             "SLUM",
+  "whether_family_has_a_ration_card":      "RATION",
+  "are_you_getting_elderly_pension":       "ELDERLY_PENSION",
+  "are_you_getting_widow_pension":         "WIDOW_PENSION",
+  "has_aadhar_card":                       "AADHAAR",
+  "are_you_a_beneficiary_of_any_health_insurance": "INSURANCE",
+  "is_pwd":                                "PWD",
+  "are_they_having_udid_card":             "UDID",
+  "are_you_getting_disability_pension":    "DISABILITY_PENSION",
+  "are_you_registered_under_the_specific_occupation_welfare_scheme": "OCCUPATION_WELFARE",
+};
+
+function detectColumns(header: XLSX.CellObject[]): Record<string, number> {
+  const cols: Record<string, number> = {};
+  for (let i = 0; i < header.length; i++) {
+    const h = String(header[i]?.v ?? "").toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_");
+    for (const [pattern, key] of Object.entries(HEADER_PATTERNS)) {
+      if (h.startsWith(pattern) && !(key in cols)) {
+        cols[key] = i;
+      }
+    }
+  }
+  return cols;
+}
 
 function isYes(val: unknown): boolean {
   if (typeof val === "boolean") return val;
@@ -102,34 +116,23 @@ function isYes(val: unknown): boolean {
   return false;
 }
 
-// Read header row and sample values — dumps all column headers with index so we can find correct mappings.
-function sampleXlsx(buffer: ArrayBuffer): { allHeaders: Record<number, string>; keyColSamples: Record<string, { header: string; samples: unknown[] }> } {
+// Read header row and return detected column indices + sample values for diagnostics.
+function sampleXlsx(buffer: ArrayBuffer): { detectedCols: Record<string, number>; sampleValues: Record<string, unknown[]> } {
   const wb = XLSX.read(Buffer.from(buffer), { type: "buffer", dense: true });
   const ws = wb.Sheets[wb.SheetNames[0]] as unknown as Record<number, XLSX.CellObject[]>;
   const header = ws[0] as XLSX.CellObject[];
-
-  // Dump all headers
-  const allHeaders: Record<number, string> = {};
-  if (header) {
-    for (let i = 0; i < header.length; i++) {
-      const h = String(header[i]?.v ?? "").trim();
-      if (h) allHeaders[i] = h;
-    }
-  }
-
-  // Also sample current key columns for comparison
-  const cols = { C_HH_CODE, C_SLUM, C_RATION, C_AADHAAR, C_INSURANCE, C_ELDERLY_PENSION, C_WIDOW_PENSION, C_PWD, C_UDID, C_DISABILITY_PENSION, C_OCCUPATION_WELFARE };
-  const keyColSamples: Record<string, { header: string; samples: unknown[] }> = {};
-  for (const [name, idx] of Object.entries(cols)) {
+  const detectedCols = detectColumns(header);
+  const sampleValues: Record<string, unknown[]> = {};
+  for (const [key, idx] of Object.entries(detectedCols)) {
     const samples: unknown[] = [];
     for (let r = 1; r <= 20 && ws[r]; r++) {
       const v = (ws[r] as XLSX.CellObject[])[idx]?.v;
       if (v !== undefined && v !== null && v !== "") samples.push(v);
       if (samples.length >= 5) break;
     }
-    keyColSamples[name] = { header: String(header?.[idx]?.v ?? ""), samples };
+    sampleValues[key] = samples;
   }
-  return { allHeaders, keyColSamples };
+  return { detectedCols, sampleValues };
 }
 
 type SlumCounts = {
@@ -149,6 +152,21 @@ function mergeXlsx(buffer: ArrayBuffer, result: Map<string, SlumCounts>): void {
   const wb = XLSX.read(Buffer.from(buffer), { type: "buffer", dense: true });
   const ws = wb.Sheets[wb.SheetNames[0]] as unknown as Record<number, XLSX.CellObject[]>;
 
+  // Detect column indices from header row — immune to build cache stale constants
+  const header = ws[0] as XLSX.CellObject[];
+  const c = detectColumns(header);
+  const C_HH   = c["HH_CODE"]           ?? 0;
+  const C_SL   = c["SLUM"]              ?? 4;
+  const C_RAT  = c["RATION"]            ?? 37;
+  const C_EPENSION = c["ELDERLY_PENSION"] ?? 69;
+  const C_WPENSION = c["WIDOW_PENSION"]   ?? 75;
+  const C_ADH  = c["AADHAAR"]           ?? 98;
+  const C_INS  = c["INSURANCE"]         ?? 110;
+  const C_PD   = c["PWD"]               ?? 115;
+  const C_UD   = c["UDID"]              ?? 119;
+  const C_DPENSION = c["DISABILITY_PENSION"] ?? 120;
+  const C_OCC  = c["OCCUPATION_WELFARE"] ?? 126;
+
   // Find row count from the sheet range
   const range = (wb.Sheets[wb.SheetNames[0]] as XLSX.WorkSheet)["!ref"] ?? "";
   const decoded = XLSX.utils.decode_range(range);
@@ -159,7 +177,7 @@ function mergeXlsx(buffer: ArrayBuffer, result: Map<string, SlumCounts>): void {
     const row = ws[r] as XLSX.CellObject[] | undefined;
     if (!row) continue;
 
-    const slum = row[C_SLUM]?.v as string | undefined;
+    const slum = row[C_SL]?.v as string | undefined;
     if (!slum || slum.toString().trim() === "") continue;
 
     const slumKey = slum.toString().trim();
@@ -177,30 +195,29 @@ function mergeXlsx(buffer: ArrayBuffer, result: Map<string, SlumCounts>): void {
     }
     const counts = result.get(slumKey)!;
 
-    const hhCode = (row[C_HH_CODE]?.v ?? "").toString().trim();
+    const hhCode = (row[C_HH]?.v ?? "").toString().trim();
     if (hhCode) counts.totalHH.add(hhCode);
 
     // Household-level (same value for all member rows of a HH — use Set for deduplication)
-    if (hhCode && isYes(row[C_RATION]?.v))   counts.rationCardHH.add(hhCode);
-    if (hhCode && isYes(row[C_AADHAAR]?.v))  counts.aadhaarHH.add(hhCode);
-    if (hhCode && isYes(row[C_INSURANCE]?.v)) counts.healthInsHH.add(hhCode);
+    if (hhCode && isYes(row[C_RAT]?.v))  counts.rationCardHH.add(hhCode);
+    if (hhCode && isYes(row[C_ADH]?.v))  counts.aadhaarHH.add(hhCode);
+    if (hhCode && isYes(row[C_INS]?.v))  counts.healthInsHH.add(hhCode);
 
     // Member-level (individual pension/disability)
-    if (isYes(row[C_ELDERLY_PENSION]?.v))   counts.elderlyPension++;
-    if (isYes(row[C_WIDOW_PENSION]?.v))     counts.widowPension++;
+    if (isYes(row[C_EPENSION]?.v)) counts.elderlyPension++;
+    if (isYes(row[C_WPENSION]?.v)) counts.widowPension++;
 
     // Disability: PwD = Yes AND (has UDID OR getting disability pension)
-    if (isYes(row[C_PWD]?.v) && (isYes(row[C_UDID]?.v) || isYes(row[C_DISABILITY_PENSION]?.v))) {
+    if (isYes(row[C_PD]?.v) && (isYes(row[C_UD]?.v) || isYes(row[C_DPENSION]?.v))) {
       counts.disabilityPwd++;
     }
 
     // BoCW: registered under occupation welfare scheme (not NA/No/null)
-    const occ = (row[C_OCCUPATION_WELFARE]?.v ?? "").toString().toLowerCase().trim();
+    const occ = (row[C_OCC]?.v ?? "").toString().toLowerCase().trim();
     if (occ && occ !== "na" && occ !== "no" && occ !== "n/a") {
       counts.bocwCard++;
     }
   }
-
 }
 
 // ── Assessment name lookup ────────────────────────────────────────────────────
