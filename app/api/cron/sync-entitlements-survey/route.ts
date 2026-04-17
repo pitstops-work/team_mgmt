@@ -215,6 +215,16 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  try {
+    return await runSync();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    return Response.json({ ok: false, error: msg, stack }, { status: 500 });
+  }
+}
+
+async function runSync() {
   const started = Date.now();
   const token = await loginJanadhikara();
 
