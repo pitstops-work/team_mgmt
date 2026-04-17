@@ -299,7 +299,8 @@ export async function GET(req: NextRequest) {
       const surveyCount = surveyCountForScheme(schemeId, counts);
       if (surveyCount < 0) continue;
 
-      await prisma.entitlementBaseline.upsert({
+      // Cast to bypass stale Vercel build cache type (missing surveyEnrolled)
+      await (prisma.entitlementBaseline.upsert as Function)({
         where: { assessmentId_schemeId: { assessmentId, schemeId } },
         update: { surveyEnrolled: surveyCount },
         create: {
