@@ -12,6 +12,7 @@ import TemplatePickerModal from "@/components/TemplatePickerModal";
 import { qk } from "@/lib/query-keys";
 import { fetchGoal, fetchGoals } from "@/lib/api-client";
 import OrgOverview, { type OverviewData } from "./OrgOverview";
+import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
 
 type Goal = {
   id: string;
@@ -21,6 +22,8 @@ type Goal = {
   owner: { id: string; name: string | null; image: string | null };
   pitstops: { id: string; status: string }[];
   programs: { program: { id: string; title: string } }[];
+  needsZone: { id: string; name: string } | null;
+  needsCluster: { id: string; name: string; zoneId: string } | null;
 };
 
 interface SearchResults {
@@ -47,6 +50,7 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
   const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">(initialFilter);
   const [programFilter, setProgramFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
+  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ zoneId: "", clusterId: "" });
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -65,6 +69,8 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
     if (filter === "Complete" && g.status !== "Complete") return false;
     if (programFilter && !g.programs.some((pg) => pg.program.id === programFilter)) return false;
     if (userFilter && g.owner.id !== userFilter) return false;
+    if (geoFilter.clusterId) return g.needsCluster?.id === geoFilter.clusterId;
+    if (geoFilter.zoneId) return g.needsZone?.id === geoFilter.zoneId || g.needsCluster?.zoneId === geoFilter.zoneId;
     return true;
   });
 
@@ -202,50 +208,49 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
         ))}
       </div>
 
-      {(programs.length > 0 || users.length > 0) && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {programs.length > 0 && (
-            <select
-              value={programFilter}
-              onChange={(e) => setProgramFilter(e.target.value)}
-              className={`px-2.5 py-1 text-xs rounded-md border transition-colors outline-none ${
-                programFilter
-                  ? "border-sky-400 bg-sky-50 text-sky-700"
-                  : "border-stone-200 bg-white text-stone-500 hover:border-stone-300"
-              }`}
-            >
-              <option value="">All Programs</option>
-              {programs.map((p) => (
-                <option key={p.id} value={p.id}>{p.title}</option>
-              ))}
-            </select>
-          )}
-          {users.length > 0 && (
-            <select
-              value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
-              className={`px-2.5 py-1 text-xs rounded-md border transition-colors outline-none ${
-                userFilter
-                  ? "border-sky-400 bg-sky-50 text-sky-700"
-                  : "border-stone-200 bg-white text-stone-500 hover:border-stone-300"
-              }`}
-            >
-              <option value="">All Members</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>{u.name ?? u.id}</option>
-              ))}
-            </select>
-          )}
-          {(programFilter || userFilter) && (
-            <button
-              onClick={() => { setProgramFilter(""); setUserFilter(""); }}
-              className="px-2.5 py-1 text-xs text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {programs.length > 0 && (
+          <select
+            value={programFilter}
+            onChange={(e) => setProgramFilter(e.target.value)}
+            className={`px-2.5 py-1 text-xs rounded-md border transition-colors outline-none ${
+              programFilter
+                ? "border-sky-400 bg-sky-50 text-sky-700"
+                : "border-stone-200 bg-white text-stone-500 hover:border-stone-300"
+            }`}
+          >
+            <option value="">All Programs</option>
+            {programs.map((p) => (
+              <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+          </select>
+        )}
+        {users.length > 0 && (
+          <select
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            className={`px-2.5 py-1 text-xs rounded-md border transition-colors outline-none ${
+              userFilter
+                ? "border-sky-400 bg-sky-50 text-sky-700"
+                : "border-stone-200 bg-white text-stone-500 hover:border-stone-300"
+            }`}
+          >
+            <option value="">All Members</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>{u.name ?? u.id}</option>
+            ))}
+          </select>
+        )}
+        <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
+        {(programFilter || userFilter || geoFilter.zoneId || geoFilter.clusterId) && (
+          <button
+            onClick={() => { setProgramFilter(""); setUserFilter(""); setGeoFilter({ zoneId: "", clusterId: "" }); }}
+            className="px-2.5 py-1 text-xs text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
 
       {filtered.length === 0 ? (
         filter === "All" && !programFilter && !userFilter ? (

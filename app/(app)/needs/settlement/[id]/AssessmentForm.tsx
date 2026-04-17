@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ChevronLeft, ChevronDown, ChevronRight, Save, PlusCircle, History,
   Users, Home, Droplets, Toilet, Zap, Trash2, Shield, Building2,
-  ClipboardList, BadgeCheck, TrendingUp, AlertCircle, CheckCircle2
+  ClipboardList, BadgeCheck, TrendingUp, AlertCircle, CheckCircle2, Map
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -614,16 +614,22 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-xs text-stone-400 mb-5">
-        <Link href="/needs" className="hover:text-sky-600 flex items-center gap-1"><ChevronLeft className="w-3 h-3" />Needs</Link>
-        <span>/</span>
-        <span>{settlement.cluster.zone.city?.name}</span>
-        <span>/</span>
-        <span>{settlement.cluster.zone.name}</span>
-        <span>/</span>
-        <span>{settlement.cluster.name}</span>
-        <span>/</span>
-        <span className="text-stone-600 font-medium">{settlement.name}</span>
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-1.5 text-xs text-stone-400 flex-wrap">
+          <Link href="/needs" className="hover:text-sky-600 flex items-center gap-1"><ChevronLeft className="w-3 h-3" />Needs</Link>
+          <span>/</span>
+          <span>{settlement.cluster.zone.city?.name}</span>
+          <span>/</span>
+          <span>{settlement.cluster.zone.name}</span>
+          <span>/</span>
+          <span>{settlement.cluster.name}</span>
+          <span>/</span>
+          <span className="text-stone-600 font-medium">{settlement.name}</span>
+        </div>
+        <Link href="/map" className="flex-shrink-0 flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors">
+          <Map className="w-3 h-3" />
+          View on Map
+        </Link>
       </div>
 
       {/* Header */}

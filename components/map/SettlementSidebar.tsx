@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { ClipboardList } from "lucide-react";
 import type { GeoData } from "@/lib/useGeoData";
 import type { SettlementFeature } from "./MapView";
 import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
@@ -62,6 +64,7 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
   const [activities, setActivities] = useState<ClusterActivity[]>([]);
   const [activeTab, setActiveTab] = useState<"programme" | "needs">("programme");
   const [goalPrefill, setGoalPrefill] = useState<GoalPrefill | null>(null);
+  const [settlementDbId, setSettlementDbId] = useState<string | null>(null);
   const prevName = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
@@ -73,10 +76,18 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
     setClusterData([]);
     setActivities([]);
     setActiveTab("programme");
+    setSettlementDbId(null);
 
     fetch(`/api/map/notes?settlement=${encodeURIComponent(feature.name)}`)
       .then((r) => r.json())
       .then((d) => setNote(d.note ?? ""))
+      .catch(() => {});
+
+    // Eagerly resolve the DB settlement ID for the header Assess button
+    const clusterParam = feature.cluster ? `&cluster=${encodeURIComponent(feature.cluster)}` : "";
+    fetch(`/api/map/settlement-needs?settlement=${encodeURIComponent(feature.name)}${clusterParam}`)
+      .then(r => r.json())
+      .then(d => setSettlementDbId(d?.settlement?.id ?? null))
       .catch(() => {});
 
     if (feature.cluster) {
@@ -182,6 +193,21 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
                 <h2 className="text-sm font-bold text-slate-800 leading-tight">{feature.name}</h2>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
+                {settlementDbId ? (
+                  <Link
+                    href={`/needs/settlement/${settlementDbId}`}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-sky-600 border border-sky-200 hover:bg-sky-50 transition-colors"
+                    title="View Assessment"
+                  >
+                    <ClipboardList className="w-3 h-3" />
+                    Assess
+                  </Link>
+                ) : (
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-slate-300 border border-slate-100 cursor-not-allowed" title="No assessment yet">
+                    <ClipboardList className="w-3 h-3" />
+                    Assess
+                  </span>
+                )}
                 {feature.centroid && feature.centroid[0] !== 0 && (
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${feature.centroid[0]},${feature.centroid[1]}`}
@@ -397,6 +423,7 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
                 name={feature.name}
                 cluster={feature.cluster ?? undefined}
                 onCreateGoal={(ctx: NeedsGoalContext) => setGoalPrefill(ctx)}
+                onSettlementLoaded={(id) => setSettlementDbId(id)}
               />
             )}
           </div>

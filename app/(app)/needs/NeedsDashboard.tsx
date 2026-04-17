@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ChevronRight, ChevronDown, ClipboardList, MapPin, Building2, Layers,
-  CheckCircle2, Clock, Home, TrendingDown, TrendingUp, AlertTriangle, AlertCircle,
+  CheckCircle2, Clock, Home, TrendingDown, TrendingUp, AlertTriangle, AlertCircle, Map,
 } from "lucide-react";
 import type { LevelStats, DomainStats, DomainConfig, ProgressSummary, MonthlyPoint, EntitlementSummary } from "./page";
 
@@ -628,13 +628,18 @@ export default function NeedsDashboard({
                       const ss = settlementStats[s.id];
                       const isAssessed = s.assessments.length > 0;
                       return (
-                        <Link key={s.id} href={`/needs/settlement/${s.id}`} className="grid items-center gap-x-2 px-3 py-2.5 hover:bg-sky-50 transition-colors group" style={{ gridTemplateColumns: `1fr 80px 40px repeat(${domainConfigs.length}, 30px)` }}>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <Home className="w-3 h-3 text-stone-300 flex-shrink-0" />
-                              <span className="text-xs font-medium text-stone-700 group-hover:text-sky-700 truncate">{s.name}</span>
-                            </div>
-                            <span className="text-[10px] text-stone-400 ml-4">{cluster.name} · {zone.name}</span>
+                        <div key={s.id} className="grid items-center gap-x-2 px-3 py-2.5 hover:bg-sky-50 transition-colors group" style={{ gridTemplateColumns: `1fr 80px 40px repeat(${domainConfigs.length}, 30px)` }}>
+                          <div className="min-w-0 flex items-start gap-1">
+                            <Link href={`/needs/settlement/${s.id}`} className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <Home className="w-3 h-3 text-stone-300 flex-shrink-0" />
+                                <span className="text-xs font-medium text-stone-700 group-hover:text-sky-700 truncate">{s.name}</span>
+                              </div>
+                              <span className="text-[10px] text-stone-400 ml-4">{cluster.name} · {zone.name}</span>
+                            </Link>
+                            <Link href="/map" title="View on Programme Map" className="flex-shrink-0 p-0.5 mt-0.5 text-stone-300 hover:text-indigo-500 transition-colors">
+                              <Map className="w-3 h-3" />
+                            </Link>
                           </div>
                           <div className="flex justify-end items-center gap-1">
                             {isAssessed ? (
@@ -651,7 +656,7 @@ export default function NeedsDashboard({
                               {isAssessed && ss ? <GapChip d={ss.stats.domains[domain]} /> : <span className="text-[10px] text-stone-200">·</span>}
                             </div>
                           ))}
-                        </Link>
+                        </div>
                       );
                     }))))}
                   </div>

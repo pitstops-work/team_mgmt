@@ -9,6 +9,8 @@ export default async function GanttPage() {
     where: { deletedAt: null },
     include: {
       owner: { select: { id: true, name: true, image: true } },
+      needsZone: { select: { id: true, name: true } },
+      needsCluster: { select: { id: true, name: true, zoneId: true } },
       pitstops: {
         where: { deletedAt: null },
         select: {

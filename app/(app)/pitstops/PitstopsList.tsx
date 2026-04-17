@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckSquare, X, Download } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge } from "@/components/StatusBadge";
+import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
 
 type User = { id: string; name: string | null; image: string | null };
-type Goal = { id: string; title: string };
+type Goal = { id: string; title: string; needsZoneId: string | null; needsClusterId: string | null };
 type Pitstop = {
   id: string; title: string; type: string; status: string;
   startDate: string | null; targetDate: string | null;
@@ -45,16 +46,30 @@ export default function PitstopsList({ pitstops, goals, users, initialStatus = "
   const [noDateOnly, setNoDateOnly] = useState(initialNoDate);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ zoneId: "", clusterId: "" });
+  const [geoClusters, setGeoClusters] = useState<{ id: string; zoneId: string }[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/geo").then(r => r.json()).then(d => setGeoClusters(d.clusters ?? [])).catch(() => {});
+  }, []);
 
   const filtered = pitstops
     .filter(p => !selectedGoal || p.goal.id === selectedGoal)
     .filter(p => !selectedUser || p.owner?.id === selectedUser)
     .filter(p => !selectedStatus || p.status === selectedStatus)
     .filter(p => !noDateOnly || !p.targetDate)
+    .filter(p => {
+      if (geoFilter.clusterId) return p.goal.needsClusterId === geoFilter.clusterId;
+      if (geoFilter.zoneId) {
+        const clusterZoneId = geoClusters.find(c => c.id === p.goal.needsClusterId)?.zoneId;
+        return p.goal.needsZoneId === geoFilter.zoneId || clusterZoneId === geoFilter.zoneId;
+      }
+      return true;
+    })
     .sort((a, b) => (STATUS_ORDER[a.status as keyof typeof STATUS_ORDER] ?? 3) - (STATUS_ORDER[b.status as keyof typeof STATUS_ORDER] ?? 3));
 
-  const hasFilters = selectedGoal || selectedUser || selectedStatus || noDateOnly;
+  const hasFilters = selectedGoal || selectedUser || selectedStatus || noDateOnly || geoFilter.zoneId || geoFilter.clusterId;
 
   const allFilteredSelected = filtered.length > 0 && filtered.every(p => selectedIds.has(p.id));
   const someSelected = selectedIds.size > 0;
@@ -130,8 +145,11 @@ export default function PitstopsList({ pitstops, goals, users, initialStatus = "
           <option value="">All People</option>
           {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
+        <div className="flex-shrink-0">
+          <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
+        </div>
         {hasFilters && (
-          <button onClick={() => { setSelectedGoal(""); setSelectedUser(""); setSelectedStatus(""); setNoDateOnly(false); }}
+          <button onClick={() => { setSelectedGoal(""); setSelectedUser(""); setSelectedStatus(""); setNoDateOnly(false); setGeoFilter({ zoneId: "", clusterId: "" }); }}
             className="flex-shrink-0 flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
             <X className="w-3 h-3" /> Clear
           </button>

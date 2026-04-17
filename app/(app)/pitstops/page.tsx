@@ -16,7 +16,7 @@ export default async function PitstopsPage({
       select: {
         id: true, title: true, type: true, status: true,
         startDate: true, targetDate: true, completedAt: true,
-        goal: { select: { id: true, title: true } },
+        goal: { select: { id: true, title: true, needsZoneId: true, needsClusterId: true } },
         owner: { select: { id: true, name: true, image: true } },
         checklistItems: { select: { id: true, checked: true } },
       },

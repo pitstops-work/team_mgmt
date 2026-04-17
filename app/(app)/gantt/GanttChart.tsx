@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { GoalStatusBadge } from "@/components/StatusBadge";
 import { ChevronDown, ChevronRight, AlertCircle, X, CheckSquare, ExternalLink } from "lucide-react";
+import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
 
 type User = { id: string; name: string | null; image: string | null };
 type ChecklistItem = { id: string; text: string; checked: boolean };
@@ -27,6 +28,8 @@ type Goal = {
   targetDate: string | null;
   owner: User;
   pitstops: Pitstop[];
+  needsZone: { id: string; name: string } | null;
+  needsCluster: { id: string; name: string; zoneId: string } | null;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -83,6 +86,7 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
   const [panel, setPanel] = useState<{ pitstop: Pitstop; goal: Goal } | null>(null);
   const [labelW, setLabelW] = useState(220);
   const [isMobile, setIsMobile] = useState(false);
+  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ zoneId: "", clusterId: "" });
 
   useEffect(() => {
     const update = () => {
@@ -157,9 +161,15 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
     await Promise.all(calls);
   };
 
+  const filteredGoals = goals.filter(g => {
+    if (geoFilter.clusterId) return g.needsCluster?.id === geoFilter.clusterId;
+    if (geoFilter.zoneId) return g.needsZone?.id === geoFilter.zoneId || g.needsCluster?.zoneId === geoFilter.zoneId;
+    return true;
+  });
+
   // Determine date range
   const allDates: Date[] = [];
-  for (const g of goals) {
+  for (const g of filteredGoals) {
     if (g.targetDate) allDates.push(new Date(g.targetDate));
     for (const p of g.pitstops) {
       if (p.startDate) allDates.push(new Date(p.startDate));
@@ -191,7 +201,7 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
     | { kind: "pitstop"; pitstop: Pitstop; goal: Goal };
 
   const rows: Row[] = [];
-  for (const g of goals) {
+  for (const g of filteredGoals) {
     rows.push({ kind: "goal", goal: g });
     if (!collapsed.has(g.id)) {
       for (const p of g.pitstops) {
@@ -201,28 +211,31 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
   }
 
   const totalHeight = rows.length * ROW_H;
-  const hasAnyDates = goals.some(
+  const hasAnyDates = filteredGoals.some(
     (g) => g.targetDate || g.pitstops.some((p) => p.startDate || p.targetDate)
   );
 
   return (
     <div className="flex flex-col h-full relative">
-      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-stone-100 flex items-center justify-between">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-stone-100 flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-lg font-semibold text-stone-900">Gantt Chart</h1>
           <p className="text-sm text-stone-500">Goals and pitstops on a timeline</p>
         </div>
-        {!hasAnyDates && (
-          <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            <AlertCircle className="w-3.5 h-3.5" />
-            Add dates to pitstops to see them on the timeline
-          </div>
-        )}
+        <div className="flex items-center gap-3 flex-wrap">
+          <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
+          {!hasAnyDates && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <AlertCircle className="w-3.5 h-3.5" />
+              Add dates to pitstops to see them on the timeline
+            </div>
+          )}
+        </div>
       </div>
 
-      {goals.length === 0 ? (
+      {filteredGoals.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-stone-400 text-sm">
-          No goals yet.
+          {goals.length === 0 ? "No goals yet." : "No goals match the current geo filter."}
         </div>
       ) : (
         <div className="flex-1 overflow-hidden flex">

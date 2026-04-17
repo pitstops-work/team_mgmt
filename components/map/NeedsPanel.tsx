@@ -137,9 +137,10 @@ interface Props {
   zone?: string;
   settlementId?: string;
   onCreateGoal?: (ctx: NeedsGoalContext) => void;
+  onSettlementLoaded?: (settlementId: string | null) => void;
 }
 
-export default function NeedsPanel({ mode, name, cluster, settlementId, onCreateGoal }: Props) {
+export default function NeedsPanel({ mode, name, cluster, settlementId, onCreateGoal, onSettlementLoaded }: Props) {
   const [data, setData] = useState<NeedsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"needs" | "civic" | "entitlements">("needs");
@@ -160,8 +161,16 @@ export default function NeedsPanel({ mode, name, cluster, settlementId, onCreate
 
     fetch(url)
       .then(r => r.json())
-      .then(d => setData(d))
-      .catch(() => setData(null))
+      .then(d => {
+        setData(d);
+        if (mode === "settlement" && onSettlementLoaded) {
+          onSettlementLoaded(d?.settlement?.id ?? null);
+        }
+      })
+      .catch(() => {
+        setData(null);
+        if (mode === "settlement" && onSettlementLoaded) onSettlementLoaded(null);
+      })
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prevKey]);

@@ -30,6 +30,10 @@ export default async function ReadinessPage() {
         title: true,
         status: true,
         ownerId: true,
+        needsZoneId: true,
+        needsClusterId: true,
+        needsZone: { select: { id: true, name: true } },
+        needsCluster: { select: { id: true, name: true, zoneId: true } },
         pitstops: {
           where: { deletedAt: null },
           select: {
@@ -121,6 +125,12 @@ export default async function ReadinessPage() {
       signal = "amber";
     }
 
+    // Zone/cluster tags from goals
+    const zones = [...new Set(userGoals.map(g => g.needsZone?.name).filter((n): n is string => !!n))];
+    const clusters = [...new Set(userGoals.map(g => g.needsCluster?.name).filter((n): n is string => !!n))];
+    const needsZoneIds = [...new Set(userGoals.map(g => g.needsZoneId).filter((id): id is string => !!id))];
+    const needsClusterIds = [...new Set(userGoals.map(g => g.needsClusterId).filter((id): id is string => !!id))];
+
     return {
       user,
       goalCount: userGoals.length,
@@ -140,6 +150,10 @@ export default async function ReadinessPage() {
       activityTypes,
       lastActive,
       signal,
+      zones,
+      clusters,
+      needsZoneIds,
+      needsClusterIds,
     };
   });
 

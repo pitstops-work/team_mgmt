@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Avatar from "@/components/Avatar";
+import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
 
 type ActivityTypes = Record<string, number>;
 
@@ -19,6 +21,10 @@ type UserReadiness = {
   activityTypes: ActivityTypes;
   lastActive: string | null;
   signal: "green" | "amber" | "red";
+  zones: string[];
+  clusters: string[];
+  needsZoneIds: string[];
+  needsClusterIds: string[];
 };
 
 interface Props {
@@ -70,9 +76,17 @@ function SignalBadge({ signal }: { signal: "green" | "amber" | "red" }) {
 }
 
 export default function ReadinessDashboard({ readiness, generatedAt }: Props) {
-  const green = readiness.filter(r => r.signal === "green").length;
-  const amber = readiness.filter(r => r.signal === "amber").length;
-  const red   = readiness.filter(r => r.signal === "red").length;
+  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ zoneId: "", clusterId: "" });
+
+  const filteredReadiness = readiness.filter(r => {
+    if (geoFilter.clusterId) return r.needsClusterIds.some(id => id === geoFilter.clusterId);
+    if (geoFilter.zoneId) return r.needsZoneIds.some(id => id === geoFilter.zoneId);
+    return true;
+  });
+
+  const green = filteredReadiness.filter(r => r.signal === "green").length;
+  const amber = filteredReadiness.filter(r => r.signal === "amber").length;
+  const red   = filteredReadiness.filter(r => r.signal === "red").length;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -87,7 +101,7 @@ export default function ReadinessDashboard({ readiness, generatedAt }: Props) {
       </div>
 
       {/* Summary bar */}
-      <div className="flex gap-4 mb-8 p-4 bg-white rounded-xl border border-stone-200">
+      <div className="flex gap-4 mb-4 p-4 bg-white rounded-xl border border-stone-200 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           <span className="text-sm font-medium text-stone-700">{green} Ready</span>
@@ -100,12 +114,17 @@ export default function ReadinessDashboard({ readiness, generatedAt }: Props) {
           <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
           <span className="text-sm font-medium text-stone-700">{red} Not started</span>
         </div>
-        <div className="ml-auto text-xs text-stone-400">{readiness.length} members</div>
+        <div className="ml-auto text-xs text-stone-400">{filteredReadiness.length} members</div>
+      </div>
+
+      {/* Geo filter */}
+      <div className="mb-6">
+        <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
       </div>
 
       {/* Member cards */}
       <div className="space-y-4">
-        {readiness.map((r) => (
+        {filteredReadiness.map((r) => (
           <div key={r.user.id} className="bg-white rounded-xl border border-stone-200 overflow-hidden">
 
             {/* Card header */}
@@ -115,6 +134,11 @@ export default function ReadinessDashboard({ readiness, generatedAt }: Props) {
                 <div>
                   <p className="text-sm font-semibold text-stone-900">{r.user.name ?? r.user.email}</p>
                   <p className="text-xs text-stone-400">Last logged: {daysAgo(r.lastActive)}</p>
+                  {(r.clusters.length > 0 || r.zones.length > 0) && (
+                    <p className="text-[10px] text-stone-400 mt-0.5">
+                      {[...r.clusters, ...r.zones.filter(z => !r.clusters.length)].join(" · ")}
+                    </p>
+                  )}
                 </div>
               </div>
               <SignalBadge signal={r.signal} />
