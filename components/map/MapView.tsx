@@ -6,6 +6,18 @@ import "leaflet/dist/leaflet.css";
 import { LAYERS, type LayerConfig, type LayerKey, type MapCity } from "@/lib/layers";
 import { type MapFilter, settlementMatchesFilter, centreMatchesFilter } from "@/lib/mapFilter";
 
+export interface CentreFeature {
+  name: string;
+  centreType: string;
+  layerKey: LayerKey;
+  layerColor: string;
+  matchedSettlement: string;
+  zone: string;
+  cluster: string;
+  partner: string;
+  latlng: [number, number];
+}
+
 export interface SettlementFeature {
   name: string;
   layerKey: LayerKey;
@@ -65,7 +77,7 @@ interface MapViewProps {
   openPopupRef: React.MutableRefObject<((layerKey: LayerKey, featureIdx: number) => void) | null>;
   activeCity: MapCity;
   mapFilter: MapFilter | null;
-  onCentreClick?: (partner: string, zone: string, cluster: string) => void;
+  onCentreClick?: (partner: string, zone: string, cluster: string, centreFeature?: CentreFeature) => void;
   dbPartners?: { key: string; label: string; color: string }[];
   progressMode?: boolean;
   progressHealth?: ProgressHealth;
@@ -140,7 +152,7 @@ function buildCentreLayer(
   group: L.LayerGroup,
   geojson: any,
   mapFilter: MapFilter | null,
-  onCentreClick?: (partner: string, zone: string, cluster: string) => void
+  onCentreClick?: (partner: string, zone: string, cluster: string, centreFeature?: CentreFeature) => void
 ) {
   group.clearLayers();
   const isProgrammeCentre = ["children_centres", "youth_centres", "creches"].includes(layerConfig.key);
@@ -174,7 +186,23 @@ function buildCentreLayer(
       } else {
         layer.bindPopup(makeRCPopup(name, props.description || ""), { maxWidth: 300 });
       }
-      if (onCentreClick) {
+      if (onCentreClick && isProgrammeCentre) {
+        layer.on("click", (e) => {
+          const latlng: [number, number] = [e.latlng.lat, e.latlng.lng];
+          const centreFeature: CentreFeature = {
+            name,
+            centreType: props.centre_type || layerConfig.label,
+            layerKey: layerConfig.key,
+            layerColor: layerConfig.color,
+            matchedSettlement: props.matched_settlement || "",
+            zone: props.zone || "",
+            cluster: props.cluster || "",
+            partner: props.partner || "",
+            latlng,
+          };
+          onCentreClick(props.partner || "", props.zone || "", props.cluster || "", centreFeature);
+        });
+      } else if (onCentreClick) {
         layer.on("click", () => {
           onCentreClick(props.partner || "", props.zone || "", props.cluster || "");
         });
@@ -386,7 +414,7 @@ export default function MapView({
             }
             buildCentreLayer(
               layerConfig, group, geojson, mapFilterRef.current,
-              (p, z, c) => onCentreClickRef.current?.(p, z, c)
+              (p, z, c, cf) => onCentreClickRef.current?.(p, z, c, cf)
             );
           }
         });

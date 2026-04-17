@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { BarChart2 } from "lucide-react";
 import type { GeoData } from "@/lib/useGeoData";
 import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
 import CreateGoalModal, { type GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
@@ -33,6 +34,7 @@ interface Props {
   type: "zone" | "cluster" | null;
   name: string | null;
   parentZone?: string;
+  dbId?: string | null; // DB zone or cluster ID for Field Coverage deep-link
   geoData: GeoData | null;
   clusterIndex: Record<string, { zone: string; display?: string; settlements: string[] }>;
   zoneIndex: Record<string, string[]>;
@@ -52,7 +54,7 @@ function fmtDate(iso: string) {
 }
 
 export default function ZoneClusterSidebar({
-  type, name, parentZone, geoData, clusterIndex, zoneIndex, onClose,
+  type, name, parentZone, dbId, geoData, clusterIndex, zoneIndex, onClose,
 }: Props) {
   const [goals, setGoals] = useState<GoalWithPitstops[]>([]);
   const [loading, setLoading] = useState(false);
@@ -165,12 +167,24 @@ export default function ZoneClusterSidebar({
                 </div>
                 <h2 className="text-sm font-bold text-slate-800">{displayName}</h2>
               </div>
-              <button
-                onClick={onClose}
-                className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors text-lg"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {dbId && (
+                  <Link
+                    href={`/needs?${type === "zone" ? "zoneId" : "clusterId"}=${dbId}`}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-emerald-600 border border-emerald-200 hover:bg-emerald-50 transition-colors"
+                    title="View Field Coverage"
+                  >
+                    <BarChart2 className="w-3 h-3" />
+                    Coverage
+                  </Link>
+                )}
+                <button
+                  onClick={onClose}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors text-lg"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             {/* Quick stats */}

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import NeedsDashboard from "./NeedsDashboard";
@@ -733,28 +734,30 @@ export default async function NeedsPage() {
   }
 
   return (
-    <NeedsDashboard
-      cities={JSON.parse(JSON.stringify(cities))}
-      currentUserId={session!.user!.id!}
-      totalSettlements={allSettlements.length}
-      domainConfigs={domainConfigs}
-      cityStats={cityStats}
-      cityStatsMap={JSON.parse(JSON.stringify(cityStatsMap))}
-      zoneStats={JSON.parse(JSON.stringify(zoneStatsMap))}
-      clusterStats={JSON.parse(JSON.stringify(clusterStatsMap))}
-      settlementStats={JSON.parse(JSON.stringify(settlementStatsMap))}
-      cityProgress={cityProgress}
-      cityProgressMap={JSON.parse(JSON.stringify(cityProgressMap))}
-      zoneProgress={JSON.parse(JSON.stringify(zoneProgressMap))}
-      clusterProgress={JSON.parse(JSON.stringify(clusterProgressMap))}
-      settlementProgress={JSON.parse(JSON.stringify(settlementProgressMap))}
-      monthlyTrend={monthlyTrend}
-      currentMonth={currentMonth}
-      cityEntitlements={cityEntitlements}
-      cityEntMap={JSON.parse(JSON.stringify(cityEntMap))}
-      zoneEntMap={JSON.parse(JSON.stringify(zoneEntMap))}
-      clusterEntMap={JSON.parse(JSON.stringify(clusterEntMap))}
-      settlementEntMap={JSON.parse(JSON.stringify(settlementEntSummaryMap))}
-    />
+    <Suspense>
+      <NeedsDashboard
+        cities={JSON.parse(JSON.stringify(cities))}
+        currentUserId={session!.user!.id!}
+        totalSettlements={allSettlements.length}
+        domainConfigs={domainConfigs}
+        cityStats={cityStats}
+        cityStatsMap={JSON.parse(JSON.stringify(cityStatsMap))}
+        zoneStats={JSON.parse(JSON.stringify(zoneStatsMap))}
+        clusterStats={JSON.parse(JSON.stringify(clusterStatsMap))}
+        settlementStats={JSON.parse(JSON.stringify(settlementStatsMap))}
+        cityProgress={cityProgress}
+        cityProgressMap={JSON.parse(JSON.stringify(cityProgressMap))}
+        zoneProgress={JSON.parse(JSON.stringify(zoneProgressMap))}
+        clusterProgress={JSON.parse(JSON.stringify(clusterProgressMap))}
+        settlementProgress={JSON.parse(JSON.stringify(settlementProgressMap))}
+        monthlyTrend={monthlyTrend}
+        currentMonth={currentMonth}
+        cityEntitlements={cityEntitlements}
+        cityEntMap={JSON.parse(JSON.stringify(cityEntMap))}
+        zoneEntMap={JSON.parse(JSON.stringify(zoneEntMap))}
+        clusterEntMap={JSON.parse(JSON.stringify(clusterEntMap))}
+        settlementEntMap={JSON.parse(JSON.stringify(settlementEntSummaryMap))}
+      />
+    </Suspense>
   );
 }

@@ -13,7 +13,8 @@ import { useGeoData } from "@/lib/useGeoData";
 import { centroidOf } from "@/lib/useGeoData";
 import { type MapFilter, computeMapFilter } from "@/lib/mapFilter";
 
-import type { SettlementFeature, CustomPolygonFeature } from "./MapView";
+import CentreSidebar from "./CentreSidebar";
+import type { SettlementFeature, CentreFeature, CustomPolygonFeature } from "./MapView";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
 
@@ -62,6 +63,7 @@ export default function MapDashboard() {
   const [customFeatures, setCustomFeatures] = useState<CustomFeature[]>([]);
   const [customPolygons, setCustomPolygons] = useState<CustomPolygonFeature[]>([]);
   const [dbPartners, setDbPartners] = useState<{ key: string; label: string; color: string }[]>([]);
+  const [geoDb, setGeoDb] = useState<{ zones: { id: string; name: string }[]; clusters: { id: string; name: string }[] }>({ zones: [], clusters: [] });
   // Sidebar closed by default; opens on desktop via useEffect
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeZone, setActiveZone] = useState<string | null>(null);
@@ -70,6 +72,7 @@ export default function MapDashboard() {
   const [tab, setTab] = useState<"layers" | "zones" | "clusters">("layers");
   const [statsOpen, setStatsOpen] = useState(false);
   const [selectedSettlement, setSelectedSettlement] = useState<SettlementFeature | null>(null);
+  const [selectedCentre, setSelectedCentre] = useState<CentreFeature | null>(null);
   const [mapFilter, setMapFilter] = useState<MapFilter | null>(null);
   const [progressMode, setProgressMode] = useState(false);
   const [progressHealth, setProgressHealth] = useState<{
@@ -134,6 +137,10 @@ export default function MapDashboard() {
       .then((r) => r.json())
       .then(setZoneClusterIndex)
       .catch(() => {});
+    fetch("/api/geo")
+      .then(r => r.json())
+      .then(d => setGeoDb({ zones: d.zones ?? [], clusters: d.clusters ?? [] }))
+      .catch(() => {});
   }, []);
 
   async function toggleProgress() {
@@ -179,7 +186,7 @@ export default function MapDashboard() {
     setActiveZone(zone);
     setActiveCluster(null);
     if (zone) {
-      setTab("zones"); setSelectedSettlement(null); setStatsOpen(false);
+      setTab("zones"); setSelectedSettlement(null); setSelectedCentre(null); setStatsOpen(false);
       setMapFilter(geoData ? computeMapFilter("zone", geoData, { zone }) : null);
     } else {
       setMapFilter(null);
@@ -190,7 +197,7 @@ export default function MapDashboard() {
     setActiveCluster(cluster);
     setActiveZone(null);
     if (cluster) {
-      setTab("clusters"); setSelectedSettlement(null); setStatsOpen(false);
+      setTab("clusters"); setSelectedSettlement(null); setSelectedCentre(null); setStatsOpen(false);
       setMapFilter(geoData ? computeMapFilter("cluster", geoData, { cluster }) : null);
     } else {
       setMapFilter(null);
@@ -199,6 +206,7 @@ export default function MapDashboard() {
 
   const handleSettlementClick = useCallback((f: SettlementFeature) => {
     setSelectedSettlement(f);
+    setSelectedCentre(null);
     setStatsOpen(false);
     setActiveZone(null);
     setActiveCluster(null);
@@ -219,11 +227,14 @@ export default function MapDashboard() {
     }
   }, [geoData]);
 
-  const handleCentreClick = useCallback((centrePartner: string, centreZone: string, centreCluster: string) => {
+  const handleCentreClick = useCallback((centrePartner: string, centreZone: string, centreCluster: string, centreFeature?: CentreFeature) => {
     setSelectedSettlement(null);
     setStatsOpen(false);
     setActiveZone(null);
     setActiveCluster(null);
+    if (centreFeature) {
+      setSelectedCentre(centreFeature);
+    }
     setMapFilter(geoData ? computeMapFilter("centre", geoData, { centrePartner, centreZone, centreCluster }) : null);
   }, [geoData]);
 
@@ -366,11 +377,24 @@ export default function MapDashboard() {
           onClose={() => setSelectedSettlement(null)}
         />
 
+        {/* Centre detail sidebar (children centre / youth centre / creche) */}
+        <CentreSidebar
+          feature={!selectedSettlement ? selectedCentre : null}
+          onClose={() => setSelectedCentre(null)}
+        />
+
         {/* Zone / Cluster sidebar — shown when a boundary is active and no settlement is selected */}
         <ZoneClusterSidebar
           type={!selectedSettlement ? (activeCluster ? "cluster" : activeZone ? "zone" : null) : null}
           name={!selectedSettlement ? (activeCluster ?? activeZone) : null}
           parentZone={activeCluster ? zoneClusterIndex.clusters[activeCluster]?.zone : undefined}
+          dbId={
+            activeCluster
+              ? (geoDb.clusters.find(c => c.name === activeCluster)?.id ?? null)
+              : activeZone
+              ? (geoDb.zones.find(z => z.name === activeZone)?.id ?? null)
+              : null
+          }
           geoData={geoData}
           clusterIndex={zoneClusterIndex.clusters}
           zoneIndex={zoneClusterIndex.zones}

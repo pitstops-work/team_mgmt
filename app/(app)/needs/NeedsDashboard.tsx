@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronRight, ChevronDown, ClipboardList, MapPin, Building2, Layers,
@@ -393,11 +394,24 @@ export default function NeedsDashboard({
   clusterEntMap: Record<string, EntitlementSummary[]>;
   settlementEntMap: Record<string, EntitlementSummary[]>;
 }) {
+  const searchParams = useSearchParams();
+  const initZoneId    = searchParams.get("zoneId");
+  const initClusterId = searchParams.get("clusterId");
+
   const [mainTab, setMainTab]         = useState<"coverage" | "progress" | "entitlements">("coverage");
-  const [view, setView]               = useState<ViewLevel>("city");
-  const [openZones, setOpenZones]     = useState<Set<string>>(new Set());
-  const [openClusters, setOpenClusters] = useState<Set<string>>(new Set());
+  const [view, setView]               = useState<ViewLevel>(initClusterId ? "cluster" : initZoneId ? "zone" : "city");
+  const [openZones, setOpenZones]     = useState<Set<string>>(initZoneId ? new Set([initZoneId]) : new Set());
+  const [openClusters, setOpenClusters] = useState<Set<string>>(initClusterId ? new Set([initClusterId]) : new Set());
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
+
+  // Scroll the highlighted zone/cluster row into view on first render
+  useEffect(() => {
+    const id = initClusterId ?? initZoneId;
+    if (!id) return;
+    const el = document.getElementById(`geo-row-${id}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleZone    = (id: string) => setOpenZones(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleCluster = (id: string) => setOpenClusters(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -531,8 +545,8 @@ export default function NeedsDashboard({
                       if (!z) return null;
                       const isOpen = openZones.has(zone.id);
                       return (
-                        <div key={zone.id}>
-                          <button onClick={() => toggleZone(zone.id)} className="w-full grid items-center gap-x-2 px-3 py-3 bg-stone-50 hover:bg-stone-100 transition-colors text-left" style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
+                        <div key={zone.id} id={`geo-row-${zone.id}`}>
+                          <button onClick={() => toggleZone(zone.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors text-left ${initZoneId === zone.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
                             {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
                             <Layers className="w-3.5 h-3.5 text-violet-400" />
                             <div className="min-w-0">
@@ -575,8 +589,8 @@ export default function NeedsDashboard({
                       if (!cl) return null;
                       const isOpen = openClusters.has(cluster.id);
                       return (
-                        <div key={cluster.id}>
-                          <button onClick={() => toggleCluster(cluster.id)} className="w-full grid items-center gap-x-2 px-3 py-3 bg-stone-50 hover:bg-stone-100 transition-colors text-left" style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
+                        <div key={cluster.id} id={`geo-row-${cluster.id}`}>
+                          <button onClick={() => toggleCluster(cluster.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors text-left ${initClusterId === cluster.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
                             {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
                             <Building2 className="w-3.5 h-3.5 text-emerald-500" />
                             <div className="min-w-0">
