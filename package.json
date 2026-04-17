@@ -37,7 +37,8 @@
     "react-dom": "19.2.4",
     "react-leaflet": "^5.0.0",
     "tailwindcss": "^4",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^20",
