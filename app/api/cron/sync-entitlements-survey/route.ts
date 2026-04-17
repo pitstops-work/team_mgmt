@@ -302,7 +302,9 @@ async function runSync() {
   // 5. Upsert surveyEnrolled — use raw SQL for bulk efficiency instead of 2100 individual upserts
   const unmatched: string[] = [];
   type UpsertRow = { assessmentId: string; schemeId: string; surveyCount: number; eligible: number };
-  const rows: UpsertRow[] = [];
+  // Deduplicate by (assessmentId, schemeId) — fuzzy name matching can map two slum names to the
+  // same assessment; summing counts is correct (they represent distinct sub-areas of one settlement).
+  const rowMap = new Map<string, UpsertRow>();
 
   for (const [slumName, counts] of slumCounts) {
     const assessmentId = lookupAssessment(slumName);
@@ -311,9 +313,17 @@ async function runSync() {
     for (const schemeId of SURVEY_SCHEMES) {
       const surveyCount = surveyCountForScheme(schemeId, counts);
       if (surveyCount < 0) continue;
-      rows.push({ assessmentId, schemeId, surveyCount, eligible: counts.totalHH.size });
+      const key = `${assessmentId}::${schemeId}`;
+      const existing = rowMap.get(key);
+      if (existing) {
+        existing.surveyCount += surveyCount;
+        existing.eligible += counts.totalHH.size;
+      } else {
+        rowMap.set(key, { assessmentId, schemeId, surveyCount, eligible: counts.totalHH.size });
+      }
     }
   }
+  const rows = Array.from(rowMap.values());
 
   // Batch upsert in chunks of 200 using raw SQL ON CONFLICT
   const CHUNK = 200;
