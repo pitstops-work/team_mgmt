@@ -24,6 +24,7 @@ interface NeedsData {
       scheme: { id: string; name: string; parentId: string | null };
       eligibleHouseholds: number;
       enrolledHouseholds: number;
+      surveyEnrolled: number | null;
     }[];
     roads: Record<string, unknown> | null;
     water: Record<string, unknown> | null;
@@ -184,7 +185,7 @@ export default function NeedsPanel({ mode, name, cluster, settlementId, onCreate
   const entitlementList = mode === "settlement"
     ? data.assessment?.entitlements?.map(e => ({
         id: e.scheme.id, name: e.scheme.name, parentId: e.scheme.parentId,
-        eligible: e.eligibleHouseholds, enrolled: e.enrolledHouseholds,
+        eligible: e.eligibleHouseholds, enrolled: e.enrolledHouseholds + (e.surveyEnrolled ?? 0),
       })) ?? []
     : data.entitlements ?? [];
 

@@ -87,7 +87,7 @@ export async function GET(request: Request) {
       const key = e.scheme.id;
       if (!entitlementMap[key]) entitlementMap[key] = { name: e.scheme.name, parentId: e.scheme.parentId, eligible: 0, enrolled: 0 };
       entitlementMap[key].eligible += e.eligibleHouseholds;
-      entitlementMap[key].enrolled += e.enrolledHouseholds;
+      entitlementMap[key].enrolled += e.enrolledHouseholds + ((e as { surveyEnrolled?: number | null }).surveyEnrolled ?? 0);
     }
   }
 

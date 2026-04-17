@@ -54,6 +54,15 @@ export interface ProgressSummary {
   domains: Record<string, DomainProgress>;
 }
 
+export interface EntitlementSummary {
+  id: string;
+  name: string;
+  parentId: string | null;
+  eligible: number;
+  ngoEnrolled: number;
+  surveyEnrolled: number;
+}
+
 export interface MonthlyPoint {
   month: string;   // "2026-01"
   label: string;   // "Jan"
@@ -354,6 +363,7 @@ export default async function NeedsPage() {
       orderBy: [{ settlementId: "asc" }, { assessedAt: "desc" }],
       distinct: ["settlementId"],
       select: {
+        id: true,
         settlementId: true,
         totalHouseholds: true, children6m3yr: true, children4to14: true,
         youth15to21: true, elderly60plus: true,
@@ -392,6 +402,43 @@ export default async function NeedsPage() {
   const clusterScopedDomains = domainConfigs.filter(d => d.clusterScope);
 
   const assessmentBySettlement = Object.fromEntries(latestAssessments.map(a => [a.settlementId, a]));
+
+  // ── Entitlement aggregation ──────────────────────────────────────────────────
+  const latestAssessmentIdList = latestAssessments.map(a => (a as { id: string }).id);
+  const entBaselines = await prisma.entitlementBaseline.findMany({
+    where: { assessmentId: { in: latestAssessmentIdList }, eligibleHouseholds: { gt: 0 } },
+    select: {
+      assessmentId: true, schemeId: true, eligibleHouseholds: true,
+      enrolledHouseholds: true, surveyEnrolled: true,
+      scheme: { select: { id: true, name: true, parentId: true } },
+    },
+  });
+
+  const assessmentToSettlement = Object.fromEntries(
+    latestAssessments.map(a => [(a as { id: string }).id, a.settlementId])
+  );
+
+  const settlementEntMap: Record<string, typeof entBaselines> = {};
+  for (const e of entBaselines) {
+    const sId = assessmentToSettlement[e.assessmentId];
+    if (!sId) continue;
+    if (!settlementEntMap[sId]) settlementEntMap[sId] = [];
+    settlementEntMap[sId].push(e);
+  }
+
+  function aggregateEnt(settlementIds: string[]): EntitlementSummary[] {
+    const map: Record<string, EntitlementSummary> = {};
+    for (const sId of settlementIds) {
+      for (const e of (settlementEntMap[sId] ?? [])) {
+        const key = e.schemeId;
+        if (!map[key]) map[key] = { id: e.scheme.id, name: e.scheme.name, parentId: e.scheme.parentId, eligible: 0, ngoEnrolled: 0, surveyEnrolled: 0 };
+        map[key].eligible += e.eligibleHouseholds;
+        map[key].ngoEnrolled += e.enrolledHouseholds;
+        map[key].surveyEnrolled += e.surveyEnrolled ?? 0;
+      }
+    }
+    return Object.values(map).filter(e => e.eligible > 0);
+  }
 
   // Build settlement → zone/cluster lookup
   const settlementToCluster: Record<string, string> = {};
@@ -590,6 +637,36 @@ export default async function NeedsPage() {
   const monthlyTrend   = computeMonthlyTrend(goals, today);
   const currentMonth   = today.getMonth(); // 0-indexed
 
+  // ── Entitlement summaries per level ─────────────────────────────────────────
+  const cityEntitlements = aggregateEnt(allSettlements.map(s => s.id));
+
+  const cityEntMap: Record<string, EntitlementSummary[]> = {};
+  for (const city of cities) {
+    const sIds = city.zones.flatMap(z => z.clusters.flatMap(c => c.settlements.map(s => s.id)));
+    cityEntMap[city.id] = aggregateEnt(sIds);
+  }
+
+  const zoneEntMap: Record<string, EntitlementSummary[]> = {};
+  for (const city of cities) {
+    for (const zone of city.zones) {
+      zoneEntMap[zone.id] = aggregateEnt(zone.clusters.flatMap(c => c.settlements.map(s => s.id)));
+    }
+  }
+
+  const clusterEntMap: Record<string, EntitlementSummary[]> = {};
+  for (const city of cities) {
+    for (const zone of city.zones) {
+      for (const cluster of zone.clusters) {
+        clusterEntMap[cluster.id] = aggregateEnt(cluster.settlements.map(s => s.id));
+      }
+    }
+  }
+
+  const settlementEntSummaryMap: Record<string, EntitlementSummary[]> = {};
+  for (const s of allSettlements) {
+    settlementEntSummaryMap[s.id] = aggregateEnt([s.id]);
+  }
+
   return (
     <NeedsDashboard
       cities={JSON.parse(JSON.stringify(cities))}
@@ -608,6 +685,11 @@ export default async function NeedsPage() {
       settlementProgress={JSON.parse(JSON.stringify(settlementProgressMap))}
       monthlyTrend={monthlyTrend}
       currentMonth={currentMonth}
+      cityEntitlements={cityEntitlements}
+      cityEntMap={JSON.parse(JSON.stringify(cityEntMap))}
+      zoneEntMap={JSON.parse(JSON.stringify(zoneEntMap))}
+      clusterEntMap={JSON.parse(JSON.stringify(clusterEntMap))}
+      settlementEntMap={JSON.parse(JSON.stringify(settlementEntSummaryMap))}
     />
   );
 }

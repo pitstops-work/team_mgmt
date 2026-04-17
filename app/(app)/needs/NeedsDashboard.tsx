@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronDown, ClipboardList, MapPin, Building2, Layers,
   CheckCircle2, Clock, Home, TrendingDown, TrendingUp, AlertTriangle, AlertCircle,
 } from "lucide-react";
-import type { LevelStats, DomainStats, DomainConfig, ProgressSummary, MonthlyPoint } from "./page";
+import type { LevelStats, DomainStats, DomainConfig, ProgressSummary, MonthlyPoint, EntitlementSummary } from "./page";
 
 type Assessment = { id: string; assessmentYear: number; assessedAt: string; totalHouseholds: number };
 type Settlement = { id: string; name: string; assessments: Assessment[] };
@@ -319,6 +319,50 @@ function TrendChart({ points, currentMonth }: { points: MonthlyPoint[]; currentM
   );
 }
 
+// ── Entitlements: scheme saturation bar ──────────────────────────────────────
+
+const KEY_SCHEME_IDS = ["ration-card", "aadhaar", "pension-old-age", "bocw-card"];
+
+function EntitlementBar({ scheme }: { scheme: EntitlementSummary }) {
+  const total = scheme.ngoEnrolled + scheme.surveyEnrolled;
+  const pct = scheme.eligible > 0 ? Math.min(100, Math.round((total / scheme.eligible) * 100)) : 0;
+  const surveyPct = scheme.eligible > 0 ? Math.min(100, Math.round((scheme.surveyEnrolled / scheme.eligible) * 100)) : 0;
+  const ngoPct = pct - surveyPct;
+  return (
+    <div className="py-2 border-b border-stone-50 last:border-0">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-stone-700">{scheme.name}</span>
+        <span className={`text-xs font-bold tabular-nums ${pct >= 80 ? "text-emerald-600" : pct >= 40 ? "text-amber-600" : "text-red-500"}`}>{pct}%</span>
+      </div>
+      <div className="h-2 bg-stone-100 rounded-full overflow-hidden flex">
+        {scheme.surveyEnrolled > 0 && (
+          <div className="h-full bg-stone-400 rounded-l-full" style={{ width: `${surveyPct}%` }} title={`Survey baseline: ${scheme.surveyEnrolled}`} />
+        )}
+        {scheme.ngoEnrolled > 0 && (
+          <div className="h-full bg-sky-400" style={{ width: `${ngoPct}%`, marginLeft: scheme.surveyEnrolled > 0 ? 0 : undefined }} title={`NGO-assisted: ${scheme.ngoEnrolled}`} />
+        )}
+      </div>
+      <div className="flex items-center gap-3 mt-1 text-[9px] text-stone-400">
+        <span>eligible: {scheme.eligible.toLocaleString()}</span>
+        {scheme.surveyEnrolled > 0 && <span className="text-stone-400">survey: {scheme.surveyEnrolled.toLocaleString()}</span>}
+        {scheme.ngoEnrolled > 0 && <span className="text-sky-500">NGO: {scheme.ngoEnrolled.toLocaleString()}</span>}
+        <span className="ml-auto">total: {total.toLocaleString()}</span>
+      </div>
+    </div>
+  );
+}
+
+function EntSchemeCell({ ents, schemeId }: { ents: EntitlementSummary[]; schemeId: string }) {
+  const s = ents.find(e => e.id === schemeId);
+  if (!s || s.eligible === 0) return <span className="text-[10px] text-stone-300">—</span>;
+  const pct = Math.min(100, Math.round(((s.ngoEnrolled + s.surveyEnrolled) / s.eligible) * 100));
+  return (
+    <span className={`text-[10px] font-bold tabular-nums ${pct >= 80 ? "text-emerald-600" : pct >= 40 ? "text-amber-600" : "text-red-500"}`}>
+      {pct}%
+    </span>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function NeedsDashboard({
@@ -326,6 +370,7 @@ export default function NeedsDashboard({
   cityStats, cityStatsMap, zoneStats, clusterStats, settlementStats,
   cityProgress, cityProgressMap, zoneProgress, clusterProgress, settlementProgress,
   monthlyTrend, currentMonth,
+  cityEntitlements, cityEntMap, zoneEntMap, clusterEntMap, settlementEntMap,
 }: {
   cities: City[];
   currentUserId: string;
@@ -343,8 +388,13 @@ export default function NeedsDashboard({
   settlementProgress: Record<string, ProgressSummary>;
   monthlyTrend: MonthlyPoint[];
   currentMonth: number;
+  cityEntitlements: EntitlementSummary[];
+  cityEntMap: Record<string, EntitlementSummary[]>;
+  zoneEntMap: Record<string, EntitlementSummary[]>;
+  clusterEntMap: Record<string, EntitlementSummary[]>;
+  settlementEntMap: Record<string, EntitlementSummary[]>;
 }) {
-  const [mainTab, setMainTab]         = useState<"coverage" | "progress">("coverage");
+  const [mainTab, setMainTab]         = useState<"coverage" | "progress" | "entitlements">("coverage");
   const [view, setView]               = useState<ViewLevel>("city");
   const [openZones, setOpenZones]     = useState<Set<string>>(new Set());
   const [openClusters, setOpenClusters] = useState<Set<string>>(new Set());
@@ -405,6 +455,12 @@ export default function NeedsDashboard({
           className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${mainTab === "progress" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
         >
           Progress
+        </button>
+        <button
+          onClick={() => setMainTab("entitlements")}
+          className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${mainTab === "entitlements" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+        >
+          Entitlements
         </button>
       </div>
 
@@ -836,6 +892,177 @@ export default function NeedsDashboard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ══════════════════════ ENTITLEMENTS TAB ══════════════════════ */}
+      {mainTab === "entitlements" && (
+        <>
+          {/* Level toggle */}
+          <div className="flex items-center gap-1 mb-6 bg-stone-100 rounded-xl p-1 w-fit">
+            {LEVELS.map(l => (
+              <button
+                key={l.value}
+                onClick={() => setView(l.value)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${view === l.value ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+
+          {/* City filter (multi-city) */}
+          {multiCity && (
+            <div className="flex items-center gap-1.5 flex-wrap mb-4">
+              <button onClick={() => setSelectedCityId(null)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === null ? "bg-stone-800 text-white border-stone-800" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+                All cities
+              </button>
+              {cities.map(city => (
+                <button key={city.id} onClick={() => setSelectedCityId(city.id)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === city.id ? "bg-sky-600 text-white border-sky-600" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+                  {city.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 mb-4 text-[10px] text-stone-500">
+            <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-stone-400 inline-block" /> Survey baseline</div>
+            <div className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-sky-400 inline-block" /> NGO-assisted</div>
+          </div>
+
+          {/* City view: scheme bars */}
+          {view === "city" && (() => {
+            const ents = selectedCityId ? (cityEntMap[selectedCityId] ?? []) : cityEntitlements;
+            const parents = ents.filter(e => !e.parentId);
+            const children = (pid: string) => ents.filter(e => e.parentId === pid);
+            if (ents.length === 0) return <p className="text-sm text-stone-400 text-center py-8">No entitlement data recorded yet.</p>;
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {parents.map(parent => (
+                  <div key={parent.id} className="rounded-xl border border-stone-100 p-4">
+                    <EntitlementBar scheme={parent} />
+                    {children(parent.id).map(child => (
+                      <div key={child.id} className="pl-3 border-l-2 border-stone-100 mt-1">
+                        <EntitlementBar scheme={child} />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {ents.filter(e => !e.parentId && !parents.find(p => p.id === e.id)).map(e => (
+                  <div key={e.id} className="rounded-xl border border-stone-100 p-4">
+                    <EntitlementBar scheme={e} />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* Zone view: table with key scheme columns per zone */}
+          {view === "zone" && (
+            <div className="overflow-x-auto rounded-xl border border-stone-200">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-stone-50 border-b border-stone-200">
+                    <th className="text-left py-2 px-3 font-medium text-stone-500 text-[10px] uppercase">Zone</th>
+                    <th className="text-right py-2 px-2 font-medium text-stone-500 text-[10px]">Eligible HH</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Ration Card</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Aadhaar</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Old Age Pension</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">BoCW</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-50">
+                  {cities.filter(c => !selectedCityId || c.id === selectedCityId).flatMap(c => c.zones).map(zone => {
+                    const ents = zoneEntMap[zone.id] ?? [];
+                    const eligible = ents.find(e => e.id === "ration-card")?.eligible ?? ents[0]?.eligible ?? 0;
+                    return (
+                      <tr key={zone.id} className="hover:bg-stone-50">
+                        <td className="py-2 px-3 font-medium text-stone-700">{zoneStats[zone.id]?.name ?? zone.id}</td>
+                        <td className="py-2 px-2 text-right text-stone-500">{eligible.toLocaleString()}</td>
+                        {KEY_SCHEME_IDS.map(sid => (
+                          <td key={sid} className="py-2 px-2 text-center"><EntSchemeCell ents={ents} schemeId={sid} /></td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Cluster view */}
+          {view === "cluster" && (
+            <div className="overflow-x-auto rounded-xl border border-stone-200">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-stone-50 border-b border-stone-200">
+                    <th className="text-left py-2 px-3 font-medium text-stone-500 text-[10px] uppercase">Cluster</th>
+                    <th className="text-left py-2 px-2 font-medium text-stone-400 text-[10px]">Zone</th>
+                    <th className="text-right py-2 px-2 font-medium text-stone-500 text-[10px]">Eligible HH</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Ration Card</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Aadhaar</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Old Age Pension</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">BoCW</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-50">
+                  {cities.filter(c => !selectedCityId || c.id === selectedCityId).flatMap(c => c.zones.flatMap(z => z.clusters.map(cl => ({ cl, zoneName: zoneStats[z.id]?.name ?? z.id })))).map(({ cl, zoneName }) => {
+                    const ents = clusterEntMap[cl.id] ?? [];
+                    const eligible = ents.find(e => e.id === "ration-card")?.eligible ?? ents[0]?.eligible ?? 0;
+                    return (
+                      <tr key={cl.id} className="hover:bg-stone-50">
+                        <td className="py-2 px-3 font-medium text-stone-700">{clusterStats[cl.id]?.name ?? cl.id}</td>
+                        <td className="py-2 px-2 text-stone-400">{zoneName}</td>
+                        <td className="py-2 px-2 text-right text-stone-500">{eligible.toLocaleString()}</td>
+                        {KEY_SCHEME_IDS.map(sid => (
+                          <td key={sid} className="py-2 px-2 text-center"><EntSchemeCell ents={ents} schemeId={sid} /></td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Settlement view */}
+          {view === "settlement" && (
+            <div className="overflow-x-auto rounded-xl border border-stone-200">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-stone-50 border-b border-stone-200">
+                    <th className="text-left py-2 px-3 font-medium text-stone-500 text-[10px] uppercase">Settlement</th>
+                    <th className="text-left py-2 px-2 font-medium text-stone-400 text-[10px]">Cluster</th>
+                    <th className="text-right py-2 px-2 font-medium text-stone-500 text-[10px]">Eligible HH</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Ration Card</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Aadhaar</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Old Age Pension</th>
+                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">BoCW</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-50">
+                  {cities.filter(c => !selectedCityId || c.id === selectedCityId).flatMap(c => c.zones.flatMap(z => z.clusters.flatMap(cl => cl.settlements.map(s => ({ s, clusterName: clusterStats[cl.id]?.name ?? cl.id }))))).map(({ s, clusterName }) => {
+                    const ents = settlementEntMap[s.id] ?? [];
+                    const eligible = ents.find(e => e.id === "ration-card")?.eligible ?? ents[0]?.eligible ?? 0;
+                    if (ents.length === 0) return null;
+                    return (
+                      <tr key={s.id} className="hover:bg-stone-50">
+                        <td className="py-2 px-3">
+                          <Link href={`/needs/settlement/${s.id}`} className="font-medium text-stone-700 hover:text-sky-600">{settlementStats[s.id]?.name ?? s.id}</Link>
+                        </td>
+                        <td className="py-2 px-2 text-stone-400">{clusterName}</td>
+                        <td className="py-2 px-2 text-right text-stone-500">{eligible.toLocaleString()}</td>
+                        {KEY_SCHEME_IDS.map(sid => (
+                          <td key={sid} className="py-2 px-2 text-center"><EntSchemeCell ents={ents} schemeId={sid} /></td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       {cities.length === 0 && (
