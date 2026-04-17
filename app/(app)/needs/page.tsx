@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import NeedsDashboard from "./NeedsDashboard";
@@ -566,23 +564,15 @@ export default async function NeedsPage() {
     };
   }
 
-  // ── GeoJSON existing-facility overrides for Bangalore ──────────────────────
-  // Assessment forms often have 0 for these fields; GeoJSON is the authoritative
-  // physical inventory. Use max(assessment total, geojson count) as `existing`.
-  function readGeoCount(file: string): number {
-    try {
-      const raw = fs.readFileSync(path.join(process.cwd(), "public/data", file), "utf-8");
-      const geo = JSON.parse(raw) as { features?: unknown[] };
-      return geo.features?.length ?? 0;
-    } catch { return 0; }
-  }
-  // GeoJSON counts are the authoritative physical inventory for Bangalore.
-  // They REPLACE assessment totals (not a floor) because assessment forms
-  // may have stale, inflated, or zero values for these domains.
+  // ── GeoJSON existing-facility counts for Bangalore ──────────────────────────
+  // Hardcoded from the static GeoJSON layers (public/data/*.geojson) which are
+  // the authoritative physical inventory. fs.readFileSync doesn't work on these
+  // files in Vercel Lambdas (public/ is CDN-only, not bundled with server fn).
+  // Update these numbers when the GeoJSON files are updated.
   const geoCounts: Record<string, number> = {
-    ChildrenCentre:      readGeoCount("children_centres.geojson"),
-    Creche:              readGeoCount("creches.geojson"),
-    YouthResourceCentre: readGeoCount("youth_centres.geojson"),  // regional centres ≠ youth groups
+    ChildrenCentre:      14,  // children_centres.geojson
+    Creche:              14,  // creches.geojson
+    YouthResourceCentre:  6,  // youth_centres.geojson (regional centres, not local groups)
   };
 
   function applyGeoOverrides(stats: LevelStats): LevelStats {
