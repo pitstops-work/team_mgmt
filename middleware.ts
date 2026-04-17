@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 const PUBLIC_PREFIXES = [
   "/login",
   "/register",
+  "/api/auth/",
   "/api/register",
   "/api/cron/",
   "/_next",
