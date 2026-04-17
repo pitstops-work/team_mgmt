@@ -102,13 +102,24 @@ function isYes(val: unknown): boolean {
   return false;
 }
 
-// Read header row and sample values for key columns from the first sheet of an XLSX buffer.
-function sampleXlsx(buffer: ArrayBuffer): Record<string, { header: string; samples: unknown[] }> {
+// Read header row and sample values — dumps all column headers with index so we can find correct mappings.
+function sampleXlsx(buffer: ArrayBuffer): { allHeaders: Record<number, string>; keyColSamples: Record<string, { header: string; samples: unknown[] }> } {
   const wb = XLSX.read(Buffer.from(buffer), { type: "buffer", dense: true });
   const ws = wb.Sheets[wb.SheetNames[0]] as unknown as Record<number, XLSX.CellObject[]>;
-  const cols = { C_HH_CODE, C_SLUM, C_RATION, C_AADHAAR, C_INSURANCE, C_ELDERLY_PENSION, C_WIDOW_PENSION, C_PWD, C_UDID, C_DISABILITY_PENSION, C_OCCUPATION_WELFARE };
   const header = ws[0] as XLSX.CellObject[];
-  const out: Record<string, { header: string; samples: unknown[] }> = {};
+
+  // Dump all headers
+  const allHeaders: Record<number, string> = {};
+  if (header) {
+    for (let i = 0; i < header.length; i++) {
+      const h = String(header[i]?.v ?? "").trim();
+      if (h) allHeaders[i] = h;
+    }
+  }
+
+  // Also sample current key columns for comparison
+  const cols = { C_HH_CODE, C_SLUM, C_RATION, C_AADHAAR, C_INSURANCE, C_ELDERLY_PENSION, C_WIDOW_PENSION, C_PWD, C_UDID, C_DISABILITY_PENSION, C_OCCUPATION_WELFARE };
+  const keyColSamples: Record<string, { header: string; samples: unknown[] }> = {};
   for (const [name, idx] of Object.entries(cols)) {
     const samples: unknown[] = [];
     for (let r = 1; r <= 20 && ws[r]; r++) {
@@ -116,9 +127,9 @@ function sampleXlsx(buffer: ArrayBuffer): Record<string, { header: string; sampl
       if (v !== undefined && v !== null && v !== "") samples.push(v);
       if (samples.length >= 5) break;
     }
-    out[name] = { header: String(header?.[idx]?.v ?? ""), samples };
+    keyColSamples[name] = { header: String(header?.[idx]?.v ?? ""), samples };
   }
-  return out;
+  return { allHeaders, keyColSamples };
 }
 
 type SlumCounts = {
