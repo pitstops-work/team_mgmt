@@ -60,30 +60,38 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
 
         {/* Nav links */}
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-0.5">
-          <NavLink href="/home" active={pathname === "/home"}>
-            <LayoutDashboard className="w-3.5 h-3.5 text-stone-500" />
-            Home
+          <NavLink href="/needs" active={pathname.startsWith("/needs")}>
+            <BarChart3 className="w-3.5 h-3.5 text-stone-500" />
+            Field Coverage
+          </NavLink>
+          <NavLink href="/map" active={pathname === "/map"}>
+            <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+            Programme Map
           </NavLink>
           <NavLink href="/dashboard" active={pathname === "/dashboard"}>
             <span className="text-stone-500">◈</span>
             Goals
           </NavLink>
-          <NavLink href="/people" active={pathname === "/people"}>
-            <Users className="w-3.5 h-3.5 text-stone-500" />
-            People
+          <NavLink href="/pitstops" active={pathname === "/pitstops"}>
+            <ListTodo className="w-3.5 h-3.5 text-stone-500" />
+            All Pitstops
           </NavLink>
-          {isAdmin && (
-            <NavLink href="/settings/users" active={pathname === "/settings/users"}>
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-              Users
-            </NavLink>
-          )}
-          {isAdmin && (
-            <NavLink href="/readiness" active={pathname === "/readiness"}>
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              Readiness
-            </NavLink>
-          )}
+          <NavLink href="/home" active={pathname === "/home"}>
+            <LayoutDashboard className="w-3.5 h-3.5 text-stone-500" />
+            Home
+          </NavLink>
+          <NavLink href="/programs" active={pathname.startsWith("/programs")}>
+            <Layers className="w-3.5 h-3.5 text-stone-500" />
+            Programs
+          </NavLink>
+          <NavLink href="/quarters" active={pathname.startsWith("/quarters")}>
+            <CalendarRange className="w-3.5 h-3.5 text-stone-500" />
+            Quarters
+          </NavLink>
+          <NavLink href="/planner" active={pathname === "/planner"}>
+            <BookOpen className="w-3.5 h-3.5 text-stone-500" />
+            Planner
+          </NavLink>
           <NavLink href="/gantt" active={pathname === "/gantt"}>
             <GanttChartSquare className="w-3.5 h-3.5 text-stone-500" />
             Gantt
@@ -96,29 +104,33 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             <CalendarClock className="w-3.5 h-3.5 text-stone-500" />
             Activities
           </NavLink>
-          <NavLink href="/planner" active={pathname === "/planner"}>
-            <BookOpen className="w-3.5 h-3.5 text-stone-500" />
-            Planner
-          </NavLink>
-          <NavLink href="/programs" active={pathname.startsWith("/programs")}>
-            <Layers className="w-3.5 h-3.5 text-stone-500" />
-            Programs
-          </NavLink>
-          <NavLink href="/pitstops" active={pathname === "/pitstops"}>
-            <ListTodo className="w-3.5 h-3.5 text-stone-500" />
-            All Pitstops
-          </NavLink>
           <NavLink href="/threads" active={pathname === "/threads"}>
             <MessageSquare className="w-3.5 h-3.5 text-stone-500" />
             All Threads
           </NavLink>
-          <NavLink href="/standup" active={pathname === "/standup"}>
-            <ClipboardList className="w-3.5 h-3.5 text-stone-500" />
-            Field Notes
+          <NavLink href="/people" active={pathname === "/people"}>
+            <Users className="w-3.5 h-3.5 text-stone-500" />
+            People
+          </NavLink>
+          <NavLink href="/partners" active={pathname === "/partners"}>
+            <Users className="w-3.5 h-3.5 text-stone-500" />
+            Partners
+          </NavLink>
+          <NavLink href="/geography" active={pathname.startsWith("/geography")}>
+            <MapPin className="w-3.5 h-3.5 text-stone-500" />
+            Geography
+          </NavLink>
+          <NavLink href="/themes" active={pathname.startsWith("/themes")}>
+            <Tag className="w-3.5 h-3.5 text-stone-500" />
+            Themes
           </NavLink>
           <NavLink href="/review" active={pathname === "/review"}>
             <ClipboardCheck className="w-3.5 h-3.5 text-stone-500" />
             Review
+          </NavLink>
+          <NavLink href="/standup" active={pathname === "/standup"}>
+            <ClipboardList className="w-3.5 h-3.5 text-stone-500" />
+            Field Notes
           </NavLink>
           <NavLink href="/decisions" active={pathname === "/decisions"}>
             <Scale className="w-3.5 h-3.5 text-stone-500" />
@@ -127,30 +139,6 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
           <NavLink href="/risks" active={pathname === "/risks"}>
             <ShieldAlert className="w-3.5 h-3.5 text-stone-500" />
             Risks
-          </NavLink>
-          <NavLink href="/themes" active={pathname.startsWith("/themes")}>
-            <Tag className="w-3.5 h-3.5 text-stone-500" />
-            Themes
-          </NavLink>
-          <NavLink href="/geography" active={pathname.startsWith("/geography")}>
-            <MapPin className="w-3.5 h-3.5 text-stone-500" />
-            Geography
-          </NavLink>
-          <NavLink href="/needs" active={pathname.startsWith("/needs")}>
-            <BarChart3 className="w-3.5 h-3.5 text-stone-500" />
-            Field Coverage
-          </NavLink>
-          <NavLink href="/map" active={pathname === "/map"}>
-            <MapPin className="w-3.5 h-3.5 text-indigo-500" />
-            Programme Map
-          </NavLink>
-          <NavLink href="/partners" active={pathname === "/partners"}>
-            <Users className="w-3.5 h-3.5 text-stone-500" />
-            Partners
-          </NavLink>
-          <NavLink href="/quarters" active={pathname.startsWith("/quarters")}>
-            <CalendarRange className="w-3.5 h-3.5 text-stone-500" />
-            Quarters
           </NavLink>
           <NavLink href="/notifications" active={pathname === "/notifications"}>
             <div className="relative">
@@ -167,6 +155,18 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             <Settings className="w-3.5 h-3.5 text-stone-500" />
             Settings
           </NavLink>
+          {isAdmin && (
+            <NavLink href="/settings/users" active={pathname === "/settings/users"}>
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+              Users
+            </NavLink>
+          )}
+          {isAdmin && (
+            <NavLink href="/readiness" active={pathname === "/readiness"}>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              Readiness
+            </NavLink>
+          )}
           <NavLink href="/help" active={pathname === "/help"}>
             <HelpCircle className="w-3.5 h-3.5 text-stone-500" />
             Manual
@@ -197,13 +197,13 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
 
       {/* Mobile bottom nav — 5 items */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-200 flex items-stretch h-16">
-        <Link href="/home" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/home" ? "text-sky-600" : "text-stone-400"}`}>
-          <LayoutDashboard className="w-5 h-5" />
-          Home
+        <Link href="/needs" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname.startsWith("/needs") ? "text-sky-600" : "text-stone-400"}`}>
+          <BarChart3 className="w-5 h-5" />
+          Coverage
         </Link>
-        <Link href="/timeline" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/timeline" ? "text-sky-600" : "text-stone-400"}`}>
-          <CalendarDays className="w-5 h-5" />
-          Timeline
+        <Link href="/dashboard" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/dashboard" ? "text-sky-600" : "text-stone-400"}`}>
+          <span className="text-xl leading-none">◈</span>
+          Goals
         </Link>
         <Link href="/activities" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/activities" ? "text-sky-600" : "text-stone-400"}`}>
           <CalendarClock className="w-5 h-5" />
@@ -237,25 +237,27 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             </div>
             <div className="overflow-y-auto px-3 py-2 space-y-0.5 pb-8">
               {[
-                { href: "/dashboard", icon: <span className="text-xl leading-none">◈</span>, label: "Goals" },
-                { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
-                { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
-                ...(isAdmin ? [{ href: "/settings/users", icon: <ShieldCheck className="w-5 h-5 text-indigo-500" />, label: "Users" }] : []),
-                ...(isAdmin ? [{ href: "/readiness", icon: <ShieldCheck className="w-5 h-5" />, label: "Team Readiness" }] : []),
-                { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
-                { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
-                { href: "/pitstops", icon: <ListTodo className="w-5 h-5" />, label: "All Pitstops" },
-                { href: "/threads", icon: <MessageSquare className="w-5 h-5" />, label: "All Threads" },
-                { href: "/review", icon: <ClipboardCheck className="w-5 h-5" />, label: "Fortnightly Review" },
-                { href: "/decisions", icon: <Scale className="w-5 h-5" />, label: "Decisions" },
-                { href: "/risks", icon: <ShieldAlert className="w-5 h-5" />, label: "Risks" },
-                { href: "/themes", icon: <Tag className="w-5 h-5" />, label: "Themes" },
-                { href: "/geography", icon: <MapPin className="w-5 h-5" />, label: "Geography" },
                 { href: "/needs", icon: <BarChart3 className="w-5 h-5" />, label: "Field Coverage" },
                 { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map" },
-                { href: "/partners", icon: <Users className="w-5 h-5" />, label: "Partners" },
+                { href: "/dashboard", icon: <span className="text-xl leading-none">◈</span>, label: "Goals" },
+                { href: "/pitstops", icon: <ListTodo className="w-5 h-5" />, label: "All Pitstops" },
+                { href: "/home", icon: <LayoutDashboard className="w-5 h-5" />, label: "Home" },
+                { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
                 { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />, label: "Quarters" },
+                { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
+                { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
+                { href: "/threads", icon: <MessageSquare className="w-5 h-5" />, label: "All Threads" },
+                { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
+                { href: "/partners", icon: <Users className="w-5 h-5" />, label: "Partners" },
+                { href: "/geography", icon: <MapPin className="w-5 h-5" />, label: "Geography" },
+                { href: "/themes", icon: <Tag className="w-5 h-5" />, label: "Themes" },
+                { href: "/review", icon: <ClipboardCheck className="w-5 h-5" />, label: "Fortnightly Review" },
+                { href: "/standup", icon: <ClipboardList className="w-5 h-5" />, label: "Field Notes" },
+                { href: "/decisions", icon: <Scale className="w-5 h-5" />, label: "Decisions" },
+                { href: "/risks", icon: <ShieldAlert className="w-5 h-5" />, label: "Risks" },
                 { href: "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
+                ...(isAdmin ? [{ href: "/settings/users", icon: <ShieldCheck className="w-5 h-5 text-indigo-500" />, label: "Users" }] : []),
+                ...(isAdmin ? [{ href: "/readiness", icon: <ShieldCheck className="w-5 h-5" />, label: "Team Readiness" }] : []),
                 { href: "/help", icon: <HelpCircle className="w-5 h-5" />, label: "Manual" },
               ].map(item => (
                 <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
