@@ -565,14 +565,15 @@ export default async function NeedsPage() {
   }
 
   // ── GeoJSON existing-facility counts for Bangalore ──────────────────────────
-  // Hardcoded from the static GeoJSON layers (public/data/*.geojson) which are
-  // the authoritative physical inventory. fs.readFileSync doesn't work on these
-  // files in Vercel Lambdas (public/ is CDN-only, not bundled with server fn).
-  // Update these numbers when the GeoJSON files are updated.
+  // Read from AppSetting (editable in Settings → Field Coverage).
+  // Defaults (14/14/6) are used when the settings have never been configured.
+  const geoSettings = await prisma.appSetting.findMany({
+    where: { key: { in: ["geo_count_ChildrenCentre", "geo_count_Creche", "geo_count_YouthResourceCentre"] } },
+  });
   const geoCounts: Record<string, number> = {
-    ChildrenCentre:      14,  // children_centres.geojson
-    Creche:              14,  // creches.geojson
-    YouthResourceCentre:  6,  // youth_centres.geojson (regional centres, not local groups)
+    ChildrenCentre:      Number(geoSettings.find(s => s.key === "geo_count_ChildrenCentre")?.value  ?? 14),
+    Creche:              Number(geoSettings.find(s => s.key === "geo_count_Creche")?.value           ?? 14),
+    YouthResourceCentre: Number(geoSettings.find(s => s.key === "geo_count_YouthResourceCentre")?.value ?? 6),
   };
 
   function applyGeoOverrides(stats: LevelStats): LevelStats {

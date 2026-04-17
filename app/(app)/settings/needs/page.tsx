@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, Plus, Trash2, GripVertical, Check, X } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, GripVertical, Check, X, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -37,6 +37,10 @@ function FormulasSection() {
   const [saved, setSaved] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
 
+  // Inline label editing
+  const [editingLabel, setEditingLabel] = useState<string | null>(null);
+  const [labelDraft, setLabelDraft] = useState("");
+
   // New domain form state
   const [newKey, setNewKey]               = useState("");
   const [newLabel, setNewLabel]           = useState("");
@@ -49,7 +53,7 @@ function FormulasSection() {
   const [addError, setAddError]           = useState("");
 
   useEffect(() => {
-    fetch("/api/needs/formulas")
+    fetch("/api/needs/formulas?all=1")
       .then(r => r.json())
       .then((data: DomainConfig[]) => {
         setDomains(data);
@@ -58,6 +62,22 @@ function FormulasSection() {
         setEdits(init);
       });
   }, []);
+
+  const patchDomain = async (updates: { domain: string; [key: string]: unknown }[]) => {
+    const res = await fetch("/api/needs/formulas", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (res.ok) {
+      const updated: DomainConfig[] = await res.json();
+      setDomains(updated);
+      const newEdits: Record<string, string> = {};
+      updated.forEach(d => { newEdits[d.domain] = d.denominator != null ? String(d.denominator) : ""; });
+      setEdits(newEdits);
+    }
+    return res;
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -70,18 +90,43 @@ function FormulasSection() {
 
     if (updates.length === 0) { setSaving(false); return; }
 
-    const res = await fetch("/api/needs/formulas", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
+    const res = await patchDomain(updates);
     if (res.ok) {
-      const updated: DomainConfig[] = await res.json();
-      setDomains(updated.filter(d => d.isActive !== false));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
     setSaving(false);
+  };
+
+  const handleToggleActive = async (domain: string, current: boolean) => {
+    await patchDomain([{ domain, isActive: !current }]);
+  };
+
+  const handleLabelCommit = async (domain: string) => {
+    const trimmed = labelDraft.trim();
+    if (!trimmed) { setEditingLabel(null); return; }
+    await patchDomain([{ domain, label: trimmed }]);
+    setEditingLabel(null);
+  };
+
+  const handleColorChange = async (domain: string, color: string) => {
+    // Update local state immediately for responsiveness
+    setDomains(prev => prev.map(d => d.domain === domain ? { ...d, color } : d));
+  };
+
+  const handleColorCommit = async (domain: string, color: string) => {
+    await patchDomain([{ domain, color }]);
+  };
+
+  const handleReorder = async (idx: number, direction: "up" | "down") => {
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= domains.length) return;
+    const a = domains[idx];
+    const b = domains[swapIdx];
+    await patchDomain([
+      { domain: a.domain, sortOrder: b.sortOrder },
+      { domain: b.domain, sortOrder: a.sortOrder },
+    ]);
   };
 
   const handleAdd = async () => {
@@ -250,17 +295,75 @@ function FormulasSection() {
         {domains.length === 0 && (
           <p className="px-4 py-6 text-xs text-stone-400 text-center">Loading…</p>
         )}
-        {domains.map(d => (
-          <div key={d.domain} className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-stone-50 transition-colors">
-            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: d.color }} />
+        {domains.map((d, idx) => (
+          <div
+            key={d.domain}
+            className={`flex items-center gap-3 px-4 py-3 bg-white hover:bg-stone-50 transition-colors ${!d.isActive ? "opacity-50" : ""}`}
+          >
+            {/* Reorder buttons */}
+            <div className="flex flex-col gap-0.5 flex-shrink-0">
+              <button
+                onClick={() => handleReorder(idx, "up")}
+                disabled={idx === 0}
+                className="text-stone-300 hover:text-stone-500 disabled:opacity-20 transition-colors"
+                title="Move up"
+              >
+                <ChevronUp className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => handleReorder(idx, "down")}
+                disabled={idx === domains.length - 1}
+                className="text-stone-300 hover:text-stone-500 disabled:opacity-20 transition-colors"
+                title="Move down"
+              >
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Color swatch (clickable) */}
+            <div className="relative flex-shrink-0">
+              <input
+                type="color"
+                value={d.color}
+                onChange={e => handleColorChange(d.domain, e.target.value)}
+                onBlur={e => handleColorCommit(d.domain, e.target.value)}
+                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                title="Change color"
+              />
+              <span className="w-3 h-3 rounded-full block" style={{ background: d.color }} />
+            </div>
+
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-stone-800">{d.label}</p>
+              {/* Inline label edit */}
+              {editingLabel === d.domain ? (
+                <input
+                  autoFocus
+                  value={labelDraft}
+                  onChange={e => setLabelDraft(e.target.value)}
+                  onBlur={() => handleLabelCommit(d.domain)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") handleLabelCommit(d.domain);
+                    if (e.key === "Escape") setEditingLabel(null);
+                  }}
+                  className="text-sm border border-sky-300 rounded px-1.5 py-0.5 w-full outline-none focus:ring-2 focus:ring-sky-400"
+                />
+              ) : (
+                <button
+                  onClick={() => { setEditingLabel(d.domain); setLabelDraft(d.label); }}
+                  className="text-sm font-medium text-stone-800 hover:text-sky-600 transition-colors text-left"
+                  title="Click to rename"
+                >
+                  {d.label}
+                </button>
+              )}
               <p className="text-[11px] text-stone-400">
                 {d.domainType === "boolean"
                   ? "Boolean — yes/no per settlement"
                   : `${d.populationField ?? "?"} · 1 per ${d.denominator ?? "?"}`}
               </p>
             </div>
+
+            {/* Denominator input for count domains */}
             {d.domainType === "count" && (
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <span className="text-xs text-stone-400">1 per</span>
@@ -274,6 +377,110 @@ function FormulasSection() {
                 />
               </div>
             )}
+
+            {/* Active toggle pill */}
+            <button
+              onClick={() => handleToggleActive(d.domain, d.isActive)}
+              title={d.isActive ? "Deactivate (hide from Field Coverage)" : "Activate"}
+              className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors flex-shrink-0 ${
+                d.isActive
+                  ? "border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
+                  : "border-stone-200 text-stone-400 bg-stone-50 hover:bg-stone-100"
+              }`}
+            >
+              {d.isActive ? "Active" : "Inactive"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ── Bangalore Facility Counts section ─────────────────────────────────────
+
+const GEO_FACILITIES = [
+  { key: "geo_count_ChildrenCentre",      label: "Children Centres",       defaultVal: 14 },
+  { key: "geo_count_Creche",              label: "Creches",                defaultVal: 14 },
+  { key: "geo_count_YouthResourceCentre", label: "Youth Resource Centres", defaultVal: 6  },
+];
+
+function BangaloreFacilityCountsSection() {
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [original, setOriginal] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/settings?prefix=geo_count_")
+      .then(r => r.json())
+      .then((rows: { key: string; value: string }[]) => {
+        const init: Record<string, string> = {};
+        GEO_FACILITIES.forEach(f => {
+          const row = rows.find(r => r.key === f.key);
+          init[f.key] = row ? row.value : String(f.defaultVal);
+        });
+        setValues(init);
+        setOriginal(init);
+      });
+  }, []);
+
+  const isDirty = GEO_FACILITIES.some(f => values[f.key] !== original[f.key]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const updates = GEO_FACILITIES
+      .filter(f => values[f.key] !== original[f.key])
+      .map(f => ({ key: f.key, value: values[f.key] ?? String(f.defaultVal) }));
+
+    const res = await fetch("/api/admin/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    if (res.ok) {
+      setOriginal({ ...values });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-stone-800">Bangalore Facility Inventory</h2>
+          <p className="text-xs text-stone-400 mt-0.5">
+            These counts replace assessment-form totals for Bangalore city stats. Update when GeoJSON layers change.
+          </p>
+        </div>
+        {isDirty && (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+          >
+            {saving ? "Saving…" : saved ? <><Check className="w-3.5 h-3.5" /> Saved</> : "Save"}
+          </button>
+        )}
+      </div>
+
+      <div className="divide-y divide-stone-100 rounded-xl border border-stone-200 overflow-hidden">
+        {GEO_FACILITIES.map(f => (
+          <div key={f.key} className="flex items-center gap-3 px-4 py-3 bg-white">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-stone-800">{f.label}</p>
+              <p className="text-[11px] text-stone-400 font-mono">{f.key}</p>
+            </div>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={values[f.key] ?? ""}
+              onChange={e => setValues(prev => ({ ...prev, [f.key]: e.target.value }))}
+              className="w-20 px-2 py-1 text-sm text-right border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+            />
           </div>
         ))}
       </div>
@@ -478,6 +685,7 @@ export default function NeedsSettingsPage() {
       </div>
 
       <FormulasSection />
+      <BangaloreFacilityCountsSection />
       <SchemesSection />
     </div>
   );

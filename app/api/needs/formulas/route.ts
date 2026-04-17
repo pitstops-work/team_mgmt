@@ -2,36 +2,71 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
-// GET  — all active domain configs (used everywhere to build domain lists)
-export async function GET() {
+// GET  — domain configs; ?all=1 returns all (including inactive) for admin settings
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { searchParams } = new URL(req.url);
+  const all = searchParams.get("all") === "1";
+
   const rows = await prisma.needsFormulaConfig.findMany({
-    where: { isActive: true },
+    where: all ? undefined : { isActive: true },
     orderBy: { sortOrder: "asc" },
   });
   return Response.json(rows);
 }
 
-// PATCH — bulk update denominator/description for existing domains (settings table)
+// PATCH — bulk update fields for existing domains (settings table)
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const updates: { domain: string; denominator: number | null; description?: string }[] = await req.json();
+  const updates: {
+    domain: string;
+    denominator?: number | null;
+    description?: string;
+    isActive?: boolean;
+    label?: string;
+    color?: string;
+    sortOrder?: number;
+  }[] = await req.json();
 
   await Promise.all(
-    updates.map(({ domain, denominator, description }) =>
+    updates.map(({ domain, denominator, description, isActive, label, color, sortOrder }) =>
       prisma.needsFormulaConfig.update({
         where: { domain },
-        data: { denominator: denominator ?? undefined, description: description ?? undefined },
+        data: {
+          ...(denominator !== undefined ? { denominator: denominator ?? null } : {}),
+          ...(description !== undefined ? { description } : {}),
+          ...(isActive !== undefined ? { isActive } : {}),
+          ...(label !== undefined ? { label } : {}),
+          ...(color !== undefined ? { color } : {}),
+          ...(sortOrder !== undefined ? { sortOrder } : {}),
+        },
       })
     )
   );
 
   const rows = await prisma.needsFormulaConfig.findMany({ orderBy: { sortOrder: "asc" } });
   return Response.json(rows);
+}
+
+// DELETE — soft-delete a domain by setting isActive: false
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const domain = searchParams.get("domain");
+  if (!domain) return Response.json({ error: "domain query param required" }, { status: 400 });
+
+  await prisma.needsFormulaConfig.update({
+    where: { domain },
+    data: { isActive: false },
+  });
+
+  return Response.json({ ok: true });
 }
 
 // POST — create a brand-new domain
