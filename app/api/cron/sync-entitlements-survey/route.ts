@@ -380,6 +380,16 @@ async function runSync() {
   }
   const rows = Array.from(rowMap.values());
 
+  // Diagnostic: show ration-card stats for first 5 matched slums
+  const rationDiag: { slum: string; rationHH: number; totalHH: number; pct: string }[] = [];
+  let diagCount = 0;
+  for (const [slumName, counts] of slumCounts) {
+    if (diagCount >= 5) break;
+    if (!lookupAssessment(slumName)) continue;
+    rationDiag.push({ slum: slumName, rationHH: counts.rationCardHH.size, totalHH: counts.totalHH.size, pct: counts.totalHH.size > 0 ? `${Math.round(counts.rationCardHH.size / counts.totalHH.size * 100)}%` : "n/a" });
+    diagCount++;
+  }
+
   // Batch upsert in chunks of 200 using raw SQL ON CONFLICT
   const CHUNK = 200;
   for (let i = 0; i < rows.length; i += CHUNK) {
@@ -408,5 +418,6 @@ async function runSync() {
     upserted,
     elapsedSeconds: Math.round((Date.now() - started) / 1000),
     columnSample,
+    rationDiag,
   });
 }
