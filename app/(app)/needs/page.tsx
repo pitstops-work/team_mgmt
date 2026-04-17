@@ -407,11 +407,7 @@ export default async function NeedsPage() {
   const latestAssessmentIdList = latestAssessments.map(a => (a as { id: string }).id);
   const entBaselines = await prisma.entitlementBaseline.findMany({
     where: { assessmentId: { in: latestAssessmentIdList }, eligibleHouseholds: { gt: 0 } },
-    select: {
-      assessmentId: true, schemeId: true, eligibleHouseholds: true,
-      enrolledHouseholds: true, surveyEnrolled: true,
-      scheme: { select: { id: true, name: true, parentId: true } },
-    },
+    include: { scheme: { select: { id: true, name: true, parentId: true } } },
   });
 
   const assessmentToSettlement = Object.fromEntries(
