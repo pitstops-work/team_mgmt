@@ -288,7 +288,7 @@ async function runSync() {
   // 2. Download and merge all exports (deduplicated by household_code)
   const slumCounts = new Map<string, SlumCounts>();
   const downloaded: number[] = [];
-  let columnSample: Record<string, { header: string; samples: unknown[] }> | null = null;
+  let columnSample: { allHeaders: Record<number, string>; keyColSamples: Record<string, { header: string; samples: unknown[] }> } | null = null;
 
   for (const exp of allPartnersExports) {
     const url = `https://janadhikara.org/${exp.export_url}`;
