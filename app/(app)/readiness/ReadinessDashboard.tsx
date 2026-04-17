@@ -76,11 +76,12 @@ function SignalBadge({ signal }: { signal: "green" | "amber" | "red" }) {
 }
 
 export default function ReadinessDashboard({ readiness, generatedAt }: Props) {
-  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ zoneId: "", clusterId: "" });
+  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
 
   const filteredReadiness = readiness.filter(r => {
     if (geoFilter.clusterId) return r.needsClusterIds.some(id => id === geoFilter.clusterId);
     if (geoFilter.zoneId) return r.needsZoneIds.some(id => id === geoFilter.zoneId);
+    // cityId filter not yet resolvable from user readiness data; show all
     return true;
   });
 

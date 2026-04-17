@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { MessageSquare, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import MultiSelect from "@/components/MultiSelect";
 
 type User = { id: string; name: string | null; image: string | null };
 type Goal = { id: string; title: string };
@@ -29,14 +30,14 @@ function timeAgo(iso: string) {
 }
 
 export default function ThreadsList({ threads, goals }: { threads: Thread[]; goals: Goal[] }) {
-  const [selectedGoal, setSelectedGoal] = useState("");
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [query, setQuery] = useState("");
 
   const filtered = threads
-    .filter(t => !selectedGoal || t.pitstop.goal.id === selectedGoal)
+    .filter(t => selectedGoals.length === 0 || selectedGoals.includes(t.pitstop.goal.id))
     .filter(t => !query || t.name.toLowerCase().includes(query.toLowerCase()) || t.pitstop.title.toLowerCase().includes(query.toLowerCase()) || t.pitstop.goal.title.toLowerCase().includes(query.toLowerCase()));
 
-  const hasFilters = selectedGoal || query;
+  const hasFilters = selectedGoals.length > 0 || query;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -49,13 +50,14 @@ export default function ThreadsList({ threads, goals }: { threads: Thread[]; goa
       <div className="flex items-center gap-2 mb-5">
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search threads…"
           className="flex-1 px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 min-w-0" />
-        <select value={selectedGoal} onChange={e => setSelectedGoal(e.target.value)}
-          className={`flex-shrink-0 px-3 py-1.5 text-xs border rounded-lg bg-white transition-colors ${selectedGoal ? "border-sky-400 text-sky-700" : "border-stone-200 text-stone-600"}`}>
-          <option value="">All Goals</option>
-          {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
-        </select>
+        <MultiSelect
+          options={goals.map(g => ({ value: g.id, label: g.title }))}
+          value={selectedGoals}
+          onChange={setSelectedGoals}
+          placeholder="All Goals"
+        />
         {hasFilters && (
-          <button onClick={() => { setSelectedGoal(""); setQuery(""); }} className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 flex-shrink-0">
+          <button onClick={() => { setSelectedGoals([]); setQuery(""); }} className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 flex-shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
         )}

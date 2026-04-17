@@ -13,6 +13,7 @@ import { qk } from "@/lib/query-keys";
 import { fetchGoal, fetchGoals } from "@/lib/api-client";
 import OrgOverview, { type OverviewData } from "./OrgOverview";
 import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
+import MultiSelect from "@/components/MultiSelect";
 
 type Goal = {
   id: string;
@@ -22,7 +23,7 @@ type Goal = {
   owner: { id: string; name: string | null; image: string | null };
   pitstops: { id: string; status: string }[];
   programs: { program: { id: string; title: string } }[];
-  needsZone: { id: string; name: string } | null;
+  needsZone: { id: string; name: string; cityId: string | null } | null;
   needsCluster: { id: string; name: string; zoneId: string } | null;
 };
 
@@ -48,9 +49,9 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
   const [showCreate, setShowCreate] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
   const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">(initialFilter);
-  const [programFilter, setProgramFilter] = useState("");
-  const [userFilter, setUserFilter] = useState("");
-  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ zoneId: "", clusterId: "" });
+  const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -67,10 +68,11 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
     if (filter === "Active" && g.status !== "Active") return false;
     if (filter === "Paused" && g.status !== "Paused") return false;
     if (filter === "Complete" && g.status !== "Complete") return false;
-    if (programFilter && !g.programs.some((pg) => pg.program.id === programFilter)) return false;
-    if (userFilter && g.owner.id !== userFilter) return false;
+    if (selectedPrograms.length > 0 && !g.programs.some((pg) => selectedPrograms.includes(pg.program.id))) return false;
+    if (selectedUsers.length > 0 && !selectedUsers.includes(g.owner.id)) return false;
     if (geoFilter.clusterId) return g.needsCluster?.id === geoFilter.clusterId;
     if (geoFilter.zoneId) return g.needsZone?.id === geoFilter.zoneId || g.needsCluster?.zoneId === geoFilter.zoneId;
+    if (geoFilter.cityId) return g.needsZone?.cityId === geoFilter.cityId;
     return true;
   });
 
@@ -210,41 +212,25 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
 
       <div className="flex flex-wrap gap-2 mb-6">
         {programs.length > 0 && (
-          <select
-            value={programFilter}
-            onChange={(e) => setProgramFilter(e.target.value)}
-            className={`px-2.5 py-1 text-xs rounded-md border transition-colors outline-none ${
-              programFilter
-                ? "border-sky-400 bg-sky-50 text-sky-700"
-                : "border-stone-200 bg-white text-stone-500 hover:border-stone-300"
-            }`}
-          >
-            <option value="">All Programs</option>
-            {programs.map((p) => (
-              <option key={p.id} value={p.id}>{p.title}</option>
-            ))}
-          </select>
+          <MultiSelect
+            options={programs.map((p) => ({ value: p.id, label: p.title }))}
+            value={selectedPrograms}
+            onChange={setSelectedPrograms}
+            placeholder="All Programs"
+          />
         )}
         {users.length > 0 && (
-          <select
-            value={userFilter}
-            onChange={(e) => setUserFilter(e.target.value)}
-            className={`px-2.5 py-1 text-xs rounded-md border transition-colors outline-none ${
-              userFilter
-                ? "border-sky-400 bg-sky-50 text-sky-700"
-                : "border-stone-200 bg-white text-stone-500 hover:border-stone-300"
-            }`}
-          >
-            <option value="">All Members</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.name ?? u.id}</option>
-            ))}
-          </select>
+          <MultiSelect
+            options={users.map((u) => ({ value: u.id, label: u.name ?? u.id }))}
+            value={selectedUsers}
+            onChange={setSelectedUsers}
+            placeholder="All Members"
+          />
         )}
         <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
-        {(programFilter || userFilter || geoFilter.zoneId || geoFilter.clusterId) && (
+        {(selectedPrograms.length > 0 || selectedUsers.length > 0 || geoFilter.cityId || geoFilter.zoneId || geoFilter.clusterId) && (
           <button
-            onClick={() => { setProgramFilter(""); setUserFilter(""); setGeoFilter({ zoneId: "", clusterId: "" }); }}
+            onClick={() => { setSelectedPrograms([]); setSelectedUsers([]); setGeoFilter({ cityId: "", zoneId: "", clusterId: "" }); }}
             className="px-2.5 py-1 text-xs text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors"
           >
             Clear filters
@@ -253,7 +239,7 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
       </div>
 
       {filtered.length === 0 ? (
-        filter === "All" && !programFilter && !userFilter ? (
+        filter === "All" && selectedPrograms.length === 0 && selectedUsers.length === 0 ? (
           <div className="text-center py-20">
             <Target className="w-10 h-10 text-stone-200 mx-auto mb-3" />
             <p className="text-stone-500 font-medium">No goals yet</p>

@@ -28,8 +28,8 @@ function DomainCard({ label, color, d }: { label: string; color: string; d: Leve
       </div>
       <div className="grid grid-cols-3 text-center gap-1">
         <div>
-          <p className="text-sm font-bold text-stone-800">{d.apfTarget}</p>
-          <p className="text-[9px] text-stone-400">APF target</p>
+          <p className="text-sm font-bold text-stone-800">{d.existing}</p>
+          <p className="text-[9px] text-stone-400">exist.</p>
         </div>
         <div>
           <p className="text-sm font-bold text-emerald-600">{d.done}</p>
@@ -46,9 +46,8 @@ function DomainCard({ label, color, d }: { label: string; color: string; d: Leve
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
       </div>
       <div className="flex justify-between text-[9px] text-stone-400">
-        <span>ex:{d.existing}</span>
         {d.inProgress > 0 && <span className="text-amber-500">+{d.inProgress} active</span>}
-        <span>{pct}%</span>
+        <span className="ml-auto">{pct}%</span>
       </div>
     </div>
   );

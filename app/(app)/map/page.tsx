@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import MapDashboard from "@/components/map/MapDashboard";
 
 export const metadata = { title: "Programme Map · Urban Program" };
@@ -8,7 +9,9 @@ export const metadata = { title: "Programme Map · Urban Program" };
 export default function MapPage() {
   return (
     <div className="absolute inset-0">
-      <MapDashboard />
+      <Suspense>
+        <MapDashboard />
+      </Suspense>
     </div>
   );
 }

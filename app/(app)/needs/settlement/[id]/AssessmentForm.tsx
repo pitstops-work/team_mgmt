@@ -626,7 +626,7 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
           <span>/</span>
           <span className="text-stone-600 font-medium">{settlement.name}</span>
         </div>
-        <Link href="/map" className="flex-shrink-0 flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors">
+        <Link href={`/map?settlement=${encodeURIComponent(settlement.name)}`} className="flex-shrink-0 flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors">
           <Map className="w-3 h-3" />
           View on Map
         </Link>

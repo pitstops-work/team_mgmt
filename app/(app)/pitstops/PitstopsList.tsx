@@ -7,6 +7,7 @@ import { CheckSquare, X, Download } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge } from "@/components/StatusBadge";
 import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
+import MultiSelect from "@/components/MultiSelect";
 
 type User = { id: string; name: string | null; image: string | null };
 type Goal = { id: string; title: string; needsZoneId: string | null; needsClusterId: string | null };
@@ -40,23 +41,27 @@ function downloadCsv(pitstops: Pitstop[]) {
 }
 
 export default function PitstopsList({ pitstops, goals, users, initialStatus = "", initialNoDate = false }: { pitstops: Pitstop[]; goals: Goal[]; users: User[]; initialStatus?: string; initialNoDate?: boolean }) {
-  const [selectedGoal, setSelectedGoal] = useState("");
-  const [selectedUser, setSelectedUser] = useState("");
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState(initialStatus);
   const [noDateOnly, setNoDateOnly] = useState(initialNoDate);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ zoneId: "", clusterId: "" });
+  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
+  const [geoZones, setGeoZones] = useState<{ id: string; cityId: string | null }[]>([]);
   const [geoClusters, setGeoClusters] = useState<{ id: string; zoneId: string }[]>([]);
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/geo").then(r => r.json()).then(d => setGeoClusters(d.clusters ?? [])).catch(() => {});
+    fetch("/api/geo").then(r => r.json()).then(d => {
+      setGeoZones(d.zones ?? []);
+      setGeoClusters(d.clusters ?? []);
+    }).catch(() => {});
   }, []);
 
   const filtered = pitstops
-    .filter(p => !selectedGoal || p.goal.id === selectedGoal)
-    .filter(p => !selectedUser || p.owner?.id === selectedUser)
+    .filter(p => selectedGoals.length === 0 || selectedGoals.includes(p.goal.id))
+    .filter(p => selectedUsers.length === 0 || (p.owner !== null && selectedUsers.includes(p.owner.id)))
     .filter(p => !selectedStatus || p.status === selectedStatus)
     .filter(p => !noDateOnly || !p.targetDate)
     .filter(p => {
@@ -65,11 +70,21 @@ export default function PitstopsList({ pitstops, goals, users, initialStatus = "
         const clusterZoneId = geoClusters.find(c => c.id === p.goal.needsClusterId)?.zoneId;
         return p.goal.needsZoneId === geoFilter.zoneId || clusterZoneId === geoFilter.zoneId;
       }
+      if (geoFilter.cityId) {
+        const zoneMatch = p.goal.needsZoneId
+          ? geoZones.find(z => z.id === p.goal.needsZoneId)?.cityId === geoFilter.cityId
+          : false;
+        if (zoneMatch) return true;
+        const clusterZoneId = geoClusters.find(c => c.id === p.goal.needsClusterId)?.zoneId;
+        return clusterZoneId
+          ? geoZones.find(z => z.id === clusterZoneId)?.cityId === geoFilter.cityId
+          : false;
+      }
       return true;
     })
     .sort((a, b) => (STATUS_ORDER[a.status as keyof typeof STATUS_ORDER] ?? 3) - (STATUS_ORDER[b.status as keyof typeof STATUS_ORDER] ?? 3));
 
-  const hasFilters = selectedGoal || selectedUser || selectedStatus || noDateOnly || geoFilter.zoneId || geoFilter.clusterId;
+  const hasFilters = selectedGoals.length > 0 || selectedUsers.length > 0 || selectedStatus || noDateOnly || geoFilter.cityId || geoFilter.zoneId || geoFilter.clusterId;
 
   const allFilteredSelected = filtered.length > 0 && filtered.every(p => selectedIds.has(p.id));
   const someSelected = selectedIds.size > 0;
@@ -134,22 +149,24 @@ export default function PitstopsList({ pitstops, goals, users, initialStatus = "
         </button>
         <div className="w-px h-4 bg-stone-200 flex-shrink-0" />
         {/* Goal picker */}
-        <select value={selectedGoal} onChange={e => setSelectedGoal(e.target.value)}
-          className={`flex-shrink-0 px-3 py-1.5 text-xs border rounded-lg bg-white transition-colors ${selectedGoal ? "border-sky-400 text-sky-700" : "border-stone-200 text-stone-600"}`}>
-          <option value="">All Goals</option>
-          {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
-        </select>
+        <MultiSelect
+          options={goals.map(g => ({ value: g.id, label: g.title }))}
+          value={selectedGoals}
+          onChange={setSelectedGoals}
+          placeholder="All Goals"
+        />
         {/* User picker */}
-        <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)}
-          className={`flex-shrink-0 px-3 py-1.5 text-xs border rounded-lg bg-white transition-colors ${selectedUser ? "border-sky-400 text-sky-700" : "border-stone-200 text-stone-600"}`}>
-          <option value="">All People</option>
-          {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-        </select>
+        <MultiSelect
+          options={users.map(u => ({ value: u.id, label: u.name ?? u.id }))}
+          value={selectedUsers}
+          onChange={setSelectedUsers}
+          placeholder="All People"
+        />
         <div className="flex-shrink-0">
           <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
         </div>
         {hasFilters && (
-          <button onClick={() => { setSelectedGoal(""); setSelectedUser(""); setSelectedStatus(""); setNoDateOnly(false); setGeoFilter({ zoneId: "", clusterId: "" }); }}
+          <button onClick={() => { setSelectedGoals([]); setSelectedUsers([]); setSelectedStatus(""); setNoDateOnly(false); setGeoFilter({ cityId: "", zoneId: "", clusterId: "" }); }}
             className="flex-shrink-0 flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
             <X className="w-3 h-3" /> Clear
           </button>

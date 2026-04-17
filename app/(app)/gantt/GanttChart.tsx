@@ -28,7 +28,7 @@ type Goal = {
   targetDate: string | null;
   owner: User;
   pitstops: Pitstop[];
-  needsZone: { id: string; name: string } | null;
+  needsZone: { id: string; name: string; cityId: string | null } | null;
   needsCluster: { id: string; name: string; zoneId: string } | null;
 };
 
@@ -86,7 +86,7 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
   const [panel, setPanel] = useState<{ pitstop: Pitstop; goal: Goal } | null>(null);
   const [labelW, setLabelW] = useState(220);
   const [isMobile, setIsMobile] = useState(false);
-  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ zoneId: "", clusterId: "" });
+  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
 
   useEffect(() => {
     const update = () => {
@@ -164,6 +164,7 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
   const filteredGoals = goals.filter(g => {
     if (geoFilter.clusterId) return g.needsCluster?.id === geoFilter.clusterId;
     if (geoFilter.zoneId) return g.needsZone?.id === geoFilter.zoneId || g.needsCluster?.zoneId === geoFilter.zoneId;
+    if (geoFilter.cityId) return g.needsZone?.cityId === geoFilter.cityId;
     return true;
   });
 

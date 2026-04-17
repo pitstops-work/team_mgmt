@@ -12,7 +12,7 @@ export async function GET() {
       owner: { select: { id: true, name: true, image: true } },
       pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
       programs: { include: { program: { select: { id: true, title: true } } } },
-      needsZone: { select: { id: true, name: true } },
+      needsZone: { select: { id: true, name: true, cityId: true } },
       needsCluster: { select: { id: true, name: true, zoneId: true } },
     },
     orderBy: { updatedAt: "desc" },

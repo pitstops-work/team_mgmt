@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import LayerPanel from "./LayerPanel";
 import SearchBox from "./SearchBox";
 import StatsPanel from "./StatsPanel";
@@ -9,6 +10,7 @@ import SettlementSidebar from "./SettlementSidebar";
 import ZoneClusterSidebar from "./ZoneClusterSidebar";
 import { LAYERS, type LayerKey, type MapCity } from "@/lib/layers";
 import { useGeoData } from "@/lib/useGeoData";
+import { centroidOf } from "@/lib/useGeoData";
 import { type MapFilter, computeMapFilter } from "@/lib/mapFilter";
 
 import type { SettlementFeature, CustomPolygonFeature } from "./MapView";
@@ -81,6 +83,44 @@ export default function MapDashboard() {
   const flyToCityRef = useRef<((city: MapCity) => void) | null>(null);
 
   const geoData = useGeoData();
+
+  const searchParams = useSearchParams();
+  const settlementParam = searchParams.get("settlement");
+
+  // Ref so the deep-link effect can call handleSettlementClick without it
+  // needing to be in the dependency array (handleSettlementClick depends on geoData
+  // which is already listed, avoiding an extra render cycle).
+  const handleSettlementClickRef = useRef<((f: SettlementFeature) => void) | null>(null);
+
+  // Deep-link: when geoData loads and a settlement name param exists, select it
+  useEffect(() => {
+    if (!geoData || !settlementParam) return;
+    const nameLower = settlementParam.toLowerCase();
+    for (const [k, features] of Object.entries(geoData.settlements)) {
+      if (!features) continue;
+      for (const f of features) {
+        if ((f.properties.name ?? "").toLowerCase() === nameLower) {
+          const layerKey = k as LayerKey;
+          const l = LAYERS.find((layer) => layer.key === layerKey);
+          const layerColor = l?.color ?? "#6366f1";
+          const layerLabel = l?.label ?? "";
+          const centroid = centroidOf(f);
+          handleSettlementClickRef.current?.({
+            name: f.properties.name as string,
+            layerKey,
+            layerColor,
+            layerLabel,
+            zone: (f.properties.zone as string) ?? "",
+            cluster: (f.properties.cluster as string) ?? "",
+            description: (f.properties.description as string) ?? "",
+            centroid,
+          });
+          flyToRef.current?.(centroid, 15);
+          return;
+        }
+      }
+    }
+  }, [geoData, settlementParam]);
 
   // Open sidebar on desktop by default
   useEffect(() => {
@@ -164,6 +204,10 @@ export default function MapDashboard() {
     setActiveCluster(null);
     setMapFilter(geoData ? computeMapFilter("settlement", geoData, { settlementName: f.name }) : null);
   }, [geoData]);
+
+  // Keep ref in sync so the deep-link effect (which runs on geoData load) can
+  // call the latest version of handleSettlementClick without extra re-runs.
+  useEffect(() => { handleSettlementClickRef.current = handleSettlementClick; }, [handleSettlementClick]);
 
   const handlePartnerFilter = useCallback((key: LayerKey | null) => {
     if (key) {

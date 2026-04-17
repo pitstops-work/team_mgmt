@@ -4,13 +4,20 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
 export interface GeoFilterValue {
+  cityId: string;
   zoneId: string;
   clusterId: string;
+}
+
+interface GeoCity {
+  id: string;
+  name: string;
 }
 
 interface GeoZone {
   id: string;
   name: string;
+  cityId: string | null;
   cityName: string | null;
 }
 
@@ -27,6 +34,7 @@ interface GeoFilterProps {
 }
 
 export default function GeoFilter({ value, onChange, compact = false }: GeoFilterProps) {
+  const [cities, setCities] = useState<GeoCity[]>([]);
   const [zones, setZones] = useState<GeoZone[]>([]);
   const [clusters, setClusters] = useState<GeoCluster[]>([]);
   const [multipleCities, setMultipleCities] = useState(false);
@@ -35,12 +43,13 @@ export default function GeoFilter({ value, onChange, compact = false }: GeoFilte
     fetch("/api/geo")
       .then(r => r.json())
       .then(d => {
+        const ci: GeoCity[] = d.cities ?? [];
         const z: GeoZone[] = d.zones ?? [];
         const c: GeoCluster[] = d.clusters ?? [];
+        setCities(ci);
         setZones(z);
         setClusters(c);
-        const cities = new Set(z.map(zone => zone.cityName).filter(Boolean));
-        setMultipleCities(cities.size > 1);
+        setMultipleCities(ci.length > 1);
       })
       .catch(() => {});
   }, []);
@@ -49,14 +58,24 @@ export default function GeoFilter({ value, onChange, compact = false }: GeoFilte
     ? "px-2 py-1 text-xs border border-stone-200 rounded-lg bg-white text-stone-600 outline-none transition-colors hover:border-stone-300"
     : "px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white text-stone-600 outline-none transition-colors hover:border-stone-300";
 
+  const filteredZones = value.cityId
+    ? zones.filter(z => z.cityId === value.cityId)
+    : zones;
+
   const filteredClusters = value.zoneId
     ? clusters.filter(c => c.zoneId === value.zoneId)
+    : value.cityId
+    ? clusters.filter(c => filteredZones.some(z => z.id === c.zoneId))
     : clusters;
 
-  const isActive = value.zoneId !== "" || value.clusterId !== "";
+  const isActive = value.cityId !== "" || value.zoneId !== "" || value.clusterId !== "";
+
+  const handleCityChange = (cityId: string) => {
+    onChange({ cityId, zoneId: "", clusterId: "" });
+  };
 
   const handleZoneChange = (zoneId: string) => {
-    onChange({ zoneId, clusterId: "" });
+    onChange({ ...value, zoneId, clusterId: "" });
   };
 
   const handleClusterChange = (clusterId: string) => {
@@ -64,22 +83,35 @@ export default function GeoFilter({ value, onChange, compact = false }: GeoFilte
   };
 
   const handleClear = () => {
-    onChange({ zoneId: "", clusterId: "" });
+    onChange({ cityId: "", zoneId: "", clusterId: "" });
   };
 
   if (zones.length === 0 && clusters.length === 0) return null;
 
   return (
     <div className="flex items-center gap-1.5">
+      {multipleCities && (
+        <select
+          value={value.cityId}
+          onChange={e => handleCityChange(e.target.value)}
+          className={`${selectClass} ${value.cityId ? "border-sky-400 text-sky-700 bg-sky-50" : ""}`}
+        >
+          <option value="">All cities</option>
+          {cities.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      )}
+
       <select
         value={value.zoneId}
         onChange={e => handleZoneChange(e.target.value)}
         className={`${selectClass} ${value.zoneId ? "border-sky-400 text-sky-700 bg-sky-50" : ""}`}
       >
         <option value="">All zones</option>
-        {zones.map(z => (
+        {filteredZones.map(z => (
           <option key={z.id} value={z.id}>
-            {z.name}{multipleCities && z.cityName ? ` (${z.cityName})` : ""}
+            {z.name}{!value.cityId && multipleCities && z.cityName ? ` (${z.cityName})` : ""}
           </option>
         ))}
       </select>
