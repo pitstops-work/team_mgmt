@@ -35,6 +35,9 @@ export const authOptions: AuthOptions = {
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
 
+        // Record login time (fire-and-forget — don't block auth on DB write)
+        prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
+
         return { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role ?? "member" };
       },
     }),

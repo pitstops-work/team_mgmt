@@ -609,10 +609,10 @@ export default async function NeedsPage() {
 
   // ── City-wide stats (all cities combined) ──
   const allClusterIds = cities.flatMap(c => c.zones.flatMap(z => z.clusters.map(cl => cl.id)));
-  const cityStats = computeStats(
+  const cityStats = applyGeoOverrides(computeStats(
     latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length,
     clusterScopedSum(allClusterIds),
-  );
+  ));
 
   // ── Per-settlement stats ──
   // cluster-scoped domains: assign cluster target to the top-population settlement;

@@ -17,9 +17,9 @@ export default async function ReadinessPage() {
   const now      = new Date();
   const qAhead   = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-  const [users, goals, planItems, standupLogs, checkins, messages] = await Promise.all([
+  const [users, goals, planItems] = await Promise.all([
     prisma.user.findMany({
-      select: { id: true, name: true, image: true, email: true },
+      select: { id: true, name: true, image: true, email: true, lastSeenAt: true },
       orderBy: { name: "asc" },
     }),
 
@@ -45,21 +45,6 @@ export default async function ReadinessPage() {
     prisma.planItem.findMany({
       where: { deletedAt: null },
       select: { id: true, userId: true, type: true, date: true, title: true },
-    }),
-
-    // Activity sources for "last logged" — ordered desc so [0] is most recent
-    prisma.standupLog.findMany({
-      select: { userId: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.pitstopCheckin.findMany({
-      select: { userId: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.message.findMany({
-      where: { deletedAt: null },
-      select: { authorId: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -90,15 +75,8 @@ export default async function ReadinessPage() {
       activityTypes[pi.type] = (activityTypes[pi.type] ?? 0) + 1;
     }
 
-    // Last logged: max across standup logs, pitstop checkins, and messages authored by this user
-    const dates: Date[] = [];
-    const latestStandup  = standupLogs.find(s => s.userId === user.id);
-    const latestCheckin  = checkins.find(c => c.userId === user.id);
-    const latestMessage  = messages.find(m => m.authorId === user.id);
-    if (latestStandup) dates.push(latestStandup.createdAt);
-    if (latestCheckin) dates.push(latestCheckin.createdAt);
-    if (latestMessage) dates.push(latestMessage.createdAt);
-    const lastActive = dates.length > 0 ? new Date(Math.max(...dates.map(d => +d))) : null;
+    // Last seen: updated on login and every 5 min while the app is open
+    const lastActive = user.lastSeenAt ?? null;
 
     // FY spread: are pitstops spread beyond Q1 (beyond June 2026)?
     const beyondQ1 = maxDate && maxDate > new Date("2026-06-30");

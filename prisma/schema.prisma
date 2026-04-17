@@ -19,6 +19,7 @@ model User {
   notifyDigest        Boolean   @default(false)
   weeklyCapacity      Float     @default(40)
   externalCalendarUrl String?
+  lastSeenAt       DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -1297,7 +1298,8 @@ model EntitlementBaseline {
   assessmentId       String
   schemeId           String
   eligibleHouseholds Int    @default(0)
-  enrolledHouseholds Int    @default(0)
+  enrolledHouseholds Int    @default(0)  // NGO-assisted enrollments (from scheme_report / Frappe)
+  surveyEnrolled     Int?                // Pre-existing at survey time (from Janadhikara household survey XLSX)
   notes              String?
 
   assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
