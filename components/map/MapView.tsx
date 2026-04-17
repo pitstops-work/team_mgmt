@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LAYERS, type LayerConfig, type LayerKey, type MapCity } from "@/lib/layers";
@@ -244,9 +245,10 @@ export default function MapView({
   const allFeatureLayers = useRef<FeatureLayer[]>([]);
   const featureLayersByKey = useRef<Partial<Record<LayerKey, L.Layer[]>>>({});
 
+  const router = useRouter();
   const [addMode, setAddMode] = useState(false);
   const [pendingLatLng, setPendingLatLng] = useState<L.LatLng | null>(null);
-  const [formData, setFormData] = useState({ name: "", cluster: "", zone: "", partner: "", description: "", type: "settlement", customType: "" });
+  const [formData, setFormData] = useState({ name: "", settlementName: "", cluster: "", zone: "", partner: "", description: "", type: "settlement", customType: "" });
   const [saving, setSaving] = useState(false);
   const [basemap, setBasemap] = useState<"carto" | "osm">("carto");
   const [showZones, setShowZones] = useState(false);
@@ -826,6 +828,25 @@ export default function MapView({
     });
   }, [customFeatures]);
 
+  // Types that should open the assessment form after saving
+  const ASSESSMENT_TYPES = new Set(["settlement", "children_centre", "youth_centre", "creche", "elderly_centre"]);
+
+  async function registerAndNavigate(name: string, clusterName: string, zone: string) {
+    const res = await fetch("/api/map/register-settlement", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, clusterName, zone }),
+    });
+    if (res.ok) {
+      const { settlementId } = await res.json();
+      if (settlementId) {
+        router.push(`/needs/settlement/${settlementId}`);
+        return true;
+      }
+    }
+    return false;
+  }
+
   async function handleSave() {
     if (!pendingLatLng || !formData.name.trim()) return;
     setSaving(true);
@@ -841,10 +862,18 @@ export default function MapView({
         }),
       });
       if (res.ok) {
-        setPendingLatLng(null);
-        setFormData({ name: "", cluster: "", zone: "", partner: "", description: "", type: "settlement", customType: "" });
-        setAddMode(false);
         onFeatureAdded();
+        // For settlement/centre types, resolve to DB and open assessment form
+        if (ASSESSMENT_TYPES.has(resolvedType)) {
+          const settlementName = resolvedType === "settlement"
+            ? formData.name
+            : (formData.settlementName.trim() || formData.name);
+          const navigated = await registerAndNavigate(settlementName, formData.cluster, formData.zone);
+          if (navigated) return; // router.push will navigate away
+        }
+        setPendingLatLng(null);
+        setFormData({ name: "", settlementName: "", cluster: "", zone: "", partner: "", description: "", type: "settlement", customType: "" });
+        setAddMode(false);
       }
     } finally { setSaving(false); }
   }
@@ -867,9 +896,13 @@ export default function MapView({
         }),
       });
       if (res.ok) {
+        onFeatureAdded();
+        // Polygons are always settlements — register in DB and open assessment
+        const navigated = await registerAndNavigate(polyFormData.name, polyFormData.cluster, polyFormData.zone);
+        if (navigated) return;
         setPendingPolygon(null);
         setPolyFormData({ name: "", zone: "", cluster: "", partner: "", description: "" });
-        onFeatureAdded();
+        drawPreviewRef.current?.clearLayers();
       }
     } finally { setPolySaving(false); }
   }
@@ -1049,6 +1082,18 @@ export default function MapView({
                 />
               </div>
             )}
+            {ASSESSMENT_TYPES.has(formData.type) && formData.type !== "settlement" && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Settlement (for assessment) *</label>
+                <input
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  value={formData.settlementName}
+                  onChange={(e) => setFormData((f) => ({ ...f, settlementName: e.target.value }))}
+                  placeholder="Which settlement is this centre in?"
+                />
+                <p className="text-[10px] text-slate-400 mt-0.5">Used to link this centre to the right assessment form</p>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Notes</label>
               <textarea
@@ -1065,7 +1110,7 @@ export default function MapView({
                 disabled={!formData.name.trim() || saving}
                 className="flex-1 bg-indigo-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 hover:bg-indigo-700 transition-colors"
               >
-                {saving ? "Saving…" : "Save Point"}
+                {saving ? "Saving…" : ASSESSMENT_TYPES.has(formData.type === "custom" ? formData.customType || "other" : formData.type) ? "Save & Open Assessment →" : "Save Point"}
               </button>
               <button
                 onClick={() => setPendingLatLng(null)}
@@ -1150,7 +1195,7 @@ export default function MapView({
                 disabled={!polyFormData.name.trim() || polySaving}
                 className="flex-1 bg-indigo-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 hover:bg-indigo-700 transition-colors"
               >
-                {polySaving ? "Saving…" : "Save Settlement"}
+                {polySaving ? "Saving…" : "Save & Open Assessment →"}
               </button>
               <button
                 onClick={() => { setPendingPolygon(null); drawPreviewRef.current?.clearLayers(); }}
