@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import NeedsDashboard from "./NeedsDashboard";
@@ -561,6 +563,47 @@ export default async function NeedsPage() {
         cityAssessments, cityGoals, domainConfigs, citySettlements.length,
         clusterScopedSum(cityClusterIds),
       ),
+    };
+  }
+
+  // ── GeoJSON existing-facility overrides for Bangalore ──────────────────────
+  // Assessment forms often have 0 for these fields; GeoJSON is the authoritative
+  // physical inventory. Use max(assessment total, geojson count) as `existing`.
+  function readGeoCount(file: string): number {
+    try {
+      const raw = fs.readFileSync(path.join(process.cwd(), "public/data", file), "utf-8");
+      const geo = JSON.parse(raw) as { features?: unknown[] };
+      return geo.features?.length ?? 0;
+    } catch { return 0; }
+  }
+  const geoCounts: Record<string, number> = {
+    ChildrenCentre: readGeoCount("children_centres.geojson"),
+    Creche:         readGeoCount("creches.geojson"),
+    YouthGroup:     readGeoCount("youth_centres.geojson"),
+  };
+
+  function applyGeoOverrides(stats: LevelStats): LevelStats {
+    const domains = { ...stats.domains };
+    for (const [domain, geoCount] of Object.entries(geoCounts)) {
+      if (!domains[domain] || geoCount === 0) continue;
+      const d = domains[domain];
+      const existing = Math.max(d.existing, geoCount);
+      const apfTarget = Math.max(0, d.target - existing);
+      domains[domain] = { ...d, existing, apfTarget, gap: Math.max(0, apfTarget - d.done) };
+    }
+    // Recompute saturation score with updated domains
+    const totalTarget = Object.values(domains).reduce((s, d) => s + d.apfTarget, 0);
+    const totalDone   = Object.values(domains).reduce((s, d) => s + Math.min(d.done, d.apfTarget), 0);
+    const saturationScore = totalTarget > 0 ? Math.round((totalDone / totalTarget) * 100) : 0;
+    return { ...stats, domains, saturationScore };
+  }
+
+  // Apply overrides only for Bangalore city (GeoJSON covers Bangalore facilities)
+  const bangaloreCity = cities.find(c => c.name.toLowerCase().includes("bangalore"));
+  if (bangaloreCity && cityStatsMap[bangaloreCity.id]) {
+    cityStatsMap[bangaloreCity.id] = {
+      ...cityStatsMap[bangaloreCity.id],
+      stats: applyGeoOverrides(cityStatsMap[bangaloreCity.id].stats),
     };
   }
 

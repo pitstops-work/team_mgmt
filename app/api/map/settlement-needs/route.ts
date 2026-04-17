@@ -76,33 +76,54 @@ export async function GET(request: Request) {
 
   if (!settlement) return NextResponse.json(null);
 
-  // Latest assessment
+  // Latest assessment (without entitlements — fetched via raw SQL below to avoid stale Prisma build cache)
   const assessment = await prisma.settlementAssessment.findFirst({
     where: { settlementId: settlement.id },
     orderBy: { assessedAt: "desc" },
     include: {
       assessedBy: { select: { name: true } },
-      entitlements: {
-        include: { scheme: { select: { id: true, name: true, parentId: true } } },
-        orderBy: { scheme: { sortOrder: "asc" } },
-      },
       roads: true, water: true, sanitation: true,
       drainageSewer: true, drainageStorm: true,
       waste: true, electricity: true, facilities: true, safety: true,
     },
   });
 
+  // Fetch entitlements via raw SQL — Prisma's stale build cache silently drops surveyEnrolled
+  type EntRow = { schemeId: string; schemeName: string; parentId: string | null; sortOrder: number | null; eligibleHouseholds: number; enrolledHouseholds: number; surveyEnrolled: number | null };
+  const rawEnts: EntRow[] = assessment
+    ? await (prisma as unknown as { $queryRaw: (...a: unknown[]) => Promise<EntRow[]> }).$queryRaw`
+        SELECT eb."schemeId", es.name AS "schemeName", es."parentId", es."sortOrder",
+          eb."eligibleHouseholds", eb."enrolledHouseholds",
+          COALESCE(eb."surveyEnrolled", 0) AS "surveyEnrolled"
+        FROM "EntitlementBaseline" eb
+        JOIN "EntitlementScheme" es ON es.id = eb."schemeId"
+        WHERE eb."assessmentId" = ${assessment.id}
+          AND eb."eligibleHouseholds" > 0
+        ORDER BY es."sortOrder" ASC
+      `
+    : [];
+  // Attach to assessment in the shape NeedsPanel expects
+  const assessmentWithEnts = assessment ? {
+    ...assessment,
+    entitlements: rawEnts.map(e => ({
+      scheme: { id: e.schemeId, name: e.schemeName, parentId: e.parentId },
+      eligibleHouseholds: Number(e.eligibleHouseholds),
+      enrolledHouseholds: Number(e.enrolledHouseholds),
+      surveyEnrolled: Number(e.surveyEnrolled ?? 0),
+    })),
+  } : null;
+
   // Formula config
   const formulaRows = await prisma.needsFormulaConfig.findMany();
   const formulas = Object.fromEntries(formulaRows.map(f => [f.domain, f.denominator]));
 
   // Population (zero if no assessment)
-  const pop = assessment
-    ? { totalHouseholds: assessment.totalHouseholds, children6m3yr: assessment.children6m3yr, children4to14: assessment.children4to14, youth15to21: assessment.youth15to21, elderly60plus: assessment.elderly60plus }
+  const pop = assessmentWithEnts
+    ? { totalHouseholds: assessmentWithEnts.totalHouseholds, children6m3yr: assessmentWithEnts.children6m3yr, children4to14: assessmentWithEnts.children4to14, youth15to21: assessmentWithEnts.youth15to21, elderly60plus: assessmentWithEnts.elderly60plus }
     : { totalHouseholds: 0, children6m3yr: 0, children4to14: 0, youth15to21: 0, elderly60plus: 0 };
 
-  const existing = assessment
-    ? { Creche: assessment.existingCreches, ChildrenCentre: assessment.existingChildrenCentres, YouthGroup: assessment.existingYouthGroups, ElderlyKitchen: assessment.existingElderlyKitchens, PalliativeSupport: assessment.existingPalliativeUnits, CommunityToilet: assessment.existingCommunityToilets, WaterATM: assessment.existingWaterATMs }
+  const existing = assessmentWithEnts
+    ? { Creche: assessmentWithEnts.existingCreches, ChildrenCentre: assessmentWithEnts.existingChildrenCentres, YouthGroup: assessmentWithEnts.existingYouthGroups, ElderlyKitchen: assessmentWithEnts.existingElderlyKitchens, PalliativeSupport: assessmentWithEnts.existingPalliativeUnits, CommunityToilet: assessmentWithEnts.existingCommunityToilets, WaterATM: assessmentWithEnts.existingWaterATMs }
     : { Creche: 0, ChildrenCentre: 0, YouthGroup: 0, ElderlyKitchen: 0, PalliativeSupport: 0, CommunityToilet: 0, WaterATM: 0 };
 
   const targets = calcTargets(pop, formulas);
@@ -126,7 +147,8 @@ export async function GET(request: Request) {
     const d = g.needsDomain as string;
     if (!actuals[d]) actuals[d] = { done: 0, inProgress: 0 };
     if (g.status === "Complete") {
-      const val = (g as { outcomeCount?: number | null }).outcomeCount ?? g.parameter ?? g.metrics[0]?.current ?? 0;
+      const oc = (g as { outcomeCount?: number | null }).outcomeCount;
+      const val = (oc != null && oc > 0) ? oc : (g.parameter ?? g.metrics[0]?.current ?? 0);
       actuals[d].done += val;
     } else if (g.status === "Active") {
       const val = g.parameter ?? g.metrics[0]?.current ?? 0;
@@ -134,5 +156,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ settlement, assessment, pop, existing, targets, actuals, formulas });
+  return NextResponse.json({ settlement, assessment: assessmentWithEnts, pop, existing, targets, actuals, formulas });
 }
