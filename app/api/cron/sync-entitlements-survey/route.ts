@@ -77,20 +77,20 @@ async function loginJanadhikara(): Promise<string> {
 
 // ── XLSX parsing ──────────────────────────────────────────────────────────────
 
-// Column indices (0-based)
-const C_HH_CODE    = 0;
-const C_SLUM       = 5;
-const C_RATION     = 38;
-const C_AGE        = 68;
-const C_ELDERLY_PENSION = 75;
-const C_MARITAL    = 80;
-const C_WIDOW_PENSION = 81;
-const C_AADHAAR    = 104;
-const C_INSURANCE  = 116;
-const C_PWD        = 121;
-const C_UDID       = 125;
-const C_DISABILITY_PENSION = 126;
-const C_OCCUPATION_WELFARE = 133;
+// Column indices (0-based) — verified from allHeaders diagnostic 2026-04-17
+const C_HH_CODE    = 0;   // household_code
+const C_SLUM       = 4;   // slum_name
+const C_RATION     = 37;  // Whether_family_has_a_ration_card
+const C_AGE        = 67;  // Age
+const C_ELDERLY_PENSION = 69;  // Are_you_getting_elderly_pension?
+const C_MARITAL    = 74;  // Marital_Status
+const C_WIDOW_PENSION = 75;    // Are_you_getting_widow_pension?
+const C_AADHAAR    = 98;  // Has_Aadhar_card?
+const C_INSURANCE  = 110; // Are_you_a_beneficiary_of_any_health_insurance?
+const C_PWD        = 115; // Is_PwD?
+const C_UDID       = 119; // Are_they_having_UDID_Card?
+const C_DISABILITY_PENSION = 120; // Are_you_getting_Disability_pension_and_other_benifits?
+const C_OCCUPATION_WELFARE = 126; // Are_you_registered_under_the_specific_occupation_welfare_scheme_...
 
 function isYes(val: unknown): boolean {
   if (typeof val === "boolean") return val;
