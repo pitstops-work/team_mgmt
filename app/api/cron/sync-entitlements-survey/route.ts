@@ -289,9 +289,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 5. Upsert surveyEnrolled
-  let upserted = 0;
+  // 5. Upsert surveyEnrolled — use raw SQL for bulk efficiency instead of 2100 individual upserts
   const unmatched: string[] = [];
+  type UpsertRow = { assessmentId: string; schemeId: string; surveyCount: number; eligible: number };
+  const rows: UpsertRow[] = [];
 
   for (const [slumName, counts] of slumCounts) {
     const assessmentId = lookupAssessment(slumName);
@@ -300,23 +301,25 @@ export async function GET(req: NextRequest) {
     for (const schemeId of SURVEY_SCHEMES) {
       const surveyCount = surveyCountForScheme(schemeId, counts);
       if (surveyCount < 0) continue;
-
-      // Cast to bypass stale Vercel build cache type (missing surveyEnrolled)
-      await (prisma.entitlementBaseline.upsert as Function)({
-        where: { assessmentId_schemeId: { assessmentId, schemeId } },
-        update: { surveyEnrolled: surveyCount },
-        create: {
-          id: `sv${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
-          assessmentId,
-          schemeId,
-          eligibleHouseholds: counts.totalHH.size,
-          enrolledHouseholds: 0,
-          surveyEnrolled: surveyCount,
-        },
-      });
-      upserted++;
+      rows.push({ assessmentId, schemeId, surveyCount, eligible: counts.totalHH.size });
     }
   }
+
+  // Batch upsert in chunks of 200 using raw SQL ON CONFLICT
+  const CHUNK = 200;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
+    const params = chunk.flatMap(r => [r.assessmentId, r.schemeId, r.surveyCount, r.eligible]);
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO "EntitlementBaseline" (id, "assessmentId", "schemeId", "eligibleHouseholds", "enrolledHouseholds", "surveyEnrolled")
+      VALUES ${chunk.map((r, j) => {
+        const idx = j * 4;
+        return `(concat('sv', to_hex(extract(epoch from now())::bigint), substr(md5(random()::text), 1, 6)), $${idx + 1}, $${idx + 2}, $${idx + 4}::integer, 0, $${idx + 3}::integer)`;
+      }).join(", ")}
+      ON CONFLICT ("assessmentId", "schemeId") DO UPDATE SET "surveyEnrolled" = EXCLUDED."surveyEnrolled"
+    `, ...params);
+  }
+  const upserted = rows.length;
 
   return Response.json({
     ok: true,
