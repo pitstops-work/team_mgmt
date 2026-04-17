@@ -406,9 +406,10 @@ export default async function NeedsPage() {
   const assessmentBySettlement = Object.fromEntries(latestAssessments.map(a => [a.settlementId, a]));
 
   // ── Entitlement aggregation ──────────────────────────────────────────────────
-  // Cast to explicit type — Vercel build cache may have a stale generated model
-  // type for EntitlementBaseline that omits surveyEnrolled (added via raw SQL before
-  // migration 0033). The cast ensures TypeScript sees the field regardless of cache state.
+  // Use raw SQL — Vercel's build cache serves a stale compiled Prisma module that
+  // omits surveyEnrolled from the generated SELECT, so prisma.findMany({ include })
+  // returns surveyEnrolled=null for every row even though the DB has real values.
+  // Raw SQL bypasses the compiled query entirely.
   type EntBaselineRow = {
     id: string; assessmentId: string; schemeId: string;
     eligibleHouseholds: number; enrolledHouseholds: number;
@@ -416,10 +417,27 @@ export default async function NeedsPage() {
     scheme: { id: string; name: string; parentId: string | null };
   };
   const latestAssessmentIdList = latestAssessments.map(a => (a as { id: string }).id);
-  const entBaselines = await prisma.entitlementBaseline.findMany({
-    where: { assessmentId: { in: latestAssessmentIdList }, eligibleHouseholds: { gt: 0 } },
-    include: { scheme: { select: { id: true, name: true, parentId: true } } },
-  }) as unknown as EntBaselineRow[];
+  const rawEnt = await (prisma as unknown as { $queryRaw: (...a: unknown[]) => Promise<unknown[]> }).$queryRaw`
+    SELECT
+      eb.id, eb."assessmentId", eb."schemeId",
+      eb."eligibleHouseholds", eb."enrolledHouseholds",
+      eb."surveyEnrolled", eb.notes,
+      es.id AS scheme_id, es.name AS scheme_name, es."parentId" AS scheme_parent_id
+    FROM "EntitlementBaseline" eb
+    JOIN "EntitlementScheme" es ON es.id = eb."schemeId"
+    WHERE eb."assessmentId" = ANY(${latestAssessmentIdList})
+      AND eb."eligibleHouseholds" > 0
+  `;
+  const entBaselines: EntBaselineRow[] = (rawEnt as Array<Record<string, unknown>>).map(r => ({
+    id: r.id as string,
+    assessmentId: r.assessmentId as string,
+    schemeId: r.schemeId as string,
+    eligibleHouseholds: Number(r.eligibleHouseholds),
+    enrolledHouseholds: Number(r.enrolledHouseholds),
+    surveyEnrolled: r.surveyEnrolled != null ? Number(r.surveyEnrolled) : null,
+    notes: r.notes as string | null,
+    scheme: { id: r.scheme_id as string, name: r.scheme_name as string, parentId: r.scheme_parent_id as string | null },
+  }));
 
   const assessmentToSettlement = Object.fromEntries(
     latestAssessments.map(a => [(a as { id: string }).id, a.settlementId])
