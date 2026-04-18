@@ -18,14 +18,14 @@ export async function GET(request: Request) {
       where: { name: { equals: clusterName, mode: "insensitive" }, deletedAt: null },
     });
     if (!cluster) return NextResponse.json([]);
-    geoWhere = { clusters: { some: { clusterId: cluster.id } } };
+    geoWhere = { needsClusterId: cluster.id };
   } else {
     const zoneName = zoneParam!.trim();
     const zone = await prisma.zone.findFirst({
       where: { name: { equals: zoneName, mode: "insensitive" } },
     });
     if (!zone) return NextResponse.json([]);
-    geoWhere = { zones: { some: { zoneId: zone.id } } };
+    geoWhere = { needsZoneId: zone.id };
   }
 
   const goals = await prisma.goal.findMany({

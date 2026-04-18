@@ -17,11 +17,11 @@ export async function GET(request: Request) {
 
   if (!cluster) return NextResponse.json([]);
 
-  // Query goals tagged to this cluster, include their active pitstops
+  // Query goals targeting this cluster via direct FK, include their active pitstops
   const goals = await prisma.goal.findMany({
     where: {
       deletedAt: null,
-      clusters: { some: { clusterId: cluster.id } },
+      needsClusterId: cluster.id,
     },
     include: {
       pitstops: {
