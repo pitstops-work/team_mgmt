@@ -171,32 +171,43 @@ export async function GET(request: Request) {
 
   const targets = calcTargets(pop, formulaRows);
 
-  // APF actuals from goals
-  const goals = await prisma.goal.findMany({
+  // APF actuals: done = sum of GoalOutcome.count attributed to this settlement;
+  // plan (inProgress) = sum of active goal parameters scoped to this settlement or its cluster.
+  const outcomeRows = await prisma.goalOutcome.findMany({
+    where: { settlementId: settlement.id },
+    select: {
+      count: true,
+      goal: { select: { needsDomain: true, deletedAt: true } },
+    },
+  });
+
+  const activeGoals = await prisma.goal.findMany({
     where: {
       needsDomain: { not: null },
+      status: "Active",
       deletedAt: null,
       OR: [
         { needsSettlementId: settlement.id },
         { needsClusterId: settlement.clusterId },
       ],
     },
-    select: { status: true, needsDomain: true, parameter: true, outcomeCount: true, metrics: { where: { deletedAt: null }, select: { current: true }, take: 1 } },
+    select: { needsDomain: true, parameter: true, metrics: { where: { deletedAt: null }, select: { current: true }, take: 1 } },
   });
 
   const actuals: Record<string, { done: number; inProgress: number }> = {};
-  for (const g of goals) {
+
+  for (const row of outcomeRows) {
+    const domain = row.goal.needsDomain;
+    if (!domain || row.goal.deletedAt) continue;
+    if (!actuals[domain]) actuals[domain] = { done: 0, inProgress: 0 };
+    actuals[domain].done += row.count;
+  }
+
+  for (const g of activeGoals) {
     if (!g.needsDomain) continue;
     const d = g.needsDomain as string;
     if (!actuals[d]) actuals[d] = { done: 0, inProgress: 0 };
-    if (g.status === "Complete") {
-      const oc = (g as { outcomeCount?: number | null }).outcomeCount;
-      const val = (oc != null && oc > 0) ? oc : (g.parameter ?? g.metrics[0]?.current ?? 0);
-      actuals[d].done += val;
-    } else if (g.status === "Active") {
-      const val = g.parameter ?? g.metrics[0]?.current ?? 0;
-      actuals[d].inProgress += val;
-    }
+    actuals[d].inProgress += g.parameter ?? g.metrics[0]?.current ?? 0;
   }
 
   return NextResponse.json({ settlement, assessment: assessmentWithEnts, pop, existing, targets, actuals, domainConfig });

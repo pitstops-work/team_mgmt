@@ -119,27 +119,38 @@ export async function GET(request: Request) {
 
   const targets = calcTargets(pop, formulaRows);
 
-  // Actuals from goals
-  const goals = await prisma.goal.findMany({
+  // Done = GoalOutcome rows attributed to any settlement in this cluster
+  const outcomeRows = await prisma.goalOutcome.findMany({
+    where: { settlementId: { in: settlementIds } },
+    select: { count: true, goal: { select: { needsDomain: true, deletedAt: true } } },
+  });
+
+  // Plan (inProgress) = active goals scoped to this cluster or its settlements
+  const activeGoals = await prisma.goal.findMany({
     where: {
       needsDomain: { not: null },
+      status: "Active",
       deletedAt: null,
       OR: [
         { needsClusterId: cluster.id },
         { needsSettlementId: { in: settlementIds } },
       ],
     },
-    select: { status: true, needsDomain: true, parameter: true, metrics: { where: { deletedAt: null }, select: { current: true }, take: 1 } },
+    select: { needsDomain: true, parameter: true, metrics: { where: { deletedAt: null }, select: { current: true }, take: 1 } },
   });
 
   const actuals: Record<string, { done: number; inProgress: number }> = {};
-  for (const g of goals) {
+  for (const row of outcomeRows) {
+    const domain = row.goal.needsDomain;
+    if (!domain || row.goal.deletedAt) continue;
+    if (!actuals[domain]) actuals[domain] = { done: 0, inProgress: 0 };
+    actuals[domain].done += row.count;
+  }
+  for (const g of activeGoals) {
     if (!g.needsDomain) continue;
     const d = g.needsDomain as string;
     if (!actuals[d]) actuals[d] = { done: 0, inProgress: 0 };
-    const val = g.parameter ?? g.metrics[0]?.current ?? 0;
-    if (g.status === "Complete") actuals[d].done += val;
-    else if (g.status === "Active") actuals[d].inProgress += val;
+    actuals[d].inProgress += g.parameter ?? g.metrics[0]?.current ?? 0;
   }
 
   const assessedCount = assessments.length;

@@ -149,6 +149,24 @@ model Goal {
   needsSettlement  Settlement?      @relation("GoalNeedsSettlement", fields: [needsSettlementId], references: [id])
   needsCluster     Cluster?         @relation("GoalNeedsCluster", fields: [needsClusterId], references: [id])
   needsZone        Zone?            @relation("GoalNeedsZone", fields: [needsZoneId], references: [id])
+  // Settlement-level outcome attribution on completion
+  outcomes         GoalOutcome[]
+}
+
+// One row per settlement that received actuals from a completed domain goal.
+// Created when a goal is marked Complete — mandatory for domain goals at cluster/zone level.
+model GoalOutcome {
+  id           String     @id @default(cuid())
+  goalId       String
+  settlementId String
+  count        Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  goal       Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+  @@index([settlementId])
 }
 
 model Pitstop {
@@ -756,6 +774,7 @@ model Settlement {
   // Needs geography back-relations
   needsGoals   Goal[]     @relation("GoalNeedsSettlement")
   needsPitstops Pitstop[] @relation("PitstopNeedsSettlement")
+  goalOutcomes GoalOutcome[]
 }
 
 // Flattened snapshot of the latest SettlementAssessment for fast reads

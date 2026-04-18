@@ -60,6 +60,9 @@ type Goal = {
   needsDomain?: string | null;
   parameter?: number | null;
   outcomeCount?: number | null;
+  needsSettlementId?: string | null;
+  needsClusterId?: string | null;
+  needsZoneId?: string | null;
   confirmedById?: string | null;
   confirmedAt?: string | null;
   confirmedBy?: User | null;

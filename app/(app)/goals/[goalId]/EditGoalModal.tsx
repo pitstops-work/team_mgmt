@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Lock, CheckCircle2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Lock, CheckCircle2, MapPin } from "lucide-react";
 import { toDateInput } from "@/lib/timeline";
 
 type Recurrence = "None" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
@@ -16,6 +16,15 @@ interface Goal {
   needsDomain?: string | null;
   parameter?: number | null;
   outcomeCount?: number | null;
+  needsSettlementId?: string | null;
+  needsClusterId?: string | null;
+  needsZoneId?: string | null;
+}
+
+interface ScopeSettlement {
+  id: string;
+  name: string;
+  clusterName?: string;
 }
 
 interface Props {
@@ -37,34 +46,110 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Settlement attribution state
+  const [scopeSettlements, setScopeSettlements] = useState<ScopeSettlement[]>([]);
+  const [attributions, setAttributions] = useState<Record<string, number>>({});
+  const [loadingScope, setLoadingScope] = useState(false);
+
   const originalDate = toDateInput(goal.targetDate);
   const deadlineChanged = !!originalDate && targetDate !== originalDate;
 
-  // Show outcome field when: has a needsDomain with a parameter AND being set to Complete
-  const isNeedsDomainGoal = !!goal.needsDomain && goal.parameter != null;
-  const showOutcomeField = isNeedsDomainGoal && status === "Complete";
+  const isNeedsDomainGoal = !!goal.needsDomain;
+  const completingNow = status === "Complete" && goal.status !== "Complete";
+  const showOutcomeStep = isNeedsDomainGoal && status === "Complete";
+
+  // Needs settlement attribution when: completing a domain goal that is NOT pinned to a single settlement
+  const needsAttribution = completingNow && isNeedsDomainGoal && !goal.needsSettlementId && (!!goal.needsClusterId || !!goal.needsZoneId);
+
+  // Fetch settlements in scope when the attribution step becomes relevant
+  useEffect(() => {
+    if (!needsAttribution) return;
+    setLoadingScope(true);
+    fetch(`/api/goals/${goal.id}/scope-settlements`)
+      .then(r => r.json())
+      .then((s: ScopeSettlement[]) => {
+        setScopeSettlements(s);
+        // Default: distribute outcomeCount equally if already set
+        const count = parseFloat(outcomeCount) || 0;
+        if (s.length > 0 && count > 0) {
+          const perSettlement = Math.floor(count / s.length);
+          const init: Record<string, number> = {};
+          s.forEach((st, i) => {
+            init[st.id] = i === 0 ? count - perSettlement * (s.length - 1) : perSettlement;
+          });
+          setAttributions(init);
+        } else {
+          setAttributions({});
+        }
+      })
+      .finally(() => setLoadingScope(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsAttribution]);
+
+  // When outcomeCount changes, redistribute attributions proportionally
+  useEffect(() => {
+    if (!needsAttribution || scopeSettlements.length === 0) return;
+    const count = parseFloat(outcomeCount) || 0;
+    if (count <= 0) { setAttributions({}); return; }
+    const selected = scopeSettlements.filter(s => (attributions[s.id] ?? 0) > 0 || Object.keys(attributions).length === 0);
+    if (selected.length === 0) return;
+    const perSettlement = Math.floor(count / selected.length);
+    const updated: Record<string, number> = {};
+    selected.forEach((s, i) => {
+      updated[s.id] = i === 0 ? count - perSettlement * (selected.length - 1) : perSettlement;
+    });
+    setAttributions(updated);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outcomeCount]);
+
+  const totalAttributed = Object.values(attributions).reduce((a, b) => a + b, 0);
+  const parsedOutcome = outcomeCount !== "" ? parseFloat(outcomeCount) : null;
+  const attributionValid = !needsAttribution || (
+    totalAttributed > 0 &&
+    Math.abs(totalAttributed - (parsedOutcome ?? 0)) < 0.01 &&
+    Object.values(attributions).every(c => c >= 0)
+  );
+
+  const canSubmit =
+    !!title.trim() &&
+    !!targetDate &&
+    !loading &&
+    !(deadlineChanged && !deadlineReason.trim()) &&
+    !(showOutcomeStep && (parsedOutcome === null || parsedOutcome < 0)) &&
+    attributionValid;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !targetDate) return;
+    if (!canSubmit) return;
     setLoading(true);
     setError("");
 
-    const parsedOutcome = outcomeCount !== "" ? parseFloat(outcomeCount) : null;
+    const body: Record<string, unknown> = {
+      title: title.trim(),
+      description: description.trim() || null,
+      status,
+      recurrence,
+      targetDate,
+      ...(deadlineChanged && { deadlineChangeReason: deadlineReason.trim() }),
+      ...(isNeedsDomainGoal ? { outcomeCount: parsedOutcome } : {}),
+    };
+
+    // Attach settlement attributions for cluster/zone domain goals being completed
+    if (needsAttribution && totalAttributed > 0) {
+      body.attributions = Object.entries(attributions)
+        .filter(([, count]) => count > 0)
+        .map(([settlementId, count]) => ({ settlementId, count }));
+    }
+
+    // For settlement-pinned domain goals, auto-attribute the outcome to that settlement
+    if (completingNow && isNeedsDomainGoal && goal.needsSettlementId && parsedOutcome != null) {
+      body.attributions = [{ settlementId: goal.needsSettlementId, count: parsedOutcome }];
+    }
 
     const res = await fetch(`/api/goals/${goal.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: title.trim(),
-        description: description.trim() || null,
-        status,
-        recurrence,
-        targetDate,
-        ...(deadlineChanged && { deadlineChangeReason: deadlineReason.trim() }),
-        // Always send outcomeCount when it's a needs-domain goal being completed
-        ...(isNeedsDomainGoal ? { outcomeCount: parsedOutcome } : {}),
-      }),
+      body: JSON.stringify(body),
     });
 
     setLoading(false);
@@ -85,7 +170,7 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-stone-900">Edit Goal</h2>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600"><X className="w-5 h-5" /></button>
@@ -142,8 +227,8 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
             </div>
           </div>
 
-          {/* Outcome count — shown when completing a needs-domain goal */}
-          {showOutcomeField && (
+          {/* ── Outcome count — required when completing a domain goal ── */}
+          {showOutcomeStep && (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
               <p className="text-xs font-medium text-emerald-800 flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
@@ -154,21 +239,75 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
                   type="number"
                   min="0"
                   step="1"
+                  required
                   value={outcomeCount}
                   onChange={(e) => setOutcomeCount(e.target.value)}
-                  placeholder={String(goal.parameter)}
+                  placeholder={goal.parameter != null ? String(goal.parameter) : "0"}
                   className="w-24 px-3 py-1.5 text-sm border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
                 />
-                <span className="text-xs text-emerald-700">
-                  planned: <span className="font-semibold">{goal.parameter}</span>
-                </span>
-                {outcomeCount !== "" && parseFloat(outcomeCount) < (goal.parameter ?? 0) && (
+                {goal.parameter != null && (
+                  <span className="text-xs text-emerald-700">
+                    planned: <span className="font-semibold">{goal.parameter}</span>
+                  </span>
+                )}
+                {outcomeCount !== "" && goal.parameter != null && parseFloat(outcomeCount) < goal.parameter && (
                   <span className="text-xs text-amber-600 font-medium">
-                    {(goal.parameter ?? 0) - parseFloat(outcomeCount)} short of target
+                    {goal.parameter - parseFloat(outcomeCount)} short of target
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-emerald-600">Leave blank to use the planned number ({goal.parameter}).</p>
+            </div>
+          )}
+
+          {/* ── Settlement attribution — required for cluster/zone domain goals ── */}
+          {needsAttribution && (
+            <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 space-y-2">
+              <p className="text-xs font-medium text-sky-800 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                Which settlement(s) did this outcome land in?
+                <span className="text-sky-500 font-normal">(required)</span>
+              </p>
+              <p className="text-[10px] text-sky-600">
+                Total must equal the actual count above ({parsedOutcome ?? 0}).
+              </p>
+
+              {loadingScope ? (
+                <div className="flex gap-1 py-2">
+                  {[0,150,300].map(d => <span key={d} className="w-1.5 h-1.5 bg-sky-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {scopeSettlements.map(s => (
+                    <div key={s.id} className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={attributions[s.id] ?? 0}
+                        onChange={e => {
+                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                          setAttributions(prev => ({ ...prev, [s.id]: val }));
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-right"
+                      />
+                      <span className="text-xs text-stone-700 flex-1 truncate">{s.name}</span>
+                      {s.clusterName && (
+                        <span className="text-[10px] text-stone-400 flex-shrink-0">{s.clusterName}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Total indicator */}
+              <div className={`text-xs font-medium flex items-center gap-1 ${
+                Math.abs(totalAttributed - (parsedOutcome ?? 0)) < 0.01 ? "text-emerald-600" : "text-red-500"
+              }`}>
+                <span>Total: {totalAttributed}</span>
+                {Math.abs(totalAttributed - (parsedOutcome ?? 0)) >= 0.01 && (
+                  <span className="text-stone-400 font-normal">— must equal {parsedOutcome ?? 0}</span>
+                )}
+              </div>
             </div>
           )}
 
@@ -214,7 +353,7 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
             <button
               type="submit"
-              disabled={!title.trim() || !targetDate || loading || (deadlineChanged && !deadlineReason.trim())}
+              disabled={!canSubmit}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
             >
               {loading ? "Saving..." : "Save Changes"}

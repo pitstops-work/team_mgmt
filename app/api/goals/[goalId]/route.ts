@@ -59,11 +59,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
       recurrence: data.recurrence,
       targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
-      // Actual count achieved — only set when provided explicitly (allows clearing with null)
       ...(data.outcomeCount !== undefined ? { outcomeCount: data.outcomeCount } : {}),
     },
     include: { owner: { select: { id: true, name: true, image: true } }, pitstops: { select: { id: true, status: true } } },
   });
+
+  // ── GoalOutcome: write settlement attributions when marking a domain goal Complete ──
+  // attributions = [{ settlementId, count }] sent from the completion modal.
+  // Replace any existing outcomes for this goal (idempotent re-complete).
+  if (
+    data.status === "Complete" &&
+    data.attributions &&
+    Array.isArray(data.attributions) &&
+    data.attributions.length > 0
+  ) {
+    await prisma.goalOutcome.deleteMany({ where: { goalId } });
+    await prisma.goalOutcome.createMany({
+      data: (data.attributions as { settlementId: string; count: number }[]).map(a => ({
+        id: `${goalId}_${a.settlementId}`.replace(/[^a-z0-9_]/gi, "_"),
+        goalId,
+        settlementId: a.settlementId,
+        count: Math.round(a.count),
+      })),
+    });
+  }
 
   // Cascade owner change to pitstops that haven't been manually reassigned
   if (data.ownerId !== undefined) {
