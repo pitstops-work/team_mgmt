@@ -20,7 +20,6 @@ import { fetchGoal } from "@/lib/api-client";
 import MetricsSection from "./MetricsSection";
 import GoalCoOwnersSection from "./GoalCoOwnersSection";
 import GoalThemesSection from "./GoalThemesSection";
-import GoalGeographySection from "./GoalGeographySection";
 import GoalNeedsSection from "./GoalNeedsSection";
 import GoalDiscussionsSection from "./GoalDiscussionsSection";
 import GoalDecisionsRisksSection from "./GoalDecisionsRisksSection";
@@ -466,7 +465,6 @@ export default function GoalDetail({
           currentOwnerId={goal.owner.id}
         />
         <GoalThemesSection goalId={goal.id} />
-        <GoalGeographySection goalId={goal.id} />
         <GoalNeedsSection goalId={goal.id} />
 
         {/* Goal-level attachments */}

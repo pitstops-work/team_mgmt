@@ -144,10 +144,6 @@ model Goal {
   metrics          GoalMetric[]
   // Strategic tags
   themes           GoalTheme[]
-  cities           GoalCity[]
-  zones            GoalZone[]
-  clusters         GoalCluster[]
-  settlements      GoalSettlement[]
   quarters         GoalQuarter[]
   // Needs geography
   needsSettlement  Settlement?      @relation("GoalNeedsSettlement", fields: [needsSettlementId], references: [id])
@@ -179,6 +175,11 @@ model Pitstop {
   verifiedById    String?
   verifiedAt      DateTime?
 
+  // Needs geography (direct FK — single settlement/cluster/zone this pitstop targets)
+  needsSettlementId String?
+  needsClusterId    String?
+  needsZoneId       String?
+
   goal           Goal                @relation(fields: [goalId], references: [id], onDelete: Cascade)
   owner          User?               @relation("PitstopOwner", fields: [ownerId], references: [id])
   verifiedBy     User?               @relation("PitstopVerifier", fields: [verifiedById], references: [id])
@@ -191,18 +192,18 @@ model Pitstop {
   checkinLog     PitstopCheckinLog?
   events         PitstopEventPitstop[]
   planItems      PlanItemPitstop[]
-  // New relations
+  // Relations
   coOwners       PitstopCoOwner[]
   escalations    PitstopEscalation[]
   checkins       PitstopCheckin[]
   standupLinks   StandupLogPitstop[]
   risks          Risk[]
   themes         PitstopTheme[]
-  cities         PitstopCity[]
-  zones          PitstopZone[]
-  clusters       PitstopCluster[]
-  settlements    PitstopSettlement[]
   dateChanges    PitstopDateChange[]
+  // Needs geography relations
+  needsSettlement Settlement? @relation("PitstopNeedsSettlement", fields: [needsSettlementId], references: [id])
+  needsCluster    Cluster?    @relation("PitstopNeedsCluster",    fields: [needsClusterId],    references: [id])
+  needsZone       Zone?       @relation("PitstopNeedsZone",       fields: [needsZoneId],       references: [id])
 }
 
 model ChecklistItem {
@@ -695,30 +696,9 @@ model City {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  zones    Zone[]
-  goals    GoalCity[]
-  pitstops PitstopCity[]
+  zones Zone[]
 }
 
-model PitstopCity {
-  pitstopId String
-  cityId    String
-
-  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
-  city    City    @relation(fields: [cityId], references: [id], onDelete: Cascade)
-
-  @@id([pitstopId, cityId])
-}
-
-model GoalCity {
-  goalId String
-  cityId String
-
-  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
-
-  @@id([goalId, cityId])
-}
 
 model Zone {
   id        String    @id @default(cuid())
@@ -727,11 +707,10 @@ model Zone {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  city       City?        @relation(fields: [cityId], references: [id], onDelete: SetNull)
-  clusters   Cluster[]
-  goals      GoalZone[]
-  pitstops   PitstopZone[]
-  needsGoals Goal[]       @relation("GoalNeedsZone")
+  city          City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  clusters      Cluster[]
+  needsGoals    Goal[]    @relation("GoalNeedsZone")
+  needsPitstops Pitstop[] @relation("PitstopNeedsZone")
 }
 
 model Cluster {
@@ -741,86 +720,56 @@ model Cluster {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  zone        Zone             @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-  settlements Settlement[]
-  goals       GoalCluster[]
-  pitstops    PitstopCluster[]
-  needsGoals  Goal[]           @relation("GoalNeedsCluster")
+  zone          Zone        @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  settlements   Settlement[]
+  needsGoals    Goal[]      @relation("GoalNeedsCluster")
+  needsPitstops Pitstop[]   @relation("PitstopNeedsCluster")
 }
 
 model Settlement {
-  id        String    @id @default(cuid())
-  name      String
-  clusterId String
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
+  id          String    @id @default(cuid())
+  name        String
+  clusterId   String
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Geospatial
+  polygon     Json?
+  centroidLat Float?
+  centroidLng Float?
+
+  // Partner organisation (1:1 — one partner covers this settlement)
+  partnerId   String?
 
   cluster      Cluster               @relation(fields: [clusterId], references: [id], onDelete: Cascade)
-  goals        GoalSettlement[]
-  pitstops     PitstopSettlement[]
+  partner      MapPartner?           @relation(fields: [partnerId], references: [id])
   assessments  SettlementAssessment[]
-  needsGoals   Goal[]                @relation("GoalNeedsSettlement")
+  profile      SettlementProfile?
+  note         SettlementNote?
+  features     MapFeature[]
+  // Needs geography back-relations
+  needsGoals   Goal[]     @relation("GoalNeedsSettlement")
+  needsPitstops Pitstop[] @relation("PitstopNeedsSettlement")
 }
 
-model GoalZone {
-  goalId String
-  zoneId String
+// Flattened snapshot of the latest SettlementAssessment for fast reads
+model SettlementProfile {
+  settlementId    String    @id
+  totalHouseholds Int       @default(0)
+  children6m3yr   Int       @default(0)
+  children4to14   Int       @default(0)
+  youth15to21     Int       @default(0)
+  elderly60plus   Int       @default(0)
+  settlementType  String?
+  priorityIssues  String?
+  lastAssessmentId String?
+  lastSyncedAt    DateTime?
+  updatedAt       DateTime  @updatedAt
 
-  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  zone Zone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-
-  @@id([goalId, zoneId])
-}
-
-model GoalCluster {
-  goalId    String
-  clusterId String
-
-  goal    Goal    @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  cluster Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
-
-  @@id([goalId, clusterId])
-}
-
-model GoalSettlement {
-  goalId       String
-  settlementId String
-
-  goal       Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
   settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
-
-  @@id([goalId, settlementId])
 }
 
-model PitstopZone {
-  pitstopId String
-  zoneId    String
-
-  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
-  zone    Zone    @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-
-  @@id([pitstopId, zoneId])
-}
-
-model PitstopCluster {
-  pitstopId String
-  clusterId String
-
-  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
-  cluster Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
-
-  @@id([pitstopId, clusterId])
-}
-
-model PitstopSettlement {
-  pitstopId    String
-  settlementId String
-
-  pitstop    Pitstop    @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
-  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
-
-  @@id([pitstopId, settlementId])
-}
 
 // ── Quarterly Planning ────────────────────────────────────────────────────────
 
@@ -1018,22 +967,27 @@ model PushSubscription {
 // ── Urban Programme Map ───────────────────────────────────────────────────────
 
 model MapFeature {
-  id          String   @id @default(cuid())
-  name        String
-  cluster     String   @default("")
-  zone        String   @default("")
-  partner     String   @default("")
-  description String   @default("")
-  type        String   @default("other")
-  lat         Float
-  lng         Float
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String
+  cluster      String   @default("")
+  zone         String   @default("")
+  partner      String   @default("")
+  description  String   @default("")
+  type         String   @default("other")
+  lat          Float
+  lng          Float
+  settlementId String?
+  createdAt    DateTime @default(now())
+
+  settlement Settlement? @relation(fields: [settlementId], references: [id])
 }
 
 model SettlementNote {
-  settlement String   @id
-  note       String   @default("")
-  updatedAt  DateTime @updatedAt
+  settlementId String     @id
+  note         String     @default("")
+  updatedAt    DateTime   @updatedAt
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
 }
 
 model MapPartner {
@@ -1046,6 +1000,8 @@ model MapPartner {
   notes        String?
   isBuiltIn    Boolean  @default(false)
   createdAt    DateTime @default(now())
+
+  settlements  Settlement[]
 }
 
 model MapPolygon {

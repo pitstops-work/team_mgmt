@@ -18,8 +18,8 @@ async function buildContext(userId: string): Promise<string> {
         owner: { select: { id: true, name: true } },
         programs: { select: { program: { select: { title: true } } } },
         themes: { select: { theme: { select: { name: true } } } },
-        zones: { select: { zone: { select: { name: true } } } },
-        clusters: { select: { cluster: { select: { name: true } } } },
+        needsZone: { select: { name: true } },
+        needsCluster: { select: { name: true } },
         metrics: {
           select: {
             name: true, unit: true, target: true,
@@ -98,7 +98,7 @@ async function buildContext(userId: string): Promise<string> {
     ).length;
     const programNames = g.programs.map(p => p.program.title).join(", ");
     const themeNames = g.themes.map(t => t.theme.name).join(", ");
-    const geo = [...g.zones.map(z => z.zone.name), ...g.clusters.map(c => c.cluster.name.replace(/_/g, " "))].join(", ");
+    const geo = [g.needsZone?.name, g.needsCluster?.name?.replace(/_/g, " ")].filter(Boolean).join(", ");
 
     ctx += `\nGoal: "${g.title}" | ${g.status} | Owner: ${g.owner?.name ?? "Unassigned"}`;
     ctx += ` | Target: ${fmt(g.targetDate)} | ${donePitstops}/${totalPitstops} done`;
