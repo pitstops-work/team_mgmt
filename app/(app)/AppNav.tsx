@@ -208,32 +208,71 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
               <p className="text-sm font-semibold text-stone-800">Menu</p>
               <button onClick={() => setShowMore(false)} className="p-1 text-stone-400"><X className="w-5 h-5" /></button>
             </div>
-            <div className="overflow-y-auto px-3 py-2 space-y-0.5 pb-8">
+            <div className="overflow-y-auto px-3 py-2 pb-8 space-y-0.5">
+              {/* Core */}
               {[
-                { href: "/needs", icon: <BarChart3 className="w-5 h-5" />, label: "Field Coverage" },
-                { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map" },
-                { href: "/dashboard", icon: <Target className="w-5 h-5" />, label: "Goals" },
-                { href: "/activities", icon: <CalendarClock className="w-5 h-5" />, label: "Activities" },
+                { href: "/needs", icon: <BarChart3 className="w-5 h-5" />, label: "Field Coverage", exact: false },
+                { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map", exact: false },
+                { href: "/report", icon: <FileText className="w-5 h-5" />, label: "Report", exact: true },
+                { href: "/dashboard", icon: <Target className="w-5 h-5" />, label: "Goals", exact: true },
+                { href: "/activities", icon: <CalendarClock className="w-5 h-5" />, label: "Activities", exact: true },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${(item.exact ? pathname === item.href : pathname.startsWith(item.href)) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
+                  <span className="text-stone-400">{item.icon}</span>
+                  {item.label}
+                </Link>
+              ))}
+
+              <div className="h-px bg-stone-100 my-2" />
+
+              {/* Planning */}
+              {[
                 { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
                 { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />, label: "Quarters" },
                 { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
                 { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname.startsWith(item.href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
+                  <span className="text-stone-400">{item.icon}</span>
+                  {item.label}
+                </Link>
+              ))}
+
+              <div className="h-px bg-stone-100 my-2" />
+
+              {/* People & work */}
+              {[
                 { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
                 { href: "/themes", icon: <Tag className="w-5 h-5" />, label: "Themes" },
                 { href: "/review", icon: <ClipboardCheck className="w-5 h-5" />, label: "Fortnightly Review" },
                 { href: "/standup", icon: <ClipboardList className="w-5 h-5" />, label: "Field Notes" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname.startsWith(item.href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
+                  <span className="text-stone-400">{item.icon}</span>
+                  {item.label}
+                </Link>
+              ))}
+
+              <div className="h-px bg-stone-100 my-2" />
+
+              {/* Account */}
+              {([
                 { href: "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
                 ...(isAdmin ? [{ href: "/settings/users", icon: <ShieldCheck className="w-5 h-5 text-indigo-500" />, label: "Users" }] : []),
                 ...(isAdmin ? [{ href: "/readiness", icon: <ShieldCheck className="w-5 h-5" />, label: "Team Readiness" }] : []),
                 { href: "/help", icon: <HelpCircle className="w-5 h-5" />, label: "Manual" },
-              ].map(item => (
+              ] as { href: string; icon: React.ReactNode; label: string }[]).map(item => (
                 <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname === item.href ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
                   <span className="text-stone-400">{item.icon}</span>
                   {item.label}
                 </Link>
               ))}
-              <div className="px-1">
+
+              <div className="px-1 mt-2">
                 <PWAInstallButton />
               </div>
               <button onClick={() => { setShowMore(false); signOut({ callbackUrl: "/login" }); }}

@@ -364,7 +364,7 @@ export default function GoalsDashboard({
       </div>
 
       {/* Tab bar + actions */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         <div className="flex gap-0.5 bg-stone-100 rounded-lg p-0.5 w-fit">
           {(
             [
@@ -387,7 +387,7 @@ export default function GoalsDashboard({
         </div>
 
         {activeTab === "goals" && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => setShowTemplate(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium rounded-lg transition-colors"

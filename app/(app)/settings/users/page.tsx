@@ -218,12 +218,12 @@ export default function UserManagementPage() {
               {/* Edit row */}
               {isEditing && (
                 <div className="px-4 py-3 bg-indigo-50/60 space-y-2">
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
                       placeholder="Full name"
-                      className="flex-1 px-2.5 py-1.5 text-sm border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                      className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
                     />
                     <input
                       value={editEmail}
@@ -231,7 +231,7 @@ export default function UserManagementPage() {
                       placeholder="Email"
                       type="email"
                       required
-                      className="flex-1 px-2.5 py-1.5 text-sm border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                      className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
                     />
                   </div>
                   <div className="flex items-center gap-3">
@@ -308,13 +308,13 @@ export default function UserManagementPage() {
           <h2 className="text-sm font-semibold text-stone-700">Add User</h2>
         </div>
         <form onSubmit={handleCreate} className="space-y-3">
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               placeholder="Full name"
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+              className="flex-1 min-w-0 px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
             />
             <input
               type="email"
@@ -322,7 +322,7 @@ export default function UserManagementPage() {
               required
               value={newEmail}
               onChange={e => setNewEmail(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+              className="flex-1 min-w-0 px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
             />
           </div>
           <div className="flex gap-3 items-center">
