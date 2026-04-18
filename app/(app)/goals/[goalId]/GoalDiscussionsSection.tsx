@@ -276,7 +276,8 @@ function BroadcastsTab({ goalId }: { goalId: string }) {
       body: JSON.stringify({ title: title.trim(), body: body.trim() }),
     });
     if (res.ok) {
-      setBroadcasts(p => [await res.json(), ...(p ?? [])]);
+      const newBroadcast = await res.json();
+      setBroadcasts(p => [newBroadcast, ...(p ?? [])]);
       setTitle(""); setBody(""); setShowForm(false); setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     }
