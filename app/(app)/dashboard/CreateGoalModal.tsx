@@ -65,7 +65,7 @@ function GeoStep({
     <div className="space-y-3">
       <p className="text-xs text-stone-400">
         {isOperational
-          ? "Select the city this goal is scoped to. Operational goals work at city level — zone is optional if you want to narrow the scope."
+          ? "Select the city this goal is scoped to. City-level goals work across the city — zone is optional if you want to narrow the scope."
           : "Select where this goal will make a difference. You can assign it to a zone, cluster, or a specific settlement."}
       </p>
       <div>
@@ -253,7 +253,7 @@ function GoalForm({
         <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium bg-stone-100 text-stone-600">
           <Briefcase className="w-4 h-4 flex-shrink-0 text-stone-500" />
           <span>
-            <span className="font-bold">Operational goal</span>
+            <span className="font-bold">City-level goal</span>
             {contextLabel && <> · <span className="font-medium">{contextLabel}</span></>}
           </span>
         </div>
@@ -529,13 +529,13 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
                   onClick={() => { setIsOperational(false); setNeedsDomain(""); }}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${!isOperational ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
                 >
-                  <Target className="w-3.5 h-3.5" /> APF / Needs goal
+                  <Target className="w-3.5 h-3.5" /> Programme goal
                 </button>
                 <button
                   onClick={() => { setIsOperational(true); setNeedsDomain(""); setGeoVal(v => ({ ...v, clusterId: "", settlementId: "" })); }}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${isOperational ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
                 >
-                  <Briefcase className="w-3.5 h-3.5" /> Operational
+                  <Briefcase className="w-3.5 h-3.5" /> City-level goal
                 </button>
               </div>
 
