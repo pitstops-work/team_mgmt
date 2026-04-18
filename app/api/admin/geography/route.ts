@@ -71,8 +71,11 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH /api/admin/geography
-// body: { type: "cluster", id, zoneId } — reassign cluster to a different zone
-//   OR { type: "settlement", id, active: boolean } — toggle settlement active/inactive
+// body: { type: "cluster",    id, zoneId }          — reassign cluster to zone
+//   OR { type: "settlement",  id, active: boolean }  — toggle active/inactive
+//   OR { type: "rename-zone", id, name }             — rename zone
+//   OR { type: "rename-cluster",    id, name }       — rename cluster
+//   OR { type: "rename-settlement", id, name }       — rename settlement
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -82,10 +85,7 @@ export async function PATCH(req: NextRequest) {
   if (body.type === "cluster") {
     const { id, zoneId } = body;
     if (!id || !zoneId) return Response.json({ error: "id and zoneId required" }, { status: 400 });
-    await prisma.cluster.update({
-      where: { id },
-      data: { zoneId },
-    });
+    await prisma.cluster.update({ where: { id }, data: { zoneId } });
     return Response.json({ ok: true });
   }
 
@@ -96,6 +96,27 @@ export async function PATCH(req: NextRequest) {
       where: { id },
       data: { deletedAt: active ? null : new Date() },
     });
+    return Response.json({ ok: true });
+  }
+
+  if (body.type === "rename-zone") {
+    const { id, name } = body;
+    if (!id || !name?.trim()) return Response.json({ error: "id and name required" }, { status: 400 });
+    await prisma.zone.update({ where: { id }, data: { name: name.trim() } });
+    return Response.json({ ok: true });
+  }
+
+  if (body.type === "rename-cluster") {
+    const { id, name } = body;
+    if (!id || !name?.trim()) return Response.json({ error: "id and name required" }, { status: 400 });
+    await prisma.cluster.update({ where: { id }, data: { name: name.trim() } });
+    return Response.json({ ok: true });
+  }
+
+  if (body.type === "rename-settlement") {
+    const { id, name } = body;
+    if (!id || !name?.trim()) return Response.json({ error: "id and name required" }, { status: 400 });
+    await prisma.settlement.update({ where: { id }, data: { name: name.trim() } });
     return Response.json({ ok: true });
   }
 

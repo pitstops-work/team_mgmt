@@ -53,7 +53,45 @@ export default function GeographyPage() {
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
   const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
   const toast = useToast();
+
+  const startEdit = (id: string, currentName: string) => {
+    setEditingId(id);
+    setEditDraft(currentName);
+  };
+
+  const cancelEdit = () => { setEditingId(null); setEditDraft(""); };
+
+  const commitEdit = async (type: "rename-zone" | "rename-cluster" | "rename-settlement", id: string) => {
+    const name = editDraft.trim();
+    if (!name) { cancelEdit(); return; }
+    const res = await fetch("/api/admin/geography", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, id, name }),
+    });
+    if (res.ok) {
+      setZones(prev => prev.map(z => {
+        if (type === "rename-zone" && z.id === id) return { ...z, name };
+        return {
+          ...z,
+          clusters: z.clusters.map(c => {
+            if (type === "rename-cluster" && c.id === id) return { ...c, name };
+            return {
+              ...c,
+              settlements: c.settlements.map(s =>
+                type === "rename-settlement" && s.id === id ? { ...s, name } : s
+              ),
+            };
+          }),
+        };
+      }));
+      toast.show("Renamed");
+    }
+    cancelEdit();
+  };
 
   const load = (city?: string) => {
     setLoading(true);
@@ -205,8 +243,28 @@ export default function GeographyPage() {
                     ? <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
                     : <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
                   }
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-stone-800">{zone.name}</p>
+                  <div className="flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+                    {editingId === zone.id ? (
+                      <input
+                        autoFocus
+                        value={editDraft}
+                        onChange={e => setEditDraft(e.target.value)}
+                        onBlur={() => commitEdit("rename-zone", zone.id)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") commitEdit("rename-zone", zone.id);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        className="text-sm font-semibold border border-sky-300 rounded px-1.5 py-0.5 w-full outline-none focus:ring-2 focus:ring-sky-400"
+                      />
+                    ) : (
+                      <p
+                        className="text-sm font-semibold text-stone-800 hover:text-sky-600 cursor-text transition-colors"
+                        title="Click to rename"
+                        onClick={() => startEdit(zone.id, zone.name)}
+                      >
+                        {zone.name}
+                      </p>
+                    )}
                     {zone.cityName && (
                       <p className="text-[11px] text-stone-400">{zone.cityName}</p>
                     )}
@@ -243,7 +301,27 @@ export default function GeographyPage() {
                             </button>
 
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-stone-800">{cluster.name}</p>
+                              {editingId === cluster.id ? (
+                                <input
+                                  autoFocus
+                                  value={editDraft}
+                                  onChange={e => setEditDraft(e.target.value)}
+                                  onBlur={() => commitEdit("rename-cluster", cluster.id)}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") commitEdit("rename-cluster", cluster.id);
+                                    if (e.key === "Escape") cancelEdit();
+                                  }}
+                                  className="text-sm font-medium border border-sky-300 rounded px-1.5 py-0.5 w-full outline-none focus:ring-2 focus:ring-sky-400"
+                                />
+                              ) : (
+                                <p
+                                  className="text-sm font-medium text-stone-800 hover:text-sky-600 cursor-text transition-colors"
+                                  title="Click to rename"
+                                  onClick={() => startEdit(cluster.id, cluster.name)}
+                                >
+                                  {cluster.name}
+                                </p>
+                              )}
                             </div>
 
                             {/* Settlement count badge */}
@@ -272,9 +350,29 @@ export default function GeographyPage() {
                               )}
                               {cluster.settlements.map(s => (
                                 <div key={s.id} className="flex items-center gap-3 px-8 py-2">
-                                  <p className={`flex-1 text-xs min-w-0 ${!s.active ? "line-through text-stone-400" : "text-stone-700"}`}>
-                                    {s.name}
-                                  </p>
+                                  <div className="flex-1 min-w-0">
+                                    {editingId === s.id ? (
+                                      <input
+                                        autoFocus
+                                        value={editDraft}
+                                        onChange={e => setEditDraft(e.target.value)}
+                                        onBlur={() => commitEdit("rename-settlement", s.id)}
+                                        onKeyDown={e => {
+                                          if (e.key === "Enter") commitEdit("rename-settlement", s.id);
+                                          if (e.key === "Escape") cancelEdit();
+                                        }}
+                                        className="text-xs border border-sky-300 rounded px-1.5 py-0.5 w-full outline-none focus:ring-2 focus:ring-sky-400"
+                                      />
+                                    ) : (
+                                      <p
+                                        className={`text-xs cursor-text transition-colors ${!s.active ? "line-through text-stone-400" : "text-stone-700 hover:text-sky-600"}`}
+                                        title="Click to rename"
+                                        onClick={() => startEdit(s.id, s.name)}
+                                      >
+                                        {s.name}
+                                      </p>
+                                    )}
+                                  </div>
                                   <button
                                     onClick={() => handleSettlementToggle(cluster.id, s.id, s.active)}
                                     className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors flex-shrink-0 ${
