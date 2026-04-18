@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarDays, CalendarClock, MoreHorizontal, X, Layers, ListTodo, MessageSquare, BookOpen, LayoutDashboard, ClipboardList, Scale, ShieldAlert, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarClock, MoreHorizontal, X, Layers, BookOpen, ClipboardList, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -47,6 +47,8 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
 
         {/* Nav links */}
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-0.5">
+
+          {/* Core */}
           <NavLink href="/needs" active={pathname.startsWith("/needs")}>
             <BarChart3 className="w-3.5 h-3.5 text-stone-500" />
             Field Coverage
@@ -56,13 +58,17 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             Programme Map
           </NavLink>
           <NavLink href="/dashboard" active={pathname === "/dashboard"}>
-            <span className="text-stone-500">◈</span>
+            <Target className="w-3.5 h-3.5 text-stone-500" />
             Goals
           </NavLink>
-          <NavLink href="/home" active={pathname === "/home"}>
-            <LayoutDashboard className="w-3.5 h-3.5 text-stone-500" />
-            Home
+          <NavLink href="/activities" active={pathname === "/activities"}>
+            <CalendarClock className="w-3.5 h-3.5 text-stone-500" />
+            Activities
           </NavLink>
+
+          <div className="h-px bg-stone-100 my-2" />
+
+          {/* Planning */}
           <NavLink href="/programs" active={pathname.startsWith("/programs")}>
             <Layers className="w-3.5 h-3.5 text-stone-500" />
             Programs
@@ -79,25 +85,13 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             <GanttChartSquare className="w-3.5 h-3.5 text-stone-500" />
             Gantt
           </NavLink>
-          <NavLink href="/timeline" active={pathname === "/timeline"}>
-            <CalendarDays className="w-3.5 h-3.5 text-stone-500" />
-            Timeline
-          </NavLink>
-          <NavLink href="/activities" active={pathname === "/activities"}>
-            <CalendarClock className="w-3.5 h-3.5 text-stone-500" />
-            Activities
-          </NavLink>
+
+          <div className="h-px bg-stone-100 my-2" />
+
+          {/* People & work */}
           <NavLink href="/people" active={pathname === "/people"}>
             <Users className="w-3.5 h-3.5 text-stone-500" />
             People
-          </NavLink>
-          <NavLink href="/partners" active={pathname === "/partners"}>
-            <Users className="w-3.5 h-3.5 text-stone-500" />
-            Partners
-          </NavLink>
-          <NavLink href="/geography" active={pathname.startsWith("/geography")}>
-            <MapPin className="w-3.5 h-3.5 text-stone-500" />
-            Geography
           </NavLink>
           <NavLink href="/themes" active={pathname.startsWith("/themes")}>
             <Tag className="w-3.5 h-3.5 text-stone-500" />
@@ -111,14 +105,10 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             <ClipboardList className="w-3.5 h-3.5 text-stone-500" />
             Field Notes
           </NavLink>
-          <NavLink href="/decisions" active={pathname === "/decisions"}>
-            <Scale className="w-3.5 h-3.5 text-stone-500" />
-            Decisions
-          </NavLink>
-          <NavLink href="/risks" active={pathname === "/risks"}>
-            <ShieldAlert className="w-3.5 h-3.5 text-stone-500" />
-            Risks
-          </NavLink>
+
+          <div className="h-px bg-stone-100 my-2" />
+
+          {/* Account */}
           <NavLink href="/notifications" active={pathname === "/notifications"}>
             <div className="relative">
               <Bell className="w-3.5 h-3.5 text-stone-500" />
@@ -218,20 +208,16 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
               {[
                 { href: "/needs", icon: <BarChart3 className="w-5 h-5" />, label: "Field Coverage" },
                 { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map" },
-                { href: "/dashboard", icon: <span className="text-xl leading-none">◈</span>, label: "Goals" },
-                { href: "/home", icon: <LayoutDashboard className="w-5 h-5" />, label: "Home" },
+                { href: "/dashboard", icon: <Target className="w-5 h-5" />, label: "Goals" },
+                { href: "/activities", icon: <CalendarClock className="w-5 h-5" />, label: "Activities" },
                 { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
                 { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />, label: "Quarters" },
                 { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
                 { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
                 { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
-                { href: "/partners", icon: <Users className="w-5 h-5" />, label: "Partners" },
-                { href: "/geography", icon: <MapPin className="w-5 h-5" />, label: "Geography" },
                 { href: "/themes", icon: <Tag className="w-5 h-5" />, label: "Themes" },
                 { href: "/review", icon: <ClipboardCheck className="w-5 h-5" />, label: "Fortnightly Review" },
                 { href: "/standup", icon: <ClipboardList className="w-5 h-5" />, label: "Field Notes" },
-                { href: "/decisions", icon: <Scale className="w-5 h-5" />, label: "Decisions" },
-                { href: "/risks", icon: <ShieldAlert className="w-5 h-5" />, label: "Risks" },
                 { href: "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
                 ...(isAdmin ? [{ href: "/settings/users", icon: <ShieldCheck className="w-5 h-5 text-indigo-500" />, label: "Users" }] : []),
                 ...(isAdmin ? [{ href: "/readiness", icon: <ShieldCheck className="w-5 h-5" />, label: "Team Readiness" }] : []),

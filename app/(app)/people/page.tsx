@@ -5,7 +5,7 @@ import PeopleDashboard from "./PeopleDashboard";
 export default async function PeoplePage() {
   await auth();
 
-  const [users, goals] = await Promise.all([
+  const [users, goals, partners] = await Promise.all([
     prisma.user.findMany({
       select: {
         id: true,
@@ -32,12 +32,14 @@ export default async function PeoplePage() {
       select: { id: true, title: true, status: true, targetDate: true },
       orderBy: { title: "asc" },
     }),
+    prisma.mapPartner.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
 
   return (
     <PeopleDashboard
       users={JSON.parse(JSON.stringify(users))}
       goals={JSON.parse(JSON.stringify(goals))}
+      partners={JSON.parse(JSON.stringify(partners))}
     />
   );
 }
