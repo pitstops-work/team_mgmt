@@ -238,11 +238,6 @@ export default function GoalsDashboard({
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
 
-  // Thread filter state (Home tab)
-  const [threadLevel, setThreadLevel] = useState<"all" | "goal" | "pitstop" | "activity">("all");
-  const [threadDomain, setThreadDomain] = useState("");
-  const [threadGeo, setThreadGeo] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
-
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -284,34 +279,7 @@ export default function GoalsDashboard({
   const doneThisMonth = overviewData.doneThisMonth;
   const activeGoals = goals.filter(g => g.status === "Active").length;
 
-  // Thread filtering (Home tab)
-  const uniqueDomains = [...new Set(
-    threads
-      .map(t => t.goal?.needsDomain ?? t.pitstop?.goal?.needsDomain ?? t.event?.pitstops?.[0]?.pitstop?.goal?.needsDomain)
-      .filter((d): d is string => Boolean(d))
-  )].sort();
-
-  const filteredThreads = threads.filter(t => {
-    // Level filter
-    if (threadLevel === "goal" && !t.goalId) return false;
-    if (threadLevel === "pitstop" && !t.pitstopId) return false;
-    if (threadLevel === "activity" && !t.eventId) return false;
-
-    // Domain filter
-    const domain = t.goal?.needsDomain ?? t.pitstop?.goal?.needsDomain ?? t.event?.pitstops?.[0]?.pitstop?.goal?.needsDomain;
-    if (threadDomain && domain !== threadDomain) return false;
-
-    // Geo filter — match on goal's needsZoneId / needsClusterId
-    const zoneId = t.goal?.needsZoneId ?? t.pitstop?.goal?.needsZoneId;
-    const clusterId = t.goal?.needsClusterId ?? t.pitstop?.goal?.needsClusterId;
-    if (threadGeo.clusterId && clusterId !== threadGeo.clusterId) return false;
-    if (threadGeo.zoneId && zoneId !== threadGeo.zoneId) return false;
-    // cityId filter: need zone's cityId — not available in current data; skip for now
-    return true;
-  });
-
-  const threadFiltersActive = threadLevel !== "all" || threadDomain || threadGeo.zoneId || threadGeo.clusterId;
-  const clearThreadFilters = () => { setThreadLevel("all"); setThreadDomain(""); setThreadGeo({ cityId: "", zoneId: "", clusterId: "" }); };
+  const homeThreads = threads.slice(0, 12);
 
   // ── Search results ───────────────────────────────────────────────────────────
   if (searchResults) {
@@ -448,52 +416,10 @@ export default function GoalsDashboard({
               <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
                 <MessageSquare className="w-3.5 h-3.5" />
                 Active Threads
-                <span className="ml-1 text-[10px] font-normal text-stone-400 normal-case tracking-normal">
-                  {filteredThreads.length}/{threads.length}
-                </span>
               </h2>
               <Link href="/threads" className="text-xs text-sky-600 hover:text-sky-700 font-medium">
                 View all →
               </Link>
-            </div>
-
-            {/* Thread filter bar */}
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              {/* Level pills */}
-              <div className="flex gap-1">
-                {(["all", "goal", "pitstop", "activity"] as const).map(l => (
-                  <button key={l} onClick={() => setThreadLevel(l)}
-                    className={`px-2.5 py-1 text-[11px] font-medium rounded-full border transition-colors ${
-                      threadLevel === l
-                        ? "bg-stone-800 text-white border-stone-800"
-                        : "border-stone-200 text-stone-500 hover:border-stone-300 hover:bg-stone-50"
-                    }`}>
-                    {l === "all" ? "All levels" : l.charAt(0).toUpperCase() + l.slice(1)}
-                  </button>
-                ))}
-              </div>
-
-              {/* Domain select */}
-              {uniqueDomains.length > 0 && (
-                <select
-                  value={threadDomain}
-                  onChange={e => setThreadDomain(e.target.value)}
-                  className="px-2.5 py-1 text-[11px] border border-stone-200 rounded-full bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-sky-400 cursor-pointer"
-                >
-                  <option value="">All domains</option>
-                  {uniqueDomains.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              )}
-
-              {/* Geo filter */}
-              <GeoFilter value={threadGeo} onChange={setThreadGeo} compact />
-
-              {threadFiltersActive && (
-                <button onClick={clearThreadFilters}
-                  className="px-2 py-1 text-[11px] text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition-colors">
-                  Clear
-                </button>
-              )}
             </div>
 
             {threads.length === 0 ? (
@@ -501,11 +427,9 @@ export default function GoalsDashboard({
                 <MessageSquare className="w-8 h-8 text-stone-200 mx-auto mb-2" />
                 <p className="text-sm text-stone-400">No threads yet — discussions start inside goals, pitstops, or activities.</p>
               </div>
-            ) : filteredThreads.length === 0 ? (
-              <p className="text-sm text-stone-400 text-center py-8">No threads match your filters.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {filteredThreads.map((t) => <ThreadTile key={t.id} thread={t} />)}
+                {homeThreads.map((t) => <ThreadTile key={t.id} thread={t} />)}
               </div>
             )}
           </section>

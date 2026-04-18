@@ -486,7 +486,7 @@ function EventCard({ ev, onEdit, onDelete, currentUserId, users }: {
         <div className="flex items-center gap-1 flex-shrink-0">
           <button onClick={() => setShowThreads(v => !v)}
             title="Threads"
-            className={`p-1 transition-opacity ${showThreads ? "opacity-100 text-stone-700" : "opacity-40 hover:opacity-100"}`}>
+            className={`p-1 transition-opacity ${showThreads ? "opacity-100 text-stone-700" : "opacity-60"}`}>
             <MessageSquare className="w-3.5 h-3.5" />
           </button>
           <button onClick={onEdit} className="p-1 opacity-40 hover:opacity-100 transition-opacity">

@@ -59,10 +59,6 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             <span className="text-stone-500">◈</span>
             Goals
           </NavLink>
-          <NavLink href="/pitstops" active={pathname === "/pitstops"}>
-            <ListTodo className="w-3.5 h-3.5 text-stone-500" />
-            All Pitstops
-          </NavLink>
           <NavLink href="/home" active={pathname === "/home"}>
             <LayoutDashboard className="w-3.5 h-3.5 text-stone-500" />
             Home
@@ -90,10 +86,6 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
           <NavLink href="/activities" active={pathname === "/activities"}>
             <CalendarClock className="w-3.5 h-3.5 text-stone-500" />
             Activities
-          </NavLink>
-          <NavLink href="/threads" active={pathname === "/threads"}>
-            <MessageSquare className="w-3.5 h-3.5 text-stone-500" />
-            All Threads
           </NavLink>
           <NavLink href="/people" active={pathname === "/people"}>
             <Users className="w-3.5 h-3.5 text-stone-500" />
@@ -227,13 +219,11 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
                 { href: "/needs", icon: <BarChart3 className="w-5 h-5" />, label: "Field Coverage" },
                 { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map" },
                 { href: "/dashboard", icon: <span className="text-xl leading-none">◈</span>, label: "Goals" },
-                { href: "/pitstops", icon: <ListTodo className="w-5 h-5" />, label: "All Pitstops" },
                 { href: "/home", icon: <LayoutDashboard className="w-5 h-5" />, label: "Home" },
                 { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
                 { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />, label: "Quarters" },
                 { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
                 { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
-                { href: "/threads", icon: <MessageSquare className="w-5 h-5" />, label: "All Threads" },
                 { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
                 { href: "/partners", icon: <Users className="w-5 h-5" />, label: "Partners" },
                 { href: "/geography", icon: <MapPin className="w-5 h-5" />, label: "Geography" },
