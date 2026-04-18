@@ -485,7 +485,7 @@ export default function NeedsDashboard({
       </div>
 
       {/* Main tab: Coverage / Progress */}
-      <div className="flex items-center gap-1 mb-6 bg-stone-100 rounded-xl p-1 w-fit">
+      <div className="flex items-center gap-1 mb-6 bg-stone-100 rounded-xl p-1 flex-wrap">
         <button
           onClick={() => setMainTab("coverage")}
           className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${mainTab === "coverage" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
