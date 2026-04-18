@@ -35,10 +35,16 @@ export function calcTargets(pop: PopFields, formulaRows: FormulaRow[]): Record<s
   const result: Record<string, number> = {};
   for (const f of formulaRows) {
     if (!f.isActive) continue;
-    const popVal = f.populationField ? (popMap[f.populationField] ?? 0) : 0;
     if (f.domainType === "boolean") {
-      result[f.domain] = popVal > 0 ? 1 : 0;
+      // Boolean with no population field → always 1 (every settlement needs it)
+      if (!f.populationField) {
+        result[f.domain] = 1;
+      } else {
+        const popVal = popMap[f.populationField] ?? 0;
+        result[f.domain] = popVal > 0 ? 1 : 0;
+      }
     } else {
+      const popVal = f.populationField ? (popMap[f.populationField] ?? 0) : 0;
       result[f.domain] = f.denominator ? Math.floor(popVal / f.denominator) : 0;
     }
   }

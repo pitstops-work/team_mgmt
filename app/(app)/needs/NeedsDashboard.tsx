@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import type { LevelStats, DomainStats, DomainConfig, ProgressSummary, MonthlyPoint, EntitlementSummary } from "./page";
 
+type DomainProgress = { target: number; existing: number; done: number; inProgress: number };
+
 type ZoneSummary = {
   id: string;
   name: string;
@@ -19,6 +21,19 @@ type ZoneSummary = {
   activeGoals: number;
   overdueCount: number;
   lastSurveyed: string | null;
+  domainProgress: Record<string, DomainProgress>;
+};
+
+type ClusterSummary = {
+  id: string;
+  name: string;
+  zone: { id: string; name: string };
+  city: { id: string; name: string } | null;
+  totalSettlements: number;
+  assessedCount: number;
+  population: { totalHouseholds: number };
+  lastSurveyed: string | null;
+  domainProgress: Record<string, DomainProgress>;
 };
 type Assessment = { id: string; assessmentYear: number; assessedAt: string; totalHouseholds: number };
 type Settlement = { id: string; name: string; assessments: Assessment[] };
@@ -409,9 +424,11 @@ export default function NeedsDashboard({
   const initZoneId    = searchParams.get("zoneId");
   const initClusterId = searchParams.get("clusterId");
 
-  const [mainTab, setMainTab]         = useState<"coverage" | "progress" | "entitlements" | "zones">("coverage");
-  const [zoneSummary, setZoneSummary] = useState<ZoneSummary[] | null>(null);
-  const [view, setView]               = useState<ViewLevel>(initClusterId ? "cluster" : initZoneId ? "zone" : "city");
+  const [mainTab, setMainTab]             = useState<"coverage" | "progress" | "entitlements" | "zones" | "clusters">("coverage");
+  const [zoneSummary, setZoneSummary]     = useState<ZoneSummary[] | null>(null);
+  const [clusterSummary, setClusterSummary] = useState<ClusterSummary[] | null>(null);
+  const [summaryDomainConfig, setSummaryDomainConfig] = useState<DomainConfig[]>([]);
+  const [view, setView]                   = useState<ViewLevel>(initClusterId ? "cluster" : initZoneId ? "zone" : "city");
   const [openZones, setOpenZones]     = useState<Set<string>>(initZoneId ? new Set([initZoneId]) : new Set());
   const [openClusters, setOpenClusters] = useState<Set<string>>(initClusterId ? new Set([initClusterId]) : new Set());
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -493,13 +510,33 @@ export default function NeedsDashboard({
             if (!zoneSummary) {
               fetch("/api/zones/summary")
                 .then((r) => r.json())
-                .then((d) => setZoneSummary(Array.isArray(d) ? d : []))
+                .then((d) => {
+                  setZoneSummary(Array.isArray(d.zones) ? d.zones : []);
+                  if (d.domainConfig && !summaryDomainConfig.length) setSummaryDomainConfig(d.domainConfig);
+                })
                 .catch(() => setZoneSummary([]));
             }
           }}
           className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${mainTab === "zones" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
         >
           Zones
+        </button>
+        <button
+          onClick={() => {
+            setMainTab("clusters");
+            if (!clusterSummary) {
+              fetch("/api/clusters/summary")
+                .then((r) => r.json())
+                .then((d) => {
+                  setClusterSummary(Array.isArray(d.clusters) ? d.clusters : []);
+                  if (d.domainConfig && !summaryDomainConfig.length) setSummaryDomainConfig(d.domainConfig);
+                })
+                .catch(() => setClusterSummary([]));
+            }
+          }}
+          className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${mainTab === "clusters" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+        >
+          Clusters
         </button>
       </div>
 
@@ -1185,7 +1222,43 @@ export default function NeedsDashboard({
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-[10px] text-stone-500">
+                        {/* Domain progress rows */}
+                        {summaryDomainConfig.length > 0 && (
+                          <div className="space-y-1 pt-1 border-t border-stone-100">
+                            {summaryDomainConfig.map(({ domain, label, color }) => {
+                              const dp = z.domainProgress?.[domain];
+                              if (!dp || (dp.target === 0 && dp.done === 0 && dp.existing === 0)) return null;
+                              const gap = Math.max(0, dp.target - dp.existing - dp.done);
+                              const pct = dp.target > 0 ? Math.min(100, Math.round(((dp.existing + dp.done) / dp.target) * 100)) : dp.done > 0 ? 100 : 0;
+                              return (
+                                <div key={domain}>
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                                    <span className="text-[10px] text-stone-500 flex-1 truncate">{label}</span>
+                                    <span className="text-[10px] tabular-nums text-stone-400">{dp.existing + dp.done}/{dp.target}</span>
+                                    {gap > 0
+                                      ? <span className="text-[10px] font-medium text-red-500 tabular-nums">-{gap}</span>
+                                      : <span className="text-[10px] font-medium text-emerald-500">✓</span>
+                                    }
+                                  </div>
+                                  <div className="h-1 bg-stone-100 rounded-full overflow-hidden flex ml-3">
+                                    {dp.existing > 0 && dp.target > 0 && (
+                                      <div className="h-full bg-stone-300 rounded-l-full" style={{ width: `${Math.min(100, Math.round((dp.existing / dp.target) * 100))}%` }} title={`Existing: ${dp.existing}`} />
+                                    )}
+                                    {dp.done > 0 && dp.target > 0 && (
+                                      <div className="h-full rounded-full" style={{ background: color, width: `${Math.min(100, Math.round((dp.done / dp.target) * 100))}%`, opacity: 0.8 }} title={`Done via goals: ${dp.done}`} />
+                                    )}
+                                    {dp.inProgress > 0 && dp.target > 0 && (
+                                      <div className="h-full rounded-full bg-amber-300" style={{ width: `${Math.min(100 - pct, Math.round((dp.inProgress / dp.target) * 100))}%` }} title={`In progress: ${dp.inProgress}`} />
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-[10px] text-stone-500 pt-1">
                           <span>{z.activeGoals} active goal{z.activeGoals !== 1 ? "s" : ""}</span>
                           {z.lastSurveyed ? (
                             <span>Surveyed {new Date(z.lastSurveyed).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })}</span>
@@ -1197,6 +1270,111 @@ export default function NeedsDashboard({
                     );
                   })}
                 </div>
+              </div>
+            ));
+          })()}
+        </div>
+      )}
+
+      {/* ══════════════════════ CLUSTERS SUMMARY TAB ══════════════════════ */}
+      {mainTab === "clusters" && (
+        <div className="space-y-8">
+          {clusterSummary === null && (
+            <p className="text-sm text-stone-400 py-8 text-center">Loading cluster summaries…</p>
+          )}
+          {clusterSummary !== null && clusterSummary.length === 0 && (
+            <p className="text-sm text-stone-400 py-8 text-center">No clusters found.</p>
+          )}
+          {clusterSummary !== null && clusterSummary.length > 0 && (() => {
+            // Group by city then zone
+            type ZoneGroup = { zoneName: string; clusters: ClusterSummary[] };
+            type CityGroup = { cityId: string | null; cityName: string; zones: Record<string, ZoneGroup> };
+            const cityGroups: CityGroup[] = [];
+            for (const cl of clusterSummary) {
+              const cityId   = cl.city?.id ?? null;
+              const cityName = cl.city?.name ?? "No city";
+              let cg = cityGroups.find(g => g.cityId === cityId);
+              if (!cg) { cg = { cityId, cityName, zones: {} }; cityGroups.push(cg); }
+              if (!cg.zones[cl.zone.id]) cg.zones[cl.zone.id] = { zoneName: cl.zone.name, clusters: [] };
+              cg.zones[cl.zone.id].clusters.push(cl);
+            }
+
+            return cityGroups.map((group) => (
+              <div key={group.cityId ?? "none"}>
+                {cityGroups.length > 1 && (
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3 flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5" />
+                    {group.cityName}
+                  </h2>
+                )}
+                {Object.entries(group.zones).map(([zoneId, { zoneName, clusters: zoneClusters }]) => (
+                  <div key={zoneId} className="mb-6">
+                    <h3 className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                      <Layers className="w-3 h-3 text-violet-400" />
+                      {zoneName}
+                      <span className="font-normal text-stone-300">· {zoneClusters.length} cluster{zoneClusters.length !== 1 ? "s" : ""}</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {zoneClusters.map((cl) => (
+                        <div key={cl.id} className="rounded-xl border border-stone-100 p-4 space-y-3 bg-white">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h4 className="text-sm font-bold text-stone-800">{cl.name}</h4>
+                              <span className="text-[10px] text-stone-400">{cl.assessedCount}/{cl.totalSettlements} assessed</span>
+                            </div>
+                            <span className="text-[10px] text-stone-400 flex-shrink-0 tabular-nums">
+                              {cl.population.totalHouseholds > 0 ? `${cl.population.totalHouseholds.toLocaleString()} HH` : "No data"}
+                            </span>
+                          </div>
+
+                          {/* Domain progress rows */}
+                          {summaryDomainConfig.length > 0 && (
+                            <div className="space-y-1">
+                              {summaryDomainConfig.map(({ domain, label, color }) => {
+                                const dp = cl.domainProgress?.[domain];
+                                if (!dp || (dp.target === 0 && dp.done === 0 && dp.existing === 0)) return null;
+                                const gap = Math.max(0, dp.target - dp.existing - dp.done);
+                                const pct = dp.target > 0 ? Math.min(100, Math.round(((dp.existing + dp.done) / dp.target) * 100)) : dp.done > 0 ? 100 : 0;
+                                return (
+                                  <div key={domain}>
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                                      <span className="text-[10px] text-stone-500 flex-1 truncate">{label}</span>
+                                      <span className="text-[10px] tabular-nums text-stone-400">{dp.existing + dp.done}/{dp.target}</span>
+                                      {gap > 0
+                                        ? <span className="text-[10px] font-medium text-red-500 tabular-nums">-{gap}</span>
+                                        : <span className="text-[10px] font-medium text-emerald-500">✓</span>
+                                      }
+                                    </div>
+                                    <div className="h-1 bg-stone-100 rounded-full overflow-hidden flex ml-3">
+                                      {dp.existing > 0 && dp.target > 0 && (
+                                        <div className="h-full bg-stone-300 rounded-l-full" style={{ width: `${Math.min(100, Math.round((dp.existing / dp.target) * 100))}%` }} title={`Existing: ${dp.existing}`} />
+                                      )}
+                                      {dp.done > 0 && dp.target > 0 && (
+                                        <div className="h-full rounded-full" style={{ background: color, width: `${Math.min(100, Math.round((dp.done / dp.target) * 100))}%`, opacity: 0.8 }} title={`Done via goals: ${dp.done}`} />
+                                      )}
+                                      {dp.inProgress > 0 && dp.target > 0 && (
+                                        <div className="h-full rounded-full bg-amber-300" style={{ width: `${Math.min(100 - pct, Math.round((dp.inProgress / dp.target) * 100))}%` }} title={`In progress: ${dp.inProgress}`} />
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <div className="text-[10px] text-stone-400">
+                            {cl.lastSurveyed ? (
+                              <span>Surveyed {new Date(cl.lastSurveyed).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })}</span>
+                            ) : (
+                              <span className="text-amber-500">Not surveyed yet</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             ));
           })()}

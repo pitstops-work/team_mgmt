@@ -2,59 +2,44 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calcTargets, buildDomainConfig, buildExisting, type FormulaRow } from "../../map/settlement-needs/route";
 
-// GET /api/zones/summary
-// Returns per-zone aggregates: settlement count, population, goal health, overdue pitstops,
-// and domain-level needs progress (target / existing / done / inProgress).
+// GET /api/clusters/summary
+// Returns per-cluster aggregates with domain-level needs progress.
 export async function GET() {
-  const [zones, formulaRows] = await Promise.all([
-    prisma.zone.findMany({
+  const [clusters, formulaRows] = await Promise.all([
+    prisma.cluster.findMany({
       where: { deletedAt: null },
       select: {
         id: true,
         name: true,
-        city: { select: { id: true, name: true } },
-        clusters: {
+        zone: {
+          select: {
+            id: true,
+            name: true,
+            city: { select: { id: true, name: true } },
+          },
+        },
+        settlements: {
           where: { deletedAt: null },
           select: {
             id: true,
-            settlements: {
-              where: { deletedAt: null },
-              select: {
-                id: true,
-                assessments: {
-                  orderBy: { assessedAt: "desc" },
-                  take: 1,
-                  select: { assessedAt: true },
-                },
-                needsGoals: {
-                  where: { deletedAt: null },
-                  select: { id: true, status: true },
-                },
-              },
+            assessments: {
+              orderBy: { assessedAt: "desc" },
+              take: 1,
+              select: { assessedAt: true },
             },
           },
         },
-        needsGoals: {
-          where: { deletedAt: null },
-          select: { id: true, status: true },
-        },
-        needsPitstops: {
-          where: { deletedAt: null, status: { not: "Done" }, targetDate: { lt: new Date() } },
-          select: { id: true },
-        },
       },
-      orderBy: [{ city: { name: "asc" } }, { name: "asc" }],
+      orderBy: [{ zone: { city: { name: "asc" } } }, { zone: { name: "asc" } }, { name: "asc" }],
     }),
     prisma.needsFormulaConfig.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
 
   const domainConfig = buildDomainConfig(formulaRows);
 
-  // Collect all settlement IDs across all zones for batch queries
-  const allSettlementIds = zones.flatMap(z => z.clusters.flatMap(c => c.settlements.map(s => s.id)));
-  const allClusterIds    = zones.flatMap(z => z.clusters.map(c => c.id));
+  const allSettlementIds = clusters.flatMap(c => c.settlements.map(s => s.id));
 
-  // Latest assessment per settlement (for population + existing counts)
+  // Latest assessment per settlement
   const assessments = await prisma.settlementAssessment.findMany({
     where: { settlementId: { in: allSettlementIds } },
     orderBy: { assessedAt: "desc" },
@@ -69,51 +54,36 @@ export async function GET() {
   });
   const assessmentBySettlement = Object.fromEntries(assessments.map(a => [a.settlementId, a]));
 
-  // GoalOutcome rows for actuals (done)
+  // GoalOutcome rows for done
   const outcomeRows = await prisma.goalOutcome.findMany({
     where: { settlementId: { in: allSettlementIds } },
     select: { settlementId: true, count: true, goal: { select: { needsDomain: true, deletedAt: true } } },
   });
 
-  // Active goals for inProgress (parameter = planned count for this geo scope)
+  // Active goals for inProgress
   const activeGoals = await prisma.goal.findMany({
     where: {
       needsDomain: { not: null },
       status: "Active",
       deletedAt: null,
       OR: [
-        { needsZoneId: { in: zones.map(z => z.id) } },
-        { needsClusterId: { in: allClusterIds } },
+        { needsClusterId: { in: clusters.map(c => c.id) } },
         { needsSettlementId: { in: allSettlementIds } },
       ],
     },
     select: {
       needsDomain: true,
       parameter: true,
-      needsZoneId: true,
       needsClusterId: true,
       needsSettlementId: true,
     },
   });
 
-  // Build a lookup: zoneId → set of clusterIds and settlementIds
-  const zoneClusterIds   = new Map<string, Set<string>>();
-  const zoneSettlementIds = new Map<string, Set<string>>();
-  for (const zone of zones) {
-    const cids = new Set(zone.clusters.map(c => c.id));
-    const sids = new Set(zone.clusters.flatMap(c => c.settlements.map(s => s.id)));
-    zoneClusterIds.set(zone.id, cids);
-    zoneSettlementIds.set(zone.id, sids);
-  }
+  const result = clusters.map((cluster) => {
+    const sids = new Set(cluster.settlements.map(s => s.id));
 
-  const result = zones.map((zone) => {
-    const settlements = zone.clusters.flatMap((c) => c.settlements);
-    const totalSettlements = settlements.length;
-    const withGoals = settlements.filter((s) => s.needsGoals.some((g) => g.status === "Active")).length;
-
-    // Population — from latest assessments
     const pop = { totalHouseholds: 0, children6m3yr: 0, children4to14: 0, youth15to21: 0, elderly60plus: 0 };
-    for (const s of settlements) {
+    for (const s of cluster.settlements) {
       const a = assessmentBySettlement[s.id];
       if (!a) continue;
       pop.totalHouseholds += a.totalHouseholds;
@@ -123,25 +93,18 @@ export async function GET() {
       pop.elderly60plus   += a.elderly60plus;
     }
 
-    const lastSurveyed = settlements
-      .flatMap((s) => s.assessments.map((a) => a.assessedAt))
+    const assessedCount = cluster.settlements.filter(s => s.assessments.length > 0).length;
+    const lastSurveyed = cluster.settlements
+      .flatMap(s => s.assessments.map(a => a.assessedAt))
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
 
-    const allGoals = [...settlements.flatMap((s) => s.needsGoals), ...zone.needsGoals];
-    const activeGoalCount = allGoals.filter((g) => g.status === "Active").length;
-    const overdueCount = zone.needsPitstops.length;
-
-    // Domain progress
     const targets = calcTargets(pop, formulaRows as FormulaRow[]);
     const existing: Record<string, number> = {};
-    const sids = zoneSettlementIds.get(zone.id) ?? new Set<string>();
-    const cids = zoneClusterIds.get(zone.id)    ?? new Set<string>();
-
-    for (const s of settlements) {
+    for (const s of cluster.settlements) {
       const a = assessmentBySettlement[s.id];
       if (!a) continue;
       const row = buildExisting(a as Record<string, unknown>, formulaRows as FormulaRow[]);
-      for (const [domain, val] of Object.entries(row) as [string, number][]) {
+      for (const [domain, val] of Object.entries(row)) {
         existing[domain] = (existing[domain] ?? 0) + val;
       }
     }
@@ -158,11 +121,10 @@ export async function GET() {
 
     for (const g of activeGoals) {
       if (!g.needsDomain) continue;
-      const inZone =
-        (g.needsZoneId    && g.needsZoneId    === zone.id) ||
-        (g.needsClusterId && cids.has(g.needsClusterId))    ||
+      const inCluster =
+        (g.needsClusterId   && g.needsClusterId   === cluster.id) ||
         (g.needsSettlementId && sids.has(g.needsSettlementId));
-      if (!inZone) continue;
+      if (!inCluster) continue;
       inProgress[g.needsDomain] = (inProgress[g.needsDomain] ?? 0) + (g.parameter ?? 0);
     }
 
@@ -177,18 +139,17 @@ export async function GET() {
     }
 
     return {
-      id: zone.id,
-      name: zone.name,
-      city: zone.city ?? null,
-      totalSettlements,
-      withActiveGoals: withGoals,
+      id: cluster.id,
+      name: cluster.name,
+      zone: { id: cluster.zone.id, name: cluster.zone.name },
+      city: cluster.zone.city ?? null,
+      totalSettlements: cluster.settlements.length,
+      assessedCount,
       population: pop,
-      activeGoals: activeGoalCount,
-      overdueCount,
       lastSurveyed,
       domainProgress,
     };
   });
 
-  return NextResponse.json({ zones: result, domainConfig });
+  return NextResponse.json({ clusters: result, domainConfig });
 }
