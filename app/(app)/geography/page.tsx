@@ -5,7 +5,7 @@ import GeographyView from "./GeographyView";
 export default async function GeographyPage() {
   const session = await auth();
 
-  const [cities, zones] = await Promise.all([
+  const [rawCities, rawZones] = await Promise.all([
     prisma.city.findMany({
       where: { deletedAt: null },
       include: {
@@ -17,18 +17,14 @@ export default async function GeographyPage() {
               include: {
                 settlements: {
                   where: { deletedAt: null },
-                  include: { goals: { include: { goal: { select: { id: true, title: true } } } } },
                   orderBy: { name: "asc" },
                 },
-                goals: { include: { goal: { select: { id: true, title: true } } } },
               },
               orderBy: { name: "asc" },
             },
-            goals: { include: { goal: { select: { id: true, title: true } } } },
           },
           orderBy: { name: "asc" },
         },
-        goals: { include: { goal: { select: { id: true, title: true } } } },
       },
       orderBy: { name: "asc" },
     }),
@@ -44,11 +40,30 @@ export default async function GeographyPage() {
           },
           orderBy: { name: "asc" },
         },
-        goals: { include: { goal: { select: { id: true, title: true } } } },
       },
       orderBy: { name: "asc" },
     }),
   ]);
+
+  // Geography view expects goals arrays on each level; goals are now on Goal model via direct FK.
+  // The geography page is for hierarchy management — pass empty arrays (goal count badges hidden).
+  const cities = rawCities.map(c => ({
+    ...c, goals: [],
+    zones: c.zones.map(z => ({
+      ...z, goals: [],
+      clusters: z.clusters.map(cl => ({
+        ...cl, goals: [],
+        settlements: cl.settlements.map(s => ({ ...s, goals: [] })),
+      })),
+    })),
+  }));
+  const zones = rawZones.map(z => ({
+    ...z, goals: [],
+    clusters: z.clusters.map(cl => ({
+      ...cl, goals: [],
+      settlements: cl.settlements.map(s => ({ ...s, goals: [] })),
+    })),
+  }));
 
   return (
     <GeographyView

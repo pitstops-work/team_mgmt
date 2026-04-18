@@ -149,46 +149,22 @@ export default async function DashboardPage({
         },
       }),
 
-      // Clusters with tagged goals
+      // Clusters (goals attached via direct FK on Goal)
       prisma.cluster.findMany({
-        select: {
-          id: true, name: true,
-          zone: { select: { name: true } },
-          goals: {
-            where: { goal: { deletedAt: null } },
-            select: {
-              goal: {
-                select: {
-                  id: true,
-                  pitstops: {
-                    where: { deletedAt: null },
-                    select: { id: true, status: true },
-                  },
-                },
-              },
-            },
-          },
-        },
+        select: { id: true, name: true, zone: { select: { name: true } } },
       }),
 
-      // Zones with tagged goals
+      // Zones (goals attached via direct FK on Goal)
       prisma.zone.findMany({
+        select: { id: true, name: true },
+      }),
+
+      // Goals with geo FKs + pitstops (for cluster/zone performance)
+      prisma.goal.findMany({
+        where: { deletedAt: null },
         select: {
-          id: true, name: true,
-          goals: {
-            where: { goal: { deletedAt: null } },
-            select: {
-              goal: {
-                select: {
-                  id: true,
-                  pitstops: {
-                    where: { deletedAt: null },
-                    select: { id: true, status: true },
-                  },
-                },
-              },
-            },
-          },
+          id: true, needsClusterId: true, needsZoneId: true,
+          pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
         },
       }),
 
@@ -202,15 +178,18 @@ export default async function DashboardPage({
           user: { select: { id: true, name: true, image: true } },
         },
       }),
-    ]).then(([overduePitstops, inProgressPitstops, workloadRaw, doneThisMonth, clusters, zones, recentActivity]) => ({
-      overduePitstops,
-      inProgressPitstops,
-      workloadRaw,
-      doneThisMonth,
-      clusters,
-      zones,
-      recentActivity,
-    })),
+    ]).then(([overduePitstops, inProgressPitstops, workloadRaw, doneThisMonth, rawClusters, rawZones, goalGeo, recentActivity]) => {
+      // Build the same { goals: { goal: { id, pitstops } }[] } shape OrgOverview expects
+      const clusters = rawClusters.map(c => ({
+        ...c,
+        goals: goalGeo.filter(g => g.needsClusterId === c.id).map(g => ({ goal: { id: g.id, pitstops: g.pitstops } })),
+      }));
+      const zones = rawZones.map(z => ({
+        ...z,
+        goals: goalGeo.filter(g => g.needsZoneId === z.id).map(g => ({ goal: { id: g.id, pitstops: g.pitstops } })),
+      }));
+      return { overduePitstops, inProgressPitstops, workloadRaw, doneThisMonth, clusters, zones, recentActivity };
+    }),
   ]);
 
   let searchResults = null;
