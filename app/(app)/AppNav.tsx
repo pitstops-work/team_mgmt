@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarClock, MoreHorizontal, X, Layers, BookOpen, ClipboardList, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarClock, MoreHorizontal, X, Layers, BookOpen, ClipboardList, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck, FileText } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -53,9 +53,13 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             <BarChart3 className="w-3.5 h-3.5 text-stone-500" />
             Field Coverage
           </NavLink>
-          <NavLink href="/map" active={pathname === "/map"}>
+          <NavLink href="/map" active={pathname === "/map" || pathname.startsWith("/settlements")}>
             <MapPin className="w-3.5 h-3.5 text-indigo-500" />
             Programme Map
+          </NavLink>
+          <NavLink href="/report" active={pathname === "/report"}>
+            <FileText className="w-3.5 h-3.5 text-stone-500" />
+            Report
           </NavLink>
           <NavLink href="/dashboard" active={pathname === "/dashboard"}>
             <Target className="w-3.5 h-3.5 text-stone-500" />

@@ -64,6 +64,9 @@ type Pitstop = {
   checklistItems: ChecklistItem[];
   blockedBy: Dependency[];
   threads: Thread[];
+  needsZoneId?: string | null;
+  needsClusterId?: string | null;
+  needsSettlementId?: string | null;
 };
 type SiblingPitstop = { id: string; title: string; status: string };
 
@@ -730,7 +733,12 @@ export default function PitstopDetail({
         <ThemesSection pitstopId={pitstop.id} />
 
         {/* Geography */}
-        <GeographySection pitstopId={pitstop.id} />
+        <GeographySection
+          pitstopId={pitstop.id}
+          initialZoneId={pitstop.needsZoneId}
+          initialClusterId={pitstop.needsClusterId}
+          initialSettlementId={pitstop.needsSettlementId}
+        />
 
         {/* Audit trail */}
         <AuditSection entityType="Pitstop" entityId={pitstop.id} />

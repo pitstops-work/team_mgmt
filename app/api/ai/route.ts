@@ -11,7 +11,7 @@ function fmt(date: Date | string | null | undefined): string {
 async function buildContext(userId: string): Promise<string> {
   const today = new Date();
 
-  const [goals, events, users, themes, risks, programs, zones, clusters, recentNotes, decisions] = await Promise.all([
+  const [goals, events, users, themes, risks, programs, zones, clusters, recentNotes, decisions, geoLoad] = await Promise.all([
     prisma.goal.findMany({
       where: { deletedAt: null },
       include: {
@@ -80,6 +80,31 @@ async function buildContext(userId: string): Promise<string> {
       select: { title: true, status: true, goal: { select: { title: true } }, createdAt: true },
       orderBy: { createdAt: "desc" },
       take: 15,
+    }),
+    // Geographic load: zones with settlement/goal health snapshot
+    prisma.zone.findMany({
+      where: { deletedAt: null },
+      select: {
+        name: true,
+        clusters: {
+          where: { deletedAt: null },
+          select: {
+            name: true,
+            settlements: {
+              where: { deletedAt: null },
+              select: {
+                name: true,
+                needsGoals: { where: { deletedAt: null, status: "Active" }, select: { id: true } },
+              },
+            },
+          },
+        },
+        needsPitstops: {
+          where: { deletedAt: null, status: { not: "Done" }, targetDate: { lt: today } },
+          select: { title: true, targetDate: true },
+        },
+      },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -165,6 +190,30 @@ async function buildContext(userId: string): Promise<string> {
     }
   }
 
+  // ── Geographic load ────────────────────────────────────────────────────────
+  if (geoLoad.length > 0) {
+    ctx += `\nGEOGRAPHIC LOAD BY ZONE:\n`;
+    for (const z of geoLoad) {
+      const allSettlements = z.clusters.flatMap((c) => c.settlements);
+      const total = allSettlements.length;
+      const withGoals = allSettlements.filter((s) => s.needsGoals.length > 0).length;
+      const noGoals = total - withGoals;
+      const overdue = z.needsPitstops.length;
+
+      ctx += `  Zone: ${z.name} | ${total} settlements | ${withGoals} with active goals | ${noGoals} uncovered`;
+      if (overdue > 0) ctx += ` | ⚠ ${overdue} overdue pitstop${overdue !== 1 ? "s" : ""}`;
+      ctx += "\n";
+
+      // Clusters with fully uncovered settlements
+      for (const cl of z.clusters) {
+        const uncovered = cl.settlements.filter((s) => s.needsGoals.length === 0).map((s) => s.name);
+        if (uncovered.length > 0) {
+          ctx += `    Cluster ${cl.name} — no active goals: ${uncovered.slice(0, 8).join(", ")}${uncovered.length > 8 ? ` (+${uncovered.length - 8})` : ""}\n`;
+        }
+      }
+    }
+  }
+
   // ── Recent field notes ─────────────────────────────────────────────────────
   if (recentNotes.length > 0) {
     ctx += `\nRECENT FIELD NOTES (last 2 weeks):\n`;
@@ -196,7 +245,9 @@ You have access to REAL-TIME data from the app (injected below). Base ALL answer
 
 **Programs** — Groups of related goals (e.g. a geographic programme or funding stream). Navigate: /programs
 
-**Geography** — Goals and pitstops can be tagged to Zones (North/South/East/West/Central) and Clusters (sub-areas within zones). This drives the Programme Map and geo-filtered views. Navigate: /geography and /map
+**Geography** — Goals and pitstops are linked to Zones and Clusters (and optionally down to individual Settlements) via direct foreign keys. This drives the Programme Map and geo-filtered views. Navigate: /geography and /map
+
+**Settlement Profiles** — Each settlement has a profile page showing population data, active goals, pitstops, latest assessment, and field notes. Navigate: /settlements/[id]
 
 **Programme Map** — Interactive map of settlements, resource centres, children/youth centres, and creches. Layers toggle by partner org. Clicking a settlement shows linked goals/pitstops. Navigate: /map
 

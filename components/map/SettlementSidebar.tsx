@@ -193,6 +193,15 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
                 <h2 className="text-sm font-bold text-slate-800 leading-tight">{feature.name}</h2>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
+                {settlementDbId && (
+                  <Link
+                    href={`/settlements/${settlementDbId}`}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-violet-600 border border-violet-200 hover:bg-violet-50 transition-colors"
+                    title="View Settlement Profile"
+                  >
+                    Profile
+                  </Link>
+                )}
                 {settlementDbId ? (
                   <Link
                     href={`/needs/settlement/${settlementDbId}`}

@@ -1,230 +1,243 @@
 "use client";
 
-import { useState } from "react";
-import { MapPin, Plus, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MapPin, ChevronDown, X } from "lucide-react";
 
-type GeoType = "city" | "zone" | "cluster" | "settlement";
-type GeoItem = {
-  id: string;
-  name: string;
-  type: GeoType;
-  cityId?: string;
-  zoneId?: string;
-  clusterId?: string;
-};
-type GeoState = Record<GeoType, GeoItem[]>;
+type Zone = { id: string; name: string };
+type Cluster = { id: string; name: string; zoneId: string | null };
+type Settlement = { id: string; name: string; clusterId: string | null };
 
-const TYPE_LABELS: Record<GeoType, string> = {
-  city: "City",
-  zone: "Zone",
-  cluster: "Cluster",
-  settlement: "Settlement",
+type GeoState = {
+  zoneId: string | null;
+  clusterId: string | null;
+  settlementId: string | null;
 };
 
-const EMPTY: GeoState = { city: [], zone: [], cluster: [], settlement: [] };
+interface Props {
+  pitstopId: string;
+  initialZoneId?: string | null;
+  initialClusterId?: string | null;
+  initialSettlementId?: string | null;
+}
 
-export default function GeographySection({ pitstopId }: { pitstopId: string }) {
+export default function GeographySection({
+  pitstopId,
+  initialZoneId = null,
+  initialClusterId = null,
+  initialSettlementId = null,
+}: Props) {
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const [geo, setGeo] = useState<GeoState>({
+    zoneId: initialZoneId,
+    clusterId: initialClusterId,
+    settlementId: initialSettlementId,
+  });
+
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [tagged, setTagged] = useState<GeoState>(EMPTY);
-  const [all, setAll] = useState<GeoState>(EMPTY);
-  const [pickerType, setPickerType] = useState<GeoType | null>(null);
 
-  const load = async () => {
-    if (loaded) return;
-    const [taggedRes, allRes] = await Promise.all([
-      fetch(`/api/pitstops/${pitstopId}/geography`),
-      fetch("/api/geography"),
-    ]);
+  // Load all geo options once when opened
+  useEffect(() => {
+    if (!open || loaded) return;
+    fetch("/api/geography")
+      .then((r) => r.json())
+      .then((d) => {
+        setZones(d.zones ?? []);
+        setClusters(d.clusters ?? []);
+        setSettlements(d.settlements ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, [open, loaded]);
 
-    if (taggedRes.ok) {
-      const data = await taggedRes.json();
-      setTagged({
-        city:       (data.cities      ?? []).map((c: GeoItem) => ({ ...c, type: "city"       as const })),
-        zone:       (data.zones       ?? []).map((z: GeoItem) => ({ ...z, type: "zone"       as const })),
-        cluster:    (data.clusters    ?? []).map((cl: GeoItem) => ({ ...cl, type: "cluster"  as const })),
-        settlement: (data.settlements ?? []).map((s: GeoItem) => ({ ...s, type: "settlement" as const })),
+  // Cascade clear on parent change
+  const setZone = (zoneId: string | null) => {
+    setGeo({ zoneId, clusterId: null, settlementId: null });
+  };
+
+  const setCluster = (clusterId: string | null) => {
+    setGeo((g) => ({ ...g, clusterId, settlementId: null }));
+  };
+
+  const setSettlement = (settlementId: string | null) => {
+    setGeo((g) => ({ ...g, settlementId }));
+  };
+
+  const save = async (next: GeoState) => {
+    setSaving(true);
+    try {
+      await fetch(`/api/pitstops/${pitstopId}/needs-geo`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          needsZoneId: next.zoneId,
+          needsClusterId: next.clusterId,
+          needsSettlementId: next.settlementId,
+        }),
       });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
     }
-
-    if (allRes.ok) {
-      const data = await allRes.json();
-      setAll({
-        city:       (data.cities      ?? []).map((c: GeoItem) => ({ ...c, type: "city"       as const })),
-        zone:       (data.zones       ?? []).map((z: GeoItem) => ({ ...z, type: "zone"       as const })),
-        cluster:    (data.clusters    ?? []).map((cl: GeoItem) => ({ ...cl, type: "cluster"  as const })),
-        settlement: (data.settlements ?? []).map((s: GeoItem) => ({ ...s, type: "settlement" as const })),
-      });
-    }
-
-    setLoaded(true);
   };
 
-  const handleOpen = () => {
-    const next = !open;
-    setOpen(next);
-    if (next) load();
+  const clear = async () => {
+    const next: GeoState = { zoneId: null, clusterId: null, settlementId: null };
+    setGeo(next);
+    await save(next);
   };
 
-  const handleTag = async (type: GeoType, id: string) => {
-    const res = await fetch(`/api/pitstops/${pitstopId}/geography`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, id }),
-    });
-    if (res.ok) {
-      const item = all[type].find((i) => i.id === id);
-      if (item) setTagged((prev) => ({ ...prev, [type]: [...prev[type], item] }));
-    }
-    setPickerType(null);
-  };
+  // Filtered options based on current selections
+  const availableClusters = geo.zoneId
+    ? clusters.filter((c) => c.zoneId === geo.zoneId)
+    : clusters;
 
-  const handleUntag = async (type: GeoType, id: string) => {
-    const res = await fetch(`/api/pitstops/${pitstopId}/geography`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, id }),
-    });
-    if (res.ok) setTagged((prev) => ({ ...prev, [type]: prev[type].filter((i) => i.id !== id) }));
-  };
+  const availableSettlements = geo.clusterId
+    ? settlements.filter((s) => s.clusterId === geo.clusterId)
+    : geo.zoneId
+    ? settlements.filter((s) => {
+        const cl = clusters.find((c) => c.id === s.clusterId);
+        return cl?.zoneId === geo.zoneId;
+      })
+    : settlements;
 
-  const allTagged: GeoItem[] = [
-    ...tagged.city,
-    ...tagged.zone,
-    ...tagged.cluster,
-    ...tagged.settlement,
-  ];
+  // Display labels
+  const zoneName = geo.zoneId ? zones.find((z) => z.id === geo.zoneId)?.name ?? null : null;
+  const clusterName = geo.clusterId ? clusters.find((c) => c.id === geo.clusterId)?.name ?? null : null;
+  const settlementName = geo.settlementId ? settlements.find((s) => s.id === geo.settlementId)?.name ?? null : null;
 
-  // Cross-filtered untagged items for the picker
-  const getPickerItems = (type: GeoType): GeoItem[] => {
-    const alreadyTagged = new Set(tagged[type].map((i) => i.id));
-    const candidates = all[type].filter((i) => !alreadyTagged.has(i.id));
-
-    if (type === "zone") {
-      const taggedCityIds = new Set(tagged.city.map((c) => c.id));
-      if (taggedCityIds.size > 0)
-        return candidates.filter((z) => z.cityId && taggedCityIds.has(z.cityId));
-    }
-    if (type === "cluster") {
-      const taggedZoneIds = new Set(tagged.zone.map((z) => z.id));
-      if (taggedZoneIds.size > 0)
-        return candidates.filter((cl) => cl.zoneId && taggedZoneIds.has(cl.zoneId));
-      const taggedCityIds = new Set(tagged.city.map((c) => c.id));
-      if (taggedCityIds.size > 0) {
-        const zonesInCities = new Set(all.zone.filter((z) => z.cityId && taggedCityIds.has(z.cityId)).map((z) => z.id));
-        return candidates.filter((cl) => cl.zoneId && zonesInCities.has(cl.zoneId));
-      }
-    }
-    if (type === "settlement") {
-      const taggedClusterIds = new Set(tagged.cluster.map((cl) => cl.id));
-      if (taggedClusterIds.size > 0)
-        return candidates.filter((s) => s.clusterId && taggedClusterIds.has(s.clusterId));
-      const taggedZoneIds = new Set(tagged.zone.map((z) => z.id));
-      if (taggedZoneIds.size > 0) {
-        const clustersInZones = new Set(all.cluster.filter((cl) => cl.zoneId && taggedZoneIds.has(cl.zoneId)).map((cl) => cl.id));
-        return candidates.filter((s) => s.clusterId && clustersInZones.has(s.clusterId));
-      }
-    }
-    return candidates;
-  };
-
-  // Parent context label for picker items
-  const getParentLabel = (type: GeoType, item: GeoItem): string | null => {
-    if (type === "zone" && item.cityId) {
-      return all.city.find((c) => c.id === item.cityId)?.name ?? null;
-    }
-    if (type === "cluster" && item.zoneId) {
-      const zone = all.zone.find((z) => z.id === item.zoneId);
-      if (!zone) return null;
-      const city = zone.cityId ? all.city.find((c) => c.id === zone.cityId) : null;
-      return city ? `${zone.name} · ${city.name}` : zone.name;
-    }
-    if (type === "settlement" && item.clusterId) {
-      return all.cluster.find((cl) => cl.id === item.clusterId)?.name ?? null;
-    }
-    return null;
-  };
+  const hasGeo = geo.zoneId || geo.clusterId || geo.settlementId;
 
   return (
     <div className="px-4 py-3 border-b border-stone-100">
-      <button onClick={handleOpen} className="flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-stone-700 w-full text-left">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-stone-700 w-full text-left"
+      >
         <MapPin className="w-3.5 h-3.5" />
         Geography
-        {allTagged.length > 0 && <span className="ml-1 text-sky-600 font-semibold">({allTagged.length})</span>}
+        {hasGeo && (
+          <span className="ml-1 text-sky-600 font-semibold">
+            · {settlementName ?? clusterName ?? zoneName}
+          </span>
+        )}
+        {saving && <span className="ml-auto text-stone-400 text-[10px]">Saving…</span>}
+        {saved && <span className="ml-auto text-emerald-600 text-[10px] font-semibold">Saved ✓</span>}
+        <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-2.5">
           {!loaded && <p className="text-xs text-stone-400">Loading…</p>}
 
-          {loaded && allTagged.length === 0 && !pickerType && (
-            <p className="text-xs text-stone-400">No geography tagged.</p>
-          )}
+          {loaded && (
+            <>
+              {/* Zone picker */}
+              <div>
+                <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Zone</label>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={geo.zoneId ?? ""}
+                    onChange={(e) => {
+                      const next: GeoState = { zoneId: e.target.value || null, clusterId: null, settlementId: null };
+                      setGeo(next);
+                    }}
+                    className="flex-1 text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  >
+                    <option value="">— None —</option>
+                    {zones.map((z) => (
+                      <option key={z.id} value={z.id}>{z.name}</option>
+                    ))}
+                  </select>
+                  {geo.zoneId && (
+                    <button onClick={() => setZone(null)} className="text-stone-300 hover:text-red-400">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
 
-          {loaded && allTagged.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {allTagged.map((item) => (
-                <span
-                  key={`${item.type}-${item.id}`}
-                  className="flex items-center gap-1 px-2 py-0.5 bg-stone-100 border border-stone-200 text-xs text-stone-700 rounded-full group"
+              {/* Cluster picker — only if zone selected */}
+              {geo.zoneId && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Cluster</label>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={geo.clusterId ?? ""}
+                      onChange={(e) => {
+                        const next: GeoState = { ...geo, clusterId: e.target.value || null, settlementId: null };
+                        setGeo(next);
+                      }}
+                      className="flex-1 text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                    >
+                      <option value="">— None —</option>
+                      {availableClusters.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    {geo.clusterId && (
+                      <button onClick={() => setCluster(null)} className="text-stone-300 hover:text-red-400">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Settlement picker — only if cluster selected */}
+              {geo.clusterId && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Settlement</label>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={geo.settlementId ?? ""}
+                      onChange={(e) => {
+                        const next: GeoState = { ...geo, settlementId: e.target.value || null };
+                        setGeo(next);
+                      }}
+                      className="flex-1 text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                    >
+                      <option value="">— None —</option>
+                      {availableSettlements.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                    {geo.settlementId && (
+                      <button onClick={() => setSettlement(null)} className="text-stone-300 hover:text-red-400">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex items-center justify-between pt-1">
+                {hasGeo ? (
+                  <button
+                    onClick={clear}
+                    className="text-xs text-red-400 hover:text-red-600"
+                  >
+                    Clear all
+                  </button>
+                ) : (
+                  <span />
+                )}
+                <button
+                  onClick={() => save(geo)}
+                  disabled={saving}
+                  className="px-3 py-1 text-xs font-semibold rounded-lg bg-sky-500 text-white hover:bg-sky-600 disabled:opacity-50 transition-colors"
                 >
-                  <span className="text-[10px] text-stone-400">{TYPE_LABELS[item.type]}</span>
-                  {item.name}
-                  <button
-                    onClick={() => handleUntag(item.type, item.id)}
-                    className="opacity-50 hover:opacity-100 text-stone-400 hover:text-red-400 transition-opacity"
-                  >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {loaded && !pickerType && (
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {(["city", "zone", "cluster", "settlement"] as const).map((type) => {
-                if (getPickerItems(type).length === 0) return null;
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setPickerType(type)}
-                    className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200 transition-colors"
-                  >
-                    <Plus className="w-2.5 h-2.5" />
-                    {TYPE_LABELS[type]}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {pickerType && (
-            <div className="border border-stone-200 rounded-lg bg-white shadow-sm">
-              <div className="flex items-center justify-between px-3 py-1.5 border-b border-stone-100">
-                <span className="text-[10px] font-medium text-stone-500 uppercase tracking-wide">
-                  Select {TYPE_LABELS[pickerType]}
-                </span>
-                <button onClick={() => setPickerType(null)} className="text-stone-300 hover:text-stone-500">
-                  <X className="w-3.5 h-3.5" />
+                  {saving ? "Saving…" : "Save"}
                 </button>
               </div>
-              <div className="max-h-40 overflow-y-auto">
-                {getPickerItems(pickerType).map((item) => {
-                  const parent = getParentLabel(pickerType, item);
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => handleTag(pickerType, item.id)}
-                      className="w-full text-left px-3 py-2 text-xs text-stone-700 hover:bg-sky-50 hover:text-sky-700 transition-colors flex items-center justify-between gap-2"
-                    >
-                      <span>{item.name}</span>
-                      {parent && <span className="text-[10px] text-stone-400 shrink-0">{parent}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            </>
           )}
         </div>
       )}

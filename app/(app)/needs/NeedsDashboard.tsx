@@ -9,6 +9,16 @@ import {
 } from "lucide-react";
 import type { LevelStats, DomainStats, DomainConfig, ProgressSummary, MonthlyPoint, EntitlementSummary } from "./page";
 
+type ZoneSummary = {
+  id: string;
+  name: string;
+  totalSettlements: number;
+  withActiveGoals: number;
+  population: { totalHouseholds: number; children6m3yr: number; children4to14: number; youth15to21: number; elderly60plus: number };
+  activeGoals: number;
+  overdueCount: number;
+  lastSurveyed: string | null;
+};
 type Assessment = { id: string; assessmentYear: number; assessedAt: string; totalHouseholds: number };
 type Settlement = { id: string; name: string; assessments: Assessment[] };
 type Cluster = { id: string; name: string; settlements: Settlement[] };
@@ -398,7 +408,8 @@ export default function NeedsDashboard({
   const initZoneId    = searchParams.get("zoneId");
   const initClusterId = searchParams.get("clusterId");
 
-  const [mainTab, setMainTab]         = useState<"coverage" | "progress" | "entitlements">("coverage");
+  const [mainTab, setMainTab]         = useState<"coverage" | "progress" | "entitlements" | "zones">("coverage");
+  const [zoneSummary, setZoneSummary] = useState<ZoneSummary[] | null>(null);
   const [view, setView]               = useState<ViewLevel>(initClusterId ? "cluster" : initZoneId ? "zone" : "city");
   const [openZones, setOpenZones]     = useState<Set<string>>(initZoneId ? new Set([initZoneId]) : new Set());
   const [openClusters, setOpenClusters] = useState<Set<string>>(initClusterId ? new Set([initClusterId]) : new Set());
@@ -474,6 +485,20 @@ export default function NeedsDashboard({
           className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${mainTab === "entitlements" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
         >
           Entitlements
+        </button>
+        <button
+          onClick={() => {
+            setMainTab("zones");
+            if (!zoneSummary) {
+              fetch("/api/zones/summary")
+                .then((r) => r.json())
+                .then((d) => setZoneSummary(Array.isArray(d) ? d : []))
+                .catch(() => setZoneSummary([]));
+            }
+          }}
+          className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${mainTab === "zones" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+        >
+          Zones
         </button>
       </div>
 
@@ -1081,6 +1106,71 @@ export default function NeedsDashboard({
             </div>
           )}
         </>
+      )}
+
+      {/* ══════════════════════ ZONES SUMMARY TAB ══════════════════════ */}
+      {mainTab === "zones" && (
+        <div>
+          {zoneSummary === null && (
+            <p className="text-sm text-stone-400 py-8 text-center">Loading zone summaries…</p>
+          )}
+          {zoneSummary !== null && zoneSummary.length === 0 && (
+            <p className="text-sm text-stone-400 py-8 text-center">No zones found.</p>
+          )}
+          {zoneSummary !== null && zoneSummary.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {zoneSummary.map((z) => {
+                const goalPct = z.totalSettlements > 0
+                  ? Math.round((z.withActiveGoals / z.totalSettlements) * 100)
+                  : 0;
+                return (
+                  <div key={z.id} className="rounded-xl border border-stone-100 p-4 space-y-3 bg-white">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-bold text-stone-800">{z.name}</h3>
+                      {z.overdueCount > 0 && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
+                          <AlertTriangle className="w-2.5 h-2.5" />
+                          {z.overdueCount} overdue
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      <div className="bg-stone-50 rounded-lg px-2 py-1.5">
+                        <p className="text-base font-bold text-stone-800">{z.totalSettlements}</p>
+                        <p className="text-[9px] text-stone-400 uppercase tracking-wide">Settlements</p>
+                      </div>
+                      <div className="bg-stone-50 rounded-lg px-2 py-1.5">
+                        <p className="text-base font-bold text-stone-800">{z.population.totalHouseholds.toLocaleString()}</p>
+                        <p className="text-[9px] text-stone-400 uppercase tracking-wide">Households</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[10px] text-stone-500 mb-1">
+                        <span>Settlements with active goals</span>
+                        <span className="font-semibold">{z.withActiveGoals} / {z.totalSettlements}</span>
+                      </div>
+                      <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-emerald-400 transition-all"
+                          style={{ width: `${goalPct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-stone-500">
+                      <span>{z.activeGoals} active goal{z.activeGoals !== 1 ? "s" : ""}</span>
+                      {z.lastSurveyed && (
+                        <span>Last surveyed {new Date(z.lastSurveyed).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {cities.length === 0 && (
