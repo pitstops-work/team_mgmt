@@ -4,7 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Target, ChevronRight, Layers, LayoutDashboard, ListChecks } from "lucide-react";
+import {
+  Plus, Target, ChevronRight, Layers, LayoutDashboard, ListChecks,
+  MessageSquare, Home, Users, AlertTriangle, CheckCircle2, Flag,
+} from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge } from "@/components/StatusBadge";
 import CreateGoalModal from "./CreateGoalModal";
@@ -14,6 +17,8 @@ import { fetchGoal, fetchGoals } from "@/lib/api-client";
 import OrgOverview, { type OverviewData } from "./OrgOverview";
 import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
 import MultiSelect from "@/components/MultiSelect";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type Goal = {
   id: string;
@@ -25,6 +30,25 @@ type Goal = {
   programs: { program: { id: string; title: string } }[];
   needsZone: { id: string; name: string; cityId: string | null } | null;
   needsCluster: { id: string; name: string; zoneId: string } | null;
+};
+
+type Thread = {
+  id: string;
+  name: string;
+  updatedAt: string;
+  pitstop: {
+    id: string; title: string;
+    goal: { id: string; title: string };
+    owner: { id: string; name: string | null; image: string | null } | null;
+  };
+  _count: { messages: number };
+  messages: { body: string; createdAt: string; author: { name: string | null } }[];
+};
+
+type MyPitstop = {
+  id: string; title: string; status: string; targetDate: string | null;
+  goal: { id: string; title: string };
+  checklistItems: { id: string; checked: boolean }[];
 };
 
 interface SearchResults {
@@ -39,13 +63,128 @@ interface Props {
   searchResults: SearchResults | null;
   users: { id: string; name: string | null; image: string | null }[];
   programs: { id: string; title: string }[];
+  threads: Thread[];
+  myPitstops: MyPitstop[];
   overviewData: OverviewData;
-  initialTab: "overview" | "goals";
+  initialTab: "home" | "goals" | "team";
   initialFilter?: "All" | "Mine" | "Active" | "Paused" | "Complete";
 }
 
-export default function GoalsDashboard({ initialGoals, currentUserId, searchResults, users, programs, overviewData, initialTab, initialFilter = "All" }: Props) {
-  const [activeTab, setActiveTab] = useState<"overview" | "goals">(initialTab);
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+// ── Thread tile ───────────────────────────────────────────────────────────────
+
+function ThreadTile({ thread }: { thread: Thread }) {
+  const lastMsg = thread.messages[0];
+  return (
+    <Link
+      href={`/goals/${thread.pitstop.goal.id}/pitstops/${thread.pitstop.id}#thread-${thread.id}`}
+      className="flex flex-col bg-white border border-stone-200 rounded-xl p-4 hover:border-sky-300 hover:shadow-sm transition-all group"
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
+            <MessageSquare className="w-3.5 h-3.5 text-sky-500" />
+          </div>
+          <span className="text-sm font-semibold text-stone-800 group-hover:text-sky-700 line-clamp-1">{thread.name}</span>
+        </div>
+        <span className="text-[11px] text-stone-400 flex-shrink-0 mt-0.5">{timeAgo(thread.updatedAt)}</span>
+      </div>
+
+      {/* Breadcrumb */}
+      <p className="text-[11px] text-stone-400 mb-2 truncate">
+        {thread.pitstop.goal.title} <span className="text-stone-300">›</span> {thread.pitstop.title}
+      </p>
+
+      {/* Last message */}
+      {lastMsg ? (
+        <p className="text-xs text-stone-500 line-clamp-2 flex-1">
+          <span className="font-medium text-stone-600">{lastMsg.author.name}:</span>{" "}
+          {lastMsg.body}
+        </p>
+      ) : (
+        <p className="text-xs text-stone-400 italic flex-1">No messages yet</p>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-stone-100">
+        <span className="flex items-center gap-1 text-[11px] text-stone-400">
+          <MessageSquare className="w-3 h-3" />
+          {thread._count.messages}
+        </span>
+        {thread.pitstop.owner && (
+          <div className="flex items-center gap-1">
+            <Avatar name={thread.pitstop.owner.name} image={thread.pitstop.owner.image} size="xs" />
+            <span className="text-[11px] text-stone-400 truncate max-w-[80px]">{thread.pitstop.owner.name}</span>
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+// ── My pitstop row ────────────────────────────────────────────────────────────
+
+function MyPitstopRow({ pitstop }: { pitstop: MyPitstop }) {
+  const total = pitstop.checklistItems.length;
+  const done = pitstop.checklistItems.filter(i => i.checked).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : null;
+  const overdue = pitstop.targetDate && new Date(pitstop.targetDate) < new Date();
+
+  return (
+    <Link
+      href={`/goals/${pitstop.goal.id}/pitstops/${pitstop.id}`}
+      className="flex items-center gap-3 px-4 py-2.5 bg-white border border-stone-200 rounded-lg hover:border-stone-300 hover:shadow-sm transition-all group"
+    >
+      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${pitstop.status === "InProgress" ? "bg-sky-400" : "bg-stone-300"}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-stone-800 truncate group-hover:text-sky-700">{pitstop.title}</p>
+        <p className="text-[11px] text-stone-400 truncate">{pitstop.goal.title}</p>
+        {pct !== null && (
+          <div className="flex items-center gap-1.5 mt-1">
+            <div className="w-20 h-1 bg-stone-100 rounded-full overflow-hidden">
+              <div className="h-full bg-sky-400 rounded-full" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-[10px] text-stone-400">{done}/{total}</span>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {pitstop.targetDate && (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${overdue ? "bg-red-50 border-red-200 text-red-600" : "bg-stone-50 border-stone-200 text-stone-500"}`}>
+            {fmtDate(pitstop.targetDate)}
+          </span>
+        )}
+        <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-stone-500" />
+      </div>
+    </Link>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function GoalsDashboard({
+  initialGoals, currentUserId, searchResults, users, programs,
+  threads, myPitstops, overviewData, initialTab, initialFilter = "All",
+}: Props) {
+  const [activeTab, setActiveTab] = useState<"home" | "goals" | "team">(initialTab);
   const [showCreate, setShowCreate] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
   const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">(initialFilter);
@@ -55,7 +194,6 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  // React Query — initialData from server, stays fresh for 60s, re-fetches silently after
   const { data: goals = initialGoals } = useQuery<Goal[]>({
     queryKey: qk.goals(),
     queryFn: fetchGoals,
@@ -79,7 +217,6 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
   const myGoals = filtered.filter((g) => g.owner.id === currentUserId);
   const teamGoals = filtered.filter((g) => g.owner.id !== currentUserId);
 
-  // Prefetch goal data + route on hover/touch so navigation feels instant
   const prefetchGoal = (goalId: string) => {
     queryClient.prefetchQuery({
       queryKey: qk.goal(goalId),
@@ -89,6 +226,13 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
     router.prefetch(`/goals/${goalId}`);
   };
 
+  // Derived stat pill values
+  const overdueCount = overviewData.overduePitstops.length;
+  const inProgressCount = overviewData.inProgressPitstops.length;
+  const doneThisMonth = overviewData.doneThisMonth;
+  const activeGoals = goals.filter(g => g.status === "Active").length;
+
+  // ── Search results ───────────────────────────────────────────────────────────
   if (searchResults) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -136,14 +280,63 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
     );
   }
 
+  // ── Main layout ──────────────────────────────────────────────────────────────
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-      {/* Page header + tabs */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-xl font-semibold text-stone-900">Dashboard</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Goals and programme overview</p>
+
+      {/* Stat pills — always visible */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <StatPill
+          icon={<Flag className="w-3 h-3" />}
+          label="active goals"
+          value={activeGoals}
+          accent="sky"
+          href="/dashboard?tab=goals&filter=Active"
+        />
+        <StatPill
+          icon={<CheckCircle2 className="w-3 h-3" />}
+          label="in progress"
+          value={inProgressCount}
+          accent="stone"
+        />
+        <StatPill
+          icon={<AlertTriangle className="w-3 h-3" />}
+          label="overdue"
+          value={overdueCount}
+          accent={overdueCount > 0 ? "red" : "stone"}
+          href="/dashboard?tab=team"
+        />
+        <StatPill
+          icon={<CheckCircle2 className="w-3 h-3" />}
+          label="done this month"
+          value={doneThisMonth}
+          accent="emerald"
+        />
+      </div>
+
+      {/* Tab bar + actions */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex gap-0.5 bg-stone-100 rounded-lg p-0.5 w-fit">
+          {(
+            [
+              { key: "home",  label: "Home",  icon: <Home className="w-3.5 h-3.5" /> },
+              { key: "goals", label: "Goals", icon: <ListChecks className="w-3.5 h-3.5" /> },
+              { key: "team",  label: "Team",  icon: <Users className="w-3.5 h-3.5" /> },
+            ] as const
+          ).map(({ key, label, icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                activeTab === key ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
         </div>
+
         {activeTab === "goals" && (
           <div className="flex items-center gap-2">
             <button
@@ -164,114 +357,143 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
         )}
       </div>
 
-      {/* Tab switcher */}
-      <div className="flex gap-0.5 mb-6 bg-stone-100 rounded-lg p-0.5 w-fit">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            activeTab === "overview" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"
-          }`}
-        >
-          <LayoutDashboard className="w-3.5 h-3.5" />
-          Overview
-        </button>
-        <button
-          onClick={() => setActiveTab("goals")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            activeTab === "goals" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"
-          }`}
-        >
-          <ListChecks className="w-3.5 h-3.5" />
-          Goals
-        </button>
-      </div>
+      {/* ── Home tab ── */}
+      {activeTab === "home" && (
+        <div className="space-y-8">
 
-      {/* Overview tab */}
-      {activeTab === "overview" && (
+          {/* Active threads grid */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5" />
+                Active Threads
+              </h2>
+              <Link href="/threads" className="text-xs text-sky-600 hover:text-sky-700 font-medium">
+                View all →
+              </Link>
+            </div>
+
+            {threads.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-stone-200 rounded-xl">
+                <MessageSquare className="w-8 h-8 text-stone-200 mx-auto mb-2" />
+                <p className="text-sm text-stone-400">No threads yet — discussions start inside pitstops.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {threads.map((t) => <ThreadTile key={t.id} thread={t} />)}
+              </div>
+            )}
+          </section>
+
+          {/* My pitstops */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                My Pitstops
+              </h2>
+            </div>
+
+            {myPitstops.length === 0 ? (
+              <div className="text-center py-8 border border-dashed border-stone-200 rounded-xl">
+                <p className="text-sm text-stone-400">No active pitstops assigned to you.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {myPitstops.map((p) => <MyPitstopRow key={p.id} pitstop={p} />)}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* ── Goals tab ── */}
+      {activeTab === "goals" && (
+        <div>
+          <div className="flex flex-wrap gap-1 mb-4">
+            {(["All", "Mine", "Active", "Paused", "Complete"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                  filter === f
+                    ? "bg-stone-900 text-white"
+                    : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-6">
+            {programs.length > 0 && (
+              <MultiSelect
+                options={programs.map((p) => ({ value: p.id, label: p.title }))}
+                value={selectedPrograms}
+                onChange={setSelectedPrograms}
+                placeholder="All Programs"
+              />
+            )}
+            {users.length > 0 && (
+              <MultiSelect
+                options={users.map((u) => ({ value: u.id, label: u.name ?? u.id }))}
+                value={selectedUsers}
+                onChange={setSelectedUsers}
+                placeholder="All Members"
+              />
+            )}
+            <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
+            {(selectedPrograms.length > 0 || selectedUsers.length > 0 || geoFilter.cityId || geoFilter.zoneId || geoFilter.clusterId) && (
+              <button
+                onClick={() => { setSelectedPrograms([]); setSelectedUsers([]); setGeoFilter({ cityId: "", zoneId: "", clusterId: "" }); }}
+                className="px-2.5 py-1 text-xs text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+
+          {filtered.length === 0 ? (
+            filter === "All" && selectedPrograms.length === 0 && selectedUsers.length === 0 ? (
+              <div className="text-center py-20">
+                <Target className="w-10 h-10 text-stone-200 mx-auto mb-3" />
+                <p className="text-stone-500 font-medium">No goals yet</p>
+                <p className="text-xs text-stone-400 mt-1">Create your first goal to get started.</p>
+                <button onClick={() => setShowCreate(true)} className="mt-4 px-4 py-2 bg-sky-500 text-white text-sm rounded-lg hover:bg-sky-600">
+                  Create Goal
+                </button>
+              </div>
+            ) : (
+              <p className="text-center text-stone-400 text-sm py-16">No goals match your filters.</p>
+            )
+          ) : (
+            <>
+              {myGoals.length > 0 && (
+                <section className="mb-8">
+                  <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">My Goals</h2>
+                  <div className="space-y-2">
+                    {myGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                  </div>
+                </section>
+              )}
+              {teamGoals.length > 0 && (
+                <section>
+                  <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Team Goals</h2>
+                  <div className="space-y-2">
+                    {teamGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Team tab (OrgOverview) ── */}
+      {activeTab === "team" && (
         <OrgOverview overviewData={overviewData} goals={goals} users={users} />
       )}
-
-      {/* Goals tab */}
-      {activeTab === "goals" && (<div>
-
-      <div className="flex flex-wrap gap-1 mb-4">
-        {(["All", "Mine", "Active", "Paused", "Complete"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-              filter === f
-                ? "bg-stone-900 text-white"
-                : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        {programs.length > 0 && (
-          <MultiSelect
-            options={programs.map((p) => ({ value: p.id, label: p.title }))}
-            value={selectedPrograms}
-            onChange={setSelectedPrograms}
-            placeholder="All Programs"
-          />
-        )}
-        {users.length > 0 && (
-          <MultiSelect
-            options={users.map((u) => ({ value: u.id, label: u.name ?? u.id }))}
-            value={selectedUsers}
-            onChange={setSelectedUsers}
-            placeholder="All Members"
-          />
-        )}
-        <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
-        {(selectedPrograms.length > 0 || selectedUsers.length > 0 || geoFilter.cityId || geoFilter.zoneId || geoFilter.clusterId) && (
-          <button
-            onClick={() => { setSelectedPrograms([]); setSelectedUsers([]); setGeoFilter({ cityId: "", zoneId: "", clusterId: "" }); }}
-            className="px-2.5 py-1 text-xs text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors"
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      {filtered.length === 0 ? (
-        filter === "All" && selectedPrograms.length === 0 && selectedUsers.length === 0 ? (
-          <div className="text-center py-20">
-            <Target className="w-10 h-10 text-stone-200 mx-auto mb-3" />
-            <p className="text-stone-500 font-medium">No goals yet</p>
-            <p className="text-xs text-stone-400 mt-1">Create your first goal to get started.</p>
-            <button onClick={() => setShowCreate(true)} className="mt-4 px-4 py-2 bg-sky-500 text-white text-sm rounded-lg hover:bg-sky-600">
-              Create Goal
-            </button>
-          </div>
-        ) : (
-          <p className="text-center text-stone-400 text-sm py-16">No goals match your filters.</p>
-        )
-      ) : (
-        <>
-          {myGoals.length > 0 && (
-            <section className="mb-8">
-              <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">My Goals</h2>
-              <div className="space-y-2">
-                {myGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
-              </div>
-            </section>
-          )}
-          {teamGoals.length > 0 && (
-            <section>
-              <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Team Goals</h2>
-              <div className="space-y-2">
-                {teamGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
-              </div>
-            </section>
-          )}
-        </>
-      )}
-      </div>)}
 
       {showCreate && (
         <CreateGoalModal
@@ -295,6 +517,37 @@ export default function GoalsDashboard({ initialGoals, currentUserId, searchResu
     </div>
   );
 }
+
+// ── Stat pill ─────────────────────────────────────────────────────────────────
+
+function StatPill({
+  icon, label, value, accent, href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  accent: "sky" | "red" | "emerald" | "stone";
+  href?: string;
+}) {
+  const colors = {
+    sky:     "bg-sky-50 border-sky-200 text-sky-700",
+    red:     "bg-red-50 border-red-200 text-red-700",
+    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    stone:   "bg-white border-stone-200 text-stone-600",
+  };
+  const cls = `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${colors[accent]}${href ? " hover:shadow-sm transition-shadow cursor-pointer" : ""}`;
+  const inner = (
+    <>
+      {icon}
+      <span className="font-bold">{value}</span>
+      <span className="opacity-70">{label}</span>
+    </>
+  );
+  if (href) return <Link href={href} className={cls}>{inner}</Link>;
+  return <div className={cls}>{inner}</div>;
+}
+
+// ── Goal card ─────────────────────────────────────────────────────────────────
 
 function GoalCard({ goal, onHover }: { goal: Goal; onHover: (id: string) => void }) {
   const total = goal.pitstops.length;

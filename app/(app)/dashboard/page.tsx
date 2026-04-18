@@ -14,7 +14,9 @@ export default async function DashboardPage({
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [goals, users, programs, overviewData] = await Promise.all([
+  const currentUserId = session!.user!.id!;
+
+  const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
     prisma.goal.findMany({
       where: { deletedAt: null },
       include: {
@@ -28,6 +30,47 @@ export default async function DashboardPage({
     }),
     prisma.user.findMany({ select: { id: true, name: true, image: true }, orderBy: { name: "asc" } }),
     prisma.program.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
+
+    // Threads for home tile grid
+    prisma.thread.findMany({
+      where: { deletedAt: null, pitstop: { deletedAt: null, goal: { deletedAt: null } } },
+      select: {
+        id: true, name: true, updatedAt: true,
+        pitstop: {
+          select: {
+            id: true, title: true,
+            goal: { select: { id: true, title: true } },
+            owner: { select: { id: true, name: true, image: true } },
+          },
+        },
+        _count: { select: { messages: { where: { deletedAt: null } } } },
+        messages: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { body: true, createdAt: true, author: { select: { name: true } } },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 12,
+    }),
+
+    // Current user's active pitstops
+    prisma.pitstop.findMany({
+      where: {
+        deletedAt: null,
+        ownerId: currentUserId,
+        status: { in: ["Upcoming", "InProgress"] },
+        goal: { deletedAt: null },
+      },
+      select: {
+        id: true, title: true, status: true, targetDate: true,
+        goal: { select: { id: true, title: true } },
+        checklistItems: { select: { id: true, checked: true } },
+      },
+      orderBy: [{ status: "desc" }, { targetDate: "asc" }],
+      take: 10,
+    }),
 
     // Overview data — all fetched in parallel
     Promise.all([
@@ -173,12 +216,14 @@ export default async function DashboardPage({
   return (
     <GoalsDashboard
       initialGoals={JSON.parse(JSON.stringify(goals))}
-      currentUserId={session!.user!.id!}
+      currentUserId={currentUserId}
       searchResults={searchResults ? JSON.parse(JSON.stringify(searchResults)) : null}
       users={users}
       programs={programs}
+      threads={JSON.parse(JSON.stringify(threads))}
+      myPitstops={JSON.parse(JSON.stringify(myPitstops))}
       overviewData={JSON.parse(JSON.stringify(overviewData))}
-      initialTab={(tab === "overview" ? "overview" : "goals") as "overview" | "goals"}
+      initialTab={(tab === "home" || tab === "goals" || tab === "team" ? tab : "home") as "home" | "goals" | "team"}
       initialFilter={(["All","Mine","Active","Paused","Complete"].includes(filter ?? "") ? filter : "All") as "All" | "Mine" | "Active" | "Paused" | "Complete"}
     />
   );
