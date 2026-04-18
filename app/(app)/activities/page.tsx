@@ -6,7 +6,7 @@ import EventsCalendar from "./EventsCalendar";
 export default async function ActivitiesPage() {
   const session = await auth();
 
-  const [events, pitstops, users, zones, clusters] = await Promise.all([
+  const [events, pitstops, users, rawZones, rawClusters, goalGeo] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: { deletedAt: null },
       include: {
@@ -41,21 +41,29 @@ export default async function ActivitiesPage() {
       orderBy: { name: "asc" },
     }),
     prisma.zone.findMany({
-      select: {
-        id: true, name: true,
-        goals: { select: { goalId: true } },
-      },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
     prisma.cluster.findMany({
-      select: {
-        id: true, name: true,
-        zone: { select: { name: true } },
-        goals: { select: { goalId: true } },
-      },
+      select: { id: true, name: true, zone: { select: { name: true } } },
       orderBy: { name: "asc" },
     }),
+    prisma.goal.findMany({
+      where: { deletedAt: null },
+      select: { id: true, needsZoneId: true, needsClusterId: true },
+    }),
   ]);
+
+  // Build the same { goals: { goalId }[] } shape EventsCalendar expects,
+  // now derived from direct FK fields instead of the removed M2M tables.
+  const zones = rawZones.map(z => ({
+    ...z,
+    goals: goalGeo.filter(g => g.needsZoneId === z.id).map(g => ({ goalId: g.id })),
+  }));
+  const clusters = rawClusters.map(c => ({
+    ...c,
+    goals: goalGeo.filter(g => g.needsClusterId === c.id).map(g => ({ goalId: g.id })),
+  }));
 
   const calendarToken = session?.user?.id ? generateCalendarToken(session.user.id) : null;
 
