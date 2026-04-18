@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Target, ChevronRight, ChevronLeft } from "lucide-react";
+import { X, Target, ChevronRight, ChevronLeft, Briefcase } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,40 +47,49 @@ function GeoStep({
   geo,
   value,
   onChange,
+  isOperational,
 }: {
   geo: RawGeo;
   value: GeoVal;
   onChange: (v: GeoVal) => void;
+  isOperational: boolean;
 }) {
   const { cityId, zoneId, clusterId, settlementId } = value;
   const sel = "w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white";
 
-  const filteredZones      = cityId  ? geo.zones.filter(z => z.cityId === cityId)        : geo.zones;
-  const filteredClusters   = zoneId  ? geo.clusters.filter(c => c.zoneId === zoneId)     : geo.clusters;
-  const filteredSettlements= clusterId ? geo.settlements.filter(s => s.clusterId === clusterId) : geo.settlements;
+  const filteredZones       = cityId    ? geo.zones.filter(z => z.cityId === cityId)          : geo.zones;
+  const filteredClusters    = zoneId    ? geo.clusters.filter(c => c.zoneId === zoneId)       : geo.clusters;
+  const filteredSettlements = clusterId ? geo.settlements.filter(s => s.clusterId === clusterId) : geo.settlements;
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-stone-400">
-        Select where this goal will make a difference. You can assign it to a zone, cluster, or a specific settlement.
+        {isOperational
+          ? "Select the city this goal is scoped to. Operational goals work at city level — zone is optional if you want to narrow the scope."
+          : "Select where this goal will make a difference. You can assign it to a zone, cluster, or a specific settlement."}
       </p>
       <div>
-        <label className="block text-xs font-medium text-stone-600 mb-1">City</label>
+        <label className="block text-xs font-medium text-stone-600 mb-1">
+          City {isOperational && <span className="text-red-400">*</span>}
+        </label>
         <select value={cityId} onChange={e => onChange({ cityId: e.target.value, zoneId: "", clusterId: "", settlementId: "" })} className={sel}>
-          <option value="">All cities</option>
+          <option value="">— select city —</option>
           {geo.cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
       <div>
         <label className="block text-xs font-medium text-stone-600 mb-1">
-          Zone <span className="text-stone-300 font-normal">(required)</span>
+          Zone{" "}
+          <span className="text-stone-300 font-normal">
+            {isOperational ? "(optional)" : "(required)"}
+          </span>
         </label>
         <select value={zoneId} onChange={e => onChange({ cityId, zoneId: e.target.value, clusterId: "", settlementId: "" })} className={sel}>
-          <option value="">— select zone —</option>
+          <option value="">— {isOperational ? "all zones" : "select zone"} —</option>
           {filteredZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
         </select>
       </div>
-      {zoneId && (
+      {!isOperational && zoneId && (
         <div>
           <label className="block text-xs font-medium text-stone-600 mb-1">
             Cluster <span className="text-stone-300 font-normal">(optional)</span>
@@ -91,7 +100,7 @@ function GeoStep({
           </select>
         </div>
       )}
-      {clusterId && (
+      {!isOperational && clusterId && (
         <div>
           <label className="block text-xs font-medium text-stone-600 mb-1">
             Settlement <span className="text-stone-300 font-normal">(optional)</span>
@@ -102,7 +111,7 @@ function GeoStep({
           </select>
         </div>
       )}
-      {(settlementId || clusterId || zoneId) && (
+      {!isOperational && (settlementId || clusterId || zoneId) && (
         <p className="text-xs text-sky-600 font-medium bg-sky-50 px-3 py-2 rounded-lg">
           Actuals will count toward:{" "}
           {settlementId
@@ -110,6 +119,15 @@ function GeoStep({
             : clusterId
             ? geo.clusters.find(c => c.id === clusterId)?.name
             : geo.zones.find(z => z.id === zoneId)?.name}
+        </p>
+      )}
+      {isOperational && (cityId || zoneId) && (
+        <p className="text-xs text-stone-500 font-medium bg-stone-50 px-3 py-2 rounded-lg">
+          Scope:{" "}
+          {zoneId
+            ? geo.zones.find(z => z.id === zoneId)?.name + " · "
+            : ""}
+          {geo.cities.find(c => c.id === cityId)?.name ?? ""}
         </p>
       )}
     </div>
@@ -208,6 +226,7 @@ function GoalForm({
   contextLabel,
   contextColor,
   domainLabel,
+  isOperational,
   loading,
   error,
   onSubmit,
@@ -221,6 +240,7 @@ function GoalForm({
   contextLabel: string;
   contextColor: string;
   domainLabel: string;
+  isOperational: boolean;
   loading: boolean;
   error: string;
   onSubmit: (e: React.FormEvent) => void;
@@ -229,15 +249,25 @@ function GoalForm({
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {/* Context banner */}
-      <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium"
-        style={{ background: contextColor + "15", color: contextColor }}>
-        <Target className="w-4 h-4 flex-shrink-0" />
-        <span>
-          <span className="font-bold">{domainLabel}</span>
-          {" "}in{" "}
-          <span className="font-bold">{contextLabel}</span>
-        </span>
-      </div>
+      {isOperational ? (
+        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium bg-stone-100 text-stone-600">
+          <Briefcase className="w-4 h-4 flex-shrink-0 text-stone-500" />
+          <span>
+            <span className="font-bold">Operational goal</span>
+            {contextLabel && <> · <span className="font-medium">{contextLabel}</span></>}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium"
+          style={{ background: contextColor + "15", color: contextColor }}>
+          <Target className="w-4 h-4 flex-shrink-0" />
+          <span>
+            <span className="font-bold">{domainLabel}</span>
+            {" "}in{" "}
+            <span className="font-bold">{contextLabel}</span>
+          </span>
+        </div>
+      )}
 
       <div>
         <label className="block text-xs font-medium text-stone-600 mb-1">Title</label>
@@ -251,21 +281,39 @@ function GoalForm({
         />
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-stone-600 mb-1">
-          Units committed{" "}
-          <span className="text-stone-300 font-normal">(how many {domainLabel.toLowerCase()} this goal will deliver)</span>
-        </label>
-        <input
-          type="number"
-          min={1}
-          step={1}
-          value={parameter}
-          onChange={e => setParameter(e.target.value)}
-          placeholder="e.g. 2"
-          className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
-        />
-      </div>
+      {isOperational ? (
+        <div>
+          <label className="block text-xs font-medium text-stone-600 mb-1">
+            Target metric{" "}
+            <span className="text-stone-300 font-normal">(optional — e.g. number of beneficiaries, events, records)</span>
+          </label>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={parameter}
+            onChange={e => setParameter(e.target.value)}
+            placeholder="e.g. 500"
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+          />
+        </div>
+      ) : (
+        <div>
+          <label className="block text-xs font-medium text-stone-600 mb-1">
+            Units committed{" "}
+            <span className="text-stone-300 font-normal">(how many {domainLabel.toLowerCase()} this goal will deliver)</span>
+          </label>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={parameter}
+            onChange={e => setParameter(e.target.value)}
+            placeholder="e.g. 2"
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+          />
+        </div>
+      )}
 
       <div>
         <label className="block text-xs font-medium text-stone-600 mb-1">Description</label>
@@ -331,6 +379,9 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
   // Wizard step (ignored when prefill provided — goes straight to form)
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
+  // Goal type: APF (needs-domain) or operational
+  const [isOperational, setIsOperational] = useState(false);
+
   // Step 1: geography
   const [geoVal, setGeoVal] = useState<GeoVal>({ cityId: "", zoneId: "", clusterId: "", settlementId: "" });
   const [geo, setGeo] = useState<RawGeo | null>(null);
@@ -355,9 +406,9 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
     fetch("/api/geography").then(r => r.json()).then(setGeo);
   }, []);
 
-  // Fetch gap data when entering step 2
+  // Fetch gap data when entering step 2 (APF path only)
   useEffect(() => {
-    if (step !== 2) return;
+    if (step !== 2 || isOperational) return;
     const { zoneId, clusterId, settlementId } = geoVal;
     if (!zoneId) return;
     const params = new URLSearchParams();
@@ -366,14 +417,15 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
     else params.set("zoneId", zoneId);
     setGapData(null);
     fetch(`/api/needs/gap?${params}`).then(r => r.json()).then(setGapData);
-  }, [step, geoVal]);
+  }, [step, geoVal, isOperational]);
 
   const geoLabel = prefill?.geoLabel ?? (() => {
     if (!geo) return "";
-    const { zoneId, clusterId, settlementId } = geoVal;
+    const { cityId, zoneId, clusterId, settlementId } = geoVal;
     if (settlementId) return geo.settlements.find(s => s.id === settlementId)?.name ?? "";
     if (clusterId)    return geo.clusters.find(c => c.id === clusterId)?.name ?? "";
     if (zoneId)       return geo.zones.find(z => z.id === zoneId)?.name ?? "";
+    if (cityId)       return geo.cities.find(c => c.id === cityId)?.name ?? "";
     return "";
   })();
 
@@ -387,17 +439,19 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
     const resolvedNeedsSettlementId = prefill?.needsSettlementId ?? (geoVal.settlementId || undefined);
     const resolvedNeedsClusterId    = prefill?.needsClusterId    ?? (!geoVal.settlementId && geoVal.clusterId ? geoVal.clusterId : undefined);
     const resolvedNeedsZoneId       = prefill?.needsZoneId       ?? (!geoVal.settlementId && !geoVal.clusterId && geoVal.zoneId ? geoVal.zoneId : undefined);
+    const resolvedNeedsCityId       = !geoVal.settlementId && !geoVal.clusterId && !geoVal.zoneId && geoVal.cityId ? geoVal.cityId : undefined;
 
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
       status,
       targetDate,
-      needsDomain: needsDomain || null,
+      needsDomain: isOperational ? null : (needsDomain || null),
       ...(parameter && { parameter: parseFloat(parameter) }),
       ...(resolvedNeedsSettlementId && { needsSettlementId: resolvedNeedsSettlementId }),
       ...(resolvedNeedsClusterId    && { needsClusterId: resolvedNeedsClusterId }),
       ...(resolvedNeedsZoneId       && { needsZoneId: resolvedNeedsZoneId }),
+      ...(resolvedNeedsCityId       && { needsCityId: resolvedNeedsCityId }),
     };
 
     try {
@@ -417,8 +471,11 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  // Determine which step to render
   const effectiveStep = prefill ? 3 : step;
+
+  // Operational wizard is 2 steps (geo → form); APF is 3 steps
+  const totalSteps = isOperational ? 2 : 3;
+  const displayStep = isOperational && effectiveStep === 3 ? 2 : effectiveStep;
 
   const stepLabel = prefill ? "New Goal" : (
     effectiveStep === 1 ? "Where?" :
@@ -426,8 +483,8 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
     "Define the goal"
   );
 
-  const canGoToStep2 = !!geoVal.zoneId;
-  const canGoToStep3 = !!needsDomain;
+  const canProceedFromStep1 = isOperational ? !!geoVal.cityId : !!geoVal.zoneId;
+  const canProceedFromStep2 = !!needsDomain;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
@@ -440,7 +497,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
           <div className="flex items-center gap-3">
             {!prefill && effectiveStep > 1 && (
               <span className="text-xs text-stone-300">
-                Step {effectiveStep} of 3
+                Step {displayStep} of {totalSteps}
               </span>
             )}
             <h2 className="text-base font-semibold text-stone-900">{stepLabel}</h2>
@@ -453,18 +510,35 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
         {/* Step indicator (wizard only) */}
         {!prefill && (
           <div className="flex px-6 pt-3 gap-1.5">
-            {([1, 2, 3] as const).map(n => (
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map(n => (
               <div key={n} className={`flex-1 h-1 rounded-full transition-colors ${
-                n < effectiveStep ? "bg-sky-400" : n === effectiveStep ? "bg-sky-500" : "bg-stone-100"
+                n < displayStep ? "bg-sky-400" : n === displayStep ? "bg-sky-500" : "bg-stone-100"
               }`} />
             ))}
           </div>
         )}
 
         <div className="px-6 py-5">
-          {/* Step 1: Geography */}
+
+          {/* Step 1: Geography + goal type toggle */}
           {effectiveStep === 1 && (
             <>
+              {/* Goal type toggle */}
+              <div className="flex items-center gap-1 mb-4 bg-stone-100 rounded-xl p-1 w-fit">
+                <button
+                  onClick={() => { setIsOperational(false); setNeedsDomain(""); }}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${!isOperational ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+                >
+                  <Target className="w-3.5 h-3.5" /> APF / Needs goal
+                </button>
+                <button
+                  onClick={() => { setIsOperational(true); setNeedsDomain(""); setGeoVal(v => ({ ...v, clusterId: "", settlementId: "" })); }}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${isOperational ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+                >
+                  <Briefcase className="w-3.5 h-3.5" /> Operational
+                </button>
+              </div>
+
               {!geo ? (
                 <div className="flex justify-center py-8">
                   <div className="flex gap-1">
@@ -474,15 +548,18 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
                   </div>
                 </div>
               ) : (
-                <GeoStep geo={geo} value={geoVal} onChange={setGeoVal} />
+                <GeoStep geo={geo} value={geoVal} onChange={setGeoVal} isOperational={isOperational} />
               )}
               <div className="flex justify-between pt-5">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-500 hover:text-stone-800 transition-colors">
                   Cancel
                 </button>
                 <button
-                  onClick={() => { setGapData(null); setStep(2); }}
-                  disabled={!canGoToStep2}
+                  onClick={() => {
+                    if (isOperational) { setStep(3); }
+                    else { setGapData(null); setStep(2); }
+                  }}
+                  disabled={!canProceedFromStep1}
                   className="flex items-center gap-1.5 px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white text-sm font-semibold rounded-lg transition-colors"
                 >
                   Next <ChevronRight className="w-4 h-4" />
@@ -491,7 +568,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
             </>
           )}
 
-          {/* Step 2: Domain */}
+          {/* Step 2: Domain (APF path only) */}
           {effectiveStep === 2 && (
             <>
               <DomainStep
@@ -511,7 +588,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
                 </button>
                 <button
                   onClick={() => setStep(3)}
-                  disabled={!canGoToStep3}
+                  disabled={!canProceedFromStep2}
                   className="flex items-center gap-1.5 px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white text-sm font-semibold rounded-lg transition-colors"
                 >
                   Next <ChevronRight className="w-4 h-4" />
@@ -531,10 +608,11 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
               contextLabel={geoLabel}
               contextColor={selectedDomainColor}
               domainLabel={selectedDomainLabel}
+              isOperational={isOperational}
               loading={loading}
               error={error}
               onSubmit={handleSubmit}
-              onBack={prefill ? undefined : () => setStep(2)}
+              onBack={prefill ? undefined : () => setStep(isOperational ? 1 : 2)}
             />
           )}
         </div>

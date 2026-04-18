@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, description, status, targetDate, needsDomain, parameter, needsSettlementId, needsClusterId, needsZoneId } = await req.json();
+  const { title, description, status, targetDate, needsDomain, parameter, needsSettlementId, needsClusterId, needsZoneId, needsCityId } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
   if (!targetDate) return Response.json({ error: "Target date required" }, { status: 400 });
 
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       ...(needsSettlementId && { needsSettlementId }),
       ...(needsClusterId && { needsClusterId }),
       ...(needsZoneId && { needsZoneId }),
+      ...(needsCityId && { needsCityId }),
     },
     include: {
       owner: { select: { id: true, name: true, image: true } },

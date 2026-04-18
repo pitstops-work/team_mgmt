@@ -51,6 +51,17 @@ function FormulasSection() {
   const [newDesc, setNewDesc]             = useState("");
   const [adding, setAdding]               = useState(false);
   const [addError, setAddError]           = useState("");
+  const [keyEdited, setKeyEdited]         = useState(false);
+  const [showAdvanced, setShowAdvanced]   = useState(false);
+
+  // Auto-generate camelCase key from label
+  const autoKey = (label: string) =>
+    label
+      .replace(/[^a-zA-Z0-9\s]/g, "")
+      .trim()
+      .replace(/\s+(.)/g, (_, c: string) => c.toUpperCase())
+      .replace(/\s/g, "")
+      .replace(/^(.)/, (c: string) => c.toUpperCase());
 
   useEffect(() => {
     fetch("/api/needs/formulas?all=1")
@@ -130,14 +141,16 @@ function FormulasSection() {
   };
 
   const handleAdd = async () => {
-    if (!newKey.trim() || !newLabel.trim()) { setAddError("Key and label are required"); return; }
+    if (!newLabel.trim()) { setAddError("Name is required"); return; }
+    const resolvedKey = newKey.trim() || autoKey(newLabel.trim());
+    if (!resolvedKey) { setAddError("Could not generate ID from name"); return; }
     setAdding(true);
     setAddError("");
     const res = await fetch("/api/needs/formulas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        key: newKey.trim(),
+        key: resolvedKey,
         label: newLabel.trim(),
         color: newColor,
         domainType: newType,
@@ -152,6 +165,7 @@ function FormulasSection() {
       setEdits(prev => ({ ...prev, [created.domain]: created.denominator != null ? String(created.denominator) : "" }));
       setNewKey(""); setNewLabel(""); setNewColor("#6b7280"); setNewType("count");
       setNewPopField("totalHouseholds"); setNewDenom(""); setNewDesc("");
+      setKeyEdited(false); setShowAdvanced(false);
       setShowAdd(false);
     } else {
       const err = await res.json().catch(() => ({}));
@@ -193,97 +207,145 @@ function FormulasSection() {
         <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-sky-700">New Need Domain</p>
-            <button onClick={() => { setShowAdd(false); setAddError(""); }} className="text-stone-400 hover:text-stone-600">
+            <button onClick={() => { setShowAdd(false); setAddError(""); setKeyEdited(false); setShowAdvanced(false); }} className="text-stone-400 hover:text-stone-600">
               <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Key (no spaces)</label>
-              <input
-                value={newKey}
-                onChange={e => setNewKey(e.target.value.replace(/\s/g, ""))}
-                placeholder="e.g. CommunityLibrary"
-                className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Label</label>
-              <input
-                value={newLabel}
-                onChange={e => setNewLabel(e.target.value)}
-                placeholder="e.g. Community Library"
-                className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Type</label>
-              <select
-                value={newType}
-                onChange={e => setNewType(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+
+          {/* Label (primary — key auto-derived) */}
+          <div>
+            <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Name</label>
+            <input
+              autoFocus
+              value={newLabel}
+              onChange={e => {
+                setNewLabel(e.target.value);
+                if (!keyEdited) setNewKey(autoKey(e.target.value));
+              }}
+              placeholder="e.g. Data Coverage, Community Library"
+              className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+            />
+          </div>
+
+          {/* Type */}
+          <div>
+            <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">How is the target calculated?</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setNewType("count")}
+                className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${newType === "count" ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}
               >
-                <option value="count">Count (1 per N population)</option>
-                <option value="boolean">Boolean (yes/no per settlement)</option>
-              </select>
+                <p className="text-xs font-semibold text-stone-700">Ratio</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">1 unit per N people (e.g. 1 crèche per 40 children)</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewType("boolean")}
+                className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${newType === "boolean" ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}
+              >
+                <p className="text-xs font-semibold text-stone-700">Presence</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">1 per settlement, yes/no (e.g. data baseline done)</p>
+              </button>
             </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Color</label>
-              <div className="flex items-center gap-2">
+          </div>
+
+          {/* Ratio fields */}
+          {newType === "count" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Population group</label>
+                <select
+                  value={newPopField}
+                  onChange={e => setNewPopField(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                >
+                  {POP_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">1 unit per N people</label>
                 <input
-                  type="color"
-                  value={newColor}
-                  onChange={e => setNewColor(e.target.value)}
-                  className="w-8 h-8 rounded border border-sky-200 cursor-pointer"
+                  type="number"
+                  min={1}
+                  value={newDenom}
+                  onChange={e => setNewDenom(e.target.value)}
+                  placeholder="e.g. 500"
+                  className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
                 />
-                <span className="text-xs text-stone-500 font-mono">{newColor}</span>
               </div>
             </div>
-            {newType === "count" && (
-              <>
-                <div>
-                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Population base</label>
-                  <select
-                    value={newPopField}
-                    onChange={e => setNewPopField(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
-                  >
-                    {POP_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Denominator (1 per N)</label>
+          )}
+
+          {/* Presence hint */}
+          {newType === "boolean" && (
+            <p className="text-[11px] text-sky-700 bg-sky-100 rounded-lg px-3 py-2">
+              Target: 1 per settlement — tracks whether each settlement has this resource/service. No population formula needed.
+            </p>
+          )}
+
+          {/* Color + description side by side */}
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Color</label>
+              <div className="flex items-center gap-1.5">
+                <div className="relative">
                   <input
-                    type="number"
-                    min={1}
-                    value={newDenom}
-                    onChange={e => setNewDenom(e.target.value)}
-                    placeholder="e.g. 500"
-                    className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                    type="color"
+                    value={newColor}
+                    onChange={e => setNewColor(e.target.value)}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                   />
+                  <div className="w-7 h-7 rounded-lg border border-sky-200 cursor-pointer" style={{ background: newColor }} />
                 </div>
-              </>
-            )}
-            <div className="col-span-2">
+                <span className="text-[10px] text-stone-400 font-mono">{newColor}</span>
+              </div>
+            </div>
+            <div className="flex-1">
               <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Description (optional)</label>
               <input
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
-                placeholder="Brief description of this need type"
+                placeholder="Brief description"
                 className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
               />
             </div>
           </div>
+
+          {/* Advanced: manual key override */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(v => !v)}
+              className="text-[10px] text-sky-500 hover:text-sky-700 underline"
+            >
+              {showAdvanced ? "Hide" : "Show"} advanced (ID field)
+            </button>
+            {showAdvanced && (
+              <div className="mt-2">
+                <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">
+                  ID key <span className="font-normal text-stone-400">(auto-generated from name — change only if needed)</span>
+                </label>
+                <input
+                  value={newKey}
+                  onChange={e => { setNewKey(e.target.value.replace(/\s/g, "")); setKeyEdited(true); }}
+                  placeholder="e.g. DataCoverage"
+                  className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white font-mono"
+                />
+              </div>
+            )}
+          </div>
+
           {addError && <p className="text-xs text-red-500">{addError}</p>}
           <div className="flex gap-2">
             <button
               onClick={handleAdd}
-              disabled={adding || !newKey.trim() || !newLabel.trim()}
+              disabled={adding || !newLabel.trim()}
               className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
             >
               {adding ? "Adding…" : "Add Domain"}
             </button>
-            <button onClick={() => { setShowAdd(false); setAddError(""); }} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700">
+            <button onClick={() => { setShowAdd(false); setAddError(""); setKeyEdited(false); setShowAdvanced(false); }} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700">
               Cancel
             </button>
           </div>

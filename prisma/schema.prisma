@@ -127,6 +127,7 @@ model Goal {
   needsSettlementId String?
   needsClusterId    String?
   needsZoneId       String?
+  needsCityId       String?
 
   owner            User             @relation(fields: [ownerId], references: [id])
   pitstops         Pitstop[]
@@ -149,6 +150,7 @@ model Goal {
   needsSettlement  Settlement?      @relation("GoalNeedsSettlement", fields: [needsSettlementId], references: [id])
   needsCluster     Cluster?         @relation("GoalNeedsCluster", fields: [needsClusterId], references: [id])
   needsZone        Zone?            @relation("GoalNeedsZone", fields: [needsZoneId], references: [id])
+  needsCity        City?            @relation("GoalNeedsCity", fields: [needsCityId], references: [id])
   // Settlement-level outcome attribution on completion
   outcomes         GoalOutcome[]
 }
@@ -716,6 +718,7 @@ model City {
 
   zones       Zone[]
   settlements Settlement[]
+  needsGoals  Goal[]       @relation("GoalNeedsCity")
 }
 
 
