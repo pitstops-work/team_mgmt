@@ -59,7 +59,7 @@ export default function AgentPanel() {
       {/* Floating trigger */}
       <button
         onClick={() => setOpen(v => !v)}
-        className={`fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[70] flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ${
+        className={`fixed bottom-24 sm:bottom-8 left-4 sm:left-6 z-[70] flex items-center justify-center w-11 h-11 rounded-full shadow-lg transition-all duration-200 ${
           open ? "bg-stone-700" : "bg-stone-900 hover:bg-stone-700 hover:scale-105"
         }`}
         title="AI Agent"
@@ -69,7 +69,7 @@ export default function AgentPanel() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-36 sm:bottom-24 right-4 sm:right-6 z-[65] flex flex-col w-[92vw] sm:w-[420px] max-h-[70vh] sm:max-h-[600px] bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
+        <div className="fixed bottom-40 sm:bottom-24 left-4 sm:left-6 z-[65] flex flex-col w-[92vw] sm:w-[420px] max-h-[70vh] sm:max-h-[600px] bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-stone-100 bg-stone-900 rounded-t-2xl flex-shrink-0">
             <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">

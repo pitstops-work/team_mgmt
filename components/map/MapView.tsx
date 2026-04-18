@@ -250,7 +250,7 @@ export default function MapView({
   const [pendingLatLng, setPendingLatLng] = useState<L.LatLng | null>(null);
   const [formData, setFormData] = useState({ name: "", settlementName: "", cluster: "", zone: "", partner: "", description: "", type: "settlement", customType: "" });
   const [saving, setSaving] = useState(false);
-  const [basemap, setBasemap] = useState<"carto" | "osm">("carto");
+  const [basemap, setBasemap] = useState<"carto" | "osm" | "satellite">("carto");
   const [showZones, setShowZones] = useState(false);
   const [showClusters, setShowClusters] = useState(false);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -316,6 +316,11 @@ export default function MapView({
       tileLayerRef.current = L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
         { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>', subdomains: "abcd", maxZoom: 19 }
+      ).addTo(map);
+    } else if (basemap === "satellite") {
+      tileLayerRef.current = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        { attribution: '&copy; <a href="https://www.esri.com">Esri</a>, Maxar, Earthstar Geographics', maxZoom: 19 }
       ).addTo(map);
     } else {
       tileLayerRef.current = L.tileLayer(
@@ -955,13 +960,13 @@ export default function MapView({
           Clusters
         </button>
         <button
-          onClick={() => setBasemap((b) => b === "carto" ? "osm" : "carto")}
+          onClick={() => setBasemap((b) => b === "carto" ? "osm" : b === "osm" ? "satellite" : "carto")}
           className="bg-white border border-slate-200 shadow-lg px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5"
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
           </svg>
-          {basemap === "carto" ? "OSM" : "Carto"}
+          {basemap === "carto" ? "OSM" : basemap === "osm" ? "Satellite" : "Carto"}
         </button>
       </div>
 
