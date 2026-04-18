@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
         id: s.id,
         name: s.name,
         active: s.deletedAt === null,
+        clusterId: c.id,
       })),
     })),
   }));
@@ -110,6 +111,13 @@ export async function PATCH(req: NextRequest) {
     const { id, name } = body;
     if (!id || !name?.trim()) return Response.json({ error: "id and name required" }, { status: 400 });
     await prisma.cluster.update({ where: { id }, data: { name: name.trim() } });
+    return Response.json({ ok: true });
+  }
+
+  if (body.type === "settlement-cluster") {
+    const { id, clusterId } = body;
+    if (!id || !clusterId) return Response.json({ error: "id and clusterId required" }, { status: 400 });
+    await prisma.settlement.update({ where: { id }, data: { clusterId } });
     return Response.json({ ok: true });
   }
 

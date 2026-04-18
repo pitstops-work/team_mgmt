@@ -10,6 +10,7 @@ interface SettlementRow {
   id: string;
   name: string;
   active: boolean;
+  clusterId: string;
 }
 
 interface ClusterRow {
@@ -161,6 +162,37 @@ export default function GeographyPage() {
         }))
       );
       toast.show(!active ? "Settlement activated" : "Settlement deactivated");
+    }
+  };
+
+  const handleSettlementClusterChange = async (settlementId: string, oldClusterId: string, newClusterId: string) => {
+    const res = await fetch("/api/admin/geography", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "settlement-cluster", id: settlementId, clusterId: newClusterId }),
+    });
+    if (res.ok) {
+      setZones(prev => {
+        let moved: SettlementRow | undefined;
+        const updated = prev.map(z => ({
+          ...z,
+          clusters: z.clusters.map(c => {
+            if (c.id !== oldClusterId) return c;
+            const s = c.settlements.find(s => s.id === settlementId);
+            if (!s) return c;
+            moved = { ...s, clusterId: newClusterId };
+            return { ...c, settlementCount: c.settlementCount - 1, settlements: c.settlements.filter(s => s.id !== settlementId) };
+          }),
+        }));
+        return updated.map(z => ({
+          ...z,
+          clusters: z.clusters.map(c => {
+            if (c.id !== newClusterId || !moved) return c;
+            return { ...c, settlementCount: c.settlementCount + 1, settlements: [...c.settlements, moved].sort((a, b) => a.name.localeCompare(b.name)) };
+          }),
+        }));
+      });
+      toast.show("Settlement moved");
     }
   };
 
@@ -373,6 +405,18 @@ export default function GeographyPage() {
                                       </p>
                                     )}
                                   </div>
+                                  {/* Cluster reassignment dropdown */}
+                                  <select
+                                    value={cluster.id}
+                                    onChange={e => handleSettlementClusterChange(s.id, cluster.id, e.target.value)}
+                                    className="text-xs px-2 py-1 border border-stone-200 rounded-lg bg-white text-stone-700 focus:outline-none focus:ring-2 focus:ring-sky-400 flex-shrink-0"
+                                    title="Move to cluster"
+                                  >
+                                    {allZones.flatMap(z => z.clusters).map(c => (
+                                      <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                  </select>
+
                                   <button
                                     onClick={() => handleSettlementToggle(cluster.id, s.id, s.active)}
                                     className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors flex-shrink-0 ${
