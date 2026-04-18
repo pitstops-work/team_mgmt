@@ -6,6 +6,7 @@ import Avatar from "@/components/Avatar";
 
 type User = { id: string; name: string | null; image: string | null };
 type Partner = { key: string; label: string; color: string };
+type City = { id: string; name: string };
 type Cluster = { id: string; name: string; zone: { id: string; name: string } };
 type Profile = {
   totalHouseholds: number | null;
@@ -52,6 +53,7 @@ interface Props {
     name: string;
     centroidLat: number | null;
     centroidLng: number | null;
+    city: City | null;
     partner: Partner | null;
     cluster: Cluster | null;
     profile: Profile | null;
@@ -86,7 +88,7 @@ function fmt(d: string | null) {
 }
 
 export default function SettlementDetail({ settlement }: Props) {
-  const { name, partner, cluster, profile, assessments, note, needsGoals, needsPitstops } = settlement;
+  const { name, city, partner, cluster, profile, assessments, note, needsGoals, needsPitstops } = settlement;
   const lat = settlement.centroidLat;
   const lng = settlement.centroidLng;
 
@@ -101,6 +103,7 @@ export default function SettlementDetail({ settlement }: Props) {
       <nav className="flex items-center gap-1.5 text-xs text-stone-400">
         <Link href="/map" className="hover:text-stone-600">Map</Link>
         <ChevronRight className="w-3 h-3" />
+        {city && <><span>{city.name}</span><ChevronRight className="w-3 h-3" /></>}
         {cluster?.zone && (
           <>
             <span>{cluster.zone.name}</span>
@@ -117,6 +120,11 @@ export default function SettlementDetail({ settlement }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-stone-800">{name}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {city && (
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-stone-200 text-stone-600">
+                {city.name}
+              </span>
+            )}
             {partner && (
               <span
                 className="text-xs font-bold px-2.5 py-0.5 rounded-full text-white"

@@ -333,6 +333,7 @@ export default function ZoneClusterSidebar({
               <NeedsPanel
                 mode={type}
                 name={displayName}
+                zone={type === "cluster" ? parentZone : undefined}
                 onCreateGoal={(ctx: NeedsGoalContext) => setGoalPrefill(ctx)}
               />
             </div>

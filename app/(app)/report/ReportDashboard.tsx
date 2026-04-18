@@ -7,6 +7,7 @@ import { Download, RefreshCw, AlertTriangle, CheckCircle2, Clock, TrendingUp } f
 type ZoneSummary = {
   id: string;
   name: string;
+  city: { id: string; name: string } | null;
   totalSettlements: number;
   withActiveGoals: number;
   population: {
@@ -168,7 +169,10 @@ export default function ReportDashboard() {
                     className={`hover:bg-stone-50 cursor-pointer transition-colors ${selectedZone === z.id ? "bg-sky-50" : ""}`}
                     onClick={() => setSelectedZone((prev) => prev === z.id ? null : z.id)}
                   >
-                    <td className="px-4 py-2.5 font-semibold text-stone-700">{z.name}</td>
+                    <td className="px-4 py-2.5">
+                      <span className="font-semibold text-stone-700">{z.name}</span>
+                      {z.city && <span className="ml-1.5 text-[10px] text-stone-400">{z.city.name}</span>}
+                    </td>
                     <td className="px-3 py-2.5 text-right text-stone-600">{z.totalSettlements}</td>
                     <td className="px-3 py-2.5 text-right text-stone-600">{z.population.totalHouseholds.toLocaleString()}</td>
                     <td className="px-3 py-2.5 text-right">

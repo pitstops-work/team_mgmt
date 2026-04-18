@@ -696,7 +696,8 @@ model City {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  zones Zone[]
+  zones       Zone[]
+  settlements Settlement[]
 }
 
 
@@ -739,10 +740,14 @@ model Settlement {
   centroidLat Float?
   centroidLng Float?
 
+  // City direct FK — denormalised for fast city-scoped queries (backfilled from cluster→zone→city)
+  cityId      String?
+
   // Partner organisation (1:1 — one partner covers this settlement)
   partnerId   String?
 
   cluster      Cluster               @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  city         City?                 @relation(fields: [cityId], references: [id])
   partner      MapPartner?           @relation(fields: [partnerId], references: [id])
   assessments  SettlementAssessment[]
   profile      SettlementProfile?

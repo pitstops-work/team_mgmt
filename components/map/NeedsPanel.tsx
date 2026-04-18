@@ -140,7 +140,7 @@ interface Props {
   onSettlementLoaded?: (settlementId: string | null) => void;
 }
 
-export default function NeedsPanel({ mode, name, cluster, settlementId, onCreateGoal, onSettlementLoaded }: Props) {
+export default function NeedsPanel({ mode, name, cluster, zone, settlementId, onCreateGoal, onSettlementLoaded }: Props) {
   const [data, setData] = useState<NeedsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"needs" | "civic" | "entitlements">("needs");
@@ -154,7 +154,7 @@ export default function NeedsPanel({ mode, name, cluster, settlementId, onCreate
     if (mode === "settlement") {
       url = `/api/map/settlement-needs?settlement=${encodeURIComponent(name)}${cluster ? `&cluster=${encodeURIComponent(cluster)}` : ""}`;
     } else if (mode === "cluster") {
-      url = `/api/map/cluster-needs?cluster=${encodeURIComponent(name)}`;
+      url = `/api/map/cluster-needs?cluster=${encodeURIComponent(name)}${zone ? `&zone=${encodeURIComponent(zone)}` : ""}`;
     } else {
       url = `/api/map/zone-needs?zone=${encodeURIComponent(name)}`;
     }

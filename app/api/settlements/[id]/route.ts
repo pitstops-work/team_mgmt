@@ -18,6 +18,8 @@ export async function GET(
       name: true,
       centroidLat: true,
       centroidLng: true,
+      cityId: true,
+      city: { select: { id: true, name: true } },
       partnerId: true,
       partner: { select: { key: true, label: true, color: true } },
       cluster: {

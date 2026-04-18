@@ -12,6 +12,7 @@ import type { LevelStats, DomainStats, DomainConfig, ProgressSummary, MonthlyPoi
 type ZoneSummary = {
   id: string;
   name: string;
+  city: { id: string; name: string } | null;
   totalSettlements: number;
   withActiveGoals: number;
   population: { totalHouseholds: number; children6m3yr: number; children4to14: number; youth15to21: number; elderly60plus: number };
@@ -1110,66 +1111,95 @@ export default function NeedsDashboard({
 
       {/* ══════════════════════ ZONES SUMMARY TAB ══════════════════════ */}
       {mainTab === "zones" && (
-        <div>
+        <div className="space-y-8">
           {zoneSummary === null && (
             <p className="text-sm text-stone-400 py-8 text-center">Loading zone summaries…</p>
           )}
           {zoneSummary !== null && zoneSummary.length === 0 && (
             <p className="text-sm text-stone-400 py-8 text-center">No zones found.</p>
           )}
-          {zoneSummary !== null && zoneSummary.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {zoneSummary.map((z) => {
-                const goalPct = z.totalSettlements > 0
-                  ? Math.round((z.withActiveGoals / z.totalSettlements) * 100)
-                  : 0;
-                return (
-                  <div key={z.id} className="rounded-xl border border-stone-100 p-4 space-y-3 bg-white">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-sm font-bold text-stone-800">{z.name}</h3>
-                      {z.overdueCount > 0 && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
-                          <AlertTriangle className="w-2.5 h-2.5" />
-                          {z.overdueCount} overdue
-                        </span>
-                      )}
-                    </div>
+          {zoneSummary !== null && zoneSummary.length > 0 && (() => {
+            // Group zones by city
+            const cityGroups: { cityId: string | null; cityName: string; zones: ZoneSummary[] }[] = [];
+            for (const z of zoneSummary) {
+              const cityId = z.city?.id ?? null;
+              const cityName = z.city?.name ?? "No city";
+              const existing = cityGroups.find((g) => g.cityId === cityId);
+              if (existing) existing.zones.push(z);
+              else cityGroups.push({ cityId, cityName, zones: [z] });
+            }
 
-                    <div className="grid grid-cols-2 gap-2 text-center">
-                      <div className="bg-stone-50 rounded-lg px-2 py-1.5">
-                        <p className="text-base font-bold text-stone-800">{z.totalSettlements}</p>
-                        <p className="text-[9px] text-stone-400 uppercase tracking-wide">Settlements</p>
-                      </div>
-                      <div className="bg-stone-50 rounded-lg px-2 py-1.5">
-                        <p className="text-base font-bold text-stone-800">{z.population.totalHouseholds.toLocaleString()}</p>
-                        <p className="text-[9px] text-stone-400 uppercase tracking-wide">Households</p>
-                      </div>
-                    </div>
+            return cityGroups.map((group) => (
+              <div key={group.cityId ?? "none"}>
+                {cityGroups.length > 1 && (
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3 flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5" />
+                    {group.cityName}
+                    <span className="text-stone-300">·</span>
+                    <span className="font-normal text-stone-400 normal-case tracking-normal">{group.zones.length} zone{group.zones.length !== 1 ? "s" : ""}</span>
+                  </h2>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {group.zones.map((z) => {
+                    const goalPct = z.totalSettlements > 0
+                      ? Math.round((z.withActiveGoals / z.totalSettlements) * 100)
+                      : 0;
+                    return (
+                      <div key={z.id} className="rounded-xl border border-stone-100 p-4 space-y-3 bg-white">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-sm font-bold text-stone-800">{z.name}</h3>
+                            {cityGroups.length > 1 && z.city && (
+                              <span className="text-[10px] text-stone-400">{z.city.name}</span>
+                            )}
+                          </div>
+                          {z.overdueCount > 0 && (
+                            <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500 flex-shrink-0">
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                              {z.overdueCount} overdue
+                            </span>
+                          )}
+                        </div>
 
-                    <div>
-                      <div className="flex justify-between text-[10px] text-stone-500 mb-1">
-                        <span>Settlements with active goals</span>
-                        <span className="font-semibold">{z.withActiveGoals} / {z.totalSettlements}</span>
-                      </div>
-                      <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-emerald-400 transition-all"
-                          style={{ width: `${goalPct}%` }}
-                        />
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-2 text-center">
+                          <div className="bg-stone-50 rounded-lg px-2 py-1.5">
+                            <p className="text-base font-bold text-stone-800">{z.totalSettlements}</p>
+                            <p className="text-[9px] text-stone-400 uppercase tracking-wide">Settlements</p>
+                          </div>
+                          <div className="bg-stone-50 rounded-lg px-2 py-1.5">
+                            <p className="text-base font-bold text-stone-800">{z.population.totalHouseholds.toLocaleString()}</p>
+                            <p className="text-[9px] text-stone-400 uppercase tracking-wide">Households</p>
+                          </div>
+                        </div>
 
-                    <div className="flex items-center justify-between text-[10px] text-stone-500">
-                      <span>{z.activeGoals} active goal{z.activeGoals !== 1 ? "s" : ""}</span>
-                      {z.lastSurveyed && (
-                        <span>Last surveyed {new Date(z.lastSurveyed).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                        <div>
+                          <div className="flex justify-between text-[10px] text-stone-500 mb-1">
+                            <span>Settlements with active goals</span>
+                            <span className="font-semibold">{z.withActiveGoals} / {z.totalSettlements}</span>
+                          </div>
+                          <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-emerald-400 transition-all"
+                              style={{ width: `${goalPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-stone-500">
+                          <span>{z.activeGoals} active goal{z.activeGoals !== 1 ? "s" : ""}</span>
+                          {z.lastSurveyed ? (
+                            <span>Surveyed {new Date(z.lastSurveyed).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })}</span>
+                          ) : (
+                            <span className="text-red-400">Not surveyed</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
       )}
 

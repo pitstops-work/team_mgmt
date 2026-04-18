@@ -2,34 +2,48 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calcTargets } from "../settlement-needs/route";
 
-// GET /api/map/cluster-needs?cluster=NAME
+// GET /api/map/cluster-needs?cluster=NAME[&zone=ZONE_NAME]
+// zone param scopes the lookup to avoid cross-city name collisions
 export async function GET(request: Request) {
-  const rawCluster = new URL(request.url).searchParams.get("cluster");
+  const url    = new URL(request.url);
+  const rawCluster = url.searchParams.get("cluster");
+  const rawZone    = url.searchParams.get("zone");
   if (!rawCluster) return NextResponse.json({ error: "cluster required" }, { status: 400 });
   // Normalise: replace underscores with spaces for lookup
   const clusterName = rawCluster.replace(/_/g, " ");
+  const zoneName    = rawZone ? rawZone.trim() : null;
 
-  const clusterQuery = {
-    where: { deletedAt: null },
-    include: {
-      settlements: { where: { deletedAt: null }, select: { id: true, name: true } },
-      zone: { select: { name: true } },
-    },
+  // Build zone scope when zone name is provided
+  const zoneScope = zoneName
+    ? { zone: { name: { equals: zoneName, mode: "insensitive" as const }, deletedAt: null } }
+    : {};
+
+  const clusterInclude = {
+    settlements: { where: { deletedAt: null }, select: { id: true, name: true } },
+    zone: { select: { name: true, city: { select: { name: true } } } },
   };
 
-  // Try exact match first, then fuzzy (handles en-dash vs hyphen, "&" vs "and", etc.)
+  // 1. Exact match scoped by zone
   let cluster = await prisma.cluster.findFirst({
-    where: { name: { equals: clusterName, mode: "insensitive" }, ...clusterQuery.where },
-    include: clusterQuery.include,
+    where: { name: { equals: clusterName, mode: "insensitive" }, deletedAt: null, ...zoneScope },
+    include: clusterInclude,
   });
 
+  // 2. Exact match without zone scope (fallback for zones not in params)
   if (!cluster) {
-    // Fallback: find by contains first word of cluster name
+    cluster = await prisma.cluster.findFirst({
+      where: { name: { equals: clusterName, mode: "insensitive" }, deletedAt: null },
+      include: clusterInclude,
+    });
+  }
+
+  // 3. Fuzzy: first word, with zone scope
+  if (!cluster) {
     const firstWord = clusterName.split(/[\s\-–]+/)[0];
     if (firstWord.length >= 3) {
       cluster = await prisma.cluster.findFirst({
-        where: { name: { contains: firstWord, mode: "insensitive" }, ...clusterQuery.where },
-        include: clusterQuery.include,
+        where: { name: { contains: firstWord, mode: "insensitive" }, deletedAt: null, ...zoneScope },
+        include: clusterInclude,
       });
     }
   }
@@ -134,7 +148,7 @@ export async function GET(request: Request) {
   const assessedCount = assessments.length;
 
   return NextResponse.json({
-    cluster: { id: cluster.id, name: cluster.name, zone: cluster.zone.name },
+    cluster: { id: cluster.id, name: cluster.name, zone: cluster.zone.name, city: cluster.zone.city?.name ?? null },
     settlementCount: cluster.settlements.length,
     assessedCount,
     pop, existing, targets, actuals,
