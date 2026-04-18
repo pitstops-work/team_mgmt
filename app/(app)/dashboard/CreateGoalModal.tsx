@@ -5,7 +5,7 @@ import { X, Target, ChevronRight, ChevronLeft } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface DomainConfig { domain: string; label: string; color: string }
+interface DomainConfig { domain: string; label: string; color: string; domainType?: string }
 
 interface RawGeo {
   cities: { id: string; name: string }[];
@@ -20,6 +20,7 @@ interface GapData {
   targets: Record<string, number>;
   existing: Record<string, number>;
   actuals: Record<string, { done: number; inProgress: number }>;
+  domainConfig: DomainConfig[];
 }
 
 export interface GoalPrefill {
@@ -39,17 +40,6 @@ interface Props {
   prefill?: GoalPrefill;
 }
 
-// ── Domain list (mirrors NeedsPanel) ─────────────────────────────────────────
-
-const DOMAINS: DomainConfig[] = [
-  { domain: "Creche",            label: "Creches",           color: "#ec4899" },
-  { domain: "ChildrenCentre",    label: "Children Centres",  color: "#f97316" },
-  { domain: "YouthGroup",        label: "Youth Groups",      color: "#8b5cf6" },
-  { domain: "ElderlyKitchen",    label: "Elderly Kitchens",  color: "#10b981" },
-  { domain: "PalliativeSupport", label: "Palliative",        color: "#6366f1" },
-  { domain: "CommunityToilet",   label: "Comm. Toilets",     color: "#0ea5e9" },
-  { domain: "WaterATM",          label: "Water ATMs",        color: "#14b8a6" },
-];
 
 // ── Step 1: Geography picker ──────────────────────────────────────────────────
 
@@ -155,7 +145,7 @@ function DomainStep({
         Select the need this goal will address. Gaps shown are unmet targets after existing services and in-progress goals.
       </p>
       <div className="space-y-2 pt-1">
-        {DOMAINS.map(d => {
+        {(gapData.domainConfig ?? []).map(d => {
           const target     = Math.max(0, (gapData.targets[d.domain] ?? 0) - (gapData.existing[d.domain] ?? 0));
           const done       = gapData.actuals[d.domain]?.done ?? 0;
           const inProgress = gapData.actuals[d.domain]?.inProgress ?? 0;

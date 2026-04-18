@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
-import { calcTargets } from "../settlement-needs/route";
+import { calcTargets, buildDomainConfig, buildExisting, type FormulaRow } from "../settlement-needs/route";
 
 // GET /api/map/zone-needs?zone=NAME
 export async function GET(request: Request) {
@@ -79,6 +79,10 @@ export async function GET(request: Request) {
   const allSettlementIds = zone.clusters.flatMap(c => c.settlements.map(s => s.id));
   const allClusterIds = zone.clusters.map(c => c.id);
 
+  // Formula config — fetched early so buildExisting can use assessmentColumn
+  const formulaRows = await prisma.needsFormulaConfig.findMany({ orderBy: { sortOrder: "asc" } });
+  const domainConfig = buildDomainConfig(formulaRows);
+
   // Latest assessment per settlement
   const assessments = await prisma.settlementAssessment.findMany({
     where: { settlementId: { in: allSettlementIds } },
@@ -105,18 +109,14 @@ export async function GET(request: Request) {
     { totalHouseholds: 0, children6m3yr: 0, children4to14: 0, youth15to21: 0, elderly60plus: 0 }
   );
 
-  const existing = assessments.reduce(
-    (acc, a) => ({
-      Creche: acc.Creche + a.existingCreches,
-      ChildrenCentre: acc.ChildrenCentre + a.existingChildrenCentres,
-      YouthGroup: acc.YouthGroup + a.existingYouthGroups,
-      ElderlyKitchen: acc.ElderlyKitchen + a.existingElderlyKitchens,
-      PalliativeSupport: acc.PalliativeSupport + a.existingPalliativeUnits,
-      CommunityToilet: acc.CommunityToilet + a.existingCommunityToilets,
-      WaterATM: acc.WaterATM + a.existingWaterATMs,
-    }),
-    { Creche: 0, ChildrenCentre: 0, YouthGroup: 0, ElderlyKitchen: 0, PalliativeSupport: 0, CommunityToilet: 0, WaterATM: 0 }
-  );
+  // Aggregate existing counts across all assessments, driven by assessmentColumn from config
+  const existing: Record<string, number> = {};
+  for (const a of assessments) {
+    const row = buildExisting(a as Record<string, unknown>, formulaRows as FormulaRow[]);
+    for (const [domain, val] of Object.entries(row)) {
+      existing[domain] = (existing[domain] ?? 0) + val;
+    }
+  }
 
   // Use raw SQL for entitlements — Prisma include silently drops surveyEnrolled due to stale build cache
   const assessmentIds = assessments.map(a => (a as { id?: string }).id).filter(Boolean) as string[];
@@ -144,9 +144,7 @@ export async function GET(request: Request) {
     };
   }
 
-  const formulaRows = await prisma.needsFormulaConfig.findMany();
-  const formulas = Object.fromEntries(formulaRows.map(f => [f.domain, f.denominator]));
-  const targets = calcTargets(pop, formulas);
+  const targets = calcTargets(pop, formulaRows);
 
   const goals = await prisma.goal.findMany({
     where: {
@@ -176,7 +174,7 @@ export async function GET(request: Request) {
     clusterCount: zone.clusters.length,
     settlementCount: allSettlementIds.length,
     assessedCount: assessments.length,
-    pop, existing, targets, actuals,
+    pop, existing, targets, actuals, domainConfig,
     entitlements: Object.entries(entitlementMap).map(([id, v]) => ({ id, ...v })),
   });
 }

@@ -1,26 +1,71 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Shared helper — also used by cluster-needs and zone-needs
-export function calcTargets(
-  pop: { totalHouseholds: number; children6m3yr: number; children4to14: number; youth15to21: number; elderly60plus: number },
-  formulas: Record<string, number | null>
-) {
-  // floor = denominator is both divisor AND minimum viable threshold (0 when pop < denom)
-  const flr = (v: number, d: number | null | undefined) => d ? Math.floor(v / d) : 0;
-  return {
-    Creche:              flr(pop.children6m3yr,  formulas["Creche"]             ?? 20),
-    ChildrenCentre:      flr(pop.children4to14,  formulas["ChildrenCentre"]     ?? 500),
-    YouthGroup:          flr(pop.youth15to21,     formulas["YouthGroup"]         ?? 30),
-    YouthResourceCentre: flr(pop.youth15to21,     formulas["YouthResourceCentre"]?? 1500),
-    ElderlyKitchen:      flr(pop.elderly60plus,   formulas["ElderlyKitchen"]     ?? 50),
-    ElderlyCentre:       flr(pop.elderly60plus,   formulas["ElderlyCentre"]      ?? 1000),
-    PalliativeSupport:   flr(pop.elderly60plus,   formulas["PalliativeSupport"]  ?? 100),
-    CommunityToilet:     flr(pop.totalHouseholds, formulas["CommunityToilet"]    ?? 200),
-    WaterATM:            flr(pop.totalHouseholds, formulas["WaterATM"]           ?? 250),
-    // Boolean domains: 1 per settlement if relevant pop exists
-    ReferralSystem: pop.elderly60plus > 0 ? 1 : 0,
+export type FormulaRow = {
+  domain: string;
+  label: string | null;
+  color: string;
+  denominator: number | null;
+  populationField: string | null;
+  assessmentColumn: string | null;
+  domainType: string;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+type PopFields = {
+  totalHouseholds: number;
+  children6m3yr: number;
+  children4to14: number;
+  youth15to21: number;
+  elderly60plus: number;
+};
+
+// Shared helper — used by cluster-needs and zone-needs.
+// Fully config-driven: uses populationField and domainType from NeedsFormulaConfig.
+export function calcTargets(pop: PopFields, formulaRows: FormulaRow[]): Record<string, number> {
+  const popMap: Record<string, number> = {
+    totalHouseholds: pop.totalHouseholds,
+    children6m3yr: pop.children6m3yr,
+    children4to14: pop.children4to14,
+    youth15to21: pop.youth15to21,
+    elderly60plus: pop.elderly60plus,
   };
+
+  const result: Record<string, number> = {};
+  for (const f of formulaRows) {
+    if (!f.isActive) continue;
+    const popVal = f.populationField ? (popMap[f.populationField] ?? 0) : 0;
+    if (f.domainType === "boolean") {
+      result[f.domain] = popVal > 0 ? 1 : 0;
+    } else {
+      result[f.domain] = f.denominator ? Math.floor(popVal / f.denominator) : 0;
+    }
+  }
+  return result;
+}
+
+export function buildDomainConfig(formulaRows: FormulaRow[]) {
+  return formulaRows
+    .filter(f => f.isActive)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map(f => ({ domain: f.domain, label: f.label ?? f.domain, color: f.color, domainType: f.domainType }));
+}
+
+// Build the "existing" dict from a single assessment row using assessmentColumn from config.
+// Returns { [domain]: existingCount } — 0 for domains with no assessmentColumn or no assessment.
+export function buildExisting(
+  assessment: Record<string, unknown> | null,
+  formulaRows: FormulaRow[]
+): Record<string, number> {
+  if (!assessment) return {};
+  const result: Record<string, number> = {};
+  for (const f of formulaRows) {
+    if (f.assessmentColumn) {
+      result[f.domain] = Number(assessment[f.assessmentColumn] ?? 0);
+    }
+  }
+  return result;
 }
 
 // Normalise a name coming from GeoJSON: collapse unicode spaces, trim
@@ -114,19 +159,17 @@ export async function GET(request: Request) {
   } : null;
 
   // Formula config
-  const formulaRows = await prisma.needsFormulaConfig.findMany();
-  const formulas = Object.fromEntries(formulaRows.map(f => [f.domain, f.denominator]));
+  const formulaRows = await prisma.needsFormulaConfig.findMany({ orderBy: { sortOrder: "asc" } });
+  const domainConfig = buildDomainConfig(formulaRows);
 
   // Population (zero if no assessment)
   const pop = assessmentWithEnts
     ? { totalHouseholds: assessmentWithEnts.totalHouseholds, children6m3yr: assessmentWithEnts.children6m3yr, children4to14: assessmentWithEnts.children4to14, youth15to21: assessmentWithEnts.youth15to21, elderly60plus: assessmentWithEnts.elderly60plus }
     : { totalHouseholds: 0, children6m3yr: 0, children4to14: 0, youth15to21: 0, elderly60plus: 0 };
 
-  const existing = assessmentWithEnts
-    ? { Creche: assessmentWithEnts.existingCreches, ChildrenCentre: assessmentWithEnts.existingChildrenCentres, YouthGroup: assessmentWithEnts.existingYouthGroups, ElderlyKitchen: assessmentWithEnts.existingElderlyKitchens, PalliativeSupport: assessmentWithEnts.existingPalliativeUnits, CommunityToilet: assessmentWithEnts.existingCommunityToilets, WaterATM: assessmentWithEnts.existingWaterATMs }
-    : { Creche: 0, ChildrenCentre: 0, YouthGroup: 0, ElderlyKitchen: 0, PalliativeSupport: 0, CommunityToilet: 0, WaterATM: 0 };
+  const existing = buildExisting(assessmentWithEnts as Record<string, unknown> | null, formulaRows);
 
-  const targets = calcTargets(pop, formulas);
+  const targets = calcTargets(pop, formulaRows);
 
   // APF actuals from goals
   const goals = await prisma.goal.findMany({
@@ -156,5 +199,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ settlement, assessment: assessmentWithEnts, pop, existing, targets, actuals, formulas });
+  return NextResponse.json({ settlement, assessment: assessmentWithEnts, pop, existing, targets, actuals, domainConfig });
 }

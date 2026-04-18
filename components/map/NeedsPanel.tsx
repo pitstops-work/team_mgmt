@@ -7,6 +7,7 @@ import { ExternalLink } from "lucide-react";
 type DomainActuals = Record<string, { done: number; inProgress: number }>;
 type Existing = Record<string, number>;
 type Targets = Record<string, number>;
+type DomainConfig = { domain: string; label: string; color: string; domainType: string }[];
 
 interface NeedsData {
   settlement?: { id: string; name: string } | null;
@@ -14,6 +15,7 @@ interface NeedsData {
   zone?: { id: string; name: string } | null;
   assessedCount?: number;
   settlementCount?: number;
+  domainConfig?: DomainConfig;
   assessment?: {
     id: string;
     assessmentYear: number;
@@ -40,15 +42,6 @@ interface NeedsData {
   entitlements?: { id: string; name: string; parentId: string | null; eligible: number; enrolled: number }[];
 }
 
-const DOMAINS = [
-  { key: "Creche",            label: "Creches",          color: "#ec4899" },
-  { key: "ChildrenCentre",    label: "Children Centres", color: "#f97316" },
-  { key: "YouthGroup",        label: "Youth Groups",     color: "#8b5cf6" },
-  { key: "ElderlyKitchen",    label: "Elderly Kitchens", color: "#10b981" },
-  { key: "PalliativeSupport", label: "Palliative",       color: "#6366f1" },
-  { key: "CommunityToilet",   label: "Comm. Toilets",    color: "#0ea5e9" },
-  { key: "WaterATM",          label: "Water ATMs",       color: "#14b8a6" },
-];
 
 function NeedsRow({ label, color, existing, apfTarget, done, inProgress, onAdd }: {
   label: string; color: string; existing: number; apfTarget: number; done: number; inProgress: number;
@@ -265,14 +258,14 @@ export default function NeedsPanel({ mode, name, cluster, zone, settlementId, on
                 <span>→target</span>
                 <span>gap</span>
               </div>
-              {DOMAINS.map(d => {
-                const existing   = data.existing[d.key] ?? 0;
-                const apfTarget  = Math.max(0, (data.targets[d.key] ?? 0) - existing);
-                const done       = data.actuals[d.key]?.done ?? 0;
-                const inProgress = data.actuals[d.key]?.inProgress ?? 0;
+              {(data.domainConfig ?? []).map(d => {
+                const existing   = data.existing[d.domain] ?? 0;
+                const apfTarget  = Math.max(0, (data.targets[d.domain] ?? 0) - existing);
+                const done       = data.actuals[d.domain]?.done ?? 0;
+                const inProgress = data.actuals[d.domain]?.inProgress ?? 0;
                 const gap        = Math.max(0, apfTarget - done);
                 return (
-                  <NeedsRow key={d.key}
+                  <NeedsRow key={d.domain}
                     label={d.label}
                     color={d.color}
                     existing={existing}
@@ -280,7 +273,7 @@ export default function NeedsPanel({ mode, name, cluster, zone, settlementId, on
                     done={done}
                     inProgress={inProgress}
                     onAdd={onCreateGoal ? () => onCreateGoal({
-                      needsDomain: d.key,
+                      needsDomain: d.domain,
                       domainLabel: d.label,
                       domainColor: d.color,
                       gap,

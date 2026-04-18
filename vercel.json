@@ -20,6 +20,18 @@
     {
       "path": "/api/cron/digest",
       "schedule": "0 3 * * 1"
+    },
+    {
+      "path": "/api/cron/sync-entitlements",
+      "schedule": "0 2 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-entitlements-chennai",
+      "schedule": "30 2 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-entitlements-survey",
+      "schedule": "0 3 1 * *"
     }
   ],
   "experimentalServices": {

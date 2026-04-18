@@ -65,6 +65,21 @@ async function main() {
   });
   console.log("  ✓ Ayushman Bharat");
 
+  // ── CMCHIS (Tamil Nadu) ────────────────────────────────────────────────────
+  await prisma.entitlementScheme.upsert({
+    where: { id: "cmchis" },
+    create: {
+      id: "cmchis",
+      name: "CMCHIS (Tamil Nadu)",
+      description: "Chief Minister's Comprehensive Health Insurance Scheme — ₹5 lakh annual health cover for Tamil Nadu families",
+      parentId: null,
+      sortOrder: 3,
+      isActive: true,
+    },
+    update: { name: "CMCHIS (Tamil Nadu)", sortOrder: 3 },
+  });
+  console.log("  ✓ CMCHIS");
+
   // ── Pensions ───────────────────────────────────────────────────────────────
   const pensions = [
     { id: "pension-old-age",   name: "Old Age Pension (Sandhya Suraksha)",  description: "Monthly pension for elderly 60+ below poverty line",          order: 1 },

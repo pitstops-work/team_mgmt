@@ -1,0 +1,316 @@
+slum_id,slum_name,ward_name,zone_name,partner_name,total_hh_survey,hhs_completed,male,female,adult,children,elder,pms,pwd,death_reported
+330,1st Main Road By the Lake,Vidyaranyapuram,Yelahanka,Sangama,110,110,220,213,279,154,12,0,7,0
+333,6th Main Road,Vidyaranyapuram,Yelahanka,Sangama,43,30,60,61,86,35,2,0,5,0
+22,7th & 8th Mn Rd Padarayanapura,Padarayanapura (135),Bangalore West,ActionAid,720,717,1093,1128,1831,386,145,2,2,3
+237,8th and 9th Main Road,Rayapuram (137),Bangalore West,Thamate,808,790,1598,1460,2212,848,161,0,31,0
+332,8th Main Road,Vidyaranyapuram,Yelahanka,Sangama,24,23,55,56,70,41,6,0,1,0
+11,Adimoola Compound,K R Market (139),Bangalore West,ActionAid,39,37,68,80,119,29,7,0,1,0
+95,Ahammed Nagar I,Nagarabhavi (128),Bangalore West,CFAR,1217,1214,2545,2499,3480,1549,285,16,63,2
+341,Ahammed Nagar II,Nagarabhavi (128),Bangalore West,CFAR,644,623,1072,1189,1727,538,142,0,17,0
+342,Ahammed Nagar III,Nagarabhavi (128),Bangalore West,CFAR,352,329,778,781,1075,484,85,0,22,0
+343,Ahammed Nagar IV,Nagarabhavi (128),Bangalore West,CFAR,59,54,110,119,166,63,17,1,2,0
+329,Aishwarya Oil Mill Behind,Vidyaranyapuram,Yelahanka,Sangama,57,53,112,102,146,68,5,0,2,0
+32,AK Badavane,Gali Anjenaya Temple (157),Bangalore South,ActionAid,30,30,58,56,88,26,14,0,1,0
+33,AK Colony,Gali Anjenaya Temple (157),Bangalore South,ActionAid,124,122,202,212,317,97,23,3,7,1
+246,AK colony,Anekal,Anekal,SIEDS,264,252,469,507,774,201,85,0,4,0
+290,Allalasandra,Yelahanka Satellite Town (4),Yelahanka,Sama Foundation,314,303,560,561,820,301,32,0,7,0
+166,Amavasai Lane,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,307,298,534,552,798,289,87,0,8,0
+188,Ambedkar Colony,Jakkur (5),Yelahanka,Sangama,156,131,237,257,356,138,12,0,9,0
+144,Ambedkar Nagar,Ullalu (130),RajaRajeshwari Nagar,Janasahayog,701,551,973,1016,1555,429,96,0,21,0
+149,Ambedkar Nagar,Uttarahalli (184),Bommanahalli,Janasahayog,43,31,74,80,81,73,1,0,1,0
+187,Ambedkar nagar,Yelahanka Satellite Town (4),Yelahanka,Sama Foundation,411,403,814,822,1168,465,70,0,11,0
+153,Ambedkar nagar I,Nilasandra (116),Bangalore East,Maarga,703,702,1329,1433,2014,748,134,0,26,0
+359,Ambedkar nagar II,Nilasandra (116),Bangalore East,Maarga,319,314,592,560,894,256,78,1,19,0
+360,Ambedkar nagar III,Nilasandra (116),Bangalore East,Maarga,209,209,397,379,604,167,40,1,4,1
+77,Ambedkar Nagar-105,Agrahara Dasarahalli (105),Bangalore West,CFAR,888,886,1572,1519,2451,633,254,0,53,0
+69,Ambedkar Nagar-97,Dayananda Nagar (97),Bangalore West,CFAR,510,507,868,941,1411,392,144,0,16,0
+87,Ambedkar Quarters,Nayandahalli  (131),Bangalore West,CFAR,1071,1028,2168,2243,3178,1231,179,10,48,2
+227,Ambi Circle Water Tank Park,Rajagopalnagara (70),Dasarahalli,Sangama,324,319,581,542,901,222,83,0,10,0
+209,Amruthahalli,Byatryanapura (7),Yelahanka,Sangama,434,423,849,718,1077,476,57,0,2,0
+10,Anandapuram I,K R Market (139),Bangalore West,ActionAid,763,750,1477,1550,2277,755,132,27,39,15
+366,Anandapuram II,K R Market (139),Bangalore West,ActionAid,431,424,691,773,1177,285,72,1,9,2
+1,Anjanappa Garden I,Chalavadipalya (138),Bangalore West,ActionAid,896,776,1528,1625,2484,670,250,14,35,4
+362,Anjanappa Garden II,Chalavadipalya (138),Bangalore West,ActionAid,126,125,222,234,352,104,43,0,1,0
+66,Anjaneya block ,Datatraya (77),Bangalore West,CFAR,149,149,257,246,406,97,34,0,0,0
+12,Anjaneya Temple,K R Market (139),Bangalore West,ActionAid,42,38,83,72,129,26,13,0,0,0
+20,Arfath Nagar I,Padarayanapura (135),Bangalore West,ActionAid,1160,1160,2077,2189,3133,1124,236,1,18,5
+370,Arfath Nagar II,Padarayanapura (135),Bangalore West,ActionAid,75,75,141,148,206,83,20,0,0,0
+275,Arundathinagar ,Kengeri (159),Bangalore South,CFAR,253,239,443,459,679,218,44,0,11,0
+78,Ashraya Nagar I,HMT (38),RajaRajeshwari Nagar,CFAR,1097,1094,1779,1807,2666,915,169,1,48,1
+344,Ashraya Nagar II,HMT (38),RajaRajeshwari Nagar,CFAR,573,557,1054,1009,1508,552,110,0,26,0
+247,Ashreya Yojane,Anekal,Anekal,SIEDS,516,514,857,838,1386,308,161,1,22,0
+248,Ashreya Yojane,Anekal,Anekal,SIEDS,18,18,36,30,56,10,7,0,1,0
+28,Ashwath Nagar,Cottonpete (120),Bangalore West,ActionAid,160,121,303,307,478,132,41,1,6,0
+242,Ashwathpura,Chokkasandra (39),Dasarahalli,APPI,291,279,532,553,770,315,43,1,17,1
+147,Atmajyothi Nagar,Rajarajeshwari Nagar (160),RajaRajeshwari Nagar,Janasahayog,63,60,116,113,170,59,12,0,2,0
+249,Ayodyanagar,Anekal,Anekal,SIEDS,603,600,994,1054,1574,473,200,0,21,0
+181,Ayothidas nagar,Muneshwara Nagar (48),Bangalore East,Sama Foundation,226,218,462,424,603,283,49,0,10,0
+309,Babureddy community KA,Bellandur (150),Mahadevapura,Gubbachi,579,579,918,535,1185,259,4,0,1,0
+262,Bagalur,Bagalur,Bagalur,SIEDS,857,848,1623,1479,2375,722,247,0,24,0
+263,Bagalur Colony,Bagalur,Bagalur,SIEDS,507,504,1027,891,1481,435,85,0,10,0
+163,Bangaragiri nagar,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,301,292,516,467,703,282,47,0,2,0
+108,Bangarappa Gudde,Rajarajeshwari Nagar (160),RajaRajeshwari Nagar,CFAR,463,462,747,755,1059,443,46,0,4,1
+277,Beedi colony ,Kengeri (159),Bangalore South,CFAR,939,934,1762,1798,2607,945,263,0,49,0
+203,"Behind Govt Hr Primary School, Dasarahalli",Thanisandra (6),Yelahanka,Sangama,379,367,661,609,929,341,24,0,1,1
+199,Behind Manyata Tech Park,Thanisandra (6),Yelahanka,Sangama,151,124,256,218,325,145,13,0,6,0
+326,Behind UIDAI,Kodigehalli,Yelahanka,Sangama,48,46,91,70,107,54,1,0,0,0
+297,Bellandur Hindi Community,Bellandur (150),Mahadevapura,Gubbachi,156,148,287,121,330,77,3,0,0,0
+368,Bellandur kannada Community,Bellandur (150),Mahadevapura,Gubbachi,141,141,214,205,318,96,10,0,0,0
+298,Bellanduru Doddamma Temple Back Side ( 2 camp),Bellandur (150),Mahadevapura,Gubbachi,229,228,386,318,538,152,4,0,0,0
+303,Bellanduru Hindi Vatara,Bellandur (150),Mahadevapura,Gubbachi,94,79,157,88,197,48,4,0,0,0
+289,Bhadrapura ,Kumbalagodu,Kumbalagodu,CFAR,411,407,800,776,1191,383,83,1,27,0
+14,Bhakshi Garden I,K R Market (139),Bangalore West,ActionAid,785,764,1374,1401,2184,592,155,0,16,2
+363,Bhakshi Garden II,K R Market (139),Bangalore West,ActionAid,782,777,1428,1504,2324,609,210,9,21,2
+2,Bhangi Colony,Chalavadipalya (138),Bangalore West,ActionAid,302,284,618,626,938,311,77,4,2,11
+137,Bheemshakthi Slum,Nagapura (67),Bangalore West,Janasahayog,88,87,156,178,254,80,14,0,8,0
+211,Bhimanna Garden,Byatryanapura (7),Yelahanka,Sangama,167,149,301,261,392,170,31,0,6,0
+216,Bhoopsandra,Sanjay Nagar (19),Bangalore East,Sangama,316,312,591,605,862,333,66,0,9,0
+321,Bhubaneswari nagara,Uttarahalli (184),Bommanahalli,CFAR,905,904,1467,1321,2280,504,244,0,19,0
+268,Bilwardhanahalli,Bannerghatta,Bannerghatta,SIEDS,366,330,791,773,1095,469,81,1,7,0
+116,Boganahalli Community ,Bellandur (150),Mahadevapura,Gubbachi,999,991,1642,913,2115,440,18,0,5,0
+23,Boomatha Seva Sangha,Jagajivanaramnagar (136),Bangalore West,ActionAid,408,404,699,777,1105,373,114,0,7,0
+264,Bs Palya,Bagalur,Bagalur,SIEDS,334,330,775,723,1037,461,89,1,26,0
+85,Buddha Nagar,Lakshmidevi Nagar (42),RajaRajeshwari Nagar,CFAR,260,260,498,527,784,267,63,0,29,0
+250,Bydara beedi (Vishweshwarayya badawane),Anekal,Anekal,SIEDS,541,539,947,967,1461,453,190,0,13,0
+48,Chamundi Nagar,Girinagar (162),Bangalore South,CFAR,245,244,421,434,675,180,47,0,6,0
+280,Channasandra ,Rajarajeshwari Nagar (160),RajaRajeshwari Nagar,CFAR,202,201,267,298,430,134,31,0,1,0
+3,Cheluvadipalya,Chalavadipalya (138),Bangalore West,ActionAid,506,465,856,849,1350,348,130,0,4,0
+210,Chiranjeevi Layout,Byatryanapura (7),Yelahanka,Sangama,1002,873,1268,900,1733,435,24,0,7,0
+244,Chokkasandra Village,Chokkasandra (39),Dasarahalli,Thamate,569,568,1064,999,1552,511,99,0,20,0
+327,Concorde Apartments Near,Kodigehalli,Yelahanka,Sangama,38,15,23,29,37,15,3,0,0,0
+335,Corporation colony,Jayanagar East (170),Bangalore South,Maarga,379,378,684,664,1029,317,72,0,10,0
+73,Corporation Colony,Govindaraj Nagar (104),Bangalore West,CFAR,362,353,668,706,1050,326,103,0,19,0
+279,D'souza Nagar ,Rajarajeshwari Nagar (160),RajaRajeshwari Nagar,CFAR,44,44,104,54,125,33,2,0,0,0
+204,Dasarahalli Main Road around BBMP Office,Thanisandra (6),Yelahanka,Sangama,411,398,750,649,1006,391,69,0,0,0
+70,Dayananda Nagar,Dayananda Nagar (97),Bangalore West,CFAR,780,779,1177,1275,1961,488,231,0,9,0
+202,Defence Layout,Thanisandra (6),Yelahanka,Sangama,134,129,243,259,356,146,12,0,0,0
+24,Devarajurs Nagar,Jagajivanaramnagar (136),Bangalore West,ActionAid,244,244,401,409,615,195,67,0,5,0
+93,Devegowda slum,Nagarabhavi (128),Bangalore West,CFAR,243,226,511,512,699,323,47,3,6,0
+167,Doddana nagar,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,372,350,604,668,978,293,96,0,3,0
+285,Doddbele colony,Gollahalli,Gollahalli,CFAR,100,98,158,181,277,60,33,0,2,0
+256,Dommasandhra 3 sites,Dommasandhra,Dommasandhra,Gubbachi,141,141,214,161,302,70,7,0,0,0
+4,Doraiswamy Nagar,Chalavadipalya (138),Bangalore West,ActionAid,139,127,255,272,401,126,41,0,2,0
+176,E- block,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,266,243,439,470,695,215,69,0,6,0
+164,Edigha Mohalla,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,338,333,542,502,775,270,74,0,2,0
+190,Fakeer Colony-Fakeer,Jakkur (5),Yelahanka,Sangama,57,49,111,124,140,95,9,0,5,0
+373,Fakeer Colony-Others,Jakkur (5),Yelahanka,Sangama,102,49,97,106,144,59,11,0,1,0
+25,Farookhiya Nagar I,Jagajivanaramnagar (136),Bangalore West,ActionAid,1237,1217,2282,2007,3165,1124,200,0,13,0
+372,Farookhiya Nagar II,Jagajivanaramnagar (136),Bangalore West,ActionAid,85,85,139,129,210,58,24,0,0,1
+5,Flower Garden,Chalavadipalya (138),Bangalore West,ActionAid,447,433,933,920,1429,426,125,1,7,2
+21,Gada,Padarayanapura (135),Bangalore West,ActionAid,929,926,1729,1697,2540,878,180,3,12,1
+97,Ganapathi Slum,Deepanjali Nagar (158),Bangalore South,CFAR,107,106,249,212,293,168,7,0,1,0
+115,Gandhi Nagar,Kengeri (159),Bangalore South,CFAR,511,470,876,932,1399,408,168,1,14,0
+89,Gangondanahalli,Nayandahalli  (131),Bangalore West,CFAR,815,767,1660,1735,2344,1042,178,0,32,0
+217,Gas Godown,Sanjay Nagar (19),Bangalore East,Sangama,226,192,361,381,526,216,40,0,3,0
+71,Gawtham Nagar,Dayananda Nagar (97),Bangalore West,CFAR,653,650,1148,1191,1866,473,196,1,13,0
+152,Geetanajali,Adugodi (147),Bangalore South,Maarga,79,77,165,154,198,121,17,1,7,0
+6,Giripuram,Chalavadipalya (138),Bangalore West,ActionAid,216,209,395,419,581,234,59,0,4,0
+257,Girish Vatara Halanayakanahalli ,Halanayakanahalli ,Halanayakanahalli,Gubbachi,73,69,113,102,171,43,1,0,1,0
+266,Gollalli gutte ,Bannerghatta,Bannerghatta,SIEDS,221,201,401,376,606,168,35,0,5,0
+52,Gopalpura BP,Binnipete (121),Bangalore West,CFAR,356,356,695,667,1032,332,80,0,6,0
+106,Gopalpura I OP,Okalipuram (96),Bangalore West,CFAR,1080,1079,1788,1798,2632,954,154,0,10,0
+347,Gopalpura II OP,Okalipuram (96),Bangalore West,CFAR,481,479,873,849,1307,416,103,3,4,0
+81,Gulbarga Slum,HMT (38),RajaRajeshwari Nagar,CFAR,418,386,906,860,1110,654,53,0,31,0
+230,Gulbarga slum,Peenya industrial area (41),Dasarahalli,Sangama,143,110,199,186,291,94,8,0,7,0
+161,Gundappa Colony,Byrasandra (169),Bangalore South,Maarga,179,179,301,299,458,142,36,0,4,0
+38,Gurappa Garden,Sudham Nagara (118),Bangalore South,ActionAid,139,139,241,278,379,140,23,2,3,2
+267,Hakki pikki colony,Bannerghatta,Bannerghatta,SIEDS,216,216,414,403,575,239,76,3,17,1
+143,Hakkipikki Subhashnagar,Ullalu (130),RajaRajeshwari Nagar,Janasahayog,157,103,220,215,312,123,11,0,3,0
+51,Handigudisalu,Binnipete (121),Bangalore West,CFAR,196,196,312,318,499,132,39,1,1,0
+53,Hanumanthappa Colony I,Subhash Nagar (95),Bangalore West,CFAR,472,472,832,825,1351,295,133,0,9,0
+345,Hanumanthappa Colony II,Subhash Nagar (95),Bangalore West,CFAR,128,128,221,219,355,82,25,0,1,0
+60,Hanumanthapura,Subhash Nagar (95),Bangalore West,CFAR,451,451,716,752,1154,314,114,1,11,1
+299,Haralur Road 3 sites,Bellandur (150),Mahadevapura,Gubbachi,507,492,764,701,1143,322,23,0,1,0
+235,Harikunte,Rayapuram (137),Bangalore West,Thamate,948,935,1838,1816,2840,806,268,0,42,0
+84,Havadigara Colony,Lakshmidevi Nagar (42),RajaRajeshwari Nagar,CFAR,476,475,977,1048,1427,596,90,0,21,0
+65,Himalaya Huts,Gandhi Nagar (94),Bangalore West,CFAR,53,53,64,91,136,19,13,0,3,0
+283,Hosakerehalli,Hosakerehalli (161),Bangalore South,CFAR,141,141,271,256,343,184,4,0,0,0
+205,Hoysala Layout,Byatryanapura (7),Yelahanka,Sangama,259,256,428,419,640,206,23,0,2,0
+96,Hoysala Nagar,Nagarabhavi (128),Bangalore West,CFAR,233,232,467,390,609,246,34,1,6,0
+308,Huligappa Community KA,Bellandur (150),Mahadevapura,Gubbachi,71,71,131,104,161,74,1,0,0,0
+157,Indira G colony,Jayanagar East (170),Bangalore South,Maarga,154,153,286,288,449,125,28,3,2,0
+155,Indira Gandhi slum Ejipura,Ejipura (148),Bangalore South,Maarga,194,194,387,302,537,150,41,0,4,0
+236,IPD Salappa Layout,Rayapuram (137),Bangalore West,Thamate,100,99,183,220,306,97,27,0,3,0
+193,Ittige Factory,Jakkur (5),Yelahanka,Sangama,833,770,1256,1301,1955,602,150,0,19,0
+251,Jagjeevanram nagar,Attibele,Attibele,SIEDS,167,147,256,206,383,79,41,0,11,0
+307,Jahangir Bangla Community (Jalaluddin) KA,Bellandur (150),Mahadevapura,Gubbachi,884,879,1462,804,1849,402,3,0,0,0
+7,Jai Bheem Nagar,Chalavadipalya (138),Bangalore West,ActionAid,238,215,438,422,667,190,64,1,7,0
+191,Jai Bhim Nagara,Jakkur (5),Yelahanka,Sangama,274,263,566,498,760,304,61,0,16,0
+138,Jaibheem Nagar,Laggere (69),RajaRajeshwari Nagar,Janasahayog,63,61,145,133,192,85,6,1,2,0
+197,Jakkuru (Near Jakkur Aarogya Kendra),Jakkur (5),Yelahanka,Sangama,246,242,481,427,652,256,26,0,6,0
+206,Jakkuru Layout,Byatryanapura (7),Yelahanka,Sangama,347,321,517,549,856,208,81,0,3,0
+324,Jalageramma Temple,Kodigehalli,Yelahanka,Sangama,85,71,119,130,185,65,14,0,0,0
+26,Janata Colony,Jagajivanaramnagar (136),Bangalore West,ActionAid,478,409,692,781,1136,338,112,8,12,3
+182,Jani bai Lane,Muneshwara Nagar (48),Bangalore East,Sama Foundation,175,170,347,326,451,222,31,0,8,0
+109,Javaregoudana Doddi I,Rajarajeshwari Nagar (160),RajaRajeshwari Nagar,CFAR,314,313,439,458,706,189,25,0,3,0
+364,Javaregoudana Doddi II,Rajarajeshwari Nagar (160),RajaRajeshwari Nagar,CFAR,104,104,186,183,296,75,22,0,3,0
+61,JCW Nagar,Gandhi Nagar (94),Bangalore West,CFAR,485,479,772,753,1215,310,110,0,10,0
+239,JJR Nagar North,Rayapuram (137),Bangalore West,Thamate,630,622,1194,1153,1836,512,177,0,25,0
+238,JJR Nagar South,Rayapuram (137),Bangalore West,Thamate,182,182,323,318,485,154,49,0,6,0
+15,Jolly Mohalla,K R Market (139),Bangalore West,ActionAid,311,309,546,538,810,274,69,1,5,0
+301,"Junnasandhra School  Community, 2 sites",Bellandur (150),Mahadevapura,Gubbachi,160,157,245,274,367,150,14,0,6,0
+311,Jyothika Behind Debris,Bellandur (150),Mahadevapura,Gubbachi,630,621,1218,444,1444,216,6,0,0,0
+287,Kabbalamma palya I,Kumbalagodu,Kumbalagodu,CFAR,1157,1143,1919,1788,2890,810,233,0,47,0
+367,Kabbalamma palya II,Kumbalagodu,Kumbalagodu,CFAR,634,633,1072,887,1615,330,96,0,8,0
+43,Kaikondrahalli II,Benniganahalli (50),Bangalore East,Gubbachi,126,125,217,125,290,52,2,0,1,0
+300,Kaikondrahalli Near SBM Bank ,Bellandur (150),Mahadevapura,Gubbachi,600,598,868,759,1310,305,16,0,7,0
+338,Kanaka nagar,Yelahanka Satellite Town (4),Yelahanka,Sama Foundation,76,38,126,124,183,66,13,0,11,0
+74,Kanaka Nagar,Maruthi Mandir (126),Bangalore West,CFAR,217,216,414,461,652,223,84,2,24,1
+302,Kannada Community Near AET College,Bellandur (150),Mahadevapura,Gubbachi,171,169,281,259,364,167,7,0,5,0
+323,Kanuramma Temple,Kodigehalli,Yelahanka,Sangama,200,162,279,289,418,150,24,0,2,0
+304,Kariyammana agrahara Vatara KA (Kannada + Hindi),Bellandur (150),Mahadevapura,Gubbachi,468,460,817,602,1110,309,25,0,4,0
+215,Kariyanna Layout,Byatryanapura (7),Yelahanka,Sangama,251,241,477,396,623,251,27,0,2,0
+212,Kashinagara,Byatryanapura (7),Yelahanka,Sangama,24,21,35,33,47,21,6,0,0,0
+112,Kasturamma Badavane,Kengeri (159),Bangalore South,CFAR,156,150,269,286,411,142,24,0,2,0
+105,Kasturi Nagar,Okalipuram (96),Bangalore West,CFAR,145,134,281,296,455,122,45,0,3,0
+160,Kaveramma temple,Byrasandra (169),Bangalore South,Maarga,154,154,276,300,432,144,31,0,4,0
+318,Kaveri Nagar,Lakshmidevi Nagar (42),RajaRajeshwari Nagar,CFAR,369,369,640,617,1000,252,89,0,15,0
+319,Kempamma badavane,Lakshmidevi Nagar (42),RajaRajeshwari Nagar,CFAR,85,85,140,148,220,66,17,0,8,0
+29,Keshava Nagar,Cottonpete (120),Bangalore West,ActionAid,698,673,1200,1180,1933,446,218,3,17,4
+291,Khayum Garden,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,75,75,133,128,177,84,18,0,1,0
+258,Kodathi Community ,Kodathi,Kodathi,Gubbachi,499,482,727,651,1123,254,10,0,3,0
+148,Kodipalya Slum,Uttarahalli (184),Bommanahalli,Janasahayog,133,95,209,216,267,157,4,0,2,0
+328,Kole Basawa Community,Vidyaranyapuram,Yelahanka,Sangama,50,50,93,88,113,68,5,0,5,0
+225,Kole Basawa Community jopadi,Rajagopalnagara (70),Dasarahalli,Sangama,71,71,131,121,181,71,12,0,0,0
+223,Kottigepalya,Kottegepalya (73),RajaRajeshwari Nagar,Sangama,578,546,1070,1041,1630,481,107,0,13,0
+313,Kudrath Community,Bellandur (150),Mahadevapura,Gubbachi,124,124,156,119,236,39,2,0,0,0
+75,Kurilingappa Garden,Moodalapalya (127),Bangalore West,CFAR,358,355,689,540,941,297,48,1,12,0
+214,Kuvempu Layout,Byatryanapura (7),Yelahanka,Sangama,62,62,106,113,142,77,3,0,0,0
+269,Kyasaraguppe ,Bannerghatta,Bannerghatta,SIEDS,58,58,111,103,164,50,21,0,3,0
+177,Labbabin masjid,Muneshwara Nagar (48),Bangalore East,Sama Foundation,75,73,136,137,203,71,16,0,0,0
+64,Lakshmanapuri,Gandhi Nagar (94),Bangalore West,CFAR,1200,1198,1741,1691,2747,680,327,0,19,0
+377,LR Nagar,Nilasandra (116),Bangalore East,Maarga,384,384,689,685,1033,343,79,25,17,7
+86,Lumbini Slum,Lakshmidevi Nagar (42),RajaRajeshwari Nagar,CFAR,269,269,514,522,752,283,53,0,19,0
+180,Maalik Saab Road,Muneshwara Nagar (48),Bangalore East,Sama Foundation,224,216,451,473,633,291,47,0,6,0
+312,Mantri Espana- Sakra Road 4 sites KA,Bellandur (150),Mahadevapura,Gubbachi,244,244,456,122,516,61,1,0,0,0
+200,Manyata Tech Park Road,Thanisandra (6),Yelahanka,Sangama,246,208,440,392,592,237,25,0,2,0
+141,Mariappanapalya,Jnana Bharathi (129),RajaRajeshwari Nagar,Janasahayog,19,17,26,27,35,18,2,0,0,0
+184,Mariyamman Kovil Street,Muneshwara Nagar (48),Bangalore East,Sama Foundation,71,66,112,120,186,46,10,0,3,0
+208,Mariyannapalya,Byatryanapura (7),Yelahanka,Sangama,519,508,896,848,1300,443,108,0,10,0
+337,Maruthi Nagar A,Hegganahalli (71),Dasarahalli,Sangama,303,302,509,509,757,262,59,0,11,0
+228,Maruthi Nagar B,Hegganahalli (71),Dasarahalli,Sangama,517,514,988,955,1445,500,76,1,20,0
+229,Maruthi Nagar near Bilal Masjid,Hegganahalli (71),Dasarahalli,Sangama,737,732,1326,1326,1952,700,153,1,30,0
+34,MCT Colony,Gali Anjenaya Temple (157),Bangalore South,ActionAid,384,377,712,718,1125,311,113,3,25,4
+107,Minerva Mill,Okalipuram (96),Bangalore West,CFAR,49,46,84,81,138,27,42,0,0,0
+175,Modi Road,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,708,698,1382,1490,1972,903,190,0,15,0
+79,Muneshwar Nagar,HMT (38),RajaRajeshwari Nagar,CFAR,328,327,566,615,899,283,69,0,9,0
+241,Muneshwara Block,Mallasandra (13),Dasarahalli,Thamate,488,443,886,823,1321,375,96,0,15,0
+325,Muneshwara Temple Area,Kodigehalli,Yelahanka,Sangama,147,108,195,186,286,95,22,1,5,0
+185,Munibyrappa block,Muneshwara Nagar (48),Bangalore East,Sama Foundation,63,54,97,93,136,54,21,0,0,0
+292,Muninagappa Layout,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,87,84,158,156,230,84,12,0,1,0
+243,Muniswamy Ground,Chokkasandra (39),Dasarahalli,Thamate,65,60,126,124,157,94,4,0,1,0
+272,Muslim Colony,Neraluru,Neraluru,SIEDS,70,56,98,88,143,43,12,0,4,0
+281,Mutthurayana Nagar ,Rajarajeshwari Nagar (160),RajaRajeshwari Nagar,CFAR,71,71,122,125,160,86,7,0,1,0
+31,Nagamma Nagar,Cottonpete (120),Bangalore West,ActionAid,467,414,650,665,1098,218,83,12,10,8
+139,Nagarhhavi Krishnappa Garden,Kottegepalya (73),RajaRajeshwari Nagar,Janasahayog,94,77,168,140,208,98,10,0,1,0
+376,Nagasandra Colony,Chokkasandra (39),Dasarahalli,Thamate,224,220,367,306,553,122,42,0,12,0
+159,Nakkal bande,Byrasandra (169),Bangalore South,Maarga,50,50,84,94,128,50,20,0,0,0
+76,Nanjarasappa Badavane ,Maruthi Mandir (126),Bangalore West,CFAR,157,156,322,263,451,133,17,2,8,0
+35,Narasimaiah Colony,Gali Anjenaya Temple (157),Bangalore South,ActionAid,203,183,338,337,542,135,33,2,1,1
+245,Narayanapura,Chokkasandra (39),Dasarahalli,Thamate,380,380,707,667,1089,283,113,0,14,0
+252,Narayanapura,Anekal,Anekal,SIEDS,598,564,986,938,1545,375,204,0,53,0
+231,Near Ambi circle,Peenya industrial area (41),Dasarahalli,Sangama,522,518,888,837,1405,318,103,0,7,0
+201,"Near Ganesha Temple, Rachenahalli",Thanisandra (6),Yelahanka,Sangama,294,294,607,532,794,343,34,0,1,0
+145,New Colony,Ullalu (130),RajaRajeshwari Nagar,Janasahayog,893,852,1555,1580,2318,807,228,1,46,0
+369,New Colony II,Ullalu (130),RajaRajeshwari Nagar,Janasahayog,187,166,310,367,502,175,71,0,13,0
+16,New Tharagupet,K R Market (139),Bangalore West,ActionAid,21,17,43,29,58,14,5,0,2,0
+104,Okalipuram,Okalipuram (96),Bangalore West,CFAR,934,891,1568,1701,2502,768,286,0,35,1
+8,Old Pension Mohalla,Chalavadipalya (138),Bangalore West,ActionAid,616,605,1271,1253,1840,684,181,1,13,0
+168,Panjappa Lane,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,314,303,550,548,803,295,60,0,2,0
+142,"Papreddypalya 01, Begalamma temple & 5 other locat",Jnana Bharathi (129),RajaRajeshwari Nagar,Janasahayog,51,46,101,124,138,89,6,0,1,0
+94,Patankot,Nagarabhavi (128),Bangalore West,CFAR,720,668,1456,1458,2027,874,133,11,42,1
+233,Pillganahalli,Gottigere (194),Bommanahalli,SIEDS,830,726,1757,1747,2438,1060,141,4,20,0
+253,Pump house,Anekal,Anekal,SIEDS,478,409,610,636,1017,230,127,0,9,0
+207,Rachenahalli Lake,Byatryanapura (7),Yelahanka,Sangama,177,148,277,254,388,143,13,0,1,0
+156,Ragigudda I, J P Nagar (177),Bangalore South,Maarga,694,692,1144,1180,1749,569,145,3,12,0
+358,Ragigudda II, J P Nagar (177),Bangalore South,Maarga,688,687,893,929,1417,405,125,0,11,0
+334,Railway Cross Doddabommasandra,Vidyaranyapuram,Yelahanka,Sangama,33,33,66,58,88,36,4,0,1,0
+58,Railway Station/Ambedkar Nagar,Subhash Nagar (95),Bangalore West,CFAR,227,224,351,366,576,145,55,0,3,0
+150,Rajendra Nagar I,Adugodi (147),Bangalore South,Maarga,677,677,1286,1310,1965,634,172,3,48,0
+350,Rajendra Nagar II,Adugodi (147),Bangalore South,Maarga,680,680,1224,1346,1896,675,171,2,25,0
+351,Rajendra Nagar III,Adugodi (147),Bangalore South,Maarga,685,685,1313,1340,1948,704,166,0,38,1
+273,Ramachandra nagar ,Neraluru,Neraluru,SIEDS,308,293,555,335,743,145,41,0,12,0
+40,Ramanna Garden,Sudham Nagara (118),Bangalore South,ActionAid,546,546,921,948,1442,429,91,6,10,6
+63,Rasaldhar Street,Gandhi Nagar (94),Bangalore West,CFAR,593,593,956,922,1540,338,164,0,4,0
+240,Ravindra Nagara,Mallasandra (13),Dasarahalli,Thamate,781,716,1362,1333,2164,525,223,0,18,0
+260,Rayasandhra Community ,Shanthipura ,Shanthipura,Gubbachi,129,121,186,213,282,117,33,3,6,0
+265,Razakpalya,Bagalur,Bagalur,SIEDS,551,549,1239,1144,1687,695,140,0,29,0
+68,RKS,Dayananda Nagar (97),Bangalore West,CFAR,319,316,522,587,864,245,94,0,3,0
+282,RNS collage compound ,Rajarajeshwari Nagar (160),RajaRajeshwari Nagar,CFAR,57,57,66,70,117,18,2,0,0,0
+171,Roshan nagar,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,317,304,578,619,842,358,60,0,10,0
+154,Samatha nagar,Vannarpet (115),Bangalore East,Maarga,302,302,610,574,897,287,58,3,6,0
+192,Sandeep Layout,Jakkur (5),Yelahanka,Sangama,177,177,402,371,531,242,38,0,3,0
+179,Sandhyavoo nagar,Muneshwara Nagar (48),Bangalore East,Sama Foundation,261,253,444,508,710,242,68,0,8,0
+80,Sanjay Gandhi Nagar,HMT (38),RajaRajeshwari Nagar,CFAR,375,375,692,756,1111,335,108,0,7,0
+82,Sanjay Gandhi Nagar-42,Lakshmidevi Nagar (42),RajaRajeshwari Nagar,CFAR,669,663,1227,1264,1878,590,141,11,77,2
+36,Sanjay Nagar,Gali Anjenaya Temple (157),Bangalore South,ActionAid,352,351,628,640,996,272,102,1,9,1
+140,Sarkaari Ooni,Hosahalli (124),Bangalore South,Janasahayog,364,361,576,702,1041,237,113,1,13,0
+226,Sathi circle,Rajagopalnagara (70),Dasarahalli,Sangama,736,728,1269,1297,2005,561,200,0,27,0
+17,Saw Mill Lane,K R Market (139),Bangalore West,ActionAid,77,67,103,137,189,51,22,1,2,1
+270,Seepkere ,Bannerghatta,Bannerghatta,SIEDS,34,33,53,57,85,25,11,0,2,0
+178,Shahdab nagar,Muneshwara Nagar (48),Bangalore East,Sama Foundation,286,272,464,483,672,275,54,0,3,0
+322,Sharifnagar,Malleshwaram (55),RajaRajeshwari Nagar,Janasahayog,488,441,792,882,1194,480,124,0,15,0
+57,Shastri Nagar,Subhash Nagar (95),Bangalore West,CFAR,287,284,447,476,718,207,79,0,11,1
+151,Shastri nagar,Adugodi (147),Bangalore South,Maarga,307,307,608,577,860,324,58,3,11,0
+271,Shilidradoddi ,Bannerghatta,Bannerghatta,SIEDS,25,25,60,51,95,16,13,0,2,0
+113,Shirke,Kengeri (159),Bangalore South,CFAR,154,152,275,254,372,148,25,0,3,0
+286,Shivakumar Swamiji nagar,Agra,Agra,CFAR,1178,1171,1881,1966,2981,858,347,1,38,0
+276,Shivanagar colony ,Kengeri (159),Bangalore South,CFAR,201,198,301,333,462,171,23,0,6,0
+186,Shivaraj Road,Muneshwara Nagar (48),Bangalore East,Sama Foundation,326,313,560,618,869,310,89,0,21,0
+232,Siddarth nagar ,Koramangala (151),Bangalore South,SIEDS,958,851,1434,1424,2245,611,162,0,25,0
+315,Siddarthanagar ,Jalahalli ward - 16,RajaRajeshwari Nagar,CFAR,77,77,139,166,223,82,23,0,3,0
+9,Sidhartha Nagar,Chalavadipalya (138),Bangalore West,ActionAid,318,310,626,622,933,313,79,3,5,0
+183,Soap Factory,Muneshwara Nagar (48),Bangalore East,Sama Foundation,192,187,336,385,488,232,43,0,7,0
+196,Sreenivasapura,Jakkur (5),Yelahanka,Sangama,146,134,245,211,341,115,29,0,6,0
+173,Srinivas nagar,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,366,353,681,710,971,422,83,0,10,0
+55,Srirampura,Subhash Nagar (95),Bangalore West,CFAR,302,292,527,554,859,222,104,5,10,0
+254,Sudham Nagar,Anekal,Anekal,SIEDS,120,82,204,181,322,63,63,0,6,0
+174,Sugar mandi,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,252,247,497,476,652,321,51,0,2,0
+295,Suggappa Layout,Laggere (69),RajaRajeshwari Nagar,Sangama,1,1,1,2,3,0,0,0,0,0
+169,Sujjana nagar,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,157,155,303,303,456,150,21,0,3,0
+224,Sumanahalli,Kottegepalya (73),RajaRajeshwari Nagar,Sangama,107,98,198,192,245,145,10,0,1,0
+136,Sunnada Gudu,Yeshwanthpura (37),RajaRajeshwari Nagar,Janasahayog,719,709,1310,1401,2085,624,184,0,25,0
+294,Surabhi Layout-Kannada,Jakkur (5),Yelahanka,Sangama,54,36,71,83,102,52,3,0,8,0
+374,Surabhi Layout-Telugu,Jakkur (5),Yelahanka,Sangama,49,49,106,89,125,70,2,0,0,0
+54,Swathanthra Nagar I,Subhash Nagar (95),Bangalore West,CFAR,878,878,1498,1605,2461,641,267,1,25,5
+346,Swathanthra Nagar II,Subhash Nagar (95),Bangalore West,CFAR,826,797,1319,1404,2192,531,308,1,32,0
+348,Swathanthra Nagar III,Subhash Nagar (95),Bangalore West,CFAR,152,152,237,257,414,77,43,0,2,0
+339,Tank Mohalla,S K Garden(61),Bangalore East,Sama Foundation,307,307,638,637,869,408,84,0,16,0
+278,Thande Periyar nagar ,Rajarajeshwari Nagar (160),RajaRajeshwari Nagar,CFAR,91,91,130,143,226,46,6,0,1,0
+165,Thangamalai Nagar,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,311,307,527,558,816,268,91,0,8,0
+255,Thigalara Beedi,Anekal,Anekal,SIEDS,222,220,391,391,645,137,107,0,8,0
+162,Thilaknagar,Pattabhiram Nagar (168),Bangalore South,Maarga,789,786,1442,1485,2199,727,205,0,27,0
+72,Thimmenahalli,Govindaraj Nagar (104),Bangalore West,CFAR,174,167,282,293,454,123,62,0,8,0
+194,Thirumenahalli,Jakkur (5),Yelahanka,Sangama,216,194,400,377,491,286,16,0,5,0
+170,Tippu Mohalla,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,204,203,379,402,510,270,26,0,6,0
+18,Tippu Nagar,K R Market (139),Bangalore West,ActionAid,701,683,1354,1294,1891,756,168,3,9,0
+158,Urs colony,Jayanagar East (170),Bangalore South,Maarga,492,484,900,968,1371,496,124,3,11,0
+317,Vallavarpuram,Subhash Nagar (95),Bangalore West,CFAR,345,345,648,683,1046,285,114,0,15,1
+320,Vambay quarters,Lakshmidevi Nagar (42),RajaRajeshwari Nagar,CFAR,251,250,412,440,659,191,49,0,12,0
+172,Varalakshmi nagar,Devara Jeevanahalli (47),Bangalore East,Sama Foundation,101,98,207,205,296,116,14,0,1,0
+284,Vasanthapura,Vasanthpura (197),Bommanahalli,CFAR,1122,1104,2031,2022,3179,851,252,4,57,0
+99,Veerabhadra Nagar I,Deepanjali Nagar (158),Bangalore South,CFAR,1043,1040,2086,1955,2942,1099,99,2,24,0
+365,Veerabhadra Nagar II,Deepanjali Nagar (158),Bangalore South,CFAR,392,392,653,709,1024,338,71,0,3,0
+213,Veerannapalya,Byatryanapura (7),Yelahanka,Sangama,41,39,78,53,96,35,4,0,1,0
+19,Velmurugapuram,K R Market (139),Bangalore West,ActionAid,223,207,399,393,636,156,75,2,2,5
+340,Venkatappa Layout,Ullalu (130),RajaRajeshwari Nagar,Janasahayog,29,25,55,52,71,36,8,0,2,0
+274,Venkateshwara slum ,Hampinagar (133),Bangalore South,CFAR,198,198,354,360,535,182,34,0,7,0
+375,Vikasa Nagara,Chokkasandra (39),Dasarahalli,Thamate,47,47,77,51,110,19,4,0,1,0
+336,Vinayaka,Malleshwaram (55),RajaRajeshwari Nagar,Janasahayog,145,140,246,276,398,124,38,0,4,0
+27,Vinayaka Nagar,Jagajivanaramnagar (136),Bangalore West,ActionAid,412,406,767,777,1151,394,103,0,19,0
+88,Vinayaka Slum,Nayandahalli  (131),Bangalore West,CFAR,345,342,739,694,942,486,31,6,3,1
+30,Vinny Colony,Cottonpete (120),Bangalore West,ActionAid,105,90,153,174,274,53,30,1,15,0
+39,Vinoba nagar,Sudham Nagara (118),Bangalore South,ActionAid,714,713,1211,1215,1821,606,138,17,8,2
+331,Virupakshapura,Vidyaranyapuram,Yelahanka,Sangama,51,49,104,95,128,71,3,0,0,0
+293,Vishwavani Nagara,Jakkur (5),Yelahanka,Sangama,132,92,174,161,265,70,22,0,7,0
+67,Vivekananda block ,Datatraya (77),Bangalore West,CFAR,727,726,1152,1184,1922,414,223,0,8,0
+56,Vivekananda Nagar,Subhash Nagar (95),Bangalore West,CFAR,400,399,655,661,1019,298,76,0,14,0
+234,VS Garden,Rayapuram (137),Bangalore West,Thamate,1042,1041,2018,1958,3154,821,225,0,47,0
+59,VST Colony,Subhash Nagar (95),Bangalore West,CFAR,95,95,144,159,244,62,35,0,7,0
+62,VV Giri colony,Gandhi Nagar (94),Bangalore West,CFAR,343,341,629,636,954,312,64,0,13,0
+189,Waseem Layout,Jakkur (5),Yelahanka,Sangama,162,160,335,317,462,190,31,0,2,0
+314,Weigh Bridge Community,Bellandur (150),Mahadevapura,Gubbachi,687,627,1110,781,1475,415,7,0,1,0
+316,Yadalamma nagar,Uttarahalli (184),Bommanahalli,CFAR,418,417,694,674,1086,278,108,0,15,0
+310,Yalamma Temple Community KA,Bellandur (150),Mahadevapura,Gubbachi,486,480,811,705,1139,377,25,0,4,0
+261,Yamare 2 sites,Yamare,Yamare,Gubbachi,150,146,219,190,317,91,0,0,0,0
+306,Zakir Bangla community KA,Bellandur (150),Mahadevapura,Gubbachi,956,954,1481,944,1910,511,7,0,0,0

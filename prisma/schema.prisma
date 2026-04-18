@@ -1033,8 +1033,9 @@ model NeedsFormulaConfig {
   label           String?
   color           String   @default("#6b7280")
   domainType      String   @default("count")   // "count" | "boolean"
-  populationField String?                       // "totalHouseholds" | "children6m3yr" | "youth15to21" | "elderly60plus" etc.
-  sortOrder       Int      @default(0)
+  populationField  String?                       // "totalHouseholds" | "children6m3yr" | "youth15to21" | "elderly60plus" etc.
+  assessmentColumn String?                       // column name in SettlementAssessment for "existing" count, e.g. "existingCreches"
+  sortOrder        Int      @default(0)
   isActive        Boolean  @default(true)
   clusterScope    Boolean  @default(false) // if true, viability threshold is cluster-total, not per-settlement
   updatedAt       DateTime @updatedAt
