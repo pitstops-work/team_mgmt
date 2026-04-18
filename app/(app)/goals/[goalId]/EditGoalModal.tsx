@@ -19,7 +19,13 @@ interface Goal {
   needsSettlementId?: string | null;
   needsClusterId?: string | null;
   needsZoneId?: string | null;
+  needsCityId?: string | null;
 }
+
+interface DomainConfig { domain: string; label: string; color: string }
+interface GeoCity    { id: string; name: string }
+interface GeoZone    { id: string; name: string; cityId: string }
+interface GeoCluster { id: string; name: string; zoneId: string }
 
 interface ScopeSettlement {
   id: string;
@@ -46,6 +52,32 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Geography + domain edit state
+  const [editDomain,    setEditDomain]    = useState(goal.needsDomain    ?? "");
+  const [editCityId,    setEditCityId]    = useState(goal.needsCityId    ?? "");
+  const [editZoneId,    setEditZoneId]    = useState(goal.needsZoneId    ?? "");
+  const [editClusterId, setEditClusterId] = useState(goal.needsClusterId ?? "");
+  const [domains,       setDomains]       = useState<DomainConfig[]>([]);
+  const [cities,        setCities]        = useState<GeoCity[]>([]);
+  const [zones,         setZones]         = useState<GeoZone[]>([]);
+  const [clusters,      setClusters]      = useState<GeoCluster[]>([]);
+
+  // Fetch geo + domain config once
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/geography").then(r => r.json()),
+      fetch("/api/needs/formulas").then(r => r.json()),
+    ]).then(([geo, doms]) => {
+      setCities(geo.cities ?? []);
+      setZones(geo.zones ?? []);
+      setClusters(geo.clusters ?? []);
+      setDomains(Array.isArray(doms) ? doms : []);
+    }).catch(() => {});
+  }, []);
+
+  const filteredZones    = editCityId ? zones.filter(z => z.cityId === editCityId)       : zones;
+  const filteredClusters = editZoneId ? clusters.filter(c => c.zoneId === editZoneId)    : clusters;
+
   // Settlement attribution state
   const [scopeSettlements, setScopeSettlements] = useState<ScopeSettlement[]>([]);
   const [attributions, setAttributions] = useState<Record<string, number>>({});
@@ -54,7 +86,7 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
   const originalDate = toDateInput(goal.targetDate);
   const deadlineChanged = !!originalDate && targetDate !== originalDate;
 
-  const isNeedsDomainGoal = !!goal.needsDomain;
+  const isNeedsDomainGoal = !!editDomain;
   const completingNow = status === "Complete" && goal.status !== "Complete";
   const showOutcomeStep = isNeedsDomainGoal && status === "Complete";
 
@@ -132,6 +164,10 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
       targetDate,
       ...(deadlineChanged && { deadlineChangeReason: deadlineReason.trim() }),
       ...(isNeedsDomainGoal ? { outcomeCount: parsedOutcome } : {}),
+      needsDomain:    editDomain    || null,
+      needsCityId:    editCityId    || null,
+      needsZoneId:    editZoneId    || null,
+      needsClusterId: editClusterId || null,
     };
 
     // Attach settlement attributions for cluster/zone domain goals being completed
@@ -161,6 +197,10 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
         recurrence,
         targetDate,
         ...(isNeedsDomainGoal ? { outcomeCount: parsedOutcome } : {}),
+        needsDomain:    editDomain    || null,
+        needsCityId:    editCityId    || null,
+        needsZoneId:    editZoneId    || null,
+        needsClusterId: editClusterId || null,
       });
       onClose();
     } else {
@@ -344,6 +384,69 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
               <p className="text-[10px] text-stone-400 mt-1">
                 When this goal is complete, you'll be offered to start the next {recurrence.toLowerCase()} cycle.
               </p>
+            )}
+          </div>
+
+          {/* ── Geography + Domain ── */}
+          <div className="rounded-lg border border-stone-100 bg-stone-50 p-3 space-y-3">
+            <p className="text-xs font-medium text-stone-600 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5" /> Scope &amp; Domain
+            </p>
+
+            {/* Domain */}
+            <div>
+              <label className="block text-[10px] font-medium text-stone-500 mb-1">Domain (needs category)</label>
+              <select
+                value={editDomain}
+                onChange={e => setEditDomain(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              >
+                <option value="">— no domain (operational goal) —</option>
+                {domains.map(d => (
+                  <option key={d.domain} value={d.domain}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* City */}
+            <div>
+              <label className="block text-[10px] font-medium text-stone-500 mb-1">City</label>
+              <select
+                value={editCityId}
+                onChange={e => { setEditCityId(e.target.value); setEditZoneId(""); setEditClusterId(""); }}
+                className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              >
+                <option value="">— all cities —</option>
+                {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+
+            {/* Zone */}
+            <div>
+              <label className="block text-[10px] font-medium text-stone-500 mb-1">Zone</label>
+              <select
+                value={editZoneId}
+                onChange={e => { setEditZoneId(e.target.value); setEditClusterId(""); }}
+                className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              >
+                <option value="">— all zones —</option>
+                {filteredZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+              </select>
+            </div>
+
+            {/* Cluster */}
+            {editZoneId && (
+              <div>
+                <label className="block text-[10px] font-medium text-stone-500 mb-1">Cluster</label>
+                <select
+                  value={editClusterId}
+                  onChange={e => setEditClusterId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                >
+                  <option value="">— all clusters in zone —</option>
+                  {filteredClusters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
             )}
           </div>
 

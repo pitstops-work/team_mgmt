@@ -60,6 +60,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       recurrence: data.recurrence,
       targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
       ...(data.outcomeCount !== undefined ? { outcomeCount: data.outcomeCount } : {}),
+      ...("needsDomain"    in data ? { needsDomain:    data.needsDomain    ?? null } : {}),
+      ...("needsCityId"    in data ? { needsCityId:    data.needsCityId    ?? null } : {}),
+      ...("needsZoneId"    in data ? { needsZoneId:    data.needsZoneId    ?? null } : {}),
+      ...("needsClusterId" in data ? { needsClusterId: data.needsClusterId ?? null } : {}),
     },
     include: { owner: { select: { id: true, name: true, image: true } }, pitstops: { select: { id: true, status: true } } },
   });

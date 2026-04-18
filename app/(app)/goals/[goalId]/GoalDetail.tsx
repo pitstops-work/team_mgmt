@@ -63,6 +63,7 @@ type Goal = {
   needsSettlementId?: string | null;
   needsClusterId?: string | null;
   needsZoneId?: string | null;
+  needsCityId?: string | null;
   confirmedById?: string | null;
   confirmedAt?: string | null;
   confirmedBy?: User | null;
@@ -645,6 +646,8 @@ export default function GoalDetail({
         <CreatePitstopModal
           goalId={goal.id}
           goalTargetDate={goal.targetDate}
+          goalNeedsZoneId={goal.needsZoneId}
+          goalNeedsClusterId={goal.needsClusterId}
           onClose={() => setShowCreatePitstop(false)}
           onCreated={(pitstop) => {
             const p = pitstop as Pitstop;

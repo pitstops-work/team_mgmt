@@ -89,7 +89,7 @@ export default function GeoFilter({ value, onChange, compact = false }: GeoFilte
   if (zones.length === 0 && clusters.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {multipleCities && (
         <select
           value={value.cityId}

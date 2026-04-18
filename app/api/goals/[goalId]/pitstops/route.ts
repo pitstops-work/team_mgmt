@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { goalId } = await params;
-  const { title, type, customType, notes, status, priority, startDate, targetDate } = await req.json();
+  const { title, type, customType, notes, status, priority, startDate, targetDate, needsZoneId, needsClusterId } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
 
   const [goalRecord, existingCount] = await Promise.all([
@@ -30,6 +30,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
         startDate: startDate ? new Date(startDate) : undefined,
         targetDate: targetDate ? new Date(targetDate) : undefined,
         completedAt: status === "Done" ? new Date() : undefined,
+        needsZoneId:    needsZoneId    ?? null,
+        needsClusterId: needsClusterId ?? null,
       },
       include: {
         owner: { select: { id: true, name: true, image: true } },

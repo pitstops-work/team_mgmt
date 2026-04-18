@@ -20,11 +20,13 @@ const PITSTOP_TYPES = [
 interface Props {
   goalId: string;
   goalTargetDate?: string | null;
+  goalNeedsZoneId?: string | null;
+  goalNeedsClusterId?: string | null;
   onClose: () => void;
   onCreated: (pitstop: unknown) => void;
 }
 
-export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, onCreated }: Props) {
+export default function CreatePitstopModal({ goalId, goalTargetDate, goalNeedsZoneId, goalNeedsClusterId, onClose, onCreated }: Props) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Discussion");
   const [customType, setCustomType] = useState("");
@@ -51,7 +53,7 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !targetDate) return;
     if (type === "Custom" && !customType.trim()) {
       setError("Please enter a name for the custom type.");
       return;
@@ -74,6 +76,8 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
           notes: notes.trim() || null, status, priority,
           startDate: startDate || null,
           targetDate: targetDate || null,
+          needsZoneId:    goalNeedsZoneId    ?? null,
+          needsClusterId: goalNeedsClusterId ?? null,
         }),
       });
       if (!res.ok) {
@@ -210,7 +214,7 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
 
             <div className="flex-1">
               <label className="block text-xs font-medium text-stone-600 mb-1">
-                Target date
+                Target date <span className="text-red-400">*</span>
                 {goalTargetDate && (
                   <span className="text-stone-400 font-normal ml-1">≤ {fmtDate(goalTargetDate)}</span>
                 )}
@@ -219,6 +223,7 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
                 type="date"
                 value={targetDate}
                 max={goalMax || undefined}
+                required
                 onChange={(e) => setTargetDate(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
               />
@@ -231,7 +236,7 @@ export default function CreatePitstopModal({ goalId, goalTargetDate, onClose, on
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
             <button
               type="submit"
-              disabled={!title.trim() || (type === "Custom" && !customType.trim()) || loading}
+              disabled={!title.trim() || !targetDate || (type === "Custom" && !customType.trim()) || loading}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
             >
               {loading ? "Creating..." : "Create Pitstop"}
