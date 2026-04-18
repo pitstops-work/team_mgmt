@@ -130,6 +130,7 @@ model Goal {
 
   owner            User             @relation(fields: [ownerId], references: [id])
   pitstops         Pitstop[]
+  threads          Thread[]
   attachments      Attachment[]
   followers        GoalFollow[]
   programs         ProgramGoal[]
@@ -245,12 +246,16 @@ model PitstopDateChange {
 model Thread {
   id        String    @id @default(cuid())
   name      String
-  pitstopId String
+  pitstopId String?
+  goalId    String?
+  eventId   String?
   deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  pitstop       Pitstop              @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  pitstop       Pitstop?             @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  goal          Goal?                @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  event         PitstopEvent?        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   messages      Message[]
   subscriptions ThreadSubscription[]
 }
@@ -895,6 +900,7 @@ model PitstopEvent {
   attendees PitstopEventAttendee[]
   pitstops  PitstopEventPitstop[]
   followups PitstopEventFollowup[]
+  threads   Thread[]
 }
 
 model PitstopEventFollowup {

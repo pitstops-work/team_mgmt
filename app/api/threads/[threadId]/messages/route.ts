@@ -35,15 +35,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
       author: { select: { id: true, name: true, image: true } },
       attachments: true,
       mentions: { include: { user: { select: { id: true, name: true } } } },
-      thread: { include: { pitstop: { include: { goal: true } } } },
+      thread: {
+        include: {
+          pitstop: { include: { goal: true } },
+          goal: { select: { id: true, title: true } },
+          event: { select: { id: true, title: true } },
+        },
+      },
     },
   });
 
   const authorName = message.author.name ?? "Someone";
-  const pitstop = message.thread.pitstop;
-  const goal = pitstop.goal;
-  const link = `/goals/${goal.id}/pitstops/${pitstop.id}`;
   const threadName = message.thread.name;
+
+  // Build link and context label depending on thread parent type
+  let link = "/threads";
+  let contextLabel = threadName;
+  const pitstop = message.thread.pitstop;
+  if (pitstop) {
+    const goal = pitstop.goal;
+    link = `/goals/${goal.id}/pitstops/${pitstop.id}`;
+    contextLabel = pitstop.title;
+  } else if (message.thread.goal) {
+    link = `/goals/${message.thread.goal.id}`;
+    contextLabel = message.thread.goal.title;
+  } else if (message.thread.event) {
+    link = `/activities`;
+    contextLabel = message.thread.event.title;
+  }
 
   // Notify mentioned users (excluding the author)
   const mentionNotifications = mentionedUserIds
@@ -52,7 +71,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
       userId,
       type: "Mention" as const,
       title: `${authorName} mentioned you`,
-      body: `In #${threadName} · ${pitstop.title}`,
+      body: `In #${threadName} · ${contextLabel}`,
       link,
     }));
 
@@ -68,7 +87,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
       userId: s.userId,
       type: "NewMessage" as const,
       title: `New message in #${threadName}`,
-      body: `${authorName} posted in ${pitstop.title}`,
+      body: `${authorName} posted in ${contextLabel}`,
       link,
     }));
 
@@ -90,14 +109,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
   const allNotifications = [...mentionNotifications, ...subscriberNotifications];
   if (allNotifications.length > 0) {
     await prisma.notification.createMany({ data: allNotifications });
-    // Send push to mentions + subscribers
     const mentionIds = mentionNotifications.map((n) => n.userId);
     const subIds = subscriberNotifications.map((n) => n.userId);
     if (mentionIds.length > 0) {
-      sendPushToUsers(mentionIds, { title: `${authorName} mentioned you`, body: `In #${threadName} · ${pitstop.title}`, link });
+      sendPushToUsers(mentionIds, { title: `${authorName} mentioned you`, body: `In #${threadName} · ${contextLabel}`, link });
     }
     if (subIds.length > 0) {
-      sendPushToUsers(subIds, { title: `New message in #${threadName}`, body: `${authorName} posted in ${pitstop.title}`, link });
+      sendPushToUsers(subIds, { title: `New message in #${threadName}`, body: `${authorName} posted in ${contextLabel}`, link });
     }
   }
 

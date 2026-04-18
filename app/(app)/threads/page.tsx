@@ -7,17 +7,36 @@ export default async function ThreadsPage() {
 
   const [threads, goals] = await Promise.all([
     prisma.thread.findMany({
-      where: { deletedAt: null, pitstop: { deletedAt: null, goal: { deletedAt: null } } },
+      where: {
+        deletedAt: null,
+        OR: [
+          { pitstop: { deletedAt: null, goal: { deletedAt: null } } },
+          { goalId: { not: null } },
+          { eventId: { not: null } },
+        ],
+      },
       select: {
         id: true,
         name: true,
         updatedAt: true,
+        pitstopId: true,
+        goalId: true,
+        eventId: true,
         pitstop: {
           select: {
             id: true, title: true,
             goal: { select: { id: true, title: true } },
             owner: { select: { id: true, name: true, image: true } },
           },
+        },
+        goal: {
+          select: {
+            id: true, title: true,
+            owner: { select: { id: true, name: true, image: true } },
+          },
+        },
+        event: {
+          select: { id: true, title: true, scheduledAt: true },
         },
         _count: { select: { messages: { where: { deletedAt: null } } } },
         messages: {

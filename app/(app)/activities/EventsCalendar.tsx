@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, MessageSquare, Send } from "lucide-react";
+import Avatar from "@/components/Avatar";
 import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 
 type User = { id: string; name: string | null; image: string | null };
@@ -303,7 +304,141 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
 
 // ── Event card (shared across views) ─────────────────────────────────────────
 
-function EventCard({ ev, onEdit, onDelete }: { ev: PitstopEvent; onEdit: () => void; onDelete: () => void }) {
+type EventThread = {
+  id: string; name: string;
+  messages: { id: string; body: string; createdAt: string; author: User; attachments: { id: string; name: string; url: string }[] }[];
+};
+
+function EventThreadPanel({ eventId, currentUserId, users }: { eventId: string; currentUserId: string; users: User[] }) {
+  const [threads, setThreads] = useState<EventThread[] | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/pitstop-events/${eventId}/threads`)
+      .then(r => r.json())
+      .then((ts: EventThread[]) => {
+        setThreads(ts);
+        if (ts.length > 0) setActiveId(ts[0].id);
+      });
+  }, [eventId]);
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    setCreating(true);
+    const res = await fetch(`/api/pitstop-events/${eventId}/threads`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName.trim() }),
+    });
+    setCreating(false);
+    if (res.ok) {
+      const t: EventThread = await res.json();
+      setThreads(prev => [...(prev ?? []), t]);
+      setActiveId(t.id);
+      setShowNew(false);
+      setNewName("");
+    }
+  };
+
+  const handleSend = async () => {
+    if (!body.trim() || !activeId) return;
+    setSending(true);
+    const res = await fetch(`/api/threads/${activeId}/messages`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: body.trim(), attachmentIds: [] }),
+    });
+    setSending(false);
+    if (res.ok) {
+      const msg = await res.json();
+      setThreads(prev => prev?.map(t => t.id === activeId ? { ...t, messages: [...t.messages, msg] } : t) ?? null);
+      setBody("");
+    }
+  };
+
+  const activeThread = threads?.find(t => t.id === activeId) ?? null;
+
+  if (threads === null) return <p className="text-xs text-stone-400 py-2 px-1">Loading…</p>;
+
+  return (
+    <div className="mt-2 border-t border-white/40 pt-2">
+      {/* Thread tabs */}
+      <div className="flex items-center gap-1 flex-wrap mb-2">
+        {threads.map(t => (
+          <button key={t.id} onClick={() => setActiveId(t.id)}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${t.id === activeId ? "bg-white/60 text-stone-800" : "text-stone-600 hover:bg-white/40"}`}>
+            {t.name} <span className="opacity-60">({t.messages.length})</span>
+          </button>
+        ))}
+        {showNew ? (
+          <div className="flex items-center gap-1">
+            <input value={newName} onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") { setShowNew(false); setNewName(""); } }}
+              placeholder="Thread name" autoFocus
+              className="px-2 py-0.5 text-[10px] rounded-full border border-white/60 bg-white/40 focus:outline-none w-28" />
+            <button onClick={handleCreate} disabled={creating || !newName.trim()}
+              className="text-[10px] px-2 py-0.5 bg-white/60 rounded-full disabled:opacity-40">OK</button>
+            <button onClick={() => { setShowNew(false); setNewName(""); }} className="text-[10px] opacity-60 hover:opacity-100">✕</button>
+          </div>
+        ) : (
+          <button onClick={() => setShowNew(true)}
+            className="px-2 py-0.5 rounded-full text-[10px] text-stone-500 hover:bg-white/40 transition-colors">
+            + Thread
+          </button>
+        )}
+      </div>
+
+      {/* Messages */}
+      {activeThread && (
+        <div className="space-y-2 mb-2 max-h-40 overflow-y-auto">
+          {activeThread.messages.length === 0 ? (
+            <p className="text-[10px] text-stone-500 opacity-70">No messages. Start the discussion.</p>
+          ) : activeThread.messages.map(msg => {
+            const isOwn = msg.author.id === currentUserId;
+            return (
+              <div key={msg.id} className={`flex gap-1.5 ${isOwn ? "flex-row-reverse" : ""}`}>
+                <Avatar name={msg.author.name} image={msg.author.image} size="xs" />
+                <div className={`max-w-[80%] ${isOwn ? "items-end" : "items-start"} flex flex-col`}>
+                  <span className={`text-[10px] opacity-60 mb-0.5 ${isOwn ? "text-right" : ""}`}>{msg.author.name}</span>
+                  <div className={`px-2.5 py-1.5 rounded-xl text-xs whitespace-pre-wrap break-words ${isOwn ? "bg-white/70 text-stone-800 rounded-tr-sm" : "bg-black/10 text-stone-800 rounded-tl-sm"}`}>
+                    {msg.body}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Composer */}
+      {activeThread && (
+        <div className="flex items-center gap-1.5">
+          <input value={body} onChange={e => setBody(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder="Message… (↵ to send)"
+            className="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-white/50 bg-white/40 placeholder:opacity-50 focus:outline-none focus:bg-white/60" />
+          <button onClick={handleSend} disabled={sending || !body.trim()}
+            className="p-1.5 bg-white/60 hover:bg-white/80 rounded-lg disabled:opacity-40 transition-colors">
+            <Send className="w-3 h-3 text-stone-700" />
+          </button>
+        </div>
+      )}
+
+      {threads.length === 0 && !showNew && (
+        <p className="text-[10px] text-stone-500 opacity-70">No threads yet.</p>
+      )}
+    </div>
+  );
+}
+
+function EventCard({ ev, onEdit, onDelete, currentUserId, users }: {
+  ev: PitstopEvent; onEdit: () => void; onDelete: () => void;
+  currentUserId: string; users: User[];
+}) {
+  const [showThreads, setShowThreads] = useState(false);
   const isCancelled = ev.status === "Cancelled";
   const isDone = ev.status === "Done";
   const isFlagged = ev.status === "Flagged";
@@ -349,6 +484,11 @@ function EventCard({ ev, onEdit, onDelete }: { ev: PitstopEvent; onEdit: () => v
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          <button onClick={() => setShowThreads(v => !v)}
+            title="Threads"
+            className={`p-1 transition-opacity ${showThreads ? "opacity-100 text-stone-700" : "opacity-40 hover:opacity-100"}`}>
+            <MessageSquare className="w-3.5 h-3.5" />
+          </button>
           <button onClick={onEdit} className="p-1 opacity-40 hover:opacity-100 transition-opacity">
             <Pencil className="w-3.5 h-3.5" />
           </button>
@@ -357,6 +497,9 @@ function EventCard({ ev, onEdit, onDelete }: { ev: PitstopEvent; onEdit: () => v
           </button>
         </div>
       </div>
+      {showThreads && (
+        <EventThreadPanel eventId={ev.id} currentUserId={currentUserId} users={users} />
+      )}
     </div>
   );
 }
@@ -811,7 +954,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                   <p className="text-xs text-stone-400 text-center py-8">No activities. Tap Add to schedule one.</p>
                 ) : null}
                 {selectedDayEvents.map(ev => (
-                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} />
+                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} currentUserId={currentUserId} users={users} />
                 ))}
                 {(extEventMap.get(selectedDate) ?? []).map(ev => (
                   <ExternalEventCard key={ev.uid} ev={ev} />
@@ -847,7 +990,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                   {(dayEvs.length > 0 || extEvs.length > 0) && (
                     <div className="space-y-2">
                       {dayEvs.map(ev => (
-                        <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} />
+                        <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} currentUserId={currentUserId} users={users} />
                       ))}
                       {extEvs.map(ev => (
                         <ExternalEventCard key={ev.uid} ev={ev} />
@@ -881,7 +1024,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
             ) : (
               <div className="space-y-3">
                 {dayEvents.map(ev => (
-                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} />
+                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} currentUserId={currentUserId} users={users} />
                 ))}
               </div>
             )}

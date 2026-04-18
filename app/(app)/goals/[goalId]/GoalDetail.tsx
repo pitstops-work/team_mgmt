@@ -25,6 +25,7 @@ import GoalCoOwnersSection from "./GoalCoOwnersSection";
 import GoalThemesSection from "./GoalThemesSection";
 import GoalGeographySection from "./GoalGeographySection";
 import GoalNeedsSection from "./GoalNeedsSection";
+import GoalThreadsSection from "./GoalThreadsSection";
 
 type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
@@ -634,8 +635,9 @@ export default function GoalDetail({
         </div>
       )}
 
-      {/* Decisions, Risks, Broadcasts, Metrics */}
+      {/* Decisions, Risks, Broadcasts, Metrics, Goal Threads */}
       <div className="mt-8 space-y-4">
+        <GoalThreadsSection goalId={goal.id} currentUserId={currentUserId} users={users} />
         <DecisionsSection goalId={goal.id} />
         <RisksSection goalId={goal.id} />
         <BroadcastsSection goalId={goal.id} />

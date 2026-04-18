@@ -31,16 +31,39 @@ export default async function DashboardPage({
     prisma.user.findMany({ select: { id: true, name: true, image: true }, orderBy: { name: "asc" } }),
     prisma.program.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
 
-    // Threads for home tile grid
+    // Threads for home tile grid — all levels (goal, pitstop, event)
     prisma.thread.findMany({
-      where: { deletedAt: null, pitstop: { deletedAt: null, goal: { deletedAt: null } } },
+      where: {
+        deletedAt: null,
+        OR: [
+          { pitstop: { deletedAt: null, goal: { deletedAt: null } } },
+          { goalId: { not: null } },
+          { eventId: { not: null } },
+        ],
+      },
       select: {
         id: true, name: true, updatedAt: true,
+        pitstopId: true, goalId: true, eventId: true,
         pitstop: {
           select: {
             id: true, title: true,
-            goal: { select: { id: true, title: true } },
+            goal: { select: { id: true, title: true, needsDomain: true, needsZoneId: true, needsClusterId: true } },
             owner: { select: { id: true, name: true, image: true } },
+          },
+        },
+        goal: {
+          select: {
+            id: true, title: true, needsDomain: true, needsZoneId: true, needsClusterId: true,
+            owner: { select: { id: true, name: true, image: true } },
+          },
+        },
+        event: {
+          select: {
+            id: true, title: true, scheduledAt: true,
+            pitstops: {
+              take: 1,
+              select: { pitstop: { select: { goal: { select: { id: true, title: true, needsDomain: true, needsZoneId: true, needsClusterId: true } } } } },
+            },
           },
         },
         _count: { select: { messages: { where: { deletedAt: null } } } },
@@ -52,7 +75,7 @@ export default async function DashboardPage({
         },
       },
       orderBy: { updatedAt: "desc" },
-      take: 12,
+      take: 50,
     }),
 
     // Current user's active pitstops
