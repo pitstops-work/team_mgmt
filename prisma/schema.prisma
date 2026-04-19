@@ -58,6 +58,7 @@ model User {
   // Needs assessment
   assessments          SettlementAssessment[]
   // Reporting structure (for notification routing — not a hard gate)
+  preferredLang        String                @default("en")
   reportsToId          String?
   reportsTo            User?                 @relation("UserReports", fields: [reportsToId], references: [id])
   reports              User[]                @relation("UserReports")
@@ -289,6 +290,11 @@ model Message {
   deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  msgType      String  @default("text")  // "text" | "voice"
+  audioUrl     String?
+  originalLang String  @default("en")
+  translations Json?
 
   author      User         @relation(fields: [authorId], references: [id])
   thread      Thread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
