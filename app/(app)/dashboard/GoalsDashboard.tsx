@@ -106,9 +106,9 @@ const LEVEL_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 function getThreadHref(thread: Thread): string {
-  if (thread.goalId && thread.goal) return `/goals/${thread.goal.id}#thread-${thread.id}`;
+  if (thread.goalId && thread.goal) return `/goals/${thread.goal.id}`;
   if (thread.eventId) return `/activities`;
-  if (thread.pitstop) return `/goals/${thread.pitstop.goal.id}/pitstops/${thread.pitstop.id}#thread-${thread.id}`;
+  if (thread.pitstop) return `/goals/${thread.pitstop.goal.id}/pitstops/${thread.pitstop.id}?thread=${thread.id}`;
   return "/threads";
 }
 

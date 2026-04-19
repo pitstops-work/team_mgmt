@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { MessageSquare, X, ArrowUpRight, Mic, Paperclip } from "lucide-react";
+import { MessageSquare, X, ArrowUpRight } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import MultiSelect from "@/components/MultiSelect";
 import MessageBubble from "@/app/(app)/goals/[goalId]/pitstops/[pitstopId]/MessageBubble";
@@ -10,6 +10,8 @@ import MessageComposer from "@/app/(app)/goals/[goalId]/pitstops/[pitstopId]/Mes
 
 type User = { id: string; name: string | null; image: string | null };
 type Goal = { id: string; title: string };
+type Pitstop = { id: string; title: string };
+type Event = { id: string; title: string };
 type Thread = {
   id: string;
   name: string;
@@ -34,6 +36,7 @@ type Message = {
   audioUrl?: string | null;
   originalLang?: string;
   translations?: Record<string, string> | null;
+  translating?: boolean;
 };
 
 type Level = "all" | "goal" | "pitstop" | "activity";
@@ -82,14 +85,18 @@ function formatBody(body: string): string {
 interface Props {
   threads: Thread[];
   goals: Goal[];
+  pitstops: Pitstop[];
+  events: Event[];
   users: User[];
   currentUserId: string;
   currentUserName: string;
   preferredLang: string;
 }
 
-export default function ThreadsList({ threads, goals, users, currentUserId, preferredLang }: Props) {
+export default function ThreadsList({ threads, goals, pitstops, events, users, currentUserId, preferredLang }: Props) {
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [selectedPitstops, setSelectedPitstops] = useState<string[]>([]);
+  const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<Level>("all");
   const [activeThreadId, setActiveThreadId] = useState<string | null>(threads[0]?.id ?? null);
@@ -98,6 +105,13 @@ export default function ThreadsList({ threads, goals, users, currentUserId, pref
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeThread = threads.find(t => t.id === activeThreadId) ?? null;
+
+  // Reset contextual filters when level changes
+  useEffect(() => {
+    setSelectedGoals([]);
+    setSelectedPitstops([]);
+    setSelectedEvents([]);
+  }, [level]);
 
   // Load messages when thread changes
   useEffect(() => {
@@ -111,21 +125,40 @@ export default function ThreadsList({ threads, goals, users, currentUserId, pref
       .finally(() => setLoadingMessages(false));
   }, [activeThreadId]);
 
-  // Scroll to bottom when messages load
+  // Scroll to bottom when messages load or new message arrives
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages.length]);
 
   const handleMessageSent = (msg: unknown) => {
     setMessages(prev => [...prev, msg as Message]);
   };
 
+  const handleMessageUpdated = (msg: unknown) => {
+    const updated = msg as Message;
+    setMessages(prev =>
+      prev.map(m => m.id === updated.id ? { ...m, ...updated, translating: false } : m)
+    );
+  };
+
   const filtered = threads
     .filter(t => level === "all" || getLevel(t) === level)
-    .filter(t => selectedGoals.length === 0 || (
-      t.pitstop ? selectedGoals.includes(t.pitstop.goal.id) :
-      t.goal    ? selectedGoals.includes(t.goal.id) : false
-    ))
+    .filter(t => {
+      if (level === "all" || level === "goal") {
+        if (selectedGoals.length === 0) return true;
+        return t.pitstop ? selectedGoals.includes(t.pitstop.goal.id) :
+               t.goal    ? selectedGoals.includes(t.goal.id) : false;
+      }
+      if (level === "pitstop") {
+        if (selectedPitstops.length === 0) return true;
+        return t.pitstopId ? selectedPitstops.includes(t.pitstopId) : false;
+      }
+      if (level === "activity") {
+        if (selectedEvents.length === 0) return true;
+        return t.eventId ? selectedEvents.includes(t.eventId) : false;
+      }
+      return true;
+    })
     .filter(t => !query || (
       t.name.toLowerCase().includes(query.toLowerCase()) ||
       (t.pitstop?.title ?? "").toLowerCase().includes(query.toLowerCase()) ||
@@ -134,7 +167,16 @@ export default function ThreadsList({ threads, goals, users, currentUserId, pref
       (t.event?.title ?? "").toLowerCase().includes(query.toLowerCase())
     ));
 
-  const hasFilters = selectedGoals.length > 0 || query || level !== "all";
+  const hasFilters = selectedGoals.length > 0 || selectedPitstops.length > 0 ||
+                     selectedEvents.length > 0 || query || level !== "all";
+
+  const clearFilters = () => {
+    setSelectedGoals([]);
+    setSelectedPitstops([]);
+    setSelectedEvents([]);
+    setQuery("");
+    setLevel("all");
+  };
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -158,23 +200,42 @@ export default function ThreadsList({ threads, goals, users, currentUserId, pref
             ))}
           </div>
 
-          {/* Search + Goal filter */}
-          <div className="flex items-center gap-1.5">
+          {/* Search */}
+          <div className="flex items-center gap-1.5 mb-2">
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search…"
               className="flex-1 px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 min-w-0" />
-            <MultiSelect
-              options={goals.map(g => ({ value: g.id, label: g.title }))}
-              value={selectedGoals}
-              onChange={setSelectedGoals}
-              placeholder="Goals"
-            />
             {hasFilters && (
-              <button onClick={() => { setSelectedGoals([]); setQuery(""); setLevel("all"); }}
-                className="text-stone-400 hover:text-stone-600">
+              <button onClick={clearFilters} className="text-stone-400 hover:text-stone-600 flex-shrink-0">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
+
+          {/* Contextual filter — changes based on selected level */}
+          {(level === "all" || level === "goal") && (
+            <MultiSelect
+              options={goals.map(g => ({ value: g.id, label: g.title }))}
+              value={selectedGoals}
+              onChange={setSelectedGoals}
+              placeholder="All Goals"
+            />
+          )}
+          {level === "pitstop" && (
+            <MultiSelect
+              options={pitstops.map(p => ({ value: p.id, label: p.title }))}
+              value={selectedPitstops}
+              onChange={setSelectedPitstops}
+              placeholder="All Pitstops"
+            />
+          )}
+          {level === "activity" && (
+            <MultiSelect
+              options={events.map(e => ({ value: e.id, label: e.title }))}
+              value={selectedEvents}
+              onChange={setSelectedEvents}
+              placeholder="All Activities"
+            />
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -211,7 +272,7 @@ export default function ThreadsList({ threads, goals, users, currentUserId, pref
                         {lastMsg && (
                           <p className="text-[11px] text-stone-500 mt-1 line-clamp-1">
                             <span className="font-medium">{lastMsg.author.name}:</span>{" "}
-                            {lastMsg.body.startsWith("[voice]") ? "🎤 Voice message" : formatBody(lastMsg.body)}
+                            {formatBody(lastMsg.body)}
                           </p>
                         )}
                       </div>
@@ -283,6 +344,7 @@ export default function ThreadsList({ threads, goals, users, currentUserId, pref
                 threadId={activeThread.id}
                 users={users}
                 onSent={handleMessageSent}
+                onMessageUpdated={handleMessageUpdated}
                 preferredLang={preferredLang}
               />
             </div>

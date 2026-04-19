@@ -286,7 +286,7 @@ export default function PitstopDetail({
       ...p,
       threads: p.threads.map((t) =>
         t.id === threadId
-          ? { ...t, messages: t.messages.map((m) => (m.id === msg.id ? { ...m, ...msg } : m)) }
+          ? { ...t, messages: t.messages.map((m) => (m.id === msg.id ? { ...m, ...msg, translating: false } : m)) }
           : t
       ),
     }));

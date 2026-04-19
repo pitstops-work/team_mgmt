@@ -6,7 +6,7 @@ export default async function ThreadsPage() {
   const session = await auth();
   const userId = session!.user!.id!;
 
-  const [threads, goals, users] = await Promise.all([
+  const [threads, goals, users, pitstops, events] = await Promise.all([
     prisma.thread.findMany({
       where: {
         deletedAt: null,
@@ -51,6 +51,8 @@ export default async function ThreadsPage() {
     }),
     prisma.goal.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
     prisma.user.findMany({ select: { id: true, name: true, image: true } }),
+    prisma.pitstop.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
+    prisma.pitstopEvent.findMany({ select: { id: true, title: true }, orderBy: { title: "asc" } }),
   ]);
 
   const langRows = await prisma.$queryRaw<{ preferredLang: string }[]>`
@@ -62,6 +64,8 @@ export default async function ThreadsPage() {
     <ThreadsList
       threads={JSON.parse(JSON.stringify(threads))}
       goals={JSON.parse(JSON.stringify(goals))}
+      pitstops={JSON.parse(JSON.stringify(pitstops))}
+      events={JSON.parse(JSON.stringify(events))}
       users={JSON.parse(JSON.stringify(users))}
       currentUserId={userId}
       currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
