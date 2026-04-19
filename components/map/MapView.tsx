@@ -727,7 +727,7 @@ export default function MapView({
         const orig = clusterBoundaryColorsRef.current.get(clusterKey) ?? "#64748b";
         layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.09, opacity: 0.8, weight: 1.8, dashArray: "5 4" });
       } else {
-        const isHealth = healthClusterMap[clusterKey] ?? false;
+        const isHealth = healthClusterMap[clusterKey] ?? healthClusterMap[clusterKey.replace(/_/g, " ")] ?? false;
         if (isHealth) {
           layer.setStyle({ fillColor: "#f43f5e", color: "#e11d48", fillOpacity: 0.22, opacity: 1, weight: 2.5, dashArray: undefined });
         } else {
