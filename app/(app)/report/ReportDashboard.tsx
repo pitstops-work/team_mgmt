@@ -62,7 +62,7 @@ export default function ReportDashboard() {
   useEffect(() => {
     fetch("/api/zones/summary")
       .then((r) => r.json())
-      .then((d) => { setZones(Array.isArray(d) ? d : []); setLoading(false); })
+      .then((d) => { setZones(d.zones ?? []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
