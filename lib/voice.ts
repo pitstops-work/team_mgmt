@@ -5,7 +5,7 @@
  * Requires: GROQ_API_KEY, BLOB_READ_WRITE_TOKEN
  */
 
-import Groq from "groq-sdk";
+import Groq, { toFile } from "groq-sdk";
 import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 import { put } from "@vercel/blob";
@@ -64,13 +64,13 @@ export async function transcribeAudio(
   mimeType: string
 ): Promise<{ text: string; detectedLang: LangCode }> {
   const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
-  const file = new File([new Uint8Array(buffer)], `recording.${ext}`, { type: mimeType });
+  const file = await toFile(buffer, `recording.${ext}`, { type: mimeType });
 
   const result = await groq.audio.transcriptions.create({
     file,
     model: "whisper-large-v3",
     response_format: "verbose_json",
-  });
+  }) as { text: string; language?: string };
 
   const detectedLang = WHISPER_TO_CODE[result.language?.toLowerCase() ?? ""] ?? "en";
   return { text: result.text.trim(), detectedLang };
