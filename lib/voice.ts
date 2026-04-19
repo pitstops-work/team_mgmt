@@ -1,26 +1,27 @@
 /**
  * lib/voice.ts
  *
- * Transcription (Groq Whisper) + translation (Claude Haiku) for voice messages.
- * Requires: GROQ_API_KEY, ANTHROPIC_API_KEY, BLOB_READ_WRITE_TOKEN (Vercel Blob)
+ * Transcription (Groq Whisper) + translation (Groq LLaMA) for voice messages.
+ * Requires: GROQ_API_KEY, BLOB_READ_WRITE_TOKEN
  */
 
 import Groq from "groq-sdk";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 import { put } from "@vercel/blob";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groqAI = createGroq({ apiKey: process.env.GROQ_API_KEY });
 
 // ── Language registry ─────────────────────────────────────────────────────────
 
 export const SUPPORTED_LANGS = [
-  { code: "en", label: "English",   native: "English",  whisper: "english"   },
-  { code: "ta", label: "Tamil",     native: "தமிழ்",   whisper: "tamil"     },
-  { code: "kn", label: "Kannada",   native: "ಕನ್ನಡ",  whisper: "kannada"   },
-  { code: "ml", label: "Malayalam", native: "മലയാളം",  whisper: "malayalam" },
-  { code: "hi", label: "Hindi",     native: "हिन्दी",  whisper: "hindi"     },
-  { code: "bn", label: "Bengali",   native: "বাংলা",   whisper: "bengali"   },
+  { code: "en", label: "English",   native: "English"  },
+  { code: "ta", label: "Tamil",     native: "தமிழ்"   },
+  { code: "kn", label: "Kannada",   native: "ಕನ್ನಡ"  },
+  { code: "ml", label: "Malayalam", native: "മലയാളം"  },
+  { code: "hi", label: "Hindi",     native: "हिन्दी"  },
+  { code: "bn", label: "Bengali",   native: "বাংলা"   },
 ] as const;
 
 export type LangCode = (typeof SUPPORTED_LANGS)[number]["code"];
@@ -45,10 +46,6 @@ const WHISPER_TO_CODE: Record<string, LangCode> = {
 
 // ── Audio upload ──────────────────────────────────────────────────────────────
 
-/**
- * Upload raw audio bytes to Vercel Blob.
- * Returns a permanent public URL.
- */
 export async function uploadAudio(
   buffer: Buffer,
   mimeType: string,
@@ -56,19 +53,12 @@ export async function uploadAudio(
 ): Promise<string> {
   const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
   const filename = `voice/${threadId}/${Date.now()}.${ext}`;
-  const blob = await put(filename, buffer, {
-    access: "public",
-    contentType: mimeType,
-  });
+  const blob = await put(filename, buffer, { access: "public", contentType: mimeType });
   return blob.url;
 }
 
 // ── Transcription ─────────────────────────────────────────────────────────────
 
-/**
- * Transcribe audio with Groq Whisper.
- * Returns the transcript text and detected language code.
- */
 export async function transcribeAudio(
   buffer: Buffer,
   mimeType: string
@@ -88,13 +78,6 @@ export async function transcribeAudio(
 
 // ── Translation ───────────────────────────────────────────────────────────────
 
-/**
- * Translate text into all supported languages except the source language.
- * Runs in parallel. Returns a full translations map including the original.
- *
- * Example: translateToAll("Hello", "en")
- *   → { en: "Hello", ta: "வணக்கம்", kn: "ನಮಸ್ಕಾರ", ml: "ഹലോ", hi: "नमस्ते", bn: "হ্যালো" }
- */
 export async function translateToAll(
   text: string,
   sourceLang: LangCode
@@ -104,14 +87,13 @@ export async function translateToAll(
   const results = await Promise.all(
     targets.map(async (target) => {
       const { text: translated } = await generateText({
-        model: anthropic("claude-haiku-4-5-20251001"),
+        model: groqAI("llama-3.1-8b-instant"),
         messages: [
           {
-            role: "user",
-            content:
-              `Translate the following text to ${LANG_NAMES[target.code]}. ` +
-              `Return ONLY the translated text. No explanations, no quotes.\n\n${text}`,
+            role: "system",
+            content: `You are a translator. Translate text to ${LANG_NAMES[target.code]}. Return ONLY the translated text — no explanations, no quotes, no extra punctuation.`,
           },
+          { role: "user", content: text },
         ],
       });
       return [target.code, translated.trim()] as const;
@@ -126,10 +108,6 @@ export async function translateToAll(
 
 // ── Display resolver ──────────────────────────────────────────────────────────
 
-/**
- * Given a message's body, originalLang and stored translations,
- * return the text the viewer should see and whether it's a translation.
- */
 export function resolveDisplayText(
   body: string,
   originalLang: string,
