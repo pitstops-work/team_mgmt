@@ -12,7 +12,7 @@ export default async function PitstopPage({
   const { goalId, pitstopId } = await params;
   const userId = session!.user!.id!;
 
-  const [pitstop, users, subscriptions, siblingPitstops] = await Promise.all([
+  const [pitstop, users, subscriptions, siblingPitstops, currentUser] = await Promise.all([
     prisma.pitstop.findUnique({
       where: { id: pitstopId, deletedAt: null },
       include: {
@@ -58,6 +58,10 @@ export default async function PitstopPage({
       select: { id: true, title: true, status: true },
       orderBy: { order: "asc" },
     }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredLang: true },
+    }),
   ]);
 
   if (!pitstop || pitstop.goal.id !== goalId) notFound();
@@ -72,6 +76,7 @@ export default async function PitstopPage({
       currentUserId={userId}
       currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
       subscribedThreadIds={Array.from(subscribedThreadIds)}
+      preferredLang={currentUser?.preferredLang ?? "en"}
     />
   );
 }

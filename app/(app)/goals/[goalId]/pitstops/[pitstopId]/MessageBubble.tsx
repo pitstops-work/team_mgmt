@@ -1,6 +1,7 @@
 "use client";
 
-import { Paperclip } from "lucide-react";
+import { useState } from "react";
+import { Paperclip, Mic, ChevronDown, ChevronUp } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 type Attachment = { id: string; name: string; url: string; type: string; mimeType?: string | null };
@@ -11,15 +12,23 @@ type Message = {
   author: { id: string; name: string | null; image: string | null };
   attachments: Attachment[];
   mentions: { user: { id: string; name: string | null } }[];
+  msgType?: string;
+  audioUrl?: string | null;
+  originalLang?: string;
+  translations?: Record<string, string> | null;
+};
+
+const LANG_LABELS: Record<string, string> = {
+  en: "English", ta: "Tamil", kn: "Kannada", ml: "Malayalam", hi: "Hindi", bn: "Bengali",
 };
 
 interface Props {
   message: Message;
   isOwn: boolean;
+  preferredLang: string;
 }
 
 function formatBody(body: string): string {
-  // Convert @[Name](userId) to @Name
   return body.replace(/@\[([^\]]+)\]\([^)]+\)/g, "@$1");
 }
 
@@ -30,15 +39,29 @@ function formatDate(iso: string): string {
     d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-export default function MessageBubble({ message, isOwn }: Props) {
+export default function MessageBubble({ message, isOwn, preferredLang }: Props) {
+  const [showOriginal, setShowOriginal] = useState(false);
+
+  const isVoice = message.msgType === "voice";
+  const originalLang = message.originalLang ?? "en";
+  const translations = message.translations as Record<string, string> | null | undefined;
+
+  // Resolve which text the viewer sees
+  const isTranslated = originalLang !== preferredLang && !!translations?.[preferredLang];
+  const displayText = isTranslated ? translations![preferredLang] : message.body;
+
   return (
     <div className={`flex gap-3 ${isOwn ? "flex-row-reverse" : ""}`}>
       <Avatar name={message.author.name} image={message.author.image} size="sm" />
       <div className={`max-w-xl ${isOwn ? "items-end" : "items-start"} flex flex-col gap-1`}>
+        {/* Author + time */}
         <div className={`flex items-baseline gap-2 ${isOwn ? "flex-row-reverse" : ""}`}>
           <span className="text-xs font-medium text-stone-700">{message.author.name}</span>
+          {isVoice && <Mic className="w-3 h-3 text-stone-400" />}
           <span className="text-xs text-stone-400">{formatDate(message.createdAt)}</span>
         </div>
+
+        {/* Bubble */}
         <div
           className={`px-3.5 py-2.5 rounded-xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
             isOwn
@@ -46,8 +69,39 @@ export default function MessageBubble({ message, isOwn }: Props) {
               : "bg-white border border-stone-200 text-stone-800 rounded-tl-sm"
           }`}
         >
-          {formatBody(message.body)}
+          {/* Audio player */}
+          {isVoice && message.audioUrl && (
+            <audio
+              controls
+              src={message.audioUrl}
+              className="mb-2 w-full max-w-xs h-8"
+              style={{ colorScheme: isOwn ? "dark" : "light" }}
+            />
+          )}
+
+          {/* Display text (translated or original) */}
+          <span>{formatBody(displayText)}</span>
+
+          {/* Translation toggle */}
+          {isTranslated && (
+            <button
+              onClick={() => setShowOriginal((v) => !v)}
+              className={`mt-1.5 flex items-center gap-1 text-xs opacity-60 hover:opacity-100 transition-opacity ${isOwn ? "text-white" : "text-stone-500"}`}
+            >
+              {showOriginal ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {showOriginal ? "Hide original" : `Show original (${LANG_LABELS[originalLang] ?? originalLang})`}
+            </button>
+          )}
+
+          {/* Original text */}
+          {isTranslated && showOriginal && (
+            <p className={`mt-1.5 pt-1.5 border-t text-xs italic ${isOwn ? "border-sky-400 text-sky-100" : "border-stone-200 text-stone-400"}`}>
+              {formatBody(message.body)}
+            </p>
+          )}
         </div>
+
+        {/* Attachments */}
         {message.attachments.length > 0 && (
           <div className={`flex flex-wrap gap-1.5 ${isOwn ? "justify-end" : ""}`}>
             {message.attachments.map((att) => (

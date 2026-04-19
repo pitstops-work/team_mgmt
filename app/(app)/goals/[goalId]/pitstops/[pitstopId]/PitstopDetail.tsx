@@ -26,6 +26,10 @@ type Message = {
   author: { id: string; name: string | null; image: string | null };
   attachments: Attachment[];
   mentions: Mention[];
+  msgType?: string;
+  audioUrl?: string | null;
+  originalLang?: string;
+  translations?: Record<string, string> | null;
 };
 type Thread = { id: string; name: string; messages: Message[] };
 type User = { id: string; name: string | null; image: string | null };
@@ -77,6 +81,7 @@ interface Props {
   currentUserId: string;
   currentUserName: string;
   subscribedThreadIds: string[];
+  preferredLang: string;
 }
 
 export default function PitstopDetail({
@@ -86,6 +91,7 @@ export default function PitstopDetail({
   currentUserId,
   currentUserName,
   subscribedThreadIds: initialSubscribedThreadIds,
+  preferredLang,
 }: Props) {
   const [pitstop, setPitstop] = useState(initialPitstop);
   const [activeThread, setActiveThread] = useState<string | null>(
@@ -938,7 +944,7 @@ export default function PitstopDetail({
                 </div>
               ) : (
                 currentThread.messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} isOwn={msg.author.id === currentUserId} />
+                  <MessageBubble key={msg.id} message={msg} isOwn={msg.author.id === currentUserId} preferredLang={preferredLang} />
                 ))
               )}
             </div>
@@ -948,6 +954,7 @@ export default function PitstopDetail({
                 threadId={currentThread.id}
                 users={users}
                 onSent={(msg) => handleMessageSent(currentThread.id, msg)}
+                preferredLang={preferredLang}
               />
             </div>
           </>
