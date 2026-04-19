@@ -1,14 +1,11 @@
 /**
  * lib/voice.ts
  *
- * Transcription (Groq Whisper) + translation (Google Cloud Translation v2) for voice messages.
- * Requires: GROQ_API_KEY, GOOGLE_TRANSLATE_API_KEY, BLOB_READ_WRITE_TOKEN
+ * Transcription (Sarvam Saaras v3) + translation (Google Cloud Translation v2) for voice messages.
+ * Requires: SARVAM_API_KEY, GOOGLE_TRANSLATE_API_KEY, BLOB_READ_WRITE_TOKEN
  */
 
-import Groq, { toFile } from "groq-sdk";
 import { put } from "@vercel/blob";
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // ── Language registry ─────────────────────────────────────────────────────────
 
@@ -23,13 +20,14 @@ export const SUPPORTED_LANGS = [
 
 export type LangCode = (typeof SUPPORTED_LANGS)[number]["code"];
 
-const WHISPER_TO_CODE: Record<string, LangCode> = {
-  english:   "en",
-  tamil:     "ta",
-  kannada:   "kn",
-  malayalam: "ml",
-  hindi:     "hi",
-  bengali:   "bn",
+// BCP-47 → LangCode
+const SARVAM_TO_CODE: Record<string, LangCode> = {
+  "en-IN": "en",
+  "ta-IN": "ta",
+  "kn-IN": "kn",
+  "ml-IN": "ml",
+  "hi-IN": "hi",
+  "bn-IN": "bn",
 };
 
 // ── Audio upload ──────────────────────────────────────────────────────────────
@@ -45,28 +43,41 @@ export async function uploadAudio(
   return blob.url;
 }
 
-// ── Transcription ─────────────────────────────────────────────────────────────
+// ── Transcription (Sarvam Saaras v3) ─────────────────────────────────────────
 
 export async function transcribeAudio(
   buffer: Buffer,
   mimeType: string
 ): Promise<{ text: string; detectedLang: LangCode }> {
+  const apiKey = process.env.SARVAM_API_KEY;
+  if (!apiKey) throw new Error("SARVAM_API_KEY is not set");
+
   const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
-  const file = await toFile(buffer, `recording.${ext}`, { type: mimeType });
 
-  const result = await groq.audio.transcriptions.create({
-    file,
-    model: "whisper-large-v3",
-    response_format: "verbose_json",
-    // Native-script words give Whisper script anchors without leaking instructional text
-    prompt: "தமிழ், ಕನ್ನಡ, മലയാളം, हिन्दी, বাংলা, English.",
-  }) as { text: string; language?: string };
+  const form = new FormData();
+  const arrayBuf = Buffer.from(buffer).buffer as ArrayBuffer;
+  form.append("file", new Blob([arrayBuf], { type: mimeType }), `recording.${ext}`);
+  form.append("model", "saaras:v3");
+  form.append("language_code", "unknown"); // auto-detect
+  form.append("mode", "codemix");          // handles Tamil-English, Hindi-English etc.
 
-  const detectedLang = WHISPER_TO_CODE[result.language?.toLowerCase() ?? ""] ?? "en";
-  return { text: result.text.trim(), detectedLang };
+  const res = await fetch("https://api.sarvam.ai/speech-to-text", {
+    method: "POST",
+    headers: { "api-subscription-key": apiKey },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Sarvam STT error: ${err}`);
+  }
+
+  const data = await res.json() as { transcript: string; language_code: string };
+  const detectedLang = SARVAM_TO_CODE[data.language_code] ?? "en";
+  return { text: data.transcript.trim(), detectedLang };
 }
 
-// ── Translation ───────────────────────────────────────────────────────────────
+// ── Translation (Google Cloud Translation v2) ─────────────────────────────────
 
 export async function translateToAll(
   text: string,
