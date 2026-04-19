@@ -64,7 +64,7 @@ export async function transcribeAudio(
   mimeType: string
 ): Promise<{ text: string; detectedLang: LangCode }> {
   const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
-  const file = new File([buffer], `recording.${ext}`, { type: mimeType });
+  const file = new File([new Uint8Array(buffer)], `recording.${ext}`, { type: mimeType });
 
   const result = await groq.audio.transcriptions.create({
     file,
