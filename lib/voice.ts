@@ -58,8 +58,8 @@ export async function transcribeAudio(
     file,
     model: "whisper-large-v3",
     response_format: "verbose_json",
-    // Prompt anchors Whisper to South Indian + Bengali scripts, reducing hallucination
-    prompt: "Tamil, Kannada, Malayalam, Hindi, Bengali, English. Use native script.",
+    // Native-script words give Whisper script anchors without leaking instructional text
+    prompt: "தமிழ், ಕನ್ನಡ, മലയാളം, हिन्दी, বাংলা, English.",
   }) as { text: string; language?: string };
 
   const detectedLang = WHISPER_TO_CODE[result.language?.toLowerCase() ?? ""] ?? "en";
