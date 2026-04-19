@@ -27,8 +27,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // All schools as GeoJSON
+  // All schools as GeoJSON — only schools that have ≥1 settlement within maxKm
   const schools = await prisma.school.findMany({
+    where: { settlements: { some: { distanceKm: { lte: maxKm } } } },
     include: {
       settlements: {
         where: { distanceKm: { lte: maxKm } },

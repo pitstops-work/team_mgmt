@@ -123,25 +123,28 @@ async function retag(maxKm: number) {
   const deleted = await prisma.settlementSchool.deleteMany();
   console.log(`  Cleared ${deleted.count} existing links`);
 
-  let links = 0;
+  const toCreate: { id: string; settlementId: string; schoolId: string; distanceKm: number }[] = [];
   for (const school of schools) {
     for (const s of settlements) {
       const d = haversine(school.lat, school.lng, s.centroidLat!, s.centroidLng!);
       if (d <= maxKm) {
-        await prisma.settlementSchool.create({
-          data: {
-            settlementId: s.id,
-            schoolId: school.id,
-            distanceKm: Math.round(d * 1000) / 1000,
-          },
+        toCreate.push({
+          id: crypto.randomUUID(),
+          settlementId: s.id,
+          schoolId: school.id,
+          distanceKm: Math.round(d * 1000) / 1000,
         });
-        links++;
       }
     }
   }
 
-  console.log(`  Created ${links} settlement-school links`);
-  return links;
+  const BATCH = 200;
+  for (let i = 0; i < toCreate.length; i += BATCH) {
+    await prisma.settlementSchool.createMany({ data: toCreate.slice(i, i + BATCH), skipDuplicates: true });
+  }
+
+  console.log(`  Created ${toCreate.length} settlement-school links`);
+  return toCreate.length;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
