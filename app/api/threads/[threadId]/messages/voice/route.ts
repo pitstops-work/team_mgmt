@@ -1,10 +1,11 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/app/generated/prisma/client";
 import { sendPushToUsers } from "@/lib/push";
 import { uploadAudio, transcribeAudio, translateToAll } from "@/lib/voice";
 
-export const maxDuration = 60; // allow up to 60s — transcription + 5 parallel translations
+export const maxDuration = 60;
 
 export async function POST(
   req: NextRequest,
@@ -40,7 +41,7 @@ export async function POST(
     return Response.json({ error: "Audio upload failed" }, { status: 500 });
   }
 
-  // 2. Transcribe with Groq Whisper
+  // 2. Transcribe
   let text: string;
   let detectedLang: string;
   try {
@@ -55,18 +56,7 @@ export async function POST(
 
   if (!text) return Response.json({ error: "Transcription empty" }, { status: 422 });
 
-  // 3. Translate to all other languages in parallel
-  let translations: Record<string, string>;
-  try {
-    translations = await translateToAll(text, detectedLang as "en" | "ta" | "kn" | "ml" | "hi" | "bn");
-    console.log("[voice] translations done:", Object.keys(translations));
-  } catch (e) {
-    console.error("[voice] translation failed:", e);
-    // Non-fatal: store message without translations
-    translations = { [detectedLang]: text };
-  }
-
-  // 4. Save message
+  // 3. Save message immediately with no translations yet (translating=true)
   const message = await prisma.message.create({
     data: {
       body: text,
@@ -75,7 +65,7 @@ export async function POST(
       msgType: "voice",
       audioUrl,
       originalLang: detectedLang,
-      translations,
+      translations: Prisma.JsonNull,
     },
     include: {
       author: { select: { id: true, name: true, image: true } },
@@ -91,7 +81,7 @@ export async function POST(
     },
   });
 
-  // 5. Notifications
+  // 4. Notifications
   const authorName = message.author.name ?? "Someone";
   const threadName = message.thread.name;
 
@@ -99,7 +89,7 @@ export async function POST(
   let contextLabel = threadName;
   const pitstop = message.thread.pitstop;
   if (pitstop) {
-    link = `/goals/${pitstop.goal.id}/pitstops/${pitstop.id}`;
+    link = `/goals/${pitstop.goal.id}/pitstops/${pitstop.id}?thread=${threadId}`;
     contextLabel = pitstop.title;
   } else if (message.thread.goal) {
     link = `/goals/${message.thread.goal.id}`;
@@ -132,6 +122,23 @@ export async function POST(
     );
   }
 
+  // 5. Translate in background after response is sent
+  const messageId = message.id;
+  const langCode = detectedLang as "en" | "ta" | "kn" | "ml" | "hi" | "bn";
+  after(async () => {
+    try {
+      const translations = await translateToAll(text, langCode);
+      await prisma.$executeRaw`
+        UPDATE "Message" SET translations = ${JSON.stringify(translations)}::jsonb
+        WHERE id = ${messageId}
+      `;
+      console.log(`[voice] translations patched for message ${messageId}`);
+    } catch (e) {
+      console.error("[voice] background translation failed:", e);
+    }
+  });
+
   const { thread: _thread, ...messageOut } = message;
-  return Response.json(messageOut, { status: 201 });
+  // Signal to the client that translations are pending
+  return Response.json({ ...messageOut, translating: true }, { status: 201 });
 }

@@ -3,9 +3,10 @@ import prisma from "@/lib/prisma";
 import ThreadsList from "./ThreadsList";
 
 export default async function ThreadsPage() {
-  await auth();
+  const session = await auth();
+  const userId = session!.user!.id!;
 
-  const [threads, goals] = await Promise.all([
+  const [threads, goals, users] = await Promise.all([
     prisma.thread.findMany({
       where: {
         deletedAt: null,
@@ -49,12 +50,22 @@ export default async function ThreadsPage() {
       orderBy: { updatedAt: "desc" },
     }),
     prisma.goal.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
+    prisma.user.findMany({ select: { id: true, name: true, image: true } }),
   ]);
+
+  const langRows = await prisma.$queryRaw<{ preferredLang: string }[]>`
+    SELECT "preferredLang" FROM "User" WHERE id = ${userId} LIMIT 1
+  `;
+  const preferredLang = langRows[0]?.preferredLang ?? "en";
 
   return (
     <ThreadsList
       threads={JSON.parse(JSON.stringify(threads))}
       goals={JSON.parse(JSON.stringify(goals))}
+      users={JSON.parse(JSON.stringify(users))}
+      currentUserId={userId}
+      currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
+      preferredLang={preferredLang}
     />
   );
 }

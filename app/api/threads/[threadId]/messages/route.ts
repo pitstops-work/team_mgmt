@@ -3,6 +3,42 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { threadId } = await params;
+
+  const messages = await prisma.message.findMany({
+    where: { threadId, deletedAt: null },
+    include: {
+      author: { select: { id: true, name: true, image: true } },
+      attachments: true,
+      mentions: { include: { user: { select: { id: true, name: true } } } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // Patch voice fields via raw SQL (bypasses stale Lambda cache)
+  const ids = messages.map(m => m.id);
+  if (ids.length > 0) {
+    const voiceRows = await prisma.$queryRaw<{
+      id: string; msgType: string; audioUrl: string | null;
+      originalLang: string; translations: Record<string, string> | null;
+    }[]>`
+      SELECT id, "msgType", "audioUrl", "originalLang", translations
+      FROM "Message" WHERE id = ANY(${ids})
+    `;
+    const vm = new Map(voiceRows.map(r => [r.id, r]));
+    for (const m of messages) {
+      const v = vm.get(m.id);
+      if (v) Object.assign(m, v);
+    }
+  }
+
+  return Response.json(messages);
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -54,7 +90,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
   const pitstop = message.thread.pitstop;
   if (pitstop) {
     const goal = pitstop.goal;
-    link = `/goals/${goal.id}/pitstops/${pitstop.id}`;
+    link = `/goals/${goal.id}/pitstops/${pitstop.id}?thread=${threadId}`;
     contextLabel = pitstop.title;
   } else if (message.thread.goal) {
     link = `/goals/${message.thread.goal.id}`;

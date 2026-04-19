@@ -16,6 +16,7 @@ type Message = {
   audioUrl?: string | null;
   originalLang?: string;
   translations?: Record<string, string> | null;
+  translating?: boolean;
 };
 
 const LANG_LABELS: Record<string, string> = {
@@ -45,9 +46,10 @@ export default function MessageBubble({ message, isOwn, preferredLang }: Props) 
   const isVoice = message.msgType === "voice";
   const originalLang = message.originalLang ?? "en";
   const translations = message.translations as Record<string, string> | null | undefined;
+  const isTranslating = message.translating === true && !translations;
 
   // Resolve which text the viewer sees
-  const isTranslated = originalLang !== preferredLang && !!translations?.[preferredLang];
+  const isTranslated = !isTranslating && originalLang !== preferredLang && !!translations?.[preferredLang];
   const displayText = isTranslated ? translations![preferredLang] : message.body;
 
   return (
@@ -81,6 +83,13 @@ export default function MessageBubble({ message, isOwn, preferredLang }: Props) 
 
           {/* Display text (translated or original) */}
           <span>{formatBody(displayText)}</span>
+
+          {/* Translating indicator */}
+          {isTranslating && (
+            <p className={`mt-1 text-xs italic opacity-60 ${isOwn ? "text-sky-100" : "text-stone-400"}`}>
+              Translating…
+            </p>
+          )}
 
           {/* Translation toggle */}
           {isTranslated && (

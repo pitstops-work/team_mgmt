@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar, CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
@@ -93,6 +94,7 @@ export default function PitstopDetail({
   subscribedThreadIds: initialSubscribedThreadIds,
   preferredLang: initialPreferredLang,
 }: Props) {
+  const searchParams = useSearchParams();
   const [pitstop, setPitstop] = useState(initialPitstop);
   // Fetch preferredLang client-side to bypass stale Lambda cache on new fields
   const [preferredLang, setPreferredLang] = useState(initialPreferredLang);
@@ -101,10 +103,14 @@ export default function PitstopDetail({
       if (d.lang) setPreferredLang(d.lang);
     }).catch(() => {});
   }, []);
+  // ?thread=<id> from notification links auto-opens the right thread
+  const threadParam = searchParams.get("thread");
   const [activeThread, setActiveThread] = useState<string | null>(
-    initialPitstop.threads[0]?.id ?? null
+    (threadParam && initialPitstop.threads.some(t => t.id === threadParam))
+      ? threadParam
+      : initialPitstop.threads[0]?.id ?? null
   );
-  const [mobileView, setMobileView] = useState<"sidebar" | "thread">("sidebar");
+  const [mobileView, setMobileView] = useState<"sidebar" | "thread">(threadParam ? "thread" : "sidebar");
   const [showEdit, setShowEdit] = useState(false);
   const [showNewThread, setShowNewThread] = useState(false);
   const [editingDates, setEditingDates] = useState(false);
@@ -270,6 +276,18 @@ export default function PitstopDetail({
       ...p,
       threads: p.threads.map((t) =>
         t.id === threadId ? { ...t, messages: [...t.messages, msg] } : t
+      ),
+    }));
+  };
+
+  const handleMessageUpdated = (threadId: string, message: unknown) => {
+    const msg = message as Message;
+    setPitstop((p) => ({
+      ...p,
+      threads: p.threads.map((t) =>
+        t.id === threadId
+          ? { ...t, messages: t.messages.map((m) => (m.id === msg.id ? { ...m, ...msg } : m)) }
+          : t
       ),
     }));
   };
@@ -961,6 +979,7 @@ export default function PitstopDetail({
                 threadId={currentThread.id}
                 users={users}
                 onSent={(msg) => handleMessageSent(currentThread.id, msg)}
+                onMessageUpdated={(msg) => handleMessageUpdated(currentThread.id, msg)}
                 preferredLang={preferredLang}
               />
             </div>

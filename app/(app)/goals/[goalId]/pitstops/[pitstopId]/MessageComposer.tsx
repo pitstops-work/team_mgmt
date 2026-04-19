@@ -4,17 +4,32 @@ import { useState, useRef, useCallback } from "react";
 import { Send, Paperclip, X, Mic, Square, Loader2 } from "lucide-react";
 
 type User = { id: string; name: string | null; image: string | null };
+type VoiceMessage = { id: string; translating?: boolean; translations?: Record<string, string> | null };
+
+// Poll message until translations are populated, then call onUpdated
+async function pollTranslations(messageId: string, onUpdated: (msg: unknown) => void) {
+  for (let i = 0; i < 15; i++) {
+    await new Promise(r => setTimeout(r, 1500));
+    try {
+      const r = await fetch(`/api/messages/${messageId}`);
+      if (!r.ok) break;
+      const msg = await r.json();
+      if (msg.translations) { onUpdated(msg); break; }
+    } catch { break; }
+  }
+}
 
 interface Props {
   threadId: string;
   users: User[];
   onSent: (message: unknown) => void;
+  onMessageUpdated?: (message: unknown) => void;
   preferredLang?: string;
 }
 
 type RecordState = "idle" | "recording" | "processing";
 
-export default function MessageComposer({ threadId, users, onSent }: Props) {
+export default function MessageComposer({ threadId, users, onSent, onMessageUpdated }: Props) {
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState<{ id: string; name: string }[]>([]);
   const [sending, setSending] = useState(false);
@@ -111,17 +126,26 @@ export default function MessageComposer({ threadId, users, onSent }: Props) {
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         setRecordState("processing");
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        const fd = new FormData();
-        fd.append("audio", blob, `recording.${mimeType.includes("mp4") ? "mp4" : "webm"}`);
-        const res = await fetch(`/api/threads/${threadId}/messages/voice`, { method: "POST", body: fd });
-        if (res.ok) {
-          const message = await res.json();
-          onSent(message);
-        } else {
+        try {
+          const blob = new Blob(chunksRef.current, { type: mimeType });
+          const fd = new FormData();
+          fd.append("audio", blob, `recording.${mimeType.includes("mp4") ? "mp4" : "webm"}`);
+          const res = await fetch(`/api/threads/${threadId}/messages/voice`, { method: "POST", body: fd });
+          if (res.ok) {
+            const message: VoiceMessage = await res.json();
+            onSent(message);
+            // If translations are still being computed, poll until ready
+            if (message.translating && onMessageUpdated) {
+              pollTranslations(message.id, onMessageUpdated);
+            }
+          } else {
+            setMicError("Voice message failed. Please try again.");
+          }
+        } catch {
           setMicError("Voice message failed. Please try again.");
+        } finally {
+          setRecordState("idle");
         }
-        setRecordState("idle");
       };
       recorder.start();
       mediaRecorderRef.current = recorder;

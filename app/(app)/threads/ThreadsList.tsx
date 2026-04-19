@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { MessageSquare, X } from "lucide-react";
+import { MessageSquare, X, ArrowUpRight, Mic, Paperclip } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import MultiSelect from "@/components/MultiSelect";
+import MessageBubble from "@/app/(app)/goals/[goalId]/pitstops/[pitstopId]/MessageBubble";
+import MessageComposer from "@/app/(app)/goals/[goalId]/pitstops/[pitstopId]/MessageComposer";
 
 type User = { id: string; name: string | null; image: string | null };
 type Goal = { id: string; title: string };
@@ -21,6 +23,18 @@ type Thread = {
   _count: { messages: number };
   messages: { body: string; createdAt: string; author: { name: string | null } }[];
 };
+type Message = {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: { id: string; name: string | null; image: string | null };
+  attachments: { id: string; name: string; url: string; type: string; mimeType?: string | null }[];
+  mentions: { user: { id: string; name: string | null } }[];
+  msgType?: string;
+  audioUrl?: string | null;
+  originalLang?: string;
+  translations?: Record<string, string> | null;
+};
 
 type Level = "all" | "goal" | "pitstop" | "activity";
 
@@ -36,11 +50,10 @@ function getLevel(t: Thread): "goal" | "pitstop" | "activity" {
   return "pitstop";
 }
 
-function getHref(t: Thread): string {
-  if (t.goal) return `/goals/${t.goal.id}#thread-${t.id}`;
-  if (t.pitstop) return `/goals/${t.pitstop.goal.id}/pitstops/${t.pitstop.id}#thread-${t.id}`;
-  if (t.event) return `/activities`;
-  return "/threads";
+function getPitstopHref(t: Thread): string | null {
+  if (t.pitstop) return `/goals/${t.pitstop.goal.id}/pitstops/${t.pitstop.id}?thread=${t.id}`;
+  if (t.goal) return `/goals/${t.goal.id}`;
+  return null;
 }
 
 function getBreadcrumb(t: Thread): string {
@@ -48,10 +61,6 @@ function getBreadcrumb(t: Thread): string {
   if (t.pitstop) return `${t.pitstop.goal.title} › ${t.pitstop.title}`;
   if (t.event) return t.event.title;
   return "";
-}
-
-function getOwner(t: Thread): User | null {
-  return t.goal?.owner ?? t.pitstop?.owner ?? null;
 }
 
 function timeAgo(iso: string) {
@@ -66,10 +75,50 @@ function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export default function ThreadsList({ threads, goals }: { threads: Thread[]; goals: Goal[] }) {
+function formatBody(body: string): string {
+  return body.replace(/@\[([^\]]+)\]\([^)]+\)/g, "@$1");
+}
+
+interface Props {
+  threads: Thread[];
+  goals: Goal[];
+  users: User[];
+  currentUserId: string;
+  currentUserName: string;
+  preferredLang: string;
+}
+
+export default function ThreadsList({ threads, goals, users, currentUserId, preferredLang }: Props) {
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<Level>("all");
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(threads[0]?.id ?? null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const activeThread = threads.find(t => t.id === activeThreadId) ?? null;
+
+  // Load messages when thread changes
+  useEffect(() => {
+    if (!activeThreadId) return;
+    setLoadingMessages(true);
+    setMessages([]);
+    fetch(`/api/threads/${activeThreadId}/messages`)
+      .then(r => r.json())
+      .then(data => { setMessages(Array.isArray(data) ? data : []); })
+      .catch(() => {})
+      .finally(() => setLoadingMessages(false));
+  }, [activeThreadId]);
+
+  // Scroll to bottom when messages load
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleMessageSent = (msg: unknown) => {
+    setMessages(prev => [...prev, msg as Message]);
+  };
 
   const filtered = threads
     .filter(t => level === "all" || getLevel(t) === level)
@@ -88,101 +137,158 @@ export default function ThreadsList({ threads, goals }: { threads: Thread[]; goa
   const hasFilters = selectedGoals.length > 0 || query || level !== "all";
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-      <div className="mb-5">
-        <h1 className="text-xl font-semibold text-stone-900">All Threads</h1>
-        <p className="text-sm text-stone-500 mt-0.5">{filtered.length} of {threads.length} threads</p>
+    <div className="flex h-full overflow-hidden">
+      {/* ── Left panel: thread list ─────────────────────────────────────── */}
+      <div className={`${activeThreadId ? "hidden sm:flex" : "flex"} w-full sm:w-80 flex-shrink-0 flex-col border-r border-stone-200 bg-white h-full`}>
+        <div className="px-4 pt-5 pb-3 border-b border-stone-100">
+          <h1 className="text-base font-semibold text-stone-900 mb-3">Threads</h1>
+
+          {/* Level tabs */}
+          <div className="flex gap-1 mb-2.5 flex-wrap">
+            {(["all", "goal", "pitstop", "activity"] as const).map(l => (
+              <button key={l} onClick={() => setLevel(l)}
+                className={`px-2.5 py-0.5 text-xs font-medium rounded-full transition-colors ${
+                  level === l ? "bg-stone-900 text-white" : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
+                }`}>
+                {l === "all" ? "All" : l.charAt(0).toUpperCase() + l.slice(1)}
+                <span className="ml-1 opacity-50">
+                  ({l === "all" ? threads.length : threads.filter(t => getLevel(t) === l).length})
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Search + Goal filter */}
+          <div className="flex items-center gap-1.5">
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search…"
+              className="flex-1 px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 min-w-0" />
+            <MultiSelect
+              options={goals.map(g => ({ value: g.id, label: g.title }))}
+              value={selectedGoals}
+              onChange={setSelectedGoals}
+              placeholder="Goals"
+            />
+            {hasFilters && (
+              <button onClick={() => { setSelectedGoals([]); setQuery(""); setLevel("all"); }}
+                className="text-stone-400 hover:text-stone-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {threads.length === 0 ? (
+            <div className="text-center py-16 px-4">
+              <MessageSquare className="w-8 h-8 text-stone-200 mx-auto mb-2" />
+              <p className="text-sm text-stone-500">No threads yet</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="text-center text-stone-400 text-xs py-12">No threads match.</p>
+          ) : (
+            <div className="divide-y divide-stone-100">
+              {filtered.map(t => {
+                const lastMsg = t.messages[0];
+                const lvl = getLevel(t);
+                const badge = LEVEL_BADGE[lvl];
+                const isActive = t.id === activeThreadId;
+                return (
+                  <button key={t.id} onClick={() => setActiveThreadId(t.id)}
+                    className={`w-full text-left px-4 py-3 transition-colors ${isActive ? "bg-sky-50" : "hover:bg-stone-50"}`}>
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-stone-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-stone-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={`text-xs font-medium truncate ${isActive ? "text-sky-700" : "text-stone-800"}`}>{t.name}</span>
+                          <span className="text-[10px] text-stone-400 flex-shrink-0">{timeAgo(t.updatedAt)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`text-[10px] font-medium px-1 py-0.5 rounded border flex-shrink-0 ${badge.cls}`}>{badge.label}</span>
+                          <p className="text-[11px] text-stone-400 truncate">{getBreadcrumb(t)}</p>
+                        </div>
+                        {lastMsg && (
+                          <p className="text-[11px] text-stone-500 mt-1 line-clamp-1">
+                            <span className="font-medium">{lastMsg.author.name}:</span>{" "}
+                            {lastMsg.body.startsWith("[voice]") ? "🎤 Voice message" : formatBody(lastMsg.body)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Level tabs */}
-      <div className="flex gap-1 mb-4">
-        {(["all", "goal", "pitstop", "activity"] as const).map(l => (
-          <button key={l} onClick={() => setLevel(l)}
-            className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-              level === l
-                ? "bg-stone-900 text-white"
-                : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
-            }`}>
-            {l === "all" ? "All" : l.charAt(0).toUpperCase() + l.slice(1)}
-            <span className="ml-1 opacity-60">
-              ({l === "all" ? threads.length : threads.filter(t => getLevel(t) === l).length})
-            </span>
-          </button>
-        ))}
-      </div>
+      {/* ── Right panel: thread messages ────────────────────────────────── */}
+      <div className={`${activeThreadId ? "flex" : "hidden sm:flex"} flex-1 flex-col h-full bg-stone-50 min-w-0`}>
+        {!activeThread ? (
+          <div className="flex-1 flex items-center justify-center text-stone-400">
+            <div className="text-center">
+              <MessageSquare className="w-10 h-10 text-stone-200 mx-auto mb-3" />
+              <p className="text-sm">Select a thread to read messages</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-stone-200 flex-shrink-0">
+              <button className="sm:hidden text-stone-500 hover:text-stone-700"
+                onClick={() => setActiveThreadId(null)}>
+                <X className="w-4 h-4" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-stone-900 truncate">{activeThread.name}</p>
+                <p className="text-xs text-stone-400 truncate">{getBreadcrumb(activeThread)}</p>
+              </div>
+              {getPitstopHref(activeThread) && (
+                <Link href={getPitstopHref(activeThread)!}
+                  className="flex items-center gap-1 text-xs text-stone-400 hover:text-sky-600 flex-shrink-0">
+                  Open <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 mb-5">
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search threads…"
-          className="flex-1 px-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 min-w-0" />
-        <MultiSelect
-          options={goals.map(g => ({ value: g.id, label: g.title }))}
-          value={selectedGoals}
-          onChange={setSelectedGoals}
-          placeholder="All Goals"
-        />
-        {hasFilters && (
-          <button onClick={() => { setSelectedGoals([]); setQuery(""); setLevel("all"); }} className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 flex-shrink-0">
-            <X className="w-3.5 h-3.5" />
-          </button>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+              {loadingMessages ? (
+                <div className="flex justify-center pt-10">
+                  <div className="w-5 h-5 border-2 border-stone-300 border-t-sky-500 rounded-full animate-spin" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-16">
+                  <MessageSquare className="w-8 h-8 text-stone-200 mx-auto mb-2" />
+                  <p className="text-sm text-stone-400">No messages yet — start the conversation.</p>
+                </div>
+              ) : (
+                messages.map(msg => (
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    isOwn={msg.author.id === currentUserId}
+                    preferredLang={preferredLang}
+                  />
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Composer */}
+            <div className="px-4 py-3 bg-white border-t border-stone-200 flex-shrink-0">
+              <MessageComposer
+                threadId={activeThread.id}
+                users={users}
+                onSent={handleMessageSent}
+                preferredLang={preferredLang}
+              />
+            </div>
+          </>
         )}
       </div>
-
-      {/* List */}
-      {threads.length === 0 ? (
-        <div className="text-center py-20">
-          <MessageSquare className="w-10 h-10 text-stone-200 mx-auto mb-3" />
-          <p className="text-stone-500 font-medium">No threads yet</p>
-          <p className="text-xs text-stone-400 mt-1">Start discussions inside goals, pitstops, or activities.</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <p className="text-center text-stone-400 text-sm py-16">No threads match your filters.</p>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(t => {
-            const lastMsg = t.messages[0];
-            const lvl = getLevel(t);
-            const badge = LEVEL_BADGE[lvl];
-            const owner = getOwner(t);
-            return (
-              <Link key={t.id} href={getHref(t)}
-                className="block bg-white border border-stone-200 rounded-xl px-4 py-3 hover:border-sky-200 hover:shadow-sm transition-all group">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <MessageSquare className="w-4 h-4 text-stone-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-medium text-stone-800 group-hover:text-sky-700 truncate">{t.name}</span>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.cls}`}>{badge.label}</span>
-                      </div>
-                      <span className="text-[11px] text-stone-400 flex-shrink-0">{timeAgo(t.updatedAt)}</span>
-                    </div>
-                    <p className="text-xs text-stone-400 mt-0.5 truncate">{getBreadcrumb(t)}</p>
-                    {lastMsg && (
-                      <p className="text-xs text-stone-500 mt-1.5 line-clamp-1">
-                        <span className="font-medium">{lastMsg.author.name}:</span> {lastMsg.body}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <span className="text-[11px] text-stone-400 flex items-center gap-1">
-                        <MessageSquare className="w-3 h-3" />{t._count.messages}
-                      </span>
-                      {owner && (
-                        <div className="flex items-center gap-1">
-                          <Avatar name={owner.name} image={owner.image} size="xs" />
-                          <span className="text-[11px] text-stone-400">{owner.name}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
