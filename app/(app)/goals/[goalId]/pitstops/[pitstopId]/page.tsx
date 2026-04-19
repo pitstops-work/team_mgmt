@@ -62,12 +62,35 @@ export default async function PitstopPage({
 
   if (!pitstop || pitstop.goal.id !== goalId) notFound();
 
-  // Raw SQL for preferredLang — new field, Prisma select silently returns
-  // undefined on stale Lambda cache; raw bypasses it.
+  // Raw SQL for new fields — Prisma include silently drops columns added after
+  // Lambda warm-up; raw SQL always reads the live schema.
   const langRows = await prisma.$queryRaw<{ preferredLang: string }[]>`
     SELECT "preferredLang" FROM "User" WHERE id = ${userId} LIMIT 1
   `;
   const preferredLang = langRows[0]?.preferredLang ?? "en";
+
+  // Collect all message IDs across threads and patch in voice fields via raw SQL
+  const allMessageIds = pitstop?.threads.flatMap(t => t.messages.map(m => m.id)) ?? [];
+  if (allMessageIds.length > 0) {
+    const voiceRows = await prisma.$queryRaw<{
+      id: string;
+      msgType: string;
+      audioUrl: string | null;
+      originalLang: string;
+      translations: Record<string, string> | null;
+    }[]>`
+      SELECT id, "msgType", "audioUrl", "originalLang", translations
+      FROM "Message"
+      WHERE id = ANY(${allMessageIds})
+    `;
+    const voiceMap = new Map(voiceRows.map(r => [r.id, r]));
+    for (const thread of pitstop!.threads) {
+      for (const msg of thread.messages) {
+        const v = voiceMap.get(msg.id);
+        if (v) Object.assign(msg, v);
+      }
+    }
+  }
 
   const subscribedThreadIds = new Set(subscriptions.map((s) => s.threadId));
 

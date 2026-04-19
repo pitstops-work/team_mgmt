@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar, CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
@@ -91,9 +91,16 @@ export default function PitstopDetail({
   currentUserId,
   currentUserName,
   subscribedThreadIds: initialSubscribedThreadIds,
-  preferredLang,
+  preferredLang: initialPreferredLang,
 }: Props) {
   const [pitstop, setPitstop] = useState(initialPitstop);
+  // Fetch preferredLang client-side to bypass stale Lambda cache on new fields
+  const [preferredLang, setPreferredLang] = useState(initialPreferredLang);
+  useEffect(() => {
+    fetch("/api/account/language").then(r => r.json()).then(d => {
+      if (d.lang) setPreferredLang(d.lang);
+    }).catch(() => {});
+  }, []);
   const [activeThread, setActiveThread] = useState<string | null>(
     initialPitstop.threads[0]?.id ?? null
   );
