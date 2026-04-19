@@ -84,6 +84,10 @@ interface MapViewProps {
   progressHealth?: ProgressHealth;
   schoolFeatures?: { type: string; features: unknown[] };
   schoolTypes?: Set<string>;
+  healthFeatures?: { type: string; features: unknown[] };
+  healthTypes?: Set<string>;
+  showHealthClusters?: boolean;
+  healthClusterMap?: Record<string, boolean>;
 }
 
 interface FeatureLayer {
@@ -234,6 +238,10 @@ export default function MapView({
   activeCity = "bangalore",
   schoolFeatures,
   schoolTypes,
+  healthFeatures,
+  healthTypes,
+  showHealthClusters = false,
+  healthClusterMap = {},
 }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -249,6 +257,7 @@ export default function MapView({
   const allFeatureLayers = useRef<FeatureLayer[]>([]);
   const featureLayersByKey = useRef<Partial<Record<LayerKey, L.Layer[]>>>({});
   const schoolLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const healthLayerGroupRef = useRef<L.LayerGroup | null>(null);
 
   const router = useRouter();
   const [addMode, setAddMode] = useState(false);
@@ -436,6 +445,7 @@ export default function MapView({
     drawPreviewRef.current = L.layerGroup().addTo(map);
     customPolygonLayerRef.current = L.layerGroup().addTo(map);
     schoolLayerGroupRef.current = L.layerGroup().addTo(map);
+    healthLayerGroupRef.current = L.layerGroup().addTo(map);
 
     // ── Boundary layers (zone + cluster) — loaded once, toggled via state ──
     const zoneBoundaryGroup = L.layerGroup();
@@ -646,6 +656,87 @@ export default function MapView({
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolFeatures, visibleLayers, schoolTypes]);
+
+  // Render health centre markers
+  useEffect(() => {
+    const group = healthLayerGroupRef.current;
+    if (!group) return;
+    group.clearLayers();
+    if (!visibleLayers.has("health_centres") || !healthFeatures) return;
+
+    const TYPE_CONFIG: Record<string, { color: string; label: string }> = {
+      "CRC":                       { color: "#7c3aed", label: "CRC" },
+      "Foundation Health Centre":  { color: "#0284c7", label: "Foundation HC" },
+      "Government Health Centre":  { color: "#059669", label: "Govt Health Centre" },
+      "Referral Helpdesk Hospital":{ color: "#d97706", label: "Referral Hospital" },
+      "Super Speciality Hospital": { color: "#dc2626", label: "Super Speciality" },
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (healthFeatures.features as any[]).forEach((feature: any) => {
+      const [lng, lat] = feature.geometry.coordinates;
+      const props = feature.properties ?? {};
+      const cType: string = props.centreType ?? "";
+      if (healthTypes && !healthTypes.has(cType)) return;
+
+      const cfg = TYPE_CONFIG[cType] ?? { color: "#e11d48", label: "Health Centre" };
+
+      // Diamond shape via rotated square marker using divIcon
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:12px;height:12px;background:${cfg.color};transform:rotate(45deg);border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6],
+      });
+
+      const marker = L.marker([lat, lng] as L.LatLngTuple, { icon });
+
+      const settlementList = (props.settlements ?? [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
+        .join("");
+
+      marker.bindPopup(`
+        <div class="map-popup">
+          <span class="badge" style="background:${cfg.color}">${cfg.label}</span>
+          <h3>${props.name}</h3>
+          ${props.notes ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.notes}</div>` : ""}
+          ${settlementList ? `
+            <div style="margin-top:8px">
+              <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements (≤2 km)</div>
+              <ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul>
+            </div>` : `<div style="margin-top:6px;font-size:11px;color:#94a3b8;font-style:italic">No settlements within 2 km</div>`}
+        </div>
+      `, { maxWidth: 300 });
+
+      group.addLayer(marker);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [healthFeatures, visibleLayers, healthTypes]);
+
+  // Health cluster overlay — tint cluster boundaries by health status
+  useEffect(() => {
+    // Ensure cluster boundary group is visible when overlay is on
+    const map = mapRef.current;
+    const group = clusterBoundaryGroupRef.current;
+    if (map && group && showHealthClusters && !map.hasLayer(group)) group.addTo(map);
+
+    clusterBoundaryLayersRef.current.forEach((layer, clusterKey) => {
+      if (!showHealthClusters) {
+        // Reset to default styling (re-use original color)
+        const orig = clusterBoundaryColorsRef.current.get(clusterKey) ?? "#64748b";
+        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.09, opacity: 0.8, weight: 1.8, dashArray: "5 4" });
+      } else {
+        const isHealth = healthClusterMap[clusterKey] ?? false;
+        if (isHealth) {
+          layer.setStyle({ fillColor: "#f43f5e", color: "#e11d48", fillOpacity: 0.22, opacity: 1, weight: 2.5, dashArray: undefined });
+        } else {
+          layer.setStyle({ fillColor: "#94a3b8", color: "#94a3b8", fillOpacity: 0.06, opacity: 0.4, weight: 1.5, dashArray: "5 4" });
+        }
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHealthClusters, healthClusterMap]);
 
   function applyZoneClusterHighlight(
     filter: MapFilter | null, visible: Set<LayerKey>

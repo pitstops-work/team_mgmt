@@ -26,6 +26,11 @@ interface LayerPanelProps {
   schoolTypes: Set<string>;
   onSchoolTypesChange: (types: Set<string>) => void;
   schoolCount: number;
+  healthTypes: Set<string>;
+  onHealthTypesChange: (types: Set<string>) => void;
+  healthCount: number;
+  showHealthClusters: boolean;
+  onShowHealthClustersChange: (v: boolean) => void;
 }
 
 const ZONE_COLORS: Record<string, string> = {
@@ -82,10 +87,15 @@ export default function LayerPanel({
   schoolTypes,
   onSchoolTypesChange,
   schoolCount,
+  healthTypes,
+  onHealthTypesChange,
+  healthCount,
+  showHealthClusters,
+  onShowHealthClustersChange,
 }: LayerPanelProps) {
   // Filter layers by active city
   const polygonLayers = LAYERS.filter((l) => l.type === "polygon" && l.city === activeCity);
-  const pointLayers   = LAYERS.filter((l) => l.type === "point" && l.city === activeCity && l.key !== "schools");
+  const pointLayers   = LAYERS.filter((l) => l.type === "point" && l.city === activeCity && l.key !== "schools" && l.key !== "health_centres");
 
   const totalSettlements = polygonLayers.reduce(
     (sum, l) => sum + (featureCounts[l.key] ?? 0),
@@ -368,6 +378,76 @@ export default function LayerPanel({
                           <span>10 km</span>
                         </div>
                       </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Health Centres layer (Bangalore only) */}
+            {activeCity === "bangalore" && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                  Health
+                </p>
+                <div className="space-y-1">
+                  {/* Layer toggle */}
+                  <button
+                    onClick={() => onToggle("health_centres")}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left transition-colors ${
+                      visibleLayers.has("health_centres") ? "bg-slate-100 text-slate-800" : "text-slate-400 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: "#e11d48", opacity: visibleLayers.has("health_centres") ? 1 : 0.3 }} />
+                    <span className="flex-1 text-xs font-medium">Health Centres</span>
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${visibleLayers.has("health_centres") ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-300"}`}>
+                      {healthCount}
+                    </span>
+                  </button>
+
+                  {/* Sub-type filters — shown when layer is on */}
+                  {visibleLayers.has("health_centres") && (
+                    <div className="px-2.5 py-2 bg-rose-50 rounded-lg space-y-1">
+                      {[
+                        { key: "CRC",                      label: "CRC",                    color: "#7c3aed" },
+                        { key: "Foundation Health Centre", label: "Foundation Health Centre",color: "#0284c7" },
+                        { key: "Government Health Centre", label: "Govt Health Centre (PHC/CHC)", color: "#059669" },
+                        { key: "Referral Helpdesk Hospital",label: "Referral Hospital",     color: "#d97706" },
+                        { key: "Super Speciality Hospital",label: "Super Speciality",       color: "#dc2626" },
+                      ].map(({ key, label, color }) => (
+                        <label key={key} className="flex items-center gap-2 py-0.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={healthTypes.has(key)}
+                            onChange={() => {
+                              const next = new Set(healthTypes);
+                              if (next.has(key)) next.delete(key); else next.add(key);
+                              onHealthTypesChange(next);
+                            }}
+                            className="w-3 h-3"
+                            style={{ accentColor: color }}
+                          />
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                          <span className="text-xs text-rose-900">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Health / Non-health cluster toggle */}
+                  <div className="flex items-center justify-between px-2.5 py-2 bg-slate-50 rounded-lg mt-1">
+                    <span className="text-xs font-medium text-slate-600">Health cluster overlay</span>
+                    <button
+                      onClick={() => onShowHealthClustersChange(!showHealthClusters)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${showHealthClusters ? "bg-rose-500" : "bg-slate-300"}`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showHealthClusters ? "translate-x-4" : "translate-x-0.5"}`} />
+                    </button>
+                  </div>
+                  {showHealthClusters && (
+                    <div className="flex gap-3 px-2.5 text-[10px] text-slate-500">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-rose-400 inline-block" /> Health cluster</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-slate-300 inline-block" /> No coverage</span>
                     </div>
                   )}
                 </div>

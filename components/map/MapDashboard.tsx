@@ -83,6 +83,10 @@ export default function MapDashboard() {
   const [schoolMaxKm, setSchoolMaxKm] = useState(4);
   const [schoolTypes, setSchoolTypes] = useState<Set<string>>(new Set(["Government", "BBMP", "Karnataka Public School"]));
   const [schoolFeatures, setSchoolFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
+  const [healthFeatures, setHealthFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
+  const [healthTypes, setHealthTypes] = useState<Set<string>>(new Set(["CRC", "Foundation Health Centre", "Government Health Centre", "Referral Helpdesk Hospital", "Super Speciality Hospital"]));
+  const [showHealthClusters, setShowHealthClusters] = useState(false);
+  const [healthClusterMap, setHealthClusterMap] = useState<Record<string, boolean>>({});
 
   const flyToRef = useRef<((latlng: [number, number], zoom?: number) => void) | null>(null);
   const openPopupRef = useRef<((layerKey: LayerKey, featureIdx: number) => void) | null>(null);
@@ -155,6 +159,20 @@ export default function MapDashboard() {
       })
       .catch(() => {});
   }, [schoolMaxKm]);
+
+  useEffect(() => {
+    fetch("/api/map/health-centres")
+      .then(r => r.json())
+      .then(data => {
+        setHealthFeatures(data);
+        setFeatureCounts(prev => ({ ...prev, health_centres: data.features?.length ?? 0 }));
+      })
+      .catch(() => {});
+    fetch("/api/map/health-clusters")
+      .then(r => r.json())
+      .then(setHealthClusterMap)
+      .catch(() => {});
+  }, []);
 
   async function toggleProgress() {
     const next = !progressMode;
@@ -316,6 +334,11 @@ export default function MapDashboard() {
           schoolTypes={schoolTypes}
           onSchoolTypesChange={setSchoolTypes}
           schoolCount={(schoolFeatures.features ?? []).length}
+          healthTypes={healthTypes}
+          onHealthTypesChange={setHealthTypes}
+          healthCount={(healthFeatures.features ?? []).length}
+          showHealthClusters={showHealthClusters}
+          onShowHealthClustersChange={setShowHealthClusters}
         />
       </aside>
 
@@ -388,6 +411,10 @@ export default function MapDashboard() {
           activeCity={activeCity}
           schoolFeatures={schoolFeatures}
           schoolTypes={schoolTypes}
+          healthFeatures={healthFeatures}
+          healthTypes={healthTypes}
+          showHealthClusters={showHealthClusters}
+          healthClusterMap={healthClusterMap}
         />
 
         {/* Settlement detail sidebar */}

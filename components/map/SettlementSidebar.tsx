@@ -66,6 +66,7 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
   const [goalPrefill, setGoalPrefill] = useState<GoalPrefill | null>(null);
   const [settlementDbId, setSettlementDbId] = useState<string | null>(null);
   const [nearbySchools, setNearbySchools] = useState<{ id: string; name: string; distanceKm: number; address: string }[]>([]);
+  const [nearbyHealth, setNearbyHealth] = useState<{ id: string; name: string; centreType: string; distanceKm: number }[]>([]);
   const prevName = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
@@ -79,6 +80,7 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
     setActiveTab("programme");
     setSettlementDbId(null);
     setNearbySchools([]);
+    setNearbyHealth([]);
 
     fetch(`/api/map/notes?settlement=${encodeURIComponent(feature.name)}`)
       .then((r) => r.json())
@@ -96,6 +98,10 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
           fetch(`/api/map/schools?settlement=${sid}&maxKm=4`)
             .then(r => r.json())
             .then(schools => setNearbySchools(Array.isArray(schools) ? schools : []))
+            .catch(() => {});
+          fetch(`/api/map/health-centres?settlement=${sid}`)
+            .then(r => r.json())
+            .then(hcs => setNearbyHealth(Array.isArray(hcs) ? hcs : []))
             .catch(() => {});
         }
       })
@@ -343,6 +349,26 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
                     </div>
                   )}
                 </div>
+
+                {/* Nearby Health Centres */}
+                {nearbyHealth.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                      Health Centres Nearby
+                    </p>
+                    <div className="space-y-1.5">
+                      {nearbyHealth.map(hc => (
+                        <div key={hc.id} className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-rose-50">
+                          <span className="text-sm mt-0.5">🏥</span>
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-rose-800 leading-snug">{hc.name}</div>
+                            <div className="text-[10px] text-rose-500">{hc.centreType} · {hc.distanceKm.toFixed(1)} km</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Active Goals & Pitstops for this cluster */}
                 {feature.cluster && (

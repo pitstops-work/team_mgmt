@@ -21,7 +21,8 @@ export type LayerKey =
   | "creches"
   | "custom"
   | "custom_settlements"
-  | "schools";
+  | "schools"
+  | "health_centres";
 
 export type MapCity = "bangalore" | "chennai";
 
@@ -62,7 +63,8 @@ export const LAYERS: LayerConfig[] = [
   { key: "custom_settlements", label: "Custom Settlements", file: "", color: "#6366f1", type: "polygon", city: "bangalore", description: "User-added settlement polygons" },
 
   // ── Schools (Bangalore — dynamic, loaded from API) ────────────────────────
-  { key: "schools", label: "Govt Schools", file: "", color: "#16a34a", type: "point", city: "bangalore", description: "Government schools tagged to nearby settlements" },
+  { key: "schools",         label: "Govt Schools",    file: "", color: "#16a34a", type: "point", city: "bangalore", description: "Government schools tagged to nearby settlements" },
+  { key: "health_centres", label: "Health Centres",  file: "", color: "#e11d48", type: "point", city: "bangalore", description: "Health centres tagged to nearby settlements" },
 ];
 
 export const LAYER_MAP = Object.fromEntries(
