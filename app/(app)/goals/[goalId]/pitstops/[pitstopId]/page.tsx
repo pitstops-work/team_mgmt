@@ -12,7 +12,7 @@ export default async function PitstopPage({
   const { goalId, pitstopId } = await params;
   const userId = session!.user!.id!;
 
-  const [pitstop, users, subscriptions, siblingPitstops, currentUser] = await Promise.all([
+  const [pitstop, users, subscriptions, siblingPitstops] = await Promise.all([
     prisma.pitstop.findUnique({
       where: { id: pitstopId, deletedAt: null },
       include: {
@@ -58,13 +58,16 @@ export default async function PitstopPage({
       select: { id: true, title: true, status: true },
       orderBy: { order: "asc" },
     }),
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { preferredLang: true },
-    }),
   ]);
 
   if (!pitstop || pitstop.goal.id !== goalId) notFound();
+
+  // Raw SQL for preferredLang — new field, Prisma select silently returns
+  // undefined on stale Lambda cache; raw bypasses it.
+  const langRows = await prisma.$queryRaw<{ preferredLang: string }[]>`
+    SELECT "preferredLang" FROM "User" WHERE id = ${userId} LIMIT 1
+  `;
+  const preferredLang = langRows[0]?.preferredLang ?? "en";
 
   const subscribedThreadIds = new Set(subscriptions.map((s) => s.threadId));
 
@@ -76,7 +79,7 @@ export default async function PitstopPage({
       currentUserId={userId}
       currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
       subscribedThreadIds={Array.from(subscribedThreadIds)}
-      preferredLang={currentUser?.preferredLang ?? "en"}
+      preferredLang={preferredLang}
     />
   );
 }
