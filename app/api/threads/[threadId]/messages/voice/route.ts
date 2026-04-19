@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { uploadAudio, transcribeAudio, translateToAll } from "@/lib/voice";
 
+export const maxDuration = 60; // allow up to 60s — transcription + 5 parallel translations
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ threadId: string }> }
@@ -13,23 +15,56 @@ export async function POST(
 
   const { threadId } = await params;
 
-  // Parse multipart form — expects a single "audio" field
-  const formData = await req.formData();
-  const audioFile = formData.get("audio") as File | null;
+  let audioFile: File | null = null;
+  try {
+    const formData = await req.formData();
+    audioFile = formData.get("audio") as File | null;
+  } catch (e) {
+    console.error("[voice] formData parse error:", e);
+    return Response.json({ error: "Could not parse audio upload" }, { status: 400 });
+  }
+
   if (!audioFile) return Response.json({ error: "No audio file" }, { status: 400 });
 
   const mimeType = audioFile.type || "audio/webm";
   const buffer = Buffer.from(await audioFile.arrayBuffer());
+  console.log(`[voice] received ${buffer.byteLength} bytes, mimeType=${mimeType}`);
 
   // 1. Upload raw audio to Vercel Blob
-  const audioUrl = await uploadAudio(buffer, mimeType, threadId);
+  let audioUrl: string;
+  try {
+    audioUrl = await uploadAudio(buffer, mimeType, threadId);
+    console.log("[voice] blob uploaded:", audioUrl);
+  } catch (e) {
+    console.error("[voice] blob upload failed:", e);
+    return Response.json({ error: "Audio upload failed" }, { status: 500 });
+  }
 
-  // 2. Transcribe with Groq Whisper (auto-detects language)
-  const { text, detectedLang } = await transcribeAudio(buffer, mimeType);
+  // 2. Transcribe with Groq Whisper
+  let text: string;
+  let detectedLang: string;
+  try {
+    const result = await transcribeAudio(buffer, mimeType);
+    text = result.text;
+    detectedLang = result.detectedLang;
+    console.log(`[voice] transcribed lang=${detectedLang} text="${text.slice(0, 80)}"`);
+  } catch (e) {
+    console.error("[voice] transcription failed:", e);
+    return Response.json({ error: "Transcription failed" }, { status: 500 });
+  }
+
   if (!text) return Response.json({ error: "Transcription empty" }, { status: 422 });
 
   // 3. Translate to all other languages in parallel
-  const translations = await translateToAll(text, detectedLang);
+  let translations: Record<string, string>;
+  try {
+    translations = await translateToAll(text, detectedLang as "en" | "ta" | "kn" | "ml" | "hi" | "bn");
+    console.log("[voice] translations done:", Object.keys(translations));
+  } catch (e) {
+    console.error("[voice] translation failed:", e);
+    // Non-fatal: store message without translations
+    translations = { [detectedLang]: text };
+  }
 
   // 4. Save message
   const message = await prisma.message.create({
@@ -56,7 +91,7 @@ export async function POST(
     },
   });
 
-  // 5. Notifications (mirrors text message logic)
+  // 5. Notifications
   const authorName = message.author.name ?? "Someone";
   const threadName = message.thread.name;
 
