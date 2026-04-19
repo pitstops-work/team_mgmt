@@ -25,12 +25,27 @@ const RETAG_ONLY = process.argv.includes("--retag");
 
 // ── KML parser ────────────────────────────────────────────────────────────────
 
+// Map KML style color codes → school type labels
+const STYLE_TYPE_MAP: Record<string, string> = {
+  "000000": "BBMP",
+  "0288D1": "Karnataka Public School",
+  "A52714": "Government",
+};
+
+function schoolTypeFromStyle(styleUrl: string): string {
+  for (const [color, label] of Object.entries(STYLE_TYPE_MAP)) {
+    if (styleUrl.includes(color)) return label;
+  }
+  return "Government";
+}
+
 interface SchoolPoint {
   name: string;
   lat: number;
   lng: number;
   address?: string;
   gmapsId?: string;
+  schoolType: string;
 }
 
 function parseKML(kmlContent: string): SchoolPoint[] {
@@ -69,7 +84,11 @@ function parseKML(kmlContent: string): SchoolPoint[] {
     const idMatch = block.match(/gx:id="([^"]+)"/i) ?? block.match(/<gx:id>([\s\S]*?)<\/gx:id>/i);
     const gmapsId = idMatch ? idMatch[1].trim() : undefined;
 
-    schools.push({ name, lat, lng, address, gmapsId });
+    // Extract school type from styleUrl
+    const styleMatch = block.match(/<styleUrl>#([^<]+)<\/styleUrl>/i);
+    const schoolType = styleMatch ? schoolTypeFromStyle(styleMatch[1]) : "Government";
+
+    schools.push({ name, lat, lng, address, gmapsId, schoolType });
   }
 
   return schools;
@@ -157,13 +176,13 @@ async function main() {
       if (s.gmapsId) {
         await prisma.school.upsert({
           where: { gmapsId: s.gmapsId },
-          create: { name: s.name, lat: s.lat, lng: s.lng, address: s.address, gmapsId: s.gmapsId },
-          update: { name: s.name, lat: s.lat, lng: s.lng, address: s.address },
+          create: { name: s.name, lat: s.lat, lng: s.lng, address: s.address, gmapsId: s.gmapsId, schoolType: s.schoolType },
+          update: { name: s.name, lat: s.lat, lng: s.lng, address: s.address, schoolType: s.schoolType },
         });
         updated++;
       } else {
         await prisma.school.create({
-          data: { name: s.name, lat: s.lat, lng: s.lng, address: s.address },
+          data: { name: s.name, lat: s.lat, lng: s.lng, address: s.address, schoolType: s.schoolType },
         });
         inserted++;
       }

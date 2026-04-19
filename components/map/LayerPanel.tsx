@@ -23,6 +23,8 @@ interface LayerPanelProps {
   onCityChange: (city: MapCity) => void;
   schoolMaxKm: number;
   onSchoolMaxKmChange: (km: number) => void;
+  schoolTypes: Set<string>;
+  onSchoolTypesChange: (types: Set<string>) => void;
   schoolCount: number;
 }
 
@@ -77,6 +79,8 @@ export default function LayerPanel({
   onCityChange,
   schoolMaxKm,
   onSchoolMaxKmChange,
+  schoolTypes,
+  onSchoolTypesChange,
   schoolCount,
 }: LayerPanelProps) {
   // Filter layers by active city
@@ -319,23 +323,50 @@ export default function LayerPanel({
                     </span>
                   </button>
                   {visibleLayers.has("schools") && (
-                    <div className="px-2.5 py-2 bg-green-50 rounded-lg">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-green-700 font-medium">Max distance</span>
-                        <span className="text-xs font-bold text-green-800">{schoolMaxKm} km</span>
+                    <div className="px-2.5 py-2 bg-green-50 rounded-lg space-y-2">
+                      {/* Type filters */}
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-green-600 mb-1">Type</p>
+                        {[
+                          { key: "Government",            label: "Government (DPI)", color: "#dc2626" },
+                          { key: "BBMP",                  label: "BBMP",             color: "#1e293b" },
+                          { key: "Karnataka Public School",label: "KPS",             color: "#0288D1" },
+                        ].map(({ key, label, color }) => (
+                          <label key={key} className="flex items-center gap-2 py-0.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={schoolTypes.has(key)}
+                              onChange={() => {
+                                const next = new Set(schoolTypes);
+                                if (next.has(key)) next.delete(key); else next.add(key);
+                                onSchoolTypesChange(next);
+                              }}
+                              className="accent-green-600 w-3 h-3"
+                            />
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                            <span className="text-xs text-green-800">{label}</span>
+                          </label>
+                        ))}
                       </div>
-                      <input
-                        type="range"
-                        min={0.5}
-                        max={10}
-                        step={0.5}
-                        value={schoolMaxKm}
-                        onChange={e => onSchoolMaxKmChange(parseFloat(e.target.value))}
-                        className="w-full accent-green-600 h-1.5"
-                      />
-                      <div className="flex justify-between text-[10px] text-green-400 mt-0.5">
-                        <span>0.5 km</span>
-                        <span>10 km</span>
+                      {/* Distance slider */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-green-600">Max distance</span>
+                          <span className="text-xs font-bold text-green-800">{schoolMaxKm} km</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.5}
+                          max={10}
+                          step={0.5}
+                          value={schoolMaxKm}
+                          onChange={e => onSchoolMaxKmChange(parseFloat(e.target.value))}
+                          className="w-full accent-green-600 h-1.5"
+                        />
+                        <div className="flex justify-between text-[10px] text-green-400 mt-0.5">
+                          <span>0.5 km</span>
+                          <span>10 km</span>
+                        </div>
                       </div>
                     </div>
                   )}

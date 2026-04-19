@@ -1,0 +1,1 @@
+ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "schoolType" TEXT NOT NULL DEFAULT 'Government';

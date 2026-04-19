@@ -83,6 +83,7 @@ interface MapViewProps {
   progressMode?: boolean;
   progressHealth?: ProgressHealth;
   schoolFeatures?: { type: string; features: unknown[] };
+  schoolTypes?: Set<string>;
 }
 
 interface FeatureLayer {
@@ -232,6 +233,7 @@ export default function MapView({
   progressMode = false, progressHealth = null,
   activeCity = "bangalore",
   schoolFeatures,
+  schoolTypes,
 }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -592,13 +594,30 @@ export default function MapView({
     group.clearLayers();
     if (!visibleLayers.has("schools") || !schoolFeatures) return;
 
+    const TYPE_COLORS: Record<string, string> = {
+      "Government":             "#dc2626",
+      "BBMP":                   "#1e293b",
+      "Karnataka Public School":"#0288D1",
+    };
+    const TYPE_LABELS: Record<string, string> = {
+      "Government":             "Govt School",
+      "BBMP":                   "BBMP School",
+      "Karnataka Public School":"KPS",
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (schoolFeatures.features as any[]).forEach((feature: any) => {
       const [lng, lat] = feature.geometry.coordinates;
       const props = feature.properties ?? {};
+      const sType: string = props.schoolType ?? "Government";
+
+      // Filter by active types
+      if (schoolTypes && !schoolTypes.has(sType)) return;
+
+      const color = TYPE_COLORS[sType] ?? "#16a34a";
       const marker = L.circleMarker([lat, lng] as L.LatLngTuple, {
         radius: 7,
-        fillColor: "#16a34a",
+        fillColor: color,
         color: "white",
         weight: 2,
         opacity: 1,
@@ -612,7 +631,7 @@ export default function MapView({
 
       marker.bindPopup(`
         <div class="map-popup">
-          <span class="badge" style="background:#16a34a">Govt School</span>
+          <span class="badge" style="background:${color}">${TYPE_LABELS[sType] ?? "School"}</span>
           <h3>${props.name}</h3>
           ${props.address ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.address}</div>` : ""}
           ${settlementList ? `
@@ -626,7 +645,7 @@ export default function MapView({
       group.addLayer(marker);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolFeatures, visibleLayers]);
+  }, [schoolFeatures, visibleLayers, schoolTypes]);
 
   function applyZoneClusterHighlight(
     filter: MapFilter | null, visible: Set<LayerKey>

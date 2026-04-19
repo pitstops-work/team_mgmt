@@ -783,13 +783,14 @@ model Settlement {
 
 // Government school mapped to nearby settlements
 model School {
-  id        String   @id @default(cuid())
-  name      String
-  lat       Float
-  lng       Float
-  address   String?
-  gmapsId   String?  @unique
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  name       String
+  lat        Float
+  lng        Float
+  address    String?
+  gmapsId    String?  @unique
+  schoolType String   @default("Government")
+  createdAt  DateTime @default(now())
 
   settlements SettlementSchool[]
 }

@@ -81,6 +81,7 @@ export default function MapDashboard() {
     zones: Record<string, string>;
   } | null>(null);
   const [schoolMaxKm, setSchoolMaxKm] = useState(4);
+  const [schoolTypes, setSchoolTypes] = useState<Set<string>>(new Set(["Government", "BBMP", "Karnataka Public School"]));
   const [schoolFeatures, setSchoolFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
 
   const flyToRef = useRef<((latlng: [number, number], zoom?: number) => void) | null>(null);
@@ -312,6 +313,8 @@ export default function MapDashboard() {
           onCityChange={switchCity}
           schoolMaxKm={schoolMaxKm}
           onSchoolMaxKmChange={setSchoolMaxKm}
+          schoolTypes={schoolTypes}
+          onSchoolTypesChange={setSchoolTypes}
           schoolCount={(schoolFeatures.features ?? []).length}
         />
       </aside>
@@ -384,6 +387,7 @@ export default function MapDashboard() {
           progressHealth={progressHealth}
           activeCity={activeCity}
           schoolFeatures={schoolFeatures}
+          schoolTypes={schoolTypes}
         />
 
         {/* Settlement detail sidebar */}

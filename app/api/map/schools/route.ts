@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
       id: school.id,
       name: school.name,
       address: school.address ?? "",
+      schoolType: school.schoolType,
       settlementCount: school.settlements.length,
       settlements: school.settlements.map(ss => ({
         id: ss.settlement.id,
