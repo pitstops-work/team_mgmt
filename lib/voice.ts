@@ -1,17 +1,14 @@
 /**
  * lib/voice.ts
  *
- * Transcription (Groq Whisper) + translation (Groq LLaMA) for voice messages.
- * Requires: GROQ_API_KEY, BLOB_READ_WRITE_TOKEN
+ * Transcription (Groq Whisper) + translation (Google Cloud Translation v2) for voice messages.
+ * Requires: GROQ_API_KEY, GOOGLE_TRANSLATE_API_KEY, BLOB_READ_WRITE_TOKEN
  */
 
 import Groq, { toFile } from "groq-sdk";
-import { createGroq } from "@ai-sdk/groq";
-import { generateText } from "ai";
 import { put } from "@vercel/blob";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const groqAI = createGroq({ apiKey: process.env.GROQ_API_KEY });
 
 // ── Language registry ─────────────────────────────────────────────────────────
 
@@ -25,15 +22,6 @@ export const SUPPORTED_LANGS = [
 ] as const;
 
 export type LangCode = (typeof SUPPORTED_LANGS)[number]["code"];
-
-const LANG_NAMES: Record<LangCode, string> = {
-  en: "English",
-  ta: "Tamil",
-  kn: "Kannada",
-  ml: "Malayalam",
-  hi: "Hindi",
-  bn: "Bengali",
-};
 
 const WHISPER_TO_CODE: Record<string, LangCode> = {
   english:   "en",
@@ -85,20 +73,32 @@ export async function translateToAll(
   sourceLang: LangCode
 ): Promise<Record<LangCode, string>> {
   const targets = SUPPORTED_LANGS.filter((l) => l.code !== sourceLang);
+  const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+
+  if (!apiKey) throw new Error("GOOGLE_TRANSLATE_API_KEY is not set");
 
   const results = await Promise.all(
     targets.map(async (target) => {
-      const { text: translated } = await generateText({
-        model: groqAI("llama-3.3-70b-versatile"),
-        messages: [
-          {
-            role: "system",
-            content: `You are a professional translator specialising in Indian languages. Translate the following text into ${LANG_NAMES[target.code]}. Use only proper ${LANG_NAMES[target.code]} script and vocabulary — do NOT transliterate, do NOT mix scripts, do NOT add explanations. Return ONLY the translated sentence.`,
-          },
-          { role: "user", content: text },
-        ],
-      });
-      return [target.code, translated.trim()] as const;
+      const res = await fetch(
+        `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            q: text,
+            source: sourceLang,
+            target: target.code,
+            format: "text",
+          }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Google Translate error for ${target.code}: ${err}`);
+      }
+      const data = await res.json();
+      const translated: string = data.data?.translations?.[0]?.translatedText ?? text;
+      return [target.code, translated] as const;
     })
   );
 
