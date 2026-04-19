@@ -88,6 +88,23 @@ export default function MapDashboard() {
   const [showHealthClusters, setShowHealthClusters] = useState(false);
   const [healthClusterMap, setHealthClusterMap] = useState<Record<string, boolean>>({});
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
   const flyToRef = useRef<((latlng: [number, number], zoom?: number) => void) | null>(null);
   const openPopupRef = useRef<((layerKey: LayerKey, featureIdx: number) => void) | null>(null);
   const flyToCityRef = useRef<((city: MapCity) => void) | null>(null);
@@ -287,7 +304,7 @@ export default function MapDashboard() {
   }, []);
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-slate-100">
+    <div ref={containerRef} className="flex h-full w-full overflow-hidden bg-slate-100">
 
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
@@ -357,7 +374,7 @@ export default function MapDashboard() {
         {/* Progress mode toggle — desktop only */}
         <button
           onClick={toggleProgress}
-          className={`hidden sm:flex absolute top-3 right-28 z-10 border shadow rounded-lg px-3 h-8 items-center gap-1.5 text-xs font-semibold transition-colors ${
+          className={`hidden sm:flex absolute top-3 right-[13rem] z-10 border shadow rounded-lg px-3 h-8 items-center gap-1.5 text-xs font-semibold transition-colors ${
             progressMode
               ? "bg-emerald-600 text-white border-emerald-600"
               : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -369,6 +386,23 @@ export default function MapDashboard() {
             <path strokeLinecap="round" d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
           </svg>
           Progress
+        </button>
+
+        {/* Fullscreen toggle — desktop only */}
+        <button
+          onClick={toggleFullscreen}
+          className="hidden sm:flex absolute top-3 right-[7.5rem] z-10 bg-white border border-slate-200 shadow rounded-lg w-8 h-8 items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors"
+          title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+        >
+          {isFullscreen ? (
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25" />
+            </svg>
+          ) : (
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+            </svg>
+          )}
         </button>
 
         {/* Stats toggle — desktop only; mobile uses the bottom control bar */}
