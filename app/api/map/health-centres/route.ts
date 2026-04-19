@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
   if (settlementId) {
     const links = await prisma.settlementHealthCentre.findMany({
-      where: { settlementId },
+      where: { settlementId, healthCentre: { centreType: { in: ["CRC", "Foundation Health Centre"] } } },
       include: { healthCentre: true },
       orderBy: { distanceKm: "asc" },
     });

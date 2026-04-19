@@ -31,6 +31,12 @@ const HEALTH_TYPES = new Set([
   "Super Speciality Hospital",
 ]);
 
+// ── Only these types get tagged to settlements / drive health cluster status ──
+const TAGGABLE_TYPES = new Set([
+  "CRC",
+  "Foundation Health Centre",
+]);
+
 // ── Parse HTML ────────────────────────────────────────────────────────────────
 interface HealthPoint {
   name: string;
@@ -88,7 +94,9 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
 
 // ── Tagging + cluster update ──────────────────────────────────────────────────
 async function retag(maxKm: number) {
-  const centres = await prisma.healthCentre.findMany();
+  const centres = await prisma.healthCentre.findMany({
+    where: { centreType: { in: [...TAGGABLE_TYPES] } },
+  });
   const settlements = await prisma.settlement.findMany({
     where: { deletedAt: null, centroidLat: { not: null }, centroidLng: { not: null } },
     select: { id: true, clusterId: true, centroidLat: true, centroidLng: true },
