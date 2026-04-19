@@ -778,6 +778,33 @@ model Settlement {
   needsGoals   Goal[]     @relation("GoalNeedsSettlement")
   needsPitstops Pitstop[] @relation("PitstopNeedsSettlement")
   goalOutcomes GoalOutcome[]
+  schools      SettlementSchool[]
+}
+
+// Government school mapped to nearby settlements
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  lat       Float
+  lng       Float
+  address   String?
+  gmapsId   String?  @unique
+  createdAt DateTime @default(now())
+
+  settlements SettlementSchool[]
+}
+
+// Junction: settlement ↔ school with computed distance
+model SettlementSchool {
+  id           String     @id @default(cuid())
+  settlementId String
+  schoolId     String
+  distanceKm   Float
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  school     School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([settlementId, schoolId])
 }
 
 // Flattened snapshot of the latest SettlementAssessment for fast reads

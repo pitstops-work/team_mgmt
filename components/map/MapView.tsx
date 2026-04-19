@@ -82,6 +82,7 @@ interface MapViewProps {
   dbPartners?: { key: string; label: string; color: string }[];
   progressMode?: boolean;
   progressHealth?: ProgressHealth;
+  schoolFeatures?: { type: string; features: unknown[] };
 }
 
 interface FeatureLayer {
@@ -230,6 +231,7 @@ export default function MapView({
   flyToRef, flyToCityRef, openPopupRef, mapFilter, dbPartners = [],
   progressMode = false, progressHealth = null,
   activeCity = "bangalore",
+  schoolFeatures,
 }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -244,6 +246,7 @@ export default function MapView({
   const clusterBoundaryColorsRef = useRef<Map<string, string>>(new Map());
   const allFeatureLayers = useRef<FeatureLayer[]>([]);
   const featureLayersByKey = useRef<Partial<Record<LayerKey, L.Layer[]>>>({});
+  const schoolLayerGroupRef = useRef<L.LayerGroup | null>(null);
 
   const router = useRouter();
   const [addMode, setAddMode] = useState(false);
@@ -430,6 +433,7 @@ export default function MapView({
     customLayerRef.current = L.layerGroup().addTo(map);
     drawPreviewRef.current = L.layerGroup().addTo(map);
     customPolygonLayerRef.current = L.layerGroup().addTo(map);
+    schoolLayerGroupRef.current = L.layerGroup().addTo(map);
 
     // ── Boundary layers (zone + cluster) — loaded once, toggled via state ──
     const zoneBoundaryGroup = L.layerGroup();
@@ -580,6 +584,49 @@ export default function MapView({
     applyZoneClusterHighlight(mapFilter, visibleLayersRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapFilter]);
+
+  // Render / update school markers when data or visibility changes
+  useEffect(() => {
+    const group = schoolLayerGroupRef.current;
+    if (!group) return;
+    group.clearLayers();
+    if (!visibleLayers.has("schools") || !schoolFeatures) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (schoolFeatures.features as any[]).forEach((feature: any) => {
+      const [lng, lat] = feature.geometry.coordinates;
+      const props = feature.properties ?? {};
+      const marker = L.circleMarker([lat, lng] as L.LatLngTuple, {
+        radius: 7,
+        fillColor: "#16a34a",
+        color: "white",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.9,
+      });
+
+      const settlementList = (props.settlements ?? [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
+        .join("");
+
+      marker.bindPopup(`
+        <div class="map-popup">
+          <span class="badge" style="background:#16a34a">Govt School</span>
+          <h3>${props.name}</h3>
+          ${props.address ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.address}</div>` : ""}
+          ${settlementList ? `
+            <div style="margin-top:8px">
+              <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements</div>
+              <ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul>
+            </div>` : ""}
+        </div>
+      `, { maxWidth: 280 });
+
+      group.addLayer(marker);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolFeatures, visibleLayers]);
 
   function applyZoneClusterHighlight(
     filter: MapFilter | null, visible: Set<LayerKey>

@@ -20,7 +20,8 @@ export type LayerKey =
   | "youth_centres"
   | "creches"
   | "custom"
-  | "custom_settlements";
+  | "custom_settlements"
+  | "schools";
 
 export type MapCity = "bangalore" | "chennai";
 
@@ -59,6 +60,9 @@ export const LAYERS: LayerConfig[] = [
   { key: "creches",           label: "Creches",           file: "/data/creches.geojson",           color: "#ec4899", type: "point", city: "bangalore", description: "Creche programme centres" },
 
   { key: "custom_settlements", label: "Custom Settlements", file: "", color: "#6366f1", type: "polygon", city: "bangalore", description: "User-added settlement polygons" },
+
+  // ── Schools (Bangalore — dynamic, loaded from API) ────────────────────────
+  { key: "schools", label: "Govt Schools", file: "", color: "#16a34a", type: "point", city: "bangalore", description: "Government schools tagged to nearby settlements" },
 ];
 
 export const LAYER_MAP = Object.fromEntries(

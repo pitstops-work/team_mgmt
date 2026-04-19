@@ -21,6 +21,9 @@ interface LayerPanelProps {
   onClearFilter: () => void;
   activeCity: MapCity;
   onCityChange: (city: MapCity) => void;
+  schoolMaxKm: number;
+  onSchoolMaxKmChange: (km: number) => void;
+  schoolCount: number;
 }
 
 const ZONE_COLORS: Record<string, string> = {
@@ -72,10 +75,13 @@ export default function LayerPanel({
   onClearFilter,
   activeCity,
   onCityChange,
+  schoolMaxKm,
+  onSchoolMaxKmChange,
+  schoolCount,
 }: LayerPanelProps) {
   // Filter layers by active city
   const polygonLayers = LAYERS.filter((l) => l.type === "polygon" && l.city === activeCity);
-  const pointLayers   = LAYERS.filter((l) => l.type === "point"   && l.city === activeCity);
+  const pointLayers   = LAYERS.filter((l) => l.type === "point" && l.city === activeCity && l.key !== "schools");
 
   const totalSettlements = polygonLayers.reduce(
     (sum, l) => sum + (featureCounts[l.key] ?? 0),
@@ -289,6 +295,53 @@ export default function LayerPanel({
                 )}
               </div>
             </div>
+
+            {/* Schools layer (Bangalore only) */}
+            {activeCity === "bangalore" && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                  Schools
+                </p>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => onToggle("schools")}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left transition-colors ${
+                      visibleLayers.has("schools") ? "bg-slate-100 text-slate-800" : "text-slate-400 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ background: "#16a34a", opacity: visibleLayers.has("schools") ? 1 : 0.3 }}
+                    />
+                    <span className="flex-1 text-xs font-medium">Govt Schools</span>
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${visibleLayers.has("schools") ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-300"}`}>
+                      {schoolCount}
+                    </span>
+                  </button>
+                  {visibleLayers.has("schools") && (
+                    <div className="px-2.5 py-2 bg-green-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-green-700 font-medium">Max distance</span>
+                        <span className="text-xs font-bold text-green-800">{schoolMaxKm} km</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={10}
+                        step={0.5}
+                        value={schoolMaxKm}
+                        onChange={e => onSchoolMaxKmChange(parseFloat(e.target.value))}
+                        className="w-full accent-green-600 h-1.5"
+                      />
+                      <div className="flex justify-between text-[10px] text-green-400 mt-0.5">
+                        <span>0.5 km</span>
+                        <span>10 km</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Show/Hide all */}
             <div className="flex gap-2 pt-1">

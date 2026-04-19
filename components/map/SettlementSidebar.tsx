@@ -65,6 +65,7 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
   const [activeTab, setActiveTab] = useState<"programme" | "needs">("programme");
   const [goalPrefill, setGoalPrefill] = useState<GoalPrefill | null>(null);
   const [settlementDbId, setSettlementDbId] = useState<string | null>(null);
+  const [nearbySchools, setNearbySchools] = useState<{ id: string; name: string; distanceKm: number; address: string }[]>([]);
   const prevName = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
@@ -77,6 +78,7 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
     setActivities([]);
     setActiveTab("programme");
     setSettlementDbId(null);
+    setNearbySchools([]);
 
     fetch(`/api/map/notes?settlement=${encodeURIComponent(feature.name)}`)
       .then((r) => r.json())
@@ -87,7 +89,16 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
     const clusterParam = feature.cluster ? `&cluster=${encodeURIComponent(feature.cluster)}` : "";
     fetch(`/api/map/settlement-needs?settlement=${encodeURIComponent(feature.name)}${clusterParam}`)
       .then(r => r.json())
-      .then(d => setSettlementDbId(d?.settlement?.id ?? null))
+      .then(d => {
+        const sid = d?.settlement?.id ?? null;
+        setSettlementDbId(sid);
+        if (sid) {
+          fetch(`/api/map/schools?settlement=${sid}&maxKm=4`)
+            .then(r => r.json())
+            .then(schools => setNearbySchools(Array.isArray(schools) ? schools : []))
+            .catch(() => {});
+        }
+      })
       .catch(() => {});
 
     if (feature.cluster) {
@@ -303,6 +314,29 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
                           <div>
                             <div className="text-xs font-bold" style={{ color: c.color }}>{c.label}</div>
                             <div className="text-xs text-slate-500">{c.name}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Nearby Schools */}
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                    Govt Schools Nearby
+                  </p>
+                  {nearbySchools.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No schools within 4 km</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {nearbySchools.map(s => (
+                        <div key={s.id} className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-green-50">
+                          <span className="text-sm mt-0.5">🏫</span>
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-green-800 leading-snug">{s.name}</div>
+                            <div className="text-[10px] text-green-600">{s.distanceKm.toFixed(1)} km away</div>
+                            {s.address && <div className="text-[10px] text-slate-400 truncate">{s.address}</div>}
                           </div>
                         </div>
                       ))}

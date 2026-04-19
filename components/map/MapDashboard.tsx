@@ -57,7 +57,7 @@ const CITY_CENTERS: Record<MapCity, { latlng: [number, number]; zoom: number }> 
 export default function MapDashboard() {
   const [activeCity, setActiveCity] = useState<MapCity>("bangalore");
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(
-    new Set(LAYERS.filter(l => l.city === "bangalore").map((l) => l.key))
+    new Set(LAYERS.filter(l => l.city === "bangalore" && l.key !== "schools").map((l) => l.key))
   );
   const [featureCounts, setFeatureCounts] = useState<Partial<Record<LayerKey, number>>>({});
   const [customFeatures, setCustomFeatures] = useState<CustomFeature[]>([]);
@@ -80,6 +80,8 @@ export default function MapDashboard() {
     clusters: Record<string, string>;
     zones: Record<string, string>;
   } | null>(null);
+  const [schoolMaxKm, setSchoolMaxKm] = useState(4);
+  const [schoolFeatures, setSchoolFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
 
   const flyToRef = useRef<((latlng: [number, number], zoom?: number) => void) | null>(null);
   const openPopupRef = useRef<((layerKey: LayerKey, featureIdx: number) => void) | null>(null);
@@ -142,6 +144,16 @@ export default function MapDashboard() {
       .then(d => setGeoDb({ zones: d.zones ?? [], clusters: d.clusters ?? [] }))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetch(`/api/map/schools?maxKm=${schoolMaxKm}`)
+      .then(r => r.json())
+      .then(data => {
+        setSchoolFeatures(data);
+        setFeatureCounts(prev => ({ ...prev, schools: data.features?.length ?? 0 }));
+      })
+      .catch(() => {});
+  }, [schoolMaxKm]);
 
   async function toggleProgress() {
     const next = !progressMode;
@@ -250,8 +262,8 @@ export default function MapDashboard() {
     setActiveCluster(null);
     setSelectedSettlement(null);
     setMapFilter(null);
-    // Show only layers for this city
-    setVisibleLayers(new Set(LAYERS.filter(l => l.city === city).map(l => l.key)));
+    // Show only layers for this city (schools off by default)
+    setVisibleLayers(new Set(LAYERS.filter(l => l.city === city && l.key !== "schools").map(l => l.key)));
     flyToCityRef.current?.(city);
   }, []);
 
@@ -298,6 +310,9 @@ export default function MapDashboard() {
           onClearFilter={handleClearFilter}
           activeCity={activeCity}
           onCityChange={switchCity}
+          schoolMaxKm={schoolMaxKm}
+          onSchoolMaxKmChange={setSchoolMaxKm}
+          schoolCount={(schoolFeatures.features ?? []).length}
         />
       </aside>
 
@@ -368,6 +383,7 @@ export default function MapDashboard() {
           progressMode={progressMode}
           progressHealth={progressHealth}
           activeCity={activeCity}
+          schoolFeatures={schoolFeatures}
         />
 
         {/* Settlement detail sidebar */}
