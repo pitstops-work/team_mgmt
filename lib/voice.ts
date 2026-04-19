@@ -89,11 +89,11 @@ export async function translateToAll(
   const results = await Promise.all(
     targets.map(async (target) => {
       const { text: translated } = await generateText({
-        model: groqAI("llama-3.1-8b-instant"),
+        model: groqAI("llama-3.3-70b-versatile"),
         messages: [
           {
             role: "system",
-            content: `You are a translator. Translate text to ${LANG_NAMES[target.code]}. Return ONLY the translated text — no explanations, no quotes, no extra punctuation.`,
+            content: `You are a professional translator specialising in Indian languages. Translate the following text into ${LANG_NAMES[target.code]}. Use only proper ${LANG_NAMES[target.code]} script and vocabulary — do NOT transliterate, do NOT mix scripts, do NOT add explanations. Return ONLY the translated sentence.`,
           },
           { role: "user", content: text },
         ],
