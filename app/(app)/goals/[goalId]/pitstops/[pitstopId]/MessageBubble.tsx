@@ -69,11 +69,11 @@ export default function MessageBubble({ message, isOwn, preferredLang }: Props) 
               : "bg-white border border-stone-200 text-stone-800 rounded-tl-sm"
           }`}
         >
-          {/* Audio player */}
+          {/* Audio player — proxied through /api/audio to handle private blob auth */}
           {isVoice && message.audioUrl && (
             <audio
               controls
-              src={message.audioUrl}
+              src={`/api/audio?url=${encodeURIComponent(message.audioUrl)}`}
               className="mb-2 w-full max-w-xs h-8"
               style={{ colorScheme: isOwn ? "dark" : "light" }}
             />

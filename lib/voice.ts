@@ -53,7 +53,7 @@ export async function uploadAudio(
 ): Promise<string> {
   const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
   const filename = `voice/${threadId}/${Date.now()}.${ext}`;
-  const blob = await put(filename, buffer, { access: "public", contentType: mimeType });
+  const blob = await put(filename, buffer, { access: "private", contentType: mimeType });
   return blob.url;
 }
 
