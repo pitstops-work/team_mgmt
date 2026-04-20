@@ -129,7 +129,7 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
                     </div>
                     <span className={`w-8 text-right font-bold ${gap > 0 ? "text-red-500" : "text-emerald-600"}`}>
-                      {gap > 0 ? `${gap}` : "✓"}
+                      {gap > 0 ? `-${gap}` : "✓"}
                     </span>
                   </div>
                 </td>
@@ -887,7 +887,7 @@ export default function NeedsDashboard({
                           <span className="text-sm font-semibold text-stone-700">{zz?.name ?? zone.id}</span>
                           {zp.totalGoals > 0 && (
                             <span className="ml-2 text-[10px] text-stone-400">
-                              {zp.doneGoals}✓ {zp.onTrackGoals > 0 ? `${zp.onTrackGoals} on track` : ""} {zp.atRiskGoals > 0 ? `· ${zp.atRiskGoals} at risk` : ""} {zp.overdueGoals > 0 ? `· ${zp.overdueGoals} overdue` : ""}
+                              Plan: {zp.totalGoals} &nbsp;{zp.doneGoals}✓{zp.onTrackGoals > 0 ? ` ${zp.onTrackGoals} on track` : ""}{zp.atRiskGoals > 0 ? ` · ${zp.atRiskGoals} at risk` : ""}{zp.overdueGoals > 0 ? ` · ${zp.overdueGoals} overdue` : ""}
                             </span>
                           )}
                         </div>
@@ -923,7 +923,7 @@ export default function NeedsDashboard({
                                     <span className="text-xs font-semibold text-stone-700">{cc?.name ?? cluster.id}</span>
                                     {cp.totalGoals > 0 && (
                                       <span className="ml-2 text-[10px] text-stone-400">
-                                        {cp.doneGoals}✓ {cp.atRiskGoals > 0 ? `${cp.atRiskGoals} at risk` : ""} {cp.overdueGoals > 0 ? `${cp.overdueGoals} overdue` : ""}
+                                        Plan: {cp.totalGoals} &nbsp;{cp.doneGoals}✓{cp.atRiskGoals > 0 ? ` ${cp.atRiskGoals} at risk` : ""}{cp.overdueGoals > 0 ? ` ${cp.overdueGoals} overdue` : ""}
                                       </span>
                                     )}
                                   </div>
