@@ -17,7 +17,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { name, email, role } = await req.json();
+  const { name, email, role, cityId } = await req.json();
 
   // Validate role
   if (role && !VALID_ROLES.includes(role)) {
@@ -41,8 +41,9 @@ export async function PATCH(
       ...(name !== undefined && { name: name || null }),
       ...(email && { email }),
       ...(role && { role }),
+      ...(cityId !== undefined && { cityId: cityId || null }),
     },
-    select: { id: true, name: true, email: true, role: true, createdAt: true, image: true },
+    select: { id: true, name: true, email: true, role: true, createdAt: true, image: true, cityId: true },
   });
 
   return Response.json(user);

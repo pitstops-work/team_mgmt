@@ -1,13 +1,15 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { goalCityFilter } from "@/lib/goalCityFilter";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { cityId: true } });
   const goals = await prisma.goal.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, ...goalCityFilter(me?.cityId) },
     include: {
       owner: { select: { id: true, name: true, image: true } },
       pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },

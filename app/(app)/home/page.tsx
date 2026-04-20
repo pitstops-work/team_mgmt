@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import HomeView from "./HomeView";
+import { goalCityFilter } from "@/lib/goalCityFilter";
 
 function getWeekBounds(now: Date) {
   const weekStart = new Date(now);
@@ -16,6 +17,8 @@ function getWeekBounds(now: Date) {
 export default async function HomePage() {
   const session = await auth();
   const currentUserId = session!.user!.id!;
+  const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true } });
+  const cityFilter = goalCityFilter(me?.cityId);
 
   const now = new Date();
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
@@ -124,6 +127,7 @@ export default async function HomePage() {
     prisma.goal.findMany({
       where: {
         deletedAt: null,
+        ...cityFilter,
         status: { not: "Complete" },
         pitstops: {
           some: { deletedAt: null, ownerId: currentUserId, status: { in: ["Upcoming", "InProgress"] } },
@@ -253,6 +257,7 @@ export default async function HomePage() {
     prisma.goal.findMany({
       where: {
         deletedAt: null,
+        ...cityFilter,
         status: { not: "Complete" },
         confirmedById: null,
         owner: { reportsToId: currentUserId },

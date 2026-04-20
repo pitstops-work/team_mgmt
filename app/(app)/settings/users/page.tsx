@@ -7,6 +7,7 @@ import Avatar from "@/components/Avatar";
 import { Trash2, KeyRound, UserPlus, ArrowLeft, Eye, EyeOff, Pencil, Check, X } from "lucide-react";
 import Link from "next/link";
 
+interface City { id: string; name: string; }
 interface User {
   id: string;
   name: string | null;
@@ -14,6 +15,7 @@ interface User {
   image: string | null;
   role: string;
   createdAt: string;
+  cityId: string | null;
 }
 
 const ROLES = ["admin", "member", "viewer"] as const;
@@ -30,6 +32,7 @@ export default function UserManagementPage() {
   const router = useRouter();
 
   const [users, setUsers] = useState<User[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Inline edit state
@@ -37,6 +40,7 @@ export default function UserManagementPage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState<Role>("member");
+  const [editCityId, setEditCityId] = useState<string>("");
   const [editError, setEditError] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
@@ -66,7 +70,7 @@ export default function UserManagementPage() {
         if (r.status === 403) { router.replace("/settings"); return null; }
         return r.json();
       })
-      .then(data => { if (data) setUsers(data); })
+      .then(data => { if (data) { setUsers(data.users); setCities(data.cities); } })
       .finally(() => setLoading(false));
   }, [status, router]);
 
@@ -77,6 +81,7 @@ export default function UserManagementPage() {
     setEditName(u.name ?? "");
     setEditEmail(u.email);
     setEditRole((ROLES.includes(u.role as Role) ? u.role : "member") as Role);
+    setEditCityId(u.cityId ?? "");
     setEditError("");
   }
 
@@ -91,7 +96,7 @@ export default function UserManagementPage() {
     const res = await fetch(`/api/admin/users/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editName, email: editEmail, role: editRole }),
+      body: JSON.stringify({ name: editName, email: editEmail, role: editRole, cityId: editCityId || null }),
     });
     const data = await res.json();
     setEditSaving(false);
@@ -199,6 +204,7 @@ export default function UserManagementPage() {
                     <p className="text-xs text-stone-400 truncate">{u.email}</p>
                     <p className="text-xs text-stone-300 mt-0.5">
                       Joined {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      {u.cityId && <span className="ml-2 text-sky-400">{cities.find(c => c.id === u.cityId)?.name ?? ""}</span>}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -234,7 +240,7 @@ export default function UserManagementPage() {
                       className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
                     />
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex gap-2">
                       {ROLES.map(r => (
                         <button
@@ -249,6 +255,14 @@ export default function UserManagementPage() {
                         </button>
                       ))}
                     </div>
+                    <select
+                      value={editCityId}
+                      onChange={e => setEditCityId(e.target.value)}
+                      className="text-xs border border-indigo-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    >
+                      <option value="">All cities</option>
+                      {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
                     <div className="flex gap-1.5 ml-auto">
                       <button
                         onClick={() => saveEdit(u.id)}

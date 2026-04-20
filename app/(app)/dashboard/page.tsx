@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import GoalsDashboard from "./GoalsDashboard";
+import { goalCityFilter } from "@/lib/goalCityFilter";
 
 export default async function DashboardPage({
   searchParams,
@@ -15,10 +16,12 @@ export default async function DashboardPage({
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const currentUserId = session!.user!.id!;
+  const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true } });
+  const cityFilter = goalCityFilter(me?.cityId);
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
     prisma.goal.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, ...cityFilter },
       include: {
         owner: { select: { id: true, name: true, image: true } },
         pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
@@ -161,7 +164,7 @@ export default async function DashboardPage({
 
       // Goals with geo FKs + pitstops (for cluster/zone performance)
       prisma.goal.findMany({
-        where: { deletedAt: null },
+        where: { deletedAt: null, ...cityFilter },
         select: {
           id: true, needsClusterId: true, needsZoneId: true,
           pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
@@ -198,7 +201,10 @@ export default async function DashboardPage({
       prisma.goal.findMany({
         where: {
           deletedAt: null,
-          OR: [{ title: { contains: q } }, { description: { contains: q } }],
+          AND: [
+            ...(me?.cityId ? [cityFilter] : []),
+            { OR: [{ title: { contains: q } }, { description: { contains: q } }] },
+          ],
         },
         include: { owner: { select: { id: true, name: true, image: true } }, pitstops: { where: { deletedAt: null }, select: { id: true, status: true } } },
         take: 10,

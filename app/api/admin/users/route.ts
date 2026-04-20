@@ -12,12 +12,15 @@ export async function GET() {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const users = await prisma.user.findMany({
-    select: { id: true, name: true, email: true, image: true, role: true, createdAt: true },
-    orderBy: { createdAt: "asc" },
-  });
+  const [users, cities] = await Promise.all([
+    prisma.user.findMany({
+      select: { id: true, name: true, email: true, image: true, role: true, createdAt: true, cityId: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.city.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
 
-  return Response.json(users);
+  return Response.json({ users, cities });
 }
 
 export async function POST(req: Request) {
