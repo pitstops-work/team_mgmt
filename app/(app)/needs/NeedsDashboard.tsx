@@ -59,7 +59,7 @@ function DomainCard({ label, color, d }: { label: string; color: string; d: Leve
           <p className="text-[9px] text-stone-400">exist.</p>
         </div>
         <div>
-          <p className="text-sm font-bold text-stone-500">{d.apfTarget}</p>
+          <p className="text-sm font-bold text-stone-500">{d.planned}</p>
           <p className="text-[9px] text-stone-400">plan</p>
         </div>
         <div>
