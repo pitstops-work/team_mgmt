@@ -49,8 +49,10 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
   const [pendingPin, setPendingPin] = useState<L.LatLng | null>(null);
   const [pinSaving, setPinSaving] = useState(false);
 
-  // Polygon draw state
+  // Polygon draw state — use a ref for the live vertex list so dblclick
+  // handler can read the current value without stale closures
   const [drawVertices, setDrawVertices] = useState<L.LatLng[]>([]);
+  const drawVerticesRef = useRef<L.LatLng[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<L.LatLng[] | null>(null);
   const [polyZoneId, setPolyZoneId] = useState("");
   const [polyForm, setPolyForm] = useState({ name: "", clusterId: "", partnerId: "" });
@@ -129,21 +131,21 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
       if (mode === "pin") {
         setPendingPin(e.latlng);
       } else if (mode === "polygon") {
-        setDrawVertices(prev => [...prev, e.latlng]);
+        const next = [...drawVerticesRef.current, e.latlng];
+        drawVerticesRef.current = next;
+        setDrawVertices(next);
       }
     };
 
     const dblClickHandler = (e: L.LeafletMouseEvent) => {
-      // Leaflet fires click×2 then dblclick; trim the last vertex (from the 2nd click)
+      // Leaflet fires click×2 then dblclick — trim the last vertex (stray 2nd click)
       L.DomEvent.stop(e);
-      setDrawVertices(prev => {
-        const pts = prev.length > 0 ? prev.slice(0, -1) : prev;
-        if (pts.length >= 3) {
-          setPendingPolygon(pts);
-          return [];
-        }
-        return pts;
-      });
+      const pts = drawVerticesRef.current.slice(0, -1);
+      drawVerticesRef.current = [];
+      setDrawVertices([]);
+      if (pts.length >= 3) {
+        setPendingPolygon(pts);
+      }
     };
 
     map.on("click", clickHandler);
@@ -163,6 +165,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     if (!open) {
       drawGroupRef.current?.clearLayers();
       setPendingPin(null);
+      drawVerticesRef.current = [];
       setDrawVertices([]);
       setPendingPolygon(null);
       setMode(null);
@@ -172,6 +175,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
   function cancelMode() {
     setMode(null);
     setPendingPin(null);
+    drawVerticesRef.current = [];
     setDrawVertices([]);
     setPendingPolygon(null);
     drawGroupRef.current?.clearLayers();
@@ -231,6 +235,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     if (r.ok) {
       showToast("Settlement saved");
       setPendingPolygon(null);
+      drawVerticesRef.current = [];
       setDrawVertices([]);
       setPolyZoneId("");
       setPolyForm({ name: "", clusterId: "", partnerId: "" });
