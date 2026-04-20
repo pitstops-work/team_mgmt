@@ -455,7 +455,7 @@ export default function MapView({
     zoneBoundaryGroupRef.current = zoneBoundaryGroup;
     clusterBoundaryGroupRef.current = clusterBoundaryGroup;
 
-    fetch("/data/zones.geojson").then((r) => r.json()).then((gj) => {
+    fetch("/api/map/geojson/zones").then((r) => r.json()).then((gj) => {
       L.geoJSON(gj, {
         style: (f) => ({
           color: f?.properties.color ?? "#64748b",
@@ -477,7 +477,7 @@ export default function MapView({
       }).addTo(zoneBoundaryGroup);
     });
 
-    fetch("/data/clusters.geojson").then((r) => r.json()).then((gj) => {
+    fetch("/api/map/geojson/clusters").then((r) => r.json()).then((gj) => {
       L.geoJSON(gj, {
         style: (f) => ({
           color: f?.properties.color ?? "#64748b",

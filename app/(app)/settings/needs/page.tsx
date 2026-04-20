@@ -461,88 +461,46 @@ function FormulasSection() {
 
 // ── Bangalore Facility Counts section ─────────────────────────────────────
 
-const GEO_FACILITIES = [
-  { key: "geo_count_ChildrenCentre",      label: "Children Centres",       defaultVal: 14 },
-  { key: "geo_count_Creche",              label: "Creches",                defaultVal: 14 },
-  { key: "geo_count_YouthResourceCentre", label: "Youth Resource Centres", defaultVal: 6  },
+const GEO_FACILITY_KEYS = [
+  { layerKey: "children_centres", label: "Children Centres" },
+  { layerKey: "creches",          label: "Creches" },
+  { layerKey: "youth_centres",    label: "Youth Resource Centres" },
 ];
 
 function BangaloreFacilityCountsSection() {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [original, setOriginal] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [counts, setCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    fetch("/api/admin/settings?prefix=geo_count_")
-      .then(r => r.json())
-      .then((rows: { key: string; value: string }[]) => {
-        const init: Record<string, string> = {};
-        GEO_FACILITIES.forEach(f => {
-          const row = rows.find(r => r.key === f.key);
-          init[f.key] = row ? row.value : String(f.defaultVal);
-        });
-        setValues(init);
-        setOriginal(init);
-      });
-  }, []);
-
-  const isDirty = GEO_FACILITIES.some(f => values[f.key] !== original[f.key]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    const updates = GEO_FACILITIES
-      .filter(f => values[f.key] !== original[f.key])
-      .map(f => ({ key: f.key, value: values[f.key] ?? String(f.defaultVal) }));
-
-    const res = await fetch("/api/admin/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
+    Promise.all(
+      GEO_FACILITY_KEYS.map(({ layerKey }) =>
+        fetch(`/api/map/geojson/layer-features?layerKey=${layerKey}`)
+          .then(r => r.json())
+          .then(gj => ({ layerKey, count: (gj.features ?? []).length }))
+      )
+    ).then(results => {
+      const c: Record<string, number> = {};
+      results.forEach(({ layerKey, count }) => { c[layerKey] = count; });
+      setCounts(c);
     });
-    if (res.ok) {
-      setOriginal({ ...values });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    }
-    setSaving(false);
-  };
+  }, []);
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-stone-800">Bangalore Facility Inventory</h2>
-          <p className="text-xs text-stone-400 mt-0.5">
-            These counts replace assessment-form totals for Bangalore city stats. Update when GeoJSON layers change.
-          </p>
-        </div>
-        {isDirty && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
-          >
-            {saving ? "Saving…" : saved ? <><Check className="w-3.5 h-3.5" /> Saved</> : "Save"}
-          </button>
-        )}
+      <div>
+        <h2 className="text-sm font-semibold text-stone-800">Bangalore Facility Inventory</h2>
+        <p className="text-xs text-stone-400 mt-0.5">
+          Live counts from the database. Add or remove facilities via the Programme Map layer panel.
+        </p>
       </div>
-
       <div className="divide-y divide-stone-100 rounded-xl border border-stone-200 overflow-hidden">
-        {GEO_FACILITIES.map(f => (
-          <div key={f.key} className="flex items-center gap-3 px-4 py-3 bg-white">
+        {GEO_FACILITY_KEYS.map(f => (
+          <div key={f.layerKey} className="flex items-center gap-3 px-4 py-3 bg-white">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-stone-800">{f.label}</p>
-              <p className="text-[11px] text-stone-400 font-mono">{f.key}</p>
             </div>
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={values[f.key] ?? ""}
-              onChange={e => setValues(prev => ({ ...prev, [f.key]: e.target.value }))}
-              className="w-20 px-2 py-1 text-sm text-right border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
-            />
+            <span className="text-sm font-semibold text-stone-700 tabular-nums">
+              {counts[f.layerKey] ?? "—"}
+            </span>
           </div>
         ))}
       </div>

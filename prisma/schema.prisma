@@ -732,27 +732,54 @@ model Zone {
   id        String    @id @default(cuid())
   name      String
   cityId    String?
+  geometry  Json?
+  color     String?
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
-  city          City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  city          City?          @relation(fields: [cityId], references: [id], onDelete: SetNull)
   clusters      Cluster[]
-  needsGoals    Goal[]    @relation("GoalNeedsZone")
-  needsPitstops Pitstop[] @relation("PitstopNeedsZone")
+  needsGoals    Goal[]         @relation("GoalNeedsZone")
+  needsPitstops Pitstop[]      @relation("PitstopNeedsZone")
+  layerFeatures LayerFeature[]
 }
 
 model Cluster {
   id              String    @id @default(cuid())
   name            String
   zoneId          String
+  geometry        Json?
+  color           String?
+  label           String?
   deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   isHealthCluster Boolean   @default(false)
 
-  zone          Zone        @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  zone          Zone           @relation(fields: [zoneId], references: [id], onDelete: Cascade)
   settlements   Settlement[]
-  needsGoals    Goal[]      @relation("GoalNeedsCluster")
-  needsPitstops Pitstop[]   @relation("PitstopNeedsCluster")
+  needsGoals    Goal[]         @relation("GoalNeedsCluster")
+  needsPitstops Pitstop[]      @relation("PitstopNeedsCluster")
+  layerFeatures LayerFeature[]
+}
+
+model LayerFeature {
+  id           String   @id @default(cuid())
+  name         String
+  layerKey     String   // creches | children_centres | youth_centres | resource_centres
+  centreType   String?
+  partner      String?
+  lat          Float
+  lng          Float
+  settlementId String?
+  clusterId    String?
+  zoneId       String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  settlement Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+  cluster    Cluster?    @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  zone       Zone?       @relation(fields: [zoneId], references: [id], onDelete: SetNull)
 }
 
 model Settlement {
@@ -787,6 +814,7 @@ model Settlement {
   goalOutcomes GoalOutcome[]
   schools        SettlementSchool[]
   healthCentres  SettlementHealthCentre[]
+  layerFeatures  LayerFeature[]
 }
 
 // Government / programme health centre

@@ -61,13 +61,6 @@ const POLYGON_KEYS: LayerKey[] = [
   "gubbachi", "sieds", "janasha", "maarga", "thamate",
 ];
 
-const CENTRE_KEYS = {
-  resource: "resource_centres",
-  children: "children_centres",
-  youth: "youth_centres",
-  creches: "creches",
-} as const;
-
 export function useGeoData(): GeoData | null {
   const [data, setData] = useState<GeoData | null>(null);
 
@@ -78,22 +71,37 @@ export function useGeoData(): GeoData | null {
       await Promise.all(
         POLYGON_KEYS.map(async (key) => {
           const layer = LAYERS.find((l) => l.key === key);
-          if (!layer) return;
+          if (!layer?.file) return;
           const r = await fetch(layer.file);
           const gj = await r.json();
           settlements[key] = gj.features ?? [];
         })
       );
 
-      const [resource, children, youth, creches] = await Promise.all(
-        Object.values(CENTRE_KEYS).map(async (file) => {
-          const r = await fetch(`/data/${file}.geojson`);
+      const centreKeys = [
+        { key: "resource" as const,  layerKey: "resource_centres" },
+        { key: "children" as const,  layerKey: "children_centres" },
+        { key: "youth" as const,     layerKey: "youth_centres" },
+        { key: "creches" as const,   layerKey: "creches" },
+      ];
+
+      const centreResults = await Promise.all(
+        centreKeys.map(async ({ layerKey }) => {
+          const r = await fetch(`/api/map/geojson/layer-features?layerKey=${layerKey}`);
           const gj = await r.json();
           return (gj.features ?? []) as GeoFeature[];
         })
       );
 
-      setData({ settlements, centres: { resource, children, youth, creches } });
+      setData({
+        settlements,
+        centres: {
+          resource: centreResults[0],
+          children: centreResults[1],
+          youth:    centreResults[2],
+          creches:  centreResults[3],
+        },
+      });
     }
 
     load();

@@ -567,16 +567,17 @@ export default async function NeedsPage() {
     };
   }
 
-  // ── GeoJSON existing-facility counts for Bangalore ──────────────────────────
-  // Read from AppSetting (editable in Settings → Field Coverage).
-  // Defaults (14/14/6) are used when the settings have never been configured.
-  const geoSettings = await prisma.appSetting.findMany({
-    where: { key: { in: ["geo_count_ChildrenCentre", "geo_count_Creche", "geo_count_YouthResourceCentre"] } },
-  });
+  // ── Existing-facility counts from LayerFeature table ─────────────────────
+  // Count directly from DB — single source of truth, no AppSetting override needed.
+  const [crecheCount, childrenCount, youthCount] = await Promise.all([
+    prisma.layerFeature.count({ where: { layerKey: "creches" } }),
+    prisma.layerFeature.count({ where: { layerKey: "children_centres" } }),
+    prisma.layerFeature.count({ where: { layerKey: "youth_centres" } }),
+  ]);
   const geoCounts: Record<string, number> = {
-    ChildrenCentre:      Number(geoSettings.find(s => s.key === "geo_count_ChildrenCentre")?.value  ?? 14),
-    Creche:              Number(geoSettings.find(s => s.key === "geo_count_Creche")?.value           ?? 14),
-    YouthResourceCentre: Number(geoSettings.find(s => s.key === "geo_count_YouthResourceCentre")?.value ?? 6),
+    ChildrenCentre:      childrenCount,
+    Creche:              crecheCount,
+    YouthResourceCentre: youthCount,
   };
 
   function applyGeoOverrides(stats: LevelStats): LevelStats {
