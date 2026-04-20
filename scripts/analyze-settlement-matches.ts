@@ -16,13 +16,18 @@
  * Apply: npx tsx scripts/analyze-settlement-matches.ts --apply=EXACT,VERY_HIGH,HIGH
  */
 
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import fs from "fs";
 import path from "path";
 import { PrismaClient } from "../app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, max: 1 });
-const prisma = new PrismaClient({ adapter });
+const pool = new Pool({ connectionString: process.env.MIGRATE_DATABASE_URL!, max: 1 });
+const adapter = new PrismaPg(pool, { schema: undefined });
+const prisma = new PrismaClient({ adapter } as never);
 
 const APPLY_ARG = process.argv.find(a => a.startsWith("--apply="));
 const APPLY_COHORTS = APPLY_ARG

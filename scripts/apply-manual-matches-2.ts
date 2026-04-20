@@ -3,13 +3,18 @@
  * Run: npx tsx scripts/apply-manual-matches-2.ts
  */
 
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import fs from "fs";
 import path from "path";
 import { PrismaClient } from "../app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, max: 1 });
-const prisma = new PrismaClient({ adapter });
+const pool = new Pool({ connectionString: process.env.MIGRATE_DATABASE_URL!, max: 1 });
+const adapter = new PrismaPg(pool, { schema: undefined });
+const prisma = new PrismaClient({ adapter } as never);
 
 const CONFIRMED: [string, string, string][] = [
   // Bellandur
@@ -23,6 +28,20 @@ const CONFIRMED: [string, string, string][] = [
   ["Dayananda Nagar",                "Majestic", "Dayanandanagar Majestic Area"],
   ["Minerva Mill",                   "Majestic", "Minervamill, Majestic Area"],
   ["VST colony",                     "Majestic", "V.S.T colony-2 Majestic Area"],
+
+  // Nagarbhavi
+  ["Bhuvaneshwari nagar",  "Nagarbhavi", "Bhuvaneshwarinagar, Nagarbhavi Area"],
+  ["Chamundi Slum",        "Nagarbhavi", "Chamundeshwari slum, Nagarbhavi Area"],
+  ["D'souza Nagar",        "Nagarbhavi", "Dzouza nagar, Nagarbhavi Area"],
+  ["Devegowda slum",       "Nagarbhavi", "DevaGowda Slum, Nagarbhavi Area"],
+  ["Kanaka Nagar",         "Nagarbhavi", "Kanakanagara, Nagarbhavi Area"],
+  ["Vasanthapura",         "Nagarbhavi", "Vasanthpura, Nagarbhavi Area"],
+
+  // Jakkur
+  ["Jai Bhim Nagara",      "Jakkur",     "Jaibhim Nagar"],
+
+  // Peenya North
+  ["Maruthi Nagar near Bilal Masjid", "Peenya North", "Maruthi Nagar Near Bilal Masjid"],
 ];
 
 const norm = (s: string) =>
