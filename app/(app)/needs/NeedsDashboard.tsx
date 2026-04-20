@@ -943,19 +943,25 @@ export default function NeedsDashboard({
                                     <div className="divide-y divide-stone-50">
                                       {cluster.settlements.map(s => {
                                         const sp = settlementProgress[s.id];
-                                        if (!sp || sp.totalGoals === 0) return null;
+                                        const hasGoals = sp && sp.totalGoals > 0;
                                         return (
                                           <div key={s.id} className="flex items-center gap-3 px-10 py-2">
-                                            <TrafficLight p={sp} />
+                                            {hasGoals ? <TrafficLight p={sp} /> : <span className="w-2 h-2 rounded-full bg-stone-200 flex-shrink-0" />}
                                             <Home className="w-3 h-3 text-stone-300 flex-shrink-0" />
                                             <span className="text-xs text-stone-600 flex-1">{s.name}</span>
-                                            <span className="text-[10px] text-stone-400">
-                                              {sp.doneGoals}✓ {sp.atRiskGoals > 0 ? `${sp.atRiskGoals} at risk` : ""} {sp.overdueGoals > 0 ? `${sp.overdueGoals} overdue` : ""}
-                                            </span>
-                                            {sp.deficit > 0
-                                              ? <span className="text-[10px] font-medium text-red-500">-{sp.deficit}</span>
-                                              : <span className="text-[10px] text-emerald-500">✓</span>
-                                            }
+                                            {hasGoals ? (
+                                              <>
+                                                <span className="text-[10px] text-stone-400">
+                                                  Plan: {sp.totalGoals} &nbsp;{sp.doneGoals}✓{sp.atRiskGoals > 0 ? ` ${sp.atRiskGoals} at risk` : ""}{sp.overdueGoals > 0 ? ` ${sp.overdueGoals} overdue` : ""}
+                                                </span>
+                                                {sp.deficit > 0
+                                                  ? <span className="text-[10px] font-medium text-red-500">-{sp.deficit}</span>
+                                                  : <span className="text-[10px] text-emerald-500">✓</span>
+                                                }
+                                              </>
+                                            ) : (
+                                              <span className="text-[10px] text-stone-400 italic">Not planned</span>
+                                            )}
                                           </div>
                                         );
                                       })}
