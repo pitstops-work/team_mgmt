@@ -3,11 +3,17 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import { X, MapPin, SquarePen, Check } from "lucide-react";
+import { LAYERS } from "@/lib/layers";
 
-interface GeoRef { id: string; name: string }
+interface SettlementRef { id: string; name: string; clusterId: string }
 interface ClusterOption { id: string; name: string; zoneId: string }
 interface ZoneOption    { id: string; name: string }
 interface PartnerOption { id: string; key: string; label: string; color: string }
+
+// Built-in NGO partners from LAYERS config
+const BUILT_IN_PARTNERS: PartnerOption[] = LAYERS
+  .filter(l => l.type === "polygon" && l.key !== "custom_settlements")
+  .map(l => ({ id: l.key, key: l.key, label: l.label, color: l.color }));
 
 const LAYER_KEYS = [
   { key: "creches",          label: "Creche" },
@@ -36,21 +42,21 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
   const [clusters, setClusters] = useState<ClusterOption[]>([]);
   const [zones, setZones]       = useState<ZoneOption[]>([]);
   const [partners, setPartners] = useState<PartnerOption[]>([]);
-  const [settlements, setSettlements] = useState<GeoRef[]>([]);
+  const [settlements, setSettlements] = useState<SettlementRef[]>([]);
 
   // Pin state
-  const [pendingPin, setPendingPin] = useState<L.LatLng | null>(null);
   const [pinForm, setPinForm] = useState({ name: "", layerKey: "creches", centreType: "Creche", partner: "", settlementId: "", clusterId: "", zoneId: "", notes: "" });
+  const [pendingPin, setPendingPin] = useState<L.LatLng | null>(null);
   const [pinSaving, setPinSaving] = useState(false);
 
   // Polygon draw state
   const [drawVertices, setDrawVertices] = useState<L.LatLng[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<L.LatLng[] | null>(null);
+  const [polyZoneId, setPolyZoneId] = useState("");
   const [polyForm, setPolyForm] = useState({ name: "", clusterId: "", partnerId: "" });
   const [polySaving, setPolySaving] = useState(false);
 
   const drawGroupRef = useRef<L.LayerGroup | null>(null);
-  const pinMarkerRef = useRef<L.CircleMarker | null>(null);
 
   const [toast, setToast] = useState<string | null>(null);
   const showToast = useCallback((msg: string) => {
@@ -58,7 +64,13 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // Load reference data once
+  // Merged partner list: built-ins first, then any extra DB partners
+  const allPartners = [
+    ...BUILT_IN_PARTNERS,
+    ...partners.filter(d => !BUILT_IN_PARTNERS.some(b => b.key === d.key)),
+  ];
+
+  // Load reference data once when panel opens
   useEffect(() => {
     if (!open) return;
     Promise.all([
@@ -69,7 +81,11 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
       setClusters(geo.clusters ?? []);
       setZones(geo.zones ?? []);
       setPartners(parts ?? []);
-      setSettlements((setts ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
+      setSettlements(
+        (setts ?? []).map((s: { id: string; name: string; clusterId: string }) => ({
+          id: s.id, name: s.name, clusterId: s.clusterId,
+        }))
+      );
     });
   }, [open]);
 
@@ -84,13 +100,15 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     group.clearLayers();
 
     if (pendingPin) {
-      pinMarkerRef.current = L.circleMarker(pendingPin, {
+      L.circleMarker(pendingPin, {
         radius: 9, fillColor: "#6366f1", color: "white", weight: 2.5, fillOpacity: 1,
       }).addTo(group);
     }
 
     if (drawVertices.length > 0) {
-      drawVertices.forEach(v => L.circleMarker(v, { radius: 5, fillColor: "#f59e0b", color: "white", weight: 2, fillOpacity: 1 }).addTo(group));
+      drawVertices.forEach(v =>
+        L.circleMarker(v, { radius: 5, fillColor: "#f59e0b", color: "white", weight: 2, fillOpacity: 1 }).addTo(group)
+      );
       if (drawVertices.length >= 3) {
         L.polygon(drawVertices, { color: "#f59e0b", weight: 2, dashArray: "6 4", fillColor: "#f59e0b", fillOpacity: 0.12 }).addTo(group);
       } else if (drawVertices.length >= 2) {
@@ -99,7 +117,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     }
   }, [pendingPin, drawVertices, mapRef]);
 
-  // Map click handlers
+  // Map click / dblclick handlers
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mode) return;
@@ -110,17 +128,21 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     const clickHandler = (e: L.LeafletMouseEvent) => {
       if (mode === "pin") {
         setPendingPin(e.latlng);
-      } else if (mode === "polygon" && !pendingPolygon) {
+      } else if (mode === "polygon") {
         setDrawVertices(prev => [...prev, e.latlng]);
       }
     };
 
     const dblClickHandler = (e: L.LeafletMouseEvent) => {
-      if (mode !== "polygon" || pendingPolygon) return;
-      L.DomEvent.stopPropagation(e);
+      // Leaflet fires click×2 then dblclick; trim the last vertex (from the 2nd click)
+      L.DomEvent.stop(e);
       setDrawVertices(prev => {
-        if (prev.length >= 3) { setPendingPolygon(prev); return []; }
-        return prev;
+        const pts = prev.length > 0 ? prev.slice(0, -1) : prev;
+        if (pts.length >= 3) {
+          setPendingPolygon(pts);
+          return [];
+        }
+        return pts;
       });
     };
 
@@ -134,9 +156,9 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
       map.doubleClickZoom.enable();
       container.style.cursor = "";
     };
-  }, [mode, pendingPolygon, mapRef]);
+  }, [mode, mapRef]);
 
-  // Clean up draw layers when panel closes
+  // Clean up when panel closes
   useEffect(() => {
     if (!open) {
       drawGroupRef.current?.clearLayers();
@@ -189,15 +211,10 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
   async function savePolygon() {
     if (!pendingPolygon || !polyForm.name.trim() || !polyForm.clusterId) return;
     setPolySaving(true);
-
-    // Build GeoJSON geometry from Leaflet LatLng array
     const coords = [...pendingPolygon, pendingPolygon[0]].map(v => [v.lng, v.lat]);
     const geometry = { type: "Polygon", coordinates: [coords] };
-
-    // Compute centroid
     const centroidLat = pendingPolygon.reduce((s, v) => s + v.lat, 0) / pendingPolygon.length;
     const centroidLng = pendingPolygon.reduce((s, v) => s + v.lng, 0) / pendingPolygon.length;
-
     const r = await fetch("/api/admin/settlements", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -215,6 +232,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
       showToast("Settlement saved");
       setPendingPolygon(null);
       setDrawVertices([]);
+      setPolyZoneId("");
       setPolyForm({ name: "", clusterId: "", partnerId: "" });
       drawGroupRef.current?.clearLayers();
       onRefresh();
@@ -223,10 +241,21 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     }
   }
 
-  // Inferred zone from selected cluster
-  const selectedCluster = clusters.find(c => c.id === pinForm.clusterId);
-  const inferredZoneId = selectedCluster?.zoneId ?? "";
+  // Derived: cluster→zone cascade for pin form
+  const pinCluster = clusters.find(c => c.id === pinForm.clusterId);
+  const pinZoneId = pinForm.zoneId || pinCluster?.zoneId || "";
 
+  // Filtered clusters for pin form (by selected zone)
+  const pinClusters = pinForm.zoneId
+    ? clusters.filter(c => c.zoneId === pinForm.zoneId)
+    : clusters;
+
+  // Filtered clusters for polygon form (by selected zone)
+  const polyClusters = polyZoneId
+    ? clusters.filter(c => c.zoneId === polyZoneId)
+    : clusters;
+
+  // ── Closed state — just the "Edit Map" button ─────────────────────────────
   if (!open) {
     return (
       <button
@@ -248,16 +277,10 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
         <span className="text-xs font-bold text-indigo-700 mr-1">Edit Map</span>
         {!mode && !pendingPin && !pendingPolygon && (
           <>
-            <button
-              onClick={() => setMode("pin")}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-full text-xs font-semibold hover:bg-indigo-700 transition-colors"
-            >
+            <button onClick={() => setMode("pin")} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-full text-xs font-semibold hover:bg-indigo-700 transition-colors">
               <MapPin className="w-3.5 h-3.5" /> Place Pin
             </button>
-            <button
-              onClick={() => setMode("polygon")}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-full text-xs font-semibold hover:bg-amber-600 transition-colors"
-            >
+            <button onClick={() => { setMode("polygon"); setDrawVertices([]); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-full text-xs font-semibold hover:bg-amber-600 transition-colors">
               <SquarePen className="w-3.5 h-3.5" /> Draw Settlement
             </button>
           </>
@@ -284,7 +307,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
         </button>
       </div>
 
-      {/* Pin form */}
+      {/* ── Pin form ────────────────────────────────────────────────────────── */}
       {pendingPin && (
         <div className="absolute top-16 left-3 right-3 sm:top-4 sm:right-4 sm:left-auto sm:w-80 z-20 bg-white rounded-xl shadow-2xl border border-indigo-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 bg-indigo-50 flex items-center justify-between">
@@ -292,61 +315,72 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
             <span className="text-xs text-indigo-400 font-mono">{pendingPin.lat.toFixed(5)}, {pendingPin.lng.toFixed(5)}</span>
           </div>
           <div className="p-4 space-y-3 overflow-y-auto max-h-[72vh]">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Name *</label>
-              <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" value={pinForm.name} onChange={e => setPinForm(f => ({ ...f, name: e.target.value }))} placeholder="Centre name" autoFocus />
+
+            <Field label="Name *">
+              <input className="inp" value={pinForm.name} onChange={e => setPinForm(f => ({ ...f, name: e.target.value }))} placeholder="Centre name" autoFocus />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Layer type *">
+                <select className="inp" value={pinForm.layerKey} onChange={e => {
+                  const lk = e.target.value;
+                  setPinForm(f => ({ ...f, layerKey: lk, centreType: CENTRE_TYPES[lk]?.[0] ?? "" }));
+                }}>
+                  {LAYER_KEYS.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Centre type">
+                <select className="inp" value={pinForm.centreType} onChange={e => setPinForm(f => ({ ...f, centreType: e.target.value }))}>
+                  {(CENTRE_TYPES[pinForm.layerKey] ?? []).map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </Field>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Layer type *</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" value={pinForm.layerKey} onChange={e => {
-                const lk = e.target.value;
-                setPinForm(f => ({ ...f, layerKey: lk, centreType: CENTRE_TYPES[lk]?.[0] ?? "" }));
-              }}>
-                {LAYER_KEYS.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Centre type</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" value={pinForm.centreType} onChange={e => setPinForm(f => ({ ...f, centreType: e.target.value }))}>
-                {(CENTRE_TYPES[pinForm.layerKey] ?? []).map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Partner</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" value={pinForm.partner} onChange={e => setPinForm(f => ({ ...f, partner: e.target.value }))}>
+
+            <Field label="Partner">
+              <select className="inp" value={pinForm.partner} onChange={e => setPinForm(f => ({ ...f, partner: e.target.value }))}>
                 <option value="">— None —</option>
-                {partners.map(p => <option key={p.id} value={p.key}>{p.label}</option>)}
+                {allPartners.map(p => <option key={p.id} value={p.key}>{p.label}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Settlement</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" value={pinForm.settlementId} onChange={e => setPinForm(f => ({ ...f, settlementId: e.target.value }))}>
+            </Field>
+
+            <Field label="Settlement">
+              <select className="inp" value={pinForm.settlementId} onChange={e => {
+                const sid = e.target.value;
+                const s = settlements.find(s => s.id === sid);
+                const cl = s ? clusters.find(c => c.id === s.clusterId) : undefined;
+                setPinForm(f => ({ ...f, settlementId: sid, clusterId: s?.clusterId ?? f.clusterId, zoneId: cl?.zoneId ?? f.zoneId }));
+              }}>
                 <option value="">— None —</option>
                 {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+            </Field>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Zone">
+                <select className="inp" value={pinZoneId} onChange={e => {
+                  const zid = e.target.value;
+                  setPinForm(f => ({ ...f, zoneId: zid, clusterId: "" }));
+                }}>
+                  <option value="">— All zones —</option>
+                  {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                </select>
+              </Field>
+              <Field label="Cluster">
+                <select className="inp" value={pinForm.clusterId} onChange={e => {
+                  const cid = e.target.value;
+                  const cl = clusters.find(c => c.id === cid);
+                  setPinForm(f => ({ ...f, clusterId: cid, zoneId: cl?.zoneId ?? f.zoneId }));
+                }}>
+                  <option value="">— None —</option>
+                  {pinClusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
+                </select>
+              </Field>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Cluster</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" value={pinForm.clusterId} onChange={e => {
-                const cid = e.target.value;
-                const cl = clusters.find(c => c.id === cid);
-                setPinForm(f => ({ ...f, clusterId: cid, zoneId: cl?.zoneId ?? "" }));
-              }}>
-                <option value="">— None —</option>
-                {clusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Zone</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" value={pinForm.zoneId || inferredZoneId} onChange={e => setPinForm(f => ({ ...f, zoneId: e.target.value }))}>
-                <option value="">— None —</option>
-                {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Notes</label>
-              <textarea className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" rows={2} value={pinForm.notes} onChange={e => setPinForm(f => ({ ...f, notes: e.target.value }))} />
-            </div>
+
+            <Field label="Notes">
+              <textarea className="inp resize-none" rows={2} value={pinForm.notes} onChange={e => setPinForm(f => ({ ...f, notes: e.target.value }))} />
+            </Field>
+
             <div className="flex gap-2 pt-1">
               <button onClick={savePin} disabled={!pinForm.name.trim() || pinSaving} className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 hover:bg-indigo-700 transition-colors">
                 <Check className="w-3.5 h-3.5" /> {pinSaving ? "Saving…" : "Save Point"}
@@ -357,7 +391,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
         </div>
       )}
 
-      {/* Polygon form */}
+      {/* ── Polygon form ─────────────────────────────────────────────────────── */}
       {pendingPolygon && (
         <div className="absolute top-16 left-3 right-3 sm:top-4 sm:right-4 sm:left-auto sm:w-80 z-20 bg-white rounded-xl shadow-2xl border border-amber-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 bg-amber-50 flex items-center justify-between">
@@ -365,24 +399,33 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
             <span className="text-xs text-amber-500">{pendingPolygon.length} vertices</span>
           </div>
           <div className="p-4 space-y-3 overflow-y-auto max-h-[72vh]">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Settlement name *</label>
-              <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={polyForm.name} onChange={e => setPolyForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Mattikere Slum" autoFocus />
+
+            <Field label="Settlement name *">
+              <input className="inp" value={polyForm.name} onChange={e => setPolyForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Mattikere Slum" autoFocus />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Zone">
+                <select className="inp" value={polyZoneId} onChange={e => { setPolyZoneId(e.target.value); setPolyForm(f => ({ ...f, clusterId: "" })); }}>
+                  <option value="">— All zones —</option>
+                  {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                </select>
+              </Field>
+              <Field label="Cluster *">
+                <select className="inp" value={polyForm.clusterId} onChange={e => setPolyForm(f => ({ ...f, clusterId: e.target.value }))}>
+                  <option value="">— Select —</option>
+                  {polyClusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
+                </select>
+              </Field>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Cluster *</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={polyForm.clusterId} onChange={e => setPolyForm(f => ({ ...f, clusterId: e.target.value }))}>
-                <option value="">— Select cluster —</option>
-                {clusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Partner NGO</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={polyForm.partnerId} onChange={e => setPolyForm(f => ({ ...f, partnerId: e.target.value }))}>
+
+            <Field label="Partner NGO">
+              <select className="inp" value={polyForm.partnerId} onChange={e => setPolyForm(f => ({ ...f, partnerId: e.target.value }))}>
                 <option value="">— None —</option>
                 {partners.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
-            </div>
+            </Field>
+
             <div className="flex gap-2 pt-1">
               <button onClick={savePolygon} disabled={!polyForm.name.trim() || !polyForm.clusterId || polySaving} className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 hover:bg-amber-600 transition-colors">
                 <Check className="w-3.5 h-3.5" /> {polySaving ? "Saving…" : "Save Settlement"}
@@ -399,5 +442,14 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
         </div>
       )}
     </>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
+      {children}
+    </div>
   );
 }

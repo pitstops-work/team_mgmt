@@ -3,6 +3,12 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, Plus, Pencil, Trash2, Check, X, MapPin, SquarePen } from "lucide-react";
+import { LAYERS } from "@/lib/layers";
+
+// Built-in NGO partners from LAYERS config (always show, even if MapPartner table is empty)
+const BUILT_IN_PARTNERS = LAYERS
+  .filter(l => l.type === "polygon" && l.key !== "custom_settlements")
+  .map(l => ({ id: l.key, key: l.key, label: l.label, color: l.color }));
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -100,18 +106,29 @@ function LFForm({
   clusters: ClusterOption[];
   zones: ZoneOption[];
   partners: PartnerOption[];
-  settlements: { id: string; name: string }[];
+  settlements: { id: string; name: string; clusterId: string }[];
   onSave: (data: typeof initial) => void;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState(initial);
   const set = (k: keyof typeof form, v: string | number) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Merged partner list: built-ins always present, DB partners added on top
+  const allPartners = [
+    ...BUILT_IN_PARTNERS,
+    ...partners.filter(d => !BUILT_IN_PARTNERS.some(b => b.key === d.key)),
+  ];
+
+  // Zone → filter clusters
+  const visibleClusters = form.zoneId
+    ? clusters.filter(c => c.zoneId === form.zoneId)
+    : clusters;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
       <div>
         <label className="label">Name *</label>
-        <input className="input" value={form.name} onChange={e => set("name", e.target.value)} placeholder="Centre name" />
+        <input className="input" value={form.name} onChange={e => set("name", e.target.value)} placeholder="Centre name" autoFocus />
       </div>
       <div>
         <label className="label">Layer type *</label>
@@ -132,7 +149,7 @@ function LFForm({
         <label className="label">Partner</label>
         <select className="input" value={form.partner ?? ""} onChange={e => set("partner", e.target.value)}>
           <option value="">— None —</option>
-          {partners.map(p => <option key={p.id} value={p.key}>{p.label}</option>)}
+          {allPartners.map(p => <option key={p.id} value={p.key}>{p.label}</option>)}
         </select>
       </div>
       <div>
@@ -143,11 +160,25 @@ function LFForm({
         <label className="label">Longitude *</label>
         <input className="input" type="number" step="any" value={form.lng} onChange={e => set("lng", e.target.value)} />
       </div>
-      <div>
+      <div className="sm:col-span-2">
         <label className="label">Settlement</label>
-        <select className="input" value={form.settlementId ?? ""} onChange={e => set("settlementId", e.target.value)}>
+        <select className="input" value={form.settlementId ?? ""} onChange={e => {
+          const sid = e.target.value;
+          const s = settlements.find(s => s.id === sid);
+          const cl = s ? clusters.find(c => c.id === s.clusterId) : undefined;
+          setForm(f => ({ ...f, settlementId: sid, clusterId: s?.clusterId ?? f.clusterId, zoneId: cl?.zoneId ?? f.zoneId }));
+        }}>
           <option value="">— None —</option>
           {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="label">Zone</label>
+        <select className="input" value={form.zoneId ?? ""} onChange={e => {
+          setForm(f => ({ ...f, zoneId: e.target.value, clusterId: "" }));
+        }}>
+          <option value="">— All zones —</option>
+          {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
         </select>
       </div>
       <div>
@@ -155,18 +186,10 @@ function LFForm({
         <select className="input" value={form.clusterId ?? ""} onChange={e => {
           const cid = e.target.value;
           const cl = clusters.find(c => c.id === cid);
-          const z = zones.find(z => z.id === cl?.zoneId);
-          setForm(f => ({ ...f, clusterId: cid, zoneId: z?.id ?? "" }));
+          setForm(f => ({ ...f, clusterId: cid, zoneId: cl?.zoneId ?? f.zoneId }));
         }}>
           <option value="">— None —</option>
-          {clusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="label">Zone</label>
-        <select className="input" value={form.zoneId ?? ""} onChange={e => set("zoneId", e.target.value)}>
-          <option value="">— None —</option>
-          {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+          {visibleClusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
         </select>
       </div>
       <div className="sm:col-span-2">
@@ -204,7 +227,7 @@ function SettForm({
   onSave: (data: typeof initial) => void;
   onCancel: () => void;
 }) {
-  const [form, setForm] = useState({ ...initial, polygonText: initial.polygon ? JSON.stringify(initial.polygon, null, 2) : "" });
+  const [form, setForm] = useState({ ...initial, zoneId: "", polygonText: initial.polygon ? JSON.stringify(initial.polygon, null, 2) : "" });
   const [polyErr, setPolyErr] = useState<string | null>(null);
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -216,16 +239,22 @@ function SettForm({
       return parsed;
     } catch {
       setPolyErr("Invalid JSON");
-      return undefined; // signals error
+      return undefined;
     }
   }
 
   function handleSave() {
     const poly = parsePolygon();
-    if (poly === undefined) return; // JSON error
+    if (poly === undefined) return;
     onSave({ name: form.name, clusterId: form.clusterId, partnerId: form.partnerId, polygon: poly, centroidLat: form.centroidLat, centroidLng: form.centroidLng });
   }
 
+  // Zone → filter clusters
+  const visibleClusters = form.zoneId
+    ? clusters.filter(c => c.zoneId === form.zoneId)
+    : clusters;
+
+  // Infer zone from selected cluster
   const selectedCluster = clusters.find(c => c.id === form.clusterId);
   const inferredZone = zones.find(z => z.id === selectedCluster?.zoneId);
 
@@ -233,19 +262,26 @@ function SettForm({
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
       <div>
         <label className="label">Name *</label>
-        <input className="input" value={form.name} onChange={e => set("name", e.target.value)} placeholder="Settlement name" />
+        <input className="input" value={form.name} onChange={e => set("name", e.target.value)} placeholder="Settlement name" autoFocus />
+      </div>
+      <div>
+        <label className="label">Zone (to filter clusters)</label>
+        <select className="input" value={form.zoneId} onChange={e => setForm(f => ({ ...f, zoneId: e.target.value, clusterId: "" }))}>
+          <option value="">— All zones —</option>
+          {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+        </select>
       </div>
       <div>
         <label className="label">Cluster *</label>
         <select className="input" value={form.clusterId} onChange={e => set("clusterId", e.target.value)}>
           <option value="">— Select cluster —</option>
-          {clusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
+          {visibleClusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
         </select>
       </div>
       {inferredZone && (
         <div>
-          <label className="label">Zone (inferred)</label>
-          <div className="input bg-slate-50 text-slate-500 cursor-not-allowed">{inferredZone.name}</div>
+          <label className="label">Zone (inferred from cluster)</label>
+          <div className="input bg-slate-50 text-slate-500">{inferredZone.name}</div>
         </div>
       )}
       <div>
@@ -314,7 +350,7 @@ export default function MapFeaturesSettingsPage() {
   const filteredSettlements = settlements
     .filter(s => !settSearch || s.name.toLowerCase().includes(settSearch.toLowerCase()))
     .slice(0, 100)
-    .map(s => ({ id: s.id, name: s.name }));
+    .map(s => ({ id: s.id, name: s.name, clusterId: s.clusterId }));
 
   const load = useCallback(async () => {
     setLoading(true);
