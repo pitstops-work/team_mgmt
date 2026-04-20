@@ -53,10 +53,14 @@ function DomainCard({ label, color, d }: { label: string; color: string; d: Leve
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
         <span className="text-xs font-semibold text-stone-700 truncate">{label}</span>
       </div>
-      <div className="grid grid-cols-3 text-center gap-1">
+      <div className="grid grid-cols-4 text-center gap-1">
         <div>
           <p className="text-sm font-bold text-stone-800">{d.existing}</p>
           <p className="text-[9px] text-stone-400">exist.</p>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-stone-500">{d.apfTarget}</p>
+          <p className="text-[9px] text-stone-400">plan</p>
         </div>
         <div>
           <p className="text-sm font-bold text-emerald-600">{d.done}</p>
