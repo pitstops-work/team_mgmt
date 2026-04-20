@@ -19,6 +19,11 @@ const prisma = new PrismaClient({ adapter } as never);
 
 const APPLY = process.argv.includes("--apply");
 
+// Manual overrides: [DB name, DB cluster, GeoJSON name]
+const MANUAL: [string, string, string][] = [
+  ["Sathyamurthy Nagar", "Central Chennai", "Sathyamurthy Street"],
+];
+
 const norm = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
@@ -160,7 +165,23 @@ async function main() {
     await prisma.$disconnect(); pool.end(); return;
   }
 
-  console.log(`\nApplying ${results.length} matches...`);
+  // Apply manual overrides
+  const settlementLookup = new Map(settlements.map(s => [`${norm(s.name)}|${norm(s.cluster.name)}`, s]));
+  const geoByName = new Map(allFeatures.map(f => [norm(f.properties.name), f]));
+  for (const [dbName, clusterName, geoName] of MANUAL) {
+    const s = settlementLookup.get(`${norm(dbName)}|${norm(clusterName)}`);
+    const f = geoByName.get(norm(geoName));
+    if (!s) { console.warn(`⚠  Manual: DB not found: "${dbName}"`); continue; }
+    if (!f) { console.warn(`⚠  Manual: GEO not found: "${geoName}"`); continue; }
+    const c = centroid(f.geometry.coordinates);
+    await prisma.settlement.update({
+      where: { id: s.id },
+      data: { polygon: f.geometry as object, centroidLat: c?.lat ?? null, centroidLng: c?.lng ?? null, partnerId: partnerMap.get(f.properties.layer) ?? null },
+    });
+    console.log(`✓ Manual: "${dbName}" → "${geoName}"`);
+  }
+
+  console.log(`\nApplying ${results.length} fuzzy matches...`);
   let applied = 0;
   for (const r of results) {
     const c = centroid(r.feat.geometry.coordinates);
