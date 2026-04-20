@@ -843,7 +843,12 @@ export default function NeedsDashboard({
           {activeCityProgress && (
             <div className="rounded-xl border border-stone-200 p-4 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Goal health</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Goal health</p>
+                  {activeCityProgress.totalGoals > 0 && (
+                    <span className="text-[10px] text-stone-400">Plan: {activeCityProgress.totalGoals}</span>
+                  )}
+                </div>
                 <DeficitBadge deficit={activeCityProgress.deficit} />
               </div>
               <HealthSummary p={activeCityProgress} />
