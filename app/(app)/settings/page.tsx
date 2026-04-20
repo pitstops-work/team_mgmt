@@ -157,6 +157,17 @@ export default function SettingsPage() {
             </div>
             <ChevronRight className="w-4 h-4 text-stone-300" />
           </Link>
+          <Link
+            href="/settings/map-features"
+            className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+          >
+            <Map className="w-4 h-4 text-indigo-500" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-stone-800">Map Features</p>
+              <p className="text-xs text-stone-400">Centre points · settlement polygons</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-stone-300" />
+          </Link>
         </div>
       </section>
 

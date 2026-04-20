@@ -14,19 +14,11 @@ import { centroidOf } from "@/lib/useGeoData";
 import { type MapFilter, computeMapFilter } from "@/lib/mapFilter";
 
 import CentreSidebar from "./CentreSidebar";
-import type { SettlementFeature, CentreFeature, CustomPolygonFeature } from "./MapView";
+import type { SettlementFeature, CentreFeature } from "./MapView";
+
+const MapAdminPanel = dynamic(() => import("./MapAdminPanel"), { ssr: false });
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
-
-interface CustomFeature {
-  id: string;
-  name: string;
-  description: string;
-  type: string;
-  lat: number;
-  lng: number;
-  createdAt: string;
-}
 
 interface ZoneClusterIndex {
   zones: Record<string, string[]>;
@@ -60,9 +52,6 @@ export default function MapDashboard() {
     new Set(LAYERS.filter(l => l.city === "bangalore" && l.key !== "schools").map((l) => l.key))
   );
   const [featureCounts, setFeatureCounts] = useState<Partial<Record<LayerKey, number>>>({});
-  const [customFeatures, setCustomFeatures] = useState<CustomFeature[]>([]);
-  const [customPolygons, setCustomPolygons] = useState<CustomPolygonFeature[]>([]);
-  const [dbPartners, setDbPartners] = useState<{ key: string; label: string; color: string }[]>([]);
   const [geoDb, setGeoDb] = useState<{ zones: { id: string; name: string }[]; clusters: { id: string; name: string }[] }>({ zones: [], clusters: [] });
   // Sidebar closed by default; opens on desktop via useEffect
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -108,6 +97,7 @@ export default function MapDashboard() {
   const flyToRef = useRef<((latlng: [number, number], zoom?: number) => void) | null>(null);
   const openPopupRef = useRef<((layerKey: LayerKey, featureIdx: number) => void) | null>(null);
   const flyToCityRef = useRef<((city: MapCity) => void) | null>(null);
+  const sharedMapRef = useRef<import("leaflet").Map | null>(null);
 
   const geoData = useGeoData();
 
@@ -156,7 +146,6 @@ export default function MapDashboard() {
 
   useEffect(() => {
     loadCounts().then(setFeatureCounts);
-    fetchCustomFeatures();
     fetch("/data/zone_cluster_index.json")
       .then((r) => r.json())
       .then(setZoneClusterIndex)
@@ -201,24 +190,6 @@ export default function MapDashboard() {
       } catch {}
     }
     if (!next) setProgressHealth(null);
-  }
-
-  async function fetchCustomFeatures() {
-    try {
-      const r = await fetch("/api/map/features");
-      if (r.ok) setCustomFeatures(await r.json());
-    } catch {}
-    try {
-      const r = await fetch("/api/map/polygons");
-      if (r.ok) {
-        const fc = await r.json();
-        setCustomPolygons(fc.features ?? []);
-      }
-    } catch {}
-    try {
-      const r = await fetch("/api/map/partners");
-      if (r.ok) setDbPartners(await r.json());
-    } catch {}
   }
 
   const toggleLayer = useCallback((key: LayerKey) => {
@@ -331,7 +302,6 @@ export default function MapDashboard() {
           visibleLayers={visibleLayers}
           onToggle={toggleLayer}
           featureCounts={featureCounts}
-          customCount={customFeatures.length}
           activeZone={activeZone}
           activeCluster={activeCluster}
           onZoneSelect={handleZoneSelect}
@@ -425,9 +395,6 @@ export default function MapDashboard() {
         {/* Map */}
         <MapView
           visibleLayers={visibleLayers}
-          onFeatureAdded={fetchCustomFeatures}
-          customFeatures={customFeatures}
-          customPolygons={customPolygons}
           activeZone={activeZone}
           activeCluster={activeCluster}
           onSettlementClick={handleSettlementClick}
@@ -438,7 +405,6 @@ export default function MapDashboard() {
           flyToCityRef={flyToCityRef}
           openPopupRef={openPopupRef}
           mapFilter={mapFilter}
-          dbPartners={dbPartners}
           progressMode={progressMode}
           progressHealth={progressHealth}
           activeCity={activeCity}
@@ -448,6 +414,13 @@ export default function MapDashboard() {
           healthTypes={healthTypes}
           showHealthClusters={showHealthClusters}
           healthClusterMap={healthClusterMap}
+          sharedMapRef={sharedMapRef}
+        />
+
+        {/* Map admin panel — Edit Map button + pin/polygon modes */}
+        <MapAdminPanel
+          mapRef={sharedMapRef}
+          onRefresh={() => loadCounts().then(setFeatureCounts)}
         />
 
         {/* Settlement detail sidebar */}

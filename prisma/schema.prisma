@@ -807,7 +807,6 @@ model Settlement {
   assessments  SettlementAssessment[]
   profile      SettlementProfile?
   note         SettlementNote?
-  features     MapFeature[]
   // Needs geography back-relations
   needsGoals   Goal[]     @relation("GoalNeedsSettlement")
   needsPitstops Pitstop[] @relation("PitstopNeedsSettlement")
@@ -1083,21 +1082,6 @@ model PushSubscription {
 
 // ── Urban Programme Map ───────────────────────────────────────────────────────
 
-model MapFeature {
-  id           String   @id @default(cuid())
-  name         String
-  cluster      String   @default("")
-  zone         String   @default("")
-  partner      String   @default("")
-  description  String   @default("")
-  type         String   @default("other")
-  lat          Float
-  lng          Float
-  settlementId String?
-  createdAt    DateTime @default(now())
-
-  settlement Settlement? @relation(fields: [settlementId], references: [id])
-}
 
 model SettlementNote {
   settlementId String     @id
@@ -1121,16 +1105,6 @@ model MapPartner {
   settlements  Settlement[]
 }
 
-model MapPolygon {
-  id          String   @id @default(cuid())
-  name        String
-  partnerKey  String
-  zone        String   @default("")
-  cluster     String   @default("")
-  description String   @default("")
-  coordinates Json
-  createdAt   DateTime @default(now())
-}
 
 // ── Needs Assessment ──────────────────────────────────────────────────────────
 

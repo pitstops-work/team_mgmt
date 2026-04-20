@@ -7,7 +7,6 @@ interface LayerPanelProps {
   visibleLayers: Set<LayerKey>;
   onToggle: (key: LayerKey) => void;
   featureCounts: Partial<Record<LayerKey, number>>;
-  customCount: number;
   activeZone: string | null;
   activeCluster: string | null;
   onZoneSelect: (zone: string | null) => void;
@@ -68,7 +67,6 @@ export default function LayerPanel({
   visibleLayers,
   onToggle,
   featureCounts,
-  customCount,
   activeZone,
   activeCluster,
   onZoneSelect,
@@ -298,15 +296,6 @@ export default function LayerPanel({
                     </button>
                   );
                 })}
-                {customCount > 0 && (
-                  <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-amber-50">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 flex-shrink-0" />
-                    <span className="flex-1 text-xs font-medium text-amber-700">Custom Added</span>
-                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-700">
-                      {customCount}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
 
