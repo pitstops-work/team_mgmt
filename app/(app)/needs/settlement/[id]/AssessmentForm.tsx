@@ -97,15 +97,15 @@ function domainActual(goals: GoalActual[], domain: string) {
 }
 
 function NeedsRow({ label, existing, apfTarget, done, inProgress }: { label: string; existing: number; apfTarget: number; done: number; inProgress: number }) {
-  const gap = Math.max(0, apfTarget - done);
-  const pct = apfTarget > 0 ? Math.min(100, Math.round((done / apfTarget) * 100)) : 0;
+  const planned = done + inProgress;
+  const gap = Math.max(0, planned - done);
+  const pct = planned > 0 ? Math.min(100, Math.round((done / planned) * 100)) : 0;
   return (
     <div className="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0 text-xs">
       <span className="w-36 text-stone-600 flex-shrink-0">{label}</span>
       <span className="w-16 text-center text-stone-500">{existing}</span>
-      <span className="w-16 text-center font-medium text-stone-800">{apfTarget}</span>
+      <span className="w-16 text-center font-medium text-stone-800">{planned}</span>
       <span className="w-16 text-center text-emerald-600 font-medium">{done}</span>
-      <span className="w-16 text-center text-amber-500">{inProgress > 0 ? `+${inProgress}` : "–"}</span>
       <div className="flex-1 flex items-center gap-2">
         <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
           <div className={`h-full rounded-full ${pct >= 100 ? "bg-emerald-400" : pct >= 50 ? "bg-sky-400" : "bg-amber-400"}`} style={{ width: `${pct}%` }} />
@@ -696,15 +696,14 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
         <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-sky-500" />
           <span className="text-sm font-semibold text-stone-800">Needs Summary</span>
-          <span className="ml-auto text-xs text-stone-400">Total · Existing · Target · Done · In Progress · Gap</span>
+          <span className="ml-auto text-xs text-stone-400">Existing · Plan · Done · Gap</span>
         </div>
         <div className="px-4 py-3">
           <div className="flex items-center gap-3 pb-2 border-b border-stone-100 text-[10px] font-medium text-stone-400 uppercase tracking-wide">
             <span className="w-36">Domain</span>
             <span className="w-16 text-center">Existing</span>
-            <span className="w-16 text-center">Target</span>
+            <span className="w-16 text-center">Plan</span>
             <span className="w-16 text-center">Done</span>
-            <span className="w-16 text-center">In Progress</span>
             <span className="flex-1 text-right">Gap</span>
           </div>
           {formulas.map(f => {

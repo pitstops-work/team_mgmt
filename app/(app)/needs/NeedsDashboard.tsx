@@ -100,9 +100,8 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
           <tr className="border-b border-stone-100">
             <th className="text-left py-1.5 pr-3 font-medium text-stone-400 text-[10px] uppercase tracking-wide">Domain</th>
             <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Existing</th>
-            <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Target</th>
+            <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Plan</th>
             <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Done</th>
-            <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Active</th>
             <th className="text-right py-1.5 pl-2 font-medium text-stone-400 text-[10px]">Gap</th>
           </tr>
         </thead>
@@ -110,7 +109,9 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
           {domainConfigs.map(({ domain, label, color }) => {
             const d = domains[domain];
             if (!d) return null;
-            const pct = d.apfTarget > 0 ? Math.min(100, Math.round((d.done / d.apfTarget) * 100)) : d.done > 0 ? 100 : 0;
+            const planned = d.planned ?? (d.done + d.inProgress);
+            const pct = planned > 0 ? Math.min(100, Math.round((d.done / planned) * 100)) : d.done > 0 ? 100 : 0;
+            const gap = Math.max(0, planned - d.done);
             return (
               <tr key={domain}>
                 <td className="py-2 pr-3">
@@ -120,16 +121,15 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
                   </div>
                 </td>
                 <td className="py-2 px-2 text-right text-stone-500">{d.existing}</td>
-                <td className="py-2 px-2 text-right font-medium text-stone-800">{d.apfTarget}</td>
+                <td className="py-2 px-2 text-right font-medium text-stone-800">{planned}</td>
                 <td className="py-2 px-2 text-right font-medium text-emerald-600">{d.done}</td>
-                <td className="py-2 px-2 text-right text-amber-500">{d.inProgress > 0 ? `+${d.inProgress}` : "–"}</td>
                 <td className="py-2 pl-2">
                   <div className="flex items-center gap-2 justify-end">
                     <div className="w-16 h-1.5 bg-stone-100 rounded-full overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
                     </div>
-                    <span className={`w-8 text-right font-bold ${d.gap > 0 ? "text-red-500" : "text-emerald-600"}`}>
-                      {d.gap > 0 ? `-${d.gap}` : "✓"}
+                    <span className={`w-8 text-right font-bold ${gap > 0 ? "text-red-500" : "text-emerald-600"}`}>
+                      {gap > 0 ? `-${gap}` : "✓"}
                     </span>
                   </div>
                 </td>

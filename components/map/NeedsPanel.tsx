@@ -47,15 +47,17 @@ function NeedsRow({ label, color, existing, apfTarget, done, inProgress, onAdd }
   label: string; color: string; existing: number; apfTarget: number; done: number; inProgress: number;
   onAdd?: () => void;
 }) {
-  const gap = Math.max(0, apfTarget - done);
-  const pct = apfTarget > 0 ? Math.min(100, Math.round((done / apfTarget) * 100)) : done > 0 ? 100 : 0;
+  const planned = done + inProgress;
+  const gap = Math.max(0, planned - done);
+  const pct = planned > 0 ? Math.min(100, Math.round((done / planned) * 100)) : done > 0 ? 100 : 0;
+  void apfTarget;
   return (
     <div className="py-1.5 border-b border-slate-50 last:border-0">
       <div className="flex items-center gap-2 mb-1">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
         <span className="text-xs text-slate-700 flex-1">{label}</span>
         <span className="text-[10px] text-slate-400">ex:{existing}</span>
-        <span className="text-[10px] font-semibold text-slate-600">→{apfTarget}</span>
+        <span className="text-[10px] font-semibold text-slate-600">plan:{planned}</span>
         <span className="text-[10px] font-bold" style={{ color: gap === 0 ? "#10b981" : "#ef4444" }}>
           {gap === 0 ? "✓" : `-${gap}`}
         </span>
@@ -74,7 +76,7 @@ function NeedsRow({ label, color, existing, apfTarget, done, inProgress, onAdd }
         <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
           <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color + "cc" }} />
         </div>
-        <span className="text-[10px] text-slate-400">{done}{inProgress > 0 ? `+${inProgress}` : ""}</span>
+        <span className="text-[10px] text-slate-400">{done}/{planned}</span>
       </div>
     </div>
   );
