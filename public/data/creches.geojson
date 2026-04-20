@@ -6,18 +6,18 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          77.63260569230769,
-          13.109538384615385
+          77.438352,
+          12.895062
         ]
       },
       "properties": {
-        "name": "Jaibhuvaneshwari Nagar",
+        "name": "Bheemankuppe-1",
         "centre_type": "Creche",
-        "cluster": "Jakkur",
-        "zone": "North",
-        "partner": "Sangama",
+        "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Jaibhim Nagar"
+        "matched_settlement": "",
+        "cluster": "",
+        "zone": ""
       }
     },
     {
@@ -25,18 +25,18 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          77.70844836363636,
-          12.714947272727272
+          77.438632,
+          12.89565
         ]
       },
       "properties": {
-        "name": "Goutham Nagar",
+        "name": "Bheemankuppe-2",
         "centre_type": "Creche",
-        "cluster": "Anekal",
-        "zone": "South",
-        "partner": "SIEDS",
+        "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Sudham Nagar"
+        "matched_settlement": "",
+        "cluster": "",
+        "zone": ""
       }
     },
     {
@@ -44,192 +44,18 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          77.60963911111111,
-          13.017088944444446
-        ]
-      },
-      "properties": {
-        "name": "Ashraya Nagar",
-        "centre_type": "Creche",
-        "cluster": "JJR_Nagar",
-        "zone": "Central",
-        "partner": "SAMA",
-        "layer_key": "creches",
-        "matched_settlement": "SHADAB NAGAR"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          77.527358,
-          13.0168232
-        ]
-      },
-      "properties": {
-        "name": "Havadigara Colony",
-        "centre_type": "Creche",
-        "cluster": "Peenya_-_West",
-        "zone": "West",
-        "partner": "CFAR",
-        "layer_key": "creches",
-        "matched_settlement": "Havadigara colony, Peenya Area"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          77.501223375,
-          13.016498625
-        ]
-      },
-      "properties": {
-        "name": "Gulbarga Slum",
-        "centre_type": "Creche",
-        "cluster": "Peenya_North",
-        "zone": "North",
-        "partner": "Sangama",
-        "layer_key": "creches",
-        "matched_settlement": "Gulbarga Slum"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          77.54888036363637,
-          12.951887454545455
-        ]
-      },
-      "properties": {
-        "name": "Sanjay Gandhi Nagar",
-        "centre_type": "Creche",
-        "cluster": "JJR_Nagar",
-        "zone": "Central",
-        "partner": "ActionAid",
-        "layer_key": "creches",
-        "matched_settlement": "Sanjay Nagar"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          77.562650875,
-          12.97261675
-        ]
-      },
-      "properties": {
-        "name": "Muneshwar Nagar",
-        "centre_type": "Creche",
-        "cluster": "JJR_Nagar",
-        "zone": "Central",
-        "partner": "ActionAid",
-        "layer_key": "creches",
-        "matched_settlement": "Keshav Nagar"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          77.599568,
-          13.0427055
-        ]
-      },
-      "properties": {
-        "name": "Kariyanna Layout",
-        "centre_type": "Creche",
-        "cluster": "Byatarayanapura",
-        "zone": "North",
-        "partner": "Sangama",
-        "layer_key": "creches",
-        "matched_settlement": "Kariyanna Layout"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          77.56677638888888,
-          13.062212444444445
-        ]
-      },
-      "properties": {
-        "name": "1st Main Road By the Lake",
-        "centre_type": "Creche",
-        "cluster": "Sanjaynagar",
-        "zone": "North",
-        "partner": "Sangama",
-        "layer_key": "creches",
-        "matched_settlement": "1st Main Road By The Lake"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          77.4312777777778,
-          12.8716944444444
-        ]
-      },
-      "properties": {
-        "name": "Bheemana kuppe",
-        "centre_type": "Creche",
-        "cluster": "Kengeri",
-        "zone": "West",
-        "partner": "CFAR",
-        "layer_key": "creches",
-        "matched_settlement": "Bheemana kuppe",
-        "note": "Approx Kengeri area (CFAR)"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          77.4312777777778,
-          12.8716944444444
-        ]
-      },
-      "properties": {
-        "name": "Kabbalamma palya",
-        "centre_type": "Creche",
-        "cluster": "Kengeri",
-        "zone": "West",
-        "partner": "CFAR",
-        "layer_key": "creches",
-        "matched_settlement": "Kabbalamma palya",
-        "note": "Matched to Kabbalamma palya CFAR RC"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          77.431255,
-          12.864671571428572
+          77.429511,
+          12.872799
         ]
       },
       "properties": {
         "name": "Bhadrapura",
         "centre_type": "Creche",
-        "cluster": "Kengeri",
-        "zone": "West",
-        "partner": "CFAR",
+        "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Bhadrapura",
-        "note": ""
+        "matched_settlement": "Bhadrapura, Kengeri Area",
+        "cluster": "Kengeri",
+        "zone": "West"
       }
     },
     {
@@ -237,19 +63,56 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          77.53797463636364,
-          13.024841272727274
+          77.543491,
+          13.02283
+        ]
+      },
+      "properties": {
+        "name": "Gouthamnagar",
+        "centre_type": "Creche",
+        "partner": "CFAR Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Lumbini Slum, Peenya Area",
+        "cluster": "Peenya_-_West",
+        "zone": "West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.545163,
+          13.030071
+        ]
+      },
+      "properties": {
+        "name": "Muneshwar Nagar",
+        "centre_type": "Creche",
+        "partner": "CFAR Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Muneshwaranagar, Peenya Area",
+        "cluster": "Peenya_-_West",
+        "zone": "West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.537278,
+          13.02607
         ]
       },
       "properties": {
         "name": "Lumbini Slum",
         "centre_type": "Creche",
-        "cluster": "Peenya_-_West",
-        "zone": "West",
-        "partner": "CFAR",
+        "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Lumbini Slum",
-        "note": ""
+        "matched_settlement": "Lumbini Slum, Peenya Area",
+        "cluster": "Peenya_-_West",
+        "zone": "West"
       }
     },
     {
@@ -257,19 +120,189 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          77.592,
-          13.042
+          77.529542,
+          13.028323
         ]
       },
       "properties": {
-        "name": "Kempapura",
+        "name": "Ashrayanagar-1",
         "centre_type": "Creche",
-        "cluster": "Sanjaynagar",
-        "zone": "North",
-        "partner": "",
+        "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Kempapura",
-        "note": "Approx - Hebbal/Kempapura area"
+        "matched_settlement": "Ashrayanagar, Peenya Area",
+        "cluster": "Peenya_-_West",
+        "zone": "West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5288,
+          13.028122
+        ]
+      },
+      "properties": {
+        "name": "Ashrayanagar-2",
+        "centre_type": "Creche",
+        "partner": "CFAR Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Ashrayanagar, Peenya Area",
+        "cluster": "Peenya_-_West",
+        "zone": "West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.526055,
+          13.033171
+        ]
+      },
+      "properties": {
+        "name": "Gulbarga Slum-2",
+        "centre_type": "Creche",
+        "partner": "CFAR Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Gulbarga slum, Peenya Area",
+        "cluster": "Peenya_North",
+        "zone": "North"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.529236,
+          13.014231
+        ]
+      },
+      "properties": {
+        "name": "Jai Bhuvaneshwari Nagar-1",
+        "centre_type": "Creche",
+        "partner": "CFAR Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Buddha Nagara, Peenya Area",
+        "cluster": "Peenya_-_West",
+        "zone": "West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.528116,
+          13.012271
+        ]
+      },
+      "properties": {
+        "name": "Jai Bhuvaneshwari Nagar-2",
+        "centre_type": "Creche",
+        "partner": "CFAR Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Buddha Nagar, Peenya Area",
+        "cluster": "Peenya_-_West",
+        "zone": "West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.526605,
+          13.01956
+        ]
+      },
+      "properties": {
+        "name": "Sanjay Gandhi Nagar",
+        "centre_type": "Creche",
+        "partner": "CFAR Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Sanjaygandhinagar-42, Peenya Area",
+        "cluster": "Peenya_-_West",
+        "zone": "West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.528167,
+          13.014051
+        ]
+      },
+      "properties": {
+        "name": "Havadigara Colony",
+        "centre_type": "Creche",
+        "partner": "CFAR Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Buddha Nagara, Peenya Area",
+        "cluster": "Peenya_-_West",
+        "zone": "West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5951944444444,
+          13.0474444444444
+        ]
+      },
+      "properties": {
+        "name": "Kempapura - 1 & 2",
+        "centre_type": "Creche",
+        "partner": "Diya Ghar Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Chiranjeevi Layout",
+        "cluster": "Byatarayanapura",
+        "zone": "North"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.7149444444444,
+          12.9427777777778
+        ]
+      },
+      "properties": {
+        "name": "Khalikatta 1 & 2",
+        "centre_type": "Creche",
+        "partner": "Thanal Creches",
+        "layer_key": "creches",
+        "matched_settlement": "",
+        "cluster": "",
+        "zone": ""
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.7271111111111,
+          12.9420555555556
+        ]
+      },
+      "properties": {
+        "name": "Balagere",
+        "centre_type": "Creche",
+        "partner": "Thanal Creches",
+        "layer_key": "creches",
+        "matched_settlement": "",
+        "cluster": "",
+        "zone": ""
       }
     }
   ]
