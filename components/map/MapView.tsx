@@ -195,6 +195,7 @@ function buildCentreLayer(
       }
       if (onCentreClick && isProgrammeCentre) {
         layer.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
           const latlng: [number, number] = [e.latlng.lat, e.latlng.lng];
           const centreFeature: CentreFeature = {
             name,
@@ -210,7 +211,8 @@ function buildCentreLayer(
           onCentreClick(props.partner || "", props.zone || "", props.cluster || "", centreFeature);
         });
       } else if (onCentreClick) {
-        layer.on("click", () => {
+        layer.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
           onCentreClick(props.partner || "", props.zone || "", props.cluster || "");
         });
       }
