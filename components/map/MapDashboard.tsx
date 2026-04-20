@@ -275,7 +275,7 @@ export default function MapDashboard() {
     }
   }, [geoData]);
 
-  const handleCentreClick = useCallback((centrePartner: string, centreZone: string, centreCluster: string, centreFeature?: CentreFeature) => {
+  const handleCentreClick = useCallback((_centrePartner: string, _centreZone: string, _centreCluster: string, centreFeature?: CentreFeature) => {
     setSelectedSettlement(null);
     setStatsOpen(false);
     setActiveZone(null);
@@ -283,8 +283,7 @@ export default function MapDashboard() {
     if (centreFeature) {
       setSelectedCentre(centreFeature);
     }
-    setMapFilter(geoData ? computeMapFilter("centre", geoData, { centrePartner, centreZone, centreCluster }) : null);
-  }, [geoData]);
+  }, []);
 
   const handleClearFilter = useCallback(() => {
     setMapFilter(null);

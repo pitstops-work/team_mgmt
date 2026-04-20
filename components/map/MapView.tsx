@@ -590,7 +590,7 @@ export default function MapView({
       if (layerConfig && group && geojson) {
         buildCentreLayer(
           layerConfig, group, geojson, mapFilter,
-          (p, z, c) => onCentreClickRef.current?.(p, z, c)
+          (p, z, c, cf) => onCentreClickRef.current?.(p, z, c, cf)
         );
       }
     });
