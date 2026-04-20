@@ -258,7 +258,26 @@
         ]
       },
       "properties": {
-        "name": "Kempapura - 1 & 2",
+        "name": "Kempapura - 1",
+        "centre_type": "Creche",
+        "partner": "Diya Ghar Creches",
+        "layer_key": "creches",
+        "matched_settlement": "Chiranjeevi Layout",
+        "cluster": "Byatarayanapura",
+        "zone": "North"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.5951944444444,
+          13.0474444444444
+        ]
+      },
+      "properties": {
+        "name": "Kempapura - 2",
         "centre_type": "Creche",
         "partner": "Diya Ghar Creches",
         "layer_key": "creches",
@@ -277,7 +296,26 @@
         ]
       },
       "properties": {
-        "name": "Khalikatta 1 & 2",
+        "name": "Khalikatta 1",
+        "centre_type": "Creche",
+        "partner": "Thanal Creches",
+        "layer_key": "creches",
+        "matched_settlement": "",
+        "cluster": "",
+        "zone": ""
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.7149444444444,
+          12.9427777777778
+        ]
+      },
+      "properties": {
+        "name": "Khalikatta 2",
         "centre_type": "Creche",
         "partner": "Thanal Creches",
         "layer_key": "creches",
