@@ -48,9 +48,8 @@ function NeedsRow({ label, color, existing, apfTarget, done, inProgress, onAdd }
   onAdd?: () => void;
 }) {
   const planned = done + inProgress;
-  const gap = Math.max(0, planned - done);
-  const pct = planned > 0 ? Math.min(100, Math.round((done / planned) * 100)) : done > 0 ? 100 : 0;
-  void apfTarget;
+  const gap = Math.max(0, apfTarget - done);
+  const pct = apfTarget > 0 ? Math.min(100, Math.round((done / apfTarget) * 100)) : done > 0 ? 100 : 0;
   return (
     <div className="py-1.5 border-b border-slate-50 last:border-0">
       <div className="flex items-center gap-2 mb-1">

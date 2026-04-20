@@ -110,8 +110,8 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
             const d = domains[domain];
             if (!d) return null;
             const planned = d.planned ?? (d.done + d.inProgress);
-            const pct = planned > 0 ? Math.min(100, Math.round((d.done / planned) * 100)) : d.done > 0 ? 100 : 0;
-            const gap = Math.max(0, planned - d.done);
+            const gap = Math.max(0, d.apfTarget - d.done);
+            const pct = d.apfTarget > 0 ? Math.min(100, Math.round((d.done / d.apfTarget) * 100)) : d.done > 0 ? 100 : 0;
             return (
               <tr key={domain}>
                 <td className="py-2 pr-3">
@@ -129,7 +129,7 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
                     </div>
                     <span className={`w-8 text-right font-bold ${gap > 0 ? "text-red-500" : "text-emerald-600"}`}>
-                      {gap > 0 ? `-${gap}` : "✓"}
+                      {gap > 0 ? `${gap}` : "✓"}
                     </span>
                   </div>
                 </td>

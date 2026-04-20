@@ -98,8 +98,8 @@ function domainActual(goals: GoalActual[], domain: string) {
 
 function NeedsRow({ label, existing, apfTarget, done, inProgress }: { label: string; existing: number; apfTarget: number; done: number; inProgress: number }) {
   const planned = done + inProgress;
-  const gap = Math.max(0, planned - done);
-  const pct = planned > 0 ? Math.min(100, Math.round((done / planned) * 100)) : 0;
+  const gap = Math.max(0, apfTarget - done);
+  const pct = apfTarget > 0 ? Math.min(100, Math.round((done / apfTarget) * 100)) : 0;
   return (
     <div className="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0 text-xs">
       <span className="w-36 text-stone-600 flex-shrink-0">{label}</span>
