@@ -696,13 +696,13 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
         <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-sky-500" />
           <span className="text-sm font-semibold text-stone-800">Needs Summary</span>
-          <span className="ml-auto text-xs text-stone-400">Target · Existing · APF Target · Done · In Progress · Gap</span>
+          <span className="ml-auto text-xs text-stone-400">Total · Existing · Target · Done · In Progress · Gap</span>
         </div>
         <div className="px-4 py-3">
           <div className="flex items-center gap-3 pb-2 border-b border-stone-100 text-[10px] font-medium text-stone-400 uppercase tracking-wide">
             <span className="w-36">Domain</span>
             <span className="w-16 text-center">Existing</span>
-            <span className="w-16 text-center">APF Target</span>
+            <span className="w-16 text-center">Target</span>
             <span className="w-16 text-center">Done</span>
             <span className="w-16 text-center">In Progress</span>
             <span className="flex-1 text-right">Gap</span>
@@ -746,7 +746,7 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
 
         {/* Existing Infrastructure */}
         <Section title="Existing Infrastructure" icon={<Building2 className="w-4 h-4" />}>
-          <p className="text-xs text-stone-400 mb-2">Infrastructure already present (not built by APF) — used to calculate APF target gap</p>
+          <p className="text-xs text-stone-400 mb-2">Infrastructure already present — subtracted from total to get the programme target</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Existing Creches"><NumInput value={existing.existingCreches} onChange={v => setExisting(e => ({ ...e, existingCreches: v }))} /></Field>
             <Field label="Existing Children Centres"><NumInput value={existing.existingChildrenCentres} onChange={v => setExisting(e => ({ ...e, existingChildrenCentres: v }))} /></Field>

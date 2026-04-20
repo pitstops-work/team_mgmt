@@ -100,7 +100,7 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
           <tr className="border-b border-stone-100">
             <th className="text-left py-1.5 pr-3 font-medium text-stone-400 text-[10px] uppercase tracking-wide">Domain</th>
             <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Existing</th>
-            <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">APF target</th>
+            <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Target</th>
             <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Done</th>
             <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Active</th>
             <th className="text-right py-1.5 pl-2 font-medium text-stone-400 text-[10px]">Gap</th>
@@ -163,7 +163,7 @@ function DomainHeaderRow({ domainConfigs }: { domainConfigs: DomainConfig[] }) {
       <span>Name</span>
       <span className="text-right">Assessed</span>
       <span className="text-right">HH</span>
-      <span className="text-center" title="Saturation: delivered ÷ APF target">Sat</span>
+      <span className="text-center" title="Saturation: delivered ÷ target">Sat</span>
       {domainConfigs.map(d => (
         <span key={d.domain} className="text-center leading-tight" style={{ color: d.color }} title={d.label}>
           {d.label.replace(/([A-Z])/g, ' $1').trim().split(' ').map((w: string) => w[0]).join('').slice(0, 3)}
