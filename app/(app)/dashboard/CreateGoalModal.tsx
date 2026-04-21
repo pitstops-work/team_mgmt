@@ -21,6 +21,7 @@ interface GapData {
   existing: Record<string, number>;
   actuals: Record<string, { done: number; inProgress: number }>;
   domainConfig: DomainConfig[];
+  eligibleByDomain?: Record<string, number>;
 }
 
 export interface GoalPrefill {
@@ -164,17 +165,20 @@ function DomainStep({
       </p>
       <div className="space-y-2 pt-1">
         {(gapData.domainConfig ?? []).map(d => {
-          const target     = Math.max(0, (gapData.targets[d.domain] ?? 0) - (gapData.existing[d.domain] ?? 0));
+          const isEnt      = d.domainType === "entitlement";
+          const eligible   = isEnt ? (gapData.eligibleByDomain?.[d.domain] ?? 0) : 0;
+          const target     = isEnt ? eligible : Math.max(0, (gapData.targets[d.domain] ?? 0) - (gapData.existing[d.domain] ?? 0));
           const done       = gapData.actuals[d.domain]?.done ?? 0;
           const inProgress = gapData.actuals[d.domain]?.inProgress ?? 0;
           const gap        = Math.max(0, target - done);
+          const passGap    = isEnt ? eligible : gap; // entitlement: pass full eligible as the "gap" so parameter auto-sets to 100%
           const isActive   = selected === d.domain;
           const noGap      = gap === 0;
 
           return (
             <button
               key={d.domain}
-              onClick={() => onSelect(d.domain, d.label, d.color, gap, d.domainType ?? "")}
+              onClick={() => onSelect(d.domain, d.label, d.color, passGap, d.domainType ?? "")}
               className={`w-full text-left px-3 py-2.5 rounded-xl border-2 transition-all ${
                 isActive
                   ? "shadow-sm"
@@ -192,6 +196,11 @@ function DomainStep({
                 </span>
                 {noGap ? (
                   <span className="text-[10px] font-bold text-emerald-500">✓ met</span>
+                ) : isEnt ? (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: d.color + "20", color: d.color }}>
+                    {eligible} eligible
+                  </span>
                 ) : (
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                     style={{ background: d.color + "20", color: d.color }}>
@@ -299,14 +308,12 @@ function GoalForm({
             className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
           />
         </div>
-      ) : (
+      ) : domainType !== "entitlement" ? (
         <div>
           <label className="block text-xs font-medium text-stone-600 mb-1">
-            {domainType === "entitlement" ? "Households to enrol" : "Units committed"}{" "}
+            Units committed{" "}
             <span className="text-stone-300 font-normal">
-              {domainType === "entitlement"
-                ? "(number of HH this goal will enrol into the scheme)"
-                : `(how many ${domainLabel.toLowerCase()} this goal will deliver)`}
+              {`(how many ${domainLabel.toLowerCase()} this goal will deliver)`}
             </span>
           </label>
           <input
@@ -315,11 +322,11 @@ function GoalForm({
             step={1}
             value={parameter}
             onChange={e => setParameter(e.target.value)}
-            placeholder={domainType === "entitlement" ? "e.g. 50" : "e.g. 2"}
+            placeholder="e.g. 2"
             className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
           />
         </div>
-      )}
+      ) : null}
 
       <div>
         <label className="block text-xs font-medium text-stone-600 mb-1">Description</label>

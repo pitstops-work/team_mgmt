@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calcTargets, buildDomainConfig, buildExisting, type FormulaRow } from "../../map/settlement-needs/route";
+import { calcTargets, buildExisting, type FormulaRow } from "../../map/settlement-needs/route";
 
 // GET /api/needs/gap?zoneId=&clusterId=&settlementId=
 // Returns pop + existing + targets + actuals for the given geography (by ID).
@@ -49,7 +49,12 @@ export async function GET(request: Request) {
 
   // Formula config — fetched early so buildExisting can use assessmentColumn
   const formulaRows  = await prisma.needsFormulaConfig.findMany({ orderBy: { sortOrder: "asc" } });
-  const domainConfig = buildDomainConfig(formulaRows);
+
+  // domainConfig for gap endpoint includes entitlement domains (unlike map which excludes them)
+  const domainConfig = formulaRows
+    .filter(f => f.isActive)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map(f => ({ domain: f.domain, label: f.label ?? f.domain, color: f.color, domainType: f.domainType }));
 
   // ── Latest assessment per settlement ───────────────────────────────────────
 
@@ -58,6 +63,7 @@ export async function GET(request: Request) {
     orderBy: { assessedAt: "desc" },
     distinct: ["settlementId"],
     select: {
+      id: true,
       totalHouseholds: true,
       children6m3yr: true, children4to14: true, youth15to21: true, elderly60plus: true,
       existingCreches: true, existingChildrenCentres: true, existingYouthGroups: true,
@@ -118,5 +124,26 @@ export async function GET(request: Request) {
     else if (g.status === "Active") actuals[d].inProgress += val;
   }
 
-  return NextResponse.json({ pop, existing, targets, actuals, domainConfig });
+  // ── Eligible HH per entitlement domain ────────────────────────────────────
+
+  const eligibleByDomain: Record<string, number> = {};
+  const entDomains = formulaRows.filter(f => f.isActive && f.domainType === "entitlement" && f.linkedSchemeId);
+
+  if (entDomains.length > 0 && assessments.length > 0) {
+    const assessmentIds = assessments.map(a => a.id);
+    const schemeIds = entDomains.map(f => f.linkedSchemeId!);
+    const baselines = await prisma.entitlementBaseline.findMany({
+      where: { assessmentId: { in: assessmentIds }, schemeId: { in: schemeIds } },
+      select: { schemeId: true, eligibleHouseholds: true },
+    });
+    const schemeEligible: Record<string, number> = {};
+    for (const b of baselines) {
+      schemeEligible[b.schemeId] = (schemeEligible[b.schemeId] ?? 0) + Number(b.eligibleHouseholds);
+    }
+    for (const f of entDomains) {
+      eligibleByDomain[f.domain] = schemeEligible[f.linkedSchemeId!] ?? 0;
+    }
+  }
+
+  return NextResponse.json({ pop, existing, targets, actuals, domainConfig, eligibleByDomain });
 }
