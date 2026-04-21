@@ -30,10 +30,11 @@ export async function PATCH(req: NextRequest) {
     label?: string;
     color?: string;
     sortOrder?: number;
+    linkedSchemeId?: string | null;
   }[] = await req.json();
 
   await Promise.all(
-    updates.map(({ domain, denominator, description, isActive, label, color, sortOrder }) =>
+    updates.map(({ domain, denominator, description, isActive, label, color, sortOrder, linkedSchemeId }) =>
       prisma.needsFormulaConfig.update({
         where: { domain },
         data: {
@@ -43,6 +44,7 @@ export async function PATCH(req: NextRequest) {
           ...(label !== undefined ? { label } : {}),
           ...(color !== undefined ? { color } : {}),
           ...(sortOrder !== undefined ? { sortOrder } : {}),
+          ...(linkedSchemeId !== undefined ? { linkedSchemeId: linkedSchemeId ?? null } : {}),
         },
       })
     )
@@ -74,7 +76,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { key, label, color, domainType, denominator, populationField, description } = await req.json();
+  const { key, label, color, domainType, denominator, populationField, description, linkedSchemeId } = await req.json();
 
   if (!key || !label) return Response.json({ error: "key and label are required" }, { status: 400 });
 
@@ -88,11 +90,12 @@ export async function POST(req: NextRequest) {
       label,
       color: color ?? "#6b7280",
       domainType: domainType ?? "count",
-      denominator: denominator ?? null,
-      populationField: populationField ?? null,
+      denominator: domainType === "entitlement" ? null : (denominator ?? null),
+      populationField: domainType === "entitlement" ? null : (populationField ?? null),
       description: description ?? null,
       sortOrder,
       isActive: true,
+      linkedSchemeId: domainType === "entitlement" ? (linkedSchemeId ?? null) : null,
     },
   });
 

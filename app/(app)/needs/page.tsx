@@ -11,11 +11,12 @@ export interface DomainConfig {
   domain: string;
   label: string;
   color: string;
-  domainType: string;          // "count" | "boolean"
+  domainType: string;          // "count" | "boolean" | "entitlement"
   populationField: string | null;
   denominator: number | null;
   sortOrder: number;
   clusterScope: boolean;       // if true, viability minimum is at cluster level, not per-settlement
+  linkedSchemeId: string | null;
 }
 
 export interface DomainSummary {
@@ -124,6 +125,7 @@ type GoalRow = {
 //   "N settlements need a referral system", not just 1.
 
 function formulaTarget(pop: PopFields, cfg: DomainConfig): number {
+  if (cfg.domainType === "entitlement") return 0; // computed separately from scheme baselines
   if (cfg.domainType === "boolean") {
     const field = cfg.populationField as keyof PopFields | null;
     const popVal = field ? pop[field] : pop.totalHouseholds;
@@ -306,6 +308,51 @@ function computeProgress(goals: GoalRow[], today: Date): ProgressSummary {
   };
 }
 
+// ── Entitlement domain stats: overlay from scheme baseline data ──────────────
+// For domainType="entitlement" domains, targets and actuals come from EntitlementBaseline
+// rows rather than population formulas or goals.
+
+function computeEntitlementStats(
+  settlementIds: string[],
+  entDomains: DomainConfig[],
+  settlementEntMap: Record<string, { schemeId: string; eligibleHouseholds: number; enrolledHouseholds: number; surveyEnrolled: number | null }[]>
+): Record<string, DomainSummary> {
+  const result: Record<string, DomainSummary> = {};
+  for (const cfg of entDomains) {
+    if (!cfg.linkedSchemeId) continue;
+    let eligible = 0, surveyEnrolled = 0, ngoEnrolled = 0;
+    for (const sId of settlementIds) {
+      const e = (settlementEntMap[sId] ?? []).find(e => e.schemeId === cfg.linkedSchemeId);
+      if (e) {
+        eligible += e.eligibleHouseholds;
+        surveyEnrolled += e.surveyEnrolled ?? 0;
+        ngoEnrolled += e.enrolledHouseholds;
+      }
+    }
+    const totalEnrolled = surveyEnrolled + ngoEnrolled;
+    result[cfg.domain] = {
+      target: eligible,
+      existing: surveyEnrolled,
+      apfTarget: eligible,
+      planned: totalEnrolled,
+      done: totalEnrolled,
+      inProgress: 0,
+      activeGoalCount: 0,
+      gap: Math.max(0, eligible - totalEnrolled),
+    };
+  }
+  return result;
+}
+
+function mergeEntStats(stats: LevelStats, entStats: Record<string, DomainSummary>): LevelStats {
+  if (Object.keys(entStats).length === 0) return stats;
+  const domains = { ...stats.domains, ...entStats };
+  const totalApfTarget = Object.values(domains).reduce((s, d) => s + d.apfTarget, 0);
+  const totalDelivered = Object.values(domains).reduce((s, d) => s + Math.min(d.done, d.apfTarget), 0);
+  const saturationScore = totalApfTarget > 0 ? Math.round((totalDelivered / totalApfTarget) * 100) : 0;
+  return { ...stats, domains, saturationScore };
+}
+
 // ── Monthly trend: planned vs actual cumulative deliveries ───────────────────
 
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -411,7 +458,10 @@ export default async function NeedsPage() {
     denominator:    f.denominator ?? null,
     sortOrder:      f.sortOrder ?? 0,
     clusterScope:   f.clusterScope ?? false,
+    linkedSchemeId: f.linkedSchemeId ?? null,
   }));
+
+  const entitlementDomains = domainConfigs.filter(d => d.domainType === "entitlement" && d.linkedSchemeId);
 
   const clusterScopedDomains = domainConfigs.filter(d => d.clusterScope);
 
@@ -496,6 +546,22 @@ export default async function NeedsPage() {
 
   const allSettlements = cities.flatMap(c => c.zones.flatMap(z => z.clusters.flatMap(cl => cl.settlements)));
 
+  // ── Entitlement domain overlay helper ────────────────────────────────────────
+  // settlementEntMap is already built above; we pass the thin shape computeEntitlementStats expects.
+  const entBaselinesBySettlement: Record<string, { schemeId: string; eligibleHouseholds: number; enrolledHouseholds: number; surveyEnrolled: number | null }[]> = {};
+  for (const [sId, rows] of Object.entries(settlementEntMap)) {
+    entBaselinesBySettlement[sId] = rows.map(r => ({
+      schemeId: r.schemeId,
+      eligibleHouseholds: r.eligibleHouseholds,
+      enrolledHouseholds: r.enrolledHouseholds,
+      surveyEnrolled: r.surveyEnrolled,
+    }));
+  }
+  const entOverlay = (sIds: string[]) =>
+    entitlementDomains.length > 0
+      ? computeEntitlementStats(sIds, entitlementDomains, entBaselinesBySettlement)
+      : {};
+
   // ── Per-cluster stats (computed first — zone/city/settlement reference these) ──
   // cluster-scoped domains use total cluster pop (correct at this level)
   const clusterStatsMap: Record<string, { name: string; zoneName: string; cityName: string; stats: LevelStats }> = {};
@@ -507,11 +573,15 @@ export default async function NeedsPage() {
           g.needsClusterId === cluster.id ||
           (g.needsSettlementId && settlementToCluster[g.needsSettlementId] === cluster.id)
         );
+        const clSIds = cluster.settlements.map(s => s.id);
         clusterStatsMap[cluster.id] = {
           name: cluster.name,
           zoneName: zone.name,
           cityName: city.name,
-          stats: computeStats(clAssessments, clGoals, domainConfigs, cluster.settlements.length),
+          stats: mergeEntStats(
+            computeStats(clAssessments, clGoals, domainConfigs, cluster.settlements.length),
+            entOverlay(clSIds),
+          ),
         };
       }
     }
@@ -540,12 +610,13 @@ export default async function NeedsPage() {
         (g.needsClusterId && clusterToZone[g.needsClusterId] === zone.id) ||
         (g.needsSettlementId && settlementToZone[g.needsSettlementId] === zone.id)
       );
+      const zSIds = zoneSettlements.map(s => s.id);
       zoneStatsMap[zone.id] = {
         name: zone.name,
         cityName: city.name,
-        stats: computeStats(
-          zoneAssessments, zoneGoals, domainConfigs, zoneSettlements.length,
-          clusterScopedSum(zone.clusters.map(c => c.id)),
+        stats: mergeEntStats(
+          computeStats(zoneAssessments, zoneGoals, domainConfigs, zoneSettlements.length, clusterScopedSum(zone.clusters.map(c => c.id))),
+          entOverlay(zSIds),
         ),
       };
     }
@@ -564,11 +635,12 @@ export default async function NeedsPage() {
       (g.needsClusterId     && cityZoneIds.has(clusterToZone[g.needsClusterId])) ||
       (g.needsSettlementId  && cityZoneIds.has(settlementToZone[g.needsSettlementId]))
     );
+    const citySIds = citySettlements.map(s => s.id);
     cityStatsMap[city.id] = {
       name: city.name,
-      stats: computeStats(
-        cityAssessments, cityGoals, domainConfigs, citySettlements.length,
-        clusterScopedSum(cityClusterIds),
+      stats: mergeEntStats(
+        computeStats(cityAssessments, cityGoals, domainConfigs, citySettlements.length, clusterScopedSum(cityClusterIds)),
+        entOverlay(citySIds),
       ),
     };
   }
@@ -612,9 +684,10 @@ export default async function NeedsPage() {
 
   // ── City-wide stats (all cities combined) ──
   const allClusterIds = cities.flatMap(c => c.zones.flatMap(z => z.clusters.map(cl => cl.id)));
-  const cityStats = applyGeoOverrides(computeStats(
-    latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length,
-    clusterScopedSum(allClusterIds),
+  const allSettlementIds = allSettlements.map(s => s.id);
+  const cityStats = applyGeoOverrides(mergeEntStats(
+    computeStats(latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length, clusterScopedSum(allClusterIds)),
+    entOverlay(allSettlementIds),
   ));
 
   // ── Per-settlement stats ──
@@ -657,7 +730,8 @@ export default async function NeedsPage() {
             stats.domains[cfg.domain] = { target: assignedTarget, existing: ex, apfTarget, planned: Math.min(done + inProg, apfTarget > 0 ? apfTarget : done + inProg), done, inProgress: inProg, activeGoalCount, gap: Math.max(0, apfTarget - done) };
           }
 
-          settlementStatsMap[s.id] = { name: s.name, clusterName: cluster.name, zoneName: zone.name, stats };
+          const sStat = mergeEntStats(stats, entOverlay([s.id]));
+          settlementStatsMap[s.id] = { name: s.name, clusterName: cluster.name, zoneName: zone.name, stats: sStat };
         }
       }
     }

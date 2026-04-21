@@ -1122,13 +1122,16 @@ model NeedsFormulaConfig {
   description     String?
   label           String?
   color           String   @default("#6b7280")
-  domainType      String   @default("count")   // "count" | "boolean"
+  domainType      String   @default("count")   // "count" | "boolean" | "entitlement"
   populationField  String?                       // "totalHouseholds" | "children6m3yr" | "youth15to21" | "elderly60plus" etc.
   assessmentColumn String?                       // column name in SettlementAssessment for "existing" count, e.g. "existingCreches"
   sortOrder        Int      @default(0)
   isActive        Boolean  @default(true)
   clusterScope    Boolean  @default(false) // if true, viability threshold is cluster-total, not per-settlement
+  linkedSchemeId  String?                       // for domainType="entitlement" — links to an EntitlementScheme
   updatedAt       DateTime @updatedAt
+
+  linkedScheme    EntitlementScheme? @relation("DomainScheme", fields: [linkedSchemeId], references: [id], onDelete: SetNull)
 }
 
 // Entitlement schemes (hierarchical — BoCW parent + 14 children)
@@ -1141,9 +1144,10 @@ model EntitlementScheme {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
 
-  parent     EntitlementScheme?  @relation("SchemeHierarchy", fields: [parentId], references: [id])
-  children   EntitlementScheme[] @relation("SchemeHierarchy")
-  baselines  EntitlementBaseline[]
+  parent        EntitlementScheme?   @relation("SchemeHierarchy", fields: [parentId], references: [id])
+  children      EntitlementScheme[]  @relation("SchemeHierarchy")
+  baselines     EntitlementBaseline[]
+  linkedDomains NeedsFormulaConfig[] @relation("DomainScheme")
 }
 
 // One row per survey per settlement — versioned (history preserved)

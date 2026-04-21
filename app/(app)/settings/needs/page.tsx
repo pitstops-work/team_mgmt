@@ -16,6 +16,7 @@ interface DomainConfig {
   description: string | null;
   sortOrder: number;
   isActive: boolean;
+  linkedSchemeId: string | null;
 }
 
 interface Scheme { id: string; name: string; parentId: string | null; sortOrder: number; isActive: boolean }
@@ -49,10 +50,14 @@ function FormulasSection() {
   const [newPopField, setNewPopField]     = useState("totalHouseholds");
   const [newDenom, setNewDenom]           = useState("");
   const [newDesc, setNewDesc]             = useState("");
+  const [newLinkedSchemeId, setNewLinkedSchemeId] = useState("");
   const [adding, setAdding]               = useState(false);
   const [addError, setAddError]           = useState("");
   const [keyEdited, setKeyEdited]         = useState(false);
   const [showAdvanced, setShowAdvanced]   = useState(false);
+
+  // Available entitlement schemes (for scheme-saturation type)
+  const [allSchemes, setAllSchemes]       = useState<Scheme[]>([]);
 
   // Auto-generate camelCase key from label
   const autoKey = (label: string) =>
@@ -72,6 +77,9 @@ function FormulasSection() {
         data.forEach(d => { init[d.domain] = d.denominator != null ? String(d.denominator) : ""; });
         setEdits(init);
       });
+    fetch("/api/needs/schemes")
+      .then(r => r.json())
+      .then(setAllSchemes);
   }, []);
 
   const patchDomain = async (updates: { domain: string; [key: string]: unknown }[]) => {
@@ -142,6 +150,7 @@ function FormulasSection() {
 
   const handleAdd = async () => {
     if (!newLabel.trim()) { setAddError("Name is required"); return; }
+    if (newType === "entitlement" && !newLinkedSchemeId) { setAddError("Select an entitlement scheme"); return; }
     const resolvedKey = newKey.trim() || autoKey(newLabel.trim());
     if (!resolvedKey) { setAddError("Could not generate ID from name"); return; }
     setAdding(true);
@@ -154,9 +163,10 @@ function FormulasSection() {
         label: newLabel.trim(),
         color: newColor,
         domainType: newType,
-        populationField: newType === "boolean" ? null : newPopField,
-        denominator: newType === "boolean" ? null : (newDenom ? parseFloat(newDenom) : null),
+        populationField: newType === "boolean" ? null : (newType === "entitlement" ? null : newPopField),
+        denominator: (newType === "boolean" || newType === "entitlement") ? null : (newDenom ? parseFloat(newDenom) : null),
         description: newDesc.trim() || null,
+        linkedSchemeId: newType === "entitlement" ? newLinkedSchemeId : null,
       }),
     });
     if (res.ok) {
@@ -164,7 +174,7 @@ function FormulasSection() {
       setDomains(prev => [...prev, created]);
       setEdits(prev => ({ ...prev, [created.domain]: created.denominator != null ? String(created.denominator) : "" }));
       setNewKey(""); setNewLabel(""); setNewColor("#6b7280"); setNewType("count");
-      setNewPopField("totalHouseholds"); setNewDenom(""); setNewDesc("");
+      setNewPopField("totalHouseholds"); setNewDenom(""); setNewDesc(""); setNewLinkedSchemeId("");
       setKeyEdited(false); setShowAdvanced(false);
       setShowAdd(false);
     } else {
@@ -207,7 +217,7 @@ function FormulasSection() {
         <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-sky-700">New Need Domain</p>
-            <button onClick={() => { setShowAdd(false); setAddError(""); setKeyEdited(false); setShowAdvanced(false); }} className="text-stone-400 hover:text-stone-600">
+            <button onClick={() => { setShowAdd(false); setAddError(""); setKeyEdited(false); setShowAdvanced(false); setNewLinkedSchemeId(""); }} className="text-stone-400 hover:text-stone-600">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -230,7 +240,7 @@ function FormulasSection() {
           {/* Type */}
           <div>
             <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">How is the target calculated?</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setNewType("count")}
@@ -247,8 +257,44 @@ function FormulasSection() {
                 <p className="text-xs font-semibold text-stone-700">Presence</p>
                 <p className="text-[10px] text-stone-400 mt-0.5">1 per settlement, yes/no (e.g. data baseline done)</p>
               </button>
+              <button
+                type="button"
+                onClick={() => setNewType("entitlement")}
+                className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${newType === "entitlement" ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}
+              >
+                <p className="text-xs font-semibold text-stone-700">Scheme Saturation</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">Links to an entitlement scheme — tracks HH enrollment %</p>
+              </button>
             </div>
           </div>
+
+          {/* Scheme picker for entitlement type */}
+          {newType === "entitlement" && (
+            <div>
+              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Entitlement scheme</label>
+              <select
+                value={newLinkedSchemeId}
+                onChange={e => setNewLinkedSchemeId(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              >
+                <option value="">— select a scheme —</option>
+                {allSchemes.filter(s => s.isActive && !s.parentId).map(s => (
+                  <optgroup key={s.id} label={s.name}>
+                    <option value={s.id}>{s.name} (parent)</option>
+                    {allSchemes.filter(c => c.parentId === s.id && c.isActive).map(c => (
+                      <option key={c.id} value={c.id}>&nbsp;&nbsp;{c.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+                {allSchemes.filter(s => s.isActive && s.parentId && !allSchemes.find(p => p.id === s.parentId)).map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-sky-600 mt-1">
+                Target = eligible HH · Existing = survey baseline · Done = NGO-enrolled
+              </p>
+            </div>
+          )}
 
           {/* Ratio fields */}
           {newType === "count" && (
@@ -281,6 +327,13 @@ function FormulasSection() {
           {newType === "boolean" && (
             <p className="text-[11px] text-sky-700 bg-sky-100 rounded-lg px-3 py-2">
               Target: 1 per settlement — tracks whether each settlement has this resource/service. No population formula needed.
+            </p>
+          )}
+
+          {/* Entitlement hint */}
+          {newType === "entitlement" && (
+            <p className="text-[11px] text-sky-700 bg-sky-100 rounded-lg px-3 py-2">
+              Saturation is computed from assessment data: eligible HH vs enrolled HH. No population formula needed.
             </p>
           )}
 
@@ -345,7 +398,7 @@ function FormulasSection() {
             >
               {adding ? "Adding…" : "Add Domain"}
             </button>
-            <button onClick={() => { setShowAdd(false); setAddError(""); setKeyEdited(false); setShowAdvanced(false); }} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700">
+            <button onClick={() => { setShowAdd(false); setAddError(""); setKeyEdited(false); setShowAdvanced(false); setNewLinkedSchemeId(""); }} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700">
               Cancel
             </button>
           </div>
@@ -419,13 +472,15 @@ function FormulasSection() {
                 </button>
               )}
               <p className="text-[11px] text-stone-400">
-                {d.domainType === "boolean"
+                {d.domainType === "entitlement"
+                  ? `Scheme saturation · ${allSchemes.find(s => s.id === d.linkedSchemeId)?.name ?? "no scheme linked"}`
+                  : d.domainType === "boolean"
                   ? "Boolean — yes/no per settlement"
                   : `${d.populationField ?? "?"} · 1 per ${d.denominator ?? "?"}`}
               </p>
             </div>
 
-            {/* Denominator input for count domains */}
+            {/* Denominator input for count domains only */}
             {d.domainType === "count" && (
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <span className="text-xs text-stone-400">1 per</span>

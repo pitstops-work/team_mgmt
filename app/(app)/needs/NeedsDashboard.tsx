@@ -45,26 +45,28 @@ type ViewLevel = "city" | "zone" | "cluster" | "settlement";
 
 // ── Coverage: Domain card for overview grid ───────────────────────────────────
 
-function DomainCard({ label, color, d }: { label: string; color: string; d: LevelStats["domains"][string] }) {
+function DomainCard({ label, color, d, domainType }: { label: string; color: string; d: LevelStats["domains"][string]; domainType?: string }) {
+  const isEnt = domainType === "entitlement";
   const pct = d.apfTarget > 0 ? Math.min(100, Math.round((d.done / d.apfTarget) * 100)) : d.done > 0 ? 100 : 0;
   return (
     <div className="rounded-xl border border-stone-100 p-3 space-y-2">
       <div className="flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
         <span className="text-xs font-semibold text-stone-700 truncate">{label}</span>
+        {isEnt && <span className="text-[9px] text-violet-500 font-medium ml-auto flex-shrink-0">scheme</span>}
       </div>
       <div className="grid grid-cols-4 text-center gap-1">
         <div>
           <p className="text-sm font-bold text-stone-800">{d.existing}</p>
-          <p className="text-[9px] text-stone-400">exist.</p>
+          <p className="text-[9px] text-stone-400">{isEnt ? "survey" : "exist."}</p>
         </div>
         <div>
-          <p className="text-sm font-bold text-stone-500">{d.planned}</p>
-          <p className="text-[9px] text-stone-400">plan</p>
+          <p className="text-sm font-bold text-stone-500">{isEnt ? d.target : d.planned}</p>
+          <p className="text-[9px] text-stone-400">{isEnt ? "eligible" : "plan"}</p>
         </div>
         <div>
           <p className="text-sm font-bold text-emerald-600">{d.done}</p>
-          <p className="text-[9px] text-stone-400">done</p>
+          <p className="text-[9px] text-stone-400">{isEnt ? "enrolled" : "done"}</p>
         </div>
         <div>
           <p className={`text-sm font-bold ${d.gap > 0 ? "text-red-500" : "text-emerald-500"}`}>
@@ -78,7 +80,7 @@ function DomainCard({ label, color, d }: { label: string; color: string; d: Leve
       </div>
       <div className="flex justify-between text-[9px] text-stone-400">
         {(d.activeGoalCount ?? 0) > 0 && <span className="text-amber-500">+{d.activeGoalCount} goal{d.activeGoalCount !== 1 ? "s" : ""} active</span>}
-        <span className="ml-auto">{pct}%</span>
+        <span className="ml-auto">{pct}%{isEnt ? " saturation" : ""}</span>
       </div>
     </div>
   );
@@ -584,8 +586,8 @@ export default function NeedsDashboard({
                     </p>
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {domainConfigs.map(({ domain, label, color }) => (
-                      <DomainCard key={domain} label={label} color={color} d={activeCityStats.domains[domain]} />
+                    {domainConfigs.map(({ domain, label, color, domainType }) => (
+                      <DomainCard key={domain} label={label} color={color} d={activeCityStats.domains[domain]} domainType={domainType} />
                     ))}
                   </div>
                   <div className="border border-stone-200 rounded-xl p-4">

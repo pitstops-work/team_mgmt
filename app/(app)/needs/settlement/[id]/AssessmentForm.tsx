@@ -20,6 +20,7 @@ type FormulaConfig = {
   color: string | null;
   domainType: string | null;
   populationField: string | null;
+  linkedSchemeId: string | null;
 };
 type GoalActual = { id: string; status: string; title: string; needsDomain: string; parameter: number | null; metrics: { current: number }[] };
 
@@ -696,7 +697,7 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
         <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-sky-500" />
           <span className="text-sm font-semibold text-stone-800">Needs Summary</span>
-          <span className="ml-auto text-xs text-stone-400">Existing · Plan · Done · Gap</span>
+          <span className="ml-auto text-xs text-stone-400">Existing · Plan/Elig. · Done/Enrolled · Gap</span>
         </div>
         <div className="px-4 py-3">
           <div className="flex items-center gap-3 pb-2 border-b border-stone-100 text-[10px] font-medium text-stone-400 uppercase tracking-wide">
@@ -707,6 +708,28 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
             <span className="flex-1 text-right">Gap</span>
           </div>
           {formulas.map(f => {
+            if (f.domainType === "entitlement" && f.linkedSchemeId) {
+              const ent = entitlementData[f.linkedSchemeId] ?? { eligible: 0, enrolled: 0, surveyEnrolled: 0, notes: "" };
+              const totalEnrolled = ent.enrolled + ent.surveyEnrolled;
+              const gap = Math.max(0, ent.eligible - totalEnrolled);
+              const pct = ent.eligible > 0 ? Math.min(100, Math.round((totalEnrolled / ent.eligible) * 100)) : 0;
+              return (
+                <div key={f.domain} className="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0 text-xs">
+                  <span className="w-36 text-stone-600 flex-shrink-0">{f.label ?? f.domain}</span>
+                  <span className="w-16 text-center text-stone-400">{ent.surveyEnrolled} <span className="text-[9px]">surv.</span></span>
+                  <span className="w-16 text-center text-stone-500">{ent.eligible} <span className="text-[9px]">elig.</span></span>
+                  <span className="w-16 text-center text-emerald-600 font-medium">{totalEnrolled}</span>
+                  <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-400" : pct >= 50 ? "bg-sky-400" : "bg-amber-400"}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className={`w-10 text-right font-medium ${gap > 0 ? "text-red-500" : "text-emerald-600"}`}>
+                      {gap > 0 ? `-${gap}` : "✓"}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
             const actuals = domainActual(goals, f.domain);
             return (
               <NeedsRow key={f.domain}
