@@ -143,7 +143,7 @@ function DomainStep({
 }: {
   gapData: GapData | null;
   selected: string;
-  onSelect: (domain: string, label: string, color: string, gap: number) => void;
+  onSelect: (domain: string, label: string, color: string, gap: number, domainType: string) => void;
 }) {
   if (!gapData) {
     return (
@@ -174,7 +174,7 @@ function DomainStep({
           return (
             <button
               key={d.domain}
-              onClick={() => onSelect(d.domain, d.label, d.color, gap)}
+              onClick={() => onSelect(d.domain, d.label, d.color, gap, d.domainType ?? "")}
               className={`w-full text-left px-3 py-2.5 rounded-xl border-2 transition-all ${
                 isActive
                   ? "shadow-sm"
@@ -226,6 +226,7 @@ function GoalForm({
   contextLabel,
   contextColor,
   domainLabel,
+  domainType,
   isOperational,
   loading,
   error,
@@ -240,6 +241,7 @@ function GoalForm({
   contextLabel: string;
   contextColor: string;
   domainLabel: string;
+  domainType?: string;
   isOperational: boolean;
   loading: boolean;
   error: string;
@@ -300,8 +302,12 @@ function GoalForm({
       ) : (
         <div>
           <label className="block text-xs font-medium text-stone-600 mb-1">
-            Units committed{" "}
-            <span className="text-stone-300 font-normal">(how many {domainLabel.toLowerCase()} this goal will deliver)</span>
+            {domainType === "entitlement" ? "Households to enrol" : "Units committed"}{" "}
+            <span className="text-stone-300 font-normal">
+              {domainType === "entitlement"
+                ? "(number of HH this goal will enrol into the scheme)"
+                : `(how many ${domainLabel.toLowerCase()} this goal will deliver)`}
+            </span>
           </label>
           <input
             type="number"
@@ -309,7 +315,7 @@ function GoalForm({
             step={1}
             value={parameter}
             onChange={e => setParameter(e.target.value)}
-            placeholder="e.g. 2"
+            placeholder={domainType === "entitlement" ? "e.g. 50" : "e.g. 2"}
             className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
           />
         </div>
@@ -391,6 +397,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
   const [needsDomain, setNeedsDomain]     = useState(prefill?.needsDomain     ?? "");
   const [selectedDomainLabel, setLabel]   = useState(prefill?.domainLabel     ?? "");
   const [selectedDomainColor, setColor]   = useState(prefill?.domainColor     ?? "#6366f1");
+  const [selectedDomainType, setDomainType] = useState("");
 
   // Step 3: goal form
   const [title, setTitle]           = useState("");
@@ -574,10 +581,11 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
               <DomainStep
                 gapData={gapData}
                 selected={needsDomain}
-                onSelect={(domain, label, color, gap) => {
+                onSelect={(domain, label, color, gap, domainType) => {
                   setNeedsDomain(domain);
                   setLabel(label);
                   setColor(color);
+                  setDomainType(domainType);
                   setParameter(gap > 0 ? String(gap) : "");
                 }}
               />
@@ -608,6 +616,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
               contextLabel={geoLabel}
               contextColor={selectedDomainColor}
               domainLabel={selectedDomainLabel}
+              domainType={selectedDomainType}
               isOperational={isOperational}
               loading={loading}
               error={error}
