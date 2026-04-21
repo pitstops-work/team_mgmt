@@ -34,7 +34,7 @@ export function calcTargets(pop: PopFields, formulaRows: FormulaRow[]): Record<s
 
   const result: Record<string, number> = {};
   for (const f of formulaRows) {
-    if (!f.isActive) continue;
+    if (!f.isActive || f.domainType === "entitlement") continue;
     if (f.domainType === "boolean") {
       // Boolean with no population field → always 1 (every settlement needs it)
       if (!f.populationField) {
@@ -53,7 +53,7 @@ export function calcTargets(pop: PopFields, formulaRows: FormulaRow[]): Record<s
 
 export function buildDomainConfig(formulaRows: FormulaRow[]) {
   return formulaRows
-    .filter(f => f.isActive)
+    .filter(f => f.isActive && f.domainType !== "entitlement") // entitlement domains are shown in the Schemes tab
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map(f => ({ domain: f.domain, label: f.label ?? f.domain, color: f.color, domainType: f.domainType }));
 }
