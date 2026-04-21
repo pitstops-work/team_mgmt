@@ -22,7 +22,7 @@ interface Goal {
   needsCityId?: string | null;
 }
 
-interface DomainConfig { domain: string; label: string; color: string }
+interface DomainConfig { domain: string; label: string; color: string; domainType?: string }
 interface GeoCity    { id: string; name: string }
 interface GeoZone    { id: string; name: string; cityId: string }
 interface GeoCluster { id: string; name: string; zoneId: string }
@@ -77,6 +77,7 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
 
   const filteredZones    = editCityId ? zones.filter(z => z.cityId === editCityId)       : zones;
   const filteredClusters = editZoneId ? clusters.filter(c => c.zoneId === editZoneId)    : clusters;
+  const isEntitlementDomain = !!editDomain && domains.find(d => d.domain === editDomain)?.domainType === "entitlement";
 
   // Settlement attribution state
   const [scopeSettlements, setScopeSettlements] = useState<ScopeSettlement[]>([]);
@@ -398,7 +399,15 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
               <label className="block text-[10px] font-medium text-stone-500 mb-1">Domain (needs category)</label>
               <select
                 value={editDomain}
-                onChange={e => setEditDomain(e.target.value)}
+                onChange={e => {
+                  const d = e.target.value;
+                  setEditDomain(d);
+                  const selectedType = domains.find(x => x.domain === d)?.domainType;
+                  if (selectedType === "entitlement") {
+                    setEditZoneId("");
+                    setEditClusterId("");
+                  }
+                }}
                 className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
               >
                 <option value="">— no domain (operational goal) —</option>
@@ -421,32 +430,39 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
               </select>
             </div>
 
-            {/* Zone */}
-            <div>
-              <label className="block text-[10px] font-medium text-stone-500 mb-1">Zone</label>
-              <select
-                value={editZoneId}
-                onChange={e => { setEditZoneId(e.target.value); setEditClusterId(""); }}
-                className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
-              >
-                <option value="">— all zones —</option>
-                {filteredZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-              </select>
-            </div>
-
-            {/* Cluster */}
-            {editZoneId && (
-              <div>
-                <label className="block text-[10px] font-medium text-stone-500 mb-1">Cluster</label>
-                <select
-                  value={editClusterId}
-                  onChange={e => setEditClusterId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
-                >
-                  <option value="">— all clusters in zone —</option>
-                  {filteredClusters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
+            {/* Zone + Cluster — hidden for entitlement domains (always city-level) */}
+            {!isEntitlementDomain && (
+              <>
+                <div>
+                  <label className="block text-[10px] font-medium text-stone-500 mb-1">Zone</label>
+                  <select
+                    value={editZoneId}
+                    onChange={e => { setEditZoneId(e.target.value); setEditClusterId(""); }}
+                    className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                  >
+                    <option value="">— all zones —</option>
+                    {filteredZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                  </select>
+                </div>
+                {editZoneId && (
+                  <div>
+                    <label className="block text-[10px] font-medium text-stone-500 mb-1">Cluster</label>
+                    <select
+                      value={editClusterId}
+                      onChange={e => setEditClusterId(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                    >
+                      <option value="">— all clusters in zone —</option>
+                      {filteredClusters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
+            {isEntitlementDomain && (
+              <p className="text-[10px] text-sky-600 bg-sky-50 px-2 py-1.5 rounded-lg">
+                Scheme saturation goals are always city-level — all zones included.
+              </p>
             )}
           </div>
 

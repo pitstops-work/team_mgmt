@@ -423,12 +423,13 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
   // Fetch gap data when entering step 2 (APF path only)
   useEffect(() => {
     if (step !== 2 || isOperational) return;
-    const { zoneId, clusterId, settlementId } = geoVal;
-    if (!zoneId) return;
+    const { cityId, zoneId, clusterId, settlementId } = geoVal;
     const params = new URLSearchParams();
     if (settlementId) params.set("settlementId", settlementId);
     else if (clusterId) params.set("clusterId", clusterId);
-    else params.set("zoneId", zoneId);
+    else if (zoneId) params.set("zoneId", zoneId);
+    else if (cityId) params.set("cityId", cityId);
+    else return;
     setGapData(null);
     fetch(`/api/needs/gap?${params}`).then(r => r.json()).then(setGapData);
   }, [step, geoVal, isOperational]);
@@ -593,7 +594,23 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
                   setLabel(label);
                   setColor(color);
                   setDomainType(domainType);
-                  setParameter(gap > 0 ? String(gap) : "");
+                  if (domainType === "entitlement") {
+                    // Snap to city-level scope and fetch city-wide eligible HH count
+                    setGeoVal(v => ({ cityId: v.cityId, zoneId: "", clusterId: "", settlementId: "" }));
+                    const cId = geoVal.cityId;
+                    if (cId) {
+                      fetch(`/api/needs/gap?cityId=${cId}`)
+                        .then(r => r.json())
+                        .then(data => {
+                          const eligible = data?.eligibleByDomain?.[domain] ?? 0;
+                          setParameter(eligible > 0 ? String(eligible) : "");
+                        });
+                    } else {
+                      setParameter(gap > 0 ? String(gap) : "");
+                    }
+                  } else {
+                    setParameter(gap > 0 ? String(gap) : "");
+                  }
                 }}
               />
               <div className="flex justify-between pt-5">

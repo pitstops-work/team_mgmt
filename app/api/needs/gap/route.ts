@@ -10,9 +10,10 @@ export async function GET(request: Request) {
   const zoneId       = url.searchParams.get("zoneId");
   const clusterId    = url.searchParams.get("clusterId");
   const settlementId = url.searchParams.get("settlementId");
+  const cityId       = url.searchParams.get("cityId");
 
-  if (!zoneId && !clusterId && !settlementId) {
-    return NextResponse.json({ error: "zoneId, clusterId, or settlementId required" }, { status: 400 });
+  if (!zoneId && !clusterId && !settlementId && !cityId) {
+    return NextResponse.json({ error: "zoneId, clusterId, settlementId, or cityId required" }, { status: 400 });
   }
 
   // ── Collect settlement IDs ──────────────────────────────────────────────────
@@ -45,6 +46,18 @@ export async function GET(request: Request) {
     if (!zone) return NextResponse.json(null);
     allSettlementIds = zone.clusters.flatMap(c => c.settlements.map(s => s.id));
     allClusterIds    = zone.clusters.map(c => c.id);
+  } else if (cityId) {
+    const cityZones = await prisma.zone.findMany({
+      where: { cityId },
+      include: {
+        clusters: {
+          where: { deletedAt: null },
+          include: { settlements: { where: { deletedAt: null }, select: { id: true } } },
+        },
+      },
+    });
+    allSettlementIds = cityZones.flatMap(z => z.clusters.flatMap(c => c.settlements.map(s => s.id)));
+    allClusterIds    = cityZones.flatMap(z => z.clusters.map(c => c.id));
   }
 
   // Formula config — fetched early so buildExisting can use assessmentColumn
