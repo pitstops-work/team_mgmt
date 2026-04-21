@@ -29,13 +29,16 @@ export async function GET(req: NextRequest) {
   }
 
   // ── 1b. Build cluster lookup for enriching static features ────────────────
-  // Key: "ZoneName::ClusterName" (lower-cased) → clusterId
+  // Key: "ZoneName::ClusterName" (lower-cased) → { clusterId, zoneId }
   const allClusters = await prisma.cluster.findMany({
     where: { deletedAt: null },
-    select: { id: true, name: true, zone: { select: { name: true } } },
+    select: { id: true, name: true, zoneId: true, zone: { select: { id: true, name: true } } },
   });
-  const clusterLookup = new Map<string, string>(
-    allClusters.map(c => [`${c.zone.name.toLowerCase()}::${c.name.toLowerCase().replace(/_/g, " ")}`, c.id])
+  const clusterLookup = new Map<string, { clusterId: string; zoneId: string }>(
+    allClusters.map(c => [
+      `${c.zone.name.toLowerCase()}::${c.name.toLowerCase().replace(/_/g, " ")}`,
+      { clusterId: c.id, zoneId: c.zone.id },
+    ])
   );
 
   // ── 2. DB overrides/additions ───────────────────────────────────────────
@@ -54,7 +57,7 @@ export async function GET(req: NextRequest) {
       polygon: true,
       clusterId: true,
       partner: { select: { key: true, color: true } },
-      cluster: { select: { name: true, zone: { select: { name: true } } } },
+      cluster: { select: { name: true, zoneId: true, zone: { select: { id: true, name: true } } } },
     },
     orderBy: { name: "asc" },
   });
@@ -81,6 +84,7 @@ export async function GET(req: NextRequest) {
           id: dbRow.id,
           name: dbRow.name,
           zone: dbRow.cluster.zone.name,
+          zoneId: dbRow.cluster.zone.id,
           cluster: dbRow.cluster.name,
           clusterId: dbRow.clusterId,
           description: "",
@@ -89,13 +93,13 @@ export async function GET(req: NextRequest) {
         },
       });
     } else {
-      // No DB record yet — enrich with clusterId from DB lookup if possible
+      // No DB record yet — enrich with clusterId + zoneId from DB lookup if possible
       const sfZone = String(sf.properties?.zone ?? "").toLowerCase();
       const sfCluster = String(sf.properties?.cluster ?? "").toLowerCase().replace(/_/g, " ");
-      const enrichedClusterId = sfZone && sfCluster ? (clusterLookup.get(`${sfZone}::${sfCluster}`) ?? null) : null;
+      const enriched = sfZone && sfCluster ? (clusterLookup.get(`${sfZone}::${sfCluster}`) ?? null) : null;
       features.push({
         ...sf,
-        properties: { ...sf.properties, clusterId: enrichedClusterId },
+        properties: { ...sf.properties, clusterId: enriched?.clusterId ?? null, zoneId: enriched?.zoneId ?? null },
       });
     }
   }
@@ -110,6 +114,7 @@ export async function GET(req: NextRequest) {
           id: dbRow.id,
           name: dbRow.name,
           zone: dbRow.cluster.zone.name,
+          zoneId: dbRow.cluster.zone.id,
           cluster: dbRow.cluster.name,
           clusterId: dbRow.clusterId,
           description: "",

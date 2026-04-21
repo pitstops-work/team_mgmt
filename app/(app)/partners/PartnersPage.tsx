@@ -44,7 +44,8 @@ const CENTRE_LABELS: Record<string, string> = {
 
 type SettlementEntry = { id: string | null; name: string };
 type ClusterEntry = { clusterId: string | null; settlements: SettlementEntry[] };
-type GroupedData = Record<string, Record<string, ClusterEntry>>;
+type ZoneEntry = { zoneId: string | null; clusters: Record<string, ClusterEntry> };
+type GroupedData = Record<string, ZoneEntry>;
 
 function groupByZoneCluster(features: GeoFeature[]): GroupedData {
   const out: GroupedData = {};
@@ -54,9 +55,11 @@ function groupByZoneCluster(features: GeoFeature[]): GroupedData {
     const cluster = String(f.properties.cluster ?? "Unknown Cluster").replace(/_/g, " ");
     const id = (f.properties.id as string | undefined) ?? null;
     const clusterId = (f.properties.clusterId as string | undefined) ?? null;
-    if (!out[zone]) out[zone] = {};
-    if (!out[zone][cluster]) out[zone][cluster] = { clusterId, settlements: [] };
-    out[zone][cluster].settlements.push({ id, name });
+    const zoneId = (f.properties.zoneId as string | undefined) ?? null;
+    if (!out[zone]) out[zone] = { zoneId, clusters: {} };
+    else if (zoneId && !out[zone].zoneId) out[zone].zoneId = zoneId;
+    if (!out[zone].clusters[cluster]) out[zone].clusters[cluster] = { clusterId, settlements: [] };
+    out[zone].clusters[cluster].settlements.push({ id, name });
   }
   return out;
 }
@@ -96,96 +99,159 @@ function SettlementTree({
 }) {
   const [grouped, setGrouped] = useState<GroupedData>(initialGrouped);
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
-  const [dragging, setDragging] = useState<{ id: string; name: string; fromClusterId: string } | null>(null);
+  // Settlement drag state (id can be null for static settlements)
+  const [dragging, setDragging] = useState<{ id: string | null; name: string; fromClusterId: string } | null>(null);
   const [dragOverClusterId, setDragOverClusterId] = useState<string | null>(null);
+  // Cluster drag state
+  const [draggingCluster, setDraggingCluster] = useState<{ clusterId: string; clusterName: string; fromZone: string } | null>(null);
+  const [dragOverZone, setDragOverZone] = useState<string | null>(null);
 
   const toggleZone = (z: string) =>
     setExpandedZones((p) => { const s = new Set(p); s.has(z) ? s.delete(z) : s.add(z); return s; });
 
   const zones = Object.keys(grouped).sort();
   const totalSettlements = Object.values(grouped).reduce(
-    (s, clusters) => s + Object.values(clusters).reduce((cs, c) => cs + c.settlements.length, 0), 0
+    (s, ze) => s + Object.values(ze.clusters).reduce((cs, c) => cs + c.settlements.length, 0), 0
   );
-  const totalClusters = Object.values(grouped).reduce((s, clusters) => s + Object.keys(clusters).length, 0);
+  const totalClusters = Object.values(grouped).reduce((s, ze) => s + Object.keys(ze.clusters).length, 0);
 
-  async function handleDrop(targetClusterId: string) {
+  async function handleSettlementDrop(targetClusterId: string) {
     if (!dragging || dragging.fromClusterId === targetClusterId) {
       setDragging(null); setDragOverClusterId(null); return;
     }
-    const res = await fetch("/api/geography/settlements", {
+
+    let resolvedId = dragging.id;
+
+    if (!resolvedId) {
+      // Static settlement — create a DB record in the target cluster
+      const res = await fetch("/api/geography/settlements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: dragging.name, clusterId: targetClusterId }),
+      });
+      if (!res.ok) { setDragging(null); setDragOverClusterId(null); return; }
+      const created = await res.json() as { id: string };
+      resolvedId = created.id;
+    } else {
+      // DB settlement — update its cluster
+      const res = await fetch("/api/geography/settlements", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: resolvedId, clusterId: targetClusterId }),
+      });
+      if (!res.ok) { setDragging(null); setDragOverClusterId(null); return; }
+    }
+
+    setGrouped(prev => {
+      const next: GroupedData = JSON.parse(JSON.stringify(prev));
+      // Remove from old cluster
+      for (const ze of Object.values(next)) {
+        for (const entry of Object.values(ze.clusters)) {
+          if (entry.clusterId === dragging.fromClusterId) {
+            entry.settlements = entry.settlements.filter(s => s.name !== dragging.name);
+          }
+        }
+      }
+      // Add to target cluster with resolved id
+      for (const ze of Object.values(next)) {
+        for (const entry of Object.values(ze.clusters)) {
+          if (entry.clusterId === targetClusterId) {
+            entry.settlements.push({ id: resolvedId, name: dragging.name });
+          }
+        }
+      }
+      return next;
+    });
+    setDragging(null); setDragOverClusterId(null);
+  }
+
+  async function handleClusterDrop(targetZoneName: string) {
+    if (!draggingCluster || draggingCluster.fromZone === targetZoneName) {
+      setDraggingCluster(null); setDragOverZone(null); return;
+    }
+    const targetZoneId = grouped[targetZoneName]?.zoneId;
+    if (!targetZoneId) { setDraggingCluster(null); setDragOverZone(null); return; }
+
+    const res = await fetch("/api/geography/clusters", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: dragging.id, clusterId: targetClusterId }),
+      body: JSON.stringify({ id: draggingCluster.clusterId, zoneId: targetZoneId }),
     });
     if (res.ok) {
       setGrouped(prev => {
         const next: GroupedData = JSON.parse(JSON.stringify(prev));
-        // Remove from old cluster
-        for (const clusters of Object.values(next)) {
-          for (const entry of Object.values(clusters)) {
-            if (entry.clusterId === dragging.fromClusterId) {
-              entry.settlements = entry.settlements.filter(s => s.id !== dragging.id);
-            }
-          }
-        }
-        // Add to target cluster
-        for (const clusters of Object.values(next)) {
-          for (const entry of Object.values(clusters)) {
-            if (entry.clusterId === targetClusterId) {
-              entry.settlements.push({ id: dragging.id, name: dragging.name });
-            }
-          }
+        const clusterData = next[draggingCluster.fromZone]?.clusters[draggingCluster.clusterName];
+        if (clusterData) {
+          delete next[draggingCluster.fromZone].clusters[draggingCluster.clusterName];
+          if (!next[targetZoneName]) next[targetZoneName] = { zoneId: targetZoneId, clusters: {} };
+          next[targetZoneName].clusters[draggingCluster.clusterName] = clusterData;
         }
         return next;
       });
     }
-    setDragging(null); setDragOverClusterId(null);
+    setDraggingCluster(null); setDragOverZone(null);
   }
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-2 text-xs text-slate-500">
+      <div className="flex items-center gap-3 mb-2 text-xs text-slate-500 flex-wrap">
         <span className="font-semibold" style={{ color }}>{totalSettlements}</span> settlements ·{" "}
         <span className="font-semibold text-slate-700">{totalClusters}</span> clusters ·{" "}
         <span className="font-semibold text-slate-700">{zones.length}</span> zones
         {customPolygons.length > 0 && (
           <> · <span className="font-semibold text-slate-700">{customPolygons.length}</span> custom</>
         )}
-        {dragging && <span className="text-indigo-500 italic">Moving "{dragging.name}"…</span>}
+        {dragging && <span className="text-indigo-500 italic">Moving settlement "{dragging.name}"…</span>}
+        {draggingCluster && <span className="text-violet-500 italic">Moving cluster "{draggingCluster.clusterName}"…</span>}
       </div>
 
       <div className="space-y-1">
         {zones.map((zone) => {
-          const clusters = grouped[zone];
-          const clusterNames = Object.keys(clusters).sort();
-          const settCount = Object.values(clusters).reduce((s, c) => s + c.settlements.length, 0);
+          const zoneEntry = grouped[zone];
+          const clusterNames = Object.keys(zoneEntry.clusters).sort();
+          const settCount = Object.values(zoneEntry.clusters).reduce((s, c) => s + c.settlements.length, 0);
           const isOpen = expandedZones.has(zone);
+          const isClusterDropTarget = !!draggingCluster && dragOverZone === zone && draggingCluster.fromZone !== zone;
           return (
-            <div key={zone} className="rounded-lg overflow-hidden border border-slate-100">
+            <div key={zone} className={`rounded-lg overflow-hidden border transition-colors ${isClusterDropTarget ? "border-violet-300 bg-violet-50" : "border-slate-100"}`}>
               <button
                 onClick={() => toggleZone(zone)}
+                onDragOver={e => { if (draggingCluster && zoneEntry.zoneId && draggingCluster.fromZone !== zone) { e.preventDefault(); setDragOverZone(zone); } }}
+                onDragLeave={() => setDragOverZone(null)}
+                onDrop={e => { e.preventDefault(); handleClusterDrop(zone); }}
                 className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
               >
                 {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />}
                 <span className="text-xs font-semibold text-slate-700">{zone}</span>
+                {isClusterDropTarget && <span className="text-[9px] text-violet-500 italic">drop cluster here</span>}
                 <span className="ml-auto text-[10px] text-slate-400">{settCount} settlements · {clusterNames.length} clusters</span>
               </button>
               {isOpen && (
                 <div className="px-3 py-2 space-y-2">
                   {clusterNames.map((cluster) => {
-                    const entry = clusters[cluster];
-                    const isDragTarget = dragging && entry.clusterId && dragOverClusterId === entry.clusterId;
+                    const entry = zoneEntry.clusters[cluster];
+                    const isSettDragTarget = dragging && entry.clusterId && dragOverClusterId === entry.clusterId;
                     return (
                       <div
                         key={cluster}
                         onDragOver={e => { if (dragging && entry.clusterId) { e.preventDefault(); setDragOverClusterId(entry.clusterId); } }}
                         onDragLeave={() => setDragOverClusterId(null)}
-                        onDrop={e => { e.preventDefault(); if (entry.clusterId) handleDrop(entry.clusterId); }}
-                        className={`rounded-md transition-colors ${isDragTarget ? "bg-indigo-50 ring-1 ring-indigo-300" : ""}`}
+                        onDrop={e => { e.preventDefault(); if (entry.clusterId) handleSettlementDrop(entry.clusterId); }}
+                        className={`rounded-md transition-colors ${isSettDragTarget ? "bg-indigo-50 ring-1 ring-indigo-300" : ""}`}
                       >
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 px-1 py-1 flex items-center gap-1">
+                        <div
+                          className={`text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 px-1 py-1 flex items-center gap-1 rounded select-none
+                            ${entry.clusterId ? "cursor-grab active:cursor-grabbing hover:text-violet-600" : ""}
+                            ${draggingCluster?.clusterId === entry.clusterId ? "opacity-40" : ""}`}
+                          draggable={!!entry.clusterId}
+                          onDragStart={() => {
+                            if (entry.clusterId) setDraggingCluster({ clusterId: entry.clusterId, clusterName: cluster, fromZone: zone });
+                          }}
+                          onDragEnd={() => { setDraggingCluster(null); setDragOverZone(null); }}
+                        >
+                          <span className="text-slate-300 mr-0.5 text-[8px]">⠿</span>
                           {cluster}
-                          {isDragTarget && <span className="text-[9px] text-indigo-400 normal-case font-normal">drop here</span>}
+                          {isSettDragTarget && <span className="text-[9px] text-indigo-400 normal-case font-normal ml-1">drop settlement here</span>}
                         </div>
                         <div className="flex flex-wrap gap-1 px-1 pb-1 min-h-[24px]">
                           {entry.settlements
@@ -194,18 +260,19 @@ function SettlementTree({
                             .map((s) => (
                               <span
                                 key={s.id ?? s.name}
-                                draggable={!!s.id && !!entry.clusterId}
+                                draggable={!!entry.clusterId}
                                 onDragStart={() => {
-                                  if (s.id && entry.clusterId) setDragging({ id: s.id, name: s.name, fromClusterId: entry.clusterId! });
+                                  if (entry.clusterId) setDragging({ id: s.id, name: s.name, fromClusterId: entry.clusterId! });
                                 }}
                                 onDragEnd={() => { setDragging(null); setDragOverClusterId(null); }}
                                 className={`text-[11px] bg-white border border-slate-200 rounded-md px-2 py-0.5 text-slate-600 flex items-center gap-1 select-none
-                                  ${s.id && entry.clusterId ? "cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:text-indigo-700" : ""}
-                                  ${dragging?.id === s.id ? "opacity-40" : ""}`}
-                                title={s.id ? "Drag to move to another cluster" : "Static settlement (no DB record)"}
+                                  ${entry.clusterId ? "cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:text-indigo-700" : ""}
+                                  ${dragging?.name === s.name && dragging.fromClusterId === entry.clusterId ? "opacity-40" : ""}`}
+                                title={s.id ? "Drag to move to another cluster" : "Drag to register in another cluster"}
                               >
                                 <MapPin className="w-2.5 h-2.5 text-slate-300 flex-shrink-0" />
                                 {s.name}
+                                {!s.id && <span className="text-[8px] text-slate-300">*</span>}
                               </span>
                             ))}
                           {entry.settlements.length === 0 && (

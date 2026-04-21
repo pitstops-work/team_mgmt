@@ -13,6 +13,21 @@ export async function POST(req: NextRequest) {
   return Response.json(cluster);
 }
 
+export async function PATCH(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id, zoneId } = await req.json();
+  if (!id || !zoneId) return Response.json({ error: "id and zoneId required" }, { status: 400 });
+
+  const cluster = await prisma.cluster.update({
+    where: { id },
+    data: { zoneId },
+    select: { id: true, name: true, zoneId: true },
+  });
+  return Response.json(cluster);
+}
+
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });

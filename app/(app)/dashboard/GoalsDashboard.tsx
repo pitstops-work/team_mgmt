@@ -20,6 +20,7 @@ import MultiSelect from "@/components/MultiSelect";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type CityRef = { id: string; name: string };
 type Goal = {
   id: string;
   title: string;
@@ -30,9 +31,9 @@ type Goal = {
   owner: { id: string; name: string | null; image: string | null };
   pitstops: { id: string; status: string }[];
   programs: { program: { id: string; title: string } }[];
-  needsCity: { id: string; name: string } | null;
-  needsZone: { id: string; name: string } | null;
-  needsCluster: { id: string; name: string; zoneId: string } | null;
+  needsCity: CityRef | null;
+  needsZone: { id: string; name: string; city: CityRef | null } | null;
+  needsCluster: { id: string; name: string; zone: { id: string; name: string; city: CityRef | null } } | null;
 };
 
 type GeoRef = { id: string; title: string; needsDomain: string | null; needsZoneId: string | null; needsClusterId: string | null };
@@ -229,34 +230,62 @@ function MyPitstopRow({ pitstop }: { pitstop: MyPitstop }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type GeoGroup = { label: string; subLabel?: string; goals: Goal[] };
+type ClusterNode = { id: string; name: string; goals: Goal[] };
+type ZoneNode = { id: string; name: string; goals: Goal[]; clusters: Record<string, ClusterNode> };
+type CityNode = { id: string; name: string; goals: Goal[]; zones: Record<string, ZoneNode> };
+type GeoTree = { cities: Record<string, CityNode>; noGeo: Goal[] };
 
-function buildGeoGroups(goals: Goal[]): GeoGroup[] {
-  const cityGroups: Record<string, GeoGroup> = {};
-  const zoneGroups: Record<string, GeoGroup> = {};
-  const clusterGroups: Record<string, GeoGroup> = {};
+function buildGeoTree(goals: Goal[]): GeoTree {
+  const cities: Record<string, CityNode> = {};
   const noGeo: Goal[] = [];
+
+  function getCity(ref: CityRef): CityNode {
+    if (!cities[ref.id]) cities[ref.id] = { id: ref.id, name: ref.name, goals: [], zones: {} };
+    return cities[ref.id];
+  }
+  function getZone(city: CityNode, zone: { id: string; name: string }): ZoneNode {
+    if (!city.zones[zone.id]) city.zones[zone.id] = { id: zone.id, name: zone.name, goals: [], clusters: {} };
+    return city.zones[zone.id];
+  }
+
   for (const g of goals) {
-    if (g.needsCity) {
-      if (!cityGroups[g.needsCity.id]) cityGroups[g.needsCity.id] = { label: g.needsCity.name, goals: [] };
-      cityGroups[g.needsCity.id].goals.push(g);
+    if (g.needsCluster) {
+      const zoneRef = g.needsCluster.zone;
+      const cityRef = zoneRef.city;
+      if (cityRef) {
+        const city = getCity(cityRef);
+        const zone = getZone(city, zoneRef);
+        if (!zone.clusters[g.needsCluster.id]) zone.clusters[g.needsCluster.id] = { id: g.needsCluster.id, name: g.needsCluster.name, goals: [] };
+        zone.clusters[g.needsCluster.id].goals.push(g);
+      } else {
+        // cluster with no city — synthetic city from zone name
+        const syntheticCity: CityRef = { id: `zone-${zoneRef.id}`, name: zoneRef.name };
+        const city = getCity(syntheticCity);
+        const zone = getZone(city, zoneRef);
+        if (!zone.clusters[g.needsCluster.id]) zone.clusters[g.needsCluster.id] = { id: g.needsCluster.id, name: g.needsCluster.name, goals: [] };
+        zone.clusters[g.needsCluster.id].goals.push(g);
+      }
     } else if (g.needsZone) {
-      if (!zoneGroups[g.needsZone.id]) zoneGroups[g.needsZone.id] = { label: g.needsZone.name, subLabel: "Zone", goals: [] };
-      zoneGroups[g.needsZone.id].goals.push(g);
-    } else if (g.needsCluster) {
-      if (!clusterGroups[g.needsCluster.id]) clusterGroups[g.needsCluster.id] = { label: g.needsCluster.name, subLabel: "Cluster", goals: [] };
-      clusterGroups[g.needsCluster.id].goals.push(g);
+      const cityRef = g.needsZone.city;
+      if (cityRef) {
+        const city = getCity(cityRef);
+        const zone = getZone(city, g.needsZone);
+        zone.goals.push(g);
+      } else {
+        const syntheticCity: CityRef = { id: `zone-${g.needsZone.id}`, name: g.needsZone.name };
+        const city = getCity(syntheticCity);
+        const zone = getZone(city, g.needsZone);
+        zone.goals.push(g);
+      }
+    } else if (g.needsCity) {
+      const city = getCity(g.needsCity);
+      city.goals.push(g);
     } else {
       noGeo.push(g);
     }
   }
-  const groups: GeoGroup[] = [
-    ...Object.values(cityGroups),
-    ...Object.values(zoneGroups),
-    ...Object.values(clusterGroups),
-  ];
-  if (noGeo.length > 0) groups.push({ label: "No Geography", goals: noGeo });
-  return groups;
+
+  return { cities, noGeo };
 }
 
 export default function GoalsDashboard({
@@ -291,8 +320,8 @@ export default function GoalsDashboard({
     if (selectedPrograms.length > 0 && !g.programs.some((pg) => selectedPrograms.includes(pg.program.id))) return false;
     if (selectedUsers.length > 0 && !selectedUsers.includes(g.owner.id)) return false;
     if (geoFilter.clusterId) return g.needsCluster?.id === geoFilter.clusterId;
-    if (geoFilter.zoneId) return g.needsZone?.id === geoFilter.zoneId || g.needsCluster?.zoneId === geoFilter.zoneId;
-    if (geoFilter.cityId) return g.needsCity?.id === geoFilter.cityId;
+    if (geoFilter.zoneId) return g.needsZone?.id === geoFilter.zoneId || g.needsCluster?.zone?.id === geoFilter.zoneId;
+    if (geoFilter.cityId) return g.needsCity?.id === geoFilter.cityId || g.needsZone?.city?.id === geoFilter.cityId || g.needsCluster?.zone?.city?.id === geoFilter.cityId;
     return true;
   });
 
@@ -567,29 +596,111 @@ export default function GoalsDashboard({
               <p className="text-center text-stone-400 text-sm py-16">No goals match your filters.</p>
             )
           ) : groupByGeo ? (
-            <div className="space-y-2">
-              {buildGeoGroups(filtered).map((group) => {
-                const isOpen = expandedGroups.has(group.label);
-                return (
-                  <div key={group.label} className="rounded-xl border border-stone-200 overflow-hidden">
-                    <button
-                      onClick={() => toggleGroup(group.label)}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 bg-stone-50 hover:bg-stone-100 transition-colors text-left"
-                    >
-                      {isOpen ? <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />}
-                      <span className="text-sm font-semibold text-stone-700">{group.label}</span>
-                      {group.subLabel && <span className="text-[10px] text-stone-400 bg-stone-200 rounded-full px-2 py-0.5">{group.subLabel}</span>}
-                      <span className="ml-auto text-xs text-stone-400">{group.goals.length} goal{group.goals.length !== 1 ? "s" : ""}</span>
-                    </button>
-                    {isOpen && (
-                      <div className="p-2 space-y-1.5 bg-white">
-                        {group.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+            (() => {
+              const tree = buildGeoTree(filtered);
+              return (
+                <div className="space-y-2">
+                  {Object.values(tree.cities).map((city) => {
+                    const cityKey = `city:${city.id}`;
+                    const cityOpen = expandedGroups.has(cityKey);
+                    const cityGoalCount = city.goals.length +
+                      Object.values(city.zones).reduce((s, z) => s + z.goals.length + Object.values(z.clusters).reduce((cs, cl) => cs + cl.goals.length, 0), 0);
+                    return (
+                      <div key={city.id} className="rounded-xl border border-stone-200 overflow-hidden">
+                        <button
+                          onClick={() => toggleGroup(cityKey)}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 bg-stone-100 hover:bg-stone-200 transition-colors text-left"
+                        >
+                          {cityOpen ? <ChevronDown className="w-4 h-4 text-stone-500 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-stone-500 flex-shrink-0" />}
+                          <span className="text-sm font-bold text-stone-800">{city.name}</span>
+                          <span className="ml-auto text-xs text-stone-500">{cityGoalCount} goal{cityGoalCount !== 1 ? "s" : ""}</span>
+                        </button>
+                        {cityOpen && (
+                          <div className="bg-white divide-y divide-stone-50">
+                            {/* City-level goals */}
+                            {city.goals.length > 0 && (
+                              <div className="px-4 py-2 space-y-1.5">
+                                {city.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                              </div>
+                            )}
+                            {/* Zones */}
+                            {Object.values(city.zones).map((zone) => {
+                              const zoneKey = `zone:${zone.id}`;
+                              const zoneOpen = expandedGroups.has(zoneKey);
+                              const zoneGoalCount = zone.goals.length + Object.values(zone.clusters).reduce((s, cl) => s + cl.goals.length, 0);
+                              return (
+                                <div key={zone.id}>
+                                  <button
+                                    onClick={() => toggleGroup(zoneKey)}
+                                    className="w-full flex items-center gap-2 px-6 py-2 bg-stone-50 hover:bg-stone-100 transition-colors text-left"
+                                  >
+                                    {zoneOpen ? <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />}
+                                    <span className="text-xs font-semibold text-stone-700">{zone.name}</span>
+                                    <span className="text-[10px] text-stone-400 bg-stone-200 rounded-full px-1.5 py-0.5">Zone</span>
+                                    <span className="ml-auto text-xs text-stone-400">{zoneGoalCount}</span>
+                                  </button>
+                                  {zoneOpen && (
+                                    <div className="bg-white divide-y divide-stone-50">
+                                      {/* Zone-level goals */}
+                                      {zone.goals.length > 0 && (
+                                        <div className="px-6 py-2 space-y-1.5">
+                                          {zone.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                                        </div>
+                                      )}
+                                      {/* Clusters */}
+                                      {Object.values(zone.clusters).map((cluster) => {
+                                        const clusterKey = `cluster:${cluster.id}`;
+                                        const clusterOpen = expandedGroups.has(clusterKey);
+                                        return (
+                                          <div key={cluster.id}>
+                                            <button
+                                              onClick={() => toggleGroup(clusterKey)}
+                                              className="w-full flex items-center gap-2 px-8 py-1.5 bg-white hover:bg-stone-50 transition-colors text-left border-l-2 border-stone-100"
+                                            >
+                                              {clusterOpen ? <ChevronDown className="w-3 h-3 text-stone-300 flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-stone-300 flex-shrink-0" />}
+                                              <span className="text-xs text-stone-600 font-medium">{cluster.name}</span>
+                                              <span className="text-[10px] text-stone-400 bg-stone-100 rounded-full px-1.5 py-0.5">Cluster</span>
+                                              <span className="ml-auto text-xs text-stone-400">{cluster.goals.length}</span>
+                                            </button>
+                                            {clusterOpen && (
+                                              <div className="px-8 py-2 space-y-1.5 bg-white border-l-2 border-stone-100">
+                                                {cluster.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                  {/* No geography */}
+                  {tree.noGeo.length > 0 && (
+                    <div className="rounded-xl border border-dashed border-stone-200 overflow-hidden">
+                      <button
+                        onClick={() => toggleGroup("no-geo")}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
+                      >
+                        {expandedGroups.has("no-geo") ? <ChevronDown className="w-4 h-4 text-stone-300 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-stone-300 flex-shrink-0" />}
+                        <span className="text-sm text-stone-400">No Geography</span>
+                        <span className="ml-auto text-xs text-stone-400">{tree.noGeo.length}</span>
+                      </button>
+                      {expandedGroups.has("no-geo") && (
+                        <div className="px-4 pb-2 space-y-1.5">
+                          {tree.noGeo.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()
           ) : (
             <>
               {myGoals.length > 0 && (
