@@ -25,6 +25,7 @@ export interface DomainSummary {
   planned: number;  // done + inProgress = total committed across all goals
   done: number;
   inProgress: number;
+  activeGoalCount: number;  // number of active goals (not their parameter sum)
   gap: number;
 }
 
@@ -188,10 +189,10 @@ function computeStats(
   // Aggregate goal actuals per domain
   // For Complete goals: use outcomeCount (actual delivered) → parameter (planned) → metric
   // For Active goals: use parameter (planned) as in-progress contribution
-  const actuals: Record<string, { done: number; inProgress: number }> = {};
+  const actuals: Record<string, { done: number; inProgress: number; activeGoalCount: number }> = {};
   for (const g of goals) {
     if (!g.needsDomain) continue;
-    if (!actuals[g.needsDomain]) actuals[g.needsDomain] = { done: 0, inProgress: 0 };
+    if (!actuals[g.needsDomain]) actuals[g.needsDomain] = { done: 0, inProgress: 0, activeGoalCount: 0 };
     if (g.status === "Complete") {
       // Use outcomeCount only if explicitly recorded (> 0); otherwise fall back to parameter.
       // outcomeCount = 0 means "not filled in yet", not "zero delivered".
@@ -202,6 +203,7 @@ function computeStats(
     } else if (g.status === "Active") {
       const val = g.parameter ?? g.metrics[0]?.current ?? 0;
       actuals[g.needsDomain].inProgress += val;
+      actuals[g.needsDomain].activeGoalCount += 1;
     }
   }
 
@@ -210,8 +212,9 @@ function computeStats(
     const target = targetSum[cfg.domain];
     const ex     = existing[cfg.domain] ?? 0;
     const apfTarget = Math.max(0, target - ex);
-    const done      = actuals[cfg.domain]?.done      ?? 0;
-    const inProg    = actuals[cfg.domain]?.inProgress ?? 0;
+    const done      = actuals[cfg.domain]?.done           ?? 0;
+    const inProg    = actuals[cfg.domain]?.inProgress      ?? 0;
+    const activeGoalCount = actuals[cfg.domain]?.activeGoalCount ?? 0;
     domains[cfg.domain] = {
       target,
       existing: ex,
@@ -219,6 +222,7 @@ function computeStats(
       planned: Math.min(done + inProg, apfTarget > 0 ? apfTarget : done + inProg),
       done,
       inProgress: inProg,
+      activeGoalCount,
       gap: Math.max(0, apfTarget - done),
     };
   }
@@ -648,8 +652,9 @@ export default async function NeedsPage() {
             const ex = stats.domains[cfg.domain]?.existing ?? 0;
             const done = stats.domains[cfg.domain]?.done ?? 0;
             const inProg = stats.domains[cfg.domain]?.inProgress ?? 0;
+            const activeGoalCount = stats.domains[cfg.domain]?.activeGoalCount ?? 0;
             const apfTarget = Math.max(0, assignedTarget - ex);
-            stats.domains[cfg.domain] = { target: assignedTarget, existing: ex, apfTarget, planned: Math.min(done + inProg, apfTarget > 0 ? apfTarget : done + inProg), done, inProgress: inProg, gap: Math.max(0, apfTarget - done) };
+            stats.domains[cfg.domain] = { target: assignedTarget, existing: ex, apfTarget, planned: Math.min(done + inProg, apfTarget > 0 ? apfTarget : done + inProg), done, inProgress: inProg, activeGoalCount, gap: Math.max(0, apfTarget - done) };
           }
 
           settlementStatsMap[s.id] = { name: s.name, clusterName: cluster.name, zoneName: zone.name, stats };

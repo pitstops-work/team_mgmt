@@ -69,9 +69,8 @@ export function useGeoData(): GeoData | null {
 
       await Promise.all(
         POLYGON_KEYS.map(async (key) => {
-          const layer = LAYERS.find((l) => l.key === key);
-          if (!layer?.file) return;
-          const r = await fetch(layer.file);
+          // Use the settlements API so features are enriched with clusterId from DB
+          const r = await fetch(`/api/map/geojson/settlements?partner=${key}`);
           const gj = await r.json();
           settlements[key] = gj.features ?? [];
         })

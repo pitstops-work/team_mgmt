@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Plus, Target, ChevronRight, Layers, LayoutDashboard, ListChecks,
+  Plus, Target, ChevronRight, ChevronDown, Layers, LayoutDashboard, ListChecks,
   MessageSquare, Home, Users, AlertTriangle, CheckCircle2, Flag,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
@@ -25,10 +25,13 @@ type Goal = {
   title: string;
   description: string | null;
   status: "Active" | "Paused" | "Complete";
+  needsDomain: string | null;
+  parameter: number | null;
   owner: { id: string; name: string | null; image: string | null };
   pitstops: { id: string; status: string }[];
   programs: { program: { id: string; title: string } }[];
-  needsZone: { id: string; name: string; cityId: string | null } | null;
+  needsCity: { id: string; name: string } | null;
+  needsZone: { id: string; name: string } | null;
   needsCluster: { id: string; name: string; zoneId: string } | null;
 };
 
@@ -226,6 +229,36 @@ function MyPitstopRow({ pitstop }: { pitstop: MyPitstop }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+type GeoGroup = { label: string; subLabel?: string; goals: Goal[] };
+
+function buildGeoGroups(goals: Goal[]): GeoGroup[] {
+  const cityGroups: Record<string, GeoGroup> = {};
+  const zoneGroups: Record<string, GeoGroup> = {};
+  const clusterGroups: Record<string, GeoGroup> = {};
+  const noGeo: Goal[] = [];
+  for (const g of goals) {
+    if (g.needsCity) {
+      if (!cityGroups[g.needsCity.id]) cityGroups[g.needsCity.id] = { label: g.needsCity.name, goals: [] };
+      cityGroups[g.needsCity.id].goals.push(g);
+    } else if (g.needsZone) {
+      if (!zoneGroups[g.needsZone.id]) zoneGroups[g.needsZone.id] = { label: g.needsZone.name, subLabel: "Zone", goals: [] };
+      zoneGroups[g.needsZone.id].goals.push(g);
+    } else if (g.needsCluster) {
+      if (!clusterGroups[g.needsCluster.id]) clusterGroups[g.needsCluster.id] = { label: g.needsCluster.name, subLabel: "Cluster", goals: [] };
+      clusterGroups[g.needsCluster.id].goals.push(g);
+    } else {
+      noGeo.push(g);
+    }
+  }
+  const groups: GeoGroup[] = [
+    ...Object.values(cityGroups),
+    ...Object.values(zoneGroups),
+    ...Object.values(clusterGroups),
+  ];
+  if (noGeo.length > 0) groups.push({ label: "No Geography", goals: noGeo });
+  return groups;
+}
+
 export default function GoalsDashboard({
   initialGoals, currentUserId, searchResults, users, programs,
   threads, myPitstops, overviewData, initialTab, initialFilter = "All",
@@ -237,6 +270,8 @@ export default function GoalsDashboard({
   const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
+  const [groupByGeo, setGroupByGeo] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -257,7 +292,7 @@ export default function GoalsDashboard({
     if (selectedUsers.length > 0 && !selectedUsers.includes(g.owner.id)) return false;
     if (geoFilter.clusterId) return g.needsCluster?.id === geoFilter.clusterId;
     if (geoFilter.zoneId) return g.needsZone?.id === geoFilter.zoneId || g.needsCluster?.zoneId === geoFilter.zoneId;
-    if (geoFilter.cityId) return g.needsZone?.cityId === geoFilter.cityId;
+    if (geoFilter.cityId) return g.needsCity?.id === geoFilter.cityId;
     return true;
   });
 
@@ -271,6 +306,14 @@ export default function GoalsDashboard({
       staleTime: 30 * 1000,
     });
     router.prefetch(`/goals/${goalId}`);
+  };
+
+  const toggleGroup = (label: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
   };
 
   // Derived stat pill values
@@ -389,11 +432,18 @@ export default function GoalsDashboard({
         {activeTab === "goals" && (
           <div className="flex items-center gap-2 ml-auto">
             <button
+              onClick={() => setGroupByGeo(g => !g)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${groupByGeo ? "bg-sky-100 text-sky-700 border border-sky-200" : "bg-stone-100 hover:bg-stone-200 text-stone-700"}`}
+            >
+              <Layers className="w-4 h-4" />
+              {groupByGeo ? "Grouped" : "Group"}
+            </button>
+            <button
               onClick={() => setShowTemplate(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium rounded-lg transition-colors"
             >
               <Layers className="w-4 h-4" />
-              From Template
+              Template
             </button>
             <button
               onClick={() => setShowCreate(true)}
@@ -516,6 +566,30 @@ export default function GoalsDashboard({
             ) : (
               <p className="text-center text-stone-400 text-sm py-16">No goals match your filters.</p>
             )
+          ) : groupByGeo ? (
+            <div className="space-y-2">
+              {buildGeoGroups(filtered).map((group) => {
+                const isOpen = expandedGroups.has(group.label);
+                return (
+                  <div key={group.label} className="rounded-xl border border-stone-200 overflow-hidden">
+                    <button
+                      onClick={() => toggleGroup(group.label)}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 bg-stone-50 hover:bg-stone-100 transition-colors text-left"
+                    >
+                      {isOpen ? <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />}
+                      <span className="text-sm font-semibold text-stone-700">{group.label}</span>
+                      {group.subLabel && <span className="text-[10px] text-stone-400 bg-stone-200 rounded-full px-2 py-0.5">{group.subLabel}</span>}
+                      <span className="ml-auto text-xs text-stone-400">{group.goals.length} goal{group.goals.length !== 1 ? "s" : ""}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="p-2 space-y-1.5 bg-white">
+                        {group.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <>
               {myGoals.length > 0 && (
@@ -602,6 +676,7 @@ function GoalCard({ goal, onHover }: { goal: Goal; onHover: (id: string) => void
   const total = goal.pitstops.length;
   const done = goal.pitstops.filter((p) => p.status === "Done").length;
   const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+  const incomplete = !goal.needsDomain;
 
   return (
     <Link
@@ -611,9 +686,14 @@ function GoalCard({ goal, onHover }: { goal: Goal; onHover: (id: string) => void
       className="flex items-center gap-4 px-4 py-3.5 bg-white rounded-lg border border-stone-200 hover:border-stone-300 hover:shadow-sm transition-all group"
     >
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
           <p className="text-sm font-medium text-stone-900 truncate">{goal.title}</p>
           <GoalStatusBadge status={goal.status} />
+          {incomplete && (
+            <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-600 rounded-full flex-shrink-0">
+              <AlertTriangle className="w-2.5 h-2.5" /> No domain linked
+            </span>
+          )}
         </div>
         {goal.description && (
           <p className="text-xs text-stone-500 truncate">{goal.description}</p>

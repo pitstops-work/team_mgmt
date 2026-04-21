@@ -26,6 +26,7 @@ export default async function DashboardPage({
         owner: { select: { id: true, name: true, image: true } },
         pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
         programs: { include: { program: { select: { id: true, title: true } } } },
+        needsCity: { select: { id: true, name: true } },
         needsZone: { select: { id: true, name: true } },
         needsCluster: { select: { id: true, name: true, zoneId: true } },
       },
@@ -34,7 +35,7 @@ export default async function DashboardPage({
     prisma.user.findMany({ select: { id: true, name: true, image: true }, orderBy: { name: "asc" } }),
     prisma.program.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
 
-    // Threads for home tile grid — all levels (goal, pitstop, event)
+    // Threads for home tile grid — only threads relevant to current user
     prisma.thread.findMany({
       where: {
         deletedAt: null,
@@ -43,6 +44,14 @@ export default async function DashboardPage({
           { goalId: { not: null } },
           { eventId: { not: null } },
         ],
+        AND: [{
+          OR: [
+            { goal: { ownerId: currentUserId } },
+            { pitstop: { ownerId: currentUserId } },
+            { messages: { some: { authorId: currentUserId, deletedAt: null } } },
+            { subscriptions: { some: { userId: currentUserId } } },
+          ],
+        }],
       },
       select: {
         id: true, name: true, updatedAt: true,

@@ -77,7 +77,7 @@ function DomainCard({ label, color, d }: { label: string; color: string; d: Leve
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
       </div>
       <div className="flex justify-between text-[9px] text-stone-400">
-        {d.inProgress > 0 && <span className="text-amber-500">+{d.inProgress} active</span>}
+        {(d.activeGoalCount ?? 0) > 0 && <span className="text-amber-500">+{d.activeGoalCount} goal{d.activeGoalCount !== 1 ? "s" : ""} active</span>}
         <span className="ml-auto">{pct}%</span>
       </div>
     </div>

@@ -28,6 +28,16 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // ── 1b. Build cluster lookup for enriching static features ────────────────
+  // Key: "ZoneName::ClusterName" (lower-cased) → clusterId
+  const allClusters = await prisma.cluster.findMany({
+    where: { deletedAt: null },
+    select: { id: true, name: true, zone: { select: { name: true } } },
+  });
+  const clusterLookup = new Map<string, string>(
+    allClusters.map(c => [`${c.zone.name.toLowerCase()}::${c.name.toLowerCase().replace(/_/g, " ")}`, c.id])
+  );
+
   // ── 2. DB overrides/additions ───────────────────────────────────────────
   const rows = await prisma.settlement.findMany({
     where: {
@@ -79,8 +89,14 @@ export async function GET(req: NextRequest) {
         },
       });
     } else {
-      // No DB record yet — serve static feature as-is
-      features.push(sf);
+      // No DB record yet — enrich with clusterId from DB lookup if possible
+      const sfZone = String(sf.properties?.zone ?? "").toLowerCase();
+      const sfCluster = String(sf.properties?.cluster ?? "").toLowerCase().replace(/_/g, " ");
+      const enrichedClusterId = sfZone && sfCluster ? (clusterLookup.get(`${sfZone}::${sfCluster}`) ?? null) : null;
+      features.push({
+        ...sf,
+        properties: { ...sf.properties, clusterId: enrichedClusterId },
+      });
     }
   }
 
