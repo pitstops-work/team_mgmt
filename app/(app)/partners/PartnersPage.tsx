@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, MapPin, Building2, Plus, X } from "lucide-react";
 import { useGeoData, type GeoFeature } from "@/lib/useGeoData";
-import { LAYERS, type LayerKey } from "@/lib/layers";
+import { LAYER_MAP } from "@/lib/layers";
 
 interface DBPartner {
   id: string;
@@ -41,17 +41,22 @@ const CENTRE_LABELS: Record<string, string> = {
   creches: "Creche",
 };
 
-const builtInKeys: LayerKey[] = ["sangama", "cfar", "actionaid", "gubbachi", "sieds", "janasha", "maarga", "thamate"];
 
-function groupByZoneCluster(features: GeoFeature[]): Record<string, Record<string, string[]>> {
-  const out: Record<string, Record<string, string[]>> = {};
+type SettlementEntry = { id: string | null; name: string };
+type ClusterEntry = { clusterId: string | null; settlements: SettlementEntry[] };
+type GroupedData = Record<string, Record<string, ClusterEntry>>;
+
+function groupByZoneCluster(features: GeoFeature[]): GroupedData {
+  const out: GroupedData = {};
   for (const f of features) {
-    const name = f.properties.name ?? "Unnamed";
-    const zone = f.properties.zone ?? "Unknown Zone";
-    const cluster = (f.properties.cluster ?? "Unknown Cluster").replace(/_/g, " ");
+    const name = String(f.properties.name ?? "Unnamed");
+    const zone = String(f.properties.zone ?? "Unknown Zone");
+    const cluster = String(f.properties.cluster ?? "Unknown Cluster").replace(/_/g, " ");
+    const id = (f.properties.id as string | undefined) ?? null;
+    const clusterId = (f.properties.clusterId as string | undefined) ?? null;
     if (!out[zone]) out[zone] = {};
-    if (!out[zone][cluster]) out[zone][cluster] = [];
-    out[zone][cluster].push(name);
+    if (!out[zone][cluster]) out[zone][cluster] = { clusterId, settlements: [] };
+    out[zone][cluster].settlements.push({ id, name });
   }
   return out;
 }
@@ -77,25 +82,65 @@ function CentreList({ centres }: { centres: Array<{ name: string; type: string; 
 }
 
 function SettlementTree({
-  grouped,
+  grouped: initialGrouped,
   customPolygons,
   color,
   allPartners,
   onReassign,
 }: {
-  grouped: Record<string, Record<string, string[]>>;
+  grouped: GroupedData;
   customPolygons: CustomPolygon[];
   color: string;
   allPartners: { key: string; label: string }[];
   onReassign: (polygonId: string, newPartnerKey: string) => void;
 }) {
+  const [grouped, setGrouped] = useState<GroupedData>(initialGrouped);
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
+  const [dragging, setDragging] = useState<{ id: string; name: string; fromClusterId: string } | null>(null);
+  const [dragOverClusterId, setDragOverClusterId] = useState<string | null>(null);
+
   const toggleZone = (z: string) =>
     setExpandedZones((p) => { const s = new Set(p); s.has(z) ? s.delete(z) : s.add(z); return s; });
 
   const zones = Object.keys(grouped).sort();
-  const totalSettlements = Object.values(grouped).flatMap(Object.values).flat().length;
-  const totalClusters = Object.values(grouped).flatMap(Object.keys).length;
+  const totalSettlements = Object.values(grouped).reduce(
+    (s, clusters) => s + Object.values(clusters).reduce((cs, c) => cs + c.settlements.length, 0), 0
+  );
+  const totalClusters = Object.values(grouped).reduce((s, clusters) => s + Object.keys(clusters).length, 0);
+
+  async function handleDrop(targetClusterId: string) {
+    if (!dragging || dragging.fromClusterId === targetClusterId) {
+      setDragging(null); setDragOverClusterId(null); return;
+    }
+    const res = await fetch("/api/geography/settlements", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: dragging.id, clusterId: targetClusterId }),
+    });
+    if (res.ok) {
+      setGrouped(prev => {
+        const next: GroupedData = JSON.parse(JSON.stringify(prev));
+        // Remove from old cluster
+        for (const clusters of Object.values(next)) {
+          for (const entry of Object.values(clusters)) {
+            if (entry.clusterId === dragging.fromClusterId) {
+              entry.settlements = entry.settlements.filter(s => s.id !== dragging.id);
+            }
+          }
+        }
+        // Add to target cluster
+        for (const clusters of Object.values(next)) {
+          for (const entry of Object.values(clusters)) {
+            if (entry.clusterId === targetClusterId) {
+              entry.settlements.push({ id: dragging.id, name: dragging.name });
+            }
+          }
+        }
+        return next;
+      });
+    }
+    setDragging(null); setDragOverClusterId(null);
+  }
 
   return (
     <div>
@@ -106,13 +151,14 @@ function SettlementTree({
         {customPolygons.length > 0 && (
           <> · <span className="font-semibold text-slate-700">{customPolygons.length}</span> custom</>
         )}
+        {dragging && <span className="text-indigo-500 italic">Moving "{dragging.name}"…</span>}
       </div>
 
       <div className="space-y-1">
         {zones.map((zone) => {
           const clusters = grouped[zone];
           const clusterNames = Object.keys(clusters).sort();
-          const settCount = Object.values(clusters).flat().length;
+          const settCount = Object.values(clusters).reduce((s, c) => s + c.settlements.length, 0);
           const isOpen = expandedZones.has(zone);
           return (
             <div key={zone} className="rounded-lg overflow-hidden border border-slate-100">
@@ -126,19 +172,49 @@ function SettlementTree({
               </button>
               {isOpen && (
                 <div className="px-3 py-2 space-y-2">
-                  {clusterNames.map((cluster) => (
-                    <div key={cluster}>
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{cluster}</div>
-                      <div className="flex flex-wrap gap-1">
-                        {clusters[cluster].sort().map((s) => (
-                          <span key={s} className="text-[11px] bg-white border border-slate-200 rounded-md px-2 py-0.5 text-slate-600 flex items-center gap-1">
-                            <MapPin className="w-2.5 h-2.5 text-slate-300" />
-                            {s}
-                          </span>
-                        ))}
+                  {clusterNames.map((cluster) => {
+                    const entry = clusters[cluster];
+                    const isDragTarget = dragging && entry.clusterId && dragOverClusterId === entry.clusterId;
+                    return (
+                      <div
+                        key={cluster}
+                        onDragOver={e => { if (dragging && entry.clusterId) { e.preventDefault(); setDragOverClusterId(entry.clusterId); } }}
+                        onDragLeave={() => setDragOverClusterId(null)}
+                        onDrop={e => { e.preventDefault(); if (entry.clusterId) handleDrop(entry.clusterId); }}
+                        className={`rounded-md transition-colors ${isDragTarget ? "bg-indigo-50 ring-1 ring-indigo-300" : ""}`}
+                      >
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 px-1 py-1 flex items-center gap-1">
+                          {cluster}
+                          {isDragTarget && <span className="text-[9px] text-indigo-400 normal-case font-normal">drop here</span>}
+                        </div>
+                        <div className="flex flex-wrap gap-1 px-1 pb-1 min-h-[24px]">
+                          {entry.settlements
+                            .slice()
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((s) => (
+                              <span
+                                key={s.id ?? s.name}
+                                draggable={!!s.id && !!entry.clusterId}
+                                onDragStart={() => {
+                                  if (s.id && entry.clusterId) setDragging({ id: s.id, name: s.name, fromClusterId: entry.clusterId! });
+                                }}
+                                onDragEnd={() => { setDragging(null); setDragOverClusterId(null); }}
+                                className={`text-[11px] bg-white border border-slate-200 rounded-md px-2 py-0.5 text-slate-600 flex items-center gap-1 select-none
+                                  ${s.id && entry.clusterId ? "cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:text-indigo-700" : ""}
+                                  ${dragging?.id === s.id ? "opacity-40" : ""}`}
+                                title={s.id ? "Drag to move to another cluster" : "Static settlement (no DB record)"}
+                              >
+                                <MapPin className="w-2.5 h-2.5 text-slate-300 flex-shrink-0" />
+                                {s.name}
+                              </span>
+                            ))}
+                          {entry.settlements.length === 0 && (
+                            <span className="text-[10px] text-slate-300 italic px-1">empty</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -304,23 +380,15 @@ export default function PartnersPage({ dbPartners: initialDbPartners, customPoly
     return results;
   }
 
-  const dbByKey = Object.fromEntries(dbPartners.map((p) => [p.key, p]));
   const customPolygonsByPartner = customPolygons.reduce<Record<string, CustomPolygon[]>>((acc, p) => {
     if (!acc[p.partnerKey]) acc[p.partnerKey] = [];
     acc[p.partnerKey].push(p);
     return acc;
   }, {});
 
-  const customDbPartners = dbPartners.filter((p) => !p.isBuiltIn);
-
-  // All partners (built-in + custom DB) for the reassign dropdown
-  const allPartners = [
-    ...builtInKeys.map((key) => {
-      const layer = LAYERS.find((l) => l.key === key)!;
-      return { key, label: layer.label };
-    }),
-    ...customDbPartners.map((p) => ({ key: p.key, label: p.label })),
-  ];
+  // All partners from DB — single source of truth
+  const allPartners = dbPartners.map(p => ({ key: p.key, label: p.label }));
+  const customDbPartners = dbPartners.filter(p => !p.isBuiltIn);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -343,19 +411,18 @@ export default function PartnersPage({ dbPartners: initialDbPartners, customPoly
 
       {geoData && (
         <div className="space-y-2">
-          {builtInKeys.map((key) => {
-            const layer = LAYERS.find((l) => l.key === key)!;
-            const db = dbByKey[key];
-            const color = db?.color ?? layer.color;
-            const features = geoData.settlements[key] ?? [];
-            const centres = centresForPartner(layer.label);
-            const customPoly = customPolygonsByPartner[key] ?? [];
+          {/* Built-in partners — use LAYER_MAP only for GeoJSON file lookup */}
+          {dbPartners.filter(p => p.isBuiltIn).map((partner) => {
+            const layer = LAYER_MAP[partner.key as keyof typeof LAYER_MAP];
+            const features = layer ? (geoData.settlements[partner.key as keyof typeof geoData.settlements] ?? []) : [];
+            const centres = centresForPartner(partner.label);
+            const customPoly = customPolygonsByPartner[partner.key] ?? [];
             return (
               <PartnerCard
-                key={key}
-                layerKey={key}
-                label={layer.label}
-                color={color}
+                key={partner.id}
+                layerKey={partner.key}
+                label={partner.label}
+                color={partner.color}
                 features={features}
                 centres={centres}
                 customPolygons={customPoly}
@@ -371,7 +438,6 @@ export default function PartnersPage({ dbPartners: initialDbPartners, customPoly
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Custom Partners</span>
               </div>
               {customDbPartners.map((partner) => {
-                const features: GeoFeature[] = [];
                 const centres = centresForPartner(partner.label);
                 const customPoly = customPolygonsByPartner[partner.key] ?? [];
                 return (
@@ -380,7 +446,7 @@ export default function PartnersPage({ dbPartners: initialDbPartners, customPoly
                     layerKey={partner.key}
                     label={partner.label}
                     color={partner.color}
-                    features={features}
+                    features={[]}
                     centres={centres}
                     customPolygons={customPoly}
                     allPartners={allPartners}

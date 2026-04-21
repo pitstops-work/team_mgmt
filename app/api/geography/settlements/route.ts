@@ -13,6 +13,21 @@ export async function POST(req: NextRequest) {
   return Response.json(settlement);
 }
 
+export async function PATCH(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id, clusterId } = await req.json();
+  if (!id || !clusterId) return Response.json({ error: "id and clusterId required" }, { status: 400 });
+
+  const settlement = await prisma.settlement.update({
+    where: { id },
+    data: { clusterId },
+    select: { id: true, name: true, clusterId: true },
+  });
+  return Response.json(settlement);
+}
+
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });

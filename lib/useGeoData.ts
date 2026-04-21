@@ -56,10 +56,9 @@ function centroidOf(feature: GeoFeature): [number, number] {
 
 export { centroidOf };
 
-const POLYGON_KEYS: LayerKey[] = [
-  "sangama", "cfar", "actionaid",
-  "gubbachi", "sieds", "janasha", "maarga", "thamate",
-];
+const POLYGON_KEYS: LayerKey[] = LAYERS
+  .filter(l => l.type === "polygon" && l.key !== "custom_settlements" && l.file !== "")
+  .map(l => l.key);
 
 export function useGeoData(): GeoData | null {
   const [data, setData] = useState<GeoData | null>(null);

@@ -12,13 +12,22 @@ export async function GET() {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [users, cities] = await Promise.all([
+  const [users, allCities] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, email: true, image: true, role: true, createdAt: true, cityId: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.city.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
+
+  // Deduplicate cities by name (keep first occurrence per name)
+  const seenNames = new Set<string>();
+  const cities = allCities.filter(c => {
+    const key = c.name.trim().toLowerCase();
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
 
   return Response.json({ users, cities });
 }

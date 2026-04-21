@@ -110,6 +110,7 @@ type GoalRow = {
   needsSettlementId: string | null;
   needsClusterId: string | null;
   needsZoneId: string | null;
+  needsCityId: string | null;
   metrics: { current: number }[];
   pitstops: { status: string }[];
 };
@@ -215,7 +216,7 @@ function computeStats(
       target,
       existing: ex,
       apfTarget,
-      planned: done + inProg,
+      planned: Math.min(done + inProg, apfTarget > 0 ? apfTarget : done + inProg),
       done,
       inProgress: inProg,
       gap: Math.max(0, apfTarget - done),
@@ -389,7 +390,7 @@ export default async function NeedsPage() {
       select: {
         status: true, needsDomain: true, parameter: true, outcomeCount: true,
         targetDate: true, updatedAt: true,
-        needsSettlementId: true, needsClusterId: true, needsZoneId: true,
+        needsSettlementId: true, needsClusterId: true, needsZoneId: true, needsCityId: true,
         metrics: { where: { deletedAt: null }, select: { current: true }, take: 1 },
         pitstops: { where: { deletedAt: null }, select: { status: true } },
       },
@@ -554,6 +555,7 @@ export default async function NeedsPage() {
     const citySettlements = city.zones.flatMap(z => z.clusters.flatMap(c => c.settlements));
     const cityAssessments = citySettlements.map(s => assessmentBySettlement[s.id]).filter(Boolean) as unknown as AssessmentRow[];
     const cityGoals = goals.filter(g =>
+      (g.needsCityId        && g.needsCityId === city.id) ||
       (g.needsZoneId        && cityZoneIds.has(g.needsZoneId)) ||
       (g.needsClusterId     && cityZoneIds.has(clusterToZone[g.needsClusterId])) ||
       (g.needsSettlementId  && cityZoneIds.has(settlementToZone[g.needsSettlementId]))
@@ -586,7 +588,7 @@ export default async function NeedsPage() {
       if (!domains[domain] || geoCount === 0) continue;
       const d = domains[domain];
       const apfTarget = Math.max(0, d.target - geoCount);
-      domains[domain] = { ...d, existing: geoCount, apfTarget, planned: d.done + d.inProgress, gap: Math.max(0, apfTarget - d.done) };
+      domains[domain] = { ...d, existing: geoCount, apfTarget, planned: Math.min(d.done + d.inProgress, apfTarget > 0 ? apfTarget : d.done + d.inProgress), gap: Math.max(0, apfTarget - d.done) };
     }
     // Recompute saturation score with updated domains
     const totalTarget = Object.values(domains).reduce((s, d) => s + d.apfTarget, 0);
@@ -647,7 +649,7 @@ export default async function NeedsPage() {
             const done = stats.domains[cfg.domain]?.done ?? 0;
             const inProg = stats.domains[cfg.domain]?.inProgress ?? 0;
             const apfTarget = Math.max(0, assignedTarget - ex);
-            stats.domains[cfg.domain] = { target: assignedTarget, existing: ex, apfTarget, planned: done + inProg, done, inProgress: inProg, gap: Math.max(0, apfTarget - done) };
+            stats.domains[cfg.domain] = { target: assignedTarget, existing: ex, apfTarget, planned: Math.min(done + inProg, apfTarget > 0 ? apfTarget : done + inProg), done, inProgress: inProg, gap: Math.max(0, apfTarget - done) };
           }
 
           settlementStatsMap[s.id] = { name: s.name, clusterName: cluster.name, zoneName: zone.name, stats };

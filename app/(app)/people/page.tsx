@@ -32,14 +32,14 @@ export default async function PeoplePage() {
       select: { id: true, title: true, status: true, targetDate: true },
       orderBy: { title: "asc" },
     }),
-    prisma.mapPartner.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.mapPartner.findMany({ orderBy: [{ isBuiltIn: "desc" }, { label: "asc" }] }),
   ]);
 
   return (
     <PeopleDashboard
       users={JSON.parse(JSON.stringify(users))}
       goals={JSON.parse(JSON.stringify(goals))}
-      partners={JSON.parse(JSON.stringify(partners))}
+      partners={partners.map(p => ({ id: p.id, key: p.key, label: p.label, color: p.color, isBuiltIn: p.isBuiltIn }))}
     />
   );
 }
