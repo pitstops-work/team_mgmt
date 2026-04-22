@@ -662,7 +662,11 @@ export default function GoalDetail({
         <EditGoalModal
           goal={goal}
           onClose={() => setShowEditGoal(false)}
-          onUpdated={(updated) => updateGoal((g) => ({ ...g, ...updated }))}
+          onUpdated={(updated) => {
+            updateGoal((g) => ({ ...g, ...updated }));
+            // Invalidate dashboard goals list so geo grouping reflects the change immediately
+            queryClient.invalidateQueries({ queryKey: qk.goals() });
+          }}
         />
       )}
     </div>
