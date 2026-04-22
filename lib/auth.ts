@@ -1,5 +1,6 @@
 import { AuthOptions, getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "./prisma";
 
@@ -17,6 +18,10 @@ declare module "next-auth" {
 
 export const authOptions: AuthOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -43,10 +48,29 @@ export const authOptions: AuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role ?? "member";
+      }
+      // For Google sign-in, look up (or create) the user by email
+      if (account?.provider === "google" && token.email) {
+        const dbUser = await prisma.user.upsert({
+          where: { email: token.email },
+          create: {
+            email: token.email,
+            name: token.name ?? null,
+            image: token.picture ?? null,
+            role: "viewer",
+          },
+          update: {
+            name: token.name ?? undefined,
+            image: token.picture ?? undefined,
+            lastSeenAt: new Date(),
+          },
+        });
+        token.id = dbUser.id;
+        token.role = dbUser.role;
       }
       return token;
     },
