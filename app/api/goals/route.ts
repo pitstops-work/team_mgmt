@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { goalCityFilter } from "@/lib/goalCityFilter";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 export async function GET() {
   const session = await auth();
@@ -27,6 +28,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { title, description, status, targetDate, needsDomain, parameter, needsSettlementId, needsClusterId, needsZoneId, needsCityId } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });

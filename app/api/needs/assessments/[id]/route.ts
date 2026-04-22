@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 function toFloat(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
@@ -46,6 +47,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { id } = await params;
   const body = await req.json();

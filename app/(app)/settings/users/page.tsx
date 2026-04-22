@@ -30,6 +30,7 @@ const ROLE_STYLE: Record<Role, string> = {
 export default function UserManagementPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const isSuperAdmin = session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
   const [users, setUsers] = useState<User[]>([]);
   const [cities, setCities] = useState<City[]>([]);
@@ -242,7 +243,7 @@ export default function UserManagementPage() {
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex gap-2">
-                      {ROLES.map(r => (
+                      {ROLES.filter(r => r !== "admin" || isSuperAdmin).map(r => (
                         <button
                           key={r}
                           type="button"
@@ -356,7 +357,7 @@ export default function UserManagementPage() {
             </div>
             {/* Role selector */}
             <div className="flex gap-1.5">
-              {ROLES.map(r => (
+              {ROLES.filter(r => r !== "admin" || isSuperAdmin).map(r => (
                 <button
                   key={r}
                   type="button"

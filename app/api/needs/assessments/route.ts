@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 // Convert empty strings / undefined to null for Float? schema fields
 function toFloat(v: unknown): number | null {
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const body = await req.json();
   const { settlementId, assessmentYear, ...rest } = body;

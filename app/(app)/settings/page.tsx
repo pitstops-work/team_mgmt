@@ -10,7 +10,8 @@ type Member = { id: string; name: string | null; email: string | null; image: st
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const isAdmin = session?.user?.role === "admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const isViewer = session?.user?.role === "viewer";
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
@@ -130,7 +131,8 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <h1 className="text-xl font-semibold text-stone-900 mb-8">Settings</h1>
 
-      {/* Field Coverage */}
+      {/* Non-language sections — hidden for viewers */}
+      {!isViewer && <>
       <section className="mb-10">
         <h2 className="text-sm font-semibold text-stone-700 mb-1">Field Coverage</h2>
         <p className="text-xs text-stone-500 mb-3">Configure target formulas and entitlement schemes.</p>
@@ -328,6 +330,8 @@ export default function SettingsPage() {
         </form>
       </section>
 
+      </>}
+
       {/* Language */}
       <section className="mb-10">
         <div className="flex items-center gap-2 mb-1">
@@ -361,7 +365,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Members */}
-      <section>
+      {!isViewer && <section>
         <div className="flex items-center gap-2 mb-4">
           <Users className="w-4 h-4 text-stone-400" />
           <h2 className="text-sm font-semibold text-stone-700">Members</h2>
@@ -379,7 +383,7 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
     </div>
   );
 }

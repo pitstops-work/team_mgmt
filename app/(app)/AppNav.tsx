@@ -124,10 +124,18 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             </div>
             Notifications
           </NavLink>
-          <NavLink href="/settings" active={pathname === "/settings"}>
-            <Settings className="w-3.5 h-3.5 text-stone-500" />
-            Settings
-          </NavLink>
+          {!isViewer && (
+            <NavLink href="/settings" active={pathname === "/settings"}>
+              <Settings className="w-3.5 h-3.5 text-stone-500" />
+              Settings
+            </NavLink>
+          )}
+          {isViewer && (
+            <NavLink href="/settings/language" active={pathname === "/settings/language"}>
+              <Settings className="w-3.5 h-3.5 text-stone-500" />
+              Settings
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink href="/settings/users" active={pathname === "/settings/users"}>
               <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
@@ -260,7 +268,7 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
 
               {/* Account */}
               {([
-                { href: "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
+                { href: isViewer ? "/settings/language" : "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
                 ...(isAdmin ? [{ href: "/settings/users", icon: <ShieldCheck className="w-5 h-5 text-indigo-500" />, label: "Users" }] : []),
                 ...(isAdmin ? [{ href: "/readiness", icon: <ShieldCheck className="w-5 h-5" />, label: "Team Readiness" }] : []),
                 { href: "/help", icon: <HelpCircle className="w-5 h-5" />, label: "Manual" },

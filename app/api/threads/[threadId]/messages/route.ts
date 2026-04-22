@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
   const session = await auth();
@@ -42,6 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ thr
 export async function POST(req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { threadId } = await params;
   const { body, attachmentIds } = await req.json();

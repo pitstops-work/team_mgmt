@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { isAdminUser } from "@/lib/roleGuard";
 import ReadinessDashboard from "./ReadinessDashboard";
 
 // Only accessible to the admin user. Set ADMIN_USER_ID in your .env
 export default async function ReadinessPage() {
   const session = await auth();
 
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (adminEmail && session!.user!.email !== adminEmail) {
+  if (!isAdminUser(session)) {
     redirect("/dashboard");
   }
 

@@ -1,14 +1,11 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-
-function isAdmin(email: string | null | undefined) {
-  return email && email === process.env.ADMIN_EMAIL;
-}
+import { isAdminUser, isSuperAdmin } from "@/lib/roleGuard";
 
 export async function GET() {
   const session = await auth();
-  if (!isAdmin(session?.user?.email)) {
+  if (!isAdminUser(session)) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -34,7 +31,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!isAdmin(session?.user?.email)) {
+  if (!isAdminUser(session)) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -49,7 +46,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "Email already in use" }, { status: 400 });
   }
 
+  // Only super-admin can create admin users
   const role = ["admin", "member", "viewer"].includes(req_role) ? req_role : "member";
+  if (role === "admin" && !isSuperAdmin(session?.user?.email)) {
+    return Response.json({ error: "Only the super-admin can create admin users" }, { status: 403 });
+  }
   const hashed = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
     data: { name: name || null, email, password: hashed, role },

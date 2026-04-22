@@ -10,6 +10,7 @@ import SearchShortcut from "@/components/SearchShortcut";
 import KeyboardShortcuts from "@/components/KeyboardShortcuts";
 import AgentPanel from "@/components/AgentPanel";
 import prisma from "@/lib/prisma";
+import { isAdminUser, isSuperAdmin } from "@/lib/roleGuard";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -28,9 +29,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <SearchShortcut />
       <KeyboardShortcuts />
       <div className="flex h-screen overflow-hidden">
-        <AppNav user={session.user} unreadCount={unreadCount} isAdmin={session.user.email === process.env.ADMIN_EMAIL} isViewer={session.user.role === "viewer"} />
+        <AppNav user={session.user} unreadCount={unreadCount} isAdmin={isAdminUser(session)} isViewer={session.user.role === "viewer"} />
         <main className="relative flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>
-        {session.user.email === process.env.ADMIN_EMAIL && <AgentPanel />}
+        {isSuperAdmin(session.user.email) && <AgentPanel />}
       </div>
       </QueryProvider>
     </SessionProvider>
