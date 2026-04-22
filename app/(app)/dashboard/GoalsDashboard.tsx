@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Target, ChevronRight, ChevronDown, Layers, LayoutDashboard, ListChecks,
@@ -293,18 +293,49 @@ export default function GoalsDashboard({
   initialGoals, currentUserId, searchResults, users, programs,
   threads, myPitstops, overviewData, initialTab, initialFilter = "All",
 }: Props) {
-  const [activeTab, setActiveTab] = useState<"home" | "goals" | "team">(initialTab);
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const isMounted = useRef(false);
+
+  const [activeTab, setActiveTab] = useState<"home" | "goals" | "team">(
+    (searchParams.get("tab") as "home" | "goals" | "team") || initialTab
+  );
   const [showCreate, setShowCreate] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
-  const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">(initialFilter);
-  const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
-  const [groupByGeo, setGroupByGeo] = useState(false);
+  const [filter, setFilter] = useState<"All" | "Mine" | "Active" | "Paused" | "Complete">(
+    (searchParams.get("filter") as "All" | "Mine" | "Active" | "Paused" | "Complete") || initialFilter
+  );
+  const [selectedPrograms, setSelectedPrograms] = useState<string[]>(
+    searchParams.get("programs")?.split(",").filter(Boolean) ?? []
+  );
+  const [selectedUsers, setSelectedUsers] = useState<string[]>(
+    searchParams.get("users")?.split(",").filter(Boolean) ?? []
+  );
+  const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({
+    cityId:    searchParams.get("city")    ?? "",
+    zoneId:    searchParams.get("zone")    ?? "",
+    clusterId: searchParams.get("cluster") ?? "",
+  });
+  const [groupByGeo, setGroupByGeo] = useState(searchParams.get("group") === "1");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-  const queryClient = useQueryClient();
-  const router = useRouter();
+  // Sync filter state → URL so navigating back restores filters
+  useEffect(() => {
+    if (!isMounted.current) { isMounted.current = true; return; }
+    const params = new URLSearchParams();
+    if (activeTab !== "home")           params.set("tab",      activeTab);
+    if (filter !== "All")               params.set("filter",   filter);
+    if (selectedPrograms.length > 0)    params.set("programs", selectedPrograms.join(","));
+    if (selectedUsers.length > 0)       params.set("users",    selectedUsers.join(","));
+    if (geoFilter.cityId)               params.set("city",     geoFilter.cityId);
+    if (geoFilter.zoneId)               params.set("zone",     geoFilter.zoneId);
+    if (geoFilter.clusterId)            params.set("cluster",  geoFilter.clusterId);
+    if (groupByGeo)                     params.set("group",    "1");
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [activeTab, filter, selectedPrograms, selectedUsers, geoFilter, groupByGeo]);
 
   const { data: goals = initialGoals } = useQuery<Goal[]>({
     queryKey: qk.goals(),
