@@ -51,6 +51,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     },
   });
 
+  // progressTag is a new column — update via raw SQL to bypass Prisma cache
+  if (data.progressTag !== undefined) {
+    const tagValue = data.progressTag || null;
+    await prisma.$executeRaw`
+      UPDATE "Pitstop" SET "progressTag" = ${tagValue}, "updatedAt" = NOW()
+      WHERE id = ${pitstopId}
+    `;
+  }
+
   // Audit logging for changed fields
   if (existing) {
     const auditEntries: Array<{ entityType: string; entityId: string; userId: string; action: string; field: string; oldValue: string | null; newValue: string | null }> = [];

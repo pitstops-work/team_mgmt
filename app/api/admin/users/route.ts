@@ -9,12 +9,13 @@ export async function GET() {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [users, allCities] = await Promise.all([
+  const [users, allCities, zones] = await Promise.all([
     prisma.user.findMany({
-      select: { id: true, name: true, email: true, image: true, role: true, createdAt: true, cityId: true },
+      select: { id: true, name: true, email: true, image: true, role: true, designation: true, createdAt: true, cityId: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.city.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.zone.findMany({ where: { deletedAt: null }, select: { id: true, name: true, leadId: true }, orderBy: { name: "asc" } }),
   ]);
 
   // Deduplicate cities by name (keep first occurrence per name)
@@ -26,7 +27,7 @@ export async function GET() {
     return true;
   });
 
-  return Response.json({ users, cities });
+  return Response.json({ users, cities, zones });
 }
 
 export async function POST(req: Request) {
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { name, email: rawEmail, password, role: req_role } = await req.json();
+  const { name, email: rawEmail, password, role: req_role, designation: req_designation } = await req.json();
   const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : rawEmail;
   if (!email || !password) {
     return Response.json({ error: "Email and password required" }, { status: 400 });
@@ -51,10 +52,12 @@ export async function POST(req: Request) {
   if (role === "admin" && !isSuperAdmin(session?.user?.email)) {
     return Response.json({ error: "Only the super-admin can create admin users" }, { status: 403 });
   }
+  const VALID_DESIGNATIONS = ["RP", "ZL", "PM", "Other"];
+  const designation = VALID_DESIGNATIONS.includes(req_designation) ? req_designation : "Other";
   const hashed = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { name: name || null, email, password: hashed, role },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    data: { name: name || null, email, password: hashed, role, designation },
+    select: { id: true, name: true, email: true, role: true, designation: true, createdAt: true },
   });
 
   return Response.json(user, { status: 201 });

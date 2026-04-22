@@ -92,6 +92,40 @@ export default async function PitstopPage({
     }
   }
 
+  // Patch progressTag on the pitstop itself (new field, Prisma cache may not include it)
+  const [ptTagRow] = await prisma.$queryRaw<{ progressTag: string | null }[]>`
+    SELECT "progressTag" FROM "Pitstop" WHERE id = ${pitstopId} LIMIT 1
+  `;
+  if (ptTagRow) (pitstop as Record<string, unknown>).progressTag = ptTagRow.progressTag ?? null;
+
+  // Patch checklist items with new fields (status, assigneeId, notes) via raw SQL
+  // (Prisma Lambda cache may not know about columns added after warm-up)
+  const checklistIds = pitstop.checklistItems.map((ci) => ci.id);
+  if (checklistIds.length > 0) {
+    const ciRows = await prisma.$queryRaw<{
+      id: string; status: string; assigneeId: string | null; notes: string | null;
+    }[]>`
+      SELECT id, status::text, "assigneeId", notes
+      FROM "ChecklistItem" WHERE id = ANY(${checklistIds})
+    `;
+    const ciMap = new Map(ciRows.map((r) => [r.id, r]));
+
+    const activityRows = await prisma.$queryRaw<{
+      checklistItemId: string; id: string; title: string; scheduledAt: string;
+    }[]>`
+      SELECT "checklistItemId", id, title, "scheduledAt"::text
+      FROM "PitstopEvent"
+      WHERE "checklistItemId" = ANY(${checklistIds}) AND "deletedAt" IS NULL
+    `;
+    const activityMap = new Map(activityRows.map((r) => [r.checklistItemId, { id: r.id, title: r.title, scheduledAt: r.scheduledAt }]));
+
+    for (const ci of pitstop.checklistItems) {
+      const row = ciMap.get(ci.id);
+      if (row) Object.assign(ci, row);
+      (ci as Record<string, unknown>).activity = activityMap.get(ci.id) ?? null;
+    }
+  }
+
   const subscribedThreadIds = new Set(subscriptions.map((s) => s.threadId));
 
   return (

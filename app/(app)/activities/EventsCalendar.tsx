@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, MessageSquare, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, MessageSquare, Send, AlertCircle } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 
@@ -529,6 +529,147 @@ function ExternalEventCard({ ev }: { ev: ExternalCalEvent }) {
   );
 }
 
+// ── Needs Action panel ────────────────────────────────────────────────────────
+
+type ActionType = "complete" | "reschedule" | "cancel" | null;
+
+function NeedsActionPanel({ events, currentUserId, onUpdated }: {
+  events: PitstopEvent[];
+  currentUserId: string;
+  onUpdated: (id: string, patch: Partial<PitstopEvent>) => void;
+}) {
+  const todayYMD = toYMD(new Date());
+  const actionable = events.filter(ev =>
+    ev.status === "Scheduled" &&
+    ev.scheduledAt.slice(0, 10) <= todayYMD &&
+    ev.attendees.some(a => a.userId === currentUserId)
+  ).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+
+  const [active, setActive] = useState<{ id: string; action: ActionType }>({ id: "", action: null });
+  const [reason, setReason] = useState("");
+  const [newDate, setNewDate] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (actionable.length === 0) return null;
+
+  const dismiss = () => { setActive({ id: "", action: null }); setReason(""); setNewDate(""); };
+
+  const handleAction = async (eventId: string, action: Exclude<ActionType, null>) => {
+    setBusy(true);
+    const body: Record<string, unknown> = {};
+    if (action === "complete") body.status = "Done";
+    else if (action === "cancel") { body.status = "Cancelled"; body.cancellationReason = reason.trim() || null; }
+    else if (action === "reschedule") { body.reschedule = true; body.scheduledAt = `${newDate}T09:00:00`; body.rescheduleReason = reason.trim() || null; }
+
+    const res = await fetch(`/api/pitstop-events/${eventId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setBusy(false);
+    if (res.ok) {
+      const updated = await res.json();
+      onUpdated(eventId, updated);
+      dismiss();
+    }
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-3 border-b border-amber-100 bg-amber-50">
+      <div className="flex items-center gap-2 mb-2">
+        <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+        <p className="text-xs font-semibold text-amber-800">Needs Action — {actionable.length} scheduled {actionable.length === 1 ? "activity" : "activities"} need logging</p>
+      </div>
+      <div className="space-y-2">
+        {actionable.map(ev => {
+          const isOverdue = ev.scheduledAt.slice(0, 10) < todayYMD;
+          const isExpanded = active.id === ev.id;
+          return (
+            <div key={ev.id} className="bg-white rounded-lg border border-amber-200 overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border flex-shrink-0 ${isOverdue ? "text-red-600 bg-red-50 border-red-200" : "text-amber-600 bg-amber-50 border-amber-200"}`}>
+                      {isOverdue ? "Overdue" : "Today"}
+                    </span>
+                    <p className="text-xs font-semibold text-stone-800 truncate">{ev.title}</p>
+                  </div>
+                  {ev.pitstops.length > 0 && (
+                    <p className="text-[10px] text-stone-400 mt-0.5 truncate">{ev.pitstops[0].pitstop.goal.title} › {ev.pitstops[0].pitstop.title}</p>
+                  )}
+                </div>
+                {!isExpanded && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => { setActive({ id: ev.id, action: "complete" }); setReason(""); setNewDate(""); }}
+                      className="px-2 py-1 text-[10px] font-medium bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-md transition-colors">
+                      Done
+                    </button>
+                    <button onClick={() => { setActive({ id: ev.id, action: "reschedule" }); setReason(""); setNewDate(""); }}
+                      className="px-2 py-1 text-[10px] font-medium bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 rounded-md transition-colors">
+                      Reschedule
+                    </button>
+                    <button onClick={() => { setActive({ id: ev.id, action: "cancel" }); setReason(""); setNewDate(""); }}
+                      className="px-2 py-1 text-[10px] font-medium bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-600 rounded-md transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                )}
+                {isExpanded && (
+                  <button onClick={dismiss} className="text-stone-400 hover:text-stone-600 flex-shrink-0 p-0.5">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {isExpanded && active.action && (
+                <div className="border-t border-amber-100 bg-stone-50 px-3 py-2 space-y-2">
+                  {active.action === "complete" && (
+                    <p className="text-xs text-stone-600">Mark this activity as <span className="font-semibold text-emerald-700">Done</span>. This will also update the linked checklist item.</p>
+                  )}
+                  {active.action === "reschedule" && (
+                    <div>
+                      <label className="block text-[10px] font-medium text-stone-500 mb-1">New date <span className="text-red-400">*</span></label>
+                      <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
+                        min={new Date().toISOString().split("T")[0]}
+                        className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white" />
+                    </div>
+                  )}
+                  {(active.action === "reschedule" || active.action === "cancel") && (
+                    <div>
+                      <label className="block text-[10px] font-medium text-stone-500 mb-1">
+                        Reason {active.action === "cancel" ? "" : "(optional)"}
+                      </label>
+                      <input type="text" value={reason} onChange={e => setReason(e.target.value)}
+                        placeholder={active.action === "cancel" ? "Why was this cancelled?" : "Why is this being rescheduled?"}
+                        className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white" />
+                    </div>
+                  )}
+                  <div className="flex justify-end gap-1.5">
+                    <button type="button" onClick={dismiss} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700 transition-colors">
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || (active.action === "reschedule" && !newDate)}
+                      onClick={() => handleAction(ev.id, active.action!)}
+                      className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg disabled:opacity-50 transition-colors ${
+                        active.action === "complete" ? "bg-emerald-500 hover:bg-emerald-600" :
+                        active.action === "reschedule" ? "bg-sky-500 hover:bg-sky-600" :
+                        "bg-stone-500 hover:bg-stone-600"
+                      }`}
+                    >
+                      {busy ? "Saving…" : active.action === "complete" ? "Mark Done" : active.action === "reschedule" ? "Reschedule" : "Cancel Activity"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Main calendar ─────────────────────────────────────────────────────────────
 
 type ZoneGeo    = { id: string; name: string; goals: { goalId: string }[] };
@@ -692,6 +833,10 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
     if (!confirm("Delete this event?")) return;
     await fetch(`/api/pitstop-events/${id}`, { method: "DELETE" });
     setEvents(prev => prev.filter(e => e.id !== id));
+  };
+
+  const handleEventUpdate = (id: string, patch: Partial<PitstopEvent>) => {
+    setEvents(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
   };
 
   const hasFilters = selectedUsers.size > 0 || selectedGoals.size > 0 || !!geoFilter;
@@ -863,6 +1008,8 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
           )}
         </div>
       </div>
+
+      <NeedsActionPanel events={events} currentUserId={currentUserId} onUpdated={handleEventUpdate} />
 
       {/* ── MONTH VIEW ─────────────────────────────────────────────────────────── */}
       {viewMode === "month" && (

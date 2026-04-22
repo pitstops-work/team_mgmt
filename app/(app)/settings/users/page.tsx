@@ -8,12 +8,14 @@ import { Trash2, KeyRound, UserPlus, ArrowLeft, Eye, EyeOff, Pencil, Check, X } 
 import Link from "next/link";
 
 interface City { id: string; name: string; }
+interface ZoneRow { id: string; name: string; leadId: string | null; }
 interface User {
   id: string;
   name: string | null;
   email: string;
   image: string | null;
   role: string;
+  designation: string;
   createdAt: string;
   cityId: string | null;
 }
@@ -21,10 +23,20 @@ interface User {
 const ROLES = ["admin", "member", "viewer"] as const;
 type Role = typeof ROLES[number];
 
+const DESIGNATIONS = ["RP", "ZL", "PM", "Other"] as const;
+type Designation = typeof DESIGNATIONS[number];
+
 const ROLE_STYLE: Record<Role, string> = {
   admin:  "bg-indigo-100 text-indigo-700",
   member: "bg-emerald-100 text-emerald-700",
   viewer: "bg-stone-100 text-stone-500",
+};
+
+const DESIGNATION_STYLE: Record<Designation, string> = {
+  ZL:    "bg-violet-100 text-violet-700",
+  PM:    "bg-sky-100 text-sky-700",
+  RP:    "bg-emerald-100 text-emerald-700",
+  Other: "bg-stone-100 text-stone-500",
 };
 
 export default function UserManagementPage() {
@@ -34,6 +46,7 @@ export default function UserManagementPage() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [cities, setCities] = useState<City[]>([]);
+  const [zones, setZones] = useState<ZoneRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Inline edit state
@@ -41,7 +54,9 @@ export default function UserManagementPage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState<Role>("member");
+  const [editDesignation, setEditDesignation] = useState<Designation>("Other");
   const [editCityId, setEditCityId] = useState<string>("");
+  const [editZoneIds, setEditZoneIds] = useState<string[]>([]);
   const [editError, setEditError] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
@@ -58,6 +73,7 @@ export default function UserManagementPage() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<Role>("member");
+  const [newDesignation, setNewDesignation] = useState<Designation>("RP");
   const [showNewPw, setShowNewPw] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -71,7 +87,7 @@ export default function UserManagementPage() {
         if (r.status === 403) { router.replace("/settings"); return null; }
         return r.json();
       })
-      .then(data => { if (data) { setUsers(data.users); setCities(data.cities); } })
+      .then(data => { if (data) { setUsers(data.users); setCities(data.cities); setZones(data.zones ?? []); } })
       .finally(() => setLoading(false));
   }, [status, router]);
 
@@ -82,7 +98,9 @@ export default function UserManagementPage() {
     setEditName(u.name ?? "");
     setEditEmail(u.email);
     setEditRole((ROLES.includes(u.role as Role) ? u.role : "member") as Role);
+    setEditDesignation((DESIGNATIONS.includes(u.designation as Designation) ? u.designation : "Other") as Designation);
     setEditCityId(u.cityId ?? "");
+    setEditZoneIds(zones.filter(z => z.leadId === u.id).map(z => z.id));
     setEditError("");
   }
 
@@ -97,12 +115,22 @@ export default function UserManagementPage() {
     const res = await fetch(`/api/admin/users/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editName, email: editEmail, role: editRole, cityId: editCityId || null }),
+      body: JSON.stringify({
+        name: editName, email: editEmail, role: editRole, cityId: editCityId || null,
+        designation: editDesignation,
+        zoneIds: editZoneIds,
+      }),
     });
     const data = await res.json();
     setEditSaving(false);
     if (!res.ok) { setEditError(data.error ?? "Failed"); return; }
     setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data } : u));
+    // Sync local zones state with new lead assignments
+    setZones(prev => prev.map(z => {
+      if (editZoneIds.includes(z.id)) return { ...z, leadId: id };
+      if (z.leadId === id) return { ...z, leadId: null }; // cleared
+      return z;
+    }));
     setEditId(null);
   }
 
@@ -146,13 +174,13 @@ export default function UserManagementPage() {
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, email: newEmail, password: newPassword, role: newRole }),
+      body: JSON.stringify({ name: newName, email: newEmail, password: newPassword, role: newRole, designation: newDesignation }),
     });
     const data = await res.json();
     setCreating(false);
     if (!res.ok) { setCreateError(data.error ?? "Failed"); return; }
     setUsers(prev => [...prev, data]);
-    setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("member");
+    setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("member"); setNewDesignation("RP");
   }
 
   if (loading) {
@@ -198,14 +226,20 @@ export default function UserManagementPage() {
                 <div className="flex items-center gap-3 px-4 py-3">
                   <Avatar name={u.name} image={u.image} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-stone-800 truncate">{u.name ?? <span className="text-stone-400 italic">no name</span>}</p>
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full capitalize flex-shrink-0 ${ROLE_STYLE[role]}`}>{role}</span>
+                      {u.designation && u.designation !== "Other" && (
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${DESIGNATION_STYLE[(u.designation as Designation) ?? "Other"]}`}>{u.designation}</span>
+                      )}
                     </div>
                     <p className="text-xs text-stone-400 truncate">{u.email}</p>
                     <p className="text-xs text-stone-300 mt-0.5">
                       Joined {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                       {u.cityId && <span className="ml-2 text-sky-400">{cities.find(c => c.id === u.cityId)?.name ?? ""}</span>}
+                      {zones.filter(z => z.leadId === u.id).map(z => (
+                        <span key={z.id} className="ml-2 text-violet-400">{z.name} zone</span>
+                      ))}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -242,7 +276,7 @@ export default function UserManagementPage() {
                     />
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       {ROLES.filter(r => r !== "admin" || isSuperAdmin).map(r => (
                         <button
                           key={r}
@@ -253,6 +287,21 @@ export default function UserManagementPage() {
                           }`}
                         >
                           {r}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="w-px h-4 bg-indigo-200 flex-shrink-0" />
+                    <div className="flex gap-1.5">
+                      {DESIGNATIONS.map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setEditDesignation(d)}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${
+                            editDesignation === d ? DESIGNATION_STYLE[d] + " ring-2 ring-offset-1 ring-current" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                          }`}
+                        >
+                          {d}
                         </button>
                       ))}
                     </div>
@@ -277,6 +326,26 @@ export default function UserManagementPage() {
                       </button>
                     </div>
                   </div>
+                  {(editDesignation === "ZL" || editDesignation === "PM") && zones.length > 0 && (
+                    <div className="mt-1">
+                      <p className="text-[10px] font-semibold text-indigo-600 mb-1.5">Zone Lead for</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {zones.map(z => {
+                          const checked = editZoneIds.includes(z.id);
+                          return (
+                            <button
+                              key={z.id}
+                              type="button"
+                              onClick={() => setEditZoneIds(prev => checked ? prev.filter(id => id !== z.id) : [...prev, z.id])}
+                              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${checked ? "bg-violet-100 border-violet-400 text-violet-800" : "border-stone-200 text-stone-500 hover:border-violet-300 hover:bg-violet-50"}`}
+                            >
+                              {z.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {editError && <p className="text-xs text-red-500">{editError}</p>}
                 </div>
               )}
@@ -355,8 +424,8 @@ export default function UserManagementPage() {
                 {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {/* Role selector */}
-            <div className="flex gap-1.5">
+            {/* Role + Designation selector */}
+            <div className="flex gap-1.5 flex-wrap">
               {ROLES.filter(r => r !== "admin" || isSuperAdmin).map(r => (
                 <button
                   key={r}
@@ -367,6 +436,19 @@ export default function UserManagementPage() {
                   }`}
                 >
                   {r}
+                </button>
+              ))}
+              <div className="w-px h-5 self-center bg-stone-200" />
+              {DESIGNATIONS.map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setNewDesignation(d)}
+                  className={`text-xs font-semibold px-2.5 py-1.5 rounded-full transition-colors ${
+                    newDesignation === d ? DESIGNATION_STYLE[d] + " ring-2 ring-offset-1 ring-current" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                  }`}
+                >
+                  {d}
                 </button>
               ))}
             </div>

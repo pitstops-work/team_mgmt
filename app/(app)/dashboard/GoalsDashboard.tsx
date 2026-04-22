@@ -6,7 +6,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Target, ChevronRight, ChevronDown, Layers, LayoutDashboard, ListChecks,
-  MessageSquare, Home, Users, AlertTriangle, CheckCircle2, Flag,
+  MessageSquare, Home, Users, AlertTriangle, CheckCircle2, Flag, GitBranch,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge } from "@/components/StatusBadge";
@@ -70,16 +70,33 @@ interface SearchResults {
   pitstops: { id: string; title: string; goal: { id: string; title: string } }[];
 }
 
+type PhaseRow = { goalId: string; progressTag: string | null; status: string };
+
+const PHASE_TAGS = ["Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring"] as const;
+type PhaseTag = typeof PHASE_TAGS[number];
+
+const PHASE_COLORS: Record<PhaseTag, { pill: string; filled: string }> = {
+  Planning:     { pill: "bg-violet-50 text-violet-700 border-violet-200", filled: "bg-violet-500" },
+  Mobilisation: { pill: "bg-orange-50 text-orange-700 border-orange-200", filled: "bg-orange-500" },
+  Setup:        { pill: "bg-sky-50 text-sky-700 border-sky-200",          filled: "bg-sky-500" },
+  Capacity:     { pill: "bg-indigo-50 text-indigo-700 border-indigo-200", filled: "bg-indigo-500" },
+  Engagement:   { pill: "bg-teal-50 text-teal-700 border-teal-200",       filled: "bg-teal-500" },
+  Delivery:     { pill: "bg-emerald-50 text-emerald-700 border-emerald-200", filled: "bg-emerald-500" },
+  Monitoring:   { pill: "bg-amber-50 text-amber-700 border-amber-200",    filled: "bg-amber-500" },
+};
+
 interface Props {
   initialGoals: Goal[];
   currentUserId: string;
+  currentUserDesignation?: string;
   searchResults: SearchResults | null;
-  users: { id: string; name: string | null; image: string | null }[];
+  users: { id: string; name: string | null; image: string | null; designation?: string }[];
   programs: { id: string; title: string }[];
   threads: Thread[];
   myPitstops: MyPitstop[];
   overviewData: OverviewData;
-  initialTab: "home" | "goals" | "team";
+  phaseData?: PhaseRow[];
+  initialTab: "home" | "goals" | "team" | "phase";
   initialFilter?: "All" | "Mine" | "Active" | "Paused" | "Complete";
 }
 
@@ -290,8 +307,8 @@ function buildGeoTree(goals: Goal[]): GeoTree {
 }
 
 export default function GoalsDashboard({
-  initialGoals, currentUserId, searchResults, users, programs,
-  threads, myPitstops, overviewData, initialTab, initialFilter = "All",
+  initialGoals, currentUserId, currentUserDesignation = "Other", searchResults, users, programs,
+  threads, myPitstops, overviewData, phaseData = [], initialTab, initialFilter = "All",
 }: Props) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -299,8 +316,8 @@ export default function GoalsDashboard({
   const queryClient = useQueryClient();
   const isMounted = useRef(false);
 
-  const [activeTab, setActiveTab] = useState<"home" | "goals" | "team">(
-    (searchParams.get("tab") as "home" | "goals" | "team") || initialTab
+  const [activeTab, setActiveTab] = useState<"home" | "goals" | "team" | "phase">(
+    (searchParams.get("tab") as "home" | "goals" | "team" | "phase") || initialTab
   );
   const [showCreate, setShowCreate] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
@@ -475,6 +492,7 @@ export default function GoalsDashboard({
               { key: "home",  label: "Home",  icon: <Home className="w-3.5 h-3.5" /> },
               { key: "goals", label: "Goals", icon: <ListChecks className="w-3.5 h-3.5" /> },
               { key: "team",  label: "Team",  icon: <Users className="w-3.5 h-3.5" /> },
+              { key: "phase", label: "Phase", icon: <GitBranch className="w-3.5 h-3.5" /> },
             ] as const
           ).map(({ key, label, icon }) => (
             <button
@@ -501,13 +519,6 @@ export default function GoalsDashboard({
             </button>
             <button
               onClick={() => setShowTemplate(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium rounded-lg transition-colors"
-            >
-              <Layers className="w-4 h-4" />
-              Template
-            </button>
-            <button
-              onClick={() => setShowCreate(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors"
             >
               <Plus className="w-4 h-4" />
@@ -620,7 +631,7 @@ export default function GoalsDashboard({
                 <Target className="w-10 h-10 text-stone-200 mx-auto mb-3" />
                 <p className="text-stone-500 font-medium">No goals yet</p>
                 <p className="text-xs text-stone-400 mt-1">Create your first goal to get started.</p>
-                <button onClick={() => setShowCreate(true)} className="mt-4 px-4 py-2 bg-sky-500 text-white text-sm rounded-lg hover:bg-sky-600">
+                <button onClick={() => setShowTemplate(true)} className="mt-4 px-4 py-2 bg-sky-500 text-white text-sm rounded-lg hover:bg-sky-600">
                   Create Goal
                 </button>
               </div>
@@ -761,6 +772,11 @@ export default function GoalsDashboard({
         <OrgOverview overviewData={overviewData} goals={goals} users={users} />
       )}
 
+      {/* ── Phase tab ── */}
+      {activeTab === "phase" && (
+        <PhaseMatrix goals={filtered} phaseData={phaseData} />
+      )}
+
       {showCreate && (
         <CreateGoalModal
           onClose={() => setShowCreate(false)}
@@ -778,6 +794,9 @@ export default function GoalsDashboard({
             queryClient.setQueryData<Goal[]>(qk.goals(), (old = []) => [goal as Goal, ...old]);
             setShowTemplate(false);
           }}
+          currentUserId={currentUserId}
+          currentUserDesignation={currentUserDesignation}
+          allUsers={users}
         />
       )}
     </div>
@@ -855,5 +874,93 @@ function GoalCard({ goal, onHover }: { goal: Goal; onHover: (id: string) => void
         <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-stone-600" />
       </div>
     </Link>
+  );
+}
+
+// ── Phase Matrix ──────────────────────────────────────────────────────────────
+
+function PhaseMatrix({ goals, phaseData }: { goals: Goal[]; phaseData: PhaseRow[] }) {
+  // Build per-goal, per-tag counts
+  const tagMap = new Map<string, Map<PhaseTag, { total: number; done: number }>>();
+  for (const row of phaseData) {
+    const tag = row.progressTag as PhaseTag | null;
+    if (!tag || !PHASE_TAGS.includes(tag as PhaseTag)) continue;
+    if (!tagMap.has(row.goalId)) tagMap.set(row.goalId, new Map());
+    const gMap = tagMap.get(row.goalId)!;
+    const cur = gMap.get(tag) ?? { total: 0, done: 0 };
+    cur.total += 1;
+    if (row.status === "Done") cur.done += 1;
+    gMap.set(tag, cur);
+  }
+
+  const visibleGoals = goals.filter((g) => tagMap.has(g.id));
+
+  if (visibleGoals.length === 0) {
+    return (
+      <div className="text-center py-16 border border-dashed border-stone-200 rounded-xl">
+        <GitBranch className="w-8 h-8 text-stone-200 mx-auto mb-2" />
+        <p className="text-sm text-stone-400">No pitstops have phase tags yet. Tags are assigned automatically when goals are created from templates.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 mb-4">
+        <p className="text-xs text-stone-500">Showing {visibleGoals.length} goals with phase-tagged pitstops. Each cell shows done / total for that phase.</p>
+      </div>
+
+      {/* Header row */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-separate border-spacing-0">
+          <thead>
+            <tr>
+              <th className="text-left py-2 pr-4 font-medium text-stone-500 whitespace-nowrap min-w-[180px]">Goal</th>
+              {PHASE_TAGS.map((tag) => (
+                <th key={tag} className="py-2 px-1 text-center font-medium whitespace-nowrap">
+                  <span className={`inline-block px-2 py-0.5 rounded border text-[10px] ${PHASE_COLORS[tag].pill}`}>{tag}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleGoals.map((goal, i) => {
+              const gMap = tagMap.get(goal.id) ?? new Map();
+              return (
+                <tr key={goal.id} className={i % 2 === 0 ? "bg-white" : "bg-stone-50"}>
+                  <td className="py-2 pr-4">
+                    <Link href={`/goals/${goal.id}`} className="font-medium text-stone-800 hover:text-sky-600 truncate block max-w-[200px]">
+                      {goal.title}
+                    </Link>
+                  </td>
+                  {PHASE_TAGS.map((tag) => {
+                    const cell = gMap.get(tag);
+                    if (!cell) return <td key={tag} className="py-2 px-1 text-center text-stone-200">—</td>;
+                    const pct = Math.round((cell.done / cell.total) * 100);
+                    const allDone = cell.done === cell.total;
+                    const none = cell.done === 0;
+                    return (
+                      <td key={tag} className="py-2 px-1">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <div className="w-12 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${allDone ? "bg-emerald-500" : none ? "bg-stone-200" : PHASE_COLORS[tag].filled}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className={`text-[10px] tabular-nums ${allDone ? "text-emerald-600" : "text-stone-500"}`}>
+                            {cell.done}/{cell.total}
+                          </span>
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

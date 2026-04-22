@@ -16,7 +16,7 @@ export default async function DashboardPage({
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const currentUserId = session!.user!.id!;
-  const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true } });
+  const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true, designation: true } });
   const cityFilter = goalCityFilter(me?.cityId);
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
@@ -32,7 +32,7 @@ export default async function DashboardPage({
       },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.user.findMany({ select: { id: true, name: true, image: true }, orderBy: { name: "asc" } }),
+    prisma.user.findMany({ select: { id: true, name: true, image: true, designation: true }, orderBy: { name: "asc" } }),
     prisma.program.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
 
     // Threads for home tile grid — only threads relevant to current user
@@ -204,6 +204,14 @@ export default async function DashboardPage({
     }),
   ]);
 
+  // Phase data — raw SQL because progressTag is a new column
+  const phaseRows = await prisma.$queryRaw<{ goalId: string; progressTag: string | null; status: string }[]>`
+    SELECT p."goalId", p."progressTag", p.status::text
+    FROM "Pitstop" p
+    JOIN "Goal" g ON p."goalId" = g.id
+    WHERE p."deletedAt" IS NULL AND g."deletedAt" IS NULL
+  `;
+
   let searchResults = null;
   if (q?.trim()) {
     const [matchingGoals, matchingPitstops] = await Promise.all([
@@ -234,13 +242,15 @@ export default async function DashboardPage({
     <GoalsDashboard
       initialGoals={JSON.parse(JSON.stringify(goals))}
       currentUserId={currentUserId}
+      currentUserDesignation={me?.designation ?? "Other"}
       searchResults={searchResults ? JSON.parse(JSON.stringify(searchResults)) : null}
       users={users}
       programs={programs}
       threads={JSON.parse(JSON.stringify(threads))}
       myPitstops={JSON.parse(JSON.stringify(myPitstops))}
       overviewData={JSON.parse(JSON.stringify(overviewData))}
-      initialTab={(tab === "home" || tab === "goals" || tab === "team" ? tab : "home") as "home" | "goals" | "team"}
+      phaseData={JSON.parse(JSON.stringify(phaseRows))}
+      initialTab={(tab === "home" || tab === "goals" || tab === "team" || tab === "phase" ? tab : "home") as "home" | "goals" | "team" | "phase"}
       initialFilter={(["All","Mine","Active","Paused","Complete"].includes(filter ?? "") ? filter : "All") as "All" | "Mine" | "Active" | "Paused" | "Complete"}
     />
   );

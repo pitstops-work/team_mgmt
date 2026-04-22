@@ -12,7 +12,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!template) return Response.json({ error: "Template not found" }, { status: 404 });
 
   const body = await req.json();
-  const { title, description, targetDate, startDate, params: templateParams } = body;
+  const {
+    title, description, targetDate, startDate, params: templateParams,
+    needsDomain, needsSettlementId, needsClusterId, needsZoneId, needsCityId,
+    activitySchedules, // Record<number, string> — pitstop index → ISO date string
+    ownerId,           // Override goal/pitstop owner (ZL creating on behalf of an RP)
+  } = body;
 
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
   if (!targetDate) return Response.json({ error: "Target date required" }, { status: 400 });
@@ -21,13 +26,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const pitstopTemplates = template.build(templateParams ?? {});
   const goalStart = new Date(startDate);
 
+  // ZL can designate a different user as the goal owner
+  const goalOwnerId = ownerId ?? session.user.id;
+
   const goal = await prisma.goal.create({
     data: {
       title,
       description: description ?? null,
       status: "Active",
-      ownerId: session.user.id,
+      ownerId: goalOwnerId,
       targetDate: new Date(targetDate),
+      needsDomain: needsDomain ?? null,
+      needsSettlementId: needsSettlementId ?? null,
+      needsClusterId: needsClusterId ?? null,
+      needsZoneId: needsZoneId ?? null,
+      needsCityId: needsCityId ?? null,
       pitstops: {
         create: pitstopTemplates.map((pt, idx) => {
           const pitstopStart = new Date(goalStart);
@@ -50,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             type: pitstopType as any,
             notes: pt.notes,
             order: idx,
-            ownerId: session.user.id,
+            ownerId: goalOwnerId,
             ownerInherited: true,
             recurrence: recurrence as any,
             startDate: pitstopStart,
@@ -71,12 +84,75 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
 
-  // Goal owner auto-follows
+  // Set progressTag on pitstops via raw SQL (new column, Prisma cache bypass)
+  for (let idx = 0; idx < pitstopTemplates.length; idx++) {
+    const tag = pitstopTemplates[idx]?.progressTag ?? null;
+    const pitstop = goal.pitstops[idx];
+    if (!pitstop) continue;
+    await prisma.$executeRaw`
+      UPDATE "Pitstop" SET "progressTag" = ${tag} WHERE id = ${pitstop.id}
+    `;
+  }
+
+  // Goal owner auto-follows; if ZL created on behalf of RP, both follow
   await prisma.goalFollow.upsert({
-    where: { userId_goalId: { userId: session.user.id, goalId: goal.id } },
-    create: { userId: session.user.id, goalId: goal.id },
+    where: { userId_goalId: { userId: goalOwnerId, goalId: goal.id } },
+    create: { userId: goalOwnerId, goalId: goal.id },
     update: {},
   });
+  if (goalOwnerId !== session.user.id) {
+    await prisma.goalFollow.upsert({
+      where: { userId_goalId: { userId: session.user.id, goalId: goal.id } },
+      create: { userId: session.user.id, goalId: goal.id },
+      update: {},
+    });
+  }
+
+  // Create one PitstopEvent per scheduled pitstop
+  if (activitySchedules && typeof activitySchedules === "object") {
+    const entries = Object.entries(activitySchedules) as [string, string][];
+    for (const [idxStr, dateStr] of entries) {
+      const idx = Number(idxStr);
+      const pitstop = goal.pitstops[idx];
+      if (!pitstop || !dateStr) continue;
+      const pt = pitstopTemplates[idx];
+      const eventType = ["Meeting", "Visit", "Event"].includes(pt?.type ?? "") ? pt.type : "Meeting";
+      const scheduledAt = new Date(dateStr);
+
+      const event = await prisma.pitstopEvent.create({
+        data: {
+          title: pitstopTemplates[idx]?.title ?? `${goal.title} — Activity`,
+          type: eventType as any,
+          scheduledAt,
+          createdById: session.user.id,
+          pitstops: { create: [{ pitstopId: pitstop.id }] },
+          attendees: { create: [{ userId: session.user.id }] },
+        },
+        select: { id: true },
+      });
+
+      // Update ChecklistItem(s) for this pitstop to Scheduled if still NotStarted
+      // (there are no specific checklist items tied here — just mark the pitstop-level activity)
+      // Find the first checklist item of this pitstop and link the event
+      const firstItem = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "ChecklistItem"
+        WHERE "pitstopId" = ${pitstop.id}
+        ORDER BY "order" ASC
+        LIMIT 1
+      `;
+      if (firstItem[0]) {
+        await prisma.$executeRaw`
+          UPDATE "PitstopEvent" SET "checklistItemId" = ${firstItem[0].id}
+          WHERE id = ${event.id} AND "checklistItemId" IS NULL
+        `;
+        await prisma.$executeRaw`
+          UPDATE "ChecklistItem"
+          SET status = 'Scheduled'::"ChecklistItemStatus", "updatedAt" = NOW()
+          WHERE id = ${firstItem[0].id} AND status = 'NotStarted'::"ChecklistItemStatus"
+        `;
+      }
+    }
+  }
 
   return Response.json(goal, { status: 201 });
 }

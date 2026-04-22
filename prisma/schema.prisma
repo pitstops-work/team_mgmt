@@ -15,6 +15,7 @@ model User {
   image            String?
   password         String?
   role             String    @default("member")
+  designation      String    @default("Other")  // RP | ZL | PM | Other
   bio              String?
   notifyDigest        Boolean   @default(false)
   weeklyCapacity      Float     @default(40)
@@ -36,6 +37,7 @@ model User {
   pushSubscriptions    PushSubscription[]
   createdEvents        PitstopEvent[]
   eventAttendances     PitstopEventAttendee[]
+  leadZones            Zone[]                @relation("ZoneLead")
   eventFollowups       PitstopEventFollowup[]
   planItems            PlanItem[]
   // Accountability
@@ -69,6 +71,7 @@ model User {
   verifiedPitstops     Pitstop[]             @relation("PitstopVerifier")
   confirmedGoals       Goal[]                @relation("GoalConfirmer")
   dateChanges          PitstopDateChange[]   @relation("DateChanger")
+  checklistItems       ChecklistItem[]       @relation("ChecklistItemAssignee")
 }
 
 model Account {
@@ -188,6 +191,7 @@ model Pitstop {
   customType      String?
   order           Int               @default(0)
   recurrence      PitstopRecurrence @default(None)
+  progressTag     String?           // Planning | Mobilisation | Setup | Capacity | Engagement | Delivery | Monitoring
   startDate       DateTime?
   targetDate      DateTime?
   completedAt     DateTime?
@@ -231,14 +235,30 @@ model Pitstop {
 }
 
 model ChecklistItem {
-  id        String   @id @default(cuid())
-  pitstopId String
-  text      String
-  checked   Boolean  @default(false)
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
+  id          String              @id @default(cuid())
+  pitstopId   String
+  text        String
+  checked     Boolean             @default(false)
+  status      ChecklistItemStatus @default(NotStarted)
+  assigneeId  String?
+  notes       String?
+  order       Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
-  pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  pitstop  Pitstop       @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  assignee User?         @relation("ChecklistItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  activity PitstopEvent? @relation("ChecklistActivity")
+}
+
+enum ChecklistItemStatus {
+  NotStarted
+  Scheduled
+  InProgress
+  Done
+  Blocked
+  Rescheduled
+  Cancelled
 }
 
 model PitstopDependency {
@@ -446,6 +466,7 @@ enum PitstopEventStatus {
   Scheduled
   Done
   Cancelled
+  Rescheduled
   Flagged
 }
 
@@ -736,12 +757,14 @@ model Zone {
   id        String    @id @default(cuid())
   name      String
   cityId    String?
+  leadId    String?
   geometry  Json?
   color     String?
   deletedAt DateTime?
   createdAt DateTime  @default(now())
 
   city          City?          @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  lead          User?          @relation("ZoneLead", fields: [leadId], references: [id], onDelete: SetNull)
   clusters      Cluster[]
   needsGoals    Goal[]         @relation("GoalNeedsZone")
   needsPitstops Pitstop[]      @relation("PitstopNeedsZone")
@@ -952,20 +975,25 @@ enum PitstopEventType {
 }
 
 model PitstopEvent {
-  id          String             @id @default(cuid())
-  title       String
-  description String?
-  type        PitstopEventType   @default(Meeting)
-  status      PitstopEventStatus @default(Scheduled)
-  scheduledAt DateTime
-  endsAt      DateTime?
-  location    String?
-  createdById String
-  deletedAt   DateTime?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id                 String             @id @default(cuid())
+  title              String
+  description        String?
+  type               PitstopEventType   @default(Meeting)
+  status             PitstopEventStatus @default(Scheduled)
+  scheduledAt        DateTime
+  endsAt             DateTime?
+  location           String?
+  createdById        String
+  checklistItemId    String?            @unique
+  rescheduledFrom    DateTime?
+  rescheduleReason   String?
+  cancellationReason String?
+  deletedAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
-  createdBy User                      @relation(fields: [createdById], references: [id])
+  createdBy     User                      @relation(fields: [createdById], references: [id])
+  checklistItem ChecklistItem?            @relation("ChecklistActivity", fields: [checklistItemId], references: [id], onDelete: SetNull)
   attendees PitstopEventAttendee[]
   pitstops  PitstopEventPitstop[]
   followups PitstopEventFollowup[]

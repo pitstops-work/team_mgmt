@@ -14,6 +14,35 @@ export interface PitstopTemplate {
   startSlaDays: number;    // start date = goal start + startSlaDays
   recurrence?: "None" | "Weekly" | "Monthly" | "Quarterly";
   checklist: ChecklistItemTemplate[];
+  progressTag?: string;    // Planning | Mobilisation | Setup | Capacity | Engagement | Delivery | Monitoring
+}
+
+export type ProgressTag = "Planning" | "Mobilisation" | "Setup" | "Capacity" | "Engagement" | "Delivery" | "Monitoring";
+
+export const PROGRESS_TAGS: ProgressTag[] = [
+  "Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring",
+];
+
+// Ordered: more specific keywords first. First match wins.
+const TAG_KEYWORDS: [ProgressTag, string[]][] = [
+  ["Monitoring",   ["monitoring", "supervisor review", "tracking", "audit", "variance", "impact assessment", "review"]],
+  ["Mobilisation", ["gram sabha", "mou", "approval", "grant", "proposal", "budget", "noc", "mobilisation", "liaison"]],
+  ["Planning",     ["plan", "survey", "mapping", "assessment", "baseline", "needs", "identification", "line listing", "concept note", "annual plan"]],
+  ["Setup",        ["recruitment", "infrastructure", "facility", "site", "procurement", "mis", "location", "onboarding", "induction", "team"]],
+  ["Capacity",     ["training", "capacity", "orientation", "coaching", "learning", "skills", "peer learning"]],
+  ["Engagement",   ["community", "outreach", "enrollment", "caregiver selection", "small group", "group meeting", "engagement", "outreach"]],
+  ["Delivery",     ["launch", "round", "visit", "session", "drive", "linkage", "rollout", "operations", "action", "delivery"]],
+];
+
+export function applyProgressTags(pitstops: PitstopTemplate[]): PitstopTemplate[] {
+  return pitstops.map((pt) => {
+    if (pt.progressTag) return pt;
+    const lower = pt.title.toLowerCase();
+    for (const [tag, keywords] of TAG_KEYWORDS) {
+      if (keywords.some((k) => lower.includes(k))) return { ...pt, progressTag: tag };
+    }
+    return { ...pt, progressTag: "Delivery" };
+  });
 }
 
 export interface GoalTemplate {
@@ -22,6 +51,7 @@ export interface GoalTemplate {
   description: string;
   category: string;
   icon: string;
+  needsDomain?: string;  // links this template to a NeedsFormulaConfig domain key
   parameters: TemplateParameter[];
   build: (params: Record<string, string | number>) => PitstopTemplate[];
 }
@@ -29,19 +59,62 @@ export interface GoalTemplate {
 export interface TemplateParameter {
   key: string;
   label: string;
-  type: "number" | "text";
+  type: "number" | "text" | "choice";
   min?: number;
   max?: number;
   placeholder?: string;
+  options?: { value: string; label: string }[];
 }
 
 // ── Creche Program Template ───────────────────────────────────────────────────
 
 function buildCrecheTemplate(params: Record<string, string | number>): PitstopTemplate[] {
   const n = Number(params.creches) || 1;
+  const track = String(params.track || "new");
   const trainingBatches = Math.ceil((n * 2) / 24);   // 2 caregivers per creche, 24 per batch
   const facilityClusters = Math.ceil(n / 10);         // 10 creches per supervisor cluster
   const needsSafetyCoord = n >= 40;
+
+  if (track === "existing") {
+    return [
+      {
+        title: "Monthly Creche Rounds",
+        type: "SiteVisit",
+        recurrence: "Monthly",
+        notes: `RP visits all ${n} creche(s) monthly (~2 hours per creche). Observe caregiver conduct, review child nutrition records, check hygiene and safety standards, and flag issues to supervisor immediately.`,
+        startSlaDays: 0,
+        slaDays: 30,
+        checklist: [
+          { text: `All ${n} creche(s) visited this month` },
+          { text: "Caregiver conduct observed in each creche" },
+          { text: "Child nutrition records reviewed" },
+          { text: "Hygiene and safety standards checked against 24-point checklist" },
+          { text: "Attendance register and child card records reviewed" },
+          { text: "Growth monitoring data spot-checked (weight/height records up to date)" },
+          { text: "IFA supplementation tracking verified" },
+          { text: "Issues flagged to supervisor immediately" },
+          { text: "Creche visit log updated" },
+        ],
+      },
+      {
+        title: "Creche Supervisor Review",
+        type: "Meeting",
+        recurrence: "Monthly",
+        notes: "Monthly review with creche supervisors. Discuss rounds findings, address caregiver performance issues, and review expansion pipeline.",
+        startSlaDays: 0,
+        slaDays: 30,
+        checklist: [
+          { text: "All supervisors present" },
+          { text: "Monthly rounds findings discussed per creche" },
+          { text: "Caregiver performance issues identified and action owners assigned" },
+          { text: "MIS data (Shishughar) cross-checked with field register data" },
+          { text: "Expansion / new creche pipeline reviewed against needs gap" },
+          { text: "In-service training calendar for next month confirmed" },
+          { text: "Action items documented and shared" },
+        ],
+      },
+    ];
+  }
 
   const pitstops: PitstopTemplate[] = [
     {
@@ -463,9 +536,63 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
 
 function buildChildrenTemplate(params: Record<string, string | number>): PitstopTemplate[] {
   const centres = Number(params.centres) || 1;
+  const track = String(params.track || "new");
   const totalChildren = centres * 100;        // 100 children per centre
   const totalCOs = centres * 2;               // 2 outreach workers per centre
   const hasLead = centres > 1;                // children lead required once >1 centre
+
+  if (track === "existing") {
+    return [
+      {
+        title: "Centre Visits — Twice Weekly",
+        type: "SiteVisit",
+        recurrence: "Weekly",
+        notes: `RP visits the children's centre twice a week (½ day each visit). Handhold coordinator on planned activities, review attendance and learning quality, flag material or infrastructure needs.`,
+        startSlaDays: 0,
+        slaDays: 7,
+        checklist: [
+          { text: "Visit 1 this week: centre activity for the day observed" },
+          { text: "Visit 1: coordinator supported on planned activity" },
+          { text: "Visit 1: attendance register reviewed" },
+          { text: "Visit 1: learning quality spot-check done" },
+          { text: "Visit 1: infrastructure / material needs flagged" },
+          { text: "Visit 1: coordinator debrief completed" },
+          { text: "Visit 2 this week: same checks repeated" },
+          { text: "Visit 2: coordinator debrief completed" },
+        ],
+      },
+      {
+        title: "Monthly Training",
+        type: "Training",
+        recurrence: "Monthly",
+        notes: "RP attends monthly children's programme training and reinforces key learnings with the coordinator post-session.",
+        startSlaDays: 0,
+        slaDays: 30,
+        checklist: [
+          { text: "Training topic aligned with monthly plan" },
+          { text: "Full session attended" },
+          { text: "Key learning shared with coordinator" },
+          { text: "Coordinator practice / implementation plan agreed" },
+          { text: "Attendance recorded" },
+        ],
+      },
+      {
+        title: "Govt School & DI Coordination",
+        type: "Meeting",
+        recurrence: "Monthly",
+        notes: "Monthly coordination with relevant government schools and the District Inspector (DI) on dropout follow-up and school-community engagement.",
+        startSlaDays: 0,
+        slaDays: 30,
+        checklist: [
+          { text: "Target school(s) visited or DI contacted" },
+          { text: "Out-of-school children list updated" },
+          { text: "Dropout follow-up done with partner coordinator" },
+          { text: "School engagement plan progressed" },
+          { text: "Next steps documented and assigned" },
+        ],
+      },
+    ];
+  }
 
   return [
     {
@@ -661,9 +788,47 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
 
 function buildYouthTemplate(params: Record<string, string | number>): PitstopTemplate[] {
   const yrcs = Number(params.yrcs) || 1;
+  const track = String(params.track || "new");
   const totalYouth = yrcs * 1000;                      // 1 YRC per cluster, 1000 youth per YRC
   const intensiveYouth = yrcs * 200;                   // each worker closely works with 200
   const youthWorkers = yrcs * 2;                       // 2 workers per YRC
+
+  if (track === "existing") {
+    return [
+      {
+        title: "Saturday Centre Visit & CAP Review",
+        type: "SiteVisit",
+        recurrence: "Weekly",
+        notes: `Every Saturday: RP visits the Youth Resource Centre (½ day/week). Reviews CAP progress with youth groups, supports the coordinator, and tracks milestones, blockers, and wins.`,
+        startSlaDays: 0,
+        slaDays: 7,
+        checklist: [
+          { text: "Youth Resource Centre visited" },
+          { text: "Coordinator supported on current programme priorities" },
+          { text: "Youth groups met for CAP review" },
+          { text: "CAP milestones status updated" },
+          { text: "Blockers and issues logged" },
+          { text: "Wins noted for motivation and documentation" },
+          { text: "Next Saturday priorities agreed with coordinator" },
+        ],
+      },
+      {
+        title: "Monthly Training",
+        type: "Training",
+        recurrence: "Monthly",
+        notes: "RP attends monthly youth programme training and briefs the coordinator on key takeaways.",
+        startSlaDays: 0,
+        slaDays: 30,
+        checklist: [
+          { text: "Training topic aligned with monthly plan" },
+          { text: "Full session attended" },
+          { text: "Coordinator briefed post-training" },
+          { text: "Implementation plan agreed with coordinator" },
+          { text: "Attendance recorded" },
+        ],
+      },
+    ];
+  }
   const youthLeaders = yrcs * 2 * 20;                  // 20 leaders per worker
   const hasYouthLead = yrcs >= 2;                      // youth lead when ≥2 YRCs
 
@@ -1258,7 +1423,921 @@ function buildSchemeLinkageTemplate(params: Record<string, string | number>): Pi
   ];
 }
 
+// ── Elderly Care Centre Template ─────────────────────────────────────────────
+
+function buildElderlyCentreTemplate(params: Record<string, string | number>): PitstopTemplate[] {
+  const n = Number(params.centres) || 1;
+  const track = String(params.track || "new");
+  const friendsOfElderly = (elderlyCount: number) => Math.ceil(elderlyCount / 400);
+
+  const monitoring: PitstopTemplate = {
+    title: "Monitoring & Review",
+    type: "Review",
+    recurrence: "Monthly",
+    notes: `Monthly review of centre operations and outreach across ${n} centre(s). RP visits the centre monthly and covers elderly programme in the cluster meeting. Quarterly, Friends of Elderly conduct a full re-assessment of all elderly in their designated areas, updating need categorisation and home visit intensity.`,
+    startSlaDays: track === "new" ? 65 : 0,
+    slaDays: track === "new" ? 95 : 30,
+    checklist: [
+      { text: "Centre daily attendance reviewed: average vs. 25 enrolled target" },
+      { text: "Nutrition and meal provision verified (meal + snacks daily)" },
+      { text: "Health check-up count for the month reviewed and referrals tracked" },
+      { text: "Mental health counselling sessions conducted and documented" },
+      { text: "Recreational activity calendar delivered as planned" },
+      { text: "Friends of Elderly home visit log reviewed — count and follow-up actions" },
+      { text: "Home-based care cases reviewed: physiotherapy, virtual OPD, assistive devices status" },
+      { text: "Scheme linkage progress reviewed: entitlements pending vs. secured this month" },
+      { text: "Escalations and incidents reviewed and closed or escalated" },
+      { text: "RP monthly visit to centre — observes operations and reviews with Activity Coordinator" },
+      { text: "Elderly centre reviewed as agenda item in monthly cluster meeting" },
+      // Quarterly items
+      { text: "[Quarterly] Friends of Elderly conduct full re-assessment of all elderly in designated areas" },
+      { text: "[Quarterly] Update need categorisation: high / medium / low (drives home visit frequency)" },
+      { text: "[Quarterly] Review enrollment — new priority cases, dropouts, and changes" },
+      { text: "[Quarterly] Family sensitisation workshop conducted" },
+      { text: "[Quarterly] RP quarterly review with partner team — data, challenges, next quarter plan" },
+    ],
+  };
+
+  if (track === "existing") {
+    return [monitoring];
+  }
+
+  return [
+    {
+      title: "Community Baseline & Needs Assessment",
+      type: "Research",
+      notes: `Map every elderly person 60+ in the settlement. Categorise by need intensity (high / medium / low) to determine who gets day care seats, who needs outreach, and who requires home-based care. Priority for the 25 day care seats: abandoned, neglected, living alone. Identify Friends of Elderly cadre candidates (1 per 400 elderly). RP reviews the methodology mid-way and confirms the final categorisation.`,
+      startSlaDays: 0,
+      slaDays: 21,
+      checklist: [
+        { text: "Map all elderly 60+ in the settlement — door-to-door enumeration" },
+        { text: "Record basic profile: name, age, household composition, whether living alone" },
+        { text: "Categorise each elderly person: high / medium / low intensive needs (physical, mental, emotional)" },
+        { text: "Flag priority cohort: abandoned, facing neglect, or living alone without family support" },
+        { text: "Identify bed-ridden or highly dependent elderly requiring home-based care" },
+        { text: `Identify Friends of Elderly cadre candidates (target: ${friendsOfElderly(25 * n)} for ${n} centre(s))` },
+        { text: "Document all findings in MIS" },
+        { text: "RP reviews baseline mid-way and confirms final categorisation and priority list" },
+      ],
+    },
+    {
+      title: "Facility Identification & Setup",
+      type: "SiteVisit",
+      notes: `Partner identifies a suitable space in the community and sets it up as a senior-friendly day care centre (capacity: 25, 9 AM–5 PM). Centre must be accessible and fully equipped before enrollment. RP inspects and signs off before any elderly are enrolled.`,
+      startSlaDays: 21,
+      slaDays: 45,
+      checklist: [
+        { text: "Identify space: community hall, unused room, or partner premises within the settlement" },
+        { text: "Assess space against criteria: size for 25 people, ventilation, proximity, access" },
+        { text: "Plan and execute refurbishments: ramps, handrails, non-slip flooring, accessible toilet" },
+        { text: "Procure and set up basic furniture: chairs, mats, tables suitable for elderly" },
+        { text: "Procure health check-up tools: BP monitor, weighing scale, glucometer, first aid kit" },
+        { text: "Procure assistive devices: walking sticks, wheelchairs for centre use" },
+        { text: "Set up recreational materials: games, craft supplies, storytelling resources" },
+        { text: "Set up nutrition area: utensils, storage, meal preparation space" },
+        { text: "Install signage and notice board" },
+        { text: "RP inspects facility and signs off before enrollment begins" },
+      ],
+    },
+    {
+      title: "Team Recruitment & Training",
+      type: "Training",
+      notes: `Recruit Activity Coordinator and Helper from the community. Identify and train Friends of Elderly cadre. All training is delivered by a specialised technical partner with geriatric expertise. RP attends at least one training session and briefs the team on programme expectations.`,
+      startSlaDays: 21,
+      slaDays: 50,
+      checklist: [
+        { text: "Recruit Activity Coordinator from community (organises daily physical, mental, social activities)" },
+        { text: "Recruit Helper from community (assists with mobility, daily needs, activity support)" },
+        { text: `Identify and confirm Friends of Elderly cadre members (1 per 400 elderly; report to Activity Coordinator)` },
+        { text: "Coordinate with technical partner to schedule training dates and venue" },
+        { text: "Conduct staff training: geriatric care basics, daily activity facilitation, health monitoring" },
+        { text: "Conduct Friends of Elderly training: home visit protocols, quarterly assessment, scheme linkage" },
+        { text: "Train all staff on centre operations: attendance register, daily report, referral documentation" },
+        { text: "Train staff on escalation protocols: when to refer to health services, when to alert RP" },
+        { text: "RP attends at least one training session and briefs team on programme expectations" },
+      ],
+    },
+    {
+      title: "Outreach Systems & Referral Mapping",
+      type: "Research",
+      notes: `Set up all outreach infrastructure before launch. RP owns the referral service mapping — visiting key institutions (PHC, hospitals, physiotherapy centres, NGOs) to establish live referral relationships, with support from the Activity Coordinator. Ensures referral pathways are active from Day 1.`,
+      startSlaDays: 45,
+      slaDays: 55,
+      checklist: [
+        { text: "RP visits PHC, Namma Clinic, and government hospital to establish referral relationship" },
+        { text: "RP visits physiotherapy provider and confirms access pathway for home-based care cases" },
+        { text: "RP visits virtual OPD / telemedicine service and confirms how referrals will be routed" },
+        { text: "RP visits any local NGOs or CSOs providing complementary elderly services" },
+        { text: "RP and Activity Coordinator compile referral directory: service, contact, what it covers" },
+        { text: "Set up quarterly assessment schedule for Friends of Elderly (each covers designated area)" },
+        { text: "Prepare home visit roster for Friends of Elderly (priority: high needs and bed-ridden elderly)" },
+        { text: "Map applicable government schemes for enrolled elderly: pension, CMCHIS/PMJAY, NFSA" },
+        { text: "Plan first family sensitisation meeting (for families of enrolled elderly)" },
+        { text: "RP confirms referral pathways are live and outreach schedule is ready" },
+      ],
+    },
+    {
+      title: "Enrollment & Launch",
+      type: "Meeting",
+      notes: `Enrol 25 elderly (priority: abandoned, alone, neglected) and open the centre. Activate outreach simultaneously — Friends of Elderly begin home visits in their areas. RP is present at launch.`,
+      startSlaDays: 55,
+      slaDays: 65,
+      checklist: [
+        { text: "Finalise 25-person enrollment list from baseline priority cohort" },
+        { text: "Visit each enrolled elderly at home to explain programme, timing (9 AM–5 PM), and benefits" },
+        { text: "Complete individual intake assessment: health status, special needs, family contact" },
+        { text: "Arrange mobility support for elderly who cannot reach centre independently" },
+        { text: "Assign Friends of Elderly to their designated settlement areas" },
+        { text: "Conduct first family sensitisation meeting with families of enrolled elderly" },
+        { text: "Launch centre on agreed date — Activity Coordinator and Helper present from Day 1" },
+        { text: "Activate home visits for high needs and bed-ridden elderly from launch week" },
+        { text: "RP present at launch and reviews first week operations with Activity Coordinator" },
+      ],
+    },
+    monitoring,
+  ];
+}
+
+// ── Water ATM / RO Plant Template ────────────────────────────────────────────
+
+function buildWaterATMTemplate(params: Record<string, string | number>): PitstopTemplate[] {
+  const n = Number(params.plants) || 1;
+  const hh = Number(params.households) || 250;
+  const track = String(params.track || "new");
+
+  // Capacity guidance based on household count
+  const capacityGuide =
+    hh <= 150 ? "250–500 LPH" :
+    hh <= 300 ? "500–1,000 LPH" :
+    hh <= 600 ? "1,000–2,000 LPH" :
+    hh <= 1200 ? "2,000–4,000 LPH" : "4,000+ LPH (consider hub-and-spoke)";
+
+  const monitoring: PitstopTemplate = {
+    title: "Monitoring & Operations",
+    type: "Review",
+    recurrence: "Monthly",
+    notes: `Monthly monitoring of ${n} Water ATM plant(s) serving ~${hh} households. RP conducts monthly plant visit and regular dashboard reviews to catch quality decline, revenue leakage, or maintenance failures early. Plant is a standing agenda item in the monthly cluster meeting.`,
+    startSlaDays: track === "new" ? 50 : 0,
+    slaDays: track === "new" ? 80 : 30,
+    checklist: [
+      { text: "Product TDS checked and logged (target: 100–200 mg/L)" },
+      { text: "pH and turbidity checked; monthly microbial (E. coli) lab test done" },
+      { text: "Daily litres dispensed vs. expected volume reconciled" },
+      { text: "Revenue vs. flow meter logs cross-checked (divergence = theft or metering fault)" },
+      { text: "Card recharge frequency per household reviewed (no recharge in 2 weeks = follow up)" },
+      { text: "Membrane flux monitored — >15% drop in permeate flow triggers chemical clean or replacement" },
+      { text: "Pre-filter cartridge replacement checked (every 1–3 months in turbid borewell water)" },
+      { text: "UV lamp hours tracked (replace annually at ~8,000 hours)" },
+      { text: "Borewell yield and water level logged (Bangalore: aquifers depleting — check quarterly)" },
+      { text: "Backwash cycle log reviewed — missing cycles indicate control panel fault" },
+      { text: "Downtime log reviewed (target: >95% uptime; MTTR <4 hours minor, <24 hours major)" },
+      { text: "Antiscalant and consumable stock checked — maintain 1–2 months buffer" },
+      { text: "RP reviews operational dashboard — TDS trend, litres dispensed, downtime, revenue" },
+      { text: "RP monthly visit to plant — reviews all metrics with operator" },
+      { text: "Water ATM reviewed as agenda item in monthly cluster meeting" },
+    ],
+  };
+
+  if (track === "existing") {
+    return [monitoring];
+  }
+
+  return [
+    {
+      title: "Source Water Assessment & Site Selection",
+      type: "Research",
+      notes: `The most critical first step — everything depends on source water quality and site viability. RP leads the feasibility assessment: land permission, borewell approval, regulatory clearances, and site suitability. No capital is committed before RP confirms the site.`,
+      startSlaDays: 0,
+      slaDays: 21,
+      checklist: [
+        { text: "Collect water sample from proposed borewell or source and send to certified lab" },
+        { text: "Analyse for: TDS, pH, hardness, fluoride, nitrate, iron, arsenic, turbidity, E. coli, chloride" },
+        { text: "Confirm TDS >500 mg/L (NGT prohibits RO on municipal water below this — document result)" },
+        { text: "RP conducts feasibility assessment: land permission, borewell permission, regulatory viability" },
+        { text: "RP applies for / follows up on CGWB or state ground water board borewell approval" },
+        { text: "RP follows up on SPCB Consent to Establish and municipal body NoC" },
+        { text: "Identify plant site: minimum 15×12 ft, clean, ventilated, flood-safe, not near drains or toilets" },
+        { text: "Confirm site is within 200 metres walking distance of all target households" },
+        { text: "Secure land tenure: formal lease, MoU, or NoC from landowner / civic body" },
+        { text: "Confirm commercial electrical connection available (or plan solar/UPS backup)" },
+        { text: "Plan reject water (brine) disposal: municipal drain, toilet flushing, or horticulture — never back into source aquifer" },
+        { text: "RP reviews water test results and confirms site before any procurement begins" },
+      ],
+    },
+    {
+      title: "Demand Estimation & Plant Sizing",
+      type: "Research",
+      notes: `Size the plant correctly before procurement. An underpowered plant kills adoption; an overpowered one wastes capital. Target: ${hh} households → recommended capacity: ${capacityGuide}. RP reviews and approves specs.`,
+      startSlaDays: 14,
+      slaDays: 21,
+      checklist: [
+        { text: `Confirm target household count: ${hh} HH` },
+        { text: "Estimate daily demand: 15–20 litres per household per day (drinking + cooking)" },
+        { text: "Apply adoption rate buffer: design for 60–70% adoption initially" },
+        { text: "Apply peak season buffer: add 30–40% for summer months (April–June)" },
+        { text: `Select plant capacity: ${capacityGuide} based on ${hh} HH` },
+        { text: "Account for recovery ratio (50–65%): raw water feed must be 1.5–2× product output" },
+        { text: "Get at least 2 vendor quotes — confirm capex includes tanks, pipework, ATM kiosk, electrical, civil" },
+        { text: "Plan reject water volume and confirm disposal route can handle it" },
+        { text: "RP reviews demand estimate and approves plant specifications before procurement" },
+      ],
+    },
+    {
+      title: "Procurement & Installation",
+      type: "Budgeting",
+      notes: `Procure and install all plant components. Antiscalant dosing is mandatory for Bangalore's high-silica borewell water — skipping it is the most common cause of premature membrane failure. RP inspects the completed setup before commissioning.`,
+      startSlaDays: 21,
+      slaDays: 45,
+      checklist: [
+        { text: "Procure raw water storage tank (5,000–10,000L overhead or underground)" },
+        { text: "Procure pre-filtration train: pressure sand filter → activated carbon filter → micron cartridge (5–10 micron)" },
+        { text: "Procure antiscalant dosing pump (mandatory for Bangalore high-silica/high-hardness borewell water)" },
+        { text: "Procure high-pressure pump sized for source TDS" },
+        { text: "Procure RO membrane array and pressure vessels" },
+        { text: "Procure UV steriliser (post-RO) and TDS controller/mineral dosing unit" },
+        { text: "Procure product water storage tank (1,000–5,000L food-grade HDPE or stainless steel)" },
+        { text: "Procure Water ATM kiosk unit with RFID reader, payment interface, and flow meter" },
+        { text: "Set up control panel with automated backwash timer (every 6 hours) and GSM/SIM monitoring" },
+        { text: "Complete civil work: plant room, pipework, electrical connection" },
+        { text: "Complete full installation and test all components end-to-end" },
+        { text: "RP inspects completed installation before commissioning" },
+      ],
+    },
+    {
+      title: "Community Engagement & Payment Setup",
+      type: "Meeting",
+      notes: `Run parallel to installation. Household registration, RFID card distribution, operator recruitment, and health awareness. Women's SHGs are the most effective adoption channel — their buy-in determines whether households switch from free (contaminated) sources to the ATM.`,
+      startSlaDays: 21,
+      slaDays: 40,
+      checklist: [
+        { text: "Register all target households and issue RFID smart cards" },
+        { text: "Load ₹20–30 trial credit on each card to break first-use barrier" },
+        { text: "Set up payment system: RFID cards primary + UPI/GPay secondary" },
+        { text: "Recruit plant operator from community (preference: woman from SHG)" },
+        { text: "Train operator: daily startup/shutdown, register maintenance, card recharges, basic troubleshooting" },
+        { text: "Engage women's SHGs — brief them on water quality and plant model; get their active endorsement" },
+        { text: "Conduct health linkage awareness sessions: water quality, disease connection, why RO matters" },
+        { text: "Conduct nukkad natak or community meeting on water safety and launch" },
+        { text: "Set and communicate pricing: per-litre rate that covers operating costs (reference: ₹4 per 20L)" },
+        { text: "RP attends key SHG meeting to support community trust and address concerns" },
+      ],
+    },
+    {
+      title: "Compliance, Testing & Launch",
+      type: "SiteVisit",
+      notes: `Launch the plant and ATM. RP makes frequent visits during the first few weeks — early adoption, teething issues with equipment, and community hesitation all need hands-on support. Compliance documentation must be in order before water is sold.`,
+      startSlaDays: 45,
+      slaDays: 50,
+      checklist: [
+        { text: "Apply for FSSAI registration or licence (mandatory before commercial water supply)" },
+        { text: "Conduct post-installation water quality test: TDS 100–200 mg/L, pH 6.5–8.5, zero E. coli" },
+        { text: "Document source TDS test result on file (NGT compliance record)" },
+        { text: "Confirm reject water disposal route is functional and not re-entering source aquifer" },
+        { text: "Confirm ATM kiosk is placed at a high-visibility community node (near temple, school, main lane)" },
+        { text: "Activate plant and ATM — confirm RFID cards, payment system, and flow meter are working" },
+        { text: "Communicate launch date to all registered households" },
+        { text: "RP present at launch day" },
+        { text: "RP makes frequent site visits during first 2–3 weeks: adoption check, equipment issues, community hesitation" },
+        { text: "RP reviews first-week dispensed volume and household adoption rate" },
+      ],
+    },
+    monitoring,
+  ];
+}
+
+// ── Elderly Community Kitchen Template ───────────────────────────────────────
+
+function buildElderlyKitchenTemplate(params: Record<string, string | number>): PitstopTemplate[] {
+  const n = Number(params.kitchens) || 1;
+  const track = String(params.track || "new");
+
+  const monitoring: PitstopTemplate = {
+    title: "Monitoring & Tracking",
+    type: "Review",
+    recurrence: "Monthly",
+    notes: `Monthly monitoring of all ${n} community kitchen(s). CO visits daily; RP visits all kitchens in the cluster monthly. Covers food quality, inventory, beneficiary coverage, vendor management, and substitute arrangements. Elderly kitchens are also a standing agenda item in the monthly cluster meeting.`,
+    startSlaDays: track === "new" ? 35 : 0,
+    slaDays: track === "new" ? 65 : 30,
+    checklist: [
+      { text: "CO daily visit log reviewed for all kitchens" },
+      { text: "Random food quality check conducted (taste, quantity, hygiene)" },
+      { text: "Feedback collected from enrolled elderly on food quality and satisfaction" },
+      { text: "Verify all enrolled elderly are receiving elderly pension" },
+      { text: "Identify elderly with additional needs and refer to elderly programme team" },
+      { text: "Inventory register checked — stock matched against usage" },
+      { text: "Vegetable vendor delivery and quality verified (3-day cycle)" },
+      { text: "Check for leakage — overpayment, diversion, or missing stock" },
+      { text: "Vendor performance reviewed; escalate or change vendor if needed" },
+      { text: "Substitute kitchen arrangement confirmed for when kitchen woman is on leave" },
+      { text: "RP monthly visit to all kitchens in cluster completed" },
+      { text: "Elderly kitchens reviewed as agenda item in monthly cluster meeting" },
+    ],
+  };
+
+  if (track === "existing") {
+    return [monitoring];
+  }
+
+  return [
+    {
+      title: "Kitchen Identification",
+      type: "Research",
+      notes: `Identify ${n} kitchen woman/women from the community. Each kitchen serves 15 elderly for lunch daily (counts for lunch and dinner). The kitchen woman must stay home, cook reliably every day, and be trusted by the community. She is paid ₹3,000/month. CO shortlists candidates; RP visits to confirm final selection.`,
+      startSlaDays: 0,
+      slaDays: 15,
+      checklist: [
+        { text: "Confirm number of kitchens needed based on needs assessment data for this settlement" },
+        { text: "CO identifies eligible women in community (stays home, cooks regularly, trusted)" },
+        { text: "Verify each candidate: cooks daily at home, not employed outside, physically capable" },
+        { text: "Verify community standing and trust for each candidate" },
+        { text: "CO prepares shortlist and presents to RP" },
+        { text: "RP visits to confirm final selection for each kitchen" },
+        { text: "Formalise understanding with selected kitchen women (role, stipend, daily expectations)" },
+        { text: "Document kitchen locations and addresses" },
+      ],
+    },
+    {
+      title: "Procurement Setup",
+      type: "Budgeting",
+      notes: `Set up all supply chains and infrastructure for ${n} kitchen(s). Grocery is procured monthly and stored at the resource centre; CO rations stock to each kitchen. Vegetables are procured every 3 days by the CO from a vetted vendor — payment is handled by partner accounts, not the CO. Kitchen equipment is provided only where something is missing.`,
+      startSlaDays: 15,
+      slaDays: 20,
+      checklist: [
+        { text: "Identify and vet monthly grocery vendor (rice, dal, oil, jaggery, eggs, ragi)" },
+        { text: "Identify and vet vegetable vendor for 3-day cycle supply" },
+        { text: "Confirm vegetable vendor payment process with partner accounts team (not through CO)" },
+        { text: "Set up gas connection for each kitchen (or verify existing connection is functional)" },
+        { text: "Assess and procure missing kitchen equipment: stove, vessels, plates" },
+        { text: "Procure lunchboxes for home delivery to bed-ridden elderly" },
+        { text: "Set up storage space in resource centre for monthly grocery stock" },
+        { text: "Set up inventory register and usage tracker for each kitchen (pen and paper)" },
+        { text: "Place first month grocery order and confirm delivery schedule" },
+        { text: "RP visits to confirm procurement setup is complete" },
+      ],
+    },
+    {
+      title: "Training",
+      type: "Training",
+      notes: `RP conducts cluster-level training for all COs covering hygiene, inventory management, menu, and delivery procedures. COs then deliver this training to kitchen women. Menu is fixed: rice + one vegetable side dish + ragi mudde + one boiled egg per person, served at lunch.`,
+      startSlaDays: 20,
+      slaDays: 30,
+      checklist: [
+        { text: "RP conducts cluster-level training for all COs (hygiene, inventory management, menu)" },
+        { text: "CO trains kitchen woman on food hygiene: handwashing, storage, utensil cleaning" },
+        { text: "CO trains kitchen woman on the fixed menu: rice + vegetable side dish + ragi mudde + boiled egg" },
+        { text: "CO trains kitchen woman on correct portion sizes for 15 persons" },
+        { text: "CO trains kitchen woman on inventory register maintenance" },
+        { text: "CO explains vegetable delivery process (CO delivers every 3 days; kitchen woman does not procure)" },
+        { text: "CO demonstrates lunchbox packing and delivery procedure for bed-ridden elderly" },
+        { text: "Conduct mock cook or trial run at each kitchen" },
+        { text: "Kitchen woman confirms she understands escalation process (CO is first contact)" },
+      ],
+    },
+    {
+      title: "Enrollment",
+      type: "Meeting",
+      notes: `CO enrolls 15 elderly per kitchen. The list is largely prepared from prior community assessment. CO visits each elderly person at home, explains the programme, and notes any special needs. Bed-ridden elderly requiring home delivery are flagged.`,
+      startSlaDays: 30,
+      slaDays: 32,
+      checklist: [
+        { text: "CO finalises list of 15 elderly per kitchen from prior assessment" },
+        { text: "CO visits each enrolled elderly to explain the programme" },
+        { text: "Explain kitchen location, timings, and how to reach" },
+        { text: "Explain grievance redressal mechanism (contact CO directly)" },
+        { text: "Identify any special nutritional needs based on health condition" },
+        { text: "Flag bed-ridden elderly requiring daily home delivery and note addresses" },
+        { text: "Document enrollment details for all 15 per kitchen" },
+        { text: "RP verifies enrollment — meets a sample of enrolled elderly" },
+      ],
+    },
+    {
+      title: "Rollout",
+      type: "Meeting",
+      notes: `Start kitchen operations. CO is present for the first few days to mobilise elderly and ensure smooth running. Track wastage, collect taste feedback, and confirm home delivery to bed-ridden is working.`,
+      startSlaDays: 32,
+      slaDays: 35,
+      checklist: [
+        { text: "Kitchen starts on agreed date" },
+        { text: "CO present on Day 1 to mobilise enrolled elderly and ensure turnout" },
+        { text: "CO present for first 3–5 days until operations are stable" },
+        { text: "Food wastage tracked and portions adjusted if needed" },
+        { text: "Taste and quality feedback collected from elderly" },
+        { text: "Home delivery to bed-ridden elderly activated and confirmed working" },
+        { text: "First vegetable delivery received and quality verified (3-day cycle)" },
+        { text: "Any issues recorded in register and escalated to RP" },
+        { text: "RP visits during rollout phase to observe and support" },
+      ],
+    },
+    monitoring,
+  ];
+}
+
+// ── Zonal Lead: Zone Review Cadence ───────────────────────────────────────────
+
+function buildZoneReviewTemplate(params: Record<string, string | number>): PitstopTemplate[] {
+  const n = Number(params.rpCount) || 5;
+  const freq = String(params.reviewFrequency || "Monthly");
+  const isMonthly = freq === "Monthly";
+  const cycleDays = isMonthly ? 30 : 90;
+  const recurrence = isMonthly ? "Monthly" : "Quarterly";
+
+  return [
+    {
+      title: "RP Data Submissions Review",
+      type: "Review",
+      recurrence,
+      notes: `Review all ${n} RP(s) data submissions for the ${freq.toLowerCase()} cycle. Check for completeness, timeliness, and anomalies before the zone review meeting.`,
+      startSlaDays: 0,
+      slaDays: cycleDays - 5,
+      checklist: [
+        { text: `All ${n} RP(s) have submitted ${freq.toLowerCase()} data` },
+        { text: "Data completeness verified for each RP" },
+        { text: "Late submissions logged and reason noted" },
+        { text: "Key metrics compared against targets (creche coverage, beneficiary counts, activity logs)" },
+        { text: "Data quality issues flagged to individual RPs" },
+        { text: "Consolidated zone-level summary prepared" },
+      ],
+    },
+    {
+      title: "Variance & Exception Report",
+      type: "Review",
+      recurrence,
+      notes: `Identify underperformance, blockers, and red flags across the zone's ${n} RP(s). This feeds directly into the zone review meeting and any escalations.`,
+      startSlaDays: cycleDays - 4,
+      slaDays: cycleDays - 2,
+      checklist: [
+        { text: "RPs running behind target identified" },
+        { text: "Root causes noted for each variance (field, capacity, external)" },
+        { text: "Escalation-worthy issues flagged to manager" },
+        { text: "Quick wins and bright spots identified" },
+        { text: "Variance report document finalised" },
+      ],
+    },
+    {
+      title: `${freq} Zone Review Meeting`,
+      type: "Meeting",
+      recurrence,
+      notes: `${freq} review with all ${n} RP(s). Go through variance report, address blockers, align on next-cycle priorities. Keep to 90 minutes max; follow up async on individual cases.`,
+      startSlaDays: cycleDays - 2,
+      slaDays: cycleDays,
+      checklist: [
+        { text: `All ${n} RP(s) present (or send written update if absent)` },
+        { text: "Variance report reviewed with group" },
+        { text: "Each RP's top blocker acknowledged and owner assigned" },
+        { text: "Bright spots shared for learning" },
+        { text: "Next cycle priorities agreed" },
+        { text: "Action items with owners and due dates documented" },
+        { text: "Notes circulated to all RPs within 24 hours" },
+      ],
+    },
+    ...(isMonthly
+      ? [
+          {
+            title: "Quarterly Zone Performance Report",
+            type: "Review" as const,
+            recurrence: "Quarterly" as const,
+            progressTag: "Monitoring",
+            notes: `Quarterly synthesis across all ${n} RP(s). Trends, cumulative outcomes, capacity gaps, and zone-level recommendations to senior leadership.`,
+            startSlaDays: 0,
+            slaDays: 90,
+            checklist: [
+              { text: "3-month data compiled for all RPs" },
+              { text: "Trend analysis completed (month-on-month movement)" },
+              { text: "Cumulative beneficiary and coverage numbers verified" },
+              { text: "Capacity gaps and RP development needs documented" },
+              { text: "Zone-level risks and mitigation plans noted" },
+              { text: "Recommendations section drafted" },
+              { text: "Report reviewed with manager before submission" },
+              { text: "Report submitted to programme leadership" },
+            ],
+          },
+        ]
+      : []),
+    {
+      title: "Annual Zone Plan",
+      type: "Review",
+      notes: `Annual planning exercise for the zone. Sets coverage targets, capacity building priorities, partnership goals, and funding requirements for the next 12 months.`,
+      startSlaDays: 0,
+      slaDays: 30,
+      checklist: [
+        { text: "Previous year performance reviewed" },
+        { text: "Coverage gaps across settlements mapped" },
+        { text: `Input collected from all ${n} RP(s) on ground realities` },
+        { text: "Settlement-level targets set for each RP" },
+        { text: "Capacity building needs identified and prioritised" },
+        { text: "Partnership and funding requirements noted" },
+        { text: "Draft plan shared with senior leadership" },
+        { text: "Final plan approved and shared with RPs" },
+      ],
+    },
+  ];
+}
+
+// ── Zonal Lead: Grant & Proposal Management ───────────────────────────────────
+
+function buildGrantProposalTemplate(params: Record<string, string | number>): PitstopTemplate[] {
+  const funder = String(params.funderName || "Funder").trim() || "Funder";
+  const track  = String(params.track || "new");
+  const isNew  = track === "new";
+
+  const pitstops: PitstopTemplate[] = [
+    {
+      title: `Needs Assessment & Funder Alignment — ${funder}`,
+      type: "Research",
+      notes: `Establish why ${funder} is the right fit and what the proposal should address. Confirm the funder's priorities, geographic focus, and funding envelope before committing staff time to a full proposal.`,
+      startSlaDays: 0,
+      slaDays: 14,
+      checklist: [
+        { text: `Review ${funder}'s published guidelines, focus areas, and grant ceiling` },
+        { text: "Map our programme gaps to funder priorities" },
+        { text: "Confirm there is no active grant agreement that would restrict new funding from this source" },
+        { text: "Establish contact with programme officer (if possible)" },
+        { text: "Collect community-level data to quantify the need" },
+        { text: "Document alignment rationale (1-page internal note)" },
+        { text: "Get internal sign-off to proceed with proposal" },
+      ],
+    },
+    {
+      title: `Concept Note / Letter of Intent — ${funder}`,
+      type: "Proposal",
+      progressTag: "Mobilisation",
+      notes: `Submit a concise concept note or letter of intent to ${funder}. Most funders request this before inviting a full proposal. Aim for 2–3 pages.`,
+      startSlaDays: 7,
+      slaDays: 28,
+      checklist: [
+        { text: "Problem statement drafted (data-backed)" },
+        { text: "Proposed intervention described clearly" },
+        { text: "Expected outcomes and beneficiary reach stated" },
+        { text: "Indicative budget range included" },
+        { text: "Organisation credentials section completed" },
+        { text: "Internal review done (programme lead sign-off)" },
+        { text: `Concept note submitted to ${funder}` },
+        { text: "Submission acknowledged / reference number obtained" },
+      ],
+    },
+  ];
+
+  if (isNew) {
+    pitstops.push({
+      title: `Full Proposal Development — ${funder}`,
+      type: "Proposal",
+      notes: `Full proposal for ${funder}. This is the most effort-intensive pitstop — budget at least 3 weeks of collaborative drafting, internal review, and revision cycles.`,
+      startSlaDays: 28,
+      slaDays: 70,
+      checklist: [
+        { text: "Invitation to submit full proposal received" },
+        { text: "Proposal template/guidelines downloaded and read in full" },
+        { text: "Proposal writing team assembled (programme, finance, M&E)" },
+        { text: "Theory of change section drafted" },
+        { text: "Implementation plan with milestones drafted" },
+        { text: "Monitoring and evaluation framework drafted" },
+        { text: "Detailed budget prepared (finance lead sign-off)" },
+        { text: "Risk register section completed" },
+        { text: "Organisational profile and legal docs updated" },
+        { text: "First full draft reviewed internally" },
+        { text: "Revisions completed" },
+        { text: "Final proposal reviewed by Director / authorised signatory" },
+        { text: `Proposal submitted to ${funder} before deadline` },
+        { text: "Submission confirmation saved" },
+      ],
+    });
+  } else {
+    pitstops.push({
+      title: `Renewal / Scale-Up Proposal — ${funder}`,
+      type: "Proposal",
+      notes: `Renewal or scale-up proposal for ${funder}. Lead with outcome data from the previous grant period. Funders expect you to show what changed, not just what you did.`,
+      startSlaDays: 14,
+      slaDays: 56,
+      checklist: [
+        { text: "Previous grant outcomes compiled and verified (beneficiary data, story count)" },
+        { text: "Learning from previous period documented" },
+        { text: "Proposed scale or focus shift clearly justified" },
+        { text: "Updated implementation plan drafted" },
+        { text: "Revised budget prepared (include learnings from previous period's spend)" },
+        { text: "M&E framework updated" },
+        { text: "Internal review done" },
+        { text: `Renewal proposal submitted to ${funder}` },
+        { text: "Submission confirmation saved" },
+      ],
+    });
+  }
+
+  pitstops.push(
+    {
+      title: `Post-Submission Funder Engagement — ${funder}`,
+      type: "Meeting",
+      progressTag: "Mobilisation",
+      notes: `Keep the relationship alive during the review period. Respond promptly to any queries. Do not go silent after submission.`,
+      startSlaDays: isNew ? 70 : 56,
+      slaDays: isNew ? 120 : 90,
+      checklist: [
+        { text: `${funder} queries responded to within 48 hours` },
+        { text: "Clarification calls or site visits accommodated" },
+        { text: "Updated financials or additional documents provided if requested" },
+        { text: "Internal tracking note updated with funder interactions" },
+        { text: "Decision timeline confirmed with programme officer" },
+      ],
+    },
+    {
+      title: `Grant Decision & Agreement Execution — ${funder}`,
+      type: "Review",
+      progressTag: "Mobilisation",
+      notes: `Handle the grant decision — whether approval, rejection, or conditional approval. If approved, execute the grant agreement and set up internal compliance tracking.`,
+      startSlaDays: isNew ? 120 : 90,
+      slaDays: isNew ? 150 : 110,
+      checklist: [
+        { text: `Decision received from ${funder}` },
+        { text: "If approved: grant agreement reviewed by Director and legal" },
+        { text: "If approved: grant agreement signed and counter-signed" },
+        { text: "If approved: compliance and reporting schedule extracted and calendared" },
+        { text: "If approved: finance notified and project code created" },
+        { text: "If approved: programme team briefed on deliverables and reporting timelines" },
+        { text: "If rejected: debrief with funder requested" },
+        { text: "If rejected: lessons documented for future applications" },
+      ],
+    }
+  );
+
+  return pitstops;
+}
+
+// ── Zonal Lead: Partner Relationship Management ───────────────────────────────
+
+function buildPartnerManagementTemplate(params: Record<string, string | number>): PitstopTemplate[] {
+  const n     = Number(params.partnerCount) || 2;
+  const track = String(params.track || "new");
+  const isNew = track === "new";
+
+  const pitstops: PitstopTemplate[] = [];
+
+  if (isNew) {
+    pitstops.push({
+      title: "Partner Mapping & Due Diligence",
+      type: "Research",
+      notes: `Identify and vet ${n} prospective partner(s). Due diligence is non-negotiable — a bad partnership costs more than no partnership.`,
+      startSlaDays: 0,
+      slaDays: 21,
+      checklist: [
+        { text: `Longlist of ${n * 2}+ potential partners identified` },
+        { text: `Shortlisted to ${n} based on geographic fit, credibility, and track record` },
+        { text: "Online presence, annual reports, and references reviewed for each" },
+        { text: "Informal reference checks done (2+ per partner)" },
+        { text: "Each partner's alignment with our programme approach confirmed" },
+        { text: "Due diligence summary shared with manager" },
+        { text: "Approval to proceed with outreach obtained" },
+      ],
+    });
+
+    pitstops.push({
+      title: "Partnership Scoping & MOU Negotiation",
+      type: "Meeting",
+      notes: `Negotiate the terms of partnership with each new partner. Be specific about roles, deliverables, data sharing, financial accountability, and exit terms in the MOU.`,
+      startSlaDays: 21,
+      slaDays: 60,
+      checklist: [
+        { text: "Partnership scoping meeting held with each partner" },
+        { text: "Roles and responsibilities clearly agreed (who does what, where)" },
+        { text: "Deliverables and timelines agreed" },
+        { text: "Financial accountability terms (if funds involved) negotiated" },
+        { text: "Data sharing and consent protocols agreed" },
+        { text: "MOU draft reviewed by Director and legal" },
+        { text: "MOU signed by both parties" },
+        { text: "Signed MOU filed and shared with finance and programme team" },
+      ],
+    });
+
+    pitstops.push({
+      title: "Partner Onboarding & Joint Planning",
+      type: "Training",
+      notes: `Orient each new partner to our programme approach, tools, and quality standards. Co-create the joint implementation plan for the first quarter.`,
+      startSlaDays: 60,
+      slaDays: 90,
+      checklist: [
+        { text: "Partner team introduced to our programme framework" },
+        { text: "Data collection tools and MIS walkthrough completed" },
+        { text: "Quality standards and non-negotiables communicated" },
+        { text: "Field visit to partner's operational area completed" },
+        { text: "First-quarter joint work plan co-created" },
+        { text: "Primary points of contact confirmed on both sides" },
+        { text: "Communication and escalation protocol agreed" },
+      ],
+    });
+  }
+
+  pitstops.push(
+    {
+      title: "Quarterly Partner Joint Review",
+      type: "Meeting",
+      recurrence: "Quarterly",
+      notes: `Quarterly review with all ${n} partner(s). Review joint deliverables, address friction, and plan the next quarter. Be honest about what is and isn't working.`,
+      startSlaDays: isNew ? 90 : 0,
+      slaDays: isNew ? 90 + 90 : 90,
+      checklist: [
+        { text: `All ${n} partner(s) present at review` },
+        { text: "Previous quarter deliverables reviewed against plan" },
+        { text: "Data quality and reporting timeliness discussed" },
+        { text: "Financial utilisation reviewed (if funds are involved)" },
+        { text: "Friction points surfaced and resolved or escalated" },
+        { text: "Next quarter joint plan confirmed" },
+        { text: "Minutes documented and shared within 5 days" },
+      ],
+    },
+    {
+      title: "Partner Deliverable & Reporting Audit",
+      type: "Review",
+      recurrence: "Quarterly",
+      notes: `Quality audit of what partners have actually delivered vs. committed. Don't conflate activity (meetings held, visits done) with outcome (children enrolled, cases resolved).`,
+      startSlaDays: isNew ? 90 : 0,
+      slaDays: isNew ? 90 + 85 : 85,
+      checklist: [
+        { text: `Deliverable log updated for all ${n} partner(s)` },
+        { text: "Commitments vs. actuals documented" },
+        { text: "Evidence of key deliverables collected (reports, photos, beneficiary data)" },
+        { text: "Variance between committed and delivered noted with explanation" },
+        { text: "Financial utilisation vs. milestones verified" },
+        { text: "Corrective actions agreed where needed" },
+        { text: "Audit summary shared with manager" },
+      ],
+    },
+    {
+      title: "Annual Partnership Health Review",
+      type: "Review",
+      notes: `Annual 360° review of each partnership. Is it working? Is the partner delivering? Is the relationship healthy? This informs renewal, scale-up, or exit decisions.`,
+      startSlaDays: isNew ? 335 : 335,
+      slaDays: isNew ? 365 : 365,
+      checklist: [
+        { text: `Annual outcome data compiled for all ${n} partner(s)` },
+        { text: "Health check conversation held with each partner (frank, two-way)" },
+        { text: "Partner satisfaction with the relationship assessed" },
+        { text: "Our satisfaction with the partner's delivery assessed" },
+        { text: "Renewal, scale-up, or exit recommendation drafted per partner" },
+        { text: "Recommendation shared with Director" },
+        { text: "Decision communicated to partner with adequate notice" },
+      ],
+    }
+  );
+
+  return pitstops;
+}
+
+// ── Zonal Lead: Capacity Building Plan ────────────────────────────────────────
+
+function buildCapacityBuildingTemplate(params: Record<string, string | number>): PitstopTemplate[] {
+  const n     = Number(params.rpCount) || 5;
+  const focus = String(params.focus || "all");
+
+  const focusLabel: Record<string, string> = {
+    field:     "Field Skills & Community Practice",
+    data:      "Data Management & MIS",
+    facilitation: "Community Facilitation & Group Work",
+    all:       "All Domains",
+  };
+  const label = focusLabel[focus] ?? "All Domains";
+
+  const gapChecklist: Record<string, { text: string }[]> = {
+    field: [
+      { text: "Field observation conducted with each RP (half-day shadow)" },
+      { text: "Programme adherence rated per RP (0–10 checklist)" },
+      { text: "Common field-skill gaps ranked by frequency" },
+      { text: "Individual RP development plan drafted" },
+      { text: "Structural/resource gaps (not individual) separated out" },
+    ],
+    data: [
+      { text: "MIS submission timeliness reviewed for each RP" },
+      { text: "Data accuracy spot-checked (10% of records per RP)" },
+      { text: "Common data errors catalogued" },
+      { text: "RPs who need one-on-one MIS coaching identified" },
+      { text: "Structural tool issues escalated to MIS team" },
+    ],
+    facilitation: [
+      { text: "Community group meeting quality observed for each RP" },
+      { text: "Facilitation skill rated per RP against standard rubric" },
+      { text: "Gaps in group formation, conflict handling, and participation noted" },
+      { text: "Best-practice RPs identified for peer learning" },
+    ],
+    all: [
+      { text: "Field observation conducted with each RP (half-day shadow)" },
+      { text: "MIS submission timeliness and accuracy reviewed" },
+      { text: "Community facilitation quality observed" },
+      { text: `All ${n} RP individual skill profiles completed` },
+      { text: "Top 3 priority development areas identified per RP" },
+      { text: "Zone-wide patterns (vs. individual gaps) noted for structural fix" },
+    ],
+  };
+
+  const deliveryChecklist: Record<string, { text: string }[]> = {
+    field: [
+      { text: "Training session facilitated (field protocols, safety, documentation)" },
+      { text: "Role-play / field simulation included" },
+      { text: `All ${n} RP(s) attended or received make-up session` },
+      { text: "Field practice assignment given (to be reviewed next cycle)" },
+      { text: "Attendance and feedback form completed" },
+    ],
+    data: [
+      { text: "MIS hands-on lab session conducted (not just slides)" },
+      { text: "Common errors walked through with real examples" },
+      { text: `All ${n} RP(s) completed the practice submission` },
+      { text: "One-on-one coaching done with the 2 weakest RPs" },
+      { text: "Quick-reference data entry guide distributed" },
+    ],
+    facilitation: [
+      { text: "Facilitation skills workshop conducted (participatory format)" },
+      { text: "Peer learning pairs set up (strong RP coaches weaker RP)" },
+      { text: `All ${n} RP(s) completed one observed practice facilitation` },
+      { text: "Feedback given to each RP within 48 hours" },
+    ],
+    all: [
+      { text: "Full-day capacity building session delivered" },
+      { text: "Field skills module completed" },
+      { text: "Data and MIS module completed" },
+      { text: "Community facilitation module completed" },
+      { text: `All ${n} RP(s) attended all sessions` },
+      { text: "Pre/post knowledge assessment administered" },
+      { text: "Individual feedback given to each RP" },
+      { text: "Resource pack (tools, guides) distributed" },
+    ],
+  };
+
+  const impactChecklist = [
+    { text: "Field performance re-rated using same rubric as gap assessment" },
+    { text: "MIS accuracy re-checked (10% sample per RP)" },
+    { text: "Improvement vs. baseline documented per RP" },
+    { text: "Persistent gaps identified — does the RP need deeper support or is this structural?" },
+    { text: "Next cycle priorities adjusted based on findings" },
+    { text: "Top-performing RPs flagged for peer mentor or senior RP role" },
+    { text: "Impact summary shared with programme leadership" },
+  ];
+
+  return [
+    {
+      title: "Training Needs Assessment",
+      type: "Research",
+      notes: `Baseline assessment of all ${n} RP(s) in ${label}. Do not design training without this — generic training wastes everyone's time.`,
+      startSlaDays: 0,
+      slaDays: 21,
+      checklist: [
+        ...(gapChecklist[focus] ?? gapChecklist.all),
+        { text: "Training plan for the year drafted and shared with manager" },
+        { text: "Manager sign-off on training plan obtained" },
+      ],
+    },
+    {
+      title: `Quarterly Capacity Building Session — ${label}`,
+      type: "Training",
+      recurrence: "Quarterly",
+      notes: `Quarterly training for all ${n} RP(s) on ${label}. Rotate content each quarter based on the annual training plan. Keep sessions practical — at least 40% of time in exercises or simulation.`,
+      startSlaDays: 21,
+      slaDays: 90,
+      checklist: deliveryChecklist[focus] ?? deliveryChecklist.all,
+    },
+    {
+      title: "Peer Learning & Mentoring Round",
+      type: "SiteVisit",
+      recurrence: "Quarterly",
+      notes: `Cross-RP learning visit. Pair a strong-performing RP with a struggling one for a half-day shadow in the field. More effective than classroom training for most field skills.`,
+      startSlaDays: 30,
+      slaDays: 90,
+      checklist: [
+        { text: "Peer pairs assigned (strong RP + developing RP)" },
+        { text: "Field visits scheduled and conducted" },
+        { text: `All ${n} RP(s) are either host or visitor this cycle` },
+        { text: "Post-visit debrief (30 min) held with each pair" },
+        { text: "Observations and takeaways documented" },
+        { text: "Next-cycle pairs adjusted based on skill movement" },
+      ],
+    },
+    {
+      title: "Individual RP Coaching Check-ins",
+      type: "Meeting",
+      recurrence: "Monthly",
+      notes: `One-on-one check-in with each RP. Separate from the zone review — this is developmental, not performance review. Create safety for RPs to be honest about where they are struggling.`,
+      startSlaDays: 0,
+      slaDays: 30,
+      checklist: [
+        { text: `Check-ins scheduled and held with all ${n} RP(s) this month` },
+        { text: "Each RP's individual development plan reviewed" },
+        { text: "Blocker to skill growth identified (knowledge, confidence, workload, resource)" },
+        { text: "Specific support offered (coaching, resource, escalation)" },
+        { text: "Next month focus area agreed with each RP" },
+        { text: "Coaching log updated" },
+      ],
+    },
+    {
+      title: "Quarterly Capacity Impact Assessment",
+      type: "Review",
+      recurrence: "Quarterly",
+      notes: `Measure whether the training and coaching is working. Use the same rubrics from the gap assessment. If skill levels aren't moving, the training approach needs to change, not just the frequency.`,
+      startSlaDays: 80,
+      slaDays: 90,
+      checklist: impactChecklist,
+    },
+  ];
+}
+
 // ── Template registry ─────────────────────────────────────────────────────────
+
+type BuildFn = (params: Record<string, string | number>) => PitstopTemplate[];
+const wrapWithTags = (fn: BuildFn): BuildFn => (p) => applyProgressTags(fn(p));
 
 export const TEMPLATES: GoalTemplate[] = [
   {
@@ -1267,7 +2346,17 @@ export const TEMPLATES: GoalTemplate[] = [
     description: "End-to-end setup and operations for community creches, based on our protocols. Covers recruitment, govt liaison, community engagement, caregiver training, and ongoing operations.",
     category: "Community Programs",
     icon: "🏠",
+    needsDomain: "Creche",
     parameters: [
+      {
+        key: "track",
+        label: "New creche(s) or managing existing?",
+        type: "choice",
+        options: [
+          { value: "new", label: "Setting up new creche(s)" },
+          { value: "existing", label: "Managing existing creche(s)" },
+        ],
+      },
       {
         key: "creches",
         label: "Number of creches",
@@ -1277,7 +2366,7 @@ export const TEMPLATES: GoalTemplate[] = [
         placeholder: "e.g. 10",
       },
     ],
-    build: buildCrecheTemplate,
+    build: wrapWithTags(buildCrecheTemplate),
   },
   {
     id: "welfare-rights",
@@ -1295,7 +2384,7 @@ export const TEMPLATES: GoalTemplate[] = [
         placeholder: "e.g. 2 (each ~5,000 HH, 6-8 settlements)",
       },
     ],
-    build: buildWelfareRightsTemplate,
+    build: wrapWithTags(buildWelfareRightsTemplate),
   },
   {
     id: "children-learning-centre",
@@ -1303,7 +2392,17 @@ export const TEMPLATES: GoalTemplate[] = [
     description: "Setup and operations for Children Learning Centres (CLC) serving children aged 4–14. Covers team recruitment, centre setup, children survey & baseline, staff training, daily operations, school linkage, life skills programme, and MIS.",
     category: "Community Programs",
     icon: "📚",
+    needsDomain: "ChildrenCentre",
     parameters: [
+      {
+        key: "track",
+        label: "New centre(s) or managing existing?",
+        type: "choice",
+        options: [
+          { value: "new", label: "Setting up new centre(s)" },
+          { value: "existing", label: "Managing existing centre(s)" },
+        ],
+      },
       {
         key: "centres",
         label: "Number of centres",
@@ -1313,7 +2412,7 @@ export const TEMPLATES: GoalTemplate[] = [
         placeholder: "e.g. 2 (each serving ~100 children)",
       },
     ],
-    build: buildChildrenTemplate,
+    build: wrapWithTags(buildChildrenTemplate),
   },
   {
     id: "youth-resource-centre",
@@ -1321,17 +2420,119 @@ export const TEMPLATES: GoalTemplate[] = [
     description: "Setup and operations for Youth Resource Centres (YRC) serving youth aged 15–21. Covers team recruitment, YRC setup, enumeration & baseline, group mobilisation, capacity building, scheme linkage, leadership programme, social actions, and crisis support.",
     category: "Community Programs",
     icon: "🌱",
+    needsDomain: "YouthResourceCentre",
     parameters: [
       {
+        key: "track",
+        label: "New YRC or managing existing?",
+        type: "choice",
+        options: [
+          { value: "new", label: "Setting up new Youth Resource Centre(s)" },
+          { value: "existing", label: "Managing existing YRC(s)" },
+        ],
+      },
+      {
         key: "clusters",
-        label: "Number of clusters",
+        label: "Number of clusters / YRCs",
         type: "number",
         min: 1,
         max: 1000000,
-        placeholder: "e.g. 2 (each ~500–600 youth, 1 YRC per cluster)",
+        placeholder: "e.g. 2 (1 YRC per cluster)",
       },
     ],
-    build: buildYouthTemplate,
+    build: wrapWithTags(buildYouthTemplate),
+  },
+  {
+    id: "water-atm",
+    name: "Water ATM / RO Plant",
+    description: "Setup and ongoing operations of a community RO water plant with ATM kiosk. Covers source water assessment, RP-led feasibility and regulatory clearances, plant sizing, procurement, community engagement, compliance, launch, and monthly monitoring.",
+    category: "Community Programs",
+    icon: "💧",
+    needsDomain: "WaterATM",
+    parameters: [
+      {
+        key: "track",
+        label: "New plant, or managing existing?",
+        type: "choice",
+        options: [
+          { value: "new", label: "Setting up new plant and ATM" },
+          { value: "existing", label: "Managing existing plant" },
+        ],
+      },
+      {
+        key: "plants",
+        label: "Number of plants / ATM units",
+        type: "number",
+        min: 1,
+        max: 100,
+        placeholder: "e.g. 1",
+      },
+      {
+        key: "households",
+        label: "Households to serve",
+        type: "number",
+        min: 50,
+        max: 10000,
+        placeholder: "e.g. 250",
+      },
+    ],
+    build: wrapWithTags(buildWaterATMTemplate),
+  },
+  {
+    id: "elderly-kitchen",
+    name: "Elderly Community Kitchen",
+    description: "Setup and ongoing management of community kitchens serving elderly. Each kitchen is run by one woman serving 15 elderly daily (fixed menu: rice + vegetable side dish + ragi mudde + boiled egg). Covers identification, procurement, training, enrollment, rollout, and monthly monitoring.",
+    category: "Community Programs",
+    icon: "🍲",
+    needsDomain: "ElderlyKitchen",
+    parameters: [
+      {
+        key: "track",
+        label: "New kitchen(s) or managing existing?",
+        type: "choice",
+        options: [
+          { value: "new", label: "Setting up new kitchen(s)" },
+          { value: "existing", label: "Managing existing kitchen(s)" },
+        ],
+      },
+      {
+        key: "kitchens",
+        label: "Number of kitchens",
+        type: "number",
+        min: 1,
+        max: 10000,
+        placeholder: "e.g. 3",
+      },
+    ],
+    build: wrapWithTags(buildElderlyKitchenTemplate),
+  },
+  {
+    id: "elderly-centre",
+    name: "Elderly Care Centre & Outreach",
+    description: "Setup and ongoing management of an elderly day care centre (25 capacity, 9 AM–5 PM) plus community outreach programme. Covers baseline assessment, facility setup, team recruitment, referral mapping (RP-owned), enrollment, launch, and monthly/quarterly monitoring.",
+    category: "Community Programs",
+    icon: "🏥",
+    needsDomain: "ElderlyCentre",
+    parameters: [
+      {
+        key: "track",
+        label: "New centre + outreach, or managing existing?",
+        type: "choice",
+        options: [
+          { value: "new", label: "Setting up new centre and outreach programme" },
+          { value: "existing", label: "Managing existing centre and outreach" },
+        ],
+      },
+      {
+        key: "centres",
+        label: "Number of centres",
+        type: "number",
+        min: 1,
+        max: 1000,
+        placeholder: "e.g. 1 (typically 1 per cluster)",
+      },
+    ],
+    build: wrapWithTags(buildElderlyCentreTemplate),
   },
   {
     id: "seeding-programme",
@@ -1349,7 +2550,7 @@ export const TEMPLATES: GoalTemplate[] = [
         placeholder: "e.g. 5",
       },
     ],
-    build: buildSeedingTemplate,
+    build: wrapWithTags(buildSeedingTemplate),
   },
   // ── RP Templates ───────────────────────────────────────────────────────────
   {
@@ -1483,7 +2684,118 @@ export const TEMPLATES: GoalTemplate[] = [
         placeholder: "e.g. 500",
       },
     ],
-    build: buildSchemeLinkageTemplate,
+    build: wrapWithTags(buildSchemeLinkageTemplate),
+  },
+
+  // ── Zonal Leadership ──────────────────────────────────────────────────────
+
+  {
+    id: "zone-review",
+    name: "Zone Review Cadence",
+    description: "Monthly or quarterly review rhythm across your zone. Covers RP data audits, variance reporting, zone review meetings, and the annual zone plan.",
+    category: "Zonal Leadership",
+    icon: "📊",
+    parameters: [
+      {
+        key: "rpCount",
+        label: "Number of RPs in your zone",
+        type: "number",
+        min: 1,
+        max: 50,
+        placeholder: "e.g. 6",
+      },
+      {
+        key: "reviewFrequency",
+        label: "Review frequency",
+        type: "choice",
+        options: [
+          { value: "Monthly", label: "Monthly" },
+          { value: "Quarterly", label: "Quarterly" },
+        ],
+      },
+    ],
+    build: wrapWithTags(buildZoneReviewTemplate),
+  },
+  {
+    id: "grant-proposal",
+    name: "Grant & Proposal Management",
+    description: "End-to-end proposal lifecycle for a single funder — from needs assessment and concept note through full proposal, funder engagement, and grant agreement execution.",
+    category: "Zonal Leadership",
+    icon: "📝",
+    parameters: [
+      {
+        key: "funderName",
+        label: "Funder / grant name",
+        type: "text",
+        placeholder: "e.g. HDFC Foundation, CSRBOX, State ICDS",
+      },
+      {
+        key: "track",
+        label: "Type of proposal",
+        type: "choice",
+        options: [
+          { value: "new", label: "New programme / funder" },
+          { value: "renewal", label: "Renewal or scale-up" },
+        ],
+      },
+    ],
+    build: wrapWithTags(buildGrantProposalTemplate),
+  },
+  {
+    id: "partner-management",
+    name: "Partner Relationship Management",
+    description: "Full partnership lifecycle for implementation or referral partners — due diligence, MOU, onboarding, quarterly joint reviews, deliverable audits, and annual health review.",
+    category: "Zonal Leadership",
+    icon: "🤝",
+    parameters: [
+      {
+        key: "partnerCount",
+        label: "Number of partners",
+        type: "number",
+        min: 1,
+        max: 20,
+        placeholder: "e.g. 3",
+      },
+      {
+        key: "track",
+        label: "Partnership stage",
+        type: "choice",
+        options: [
+          { value: "new", label: "New partners (include due diligence & MOU)" },
+          { value: "existing", label: "Existing partners (ongoing management only)" },
+        ],
+      },
+    ],
+    build: wrapWithTags(buildPartnerManagementTemplate),
+  },
+  {
+    id: "capacity-building",
+    name: "Capacity Building Plan",
+    description: "Structured RP development cycle — training needs assessment, quarterly skills sessions, peer learning, individual coaching, and quarterly impact assessment.",
+    category: "Zonal Leadership",
+    icon: "🎓",
+    parameters: [
+      {
+        key: "rpCount",
+        label: "Number of RPs to develop",
+        type: "number",
+        min: 1,
+        max: 50,
+        placeholder: "e.g. 6",
+      },
+      {
+        key: "focus",
+        label: "Capability focus area",
+        type: "choice",
+        options: [
+          { value: "all",          label: "All domains (comprehensive)" },
+          { value: "field",        label: "Field skills & community practice" },
+          { value: "data",         label: "Data management & MIS" },
+          { value: "facilitation", label: "Community facilitation & group work" },
+        ],
+      },
+    ],
+    build: wrapWithTags(buildCapacityBuildingTemplate),
   },
 ];
 

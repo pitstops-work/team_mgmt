@@ -1,0 +1,1 @@
+ALTER TABLE "Pitstop" ADD COLUMN IF NOT EXISTS "progressTag" TEXT;

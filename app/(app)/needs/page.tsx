@@ -384,8 +384,9 @@ function computeMonthlyTrend(goals: GoalRow[], today: Date): MonthlyPoint[] {
 
 export default async function NeedsPage() {
   const session = await auth();
-
-  const [cities, formulaRows, latestAssessments, goals] = await Promise.all([
+  const currentUserId = session!.user!.id!;
+  const [meRow, cities, formulaRows, latestAssessments, goals] = await Promise.all([
+    prisma.user.findUnique({ where: { id: currentUserId }, select: { designation: true } }),
     prisma.city.findMany({
       where: { deletedAt: null },
       include: {
@@ -647,10 +648,11 @@ export default async function NeedsPage() {
 
   // ── Existing-facility counts from LayerFeature table ─────────────────────
   // Count directly from DB — single source of truth, no AppSetting override needed.
-  const [crecheCount, childrenCount, youthCount] = await Promise.all([
+  const [crecheCount, childrenCount, youthCount, allUsers] = await Promise.all([
     prisma.layerFeature.count({ where: { layerKey: "creches" } }),
     prisma.layerFeature.count({ where: { layerKey: "children_centres" } }),
     prisma.layerFeature.count({ where: { layerKey: "youth_centres" } }),
+    prisma.user.findMany({ select: { id: true, name: true, image: true, designation: true }, orderBy: { name: "asc" } }),
   ]);
   const geoCounts: Record<string, number> = {
     ChildrenCentre:      childrenCount,
@@ -821,7 +823,9 @@ export default async function NeedsPage() {
     <Suspense>
       <NeedsDashboard
         cities={JSON.parse(JSON.stringify(cities))}
-        currentUserId={session!.user!.id!}
+        currentUserId={currentUserId}
+        currentUserDesignation={meRow?.designation ?? "Other"}
+        allUsers={JSON.parse(JSON.stringify(allUsers))}
         totalSettlements={allSettlements.length}
         domainConfigs={domainConfigs}
         cityStats={cityStats}

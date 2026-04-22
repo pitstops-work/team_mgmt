@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, description, type, scheduledAt, endsAt, location, pitstopIds = [], attendeeIds = [] } = await req.json();
+  const { title, description, type, scheduledAt, endsAt, location, pitstopIds = [], attendeeIds = [], checklistItemId } = await req.json();
   if (!title || !scheduledAt) return Response.json({ error: "Title and date required" }, { status: 400 });
 
   // Auto-add owners of all linked pitstops as attendees
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       endsAt: endsAt ? new Date(endsAt) : null,
       location: location || null,
       createdById: session.user.id,
+      checklistItemId: checklistItemId ?? null,
       pitstops: {
         create: pitstopIds.map((pitstopId: string) => ({ pitstopId })),
       },
@@ -69,6 +70,16 @@ export async function POST(req: NextRequest) {
     },
     include,
   });
+
+  // When linked to a checklist item, update its status to Scheduled
+  if (checklistItemId) {
+    await prisma.$executeRaw`
+      UPDATE "ChecklistItem"
+      SET status = 'Scheduled'::"ChecklistItemStatus", "updatedAt" = NOW()
+      WHERE id = ${checklistItemId}
+        AND status = 'NotStarted'::"ChecklistItemStatus"
+    `;
+  }
 
   // Notify attendees they've been tagged (exclude creator)
   const creatorName = session.user.name ?? "Someone";

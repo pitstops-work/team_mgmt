@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     orderBy: { name: "asc" },
     include: {
       city: { select: { id: true, name: true } },
+      lead: { select: { id: true, name: true } },
       clusters: {
         where: { deletedAt: null },
         orderBy: { name: "asc" },
@@ -54,6 +55,8 @@ export async function GET(req: NextRequest) {
     name: z.name,
     cityId: z.cityId,
     cityName: z.city?.name ?? null,
+    leadId: z.leadId ?? null,
+    leadName: z.lead?.name ?? null,
     clusters: z.clusters.map(c => ({
       id: c.id,
       name: c.name,
@@ -125,6 +128,13 @@ export async function PATCH(req: NextRequest) {
     const { id, name } = body;
     if (!id || !name?.trim()) return Response.json({ error: "id and name required" }, { status: 400 });
     await prisma.settlement.update({ where: { id }, data: { name: name.trim() } });
+    return Response.json({ ok: true });
+  }
+
+  if (body.type === "zone-lead") {
+    const { id, leadId } = body;
+    if (!id) return Response.json({ error: "id required" }, { status: 400 });
+    await prisma.zone.update({ where: { id }, data: { leadId: leadId ?? null } });
     return Response.json({ ok: true });
   }
 

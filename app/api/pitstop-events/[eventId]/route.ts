@@ -24,7 +24,80 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { eventId } = await params;
-  const { title, description, type, scheduledAt, endsAt, location, pitstopIds, attendeeIds } = await req.json();
+  const {
+    title, description, type, scheduledAt, endsAt, location, pitstopIds, attendeeIds,
+    // Lifecycle fields
+    status, cancellationReason, rescheduleReason, reschedule,
+  } = await req.json();
+
+  // ── Lifecycle shortcuts ──────────────────────────────────────────────────────
+
+  if (status === "Done" || status === "Cancelled" || reschedule) {
+    // Fetch current event for rescheduledFrom + checklistItemId
+    const current = await prisma.$queryRaw<{
+      scheduledAt: Date; checklistItemId: string | null;
+    }[]>`SELECT "scheduledAt", "checklistItemId" FROM "PitstopEvent" WHERE id = ${eventId} LIMIT 1`;
+    if (!current[0]) return Response.json({ error: "Not found" }, { status: 404 });
+
+    if (status === "Done") {
+      await prisma.$executeRaw`
+        UPDATE "PitstopEvent"
+        SET status = 'Done'::"PitstopEventStatus", "updatedAt" = NOW()
+        WHERE id = ${eventId}
+      `;
+      if (current[0].checklistItemId) {
+        await prisma.$executeRaw`
+          UPDATE "ChecklistItem"
+          SET status = 'Done'::"ChecklistItemStatus", checked = TRUE, "updatedAt" = NOW()
+          WHERE id = ${current[0].checklistItemId}
+        `;
+      }
+    } else if (status === "Cancelled") {
+      const reason: string = cancellationReason ?? null;
+      await prisma.$executeRaw`
+        UPDATE "PitstopEvent"
+        SET status = 'Cancelled'::"PitstopEventStatus",
+            "cancellationReason" = ${reason},
+            "updatedAt" = NOW()
+        WHERE id = ${eventId}
+      `;
+      if (current[0].checklistItemId) {
+        await prisma.$executeRaw`
+          UPDATE "ChecklistItem"
+          SET status = 'Cancelled'::"ChecklistItemStatus", "updatedAt" = NOW()
+          WHERE id = ${current[0].checklistItemId}
+        `;
+      }
+    } else if (reschedule && scheduledAt) {
+      const newDate = new Date(scheduledAt);
+      const oldDate = current[0].scheduledAt;
+      const reason: string = rescheduleReason ?? null;
+      await prisma.$executeRaw`
+        UPDATE "PitstopEvent"
+        SET status = 'Rescheduled'::"PitstopEventStatus",
+            "scheduledAt" = ${newDate},
+            "rescheduledFrom" = ${oldDate},
+            "rescheduleReason" = ${reason},
+            "updatedAt" = NOW()
+        WHERE id = ${eventId}
+      `;
+      if (current[0].checklistItemId) {
+        await prisma.$executeRaw`
+          UPDATE "ChecklistItem"
+          SET status = 'Rescheduled'::"ChecklistItemStatus", "updatedAt" = NOW()
+          WHERE id = ${current[0].checklistItemId}
+        `;
+      }
+    }
+
+    // Return updated event via raw to avoid Lambda cache issues
+    const updated = await prisma.$queryRaw<{ id: string; status: string; scheduledAt: Date }[]>`
+      SELECT id, status::text, "scheduledAt" FROM "PitstopEvent" WHERE id = ${eventId} LIMIT 1
+    `;
+    return Response.json(updated[0] ?? { ok: true });
+  }
+
+  // ── Standard field updates ───────────────────────────────────────────────────
 
   // Resolve owners of all linked pitstops when pitstops or attendees change
   let ownerIds: string[] = [];

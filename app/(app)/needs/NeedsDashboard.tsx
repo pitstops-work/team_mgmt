@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronRight, ChevronDown, ClipboardList, MapPin, Building2, Layers,
-  CheckCircle2, Clock, Home, TrendingDown, TrendingUp, AlertTriangle, AlertCircle, Map,
+  CheckCircle2, Clock, Home, TrendingDown, TrendingUp, AlertTriangle, AlertCircle, Map, Plus,
 } from "lucide-react";
+import TemplatePickerModal from "@/components/TemplatePickerModal";
 import type { LevelStats, DomainStats, DomainConfig, ProgressSummary, MonthlyPoint, EntitlementSummary } from "./page";
 
 type DomainProgress = { target: number; existing: number; done: number; inProgress: number };
@@ -45,7 +46,7 @@ type ViewLevel = "city" | "zone" | "cluster" | "settlement";
 
 // ── Coverage: Domain card for overview grid ───────────────────────────────────
 
-function DomainCard({ label, color, d, domainType }: { label: string; color: string; d: LevelStats["domains"][string]; domainType?: string }) {
+function DomainCard({ label, color, d, domainType, onCreateGoal }: { label: string; color: string; d: LevelStats["domains"][string]; domainType?: string; onCreateGoal?: () => void }) {
   const isEnt = domainType === "entitlement";
   const pct = d.apfTarget > 0 ? Math.min(100, Math.round((d.done / d.apfTarget) * 100)) : d.done > 0 ? 100 : 0;
   return (
@@ -54,6 +55,11 @@ function DomainCard({ label, color, d, domainType }: { label: string; color: str
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
         <span className="text-xs font-semibold text-stone-700 truncate">{label}</span>
         {isEnt && <span className="text-[9px] text-violet-500 font-medium ml-auto flex-shrink-0">scheme</span>}
+        {!isEnt && onCreateGoal && (
+          <button onClick={onCreateGoal} className="ml-auto flex-shrink-0 p-0.5 rounded text-stone-300 hover:text-sky-500 hover:bg-sky-50 transition-colors" title="Create goal">
+            <Plus className="w-3 h-3" />
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-4 text-center gap-1">
         <div>
@@ -88,17 +94,24 @@ function DomainCard({ label, color, d, domainType }: { label: string; color: str
 
 // ── Coverage: Compact gap chip for table rows ─────────────────────────────────
 
-function GapChip({ d }: { d: LevelStats["domains"][string] | undefined }) {
+function GapChip({ d, onClick }: { d: LevelStats["domains"][string] | undefined; onClick?: () => void }) {
   if (!d || (d.apfTarget === 0 && d.done === 0)) {
     return <span className="text-[10px] text-stone-300">—</span>;
   }
-  if (d.gap > 0) return <span className="text-[10px] font-medium text-red-500">-{d.gap}</span>;
+  if (d.gap > 0) {
+    if (onClick) return (
+      <button onClick={onClick} className="text-[10px] font-medium text-red-500 hover:text-red-700 hover:underline transition-colors" title="Create goal">
+        -{d.gap}
+      </button>
+    );
+    return <span className="text-[10px] font-medium text-red-500">-{d.gap}</span>;
+  }
   return <span className="text-[10px] font-medium text-emerald-500">✓</span>;
 }
 
 // ── Coverage: Domain table ────────────────────────────────────────────────────
 
-function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainConfigs: DomainConfig[] }) {
+function DomainTable({ domains, domainConfigs, onCreateGoal }: { domains: DomainStats; domainConfigs: DomainConfig[]; onCreateGoal?: (domain: string) => void }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -109,6 +122,7 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
             <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Plan</th>
             <th className="text-right py-1.5 px-2 font-medium text-stone-400 text-[10px]">Done</th>
             <th className="text-right py-1.5 pl-2 font-medium text-stone-400 text-[10px]">Gap</th>
+            {onCreateGoal && <th className="w-6" />}
           </tr>
         </thead>
         <tbody className="divide-y divide-stone-50">
@@ -139,6 +153,13 @@ function DomainTable({ domains, domainConfigs }: { domains: DomainStats; domainC
                     </span>
                   </div>
                 </td>
+                {onCreateGoal && (
+                  <td className="py-2 pl-1">
+                    <button onClick={() => onCreateGoal(domain)} className="p-0.5 rounded text-stone-300 hover:text-sky-500 hover:bg-sky-50 transition-colors" title="Create goal">
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -403,9 +424,12 @@ export default function NeedsDashboard({
   cityProgress, cityProgressMap, zoneProgress, clusterProgress, settlementProgress,
   monthlyTrend, currentMonth,
   cityEntitlements, cityEntMap, zoneEntMap, clusterEntMap, settlementEntMap,
+  currentUserId, currentUserDesignation = "Other", allUsers = [],
 }: {
   cities: City[];
   currentUserId: string;
+  currentUserDesignation?: string;
+  allUsers?: { id: string; name: string | null; image: string | null; designation?: string }[];
   totalSettlements: number;
   domainConfigs: DomainConfig[];
   cityStats: LevelStats;
@@ -426,11 +450,20 @@ export default function NeedsDashboard({
   clusterEntMap: Record<string, EntitlementSummary[]>;
   settlementEntMap: Record<string, EntitlementSummary[]>;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initZoneId    = searchParams.get("zoneId");
   const initClusterId = searchParams.get("clusterId");
 
   const [mainTab, setMainTab]             = useState<"coverage" | "progress" | "entitlements" | "zones" | "clusters">("coverage");
+  const [wizardState, setWizardState] = useState<{
+    domain?: string;
+    settlementId?: string;
+    clusterId?: string;
+    zoneId?: string;
+    cityId?: string;
+    label?: string;
+  } | null>(null);
   const [zoneSummary, setZoneSummary]     = useState<ZoneSummary[] | null>(null);
   const [clusterSummary, setClusterSummary] = useState<ClusterSummary[] | null>(null);
   const [summaryDomainConfig, setSummaryDomainConfig] = useState<DomainConfig[]>([]);
@@ -587,12 +620,18 @@ export default function NeedsDashboard({
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {domainConfigs.map(({ domain, label, color, domainType }) => (
-                      <DomainCard key={domain} label={label} color={color} d={activeCityStats.domains[domain]} domainType={domainType} />
+                      <DomainCard
+                        key={domain} label={label} color={color} d={activeCityStats.domains[domain]} domainType={domainType}
+                        onCreateGoal={() => setWizardState({ domain, cityId: selectedCityId ?? cities[0]?.id, label })}
+                      />
                     ))}
                   </div>
                   <div className="border border-stone-200 rounded-xl p-4">
                     <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Full breakdown</p>
-                    <DomainTable domains={activeCityStats.domains} domainConfigs={domainConfigs} />
+                    <DomainTable
+                      domains={activeCityStats.domains} domainConfigs={domainConfigs}
+                      onCreateGoal={(domain) => setWizardState({ domain, cityId: selectedCityId ?? cities[0]?.id })}
+                    />
                   </div>
                 </>
               )}
@@ -626,12 +665,14 @@ export default function NeedsDashboard({
                             <span className="text-right text-xs text-stone-500 tabular-nums">{z.stats.totalHH > 0 ? z.stats.totalHH.toLocaleString() : "—"}</span>
                             <div className="flex justify-center"><SaturationChip score={z.stats.saturationScore} /></div>
                             {domainConfigs.map(({ domain }) => (
-                              <div key={domain} className="flex justify-center"><GapChip d={z.stats.domains[domain]} /></div>
+                              <div key={domain} className="flex justify-center">
+                                <GapChip d={z.stats.domains[domain]} onClick={z.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, zoneId: zone.id, label: z.name }) : undefined} />
+                              </div>
                             ))}
                           </button>
                           {isOpen && z.stats.assessedCount > 0 && (
                             <div className="px-4 py-4 border-t border-stone-100 bg-white">
-                              <DomainTable domains={z.stats.domains} domainConfigs={domainConfigs} />
+                              <DomainTable domains={z.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain) => setWizardState({ domain, zoneId: zone.id, label: z.name })} />
                             </div>
                           )}
                           {isOpen && z.stats.assessedCount === 0 && (
@@ -670,12 +711,14 @@ export default function NeedsDashboard({
                             <span className="text-right text-xs text-stone-500 tabular-nums">{cl.stats.totalHH > 0 ? cl.stats.totalHH.toLocaleString() : "—"}</span>
                             <div className="flex justify-center"><SaturationChip score={cl.stats.saturationScore} /></div>
                             {domainConfigs.map(({ domain }) => (
-                              <div key={domain} className="flex justify-center"><GapChip d={cl.stats.domains[domain]} /></div>
+                              <div key={domain} className="flex justify-center">
+                                <GapChip d={cl.stats.domains[domain]} onClick={cl.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, clusterId: cluster.id, label: cl.name }) : undefined} />
+                              </div>
                             ))}
                           </button>
                           {isOpen && cl.stats.assessedCount > 0 && (
                             <div className="px-4 py-4 border-t border-stone-100 bg-white">
-                              <DomainTable domains={cl.stats.domains} domainConfigs={domainConfigs} />
+                              <DomainTable domains={cl.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain) => setWizardState({ domain, clusterId: cluster.id, label: cl.name })} />
                             </div>
                           )}
                           {isOpen && cl.stats.assessedCount === 0 && (
@@ -735,7 +778,10 @@ export default function NeedsDashboard({
                           </div>
                           {domainConfigs.map(({ domain }) => (
                             <div key={domain} className="flex justify-center">
-                              {isAssessed && ss ? <GapChip d={ss.stats.domains[domain]} /> : <span className="text-[10px] text-stone-200">·</span>}
+                              {isAssessed && ss
+                                ? <GapChip d={ss.stats.domains[domain]} onClick={ss.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, settlementId: s.id, label: s.name }) : undefined} />
+                                : <span className="text-[10px] text-stone-200">·</span>
+                              }
                             </div>
                           ))}
                         </div>
@@ -792,21 +838,30 @@ export default function NeedsDashboard({
                                           {cluster.settlements.map(settlement => {
                                             const latest = settlement.assessments[0];
                                             return (
-                                              <Link key={settlement.id} href={`/needs/settlement/${settlement.id}`} className="flex items-center gap-3 px-8 py-2.5 hover:bg-sky-50 transition-colors group">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-stone-300 flex-shrink-0" />
-                                                <span className="text-xs text-stone-700 group-hover:text-sky-700 flex-1">{settlement.name}</span>
-                                                {latest ? (
-                                                  <div className="flex items-center gap-1.5">
-                                                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                                                    <span className="text-[10px] text-stone-400">{latest.assessmentYear} · {latest.totalHouseholds} HH</span>
-                                                  </div>
-                                                ) : (
-                                                  <div className="flex items-center gap-1">
-                                                    <Clock className="w-3 h-3 text-amber-400" />
-                                                    <span className="text-[10px] text-amber-500">Not assessed</span>
-                                                  </div>
-                                                )}
-                                              </Link>
+                                              <div key={settlement.id} className="flex items-center gap-1 hover:bg-sky-50 transition-colors group">
+                                                <Link href={`/needs/settlement/${settlement.id}`} className="flex items-center gap-3 px-8 py-2.5 flex-1 min-w-0">
+                                                  <div className="w-1.5 h-1.5 rounded-full bg-stone-300 flex-shrink-0" />
+                                                  <span className="text-xs text-stone-700 group-hover:text-sky-700 flex-1 truncate">{settlement.name}</span>
+                                                  {latest ? (
+                                                    <div className="flex items-center gap-1.5">
+                                                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                                      <span className="text-[10px] text-stone-400">{latest.assessmentYear} · {latest.totalHouseholds} HH</span>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="flex items-center gap-1">
+                                                      <Clock className="w-3 h-3 text-amber-400" />
+                                                      <span className="text-[10px] text-amber-500">Not assessed</span>
+                                                    </div>
+                                                  )}
+                                                </Link>
+                                                <button
+                                                  onClick={() => setWizardState({ settlementId: settlement.id, label: settlement.name })}
+                                                  className="flex-shrink-0 mr-3 p-1 rounded text-stone-300 hover:text-sky-500 hover:bg-sky-100 transition-colors"
+                                                  title="Create goal for this settlement"
+                                                >
+                                                  <Plus className="w-3 h-3" />
+                                                </button>
+                                              </div>
                                             );
                                           })}
                                         </div>
@@ -1402,6 +1457,25 @@ export default function NeedsDashboard({
         <div className="text-center py-16 text-stone-400 text-sm">
           No geography configured yet. Add cities, zones, clusters and settlements in Geography settings.
         </div>
+      )}
+
+      {wizardState !== null && (
+        <TemplatePickerModal
+          needsDomain={wizardState.domain}
+          needsSettlementId={wizardState.settlementId}
+          needsClusterId={wizardState.clusterId}
+          needsZoneId={wizardState.zoneId}
+          needsCityId={wizardState.cityId}
+          geographyLabel={wizardState.label}
+          onClose={() => setWizardState(null)}
+          onCreated={() => {
+            setWizardState(null);
+            router.refresh();
+          }}
+          currentUserId={currentUserId}
+          currentUserDesignation={currentUserDesignation}
+          allUsers={allUsers}
+        />
       )}
     </div>
   );
