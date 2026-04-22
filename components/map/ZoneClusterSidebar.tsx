@@ -5,7 +5,8 @@ import Link from "next/link";
 import { BarChart2 } from "lucide-react";
 import type { GeoData } from "@/lib/useGeoData";
 import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
-import CreateGoalModal, { type GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
+import TemplatePickerModal from "@/components/TemplatePickerModal";
+import type { GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -34,11 +35,13 @@ interface Props {
   type: "zone" | "cluster" | null;
   name: string | null;
   parentZone?: string;
-  dbId?: string | null; // DB zone or cluster ID for Field Coverage deep-link
+  dbId?: string | null;
   geoData: GeoData | null;
   clusterIndex: Record<string, { zone: string; display?: string; settlements: string[] }>;
   zoneIndex: Record<string, string[]>;
   onClose: () => void;
+  currentUserId?: string;
+  currentUserDesignation?: string;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -55,6 +58,7 @@ function fmtDate(iso: string) {
 
 export default function ZoneClusterSidebar({
   type, name, parentZone, dbId, geoData, clusterIndex, zoneIndex, onClose,
+  currentUserId, currentUserDesignation,
 }: Props) {
   const [goals, setGoals] = useState<GoalWithPitstops[]>([]);
   const [loading, setLoading] = useState(false);
@@ -343,10 +347,16 @@ export default function ZoneClusterSidebar({
     </div>
 
     {goalPrefill && (
-      <CreateGoalModal
-        prefill={goalPrefill}
+      <TemplatePickerModal
+        needsDomain={goalPrefill.needsDomain}
+        needsZoneId={goalPrefill.needsZoneId}
+        needsClusterId={goalPrefill.needsClusterId}
+        needsSettlementId={goalPrefill.needsSettlementId}
+        geographyLabel={goalPrefill.geoLabel}
         onClose={() => setGoalPrefill(null)}
         onCreated={() => setGoalPrefill(null)}
+        currentUserId={currentUserId}
+        currentUserDesignation={currentUserDesignation}
       />
     )}
     </>

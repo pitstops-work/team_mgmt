@@ -6,7 +6,8 @@ import { ClipboardList } from "lucide-react";
 import type { GeoData } from "@/lib/useGeoData";
 import type { SettlementFeature } from "./MapView";
 import NeedsPanel, { type NeedsGoalContext } from "./NeedsPanel";
-import CreateGoalModal, { type GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
+import TemplatePickerModal from "@/components/TemplatePickerModal";
+import type { GoalPrefill } from "@/app/(app)/dashboard/CreateGoalModal";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -24,6 +25,8 @@ interface SettlementSidebarProps {
   feature: SettlementFeature | null;
   geoData: GeoData | null;
   onClose: () => void;
+  currentUserId?: string;
+  currentUserDesignation?: string;
 }
 
 interface ClusterPitstop {
@@ -55,7 +58,7 @@ function parseHH(desc: string): string | null {
   return m ? `${m[1]} HH` : null;
 }
 
-export default function SettlementSidebar({ feature, geoData, onClose }: SettlementSidebarProps) {
+export default function SettlementSidebar({ feature, geoData, onClose, currentUserId, currentUserDesignation }: SettlementSidebarProps) {
   const [note, setNote] = useState("");
   const [noteDirty, setNoteDirty] = useState(false);
   const [noteSaving, setNoteSaving] = useState(false);
@@ -501,10 +504,16 @@ export default function SettlementSidebar({ feature, geoData, onClose }: Settlem
     </div>
 
     {goalPrefill && (
-      <CreateGoalModal
-        prefill={goalPrefill}
+      <TemplatePickerModal
+        needsDomain={goalPrefill.needsDomain}
+        needsZoneId={goalPrefill.needsZoneId}
+        needsClusterId={goalPrefill.needsClusterId}
+        needsSettlementId={goalPrefill.needsSettlementId}
+        geographyLabel={goalPrefill.geoLabel}
         onClose={() => setGoalPrefill(null)}
         onCreated={() => setGoalPrefill(null)}
+        currentUserId={currentUserId}
+        currentUserDesignation={currentUserDesignation}
       />
     )}
     </>

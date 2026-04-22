@@ -45,20 +45,28 @@ interface UserOption { id: string; name: string | null; image: string | null; de
 interface Props {
   onClose: () => void;
   onCreated: (goal: unknown) => void;
-  // When opened from the needs dashboard — pre-selects the right template
+  // When opened from the needs dashboard or map — pre-selects template + geo
   needsDomain?: string;
   needsSettlementId?: string;
   needsClusterId?: string;
   needsZoneId?: string;
   needsCityId?: string;
   geographyLabel?: string;
-  // Current user context — drives owner picker visibility
+  // Current user context — drives owner picker visibility and geo requirements
   currentUserId?: string;
   currentUserDesignation?: string;
   allUsers?: UserOption[];
 }
 
-type Step = "pick" | "redirect" | "configure";
+type Step = "pick" | "redirect" | "geo" | "configure";
+
+// ── Geo types (matching /api/admin/geography response) ────────────────────────
+type GeoSettlement = { id: string; name: string; clusterId: string };
+type GeoCluster    = { id: string; name: string; zoneId: string; settlements: GeoSettlement[] };
+type GeoZone       = { id: string; name: string; cityId: string; clusters: GeoCluster[] };
+type GeoCity       = { id: string; name: string };
+type RawGeo        = { cities: GeoCity[]; zones: GeoZone[] };
+type GeoVal        = { cityId: string; zoneId: string; clusterId: string; settlementId: string };
 
 export default function TemplatePickerModal({
   onClose, onCreated,
@@ -84,6 +92,33 @@ export default function TemplatePickerModal({
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState("");
+
+  // Geo step — only used when geo is NOT pre-filled from parent context
+  const geoPreFilled = !!(needsCityId || needsClusterId || needsZoneId);
+  const [geoRaw, setGeoRaw] = useState<RawGeo | null>(null);
+  const [geoVal, setGeoVal] = useState<GeoVal>({ cityId: "", zoneId: "", clusterId: "", settlementId: "" });
+
+  // Geo requirements by designation
+  const geoMinLevel: "city" | "zone" | "cluster" =
+    currentUserDesignation === "RP"  ? "cluster" :
+    currentUserDesignation === "ZL"  ? "zone"    : "city";
+
+  const isGeoValid = () => {
+    if (geoPreFilled) return true;
+    if (!geoVal.cityId) return false;
+    if (geoMinLevel === "zone"    && !geoVal.zoneId)    return false;
+    if (geoMinLevel === "cluster" && !geoVal.clusterId) return false;
+    return true;
+  };
+
+  // Fetch geo when entering the geo step
+  useEffect(() => {
+    if (step !== "geo" || geoRaw || geoPreFilled) return;
+    fetch("/api/admin/geography")
+      .then(r => r.json())
+      .then((d: RawGeo) => setGeoRaw(d))
+      .catch(() => {});
+  }, [step, geoRaw, geoPreFilled]);
 
   const subDomainInfo = needsDomain ? SUB_DOMAIN_PARENT[needsDomain] : null;
 
@@ -117,7 +152,7 @@ export default function TemplatePickerModal({
     t.parameters.forEach((p) => { init[p.key] = ""; });
     setParamValues(init);
     setPreview([]);
-    setStep("configure");
+    setStep(geoPreFilled ? "configure" : "geo");
   };
 
   const buildParams = () => {
@@ -177,6 +212,7 @@ export default function TemplatePickerModal({
   const isValid = () => {
     if (!title.trim() || !startDate || !targetDate) return false;
     if (!selected) return false;
+    if (!isGeoValid()) return false;
     const paramsOk = selected.parameters.every((p) => {
       const v = paramValues[p.key];
       if (!v) return false;
@@ -213,10 +249,10 @@ export default function TemplatePickerModal({
           targetDate,
           params: buildParams(),
           needsDomain: needsDomain ?? selected.needsDomain ?? null,
-          needsSettlementId: needsSettlementId ?? null,
-          needsClusterId: needsClusterId ?? null,
-          needsZoneId: needsZoneId ?? null,
-          needsCityId: needsCityId ?? null,
+          needsSettlementId: (needsSettlementId ?? geoVal.settlementId) || null,
+          needsClusterId: (needsClusterId ?? geoVal.clusterId) || null,
+          needsZoneId: (needsZoneId ?? geoVal.zoneId) || null,
+          needsCityId: (needsCityId ?? geoVal.cityId) || null,
           activitySchedules,
           ...(canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId
             ? { ownerId: selectedOwnerId }
@@ -256,15 +292,21 @@ export default function TemplatePickerModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 flex-shrink-0">
           <div className="flex items-center gap-2">
-            {step === "configure" && !needsDomain && (
-              <button onClick={() => setStep("pick")} className="text-stone-400 hover:text-stone-600 mr-1">
+            {(step === "geo" || (step === "configure" && !needsDomain)) && (
+              <button
+                onClick={() => step === "configure" ? setStep(geoPreFilled ? "pick" : "geo") : setStep("pick")}
+                className="text-stone-400 hover:text-stone-600 mr-1"
+              >
                 <ChevronRight className="w-4 h-4 rotate-180" />
               </button>
             )}
             <Layers className="w-4 h-4 text-stone-400" />
             <div>
               <h2 className="text-base font-semibold text-stone-900 leading-tight">
-                {step === "pick" ? "Create Goal from Template" : step === "redirect" ? "Programme Note" : selected?.name}
+                {step === "pick" ? "Create Goal from Template"
+                  : step === "redirect" ? "Programme Note"
+                  : step === "geo" ? "Where is this goal?"
+                  : selected?.name}
               </h2>
               {geographyLabel && (
                 <p className="text-xs text-stone-400">{geographyLabel}</p>
@@ -303,6 +345,98 @@ export default function TemplatePickerModal({
               >
                 Create {subDomainInfo.programmeName} Goal
               </button>
+            </div>
+          )}
+
+          {/* Geo step */}
+          {step === "geo" && (
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-stone-400">
+                {geoMinLevel === "cluster"
+                  ? "Select the cluster this goal belongs to. Cluster is required."
+                  : geoMinLevel === "zone"
+                  ? "Select the zone this goal belongs to. Zone is required."
+                  : "Select the city scope. Leave zone/cluster blank for a city-wide goal."}
+              </p>
+
+              {!geoRaw ? (
+                <p className="text-sm text-stone-400 text-center py-6">Loading geography…</p>
+              ) : (
+                <div className="space-y-3">
+                  {/* City */}
+                  <div>
+                    <label className="block text-xs font-medium text-stone-600 mb-1">
+                      City <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={geoVal.cityId}
+                      onChange={e => setGeoVal({ cityId: e.target.value, zoneId: "", clusterId: "", settlementId: "" })}
+                      className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                    >
+                      <option value="">— select city —</option>
+                      {geoRaw.cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Zone */}
+                  <div>
+                    <label className="block text-xs font-medium text-stone-600 mb-1">
+                      Zone{geoMinLevel !== "city" ? <span className="text-red-400"> *</span> : <span className="text-stone-400 font-normal"> (optional for city-level goals)</span>}
+                    </label>
+                    <select
+                      value={geoVal.zoneId}
+                      onChange={e => setGeoVal(v => ({ ...v, zoneId: e.target.value, clusterId: "", settlementId: "" }))}
+                      disabled={!geoVal.cityId}
+                      className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white disabled:opacity-40"
+                    >
+                      <option value="">— select zone —</option>
+                      {geoRaw.zones.filter(z => z.cityId === geoVal.cityId).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Cluster */}
+                  <div>
+                    <label className="block text-xs font-medium text-stone-600 mb-1">
+                      Cluster{geoMinLevel === "cluster" ? <span className="text-red-400"> *</span> : <span className="text-stone-400 font-normal"> (optional)</span>}
+                    </label>
+                    <select
+                      value={geoVal.clusterId}
+                      onChange={e => setGeoVal(v => ({ ...v, clusterId: e.target.value, settlementId: "" }))}
+                      disabled={!geoVal.zoneId}
+                      className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white disabled:opacity-40"
+                    >
+                      <option value="">— select cluster —</option>
+                      {geoRaw.zones.find(z => z.id === geoVal.zoneId)?.clusters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Settlement */}
+                  <div>
+                    <label className="block text-xs font-medium text-stone-600 mb-1">
+                      Settlement <span className="text-stone-400 font-normal">(optional)</span>
+                    </label>
+                    <select
+                      value={geoVal.settlementId}
+                      onChange={e => setGeoVal(v => ({ ...v, settlementId: e.target.value }))}
+                      disabled={!geoVal.clusterId}
+                      className="w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white disabled:opacity-40"
+                    >
+                      <option value="">— select settlement —</option>
+                      {geoRaw.zones.find(z => z.id === geoVal.zoneId)?.clusters.find(c => c.id === geoVal.clusterId)?.settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={() => setStep("configure")}
+                  disabled={!isGeoValid()}
+                  className="px-5 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Continue →
+                </button>
+              </div>
             </div>
           )}
 

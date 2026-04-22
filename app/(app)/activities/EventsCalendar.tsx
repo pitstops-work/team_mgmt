@@ -161,12 +161,43 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
   const [isMultiDay, setIsMultiDay] = useState(!!(initial?.endsAt));
   const [endDate, setEndDate] = useState(initial?.endsAt ? initial.endsAt.slice(0,10) : "");
   const [location, setLocation] = useState(initial?.location ?? "");
-  const [selectedPitstopIds, setSelectedPitstopIds] = useState<Set<string>>(
-    new Set(initial?.pitstops?.map(p => p.pitstop.id) ?? [])
-  );
+
+  // Checklist-item cascade: Goal → Pitstop → ChecklistItem
+  const initialPitstopId = initial?.pitstops?.[0]?.pitstop.id ?? "";
+  const initialGoalId = initial?.pitstops?.[0]?.pitstop.goal.id ?? "";
+  const [selectedGoalId, setSelectedGoalId] = useState(initialGoalId);
+  const [selectedPitstopId, setSelectedPitstopId] = useState(initialPitstopId);
+  const [selectedChecklistItemId, setSelectedChecklistItemId] = useState("");
+  const [checklistItems, setChecklistItems] = useState<{id: string; text: string; checked: boolean}[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  // Derive unique goals from pitstops list
+  const goals = Array.from(new Map(pitstops.map(p => [p.goal.id, p.goal])).values())
+    .sort((a, b) => a.title.localeCompare(b.title));
+  const pitstopsForGoal = pitstops.filter(p => p.goal.id === selectedGoalId);
+
+  // Fetch checklist items when pitstop changes
+  useEffect(() => {
+    if (!selectedPitstopId) { setChecklistItems([]); setSelectedChecklistItemId(""); return; }
+    setLoadingItems(true);
+    fetch(`/api/pitstops/${selectedPitstopId}/checklist`)
+      .then(r => r.json())
+      .then((items: {id: string; text: string; checked: boolean}[]) => {
+        setChecklistItems(items);
+        // Auto-select first unchecked item and auto-fill title
+        const first = items.find(i => !i.checked);
+        if (first) {
+          setSelectedChecklistItemId(first.id);
+          if (!title || title === initial?.title) setTitle(first.text);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingItems(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPitstopId]);
 
   const ownerIds = new Set(
-    pitstops.filter(p => selectedPitstopIds.has(p.id)).map(p => p.owner.id)
+    pitstops.filter(p => p.id === selectedPitstopId).map(p => p.owner.id)
   );
   const initialExtraIds = initial
     ? initial.attendees.filter(a => !ownerIds.has(a.userId)).map(a => a.userId)
@@ -188,12 +219,19 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !date) { setError("Title and date are required."); return; }
-    if (selectedPitstopIds.size === 0) { setError("Select at least one pitstop."); return; }
+    if (!selectedPitstopId) { setError("Select a pitstop."); return; }
+    if (!selectedChecklistItemId) { setError("Select a checklist item to link this activity to."); return; }
     setLoading(true); setError("");
     const scheduledAt = `${date}T${time}:00`;
     const endsAt = isMultiDay && endDate && endDate > date ? `${endDate}T23:59:00` : null;
     const attendeeIds = Array.from(extraAttendeeIds);
-    const body = { title: title.trim(), description: description.trim() || null, type, scheduledAt, endsAt, location: location.trim() || null, pitstopIds: Array.from(selectedPitstopIds), attendeeIds };
+    const body = {
+      title: title.trim(), description: description.trim() || null, type, scheduledAt, endsAt,
+      location: location.trim() || null,
+      pitstopIds: [selectedPitstopId],
+      checklistItemId: selectedChecklistItemId,
+      attendeeIds,
+    };
     const url = initial ? `/api/pitstop-events/${initial.id}` : "/api/pitstop-events";
     const method = initial ? "PATCH" : "POST";
     const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -209,22 +247,42 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
           <button onClick={onClose}><X className="w-4 h-4 text-stone-400" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Goal → Pitstop → Checklist Item cascade */}
           <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">Title</label>
-            <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Event title"
-              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
+            <label className="block text-xs font-medium text-stone-600 mb-1">Goal <span className="text-red-400">*</span></label>
+            <select value={selectedGoalId} onChange={e => { setSelectedGoalId(e.target.value); setSelectedPitstopId(""); setSelectedChecklistItemId(""); setChecklistItems([]); }}
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
+              <option value="">— select goal —</option>
+              {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+            </select>
           </div>
+          {selectedGoalId && (
+            <div>
+              <label className="block text-xs font-medium text-stone-600 mb-1">Pitstop <span className="text-red-400">*</span></label>
+              <select value={selectedPitstopId} onChange={e => { setSelectedPitstopId(e.target.value); setSelectedChecklistItemId(""); }}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
+                <option value="">— select pitstop —</option>
+                {pitstopsForGoal.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </select>
+            </div>
+          )}
+          {selectedPitstopId && (
+            <div>
+              <label className="block text-xs font-medium text-stone-600 mb-1">
+                Checklist Item <span className="text-red-400">*</span>
+                {loadingItems && <span className="text-stone-400 font-normal ml-1">loading…</span>}
+              </label>
+              <select value={selectedChecklistItemId} onChange={e => { setSelectedChecklistItemId(e.target.value); const item = checklistItems.find(i => i.id === e.target.value); if (item) setTitle(item.text); }}
+                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white">
+                <option value="">— select checklist item —</option>
+                {checklistItems.map(i => <option key={i.id} value={i.id} disabled={i.checked}>{i.checked ? "✓ " : ""}{i.text}</option>)}
+              </select>
+            </div>
+          )}
           <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">
-              Pitstops <span className="text-red-400">*</span>
-            </label>
-            <PitstopMultiPicker
-              pitstops={pitstops}
-              users={users}
-              selected={selectedPitstopIds}
-              onChange={(s) => { setSelectedPitstopIds(s); setExtraAttendeeIds(new Set()); }}
-              required
-            />
+            <label className="block text-xs font-medium text-stone-600 mb-1">Activity Title</label>
+            <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Auto-filled from checklist item"
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
@@ -265,7 +323,7 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
             <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Village name, address…"
               className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
           </div>
-          {selectedPitstopIds.size > 0 && extraCandidates.length > 0 && (
+          {selectedPitstopId && extraCandidates.length > 0 && (
             <div>
               <label className="block text-xs font-medium text-stone-600 mb-1.5">Additional Attendees (optional)</label>
               <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
@@ -291,7 +349,7 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">Cancel</button>
-            <button type="submit" disabled={!title.trim() || !date || selectedPitstopIds.size === 0 || loading}
+            <button type="submit" disabled={!title.trim() || !date || !selectedPitstopId || loading}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {loading ? "Saving…" : initial ? "Save changes" : "Create Event"}
             </button>
