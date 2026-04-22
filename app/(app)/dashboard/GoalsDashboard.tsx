@@ -251,6 +251,7 @@ function buildGeoTree(goals: Goal[]): GeoTree {
   for (const g of goals) {
     if (g.needsCluster) {
       const zoneRef = g.needsCluster.zone;
+      if (!zoneRef) { noGeo.push(g); continue; }
       const cityRef = zoneRef.city;
       if (cityRef) {
         const city = getCity(cityRef);
