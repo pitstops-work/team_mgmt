@@ -3,10 +3,21 @@ import prisma from "@/lib/prisma";
 import GanttChart from "./GanttChart";
 
 export default async function GanttPage() {
-  await auth();
+  const session = await auth();
+  const userId = session!.user!.id!;
+
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { designation: true } });
+  const designation = me?.designation ?? "Other";
+
+  let teamIds: string[] = [userId];
+  if (designation === "ZL") {
+    const team = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
+    teamIds = [userId, ...team.map(m => m.id)];
+  }
+  const ownerFilter = (designation === "RP" || designation === "ZL") ? { ownerId: { in: teamIds } } : {};
 
   const goals = await prisma.goal.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, ...ownerFilter },
     include: {
       owner: { select: { id: true, name: true, image: true } },
       needsZone: { select: { id: true, name: true, cityId: true } },

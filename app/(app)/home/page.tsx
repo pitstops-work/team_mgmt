@@ -187,19 +187,23 @@ export default async function HomePage() {
 
   const domainLabels = Object.fromEntries(domainConfigs.map(d => [d.domain, d.label ?? d.domain]));
 
-  // ── RP: per-cluster domain stats ──────────────────────────────────────────
+  // ── RP: per-cluster domain stats (from assigned clusters, not from goals) ──
   let rpClusterStats: ClusterStat[] = [];
   if (designation === "RP") {
-    const clusterIds = [...new Set((myGoals as GoalRow[]).map(g => g.needsClusterId).filter(Boolean))] as string[];
-    if (clusterIds.length > 0) {
-      const clusters = await prisma.cluster.findMany({
-        where: { id: { in: clusterIds } },
-        select: { id: true, name: true },
+    const assignedClusters = await prisma.cluster.findMany({
+      where: { rps: { some: { id: userId } }, deletedAt: null },
+      select: { id: true, name: true },
+    });
+    if (assignedClusters.length > 0) {
+      const assignedClusterIds = assignedClusters.map(c => c.id);
+      const clusterGoals = await prisma.goal.findMany({
+        where: { deletedAt: null, needsClusterId: { in: assignedClusterIds } },
+        select: { needsDomain: true, needsClusterId: true, status: true, parameter: true, outcomeCount: true },
       });
-      rpClusterStats = clusters.map(c => ({
+      rpClusterStats = assignedClusters.map(c => ({
         clusterId: c.id,
         clusterName: c.name,
-        stats: computeDomainStats((myGoals as GoalRow[]).filter(g => g.needsClusterId === c.id), domainLabels),
+        stats: computeDomainStats(clusterGoals.filter(g => g.needsClusterId === c.id), domainLabels),
       }));
     }
   }

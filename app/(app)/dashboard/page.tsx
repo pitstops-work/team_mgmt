@@ -18,10 +18,21 @@ export default async function DashboardPage({
   const currentUserId = session!.user!.id!;
   const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true, designation: true, role: true } });
   const cityFilter = goalCityFilter(me?.cityId);
+  const designation = me?.designation ?? "Other";
+
+  // Build team ID scope for RP/ZL
+  let teamIds: string[] = [currentUserId];
+  if (designation === "ZL") {
+    const team = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
+    teamIds = [currentUserId, ...team.map(m => m.id)];
+  }
+  const ownerFilter = (designation === "RP" || designation === "ZL")
+    ? { ownerId: { in: teamIds } }
+    : {};
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
     prisma.goal.findMany({
-      where: { deletedAt: null, ...cityFilter },
+      where: { deletedAt: null, ...cityFilter, ...ownerFilter },
       include: {
         owner: { select: { id: true, name: true, image: true } },
         pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
@@ -32,7 +43,11 @@ export default async function DashboardPage({
       },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.user.findMany({ select: { id: true, name: true, image: true, designation: true }, orderBy: { name: "asc" } }),
+    prisma.user.findMany({
+      where: (designation === "RP" || designation === "ZL") ? { id: { in: teamIds } } : {},
+      select: { id: true, name: true, image: true, designation: true },
+      orderBy: { name: "asc" },
+    }),
     prisma.program.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
 
     // Threads for home tile grid — only threads relevant to current user
@@ -109,13 +124,14 @@ export default async function DashboardPage({
 
     // Overview data — all fetched in parallel
     Promise.all([
-      // Overdue pitstops (all team)
+      // Overdue pitstops (scoped to team for RP/ZL)
       prisma.pitstop.findMany({
         where: {
           deletedAt: null,
           status: { in: ["Upcoming", "InProgress"] },
           targetDate: { lt: todayStart },
           goal: { deletedAt: null },
+          ...ownerFilter,
         },
         select: {
           id: true, title: true, status: true, targetDate: true,
@@ -126,9 +142,9 @@ export default async function DashboardPage({
         take: 20,
       }),
 
-      // InProgress pitstops with checklist items
+      // InProgress pitstops with checklist items (scoped to team)
       prisma.pitstop.findMany({
-        where: { deletedAt: null, status: "InProgress", goal: { deletedAt: null } },
+        where: { deletedAt: null, status: "InProgress", goal: { deletedAt: null }, ...ownerFilter },
         select: {
           id: true, title: true, targetDate: true,
           goal: { select: { id: true, title: true } },
@@ -139,12 +155,12 @@ export default async function DashboardPage({
         take: 30,
       }),
 
-      // Pitstop workload per user
+      // Pitstop workload per user (scoped to team)
       prisma.pitstop.groupBy({
         by: ["ownerId", "status"],
         where: {
           deletedAt: null,
-          ownerId: { not: null },
+          ownerId: (designation === "RP" || designation === "ZL") ? { in: teamIds } : { not: null },
           status: { in: ["Upcoming", "InProgress"] },
           goal: { deletedAt: null },
         },

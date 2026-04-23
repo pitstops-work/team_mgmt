@@ -7,10 +7,37 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
   const session = await auth();
   const sp = await searchParams;
   const inviteEventId = sp.invite ?? null;
+  const userId = session!.user!.id!;
+
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { designation: true },
+  });
+  const designation = me?.designation ?? "Other";
+
+  // Scope events: RP sees own, ZL sees team's, others see all
+  let teamIds: string[] = [userId];
+  if (designation === "ZL") {
+    const team = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
+    teamIds = [userId, ...team.map(m => m.id)];
+  }
+  const eventAttendeeFilter = (designation === "RP" || designation === "ZL")
+    ? { attendees: { some: { userId: { in: teamIds } } } }
+    : {};
+
+  // Scope pitstops for the "link to activity" picker similarly
+  const pitstopOwnerFilter = (designation === "RP" || designation === "ZL")
+    ? { ownerId: { in: teamIds } }
+    : {};
+
+  // Scope users shown in attendee picker
+  const userFilter = (designation === "RP" || designation === "ZL")
+    ? { id: { in: teamIds } }
+    : {};
 
   const [events, pitstops, users, rawZones, rawClusters, goalGeo] = await Promise.all([
     prisma.pitstopEvent.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, ...eventAttendeeFilter },
       include: {
         pitstops: {
           select: {
@@ -29,7 +56,7 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
       orderBy: { scheduledAt: "asc" },
     }),
     prisma.pitstop.findMany({
-      where: { deletedAt: null, goal: { deletedAt: null } },
+      where: { deletedAt: null, goal: { deletedAt: null }, ...pitstopOwnerFilter },
       select: {
         id: true,
         title: true,
@@ -39,6 +66,7 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
       orderBy: [{ goal: { title: "asc" } }, { order: "asc" }],
     }),
     prisma.user.findMany({
+      where: userFilter,
       select: { id: true, name: true, image: true },
       orderBy: { name: "asc" },
     }),

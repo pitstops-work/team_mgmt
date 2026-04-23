@@ -500,12 +500,12 @@ export default function GoalsDashboard({
         <div className="flex gap-0.5 bg-stone-100 rounded-lg p-0.5 w-fit">
           {(
             [
-              { key: "home",  label: "Home",  icon: <Home className="w-3.5 h-3.5" /> },
-              { key: "goals", label: "Goals", icon: <ListChecks className="w-3.5 h-3.5" /> },
-              { key: "team",  label: "Team",  icon: <Users className="w-3.5 h-3.5" /> },
-              { key: "phase", label: "Phase", icon: <GitBranch className="w-3.5 h-3.5" /> },
-            ] as const
-          ).map(({ key, label, icon }) => (
+              { key: "home",  label: "Home",  icon: <Home className="w-3.5 h-3.5" />,      show: true },
+              { key: "goals", label: "Goals", icon: <ListChecks className="w-3.5 h-3.5" />, show: true },
+              { key: "team",  label: "Team",  icon: <Users className="w-3.5 h-3.5" />,      show: currentUserDesignation !== "RP" },
+              { key: "phase", label: "Phase", icon: <GitBranch className="w-3.5 h-3.5" />,  show: currentUserDesignation !== "RP" },
+            ] as { key: "home" | "goals" | "team" | "phase"; label: string; icon: React.ReactNode; show: boolean }[]
+          ).filter(t => t.show).map(({ key, label, icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
