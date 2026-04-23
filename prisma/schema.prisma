@@ -38,6 +38,7 @@ model User {
   createdEvents        PitstopEvent[]
   eventAttendances     PitstopEventAttendee[]
   leadZones            Zone[]                @relation("ZoneLead")
+  rpClusters           Cluster[]             @relation("RPClusters")
   eventFollowups       PitstopEventFollowup[]
   planItems            PlanItem[]
   // Accountability
@@ -787,6 +788,7 @@ model Cluster {
   needsGoals    Goal[]         @relation("GoalNeedsCluster")
   needsPitstops Pitstop[]      @relation("PitstopNeedsCluster")
   layerFeatures LayerFeature[]
+  rps           User[]         @relation("RPClusters")
 }
 
 model LayerFeature {

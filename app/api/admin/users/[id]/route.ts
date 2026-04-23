@@ -15,7 +15,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { name, email, role, cityId, designation, zoneIds } = await req.json();
+  const { name, email, role, cityId, designation, zoneIds, clusterIds } = await req.json();
 
   if (role && !VALID_ROLES.includes(role)) {
     return Response.json({ error: "Invalid role" }, { status: 400 });
@@ -61,13 +61,20 @@ export async function PATCH(
     select: { id: true, name: true, email: true, role: true, designation: true, createdAt: true, image: true, cityId: true },
   });
 
-  // Update zone lead assignments if provided
+  // Update zone lead assignments if provided (ZL/PM)
   if (Array.isArray(zoneIds)) {
-    // Clear this user's existing zone leads, then set the new ones
     await prisma.zone.updateMany({ where: { leadId: id }, data: { leadId: null } });
     if (zoneIds.length > 0) {
       await prisma.zone.updateMany({ where: { id: { in: zoneIds } }, data: { leadId: id } });
     }
+  }
+
+  // Update RP cluster assignments if provided
+  if (Array.isArray(clusterIds)) {
+    await prisma.user.update({
+      where: { id },
+      data: { rpClusters: { set: clusterIds.map(cid => ({ id: cid })) } },
+    });
   }
 
   return Response.json(user);

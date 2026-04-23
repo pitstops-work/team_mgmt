@@ -9,13 +9,22 @@ export async function GET() {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [users, allCities, zones] = await Promise.all([
+  const [users, allCities, zones, clusters] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, email: true, image: true, role: true, designation: true, createdAt: true, cityId: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.city.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    prisma.zone.findMany({ where: { deletedAt: null }, select: { id: true, name: true, leadId: true }, orderBy: { name: "asc" } }),
+    prisma.zone.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, leadId: true, cityId: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.cluster.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, zoneId: true, rps: { select: { id: true } } },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   // Deduplicate cities by name (keep first occurrence per name)
@@ -27,7 +36,7 @@ export async function GET() {
     return true;
   });
 
-  return Response.json({ users, cities, zones });
+  return Response.json({ users, cities, zones, clusters });
 }
 
 export async function POST(req: Request) {

@@ -8,7 +8,8 @@ import { Trash2, KeyRound, UserPlus, ArrowLeft, Eye, EyeOff, Pencil, Check, X } 
 import Link from "next/link";
 
 interface City { id: string; name: string; }
-interface ZoneRow { id: string; name: string; leadId: string | null; }
+interface ZoneRow { id: string; name: string; leadId: string | null; cityId: string | null; }
+interface ClusterRow { id: string; name: string; zoneId: string; rps: { id: string }[]; }
 interface User {
   id: string;
   name: string | null;
@@ -48,6 +49,7 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [zones, setZones] = useState<ZoneRow[]>([]);
+  const [clusters, setClusters] = useState<ClusterRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Inline edit state
@@ -58,6 +60,9 @@ export default function UserManagementPage() {
   const [editDesignation, setEditDesignation] = useState<Designation>("Other");
   const [editCityId, setEditCityId] = useState<string>("");
   const [editZoneIds, setEditZoneIds] = useState<string[]>([]);
+  const [editClusterIds, setEditClusterIds] = useState<string[]>([]);
+  // Cascading geo filter for RP cluster picker
+  const [rpFilterZoneId, setRpFilterZoneId] = useState<string>("");
   const [editError, setEditError] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
@@ -88,7 +93,14 @@ export default function UserManagementPage() {
         if (r.status === 403) { router.replace("/settings"); return null; }
         return r.json();
       })
-      .then(data => { if (data) { setUsers(data.users); setCities(data.cities); setZones(data.zones ?? []); } })
+      .then(data => {
+        if (data) {
+          setUsers(data.users);
+          setCities(data.cities);
+          setZones(data.zones ?? []);
+          setClusters(data.clusters ?? []);
+        }
+      })
       .finally(() => setLoading(false));
   }, [status, router]);
 
@@ -99,9 +111,12 @@ export default function UserManagementPage() {
     setEditName(u.name ?? "");
     setEditEmail(u.email);
     setEditRole((ROLES.includes(u.role as Role) ? u.role : "member") as Role);
-    setEditDesignation((DESIGNATIONS.includes(u.designation as Designation) ? u.designation : "Other") as Designation);
+    const desig = (DESIGNATIONS.includes(u.designation as Designation) ? u.designation : "Other") as Designation;
+    setEditDesignation(desig);
     setEditCityId(u.cityId ?? "");
     setEditZoneIds(zones.filter(z => z.leadId === u.id).map(z => z.id));
+    setEditClusterIds(clusters.filter(c => c.rps.some(r => r.id === u.id)).map(c => c.id));
+    setRpFilterZoneId("");
     setEditError("");
   }
 
@@ -117,20 +132,34 @@ export default function UserManagementPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: editName, email: editEmail, role: editRole, cityId: editCityId || null,
+        name: editName,
+        email: editEmail,
+        role: editRole,
+        cityId: editCityId || null,
         designation: editDesignation,
-        zoneIds: editZoneIds,
+        zoneIds: editDesignation === "ZL" || editDesignation === "PM" ? editZoneIds : [],
+        clusterIds: editDesignation === "RP" ? editClusterIds : [],
       }),
     });
     const data = await res.json();
     setEditSaving(false);
     if (!res.ok) { setEditError(data.error ?? "Failed"); return; }
     setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data } : u));
-    // Sync local zones state with new lead assignments
     setZones(prev => prev.map(z => {
       if (editZoneIds.includes(z.id)) return { ...z, leadId: id };
-      if (z.leadId === id) return { ...z, leadId: null }; // cleared
+      if (z.leadId === id) return { ...z, leadId: null };
       return z;
+    }));
+    setClusters(prev => prev.map(c => {
+      const wasAssigned = c.rps.some(r => r.id === id);
+      const nowAssigned = editClusterIds.includes(c.id);
+      if (wasAssigned === nowAssigned) return c;
+      return {
+        ...c,
+        rps: nowAssigned
+          ? [...c.rps, { id }]
+          : c.rps.filter(r => r.id !== id),
+      };
     }));
     setEditId(null);
   }
@@ -221,6 +250,23 @@ export default function UserManagementPage() {
           const role = (ROLES.includes(u.role as Role) ? u.role : "member") as Role;
           const canEditRole = u.role !== "super-admin" || isSuperAdmin;
 
+          // Derived geo data for this user's summary line
+          const userZones = zones.filter(z => z.leadId === u.id);
+          const userClusters = clusters.filter(c => c.rps.some(r => r.id === u.id));
+
+          // Cascading geo for ZL zone picker: filter zones by selected city
+          const zonesInCity = editCityId
+            ? zones.filter(z => z.cityId === editCityId)
+            : zones;
+
+          // Cascading geo for RP cluster picker
+          const zonesInCityForRP = editCityId
+            ? zones.filter(z => z.cityId === editCityId)
+            : zones;
+          const clustersInView = rpFilterZoneId
+            ? clusters.filter(c => c.zoneId === rpFilterZoneId)
+            : clusters.filter(c => zonesInCityForRP.some(z => z.id === c.zoneId));
+
           return (
             <div key={u.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
               {/* View row */}
@@ -236,12 +282,11 @@ export default function UserManagementPage() {
                       )}
                     </div>
                     <p className="text-xs text-stone-400 truncate">{u.email}</p>
-                    <p className="text-xs text-stone-300 mt-0.5">
-                      Joined {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                      {u.cityId && <span className="ml-2 text-sky-400">{cities.find(c => c.id === u.cityId)?.name ?? ""}</span>}
-                      {zones.filter(z => z.leadId === u.id).map(z => (
-                        <span key={z.id} className="ml-2 text-violet-400">{z.name} zone</span>
-                      ))}
+                    <p className="text-xs text-stone-300 mt-0.5 flex flex-wrap gap-x-2">
+                      <span>Joined {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                      {u.cityId && <span className="text-sky-400">{cities.find(c => c.id === u.cityId)?.name ?? ""}</span>}
+                      {userZones.map(z => <span key={z.id} className="text-violet-400">{z.name} zone</span>)}
+                      {userClusters.map(c => <span key={c.id} className="text-emerald-400">{c.name}</span>)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -266,7 +311,8 @@ export default function UserManagementPage() {
 
               {/* Edit row */}
               {isEditing && (
-                <div className="px-4 py-3 bg-indigo-50/60 space-y-2">
+                <div className="px-4 py-3 bg-indigo-50/60 space-y-3">
+                  {/* Name + Email */}
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       value={editName}
@@ -283,6 +329,8 @@ export default function UserManagementPage() {
                       className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
                     />
                   </div>
+
+                  {/* Role + Designation + City */}
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex gap-1.5">
                       {ROLES.filter(r => r !== "super-admin" && (r !== "admin" || isSuperAdmin)).map(r => (
@@ -304,7 +352,10 @@ export default function UserManagementPage() {
                         <button
                           key={d}
                           type="button"
-                          onClick={() => setEditDesignation(d)}
+                          onClick={() => {
+                            setEditDesignation(d);
+                            setRpFilterZoneId("");
+                          }}
                           className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${
                             editDesignation === d ? DESIGNATION_STYLE[d] + " ring-2 ring-offset-1 ring-current" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
                           }`}
@@ -313,9 +364,15 @@ export default function UserManagementPage() {
                         </button>
                       ))}
                     </div>
+                    <div className="w-px h-4 bg-indigo-200 flex-shrink-0" />
                     <select
                       value={editCityId}
-                      onChange={e => setEditCityId(e.target.value)}
+                      onChange={e => {
+                        setEditCityId(e.target.value);
+                        setEditZoneIds([]);
+                        setEditClusterIds([]);
+                        setRpFilterZoneId("");
+                      }}
                       className="text-xs border border-indigo-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
                     >
                       <option value="">All cities</option>
@@ -334,26 +391,82 @@ export default function UserManagementPage() {
                       </button>
                     </div>
                   </div>
-                  {(editDesignation === "ZL" || editDesignation === "PM") && zones.length > 0 && (
-                    <div className="mt-1">
-                      <p className="text-[10px] font-semibold text-indigo-600 mb-1.5">Zone Lead for</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {zones.map(z => {
-                          const checked = editZoneIds.includes(z.id);
-                          return (
-                            <button
-                              key={z.id}
-                              type="button"
-                              onClick={() => setEditZoneIds(prev => checked ? prev.filter(id => id !== z.id) : [...prev, z.id])}
-                              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${checked ? "bg-violet-100 border-violet-400 text-violet-800" : "border-stone-200 text-stone-500 hover:border-violet-300 hover:bg-violet-50"}`}
-                            >
-                              {z.name}
-                            </button>
-                          );
-                        })}
-                      </div>
+
+                  {/* ZL / PM — zone picker filtered by city */}
+                  {(editDesignation === "ZL" || editDesignation === "PM") && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-indigo-600 mb-1.5">
+                        Zone Lead for{editCityId ? ` (${cities.find(c => c.id === editCityId)?.name ?? ""})` : " — select a city to filter"}
+                      </p>
+                      {zonesInCity.length === 0 ? (
+                        <p className="text-xs text-stone-400">No zones in selected city.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {zonesInCity.map(z => {
+                            const checked = editZoneIds.includes(z.id);
+                            return (
+                              <button
+                                key={z.id}
+                                type="button"
+                                onClick={() => setEditZoneIds(prev => checked ? prev.filter(id => id !== z.id) : [...prev, z.id])}
+                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${checked ? "bg-violet-100 border-violet-400 text-violet-800" : "border-stone-200 text-stone-500 hover:border-violet-300 hover:bg-violet-50"}`}
+                              >
+                                {z.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  {/* RP — cascading city → zone filter → cluster picker */}
+                  {editDesignation === "RP" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-semibold text-emerald-700">Clusters</p>
+                        {/* Zone filter within the city */}
+                        {zonesInCityForRP.length > 0 && (
+                          <select
+                            value={rpFilterZoneId}
+                            onChange={e => setRpFilterZoneId(e.target.value)}
+                            className="text-xs border border-emerald-200 rounded-lg px-2 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                          >
+                            <option value="">All zones{editCityId ? "" : " (select city first)"}</option>
+                            {zonesInCityForRP.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                          </select>
+                        )}
+                        {editClusterIds.length > 0 && (
+                          <span className="text-[10px] text-emerald-600 ml-auto">{editClusterIds.length} selected</span>
+                        )}
+                      </div>
+                      {!editCityId ? (
+                        <p className="text-xs text-stone-400">Select a city above to see clusters.</p>
+                      ) : clustersInView.length === 0 ? (
+                        <p className="text-xs text-stone-400">No clusters in {rpFilterZoneId ? "selected zone" : "this city"}.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                          {clustersInView.map(c => {
+                            const checked = editClusterIds.includes(c.id);
+                            const zoneName = zones.find(z => z.id === c.zoneId)?.name ?? "";
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => setEditClusterIds(prev => checked ? prev.filter(id => id !== c.id) : [...prev, c.id])}
+                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${checked ? "bg-emerald-100 border-emerald-400 text-emerald-800" : "border-stone-200 text-stone-500 hover:border-emerald-300 hover:bg-emerald-50"}`}
+                                title={zoneName}
+                              >
+                                {c.name}
+                                {!rpFilterZoneId && zoneName && <span className="opacity-50 ml-1">· {zoneName}</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {editError && <p className="text-xs text-red-500">{editError}</p>}
                 </div>
               )}
@@ -432,7 +545,6 @@ export default function UserManagementPage() {
                 {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {/* Role + Designation selector */}
             <div className="flex gap-1.5 flex-wrap">
               {ROLES.filter(r => r !== "super-admin" && (r !== "admin" || isSuperAdmin)).map(r => (
                 <button
