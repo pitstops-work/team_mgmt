@@ -140,12 +140,12 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
 
   const markRead = async (id: string) => {
     await fetch(`/api/notifications/${id}`, { method: "PATCH" });
-    setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setNotifications((ns) => ns.filter((n) => n.id !== id));
   };
 
   const markAllRead = async () => {
     await fetch("/api/notifications/read-all", { method: "POST" });
-    setNotifications((ns) => ns.map((n) => ({ ...n, read: true })));
+    setNotifications([]);
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -185,12 +185,8 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
             const inviteEventId = isInvite && n.link ? new URL(n.link, "http://x").searchParams.get("invite") : null;
 
             const inner = (
-              <div className={`flex items-start gap-3 px-4 py-3.5 rounded-lg border transition-colors ${
-                n.read
-                  ? "bg-white border-stone-100 text-stone-500"
-                  : "bg-sky-50 border-sky-100 text-stone-800"
-              }`}>
-                <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${n.read ? "bg-transparent" : "bg-sky-500"}`} />
+              <div className="flex items-start gap-3 px-4 py-3.5 rounded-lg border bg-sky-50 border-sky-100 text-stone-800 transition-colors">
+                <div className="mt-0.5 w-2 h-2 rounded-full flex-shrink-0 bg-sky-500" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-[10px] font-medium uppercase tracking-wide text-stone-400">
@@ -200,7 +196,7 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
                       {new Date(n.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
-                  <p className={`text-sm font-medium ${n.read ? "text-stone-600" : "text-stone-900"}`}>{n.title}</p>
+                  <p className="text-sm font-medium text-stone-900">{n.title}</p>
                   {n.body && <p className="text-xs text-stone-500 mt-0.5">{n.body}</p>}
                   {isFollowup && eventId && (
                     <ActivityFollowupActions
@@ -221,15 +217,13 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
                     />
                   )}
                 </div>
-                {!n.read && (
-                  <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); markRead(n.id); }}
-                    title="Mark as read"
-                    className="flex-shrink-0 p-1 text-stone-400 hover:text-sky-600 transition-colors"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); markRead(n.id); }}
+                  title="Mark as read"
+                  className="flex-shrink-0 p-1 text-stone-400 hover:text-sky-600 transition-colors"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
               </div>
             );
 
