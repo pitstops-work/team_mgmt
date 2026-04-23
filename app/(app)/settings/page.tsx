@@ -43,17 +43,26 @@ export default function SettingsPage() {
   ];
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/invite-code").then((r) => r.json()).then((d) => setCode(d.code)),
-      fetch("/api/users").then((r) => r.json()).then(setMembers),
-      fetch("/api/account/external-calendar").then((r) => r.json()).then((d) => {
-        if (d.url) setExternalCalUrl(d.url);
-      }),
+    const fetches: Promise<void>[] = [
       fetch("/api/account/language").then((r) => r.json()).then((d) => {
         if (d.lang) setPreferredLang(d.lang);
       }),
-    ]);
-  }, []);
+    ];
+    if (!isViewer) {
+      fetches.push(
+        fetch("/api/account/external-calendar").then((r) => r.json()).then((d) => {
+          if (d.url) setExternalCalUrl(d.url);
+        }),
+      );
+    }
+    if (isAdmin) {
+      fetches.push(
+        fetch("/api/invite-code").then((r) => r.json()).then((d) => setCode(d.code)),
+        fetch("/api/users").then((r) => r.json()).then(setMembers),
+      );
+    }
+    Promise.all(fetches);
+  }, [isAdmin, isViewer]);
 
   const handleSaveLang = async (lang: string) => {
     setLangSaving(true);
@@ -131,221 +140,59 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <h1 className="text-xl font-semibold text-stone-900 mb-8">Settings</h1>
 
-      {/* Non-language sections — hidden for viewers */}
-      {!isViewer && <>
-      <section className="mb-10">
-        <h2 className="text-sm font-semibold text-stone-700 mb-1">Field Coverage</h2>
-        <p className="text-xs text-stone-500 mb-3">Configure target formulas and entitlement schemes.</p>
-        <div className="space-y-2">
-          <Link
-            href="/settings/needs"
-            className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-          >
-            <Target className="w-4 h-4 text-sky-500" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-stone-800">Formulas &amp; Schemes</p>
-              <p className="text-xs text-stone-400">Target denominators · Entitlement scheme list</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-stone-300" />
-          </Link>
-          <Link
-            href="/settings/geography"
-            className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-          >
-            <Map className="w-4 h-4 text-sky-500" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-stone-800">Geography</p>
-              <p className="text-xs text-stone-400">Zones · clusters · settlements</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-stone-300" />
-          </Link>
-          <Link
-            href="/settings/map-features"
-            className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-          >
-            <Map className="w-4 h-4 text-indigo-500" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-stone-800">Map Features</p>
-              <p className="text-xs text-stone-400">Centre points · settlement polygons</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-stone-300" />
-          </Link>
-        </div>
-      </section>
-
-      {/* User management + template builder — admin only */}
-      {isAdmin && (
+      {/* Change Password — shown to all non-viewers */}
+      {!isViewer && (
         <section className="mb-10">
-          <h2 className="text-sm font-semibold text-stone-700 mb-1">Administration</h2>
-          <p className="text-xs text-stone-500 mb-3">Admin-only tools — not visible to other members.</p>
-          <div className="space-y-2">
-            <Link
-              href="/settings/users"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">User Management</p>
-                <p className="text-xs text-stone-400">Add · delete · reset passwords</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            <Link
-              href="/settings/templates"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <LayoutTemplate className="w-4 h-4 text-violet-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Goal Templates</p>
-                <p className="text-xs text-stone-400">Edit pitstops · checklists · SLAs · parameters</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
+          <div className="flex items-center gap-2 mb-1">
+            <KeyRound className="w-4 h-4 text-stone-400" />
+            <h2 className="text-sm font-semibold text-stone-700">Change Password</h2>
           </div>
+          <p className="text-xs text-stone-500 mb-4">
+            Enter your current password to set a new one.
+          </p>
+
+          <form onSubmit={handleChangePassword} className="space-y-3 max-w-sm">
+            <input
+              type="password"
+              placeholder="Current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+            />
+            <input
+              type="password"
+              placeholder="New password (min 8 characters)"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={8}
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+            />
+            <input
+              type="password"
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+            />
+
+            {pwError && <p className="text-xs text-red-500">{pwError}</p>}
+            {pwSuccess && <p className="text-xs text-emerald-600">Password updated successfully.</p>}
+
+            <button
+              type="submit"
+              disabled={pwSaving}
+              className="px-4 py-2 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+            >
+              {pwSaving ? "Saving…" : "Update password"}
+            </button>
+          </form>
         </section>
       )}
 
-      {/* Invite code */}
-      <section className="mb-10">
-        <h2 className="text-sm font-semibold text-stone-700 mb-1">Invite Code</h2>
-        <p className="text-xs text-stone-500 mb-4">
-          Share this code with people you want to invite. They'll need it to register.
-          Rotating the code prevents new signups with the old code.
-        </p>
-
-        <div className="flex items-center gap-3">
-          <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl">
-            <span className="font-mono text-lg font-semibold text-stone-900 tracking-widest">
-              {code ?? "Loading..."}
-            </span>
-          </div>
-
-          <button
-            onClick={handleCopy}
-            disabled={!code}
-            className="flex items-center gap-1.5 px-3 py-2.5 text-sm border border-stone-200 rounded-xl hover:bg-stone-50 transition-colors disabled:opacity-40"
-            title="Copy code"
-          >
-            {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-stone-500" />}
-            <span className="text-stone-600">{copied ? "Copied" : "Copy"}</span>
-          </button>
-
-          <button
-            onClick={handleRotate}
-            disabled={rotating || !code}
-            className="flex items-center gap-1.5 px-3 py-2.5 text-sm border border-stone-200 rounded-xl hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-40"
-            title="Rotate code"
-          >
-            <RefreshCw className={`w-4 h-4 ${rotating ? "animate-spin" : ""}`} />
-            <span>Rotate</span>
-          </button>
-        </div>
-      </section>
-
-      {/* Change Password */}
-      <section className="mb-10">
-        <div className="flex items-center gap-2 mb-1">
-          <KeyRound className="w-4 h-4 text-stone-400" />
-          <h2 className="text-sm font-semibold text-stone-700">Change Password</h2>
-        </div>
-        <p className="text-xs text-stone-500 mb-4">
-          Enter your current password to set a new one.
-        </p>
-
-        <form onSubmit={handleChangePassword} className="space-y-3 max-w-sm">
-          <input
-            type="password"
-            placeholder="Current password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
-          />
-          <input
-            type="password"
-            placeholder="New password (min 8 characters)"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength={8}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
-          />
-          <input
-            type="password"
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
-          />
-
-          {pwError && <p className="text-xs text-red-500">{pwError}</p>}
-          {pwSuccess && <p className="text-xs text-emerald-600">Password updated successfully.</p>}
-
-          <button
-            type="submit"
-            disabled={pwSaving}
-            className="px-4 py-2 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
-          >
-            {pwSaving ? "Saving…" : "Update password"}
-          </button>
-        </form>
-      </section>
-
-      {/* External Calendar */}
-      <section className="mb-10">
-        <div className="flex items-center gap-2 mb-1">
-          <CalendarDays className="w-4 h-4 text-stone-400" />
-          <h2 className="text-sm font-semibold text-stone-700">My Outlook / Google Calendar</h2>
-        </div>
-        <p className="text-xs text-stone-500 mb-4">
-          Paste your calendar&apos;s iCal (.ics) subscription URL here. Your personal events will appear
-          in grey on the Activities calendar — read-only, visible only to you.
-        </p>
-        <details className="mb-3 text-xs text-stone-400 group">
-          <summary className="cursor-pointer hover:text-stone-600 select-none">How to get the URL from Outlook</summary>
-          <ol className="mt-2 space-y-1 pl-4 list-decimal text-stone-500">
-            <li>Open <strong>Outlook on the web</strong> (outlook.office.com or outlook.live.com)</li>
-            <li>Go to <strong>Calendar → Settings (gear icon) → View all Outlook settings</strong></li>
-            <li>Select <strong>Calendar → Shared calendars</strong></li>
-            <li>Under <strong>Publish a calendar</strong>, choose your calendar and set permissions to <em>Can view all details</em></li>
-            <li>Click <strong>Publish</strong> — copy the <strong>ICS</strong> link (not the HTML one)</li>
-          </ol>
-        </details>
-        <form onSubmit={handleSaveCalUrl} className="space-y-3 max-w-lg">
-          <input
-            type="url"
-            placeholder="https://outlook.live.com/owa/calendar/…/calendar.ics"
-            value={externalCalUrl}
-            onChange={(e) => { setExternalCalUrl(e.target.value); setCalSuccess(false); }}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white font-mono"
-          />
-          {calError && <p className="text-xs text-red-500">{calError}</p>}
-          {calSuccess && <p className="text-xs text-emerald-600">Calendar URL saved. Your events will appear on Activities.</p>}
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={calSaving}
-              className="px-4 py-2 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
-            >
-              {calSaving ? "Saving…" : "Save"}
-            </button>
-            {externalCalUrl && (
-              <button
-                type="button"
-                onClick={() => { setExternalCalUrl(""); setCalSuccess(false); }}
-                className="px-4 py-2 text-sm text-stone-500 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </form>
-      </section>
-
-      </>}
-
-      {/* Language */}
+      {/* Language — shown to everyone */}
       <section className="mb-10">
         <div className="flex items-center gap-2 mb-1">
           <Languages className="w-4 h-4 text-stone-400" />
@@ -377,26 +224,183 @@ export default function SettingsPage() {
         {langSuccess && <p className="text-xs text-emerald-600 mt-3">Language preference saved.</p>}
       </section>
 
-      {/* Members */}
-      {!isViewer && <section>
-        <div className="flex items-center gap-2 mb-4">
-          <Users className="w-4 h-4 text-stone-400" />
-          <h2 className="text-sm font-semibold text-stone-700">Members</h2>
-          <span className="text-xs text-stone-400">({members.length})</span>
-        </div>
-
-        <div className="space-y-1">
-          {members.map((m) => (
-            <div key={m.id} className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-lg">
-              <Avatar name={m.name} image={m.image} size="sm" />
+      {/* Admin-only sections */}
+      {isAdmin && <>
+        <section className="mb-10">
+          <h2 className="text-sm font-semibold text-stone-700 mb-1">Field Coverage</h2>
+          <p className="text-xs text-stone-500 mb-3">Configure target formulas and entitlement schemes.</p>
+          <div className="space-y-2">
+            <Link
+              href="/settings/needs"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <Target className="w-4 h-4 text-sky-500" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800 truncate">{m.name ?? "—"}</p>
-                <p className="text-xs text-stone-400 truncate">{m.email}</p>
+                <p className="text-sm font-medium text-stone-800">Formulas &amp; Schemes</p>
+                <p className="text-xs text-stone-400">Target denominators · Entitlement scheme list</p>
               </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+            <Link
+              href="/settings/geography"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <Map className="w-4 h-4 text-sky-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">Geography</p>
+                <p className="text-xs text-stone-400">Zones · clusters · settlements</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+            <Link
+              href="/settings/map-features"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <Map className="w-4 h-4 text-indigo-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">Map Features</p>
+                <p className="text-xs text-stone-400">Centre points · settlement polygons</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-sm font-semibold text-stone-700 mb-1">Administration</h2>
+          <p className="text-xs text-stone-500 mb-3">Admin-only tools — not visible to other members.</p>
+          <div className="space-y-2">
+            <Link
+              href="/settings/users"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">User Management</p>
+                <p className="text-xs text-stone-400">Add · delete · reset passwords</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+            <Link
+              href="/settings/templates"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <LayoutTemplate className="w-4 h-4 text-violet-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">Goal Templates</p>
+                <p className="text-xs text-stone-400">Edit pitstops · checklists · SLAs · parameters</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-sm font-semibold text-stone-700 mb-1">Invite Code</h2>
+          <p className="text-xs text-stone-500 mb-4">
+            Share this code with people you want to invite. They&apos;ll need it to register.
+            Rotating the code prevents new signups with the old code.
+          </p>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl">
+              <span className="font-mono text-lg font-semibold text-stone-900 tracking-widest">
+                {code ?? "Loading..."}
+              </span>
             </div>
-          ))}
-        </div>
-      </section>}
+
+            <button
+              onClick={handleCopy}
+              disabled={!code}
+              className="flex items-center gap-1.5 px-3 py-2.5 text-sm border border-stone-200 rounded-xl hover:bg-stone-50 transition-colors disabled:opacity-40"
+              title="Copy code"
+            >
+              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-stone-500" />}
+              <span className="text-stone-600">{copied ? "Copied" : "Copy"}</span>
+            </button>
+
+            <button
+              onClick={handleRotate}
+              disabled={rotating || !code}
+              className="flex items-center gap-1.5 px-3 py-2.5 text-sm border border-stone-200 rounded-xl hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-40"
+              title="Rotate code"
+            >
+              <RefreshCw className={`w-4 h-4 ${rotating ? "animate-spin" : ""}`} />
+              <span>Rotate</span>
+            </button>
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <div className="flex items-center gap-2 mb-1">
+            <CalendarDays className="w-4 h-4 text-stone-400" />
+            <h2 className="text-sm font-semibold text-stone-700">My Outlook / Google Calendar</h2>
+          </div>
+          <p className="text-xs text-stone-500 mb-4">
+            Paste your calendar&apos;s iCal (.ics) subscription URL here. Your personal events will appear
+            in grey on the Activities calendar — read-only, visible only to you.
+          </p>
+          <details className="mb-3 text-xs text-stone-400 group">
+            <summary className="cursor-pointer hover:text-stone-600 select-none">How to get the URL from Outlook</summary>
+            <ol className="mt-2 space-y-1 pl-4 list-decimal text-stone-500">
+              <li>Open <strong>Outlook on the web</strong> (outlook.office.com or outlook.live.com)</li>
+              <li>Go to <strong>Calendar → Settings (gear icon) → View all Outlook settings</strong></li>
+              <li>Select <strong>Calendar → Shared calendars</strong></li>
+              <li>Under <strong>Publish a calendar</strong>, choose your calendar and set permissions to <em>Can view all details</em></li>
+              <li>Click <strong>Publish</strong> — copy the <strong>ICS</strong> link (not the HTML one)</li>
+            </ol>
+          </details>
+          <form onSubmit={handleSaveCalUrl} className="space-y-3 max-w-lg">
+            <input
+              type="url"
+              placeholder="https://outlook.live.com/owa/calendar/…/calendar.ics"
+              value={externalCalUrl}
+              onChange={(e) => { setExternalCalUrl(e.target.value); setCalSuccess(false); }}
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white font-mono"
+            />
+            {calError && <p className="text-xs text-red-500">{calError}</p>}
+            {calSuccess && <p className="text-xs text-emerald-600">Calendar URL saved. Your events will appear on Activities.</p>}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={calSaving}
+                className="px-4 py-2 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+              >
+                {calSaving ? "Saving…" : "Save"}
+              </button>
+              {externalCalUrl && (
+                <button
+                  type="button"
+                  onClick={() => { setExternalCalUrl(""); setCalSuccess(false); }}
+                  className="px-4 py-2 text-sm text-stone-500 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </form>
+        </section>
+
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="w-4 h-4 text-stone-400" />
+            <h2 className="text-sm font-semibold text-stone-700">Members</h2>
+            <span className="text-xs text-stone-400">({members.length})</span>
+          </div>
+
+          <div className="space-y-1">
+            {members.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-lg">
+                <Avatar name={m.name} image={m.image} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800 truncate">{m.name ?? "—"}</p>
+                  <p className="text-xs text-stone-400 truncate">{m.email}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </>}
     </div>
   );
 }

@@ -6,6 +6,17 @@ export default async function PlannerPage() {
   const session = await auth();
   const currentUserId = session!.user!.id!;
 
+  const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { designation: true } });
+  const designation = me?.designation ?? "Other";
+
+  let teamIds: string[] = [currentUserId];
+  if (designation === "ZL") {
+    const team = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
+    teamIds = [currentUserId, ...team.map(m => m.id)];
+  }
+  // RP only sees themselves; ZL sees self + team; others see all
+  const userFilter = (designation === "RP" || designation === "ZL") ? { id: { in: teamIds } } : {};
+
   const now = new Date();
   const m = now.getMonth(); // 0-indexed
   // FY Q1=Apr–Jun(3–5), Q2=Jul–Sep(6–8), Q3=Oct–Dec(9–11), Q4=Jan–Mar(0–2)
@@ -23,6 +34,7 @@ export default async function PlannerPage() {
   const [users, pitstops, activities, planItems] = await Promise.all([
     // All users (for manager person picker)
     prisma.user.findMany({
+      where: userFilter,
       select: { id: true, name: true, image: true, email: true },
       orderBy: { name: "asc" },
     }),
