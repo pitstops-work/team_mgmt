@@ -138,10 +138,11 @@ export default async function HomePage() {
 
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    select: { name: true, designation: true, role: true },
+    select: { name: true, designation: true },
   });
   const designation = me?.designation ?? "Other";
-  const role = me?.role ?? "member";
+  // Use session role — auth stamps super-admin by ADMIN_EMAIL, which may differ from DB value
+  const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
 
   // Team IDs: ZL includes her reports
   let teamIds: string[] = [userId];
@@ -337,7 +338,7 @@ export default async function HomePage() {
   // ── Admin pilot dashboard data ────────────────────────────────────────────
   let adminDash: AdminDash | null = null;
 
-  if (role === "super-admin") {
+  if (isSuperAdmin) {
     const monthStart = new Date(now);
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
