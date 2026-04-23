@@ -121,10 +121,12 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
             <ClipboardList className="w-3.5 h-3.5 text-stone-500" />
             Field Notes
           </NavLink>
-          <NavLink href="/themes" active={pathname.startsWith("/themes")}>
-            <Tag className="w-3.5 h-3.5 text-stone-500" />
-            Themes
-          </NavLink>
+          {!isRP && !isZL && (
+            <NavLink href="/themes" active={pathname.startsWith("/themes")}>
+              <Tag className="w-3.5 h-3.5 text-stone-500" />
+              Themes
+            </NavLink>
+          )}
 
           <div className="h-px bg-stone-100 my-2" />
 
@@ -278,7 +280,7 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
                 { href: "/review",  icon: <ClipboardCheck className="w-5 h-5" />, label: "Review",          show: !isRP },
                 { href: "/report",  icon: <FileText className="w-5 h-5" />,    label: "Report",              show: !isRP },
                 { href: "/standup", icon: <ClipboardList className="w-5 h-5" />, label: "Field Notes",      show: true },
-                { href: "/themes",  icon: <Tag className="w-5 h-5" />,         label: "Themes",              show: true },
+                { href: "/themes",  icon: <Tag className="w-5 h-5" />,         label: "Themes",              show: !isRP && !isZL },
               ] as { href: string; icon: React.ReactNode; label: string; show: boolean }[])
                 .filter(i => i.show)
                 .map(item => (
