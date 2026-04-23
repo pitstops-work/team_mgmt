@@ -45,9 +45,9 @@ const DESIGNATION_STYLE: Record<Designation, string> = {
 
 // Which designations can manage which
 const REPORTS_TO_FILTER: Partial<Record<Designation, Designation[]>> = {
-  RP: ["ZL", "Leader"],
+  RP: ["ZL", "PM", "Leader"],
   ZL: ["PM", "Leader"],
-  PM: ["Leader"],
+  PM: ["PM", "Leader"],
 };
 
 export default function UserManagementPage() {
@@ -436,7 +436,7 @@ export default function UserManagementPage() {
                   {/* Reports To — shown for RP, ZL, PM */}
                   {editDesignation in REPORTS_TO_FILTER && (() => {
                     const allowedDesigs = REPORTS_TO_FILTER[editDesignation as keyof typeof REPORTS_TO_FILTER]!;
-                    const label = editDesignation === "RP" ? "Reports To (Zone Lead)" : editDesignation === "ZL" ? "Reports To (PM / Leader)" : "Reports To (Leader)";
+                    const label = editDesignation === "RP" ? "Reports To (ZL / PM / Leader)" : editDesignation === "ZL" ? "Reports To (PM / Leader)" : "Reports To (PM / Leader)";
                     const managers = users.filter(m => allowedDesigs.includes(m.designation as Designation));
                     return (
                       <div>

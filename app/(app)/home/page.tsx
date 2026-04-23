@@ -136,6 +136,8 @@ export default async function HomePage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const todayLabel = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
+  const role = (session as { user?: { role?: string } })?.user?.role ?? "member";
+
   const me = await prisma.user.findUnique({
     where: { id: userId },
     select: { name: true, designation: true },
@@ -336,7 +338,7 @@ export default async function HomePage() {
   // ── Admin pilot dashboard data ────────────────────────────────────────────
   let adminDash: AdminDash | null = null;
 
-  if (!isScoped) {
+  if (role === "super-admin") {
     const monthStart = new Date(now);
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
