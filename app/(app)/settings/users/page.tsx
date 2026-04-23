@@ -19,6 +19,7 @@ interface User {
   designation: string;
   createdAt: string;
   cityId: string | null;
+  reportsToId: string | null;
 }
 
 const ROLES = ["super-admin", "admin", "member", "viewer"] as const;
@@ -61,6 +62,7 @@ export default function UserManagementPage() {
   const [editCityId, setEditCityId] = useState<string>("");
   const [editZoneIds, setEditZoneIds] = useState<string[]>([]);
   const [editClusterIds, setEditClusterIds] = useState<string[]>([]);
+  const [editReportsToId, setEditReportsToId] = useState<string>("");
   // Cascading geo filter for RP cluster picker
   const [rpFilterZoneId, setRpFilterZoneId] = useState<string>("");
   const [editError, setEditError] = useState("");
@@ -116,6 +118,7 @@ export default function UserManagementPage() {
     setEditCityId(u.cityId ?? "");
     setEditZoneIds(zones.filter(z => z.leadId === u.id).map(z => z.id));
     setEditClusterIds(clusters.filter(c => c.rps.some(r => r.id === u.id)).map(c => c.id));
+    setEditReportsToId(u.reportsToId ?? "");
     setRpFilterZoneId("");
     setEditError("");
   }
@@ -139,12 +142,13 @@ export default function UserManagementPage() {
         designation: editDesignation,
         zoneIds: editDesignation === "ZL" || editDesignation === "PM" ? editZoneIds : [],
         clusterIds: editDesignation === "RP" ? editClusterIds : [],
+        reportsToId: editDesignation === "RP" ? (editReportsToId || null) : null,
       }),
     });
     const data = await res.json();
     setEditSaving(false);
     if (!res.ok) { setEditError(data.error ?? "Failed"); return; }
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data } : u));
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data, reportsToId: data.reportsToId ?? u.reportsToId } : u));
     setZones(prev => prev.map(z => {
       if (editZoneIds.includes(z.id)) return { ...z, leadId: id };
       if (z.leadId === id) return { ...z, leadId: null };
@@ -287,6 +291,7 @@ export default function UserManagementPage() {
                       {u.cityId && <span className="text-sky-400">{cities.find(c => c.id === u.cityId)?.name ?? ""}</span>}
                       {userZones.map(z => <span key={z.id} className="text-violet-400">{z.name} zone</span>)}
                       {userClusters.map(c => <span key={c.id} className="text-emerald-400">{c.name}</span>)}
+                      {u.reportsToId && <span className="text-amber-400">→ {users.find(m => m.id === u.reportsToId)?.name ?? "unknown"}</span>}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -417,6 +422,23 @@ export default function UserManagementPage() {
                           })}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* RP — Reports To (ZL) */}
+                  {editDesignation === "RP" && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-amber-700 mb-1.5">Reports To (Zone Lead)</p>
+                      <select
+                        value={editReportsToId}
+                        onChange={e => setEditReportsToId(e.target.value)}
+                        className="text-sm border border-amber-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 w-full max-w-xs"
+                      >
+                        <option value="">— none —</option>
+                        {users.filter(m => m.designation === "ZL").map(m => (
+                          <option key={m.id} value={m.id}>{m.name ?? m.email}</option>
+                        ))}
+                      </select>
                     </div>
                   )}
 

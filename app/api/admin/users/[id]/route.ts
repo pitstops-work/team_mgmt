@@ -15,7 +15,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { name, email, role, cityId, designation, zoneIds, clusterIds } = await req.json();
+  const { name, email, role, cityId, designation, zoneIds, clusterIds, reportsToId } = await req.json();
 
   if (role && !VALID_ROLES.includes(role)) {
     return Response.json({ error: "Invalid role" }, { status: 400 });
@@ -57,8 +57,9 @@ export async function PATCH(
       ...(role && { role }),
       ...(cityId !== undefined && { cityId: cityId || null }),
       ...(designation && { designation }),
+      ...(reportsToId !== undefined && { reportsToId: reportsToId || null }),
     },
-    select: { id: true, name: true, email: true, role: true, designation: true, createdAt: true, image: true, cityId: true },
+    select: { id: true, name: true, email: true, role: true, designation: true, createdAt: true, image: true, cityId: true, reportsToId: true },
   });
 
   // Update zone lead assignments if provided (ZL/PM)

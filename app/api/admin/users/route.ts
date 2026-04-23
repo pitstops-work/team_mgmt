@@ -11,7 +11,7 @@ export async function GET() {
 
   const [users, allCities, zones, clusters] = await Promise.all([
     prisma.user.findMany({
-      select: { id: true, name: true, email: true, image: true, role: true, designation: true, createdAt: true, cityId: true },
+      select: { id: true, name: true, email: true, image: true, role: true, designation: true, createdAt: true, cityId: true, reportsToId: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.city.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
