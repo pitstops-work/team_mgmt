@@ -26,9 +26,8 @@ export default async function DashboardPage({
     const team = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
     teamIds = [currentUserId, ...team.map(m => m.id)];
   }
-  const ownerFilter = (designation === "RP" || designation === "ZL")
-    ? { ownerId: { in: teamIds } }
-    : {};
+  const isScoped = designation === "RP" || designation === "ZL";
+  const ownerFilter = isScoped ? { ownerId: { in: teamIds } } : {};
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
     prisma.goal.findMany({
@@ -167,38 +166,45 @@ export default async function DashboardPage({
         _count: { id: true },
       }),
 
-      // Done pitstops this month
+      // Done pitstops this month (scoped to team for RP/ZL)
       prisma.pitstop.count({
         where: {
           deletedAt: null,
           status: "Done",
           completedAt: { gte: monthStart },
           goal: { deletedAt: null },
+          ...ownerFilter,
         },
       }),
 
-      // Clusters (goals attached via direct FK on Goal)
+      // Clusters — scoped to ZL's zone, all for others
       prisma.cluster.findMany({
+        where: designation === "ZL" ? { zone: { leadId: currentUserId } } : {},
         select: { id: true, name: true, zone: { select: { name: true } } },
       }),
 
-      // Zones (goals attached via direct FK on Goal)
+      // Zones — scoped to ZL's assigned zone, all for others
       prisma.zone.findMany({
+        where: designation === "ZL" ? { leadId: currentUserId } : {},
         select: { id: true, name: true },
       }),
 
-      // Goals with geo FKs + pitstops (for cluster/zone performance)
+      // Goals with geo FKs + pitstops (scoped to team for RP/ZL)
       prisma.goal.findMany({
-        where: { deletedAt: null, ...cityFilter },
+        where: { deletedAt: null, ...cityFilter, ...ownerFilter },
         select: {
           id: true, needsClusterId: true, needsZoneId: true,
           pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
         },
       }),
 
-      // Recent activity feed (status changes)
+      // Recent activity feed — scoped to team for RP/ZL
       prisma.auditLog.findMany({
-        where: { action: "status_change", entityType: "Pitstop" },
+        where: {
+          action: "status_change",
+          entityType: "Pitstop",
+          ...(isScoped ? { userId: { in: teamIds } } : {}),
+        },
         orderBy: { createdAt: "desc" },
         take: 15,
         select: {

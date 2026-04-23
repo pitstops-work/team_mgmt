@@ -89,7 +89,7 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
             <CalendarRange className="w-3.5 h-3.5 text-stone-500" />
             Quarters
           </NavLink>
-          {!isRP && (
+          {!isRP && !isZL && (
             <NavLink href="/programs" active={pathname.startsWith("/programs")}>
               <Layers className="w-3.5 h-3.5 text-stone-500" />
               Programs
@@ -105,13 +105,13 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
               People
             </NavLink>
           )}
-          {!isRP && (
+          {!isRP && !isZL && (
             <NavLink href="/review" active={pathname === "/review"}>
               <ClipboardCheck className="w-3.5 h-3.5 text-stone-500" />
               Review
             </NavLink>
           )}
-          {!isRP && (
+          {!isRP && !isZL && (
             <NavLink href="/report" active={pathname === "/report"}>
               <FileText className="w-3.5 h-3.5 text-stone-500" />
               Report
@@ -260,7 +260,7 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
                 { href: "/gantt",    icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart", show: true },
                 { href: "/planner",  icon: <BookOpen className="w-5 h-5" />,         label: "Planner",     show: true },
                 { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />,    label: "Quarters",    show: true },
-                { href: "/programs", icon: <Layers className="w-5 h-5" />,           label: "Programs",    show: !isRP },
+                { href: "/programs", icon: <Layers className="w-5 h-5" />,           label: "Programs",    show: !isRP && !isZL },
               ] as { href: string; icon: React.ReactNode; label: string; show: boolean }[])
                 .filter(i => i.show)
                 .map(item => (
@@ -277,8 +277,8 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
               {/* People & work */}
               {([
                 { href: "/people",  icon: <Users className="w-5 h-5" />,       label: "People",             show: !isRP },
-                { href: "/review",  icon: <ClipboardCheck className="w-5 h-5" />, label: "Review",          show: !isRP },
-                { href: "/report",  icon: <FileText className="w-5 h-5" />,    label: "Report",              show: !isRP },
+                { href: "/review",  icon: <ClipboardCheck className="w-5 h-5" />, label: "Review",          show: !isRP && !isZL },
+                { href: "/report",  icon: <FileText className="w-5 h-5" />,    label: "Report",              show: !isRP && !isZL },
                 { href: "/standup", icon: <ClipboardList className="w-5 h-5" />, label: "Field Notes",      show: true },
                 { href: "/themes",  icon: <Tag className="w-5 h-5" />,         label: "Themes",              show: !isRP && !isZL },
               ] as { href: string; icon: React.ReactNode; label: string; show: boolean }[])

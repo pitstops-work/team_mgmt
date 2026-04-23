@@ -3,10 +3,24 @@ import prisma from "@/lib/prisma";
 import PeopleDashboard from "./PeopleDashboard";
 
 export default async function PeoplePage() {
-  await auth();
+  const session = await auth();
+  const currentUserId = session!.user!.id!;
+
+  const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { designation: true } });
+  const designation = me?.designation ?? "Other";
+
+  let teamIds: string[] = [];
+  if (designation === "ZL") {
+    const team = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
+    teamIds = [currentUserId, ...team.map(m => m.id)];
+  }
+  const isScoped = designation === "ZL";
+  const userFilter = isScoped ? { id: { in: teamIds } } : {};
+  const ownerFilter = isScoped ? { ownerId: { in: teamIds } } : {};
 
   const [users, goals, partners] = await Promise.all([
     prisma.user.findMany({
+      where: userFilter,
       select: {
         id: true,
         name: true,
@@ -28,7 +42,7 @@ export default async function PeoplePage() {
       orderBy: { name: "asc" },
     }),
     prisma.goal.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, ...ownerFilter },
       select: { id: true, title: true, status: true, targetDate: true },
       orderBy: { title: "asc" },
     }),
