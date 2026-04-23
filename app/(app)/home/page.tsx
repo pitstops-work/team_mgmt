@@ -91,6 +91,8 @@ export default async function HomePage() {
     teamIds = [userId, ...teamMembers.map(m => m.id)];
   }
 
+  const isScoped = designation === "RP" || designation === "ZL";
+
   const [
     todayActivities,
     weekActivities,
@@ -99,23 +101,23 @@ export default async function HomePage() {
     domainConfigs,
     myZone,
   ] = await Promise.all([
-    // Today's activities for current user
+    // Today's activities — own for RP/ZL, all for others
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
         scheduledAt: { gte: todayStart, lte: todayEnd },
-        attendees: { some: { userId } },
+        ...(isScoped ? { attendees: { some: { userId } } } : {}),
       },
       select: { id: true, title: true, type: true, scheduledAt: true, location: true, status: true },
       orderBy: { scheduledAt: "asc" },
     }),
 
-    // This week's activities (own for RP, team for ZL)
+    // This week's activities — own/team for RP/ZL, all for others
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
         scheduledAt: { gte: weekStart, lte: weekEnd },
-        attendees: { some: { userId: { in: teamIds } } },
+        ...(isScoped ? { attendees: { some: { userId: { in: teamIds } } } } : {}),
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
@@ -124,12 +126,12 @@ export default async function HomePage() {
       orderBy: { scheduledAt: "asc" },
     }),
 
-    // Open checklist items on pitstops owned by user/team
+    // Open checklist items — own/team for RP/ZL, all for others
     prisma.checklistItem.findMany({
       where: {
         status: { notIn: ["Done", "Cancelled"] },
         pitstop: {
-          ownerId: { in: teamIds },
+          ...(isScoped ? { ownerId: { in: teamIds } } : {}),
           deletedAt: null,
           goal: { deletedAt: null },
         },
@@ -146,11 +148,12 @@ export default async function HomePage() {
         },
       },
       orderBy: { order: "asc" },
+      take: 50,
     }),
 
-    // Goals owned by user (RP) or team (ZL)
+    // Goals — own/team for RP/ZL, all for others
     prisma.goal.findMany({
-      where: { deletedAt: null, ownerId: { in: teamIds } },
+      where: { deletedAt: null, ...(isScoped ? { ownerId: { in: teamIds } } : {}) },
       select: {
         id: true, title: true, status: true, needsDomain: true,
         needsClusterId: true, needsZoneId: true,
@@ -160,6 +163,7 @@ export default async function HomePage() {
         pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
       },
       orderBy: { updatedAt: "desc" },
+      take: 100,
     }),
 
     // Domain labels for coverage tab

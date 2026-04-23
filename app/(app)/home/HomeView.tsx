@@ -468,24 +468,25 @@ function GoalsTab({
   }
 
   // RP / default: flat list grouped by status
+  const showOwner = designation !== "RP";
   return (
     <div className="space-y-6">
       {active.length > 0 && (
         <div>
           <SectionTitle>Active ({active.length})</SectionTitle>
-          <div className="space-y-2">{active.map(g => <GoalRow key={g.id} goal={g} />)}</div>
+          <div className="space-y-2">{active.map(g => <GoalRow key={g.id} goal={g} showOwner={showOwner} />)}</div>
         </div>
       )}
       {paused.length > 0 && (
         <div>
           <SectionTitle>Paused ({paused.length})</SectionTitle>
-          <div className="space-y-2">{paused.map(g => <GoalRow key={g.id} goal={g} />)}</div>
+          <div className="space-y-2">{paused.map(g => <GoalRow key={g.id} goal={g} showOwner={showOwner} />)}</div>
         </div>
       )}
       {complete.length > 0 && (
         <div>
           <SectionTitle>Complete ({complete.length})</SectionTitle>
-          <div className="space-y-2">{complete.slice(0, 5).map(g => <GoalRow key={g.id} goal={g} />)}</div>
+          <div className="space-y-2">{complete.slice(0, 5).map(g => <GoalRow key={g.id} goal={g} showOwner={showOwner} />)}</div>
           {complete.length > 5 && (
             <Link href="/dashboard" className="text-xs text-sky-500 hover:text-sky-700 mt-1 block px-1">
               +{complete.length - 5} more completed goals
