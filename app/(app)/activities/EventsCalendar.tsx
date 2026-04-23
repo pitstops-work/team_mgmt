@@ -13,7 +13,7 @@ type PitstopRef = {
   owner: PitstopOwner;
   goal: { id: string; title: string };
 };
-type Attendee = { id: string; userId: string; user: User };
+type Attendee = { id: string; userId: string; status: string; user: User };
 type PitstopEvent = {
   id: string;
   title: string;
@@ -733,7 +733,7 @@ function NeedsActionPanel({ events, currentUserId, onUpdated }: {
 type ZoneGeo    = { id: string; name: string; goals: { goalId: string }[] };
 type ClusterGeo = { id: string; name: string; zone: { name: string }; goals: { goalId: string }[] };
 
-export default function EventsCalendar({ events: initialEvents, pitstops, users, currentUserId, zones = [], clusters = [], calendarToken = null }: {
+export default function EventsCalendar({ events: initialEvents, pitstops, users, currentUserId, zones = [], clusters = [], calendarToken = null, inviteEventId = null }: {
   events: PitstopEvent[];
   pitstops: PitstopRef[];
   users: User[];
@@ -741,6 +741,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   zones?: ZoneGeo[];
   clusters?: ClusterGeo[];
   calendarToken?: string | null;
+  inviteEventId?: string | null;
 }) {
   const today = new Date(); today.setHours(12, 0, 0, 0);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -756,6 +757,14 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   const [copied, setCopied] = useState(false);
   const subscribeRef = useRef<HTMLDivElement>(null);
   const [externalEvents, setExternalEvents] = useState<ExternalCalEvent[]>([]);
+  const [inviteBanner, setInviteBanner] = useState<{ event: PitstopEvent; state: "idle" | "loading" | "accepted" | "declined" } | null>(() => {
+    if (!inviteEventId) return null;
+    const ev = initialEvents.find(e => e.id === inviteEventId);
+    if (!ev) return null;
+    const att = ev.attendees.find(a => a.userId === currentUserId);
+    if (!att || att.status !== "pending") return null;
+    return { event: ev, state: "idle" };
+  });
 
   // Close subscribe panel on outside click
   useEffect(() => {
@@ -899,8 +908,65 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
 
   const hasFilters = selectedUsers.size > 0 || selectedGoals.size > 0 || !!geoFilter;
 
+  const respondToInvite = async (action: "accept" | "decline") => {
+    if (!inviteBanner) return;
+    setInviteBanner(b => b ? { ...b, state: "loading" } : null);
+    const res = await fetch(`/api/pitstop-events/${inviteBanner.event.id}/attendance`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) { setInviteBanner(b => b ? { ...b, state: "idle" } : null); return; }
+    setInviteBanner(b => b ? { ...b, state: action === "accept" ? "accepted" : "declined" } : null);
+    setEvents(evs => evs.map(e => e.id === inviteBanner.event.id
+      ? { ...e, attendees: e.attendees.map(a => a.userId === currentUserId ? { ...a, status: action === "accept" ? "accepted" : "declined" } : a) }
+      : e
+    ));
+  };
+
   return (
     <div className="flex flex-col h-full">
+      {/* Invite banner */}
+      {inviteBanner && inviteBanner.state !== "accepted" && inviteBanner.state !== "declined" && (
+        <div className="mx-4 sm:mx-6 mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-amber-800">You&apos;ve been invited to an activity</p>
+            <p className="text-sm font-medium text-stone-800 truncate">{inviteBanner.event.title}</p>
+            <p className="text-xs text-stone-500">{fmtDate(inviteBanner.event.scheduledAt)} · by {inviteBanner.event.createdBy.name}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {inviteBanner.state === "loading" ? (
+              <span className="text-xs text-stone-400">Saving…</span>
+            ) : (
+              <>
+                <button onClick={() => respondToInvite("accept")}
+                  className="px-3 py-1.5 text-xs rounded-md bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors">
+                  Accept
+                </button>
+                <button onClick={() => respondToInvite("decline")}
+                  className="px-3 py-1.5 text-xs rounded-md bg-stone-100 hover:bg-stone-200 text-stone-600 font-medium transition-colors">
+                  Decline
+                </button>
+              </>
+            )}
+            <button onClick={() => setInviteBanner(null)} className="text-stone-400 hover:text-stone-600 p-1">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+      {inviteBanner?.state === "accepted" && (
+        <div className="mx-4 sm:mx-6 mt-4 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between">
+          <p className="text-xs text-emerald-700 font-medium">✓ You&apos;re going to &quot;{inviteBanner.event.title}&quot;</p>
+          <button onClick={() => setInviteBanner(null)} className="text-emerald-400 hover:text-emerald-600 p-1"><X className="w-3 h-3" /></button>
+        </div>
+      )}
+      {inviteBanner?.state === "declined" && (
+        <div className="mx-4 sm:mx-6 mt-4 px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-lg flex items-center justify-between">
+          <p className="text-xs text-stone-500 font-medium">Invite to &quot;{inviteBanner.event.title}&quot; declined</p>
+          <button onClick={() => setInviteBanner(null)} className="text-stone-400 hover:text-stone-600 p-1"><X className="w-3 h-3" /></button>
+        </div>
+      )}
       {/* Header */}
       <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b border-stone-100">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">

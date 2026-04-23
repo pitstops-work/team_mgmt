@@ -3,8 +3,10 @@ import prisma from "@/lib/prisma";
 import { generateCalendarToken } from "@/lib/calendarToken";
 import EventsCalendar from "./EventsCalendar";
 
-export default async function ActivitiesPage() {
+export default async function ActivitiesPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const session = await auth();
+  const sp = await searchParams;
+  const inviteEventId = sp.invite ?? null;
 
   const [events, pitstops, users, rawZones, rawClusters, goalGeo] = await Promise.all([
     prisma.pitstopEvent.findMany({
@@ -22,7 +24,7 @@ export default async function ActivitiesPage() {
           },
         },
         createdBy: { select: { id: true, name: true, image: true } },
-        attendees: { select: { id: true, userId: true, user: { select: { id: true, name: true, image: true } } } },
+        attendees: { select: { id: true, userId: true, status: true, user: { select: { id: true, name: true, image: true } } } },
       },
       orderBy: { scheduledAt: "asc" },
     }),
@@ -76,6 +78,7 @@ export default async function ActivitiesPage() {
       zones={JSON.parse(JSON.stringify(zones))}
       clusters={JSON.parse(JSON.stringify(clusters))}
       calendarToken={calendarToken}
+      inviteEventId={inviteEventId}
     />
   );
 }

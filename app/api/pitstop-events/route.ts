@@ -50,10 +50,8 @@ export async function POST(req: NextRequest) {
   }
 
   const creatorId = session.user.id;
-  // Everyone who is auto-added (owner) or the creator → accepted
-  const acceptedIds = Array.from(new Set([creatorId, ...ownerIds]));
-  // Explicitly tagged others who aren't already accepted → pending (need to approve)
-  const pendingIds = attendeeIds.filter((id: string) => !acceptedIds.includes(id));
+  // Only the creator is auto-accepted; everyone else (owners + tagged) needs to confirm
+  const allInvitedIds = Array.from(new Set([...ownerIds, ...attendeeIds])).filter(id => id !== creatorId);
 
   const event = await prisma.pitstopEvent.create({
     data: {
@@ -68,8 +66,8 @@ export async function POST(req: NextRequest) {
       pitstops: { create: pitstopIds.map((pitstopId: string) => ({ pitstopId })) },
       attendees: {
         create: [
-          ...acceptedIds.map((userId: string) => ({ userId, status: "accepted" })),
-          ...pendingIds.map((userId: string) => ({ userId, status: "pending" })),
+          { userId: creatorId, status: "accepted" },
+          ...allInvitedIds.map((userId: string) => ({ userId, status: "pending" })),
         ],
       },
     },
@@ -88,10 +86,9 @@ export async function POST(req: NextRequest) {
   const creatorName = session.user.name ?? "Someone";
   const dateLabel = new Date(scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 
-  // Invite (pending) attendees — they need to accept or decline
-  if (pendingIds.length > 0) {
+  if (allInvitedIds.length > 0) {
     await prisma.notification.createMany({
-      data: pendingIds.map((userId: string) => ({
+      data: allInvitedIds.map((userId: string) => ({
         userId,
         type: "ActivityTagged" as const,
         title: `${creatorName} invited you to "${title}"`,
@@ -99,29 +96,10 @@ export async function POST(req: NextRequest) {
         link: `/activities?invite=${event.id}`,
       })),
     });
-    sendPushToUsers(pendingIds, {
+    sendPushToUsers(allInvitedIds, {
       title: `${creatorName} invited you to "${title}"`,
       body: dateLabel,
       link: `/activities?invite=${event.id}`,
-    });
-  }
-
-  // Notify auto-added owners (not the creator) — informational, no action needed
-  const notifyOwnerIds = ownerIds.filter(id => id !== creatorId);
-  if (notifyOwnerIds.length > 0) {
-    await prisma.notification.createMany({
-      data: notifyOwnerIds.map((userId: string) => ({
-        userId,
-        type: "ActivityTagged" as const,
-        title: `${creatorName} added you to "${title}"`,
-        body: dateLabel,
-        link: `/activities`,
-      })),
-    });
-    sendPushToUsers(notifyOwnerIds, {
-      title: `${creatorName} added you to "${title}"`,
-      body: dateLabel,
-      link: `/activities`,
     });
   }
 

@@ -16,7 +16,7 @@ const include = {
     },
   },
   createdBy: { select: { id: true, name: true, image: true } },
-  attendees: { select: { id: true, userId: true, user: { select: { id: true, name: true, image: true } } } },
+  attendees: { select: { id: true, userId: true, status: true, user: { select: { id: true, name: true, image: true } } } },
 } as const;
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
@@ -115,6 +115,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
     }
   }
 
+  // Capture existing attendees with their statuses BEFORE we wipe them
+  const prevAttendees = attendeeIds !== undefined
+    ? await prisma.pitstopEventAttendee.findMany({ where: { eventId }, select: { userId: true, status: true } })
+    : [];
+  const prevStatusMap = new Map(prevAttendees.map(a => [a.userId, a.status]));
+
+  const desiredIds = attendeeIds !== undefined
+    ? Array.from(new Set([...ownerIds, ...attendeeIds]))
+    : undefined;
+
   const event = await prisma.pitstopEvent.update({
     where: { id: eventId },
     data: {
@@ -130,41 +140,39 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
           create: pitstopIds.map((pitstopId: string) => ({ pitstopId })),
         },
       } : {}),
-      ...(attendeeIds !== undefined ? {
+      ...(desiredIds !== undefined ? {
         attendees: {
           deleteMany: {},
-          create: Array.from(new Set([...ownerIds, ...attendeeIds])).map((userId: string) => ({ userId })),
+          create: desiredIds.map((userId: string) => ({
+            userId,
+            // Preserve existing status; new attendees who aren't the editor → pending
+            status: prevStatusMap.get(userId) ?? (userId === session.user.id ? "accepted" : "pending"),
+          })),
         },
       } : {}),
     },
     include,
   });
 
-  // Notify newly added attendees
-  if (attendeeIds !== undefined) {
-    const prevAttendees = await prisma.pitstopEventAttendee.findMany({
-      where: { eventId },
-      select: { userId: true },
-    });
-    const prevIds = new Set(prevAttendees.map((a) => a.userId));
-    const newIds = Array.from(new Set([...ownerIds, ...attendeeIds])).filter(
-      (id) => !prevIds.has(id) && id !== session.user.id
-    );
+  // Invite newly added attendees (anyone not in prev list, excluding the editor)
+  if (desiredIds !== undefined) {
+    const newIds = desiredIds.filter(id => !prevStatusMap.has(id) && id !== session.user.id);
     if (newIds.length > 0) {
       const creatorName = session.user.name ?? "Someone";
+      const dateLabel = new Date(event.scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
       await prisma.notification.createMany({
         data: newIds.map((userId) => ({
           userId,
           type: "ActivityTagged" as const,
-          title: `${creatorName} added you to "${event.title}"`,
-          body: new Date(event.scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
-          link: `/activities`,
+          title: `${creatorName} invited you to "${event.title}"`,
+          body: dateLabel,
+          link: `/activities?invite=${eventId}`,
         })),
       });
       sendPushToUsers(newIds, {
-        title: `${creatorName} added you to "${event.title}"`,
-        body: new Date(event.scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
-        link: `/activities`,
+        title: `${creatorName} invited you to "${event.title}"`,
+        body: dateLabel,
+        link: `/activities?invite=${eventId}`,
       });
     }
   }
