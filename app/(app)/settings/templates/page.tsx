@@ -12,7 +12,7 @@ const CATEGORY_ORDER = ["Community Programs", "Programmes", "Field Programmes", 
 export default function TemplatesPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const isAdmin = session?.user?.role === "admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super-admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
   const [templates, setTemplates] = useState<DbTemplate[]>([]);
   const [loading, setLoading] = useState(true);

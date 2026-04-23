@@ -10,7 +10,7 @@ type Member = { id: string; name: string | null; email: string | null; image: st
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super-admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
   const isViewer = session?.user?.role === "viewer";
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);

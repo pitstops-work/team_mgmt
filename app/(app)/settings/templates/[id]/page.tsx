@@ -336,7 +336,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
 
   const { data: session } = useSession();
   const router = useRouter();
-  const isAdmin = session?.user?.role === "admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super-admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
   const [template, setTemplate] = useState<Partial<DbTemplate>>({
     slug: "",
