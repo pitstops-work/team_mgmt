@@ -16,9 +16,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const unreadCount = await prisma.notification.count({
-    where: { userId: session.user.id!, read: false },
-  });
+  const [unreadCount, me] = await Promise.all([
+    prisma.notification.count({ where: { userId: session.user.id!, read: false } }),
+    prisma.user.findUnique({ where: { id: session.user.id! }, select: { designation: true } }),
+  ]);
 
   return (
     <SessionProvider>
@@ -29,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <SearchShortcut />
       <KeyboardShortcuts />
       <div className="flex h-screen overflow-hidden">
-        <AppNav user={session.user} unreadCount={unreadCount} isAdmin={isAdminUser(session)} isViewer={session.user.role === "viewer"} />
+        <AppNav user={session.user} unreadCount={unreadCount} isAdmin={isAdminUser(session)} isViewer={session.user.role === "viewer"} designation={me?.designation ?? "Other"} />
         <main className="relative flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>
         {isSuperAdmin(session) && <AgentPanel />}
       </div>

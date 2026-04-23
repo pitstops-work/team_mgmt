@@ -15,7 +15,9 @@ interface User {
   image?: string | null;
 }
 
-export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user: User; unreadCount: number; isAdmin?: boolean; isViewer?: boolean }) {
+export default function AppNav({ user, unreadCount, isAdmin, isViewer, designation }: { user: User; unreadCount: number; isAdmin?: boolean; isViewer?: boolean; designation?: string }) {
+  const isRP = designation === "RP";
+  const isZL = designation === "ZL";
   const pathname = usePathname();
   const [showMore, setShowMore] = useState(false);
 
@@ -25,7 +27,7 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
       <nav className="hidden sm:flex w-56 flex-shrink-0 border-r border-stone-200 bg-white flex-col h-full">
         {/* Logo */}
         <div className="px-4 py-5 border-b border-stone-100">
-          <Link href="/home" className="flex items-center gap-2">
+          <Link href="/home" className="flex items-center gap-2" aria-label="Home">
             <div className="w-7 h-7 rounded-lg bg-sky-500 flex items-center justify-center">
               <Target className="w-4 h-4 text-white" />
             </div>
@@ -49,65 +51,79 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-0.5">
 
           {/* Core */}
-          <NavLink href="/needs" active={pathname.startsWith("/needs")}>
-            <BarChart3 className="w-3.5 h-3.5 text-stone-500" />
-            Field Coverage
-          </NavLink>
-          <NavLink href="/map" active={pathname === "/map" || pathname.startsWith("/settlements")}>
-            <MapPin className="w-3.5 h-3.5 text-indigo-500" />
-            Programme Map
-          </NavLink>
-          <NavLink href="/report" active={pathname === "/report"}>
-            <FileText className="w-3.5 h-3.5 text-stone-500" />
-            Report
-          </NavLink>
-          <NavLink href="/dashboard" active={pathname === "/dashboard"}>
-            <Target className="w-3.5 h-3.5 text-stone-500" />
-            Goals
+          <NavLink href="/home" active={pathname === "/home"}>
+            <CalendarClock className="w-3.5 h-3.5 text-stone-500" />
+            Home
           </NavLink>
           <NavLink href="/activities" active={pathname === "/activities"}>
             <CalendarClock className="w-3.5 h-3.5 text-stone-500" />
             Activities
           </NavLink>
+          <NavLink href="/dashboard" active={pathname === "/dashboard"}>
+            <Target className="w-3.5 h-3.5 text-stone-500" />
+            Goals
+          </NavLink>
+          {!isRP && (
+            <NavLink href="/needs" active={pathname.startsWith("/needs")}>
+              <BarChart3 className="w-3.5 h-3.5 text-stone-500" />
+              Field Coverage
+            </NavLink>
+          )}
+          <NavLink href="/map" active={pathname === "/map" || pathname.startsWith("/settlements")}>
+            <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+            Programme Map
+          </NavLink>
 
           <div className="h-px bg-stone-100 my-2" />
 
           {/* Planning */}
-          <NavLink href="/programs" active={pathname.startsWith("/programs")}>
-            <Layers className="w-3.5 h-3.5 text-stone-500" />
-            Programs
-          </NavLink>
-          <NavLink href="/quarters" active={pathname.startsWith("/quarters")}>
-            <CalendarRange className="w-3.5 h-3.5 text-stone-500" />
-            Quarters
+          <NavLink href="/gantt" active={pathname === "/gantt"}>
+            <GanttChartSquare className="w-3.5 h-3.5 text-stone-500" />
+            Gantt
           </NavLink>
           <NavLink href="/planner" active={pathname === "/planner"}>
             <BookOpen className="w-3.5 h-3.5 text-stone-500" />
             Planner
           </NavLink>
-          <NavLink href="/gantt" active={pathname === "/gantt"}>
-            <GanttChartSquare className="w-3.5 h-3.5 text-stone-500" />
-            Gantt
+          <NavLink href="/quarters" active={pathname.startsWith("/quarters")}>
+            <CalendarRange className="w-3.5 h-3.5 text-stone-500" />
+            Quarters
           </NavLink>
+          {!isRP && (
+            <NavLink href="/programs" active={pathname.startsWith("/programs")}>
+              <Layers className="w-3.5 h-3.5 text-stone-500" />
+              Programs
+            </NavLink>
+          )}
 
           <div className="h-px bg-stone-100 my-2" />
 
           {/* People & work */}
-          <NavLink href="/people" active={pathname === "/people"}>
-            <Users className="w-3.5 h-3.5 text-stone-500" />
-            People
+          {!isRP && (
+            <NavLink href="/people" active={pathname === "/people"}>
+              <Users className="w-3.5 h-3.5 text-stone-500" />
+              People
+            </NavLink>
+          )}
+          {!isRP && (
+            <NavLink href="/review" active={pathname === "/review"}>
+              <ClipboardCheck className="w-3.5 h-3.5 text-stone-500" />
+              Review
+            </NavLink>
+          )}
+          {!isRP && (
+            <NavLink href="/report" active={pathname === "/report"}>
+              <FileText className="w-3.5 h-3.5 text-stone-500" />
+              Report
+            </NavLink>
+          )}
+          <NavLink href="/standup" active={pathname === "/standup"}>
+            <ClipboardList className="w-3.5 h-3.5 text-stone-500" />
+            Field Notes
           </NavLink>
           <NavLink href="/themes" active={pathname.startsWith("/themes")}>
             <Tag className="w-3.5 h-3.5 text-stone-500" />
             Themes
-          </NavLink>
-          <NavLink href="/review" active={pathname === "/review"}>
-            <ClipboardCheck className="w-3.5 h-3.5 text-stone-500" />
-            Review
-          </NavLink>
-          <NavLink href="/standup" active={pathname === "/standup"}>
-            <ClipboardList className="w-3.5 h-3.5 text-stone-500" />
-            Field Notes
           </NavLink>
 
           <div className="h-px bg-stone-100 my-2" />
@@ -176,19 +192,19 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
         </div>
       </nav>
 
-      {/* Mobile bottom nav — 5 items */}
+      {/* Mobile bottom nav */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-200 flex items-stretch h-16">
-        <Link href="/needs" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname.startsWith("/needs") ? "text-sky-600" : "text-stone-400"}`}>
-          <BarChart3 className="w-5 h-5" />
-          Coverage
-        </Link>
-        <Link href="/dashboard" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/dashboard" ? "text-sky-600" : "text-stone-400"}`}>
-          <span className="text-xl leading-none">◈</span>
-          Goals
+        <Link href="/home" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/home" ? "text-sky-600" : "text-stone-400"}`}>
+          <CalendarClock className="w-5 h-5" />
+          Home
         </Link>
         <Link href="/activities" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/activities" ? "text-sky-600" : "text-stone-400"}`}>
           <CalendarClock className="w-5 h-5" />
           Activities
+        </Link>
+        <Link href="/dashboard" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/dashboard" ? "text-sky-600" : "text-stone-400"}`}>
+          <Target className="w-5 h-5" />
+          Goals
         </Link>
         <Link href="/notifications" className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${pathname === "/notifications" ? "text-sky-600" : "text-stone-400"}`}>
           <div className="relative">
@@ -218,51 +234,61 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer }: { user:
             </div>
             <div className="overflow-y-auto px-3 py-2 pb-8 space-y-0.5">
               {/* Core */}
-              {[
-                { href: "/needs", icon: <BarChart3 className="w-5 h-5" />, label: "Field Coverage", exact: false },
-                { href: "/map", icon: <MapPin className="w-5 h-5" />, label: "Programme Map", exact: false },
-                { href: "/report", icon: <FileText className="w-5 h-5" />, label: "Report", exact: true },
-                { href: "/dashboard", icon: <Target className="w-5 h-5" />, label: "Goals", exact: true },
-                { href: "/activities", icon: <CalendarClock className="w-5 h-5" />, label: "Activities", exact: true },
-              ].map(item => (
-                <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${(item.exact ? pathname === item.href : pathname.startsWith(item.href)) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
-                  <span className="text-stone-400">{item.icon}</span>
-                  {item.label}
-                </Link>
-              ))}
+              {([
+                { href: "/home",       icon: <CalendarClock className="w-5 h-5" />, label: "Home",           show: true },
+                { href: "/activities", icon: <CalendarClock className="w-5 h-5" />, label: "Activities",      show: true },
+                { href: "/dashboard",  icon: <Target className="w-5 h-5" />,        label: "Goals",           show: true },
+                { href: "/needs",      icon: <BarChart3 className="w-5 h-5" />,     label: "Field Coverage",  show: !isRP },
+                { href: "/map",        icon: <MapPin className="w-5 h-5" />,        label: "Programme Map",   show: true },
+              ] as { href: string; icon: React.ReactNode; label: string; show: boolean }[])
+                .filter(i => i.show)
+                .map(item => (
+                  <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname.startsWith(item.href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
+                    <span className="text-stone-400">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                ))
+              }
 
               <div className="h-px bg-stone-100 my-2" />
 
               {/* Planning */}
-              {[
-                { href: "/programs", icon: <Layers className="w-5 h-5" />, label: "Programs" },
-                { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />, label: "Quarters" },
-                { href: "/planner", icon: <BookOpen className="w-5 h-5" />, label: "Planner" },
-                { href: "/gantt", icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart" },
-              ].map(item => (
-                <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname.startsWith(item.href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
-                  <span className="text-stone-400">{item.icon}</span>
-                  {item.label}
-                </Link>
-              ))}
+              {([
+                { href: "/gantt",    icon: <GanttChartSquare className="w-5 h-5" />, label: "Gantt Chart", show: true },
+                { href: "/planner",  icon: <BookOpen className="w-5 h-5" />,         label: "Planner",     show: true },
+                { href: "/quarters", icon: <CalendarRange className="w-5 h-5" />,    label: "Quarters",    show: true },
+                { href: "/programs", icon: <Layers className="w-5 h-5" />,           label: "Programs",    show: !isRP },
+              ] as { href: string; icon: React.ReactNode; label: string; show: boolean }[])
+                .filter(i => i.show)
+                .map(item => (
+                  <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname.startsWith(item.href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
+                    <span className="text-stone-400">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                ))
+              }
 
               <div className="h-px bg-stone-100 my-2" />
 
               {/* People & work */}
-              {[
-                { href: "/people", icon: <Users className="w-5 h-5" />, label: "People" },
-                { href: "/themes", icon: <Tag className="w-5 h-5" />, label: "Themes" },
-                { href: "/review", icon: <ClipboardCheck className="w-5 h-5" />, label: "Fortnightly Review" },
-                { href: "/standup", icon: <ClipboardList className="w-5 h-5" />, label: "Field Notes" },
-              ].map(item => (
-                <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname.startsWith(item.href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
-                  <span className="text-stone-400">{item.icon}</span>
-                  {item.label}
-                </Link>
-              ))}
+              {([
+                { href: "/people",  icon: <Users className="w-5 h-5" />,       label: "People",             show: !isRP },
+                { href: "/review",  icon: <ClipboardCheck className="w-5 h-5" />, label: "Review",          show: !isRP },
+                { href: "/report",  icon: <FileText className="w-5 h-5" />,    label: "Report",              show: !isRP },
+                { href: "/standup", icon: <ClipboardList className="w-5 h-5" />, label: "Field Notes",      show: true },
+                { href: "/themes",  icon: <Tag className="w-5 h-5" />,         label: "Themes",              show: true },
+              ] as { href: string; icon: React.ReactNode; label: string; show: boolean }[])
+                .filter(i => i.show)
+                .map(item => (
+                  <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname.startsWith(item.href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"}`}>
+                    <span className="text-stone-400">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                ))
+              }
 
               <div className="h-px bg-stone-100 my-2" />
 

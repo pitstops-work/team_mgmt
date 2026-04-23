@@ -27,16 +27,27 @@ export async function GET() {
     }),
   ]);
 
-  // Deduplicate cities by name (keep first occurrence per name)
-  const seenNames = new Set<string>();
+  // Deduplicate cities by name — keep first occurrence as canonical
+  const canonicalCityId: Record<string, string> = {}; // any city id → canonical id
+  const seenNames = new Map<string, string>();         // lower name → canonical id
   const cities = allCities.filter(c => {
     const key = c.name.trim().toLowerCase();
-    if (seenNames.has(key)) return false;
-    seenNames.add(key);
+    if (seenNames.has(key)) {
+      canonicalCityId[c.id] = seenNames.get(key)!;
+      return false;
+    }
+    seenNames.set(key, c.id);
+    canonicalCityId[c.id] = c.id;
     return true;
   });
 
-  return Response.json({ users, cities, zones, clusters });
+  // Remap zone cityId to the canonical city so the client filter works correctly
+  const remappedZones = zones.map(z => ({
+    ...z,
+    cityId: z.cityId ? (canonicalCityId[z.cityId] ?? z.cityId) : null,
+  }));
+
+  return Response.json({ users, cities, zones: remappedZones, clusters });
 }
 
 export async function POST(req: Request) {

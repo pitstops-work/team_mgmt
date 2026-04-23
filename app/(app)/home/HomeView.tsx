@@ -1,612 +1,627 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import {
-  AlertTriangle, CalendarDays, Clock, Bell, ChevronRight, Plus,
-  CalendarRange, Megaphone, Tag, ShieldCheck, BadgeCheck,
-} from "lucide-react";
-import Avatar from "@/components/Avatar";
+import { CalendarClock, CheckSquare, Target, MapPin, BarChart3, ChevronRight } from "lucide-react";
+import type { DomainStat, ClusterStat, ClusterStatus } from "./page";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type User = { id: string; name: string | null; image: string | null; email: string | null };
-
-type OverduePitstop = {
-  id: string; title: string; status: string; targetDate: string;
-  goal: { id: string; title: string };
-  owner: { id: string; name: string | null; image: string | null };
-};
-type WeekPitstop = {
-  id: string; title: string; status: string; targetDate: string | null; startDate: string | null;
-  goal: { id: string; title: string };
-  owner: { id: string; name: string | null; image: string | null };
-};
-type PlanItem = {
-  id: string; title: string; type: string; date: string;
-  pitstops: { pitstop: { id: string; title: string; goal: { id: string; title: string } } }[];
-};
-type TodayActivity = {
-  id: string; title: string; type: string; scheduledAt: string; location: string | null; status: string;
-};
-type NoPlanPitstop = {
-  id: string; title: string; targetDate: string | null;
-  goal: { id: string; title: string };
-};
-type GoneQuietGoal = { id: string; title: string; lastUpdated: string };
-type FlaggedActivity = { id: string; title: string; scheduledAt: string; type: string };
-type RecentNotification = { id: string; type: string; title: string; read: boolean; createdAt: string; link: string | null };
-type QuarterGoal = {
-  goal: { id: string; title: string; status: string; pitstops: { id: string; status: string }[] };
-};
-type Quarter = { id: string; year: number; quarter: number; focus: string | null; goals: QuarterGoal[] };
-type Broadcast = {
-  id: string; message: string; createdAt: string;
-  author: { id: string; name: string | null; image: string | null };
-  goal: { id: string; title: string };
-};
-type StandupLog = {
-  id: string; yesterday: string | null; today: string | null; blockers: string | null; createdAt: string;
-  user: { id: string; name: string | null; image: string | null };
-};
-type StalePitstop = { id: string; title: string; goal: { id: string; title: string } };
-type PendingVerification = {
-  id: string; title: string; completedAt: string | null;
-  goal: { id: string; title: string };
-  owner: { id: string; name: string | null; image: string | null };
-};
-type UnconfirmedGoal = {
-  id: string; title: string; createdAt: string;
-  owner: { id: string; name: string | null; image: string | null };
+type Activity = {
+  id: string; title: string; type: string; scheduledAt: string;
+  location: string | null; status: string;
+  attendees?: { user: { id: string; name: string | null } }[];
 };
 
-type HomeData = {
-  overduePitstops: OverduePitstop[];
-  thisWeekPitstops: WeekPitstop[];
-  todayPlanItems: PlanItem[];
-  todayActivities: TodayActivity[];
-  noPlanPitstops: NoPlanPitstop[];
-  goneQuietGoals: GoneQuietGoal[];
-  flaggedActivities: FlaggedActivity[];
-  recentNotifications: RecentNotification[];
-  currentQuarter: Quarter | null;
-  recentBroadcasts: Broadcast[];
-  recentStandups: StandupLog[];
-  staleCheckins: StalePitstop[];
-  driftingThemes: { id: string; name: string; color: string | null }[];
-  pendingVerifications: PendingVerification[];
-  unconfirmedGoals: UnconfirmedGoal[];
-  fyYear: number;
-  fyQ: number;
+type ChecklistItem = {
+  id: string; text: string; status: string; checked: boolean;
+  pitstop: {
+    id: string; title: string; targetDate: string | null; ownerId: string;
+    owner: { id: string; name: string | null };
+    goal: { id: string; title: string };
+  };
 };
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+type Goal = {
+  id: string; title: string; status: string;
+  needsDomain: string | null; needsClusterId: string | null; needsZoneId: string | null;
+  parameter: number | null; outcomeCount: number | null;
+  ownerId: string | null;
+  owner: { id: string; name: string | null } | null;
+  pitstops: { id: string; status: string }[];
+};
 
-const STATUS_BG: Record<string, string> = {
-  Done:       "bg-emerald-50 border-emerald-200 text-emerald-800",
-  InProgress: "bg-sky-50 border-sky-200 text-sky-800",
-  Upcoming:   "bg-stone-50 border-stone-200 text-stone-700",
-};
-const STATUS_DOT: Record<string, string> = {
-  Done: "bg-emerald-400", InProgress: "bg-sky-400", Upcoming: "bg-stone-300",
-};
-const PLAN_TYPE_DOT: Record<string, string> = {
-  Meeting: "bg-sky-400", Visit: "bg-violet-400", Review: "bg-amber-400",
-  Internal: "bg-stone-400", "Data Work": "bg-emerald-400", Proposal: "bg-pink-400", Note: "bg-stone-300",
-};
-const ACT_DOT: Record<string, string> = {
-  Meeting: "bg-sky-400", Visit: "bg-violet-400", Event: "bg-amber-400",
-};
-const GOAL_STATUS_DOT: Record<string, string> = {
-  Complete: "bg-emerald-400", Active: "bg-sky-400", Paused: "bg-amber-400",
-};
-const QTR_LABELS = ["Apr–Jun", "Jul–Sep", "Oct–Dec", "Jan–Mar"];
+type TeamMember = { id: string; name: string | null; image: string | null };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function daysLate(dateStr: string) {
-  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-}
-function daysSince(dateStr: string) {
-  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-}
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
-function fmtDatetime(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-// ── Stat card ─────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, icon, accent, href }: {
-  label: string; value: number; icon: React.ReactNode;
-  accent: "red" | "amber" | "sky" | "stone";
-  href?: string;
-}) {
-  const colors = {
-    red:   { bg: value > 0 ? "bg-red-50 border-red-200"     : "bg-stone-50 border-stone-200", val: value > 0 ? "text-red-600"   : "text-stone-400" },
-    amber: { bg: value > 0 ? "bg-amber-50 border-amber-200" : "bg-stone-50 border-stone-200", val: value > 0 ? "text-amber-600" : "text-stone-400" },
-    sky:   { bg: value > 0 ? "bg-sky-50 border-sky-200"     : "bg-stone-50 border-stone-200", val: value > 0 ? "text-sky-600"   : "text-stone-400" },
-    stone: { bg: "bg-stone-50 border-stone-200", val: "text-stone-500" },
-  };
-  const c = colors[accent];
-  const inner = (
-    <>
-      <div className="flex items-center gap-1.5 text-stone-400">{icon}<span className="text-[10px] font-medium uppercase tracking-wide">{label}</span></div>
-      <p className={`text-2xl font-bold ${c.val}`}>{value}</p>
-    </>
-  );
-  const cls = `px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border ${c.bg} flex flex-col gap-0.5${href ? " hover:shadow-sm transition-shadow cursor-pointer" : ""}`;
-  if (href) return <Link href={href} className={cls}>{inner}</Link>;
-  return <div className={cls}>{inner}</div>;
+function isToday(iso: string) {
+  const d = new Date(iso);
+  const t = new Date();
+  return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
+const STATUS_BADGE: Record<string, string> = {
+  Active:   "bg-sky-50 text-sky-700 border-sky-200",
+  Paused:   "bg-amber-50 text-amber-700 border-amber-200",
+  Complete: "bg-emerald-50 text-emerald-700 border-emerald-200",
+};
+const STATUS_DOT: Record<string, string> = {
+  Active: "bg-sky-400", Paused: "bg-amber-400", Complete: "bg-emerald-400",
+};
+const CHECKLIST_STATUS_DOT: Record<string, string> = {
+  NotStarted: "bg-stone-200", Scheduled: "bg-sky-300", InProgress: "bg-amber-400",
+  Done: "bg-emerald-400", Blocked: "bg-red-400", Rescheduled: "bg-violet-400",
+};
+const EVENT_TYPE_COLOR: Record<string, string> = {
+  Meeting: "bg-sky-400", Visit: "bg-violet-400", Event: "bg-amber-400", Training: "bg-emerald-400",
+};
 
-function SectionHeader({ title, count, href, icon }: { title: string; count?: number; href?: string; icon?: React.ReactNode }) {
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex items-center justify-between mb-2">
-      <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
-        {icon}{title}
-        {count !== undefined && count > 0 && <span className="text-stone-300">({count})</span>}
-      </h2>
-      {href && (
-        <Link href={href} className="text-[10px] text-sky-500 hover:text-sky-700 flex items-center gap-0.5">
-          All <ChevronRight className="w-3 h-3" />
-        </Link>
+    <p className="text-sm text-stone-400 py-4 px-1">{message}</p>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-2">{children}</h3>
+  );
+}
+
+function ActivityRow({ a }: { a: Activity }) {
+  return (
+    <Link href="/activities"
+      className="flex items-start gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+        <p className="text-xs text-stone-400 mt-0.5">
+          {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""} · {a.type}
+        </p>
+      </div>
+      {a.status !== "Scheduled" && (
+        <span className="text-[10px] text-stone-400 border border-stone-200 rounded px-1.5 py-0.5 capitalize flex-shrink-0">
+          {a.status.toLowerCase()}
+        </span>
       )}
+    </Link>
+  );
+}
+
+function ChecklistRow({ item }: { item: ChecklistItem }) {
+  return (
+    <Link href={`/goals/${item.pitstop.goal.id}`}
+      className="flex items-start gap-3 px-4 py-2.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${CHECKLIST_STATUS_DOT[item.status] ?? "bg-stone-200"}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-stone-800 truncate">{item.text}</p>
+        <p className="text-xs text-stone-400 mt-0.5 truncate">
+          {item.pitstop.goal.title} · {item.pitstop.title}
+          {item.pitstop.owner?.name && ` · ${item.pitstop.owner.name}`}
+        </p>
+      </div>
+      {item.pitstop.targetDate && (
+        <span className="text-[10px] text-stone-400 flex-shrink-0">{fmtDate(item.pitstop.targetDate)}</span>
+      )}
+    </Link>
+  );
+}
+
+function GoalRow({ goal, showOwner }: { goal: Goal; showOwner?: boolean }) {
+  const done  = goal.pitstops.filter(p => p.status === "Done").length;
+  const total = goal.pitstops.length;
+  const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <Link href={`/goals/${goal.id}`}
+      className="flex items-center gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors group">
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[goal.status] ?? "bg-stone-300"}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-stone-800 group-hover:text-sky-700 truncate">{goal.title}</p>
+        <div className="flex items-center gap-2 mt-1">
+          {showOwner && goal.owner?.name && (
+            <span className="text-[10px] text-stone-400">{goal.owner.name}</span>
+          )}
+          {goal.needsDomain && (
+            <span className="text-[10px] text-stone-400">{goal.needsDomain}</span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {total > 0 && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-16 h-1 bg-stone-100 rounded-full overflow-hidden">
+              <div className="h-full bg-sky-400 rounded-full" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-[10px] text-stone-400">{done}/{total}</span>
+          </div>
+        )}
+        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_BADGE[goal.status] ?? "bg-stone-50 text-stone-500 border-stone-200"}`}>
+          {goal.status}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function DomainTable({ stats }: { stats: DomainStat[] }) {
+  if (stats.length === 0) return <EmptyState message="No goals recorded for this cluster yet." />;
+  return (
+    <div className="rounded-lg border border-stone-200 overflow-hidden">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-stone-50 border-b border-stone-200">
+            <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Domain</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Planned</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Done</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Gap</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-stone-100">
+          {stats.map(s => (
+            <tr key={s.domain} className="bg-white hover:bg-stone-50 transition-colors">
+              <td className="px-4 py-2.5 text-sm text-stone-700 font-medium">{s.label}</td>
+              <td className="px-4 py-2.5 text-sm text-right text-stone-600">{s.planned}</td>
+              <td className="px-4 py-2.5 text-sm text-right text-emerald-600 font-medium">{s.done}</td>
+              <td className={`px-4 py-2.5 text-sm text-right font-medium ${s.gap > 0 ? "text-amber-600" : "text-stone-400"}`}>{s.gap}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-// ── Current quarter card ──────────────────────────────────────────────────────
+// ── Tab: Today ────────────────────────────────────────────────────────────────
 
-function CurrentQuarterCard({ quarter, fyYear, fyQ }: { quarter: Quarter | null; fyYear: number; fyQ: number }) {
-  if (!quarter) {
+function TodayTab({
+  todayActivities, weekActivities, weekChecklists, designation,
+}: {
+  todayActivities: Activity[];
+  weekActivities: Activity[];
+  weekChecklists: ChecklistItem[];
+  designation: string;
+}) {
+  const laterThisWeek = weekActivities.filter(a => !isToday(a.scheduledAt));
+  const todayIds = new Set(todayActivities.map(a => a.id));
+  const weekOnly = laterThisWeek.filter(a => !todayIds.has(a.id));
+
+  // Checklists due this week
+  const now = new Date();
+  const weekEnd = new Date(now);
+  weekEnd.setDate(weekEnd.getDate() + (6 - ((weekEnd.getDay() + 6) % 7)));
+  weekEnd.setHours(23, 59, 59, 999);
+  const thisWeekChecklists = weekChecklists.filter(ci => {
+    if (!ci.pitstop.targetDate) return true;
+    return new Date(ci.pitstop.targetDate) <= weekEnd;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Today's activities */}
+      <div>
+        <SectionTitle>Today&apos;s activities</SectionTitle>
+        {todayActivities.length === 0
+          ? <EmptyState message="No activities scheduled for today." />
+          : <div className="space-y-2">{todayActivities.map(a => <ActivityRow key={a.id} a={a} />)}</div>
+        }
+      </div>
+
+      {/* Checklists this week */}
+      <div>
+        <SectionTitle>
+          Checklists this week{designation === "ZL" ? " (team)" : ""}
+        </SectionTitle>
+        {thisWeekChecklists.length === 0
+          ? <EmptyState message="No open checklist items." />
+          : (
+            <div className="space-y-2">
+              {thisWeekChecklists.slice(0, 20).map(ci => <ChecklistRow key={ci.id} item={ci} />)}
+              {thisWeekChecklists.length > 20 && (
+                <p className="text-xs text-stone-400 px-1">+{thisWeekChecklists.length - 20} more items</p>
+              )}
+            </div>
+          )
+        }
+      </div>
+
+      {/* Rest of week activities */}
+      <div>
+        <SectionTitle>
+          Later this week{designation === "ZL" ? " (team)" : ""}
+        </SectionTitle>
+        {weekOnly.length === 0
+          ? <EmptyState message="Nothing else scheduled this week." />
+          : (
+            <div className="space-y-2">
+              {weekOnly.map(a => (
+                <Link key={a.id} href="/activities"
+                  className="flex items-start gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                    <p className="text-xs text-stone-400 mt-0.5">
+                      {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
+                    </p>
+                    {a.attendees && a.attendees.length > 0 && (
+                      <p className="text-[10px] text-stone-300 mt-0.5">
+                        {a.attendees.map(att => att.user.name).filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )
+        }
+      </div>
+    </div>
+  );
+}
+
+// ── Tab: RP Field Coverage ────────────────────────────────────────────────────
+
+function RPCoverageTab({ clusterStats }: { clusterStats: ClusterStat[] }) {
+  if (clusterStats.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CalendarRange className="w-3.5 h-3.5 text-sky-400" />
-            <span className="text-xs font-semibold text-stone-600">
-              Q{fyQ} FY{fyYear} <span className="text-stone-400 font-normal">· {QTR_LABELS[fyQ - 1]}</span>
-            </span>
+      <div className="text-center py-10">
+        <p className="text-sm text-stone-400">No cluster assigned yet.</p>
+        <p className="text-xs text-stone-300 mt-1">Create goals with a cluster to see coverage data here.</p>
+        <Link href="/needs" className="mt-3 inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
+          Full field coverage <ChevronRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-6">
+      {clusterStats.map(c => (
+        <div key={c.clusterId}>
+          <div className="flex items-center justify-between mb-2">
+            <SectionTitle>{c.clusterName}</SectionTitle>
+            <Link href="/needs" className="text-[10px] text-sky-500 hover:text-sky-700 flex items-center gap-0.5">
+              Full view <ChevronRight className="w-3 h-3" />
+            </Link>
           </div>
-          <Link href="/quarters" className="text-[10px] text-sky-500 hover:text-sky-700">Set up →</Link>
+          <DomainTable stats={c.stats} />
         </div>
-        <div className="px-4 py-4 text-center">
-          <p className="text-xs text-stone-400">No quarter plan yet.</p>
-          <Link href="/quarters" className="mt-1 inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
-            <Plus className="w-3 h-3" /> Create quarter plan
-          </Link>
-        </div>
+      ))}
+      <p className="text-[10px] text-stone-300 px-1">
+        Planned = active goal targets · Done = completed outcomes · Gap = planned − done.{" "}
+        <Link href="/needs" className="text-sky-400 hover:text-sky-600">See full coverage analysis →</Link>
+      </p>
+    </div>
+  );
+}
+
+// ── Tab: ZL Field Coverage ────────────────────────────────────────────────────
+
+function ZLCoverageTab({ zoneName, clusterStats }: { zoneName: string | null; clusterStats: ClusterStat[] }) {
+  if (clusterStats.length === 0) {
+    return (
+      <div className="text-center py-10">
+        <p className="text-sm text-stone-400">No zone assigned yet.</p>
+        <Link href="/needs" className="mt-3 inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
+          Full field coverage <ChevronRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
     );
   }
 
-  const totalPitstops = quarter.goals.reduce((s, qg) => s + qg.goal.pitstops.length, 0);
-  const donePitstops  = quarter.goals.reduce((s, qg) => s + qg.goal.pitstops.filter(p => p.status === "Done").length, 0);
-  const pct = totalPitstops > 0 ? Math.round((donePitstops / totalPitstops) * 100) : 0;
+  // Zone-level aggregate
+  const zoneStats: Record<string, { label: string; planned: number; done: number; gap: number }> = {};
+  for (const c of clusterStats) {
+    for (const s of c.stats) {
+      if (!zoneStats[s.domain]) zoneStats[s.domain] = { label: s.label, planned: 0, done: 0, gap: 0 };
+      zoneStats[s.domain].planned += s.planned;
+      zoneStats[s.domain].done    += s.done;
+      zoneStats[s.domain].gap     += s.gap;
+    }
+  }
+  const zoneSummary: DomainStat[] = Object.entries(zoneStats).map(([domain, v]) => ({
+    domain, ...v,
+  })).sort((a, b) => a.label.localeCompare(b.label));
 
   return (
-    <div className="bg-white rounded-xl border border-sky-200 overflow-hidden">
-      <div className="px-4 py-3 border-b border-sky-100 bg-sky-50 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CalendarRange className="w-3.5 h-3.5 text-sky-500" />
-          <div>
-            <span className="text-xs font-semibold text-sky-800">
-              Q{quarter.quarter} FY{quarter.year}
-              <span className="font-normal text-sky-500 ml-1">{QTR_LABELS[quarter.quarter - 1]}</span>
-            </span>
-            {quarter.focus && <p className="text-[10px] text-sky-600">{quarter.focus}</p>}
+    <div className="space-y-8">
+      {/* Zone summary */}
+      {zoneName && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <SectionTitle>{zoneName} — Zone Total</SectionTitle>
+            <Link href="/needs" className="text-[10px] text-sky-500 hover:text-sky-700 flex items-center gap-0.5">
+              Full view <ChevronRight className="w-3 h-3" />
+            </Link>
           </div>
+          <DomainTable stats={zoneSummary} />
         </div>
-        <Link href="/quarters" className="text-[10px] text-sky-600 hover:text-sky-700 flex items-center gap-0.5">
-          View <ChevronRight className="w-3 h-3" />
-        </Link>
+      )}
+
+      {/* Per-cluster breakdown */}
+      <div>
+        <SectionTitle>By cluster</SectionTitle>
+        <div className="space-y-6">
+          {clusterStats.map(c => (
+            <div key={c.clusterId}>
+              <p className="text-xs font-medium text-stone-600 mb-2">{c.clusterName}</p>
+              <DomainTable stats={c.stats} />
+            </div>
+          ))}
+        </div>
       </div>
 
-      {totalPitstops > 0 && (
-        <div className="px-4 pt-3 pb-1">
-          <div className="flex items-center justify-between text-[10px] text-stone-400 mb-1">
-            <span>{donePitstops}/{totalPitstops} pitstops done</span>
-            <span>{pct}%</span>
-          </div>
-          <div className="h-1 bg-stone-100 rounded-full overflow-hidden">
-            <div className="h-full bg-sky-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
-          </div>
-        </div>
-      )}
-
-      {quarter.goals.length === 0 ? (
-        <div className="px-4 py-3">
-          <p className="text-xs text-stone-400">No goals tagged to this quarter.</p>
-          <Link href="/quarters" className="text-xs text-sky-600 hover:text-sky-700">Tag goals →</Link>
-        </div>
-      ) : (
-        <div className="divide-y divide-stone-50">
-          {quarter.goals.map(({ goal }) => {
-            const done  = goal.pitstops.filter(p => p.status === "Done").length;
-            const total = goal.pitstops.length;
-            return (
-              <Link key={goal.id} href={`/goals/${goal.id}`}
-                className="flex items-center gap-3 px-4 py-2 hover:bg-stone-50 transition-colors group">
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${GOAL_STATUS_DOT[goal.status] ?? "bg-stone-300"}`} />
-                <span className="flex-1 text-xs text-stone-700 group-hover:text-sky-600 truncate">{goal.title}</span>
-                {total > 0 && <span className="text-[10px] text-stone-400 flex-shrink-0">{done}/{total}</span>}
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      <p className="text-[10px] text-stone-300 px-1">
+        Planned = active goal targets · Done = completed outcomes · Gap = planned − done.{" "}
+        <Link href="/needs" className="text-sky-400 hover:text-sky-600">See full analysis →</Link>
+      </p>
     </div>
   );
 }
 
-// ── Recent broadcasts ─────────────────────────────────────────────────────────
+// ── Tab: ZL Cluster Status ────────────────────────────────────────────────────
 
-function BroadcastsCard({ broadcasts }: { broadcasts: Broadcast[] }) {
+function ZLClusterStatusTab({ clusterStatus }: { clusterStatus: ClusterStatus[] }) {
+  if (clusterStatus.length === 0) {
+    return <EmptyState message="No clusters in your zone yet." />;
+  }
   return (
-    <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-      <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Megaphone className="w-3.5 h-3.5 text-stone-400" />
-          <span className="text-xs font-semibold text-stone-600">Recent updates</span>
-        </div>
-      </div>
-      {broadcasts.length === 0 ? (
-        <div className="px-4 py-5 text-center">
-          <p className="text-xs text-stone-400">No updates posted yet.</p>
-          <p className="text-[10px] text-stone-300 mt-1">Goal owners can broadcast updates from any goal page.</p>
-        </div>
-      ) : (
-        <div className="divide-y divide-stone-50">
-          {broadcasts.map(b => (
-            <Link key={b.id} href={`/goals/${b.goal.id}`}
-              className="block px-4 py-2.5 hover:bg-stone-50 transition-colors">
-              <div className="flex items-center gap-2 mb-1">
-                <Avatar name={b.author.name} image={b.author.image} size="xs" />
-                <span className="text-xs font-medium text-stone-700 truncate">{b.goal.title}</span>
-                <span className="text-[10px] text-stone-400 ml-auto flex-shrink-0">{fmtDate(b.createdAt)}</span>
-              </div>
-              <p className="text-xs text-stone-600 line-clamp-2 pl-5">{b.message}</p>
-            </Link>
+    <div className="rounded-lg border border-stone-200 overflow-hidden">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-stone-50 border-b border-stone-200">
+            <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Cluster</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Goals</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Pitstops</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Activities (wk)</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Open items</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-stone-100">
+          {clusterStatus.map(c => (
+            <tr key={c.clusterId} className="bg-white hover:bg-stone-50 transition-colors">
+              <td className="px-4 py-2.5 text-sm text-stone-700 font-medium">{c.name}</td>
+              <td className="px-4 py-2.5 text-sm text-right text-stone-600">{c.goalCount}</td>
+              <td className="px-4 py-2.5 text-sm text-right text-stone-600">{c.pitstopCount}</td>
+              <td className={`px-4 py-2.5 text-sm text-right font-medium ${c.activityCount > 0 ? "text-sky-600" : "text-stone-400"}`}>
+                {c.activityCount}
+              </td>
+              <td className={`px-4 py-2.5 text-sm text-right font-medium ${c.checklistCount > 0 ? "text-amber-600" : "text-stone-400"}`}>
+                {c.checklistCount}
+              </td>
+            </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Tab: Goals ────────────────────────────────────────────────────────────────
+
+function GoalsTab({
+  goals, userId, designation, teamMembers,
+}: {
+  goals: Goal[];
+  userId: string;
+  designation: string;
+  teamMembers: TeamMember[];
+}) {
+  const active   = goals.filter(g => g.status === "Active");
+  const paused   = goals.filter(g => g.status === "Paused");
+  const complete = goals.filter(g => g.status === "Complete");
+
+  if (designation === "ZL" && teamMembers.length > 0) {
+    // Group by owner for ZL
+    const myGoals   = goals.filter(g => g.ownerId === userId);
+    const teamGoals = goals.filter(g => g.ownerId !== userId);
+    const byMember: Record<string, Goal[]> = {};
+    for (const g of teamGoals) {
+      const oid = g.ownerId ?? "unknown";
+      if (!byMember[oid]) byMember[oid] = [];
+      byMember[oid].push(g);
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* My goals */}
+        <div>
+          <SectionTitle>My goals ({myGoals.length})</SectionTitle>
+          {myGoals.length === 0
+            ? <EmptyState message="No goals assigned to you." />
+            : <div className="space-y-2">{myGoals.map(g => <GoalRow key={g.id} goal={g} />)}</div>
+          }
+        </div>
+
+        {/* Team goals by RP */}
+        {Object.entries(byMember).length > 0 && (
+          <div>
+            <SectionTitle>Team goals</SectionTitle>
+            <div className="space-y-6">
+              {Object.entries(byMember).map(([ownerId, memberGoals]) => {
+                const member = teamMembers.find(m => m.id === ownerId);
+                return (
+                  <div key={ownerId}>
+                    <p className="text-xs font-medium text-stone-500 mb-2">{member?.name ?? "Unknown"}</p>
+                    <div className="space-y-2">
+                      {memberGoals.map(g => <GoalRow key={g.id} goal={g} />)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
+          All goals <ChevronRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+    );
+  }
+
+  // RP / default: flat list grouped by status
+  return (
+    <div className="space-y-6">
+      {active.length > 0 && (
+        <div>
+          <SectionTitle>Active ({active.length})</SectionTitle>
+          <div className="space-y-2">{active.map(g => <GoalRow key={g.id} goal={g} />)}</div>
         </div>
       )}
+      {paused.length > 0 && (
+        <div>
+          <SectionTitle>Paused ({paused.length})</SectionTitle>
+          <div className="space-y-2">{paused.map(g => <GoalRow key={g.id} goal={g} />)}</div>
+        </div>
+      )}
+      {complete.length > 0 && (
+        <div>
+          <SectionTitle>Complete ({complete.length})</SectionTitle>
+          <div className="space-y-2">{complete.slice(0, 5).map(g => <GoalRow key={g.id} goal={g} />)}</div>
+          {complete.length > 5 && (
+            <Link href="/dashboard" className="text-xs text-sky-500 hover:text-sky-700 mt-1 block px-1">
+              +{complete.length - 5} more completed goals
+            </Link>
+          )}
+        </div>
+      )}
+      {goals.length === 0 && <EmptyState message="No goals yet." />}
+      <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
+        All goals <ChevronRight className="w-3.5 h-3.5" />
+      </Link>
     </div>
   );
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+const RP_TABS = [
+  { key: "today",    label: "Today",          icon: CalendarClock },
+  { key: "coverage", label: "Field Coverage", icon: BarChart3 },
+  { key: "goals",    label: "My Goals",       icon: Target },
+] as const;
+
+const ZL_TABS = [
+  { key: "today",    label: "Today",           icon: CalendarClock },
+  { key: "coverage", label: "Field Coverage",  icon: BarChart3 },
+  { key: "clusters", label: "Cluster Status",  icon: MapPin },
+  { key: "goals",    label: "Goals",           icon: Target },
+] as const;
+
+const OTHER_TABS = [
+  { key: "today",    label: "Today",    icon: CalendarClock },
+  { key: "goals",    label: "Goals",    icon: Target },
+] as const;
+
+type TabKey = "today" | "coverage" | "clusters" | "goals";
+
 export default function HomeView({
-  currentUserId, users, initialData, greeting, todayLabel,
+  userId, userName, designation, greeting, todayLabel,
+  todayActivities, weekActivities, weekChecklists, myGoals,
+  rpClusterStats, zlZoneName, zlClusterStats, clusterStatus, teamMembers,
 }: {
-  currentUserId: string;
-  users: User[];
-  initialData: HomeData;
+  userId: string;
+  userName: string;
+  designation: string;
   greeting: string;
   todayLabel: string;
+  todayActivities: Activity[];
+  weekActivities: Activity[];
+  weekChecklists: ChecklistItem[];
+  myGoals: Goal[];
+  rpClusterStats: ClusterStat[];
+  zlZoneName: string | null;
+  zlClusterStats: ClusterStat[];
+  clusterStatus: ClusterStatus[];
+  teamMembers: TeamMember[];
 }) {
-  const [viewUserId, setViewUserId] = useState(currentUserId);
-  const [data, setData] = useState(initialData);
-  const [loading, setLoading] = useState(false);
+  const tabs = designation === "ZL" ? ZL_TABS : designation === "RP" ? RP_TABS : OTHER_TABS;
+  const [activeTab, setActiveTab] = useState<TabKey>("today");
 
-  const viewUser = users.find(u => u.id === viewUserId);
-  const firstName = viewUser?.name?.split(" ")[0] ?? viewUser?.email ?? "";
-
-  const load = useCallback(async (uid: string) => {
-    setLoading(true);
-    const res = await fetch(`/api/home-data?userId=${uid}`);
-    if (res.ok) setData(await res.json());
-    setLoading(false);
-  }, []);
-
-  const {
-    overduePitstops, thisWeekPitstops, todayPlanItems, todayActivities,
-    noPlanPitstops, goneQuietGoals, flaggedActivities, recentNotifications,
-    currentQuarter, recentBroadcasts, driftingThemes, fyYear, fyQ,
-    pendingVerifications = [], unconfirmedGoals = [],
-  } = data;
-
-  const attentionCount = overduePitstops.length + goneQuietGoals.length + flaggedActivities.length;
+  const firstName = userName.split(" ")[0] || userName;
+  const designationBadge = designation !== "Other"
+    ? <span className="text-xs text-stone-400 font-normal ml-1">({designation})</span>
+    : null;
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-stone-50/40">
+    <div className="flex flex-col h-full overflow-y-auto bg-white">
 
       {/* Header */}
-      <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-stone-100 bg-white">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-stone-900 truncate">
-              {greeting}{firstName ? `, ${firstName}` : ""}
-            </h1>
-            <p className="text-sm text-stone-400 mt-0.5">{todayLabel}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {loading && <span className="text-xs text-stone-400 animate-pulse">Loading…</span>}
-            <select
-              value={viewUserId}
-              onChange={e => { setViewUserId(e.target.value); load(e.target.value); }}
-              className="max-w-[130px] sm:max-w-none px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg bg-white text-stone-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
-            >
-              {users.map(u => (
-                <option key={u.id} value={u.id}>
-                  {u.id === currentUserId ? `${u.name ?? u.email} (me)` : u.name ?? u.email ?? u.id}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="px-5 sm:px-8 pt-6 pb-5 border-b border-stone-100">
+        <h1 className="text-xl font-semibold text-stone-900">
+          {greeting}{firstName ? `, ${firstName}` : ""}
+          {designationBadge}
+        </h1>
+        <p className="text-sm text-stone-400 mt-0.5">{todayLabel}</p>
+      </div>
+
+      {/* Tab bar */}
+      <div className="px-5 sm:px-8 border-b border-stone-100">
+        <div className="flex gap-1 -mb-px pt-3">
+          {(tabs as readonly { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }> }[]).map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  isActive
+                    ? "border-sky-500 text-sky-700"
+                    : "border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 px-4 sm:px-6 py-4 bg-white border-b border-stone-100">
-        <StatCard label="Overdue"         value={overduePitstops.length}                            icon={<AlertTriangle className="w-3.5 h-3.5" />} accent="red"   href="#attention" />
-        <StatCard label="Due this week"   value={thisWeekPitstops.filter(p => p.targetDate).length} icon={<Clock className="w-3.5 h-3.5" />}          accent="amber" href="#this-week" />
-        <StatCard label="No plan"         value={noPlanPitstops.length}                              icon={<CalendarDays className="w-3.5 h-3.5" />}    accent="amber" href="/pitstops?noDate=1" />
-        <StatCard label="Drifting themes" value={driftingThemes.length}                              icon={<Tag className="w-3.5 h-3.5" />}             accent="amber" href="/themes" />
-      </div>
-
-      {/* Main grid */}
-      <div className="flex-1 px-4 sm:px-6 py-5 pb-24 lg:pb-8">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-          {/* ── Right sidebar — first on mobile ── */}
-          <div className="order-1 lg:order-2 space-y-5">
-
-            {/* Current quarter */}
-            <CurrentQuarterCard quarter={currentQuarter} fyYear={fyYear} fyQ={fyQ} />
-
-            {/* Needs attention */}
-            <div id="attention" className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-              <div className="px-4 py-3 border-b border-stone-100 flex items-center gap-2">
-                <AlertTriangle className={`w-3.5 h-3.5 ${attentionCount > 0 ? "text-red-400" : "text-stone-300"}`} />
-                <span className="text-xs font-semibold text-stone-600">Needs attention</span>
-                {attentionCount > 0 && (
-                  <span className="ml-auto text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">{attentionCount}</span>
-                )}
-              </div>
-              {attentionCount === 0 ? (
-                <div className="px-4 py-6 text-center">
-                  <p className="text-xs text-stone-400">All clear. Nothing needs attention.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-stone-100">
-
-                  {overduePitstops.length > 0 && (
-                    <div className="px-4 py-3">
-                      <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wide mb-2">Overdue ({overduePitstops.length})</p>
-                      <div className="space-y-1.5">
-                        {overduePitstops.slice(0, 5).map(p => (
-                          <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`} className="flex items-start gap-2 group">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0 mt-1.5" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-stone-800 truncate group-hover:text-sky-600 transition-colors">{p.title}</p>
-                              <p className="text-[10px] text-stone-400 truncate">{p.goal.title}</p>
-                            </div>
-                            <span className="text-[10px] text-red-500 font-medium flex-shrink-0">{daysLate(p.targetDate!)}d late</span>
-                          </Link>
-                        ))}
-                        {overduePitstops.length > 5 && <p className="text-[10px] text-stone-400 pl-3.5">+{overduePitstops.length - 5} more</p>}
-                      </div>
-                    </div>
-                  )}
-
-                  {goneQuietGoals.length > 0 && (
-                    <div className="px-4 py-3">
-                      <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-2">No updates in 14+ days ({goneQuietGoals.length})</p>
-                      <div className="space-y-1.5">
-                        {goneQuietGoals.slice(0, 4).map(g => (
-                          <Link key={g.id} href={`/goals/${g.id}`} className="flex items-start gap-2 group">
-                            <span className="w-1.5 h-1.5 rounded-full bg-stone-300 flex-shrink-0 mt-1.5" />
-                            <p className="flex-1 text-xs font-medium text-stone-800 truncate group-hover:text-sky-600">{g.title}</p>
-                            <span className="text-[10px] text-stone-400 flex-shrink-0">{daysSince(g.lastUpdated)}d</span>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {flaggedActivities.length > 0 && (
-                    <div className="px-4 py-3">
-                      <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-wide mb-2">Flagged activities ({flaggedActivities.length})</p>
-                      <div className="space-y-1.5">
-                        {flaggedActivities.slice(0, 4).map(a => (
-                          <Link key={a.id} href="/activities" className="flex items-start gap-2 group">
-                            <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0 mt-1.5" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-stone-800 truncate group-hover:text-sky-600">{a.title}</p>
-                              <p className="text-[10px] text-stone-400">{fmtDate(a.scheduledAt)}</p>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-              )}
-            </div>
-
-            {/* Notifications */}
-            <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-              <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-3.5 h-3.5 text-stone-400" />
-                  <span className="text-xs font-semibold text-stone-600">Notifications</span>
-                </div>
-                <Link href="/notifications" className="text-[10px] text-sky-500 hover:text-sky-700 flex items-center gap-0.5">
-                  All <ChevronRight className="w-3 h-3" />
-                </Link>
-              </div>
-              {recentNotifications.length === 0 ? (
-                <div className="px-4 py-5 text-center"><p className="text-xs text-stone-400">No notifications yet.</p></div>
-              ) : (
-                <div className="divide-y divide-stone-50">
-                  {recentNotifications.map(n => {
-                    const inner = (
-                      <div className={`flex items-start gap-2.5 px-4 py-2.5 hover:bg-stone-50 transition-colors ${n.read ? "opacity-60" : ""}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${n.read ? "bg-transparent" : "bg-sky-500"}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-stone-800 truncate">{n.title}</p>
-                          <p className="text-[10px] text-stone-400 mt-0.5">{fmtDatetime(n.createdAt)}</p>
-                        </div>
-                      </div>
-                    );
-                    return n.link ? <Link key={n.id} href={n.link}>{inner}</Link> : <div key={n.id}>{inner}</div>;
-                  })}
-                </div>
-              )}
-            </div>
-
+      {/* Tab content */}
+      <div className="flex-1 px-5 sm:px-8 py-6 pb-24 sm:pb-8 max-w-3xl">
+        {activeTab === "today" && (
+          <TodayTab
+            todayActivities={todayActivities}
+            weekActivities={weekActivities}
+            weekChecklists={weekChecklists}
+            designation={designation}
+          />
+        )}
+        {activeTab === "coverage" && designation === "RP" && (
+          <RPCoverageTab clusterStats={rpClusterStats} />
+        )}
+        {activeTab === "coverage" && designation === "ZL" && (
+          <ZLCoverageTab zoneName={zlZoneName} clusterStats={zlClusterStats} />
+        )}
+        {activeTab === "clusters" && designation === "ZL" && (
+          <ZLClusterStatusTab clusterStatus={clusterStatus} />
+        )}
+        {activeTab === "goals" && (
+          <GoalsTab
+            goals={myGoals}
+            userId={userId}
+            designation={designation}
+            teamMembers={teamMembers}
+          />
+        )}
+        {activeTab === "coverage" && designation !== "RP" && designation !== "ZL" && (
+          <div className="text-center py-10">
+            <p className="text-sm text-stone-400">Coverage data is role-specific.</p>
+            <Link href="/needs" className="mt-2 inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
+              View field coverage <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-
-          {/* ── Main column — second on mobile ── */}
-          <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
-
-            {/* Today */}
-            <div>
-              <SectionHeader title="Today" href="/planner" icon={<CalendarDays className="w-3.5 h-3.5" />} />
-              {todayPlanItems.length === 0 && todayActivities.length === 0 ? (
-                <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-dashed border-stone-200 text-stone-400 text-xs">
-                  <span>Nothing planned for today.</span>
-                  <Link href="/planner" className="flex items-center gap-1 text-sky-500 hover:text-sky-700"><Plus className="w-3.5 h-3.5" /> Add</Link>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  {todayActivities.map(a => (
-                    <Link key={a.id} href="/activities"
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ACT_DOT[a.type] ?? "bg-stone-400"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                        <p className="text-[11px] text-stone-400">{fmtTime(a.scheduledAt)} · {a.type}{a.location ? ` · ${a.location}` : ""}</p>
-                      </div>
-                      <span className="text-[10px] text-stone-400 bg-stone-50 border border-stone-200 px-2 py-0.5 rounded-full flex-shrink-0">Activity</span>
-                    </Link>
-                  ))}
-                  {todayPlanItems.map(item => (
-                    <div key={item.id} className="flex items-start gap-3 px-3 py-2.5 rounded-xl border border-stone-200 bg-white">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${PLAN_TYPE_DOT[item.type] ?? "bg-stone-300"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-800 truncate">{item.title}</p>
-                        {item.pitstops.length > 0 && (
-                          <p className="text-[11px] text-stone-400 truncate mt-0.5">
-                            {item.pitstops.map(p => p.pitstop.goal.title + " › " + p.pitstop.title).join(", ")}
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-stone-400 bg-stone-50 border border-stone-200 px-2 py-0.5 rounded-full flex-shrink-0">{item.type}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Recent broadcasts */}
-            <div>
-              <SectionHeader title="Recent updates" icon={<Megaphone className="w-3.5 h-3.5" />} />
-              <BroadcastsCard broadcasts={recentBroadcasts} />
-            </div>
-
-            {/* Drifting themes */}
-            {driftingThemes.length > 0 && (
-              <div id="drifting">
-                <SectionHeader title="Drifting themes" icon={<Tag className="w-3.5 h-3.5" />} href="/themes" />
-                <div className="flex flex-wrap gap-2">
-                  {driftingThemes.map(t => (
-                    <Link key={t.id} href="/themes"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 transition-colors">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={t.color ? { backgroundColor: t.color } : { backgroundColor: '#d97706' }} />
-                      {t.name}
-                      <span className="text-[10px] font-normal text-amber-600">21d quiet</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Pending verifications */}
-            {pendingVerifications.length > 0 && (
-              <div>
-                <SectionHeader title="Awaiting your review" count={pendingVerifications.length} icon={<ShieldCheck className="w-3.5 h-3.5" />} />
-                <div className="space-y-1.5">
-                  {pendingVerifications.map(p => (
-                    <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-stone-800 truncate">{p.title}</p>
-                        <p className="text-[10px] text-stone-500 truncate">{p.goal.title} · done by {p.owner.name}</p>
-                      </div>
-                      {p.completedAt && (
-                        <span className="text-[10px] text-emerald-600 flex-shrink-0">{fmtDate(p.completedAt)}</span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Unconfirmed goals */}
-            {unconfirmedGoals.length > 0 && (
-              <div>
-                <SectionHeader title="Goals awaiting confirmation" count={unconfirmedGoals.length} icon={<BadgeCheck className="w-3.5 h-3.5" />} />
-                <div className="space-y-1.5">
-                  {unconfirmedGoals.map(g => (
-                    <Link key={g.id} href={`/goals/${g.id}`}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 transition-colors">
-                      <BadgeCheck className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-stone-800 truncate">{g.title}</p>
-                        <p className="text-[10px] text-stone-500 truncate">by {g.owner.name}</p>
-                      </div>
-                      <span className="text-[10px] text-sky-600 flex-shrink-0">{fmtDate(g.createdAt)}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* This week */}
-            <div id="this-week">
-              <SectionHeader title="This week's pitstops" count={thisWeekPitstops.length} href="/timeline" icon={<Clock className="w-3.5 h-3.5" />} />
-              {thisWeekPitstops.length === 0 ? (
-                <p className="text-xs text-stone-400 px-1">No pitstops due or starting this week.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {thisWeekPitstops.map(p => {
-                    const isDue = p.targetDate && new Date(p.targetDate) <= new Date(new Date().setHours(23, 59, 59, 999));
-                    return (
-                      <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border hover:shadow-sm transition-all ${STATUS_BG[p.status]}`}>
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[p.status]}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{p.title}</p>
-                          <p className="text-[11px] opacity-60 truncate">{p.goal.title}</p>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {p.owner && <p className="text-[10px] opacity-60 hidden sm:block">{p.owner.name}</p>}
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${isDue ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-white/60 border-current opacity-70"}`}>
-                            {isDue ? (p.targetDate ? `Due ${fmtDate(p.targetDate)}` : "Due") : (p.startDate ? `Starts ${fmtDate(p.startDate)}` : "Starts")}
-                          </span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

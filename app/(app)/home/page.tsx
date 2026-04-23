@@ -1,310 +1,290 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import HomeView from "./HomeView";
-import { goalCityFilter } from "@/lib/goalCityFilter";
 
 function getWeekBounds(now: Date) {
-  const weekStart = new Date(now);
-  const day = weekStart.getDay();
-  weekStart.setDate(weekStart.getDate() - (day + 6) % 7);
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
-  weekEnd.setHours(23, 59, 59, 999);
-  return { weekStart, weekEnd };
+  const s = new Date(now);
+  const day = s.getDay();
+  s.setDate(s.getDate() - (day + 6) % 7);
+  s.setHours(0, 0, 0, 0);
+  const e = new Date(s);
+  e.setDate(e.getDate() + 6);
+  e.setHours(23, 59, 59, 999);
+  return { weekStart: s, weekEnd: e };
 }
+
+type GoalRow = {
+  id: string;
+  title: string;
+  status: string;
+  needsDomain: string | null;
+  needsClusterId: string | null;
+  parameter: number | null;
+  outcomeCount: number | null;
+  ownerId: string | null;
+  owner: { id: string; name: string | null } | null;
+  pitstops: { id: string; status: string }[];
+};
+
+export type DomainStat = { domain: string; label: string; planned: number; done: number; gap: number };
+
+function computeDomainStats(goals: Pick<GoalRow, "needsDomain" | "status" | "parameter" | "outcomeCount">[], domainLabels: Record<string, string>): DomainStat[] {
+  const stats: Record<string, { planned: number; done: number }> = {};
+  for (const g of goals) {
+    if (!g.needsDomain) continue;
+    if (!stats[g.needsDomain]) stats[g.needsDomain] = { planned: 0, done: 0 };
+    if (g.status === "Complete") {
+      stats[g.needsDomain].done += g.outcomeCount ?? g.parameter ?? 0;
+    } else if (g.status === "Active") {
+      stats[g.needsDomain].planned += g.parameter ?? 0;
+    }
+  }
+  return Object.entries(stats)
+    .map(([domain, { planned, done }]) => ({
+      domain,
+      label: domainLabels[domain] ?? domain,
+      planned,
+      done,
+      gap: Math.max(0, planned - done),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export type ClusterStat = { clusterId: string; clusterName: string; stats: DomainStat[] };
+
+export type ClusterStatus = {
+  clusterId: string;
+  name: string;
+  goalCount: number;
+  pitstopCount: number;
+  activityCount: number;
+  checklistCount: number;
+};
 
 export default async function HomePage() {
   const session = await auth();
-  const currentUserId = session!.user!.id!;
-  const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true } });
-  const cityFilter = goalCityFilter(me?.cityId);
+  const userId = session!.user!.id!;
 
   const now = new Date();
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
   const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
   const { weekStart, weekEnd } = getWeekBounds(now);
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const twentyOneDaysAgo = new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000);
 
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const todayLabel = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const todayLabel = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  const m = now.getMonth();
-  const fyYear = m >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-  const fyQ = m >= 3 && m <= 5 ? 1 : m >= 6 && m <= 8 ? 2 : m >= 9 ? 3 : 4;
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, designation: true },
+  });
+  const designation = me?.designation ?? "Other";
+
+  // Team IDs: ZL includes her reports
+  let teamIds: string[] = [userId];
+  let teamMembers: { id: string; name: string | null; image: string | null }[] = [];
+  if (designation === "ZL") {
+    teamMembers = await prisma.user.findMany({
+      where: { reportsToId: userId },
+      select: { id: true, name: true, image: true },
+    });
+    teamIds = [userId, ...teamMembers.map(m => m.id)];
+  }
 
   const [
-    users,
-    overduePitstops,
-    thisWeekPitstops,
-    todayPlanItems,
     todayActivities,
-    inProgressPitstops,
-    plannedThisWeek,
-    activeGoals,
-    flaggedActivities,
-    recentNotifications,
-    currentQuarter,
-    recentBroadcasts,
-    recentStandups,
-    staleCheckins,
-    driftingThemes,
-    pendingVerifications,
-    unconfirmedGoals,
+    weekActivities,
+    weekChecklists,
+    myGoals,
+    domainConfigs,
+    myZone,
   ] = await Promise.all([
-    prisma.user.findMany({
-      select: { id: true, name: true, image: true, email: true },
-      orderBy: { name: "asc" },
-    }),
-
-    prisma.pitstop.findMany({
-      where: {
-        deletedAt: null,
-        ownerId: currentUserId,
-        status: { in: ["Upcoming", "InProgress"] },
-        targetDate: { lt: todayStart },
-        goal: { deletedAt: null },
-      },
-      select: {
-        id: true, title: true, status: true, targetDate: true,
-        goal: { select: { id: true, title: true } },
-        owner: { select: { id: true, name: true, image: true } },
-      },
-      orderBy: { targetDate: "asc" },
-    }),
-
-    prisma.pitstop.findMany({
-      where: {
-        deletedAt: null,
-        ownerId: currentUserId,
-        goal: { deletedAt: null },
-        OR: [
-          { targetDate: { gte: weekStart, lte: weekEnd } },
-          { startDate:  { gte: weekStart, lte: weekEnd } },
-        ],
-      },
-      select: {
-        id: true, title: true, status: true, targetDate: true, startDate: true,
-        goal: { select: { id: true, title: true } },
-        owner: { select: { id: true, name: true, image: true } },
-      },
-      orderBy: { targetDate: "asc" },
-    }),
-
-    prisma.planItem.findMany({
-      where: { userId: currentUserId, deletedAt: null, date: { gte: todayStart, lte: todayEnd } },
-      include: {
-        pitstops: { select: { pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } } } } } },
-      },
-      orderBy: { date: "asc" },
-    }),
-
+    // Today's activities for current user
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
         scheduledAt: { gte: todayStart, lte: todayEnd },
-        attendees: { some: { userId: currentUserId } },
+        attendees: { some: { userId } },
       },
       select: { id: true, title: true, type: true, scheduledAt: true, location: true, status: true },
       orderBy: { scheduledAt: "asc" },
     }),
 
-    prisma.pitstop.findMany({
-      where: { deletedAt: null, ownerId: currentUserId, status: "InProgress", goal: { deletedAt: null } },
-      select: { id: true, title: true, targetDate: true, goal: { select: { id: true, title: true } } },
-    }),
-
-    prisma.planItemPitstop.findMany({
-      where: {
-        planItem: { userId: currentUserId, deletedAt: null, date: { gte: weekStart, lte: weekEnd } },
-      },
-      select: { pitstopId: true },
-    }),
-
-    prisma.goal.findMany({
-      where: {
-        deletedAt: null,
-        ...cityFilter,
-        status: { not: "Complete" },
-        pitstops: {
-          some: { deletedAt: null, ownerId: currentUserId, status: { in: ["Upcoming", "InProgress"] } },
-        },
-      },
-      select: {
-        id: true, title: true,
-        pitstops: {
-          where: { deletedAt: null, ownerId: currentUserId, status: { in: ["Upcoming", "InProgress"] } },
-          select: { updatedAt: true },
-          orderBy: { updatedAt: "desc" },
-          take: 1,
-        },
-      },
-    }),
-
+    // This week's activities (own for RP, team for ZL)
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
-        status: "Flagged",
-        attendees: { some: { userId: currentUserId } },
+        scheduledAt: { gte: weekStart, lte: weekEnd },
+        attendees: { some: { userId: { in: teamIds } } },
       },
-      select: { id: true, title: true, scheduledAt: true, type: true },
+      select: {
+        id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        attendees: { select: { user: { select: { id: true, name: true } } } },
+      },
       orderBy: { scheduledAt: "asc" },
     }),
 
-    prisma.notification.findMany({
-      where: { userId: currentUserId },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-
-    // Current quarter with its goals
-    prisma.quarter.findFirst({
-      where: { deletedAt: null, year: fyYear, quarter: fyQ },
-      include: {
-        goals: {
-          include: {
-            goal: {
-              select: {
-                id: true, title: true, status: true,
-                pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
-              },
-            },
+    // Open checklist items on pitstops owned by user/team
+    prisma.checklistItem.findMany({
+      where: {
+        status: { notIn: ["Done", "Cancelled"] },
+        pitstop: {
+          ownerId: { in: teamIds },
+          deletedAt: null,
+          goal: { deletedAt: null },
+        },
+      },
+      select: {
+        id: true, text: true, status: true, checked: true,
+        pitstop: {
+          select: {
+            id: true, title: true, targetDate: true,
+            ownerId: true,
+            owner: { select: { id: true, name: true } },
+            goal: { select: { id: true, title: true } },
           },
         },
       },
+      orderBy: { order: "asc" },
     }),
 
-    // Recent goal broadcasts
-    prisma.goalBroadcast.findMany({
-      where: { goal: { deletedAt: null } },
-      include: {
-        author: { select: { id: true, name: true, image: true } },
-        goal: { select: { id: true, title: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 4,
-    }),
-
-    // Recent standups
-    prisma.standupLog.findMany({
-      where: { createdAt: { gte: sevenDaysAgo } },
-      include: { user: { select: { id: true, name: true, image: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-
-    // InProgress pitstops with no check-in in 7 days
-    prisma.pitstop.findMany({
-      where: {
-        deletedAt: null,
-        ownerId: currentUserId,
-        status: "InProgress",
-        goal: { deletedAt: null },
-        checkins: { none: { createdAt: { gte: sevenDaysAgo } } },
-      },
-      select: {
-        id: true, title: true,
-        goal: { select: { id: true, title: true } },
-      },
-      take: 5,
-    }),
-
-    // Drifting themes: have InProgress pitstops not updated in 21 days
-    prisma.theme.findMany({
-      where: {
-        deletedAt: null,
-        goals: {
-          some: {
-            goal: {
-              deletedAt: null,
-              status: { not: "Complete" },
-              pitstops: {
-                some: {
-                  deletedAt: null,
-                  status: "InProgress",
-                  updatedAt: { lt: twentyOneDaysAgo },
-                },
-              },
-            },
-          },
-        },
-      },
-      select: { id: true, name: true, color: true },
-    }),
-
-    // Pitstops that are Done but unverified — owned by reports of current user
-    prisma.pitstop.findMany({
-      where: {
-        deletedAt: null,
-        status: "Done",
-        verifiedById: null,
-        goal: { deletedAt: null },
-        owner: { reportsToId: currentUserId },
-      },
-      select: {
-        id: true, title: true, completedAt: true,
-        goal: { select: { id: true, title: true } },
-        owner: { select: { id: true, name: true, image: true } },
-      },
-      orderBy: { completedAt: "desc" },
-      take: 10,
-    }),
-
-    // Goals without confirmation — owned by reports of current user
+    // Goals owned by user (RP) or team (ZL)
     prisma.goal.findMany({
-      where: {
-        deletedAt: null,
-        ...cityFilter,
-        status: { not: "Complete" },
-        confirmedById: null,
-        owner: { reportsToId: currentUserId },
-      },
+      where: { deletedAt: null, ownerId: { in: teamIds } },
       select: {
-        id: true, title: true, createdAt: true,
-        owner: { select: { id: true, name: true, image: true } },
+        id: true, title: true, status: true, needsDomain: true,
+        needsClusterId: true, needsZoneId: true,
+        parameter: true, outcomeCount: true,
+        ownerId: true,
+        owner: { select: { id: true, name: true } },
+        pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
       },
-      orderBy: { createdAt: "desc" },
-      take: 10,
+      orderBy: { updatedAt: "desc" },
     }),
+
+    // Domain labels for coverage tab
+    prisma.needsFormulaConfig.findMany({
+      where: { isActive: true },
+      select: { domain: true, label: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+
+    // ZL's zone
+    designation === "ZL"
+      ? prisma.zone.findFirst({
+          where: { leadId: userId, deletedAt: null },
+          select: {
+            id: true, name: true,
+            clusters: {
+              where: { deletedAt: null },
+              orderBy: { name: "asc" },
+              select: { id: true, name: true },
+            },
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
-  const plannedIds = new Set(plannedThisWeek.map(r => r.pitstopId));
-  const noPlanPitstops = inProgressPitstops.filter(p => !plannedIds.has(p.id));
+  const domainLabels = Object.fromEntries(domainConfigs.map(d => [d.domain, d.label ?? d.domain]));
 
-  const goneQuietGoals = activeGoals
-    .filter(g => g.pitstops.length > 0 && new Date(g.pitstops[0].updatedAt) < fourteenDaysAgo)
-    .map(g => ({ id: g.id, title: g.title, lastUpdated: g.pitstops[0].updatedAt.toISOString() }));
+  // ── RP: per-cluster domain stats ──────────────────────────────────────────
+  let rpClusterStats: ClusterStat[] = [];
+  if (designation === "RP") {
+    const clusterIds = [...new Set((myGoals as GoalRow[]).map(g => g.needsClusterId).filter(Boolean))] as string[];
+    if (clusterIds.length > 0) {
+      const clusters = await prisma.cluster.findMany({
+        where: { id: { in: clusterIds } },
+        select: { id: true, name: true },
+      });
+      rpClusterStats = clusters.map(c => ({
+        clusterId: c.id,
+        clusterName: c.name,
+        stats: computeDomainStats((myGoals as GoalRow[]).filter(g => g.needsClusterId === c.id), domainLabels),
+      }));
+    }
+  }
 
-  const initialData = {
-    overduePitstops: JSON.parse(JSON.stringify(overduePitstops)),
-    thisWeekPitstops: JSON.parse(JSON.stringify(thisWeekPitstops)),
-    todayPlanItems: JSON.parse(JSON.stringify(todayPlanItems)),
-    todayActivities: JSON.parse(JSON.stringify(todayActivities)),
-    noPlanPitstops: JSON.parse(JSON.stringify(noPlanPitstops)),
-    goneQuietGoals,
-    flaggedActivities: JSON.parse(JSON.stringify(flaggedActivities)),
-    recentNotifications: JSON.parse(JSON.stringify(recentNotifications)),
-    currentQuarter: JSON.parse(JSON.stringify(currentQuarter)),
-    recentBroadcasts: JSON.parse(JSON.stringify(recentBroadcasts)),
-    recentStandups: JSON.parse(JSON.stringify(recentStandups)),
-    staleCheckins: JSON.parse(JSON.stringify(staleCheckins)),
-    driftingThemes: JSON.parse(JSON.stringify(driftingThemes)),
-    pendingVerifications: JSON.parse(JSON.stringify(pendingVerifications)),
-    unconfirmedGoals: JSON.parse(JSON.stringify(unconfirmedGoals)),
-    fyYear,
-    fyQ,
-  };
+  // ── ZL: per-cluster domain stats + cluster status ─────────────────────────
+  let zlClusterStats: ClusterStat[] = [];
+  let clusterStatus: ClusterStatus[] = [];
+
+  if (designation === "ZL" && myZone) {
+    const clusterIds = myZone.clusters.map(c => c.id);
+
+    const [zoneGoals, clusterPitstops, clusterActivities, clusterChecklists] = await Promise.all([
+      prisma.goal.findMany({
+        where: { deletedAt: null, needsClusterId: { in: clusterIds } },
+        select: { needsDomain: true, needsClusterId: true, status: true, parameter: true, outcomeCount: true },
+      }),
+      prisma.pitstop.findMany({
+        where: {
+          deletedAt: null,
+          status: { in: ["Upcoming", "InProgress"] },
+          goal: { deletedAt: null, needsClusterId: { in: clusterIds } },
+        },
+        select: { id: true, goal: { select: { needsClusterId: true } } },
+      }),
+      prisma.pitstopEvent.findMany({
+        where: {
+          deletedAt: null,
+          scheduledAt: { gte: weekStart, lte: weekEnd },
+          pitstops: { some: { pitstop: { goal: { needsClusterId: { in: clusterIds } } } } },
+        },
+        select: {
+          id: true,
+          pitstops: { select: { pitstop: { select: { goal: { select: { needsClusterId: true } } } } } },
+        },
+      }),
+      prisma.checklistItem.findMany({
+        where: {
+          status: { notIn: ["Done", "Cancelled"] },
+          pitstop: { deletedAt: null, goal: { deletedAt: null, needsClusterId: { in: clusterIds } } },
+        },
+        select: { id: true, pitstop: { select: { goal: { select: { needsClusterId: true } } } } },
+      }),
+    ]);
+
+    zlClusterStats = myZone.clusters.map(c => ({
+      clusterId: c.id,
+      clusterName: c.name,
+      stats: computeDomainStats(zoneGoals.filter(g => g.needsClusterId === c.id), domainLabels),
+    }));
+
+    const activeGoalsByCluster: Record<string, number> = {};
+    for (const g of zoneGoals.filter(g => g.status !== "Complete" && g.status !== "Paused")) {
+      if (g.needsClusterId) activeGoalsByCluster[g.needsClusterId] = (activeGoalsByCluster[g.needsClusterId] ?? 0) + 1;
+    }
+
+    clusterStatus = myZone.clusters.map(c => ({
+      clusterId: c.id,
+      name: c.name,
+      goalCount: activeGoalsByCluster[c.id] ?? 0,
+      pitstopCount: clusterPitstops.filter(p => p.goal.needsClusterId === c.id).length,
+      activityCount: clusterActivities.filter(a =>
+        a.pitstops.some(ep => ep.pitstop.goal.needsClusterId === c.id)
+      ).length,
+      checklistCount: clusterChecklists.filter(ci =>
+        ci.pitstop.goal.needsClusterId === c.id
+      ).length,
+    }));
+  }
 
   return (
     <HomeView
-      currentUserId={currentUserId}
-      users={JSON.parse(JSON.stringify(users))}
-      initialData={initialData}
+      userId={userId}
+      userName={me?.name ?? ""}
+      designation={designation}
       greeting={greeting}
       todayLabel={todayLabel}
+      todayActivities={JSON.parse(JSON.stringify(todayActivities))}
+      weekActivities={JSON.parse(JSON.stringify(weekActivities))}
+      weekChecklists={JSON.parse(JSON.stringify(weekChecklists))}
+      myGoals={JSON.parse(JSON.stringify(myGoals))}
+      rpClusterStats={rpClusterStats}
+      zlZoneName={myZone?.name ?? null}
+      zlClusterStats={zlClusterStats}
+      clusterStatus={clusterStatus}
+      teamMembers={JSON.parse(JSON.stringify(teamMembers))}
     />
   );
 }
