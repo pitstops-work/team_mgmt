@@ -72,17 +72,17 @@ interface SearchResults {
 
 type PhaseRow = { goalId: string; progressTag: string | null; status: string };
 
-const PHASE_TAGS = ["Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring"] as const;
+const PHASE_TAGS = ["Team", "Baseline", "Permissions", "Infrastructure", "Training", "Live", "Monitoring"] as const;
 type PhaseTag = typeof PHASE_TAGS[number];
 
 const PHASE_COLORS: Record<PhaseTag, { pill: string; filled: string }> = {
-  Planning:     { pill: "bg-violet-50 text-violet-700 border-violet-200", filled: "bg-violet-500" },
-  Mobilisation: { pill: "bg-orange-50 text-orange-700 border-orange-200", filled: "bg-orange-500" },
-  Setup:        { pill: "bg-sky-50 text-sky-700 border-sky-200",          filled: "bg-sky-500" },
-  Capacity:     { pill: "bg-indigo-50 text-indigo-700 border-indigo-200", filled: "bg-indigo-500" },
-  Engagement:   { pill: "bg-teal-50 text-teal-700 border-teal-200",       filled: "bg-teal-500" },
-  Delivery:     { pill: "bg-emerald-50 text-emerald-700 border-emerald-200", filled: "bg-emerald-500" },
-  Monitoring:   { pill: "bg-amber-50 text-amber-700 border-amber-200",    filled: "bg-amber-500" },
+  Team:           { pill: "bg-stone-50 text-stone-700 border-stone-200",   filled: "bg-stone-500" },
+  Baseline:       { pill: "bg-sky-50 text-sky-700 border-sky-200",         filled: "bg-sky-500" },
+  Permissions:    { pill: "bg-amber-50 text-amber-700 border-amber-200",   filled: "bg-amber-500" },
+  Infrastructure: { pill: "bg-violet-50 text-violet-700 border-violet-200", filled: "bg-violet-500" },
+  Training:       { pill: "bg-teal-50 text-teal-700 border-teal-200",      filled: "bg-teal-500" },
+  Live:           { pill: "bg-emerald-50 text-emerald-700 border-emerald-200", filled: "bg-emerald-500" },
+  Monitoring:     { pill: "bg-rose-50 text-rose-700 border-rose-200",      filled: "bg-rose-500" },
 };
 
 interface Props {

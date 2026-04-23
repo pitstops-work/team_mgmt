@@ -15,24 +15,24 @@ export interface PitstopTemplate {
   startSlaDays: number;    // start date = goal start + startSlaDays
   recurrence?: "None" | "Weekly" | "Monthly" | "Quarterly";
   checklist: ChecklistItemTemplate[];
-  progressTag?: string;    // Planning | Mobilisation | Setup | Capacity | Engagement | Delivery | Monitoring
+  progressTag?: string;    // Team | Baseline | Permissions | Infrastructure | Monitoring | Training | Live
 }
 
-export type ProgressTag = "Planning" | "Mobilisation" | "Setup" | "Capacity" | "Engagement" | "Delivery" | "Monitoring";
+export type ProgressTag = "Team" | "Baseline" | "Permissions" | "Infrastructure" | "Monitoring" | "Training" | "Live";
 
 export const PROGRESS_TAGS: ProgressTag[] = [
-  "Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring",
+  "Team", "Baseline", "Permissions", "Infrastructure", "Monitoring", "Training", "Live",
 ];
 
-// Ordered: more specific keywords first. First match wins.
+// Ordered: more specific first. First match wins. Default → Live.
 const TAG_KEYWORDS: [ProgressTag, string[]][] = [
-  ["Monitoring",   ["monitoring", "supervisor review", "tracking", "audit", "variance", "impact assessment", "review"]],
-  ["Mobilisation", ["gram sabha", "mou", "approval", "grant", "proposal", "budget", "noc", "mobilisation", "liaison"]],
-  ["Planning",     ["plan", "survey", "mapping", "assessment", "baseline", "needs", "identification", "line listing", "concept note", "annual plan"]],
-  ["Setup",        ["recruitment", "infrastructure", "facility", "site", "procurement", "mis", "location", "onboarding", "induction", "team"]],
-  ["Capacity",     ["training", "capacity", "orientation", "coaching", "learning", "skills", "peer learning"]],
-  ["Engagement",   ["community", "outreach", "enrollment", "caregiver selection", "small group", "group meeting", "engagement", "outreach"]],
-  ["Delivery",     ["launch", "round", "visit", "session", "drive", "linkage", "rollout", "operations", "action", "delivery"]],
+  ["Team",           ["recruitment", "hiring", "deployment", "induction", "programme team", "staffing"]],
+  ["Baseline",       ["survey", "mapping", "enumeration", "line listing", "linelisting", "baseline", "needs assessment", "demand estimation"]],
+  ["Permissions",    ["gram sabha", "mou", "approval", "noc", "liaison", "government", "sensitisation", "stakeholder"]],
+  ["Infrastructure", ["infrastructure", "civil works", "procurement", "facility", "mobile app", "mis", "rent", "books", "tlm", "location"]],
+  ["Monitoring",     ["monitoring", "review", "supervision", "rounds", "visit", "cadence", "tracking", "audit"]],
+  ["Training",       ["training", "orientation", "coaching", "capacity building", "leadership", "peer learning", "learning"]],
+  ["Live",           ["launch", "enrollment", "activation", "drive", "linkage", "rollout", "placement", "formation", "operations", "session", "action"]],
 ];
 
 export function applyProgressTags(pitstops: PitstopTemplate[]): PitstopTemplate[] {
@@ -42,7 +42,7 @@ export function applyProgressTags(pitstops: PitstopTemplate[]): PitstopTemplate[
     for (const [tag, keywords] of TAG_KEYWORDS) {
       if (keywords.some((k) => lower.includes(k))) return { ...pt, progressTag: tag };
     }
-    return { ...pt, progressTag: "Delivery" };
+    return { ...pt, progressTag: "Live" };
   });
 }
 
