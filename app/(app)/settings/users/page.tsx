@@ -25,7 +25,7 @@ interface User {
 const ROLES = ["super-admin", "admin", "member", "viewer"] as const;
 type Role = typeof ROLES[number];
 
-const DESIGNATIONS = ["RP", "ZL", "PM", "Other"] as const;
+const DESIGNATIONS = ["RP", "ZL", "PM", "Leader", "Other"] as const;
 type Designation = typeof DESIGNATIONS[number];
 
 const ROLE_STYLE: Record<Role, string> = {
@@ -36,10 +36,18 @@ const ROLE_STYLE: Record<Role, string> = {
 };
 
 const DESIGNATION_STYLE: Record<Designation, string> = {
-  ZL:    "bg-violet-100 text-violet-700",
-  PM:    "bg-sky-100 text-sky-700",
-  RP:    "bg-emerald-100 text-emerald-700",
-  Other: "bg-stone-100 text-stone-500",
+  Leader: "bg-amber-100 text-amber-700",
+  ZL:     "bg-violet-100 text-violet-700",
+  PM:     "bg-sky-100 text-sky-700",
+  RP:     "bg-emerald-100 text-emerald-700",
+  Other:  "bg-stone-100 text-stone-500",
+};
+
+// Which designations can manage which
+const REPORTS_TO_FILTER: Partial<Record<Designation, Designation[]>> = {
+  RP: ["ZL", "Leader"],
+  ZL: ["PM", "Leader"],
+  PM: ["Leader"],
 };
 
 export default function UserManagementPage() {
@@ -142,7 +150,7 @@ export default function UserManagementPage() {
         designation: editDesignation,
         zoneIds: editDesignation === "ZL" || editDesignation === "PM" ? editZoneIds : [],
         clusterIds: editDesignation === "RP" ? editClusterIds : [],
-        reportsToId: editDesignation === "RP" ? (editReportsToId || null) : null,
+        reportsToId: (editDesignation in REPORTS_TO_FILTER) ? (editReportsToId || null) : null,
       }),
     });
     const data = await res.json();
@@ -425,22 +433,27 @@ export default function UserManagementPage() {
                     </div>
                   )}
 
-                  {/* RP — Reports To (ZL) */}
-                  {editDesignation === "RP" && (
-                    <div>
-                      <p className="text-[10px] font-semibold text-amber-700 mb-1.5">Reports To (Zone Lead)</p>
-                      <select
-                        value={editReportsToId}
-                        onChange={e => setEditReportsToId(e.target.value)}
-                        className="text-sm border border-amber-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 w-full max-w-xs"
-                      >
-                        <option value="">— none —</option>
-                        {users.filter(m => m.designation === "ZL").map(m => (
-                          <option key={m.id} value={m.id}>{m.name ?? m.email}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                  {/* Reports To — shown for RP, ZL, PM */}
+                  {editDesignation in REPORTS_TO_FILTER && (() => {
+                    const allowedDesigs = REPORTS_TO_FILTER[editDesignation as keyof typeof REPORTS_TO_FILTER]!;
+                    const label = editDesignation === "RP" ? "Reports To (Zone Lead)" : editDesignation === "ZL" ? "Reports To (PM / Leader)" : "Reports To (Leader)";
+                    const managers = users.filter(m => allowedDesigs.includes(m.designation as Designation));
+                    return (
+                      <div>
+                        <p className="text-[10px] font-semibold text-amber-700 mb-1.5">{label}</p>
+                        <select
+                          value={editReportsToId}
+                          onChange={e => setEditReportsToId(e.target.value)}
+                          className="text-sm border border-amber-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 w-full max-w-xs"
+                        >
+                          <option value="">— none —</option>
+                          {managers.map(m => (
+                            <option key={m.id} value={m.id}>{m.name ?? m.email} ({m.designation})</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })()}
 
                   {/* RP — cascading city → zone filter → cluster picker */}
                   {editDesignation === "RP" && (
