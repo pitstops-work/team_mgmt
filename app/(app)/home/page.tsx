@@ -136,13 +136,12 @@ export default async function HomePage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const todayLabel = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  const role = (session as { user?: { role?: string } })?.user?.role ?? "member";
-
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    select: { name: true, designation: true },
+    select: { name: true, designation: true, role: true },
   });
   const designation = me?.designation ?? "Other";
+  const role = me?.role ?? "member";
 
   // Team IDs: ZL includes her reports
   let teamIds: string[] = [userId];

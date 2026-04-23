@@ -1297,6 +1297,11 @@ const ADMIN_TABS = [
   { key: "today",     label: "Today",      icon: CalendarClock },
 ] as const;
 
+const OTHER_TABS = [
+  { key: "today", label: "Today", icon: CalendarClock },
+  { key: "goals", label: "Goals", icon: Target },
+] as const;
+
 type TabKey = "today" | "coverage" | "clusters" | "goals" | "overview" | "geography" | "team" | "pipeline";
 
 export default function HomeView({
@@ -1322,7 +1327,10 @@ export default function HomeView({
   adminDash: AdminDash | null;
 }) {
   const isAdmin = !!adminDash;
-  const tabs = designation === "ZL" ? ZL_TABS : designation === "RP" ? RP_TABS : ADMIN_TABS;
+  const tabs = designation === "ZL" ? ZL_TABS
+    : designation === "RP" ? RP_TABS
+    : isAdmin ? ADMIN_TABS
+    : OTHER_TABS;
   const defaultTab: TabKey = isAdmin ? "overview" : "today";
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
 
