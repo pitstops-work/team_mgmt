@@ -116,13 +116,19 @@ export default async function PitstopPage({
       SELECT "checklistItemId", id, title, "scheduledAt"::text
       FROM "PitstopEvent"
       WHERE "checklistItemId" = ANY(${checklistIds}) AND "deletedAt" IS NULL
+      ORDER BY "scheduledAt" ASC
     `;
-    const activityMap = new Map(activityRows.map((r) => [r.checklistItemId, { id: r.id, title: r.title, scheduledAt: r.scheduledAt }]));
+    const activityMap = new Map<string, { id: string; title: string; scheduledAt: string }[]>();
+    for (const r of activityRows) {
+      const arr = activityMap.get(r.checklistItemId) ?? [];
+      arr.push({ id: r.id, title: r.title, scheduledAt: r.scheduledAt });
+      activityMap.set(r.checklistItemId, arr);
+    }
 
     for (const ci of pitstop.checklistItems) {
       const row = ciMap.get(ci.id);
       if (row) Object.assign(ci, row);
-      (ci as Record<string, unknown>).activity = activityMap.get(ci.id) ?? null;
+      (ci as Record<string, unknown>).activities = activityMap.get(ci.id) ?? [];
     }
   }
 

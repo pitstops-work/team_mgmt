@@ -77,7 +77,7 @@ type ChecklistDrillItem = {
   text: string;
   checked: boolean;
   status: string;
-  activity: { id: string; title: string; status: string; scheduledAt: string; type: string } | null;
+  activities: { id: string; title: string; status: string; scheduledAt: string; type: string }[];
 };
 
 type DrillState = { goalId: string; goalTitle: string; tag: PhaseTag; pitstops: PhaseRow[] } | null;
@@ -1009,26 +1009,30 @@ function DrillDownPanel({ drill, onClose }: { drill: NonNullable<DrillState>; on
                                 <span className={`text-xs flex-1 min-w-0 ${item.checked ? "line-through text-stone-400" : "text-stone-600"}`}>
                                   {item.text}
                                 </span>
-                                {item.activity && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0 mt-1.5" title="Has linked activity" />
+                                {item.activities.length > 0 && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0 mt-1.5" title="Has linked activities" />
                                 )}
                               </div>
                               {isChecklistExpanded && (
                                 <div className="ml-2 mt-0.5 mb-1 px-3 py-2 bg-white rounded-lg border border-stone-100">
-                                  {item.activity ? (
-                                    <div className="flex items-center gap-2">
-                                      <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${EVENT_STATUS_COLORS[item.activity.status] ?? "bg-stone-100 text-stone-400"}`}>
-                                        {item.activity.status}
-                                      </span>
-                                      <div className="min-w-0">
-                                        <p className="text-xs font-medium text-stone-700 truncate">{item.activity.title}</p>
-                                        <p className="text-[10px] text-stone-400">
-                                          {item.activity.type} · {new Date(item.activity.scheduledAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
-                                        </p>
-                                      </div>
+                                  {item.activities.length > 0 ? (
+                                    <div className="space-y-1.5">
+                                      {item.activities.map((act) => (
+                                        <div key={act.id} className="flex items-center gap-2">
+                                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${EVENT_STATUS_COLORS[act.status] ?? "bg-stone-100 text-stone-400"}`}>
+                                            {act.status}
+                                          </span>
+                                          <div className="min-w-0">
+                                            <p className="text-xs font-medium text-stone-700 truncate">{act.title}</p>
+                                            <p className="text-[10px] text-stone-400">
+                                              {act.type} · {new Date(act.scheduledAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
                                     </div>
                                   ) : (
-                                    <p className="text-xs text-stone-400">No activity linked to this item</p>
+                                    <p className="text-xs text-stone-400">No activities linked to this item</p>
                                   )}
                                 </div>
                               )}

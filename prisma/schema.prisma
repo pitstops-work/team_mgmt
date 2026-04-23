@@ -249,7 +249,7 @@ model ChecklistItem {
 
   pitstop  Pitstop       @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
   assignee User?         @relation("ChecklistItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  activity PitstopEvent? @relation("ChecklistActivity")
+  activities PitstopEvent[] @relation("ChecklistActivity")
 }
 
 enum ChecklistItemStatus {
@@ -986,7 +986,7 @@ model PitstopEvent {
   endsAt             DateTime?
   location           String?
   createdById        String
-  checklistItemId    String?            @unique
+  checklistItemId    String?
   rescheduledFrom    DateTime?
   rescheduleReason   String?
   cancellationReason String?

@@ -39,6 +39,7 @@ type Message = {
 };
 type Thread = { id: string; name: string; messages: Message[] };
 type User = { id: string; name: string | null; image: string | null };
+type ActivityRef = { id: string; title: string; scheduledAt: string };
 type ChecklistItem = {
   id: string;
   text: string;
@@ -47,7 +48,7 @@ type ChecklistItem = {
   status: string;
   assigneeId: string | null;
   notes: string | null;
-  activity: { id: string; title: string; scheduledAt: string } | null;
+  activities: ActivityRef[];
 };
 type DepPitstop = { id: string; title: string; status: string };
 type Dependency = { id: string; blockedBy: DepPitstop };
@@ -61,16 +62,16 @@ type DateChange = {
   createdAt: string;
   changedBy: { id: string; name: string | null; image: string | null };
 };
-const PROGRESS_TAGS = ["Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring"] as const;
+const PROGRESS_TAGS = ["Team", "Baseline", "Permissions", "Infrastructure", "Training", "Live", "Monitoring"] as const;
 type ProgressTag = typeof PROGRESS_TAGS[number];
 const TAG_COLORS: Record<ProgressTag, string> = {
-  Planning:     "bg-violet-50 text-violet-700 border-violet-200",
-  Mobilisation: "bg-orange-50 text-orange-700 border-orange-200",
-  Setup:        "bg-sky-50 text-sky-700 border-sky-200",
-  Capacity:     "bg-indigo-50 text-indigo-700 border-indigo-200",
-  Engagement:   "bg-teal-50 text-teal-700 border-teal-200",
-  Delivery:     "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Monitoring:   "bg-amber-50 text-amber-700 border-amber-200",
+  Team:           "bg-stone-50 text-stone-700 border-stone-200",
+  Baseline:       "bg-sky-50 text-sky-700 border-sky-200",
+  Permissions:    "bg-amber-50 text-amber-700 border-amber-200",
+  Infrastructure: "bg-violet-50 text-violet-700 border-violet-200",
+  Training:       "bg-teal-50 text-teal-700 border-teal-200",
+  Live:           "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Monitoring:     "bg-rose-50 text-rose-700 border-rose-200",
 };
 
 type Pitstop = {
@@ -143,7 +144,7 @@ function ChecklistItemRow({
   onUpdateAssignee: (id: string, assigneeId: string | null) => void;
   onUpdateNotes: (id: string, notes: string) => void;
   onDelete: (id: string) => void;
-  onActivityCreated: (itemId: string, activity: ChecklistItem["activity"]) => void;
+  onActivityCreated: (itemId: string, activity: ActivityRef) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -258,25 +259,26 @@ function ChecklistItemRow({
               )}
             </div>
 
-            {/* Activity chip or schedule button */}
-            {item.activity ? (
+            {/* Activity chips */}
+            {item.activities.map((act) => (
               <Link
+                key={act.id}
                 href="/activities"
                 className="text-[9px] text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded flex items-center gap-1 hover:bg-sky-100 transition-colors"
-                title={item.activity.title}
+                title={act.title}
               >
                 <Calendar className="w-2.5 h-2.5" />
-                {new Date(item.activity.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
               </Link>
-            ) : (
-              <button
-                onClick={() => { setScheduling((v) => !v); setActTitle(item.text); }}
-                className="text-[9px] text-stone-400 hover:text-sky-600 flex items-center gap-0.5 transition-colors"
-              >
-                <Calendar className="w-2.5 h-2.5" />
-                Schedule
-              </button>
-            )}
+            ))}
+            {/* Schedule button — always available */}
+            <button
+              onClick={() => { setScheduling((v) => !v); setActTitle(item.text); }}
+              className="text-[9px] text-stone-400 hover:text-sky-600 flex items-center gap-0.5 transition-colors"
+            >
+              <Calendar className="w-2.5 h-2.5" />
+              + Activity
+            </button>
 
             {/* Notes indicator */}
             {item.notes && !expanded && (
@@ -352,7 +354,7 @@ function ChecklistItemRow({
           )}
 
           {/* Schedule activity */}
-          {scheduling && !item.activity && (
+          {scheduling && (
             <div className="space-y-1.5 pt-1 border-t border-stone-100">
               <p className="text-[10px] font-semibold text-stone-600">Schedule Activity</p>
               <input
@@ -479,7 +481,7 @@ export default function PitstopDetail({
       const item = await res.json();
       setPitstop((p) => ({
         ...p,
-        checklistItems: [...p.checklistItems, { ...item, status: item.status ?? "NotStarted", assigneeId: item.assigneeId ?? null, notes: item.notes ?? null, activity: null }],
+        checklistItems: [...p.checklistItems, { ...item, status: item.status ?? "NotStarted", assigneeId: item.assigneeId ?? null, notes: item.notes ?? null, activities: [] }],
       }));
       setNewCheckItem("");
     }
@@ -553,11 +555,11 @@ export default function PitstopDetail({
     });
   };
 
-  const handleActivityCreated = (itemId: string, activity: ChecklistItem["activity"]) => {
+  const handleActivityCreated = (itemId: string, activity: ActivityRef) => {
     setPitstop((p) => ({
       ...p,
       checklistItems: p.checklistItems.map((i) =>
-        i.id === itemId ? { ...i, activity, status: "Scheduled" } : i
+        i.id === itemId ? { ...i, activities: [...i.activities, activity], status: "Scheduled" } : i
       ),
     }));
   };

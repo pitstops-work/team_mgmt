@@ -81,7 +81,6 @@ export default function TemplatePickerModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [targetDate, setTargetDate] = useState("");
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<PreviewPitstop[]>([]);
   const [expandedPreview, setExpandedPreview] = useState<Set<number>>(new Set());
@@ -221,8 +220,15 @@ export default function TemplatePickerModal({
     )
   );
 
+  const computedTargetDate = (): string => {
+    const maxSla = preview.length > 0 ? Math.max(...preview.map((pt) => pt.slaDays)) : 365;
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + maxSla);
+    return d.toISOString().split("T")[0];
+  };
+
   const isValid = () => {
-    if (!title.trim() || !startDate || !targetDate) return false;
+    if (!title.trim() || !startDate) return false;
     if (!selected) return false;
     if (!isGeoValid()) return false;
     const paramsOk = selected.parameters.every((p) => {
@@ -257,7 +263,7 @@ export default function TemplatePickerModal({
           title: title.trim(),
           description: description.trim() || null,
           startDate,
-          targetDate,
+          targetDate: computedTargetDate(),
           params: buildParams(),
           needsDomain: needsDomain ?? selected.needsDomain ?? null,
           needsSettlementId: (needsSettlementId ?? geoVal.settlementId) || null,
@@ -588,32 +594,25 @@ export default function TemplatePickerModal({
               </div>
 
               {/* Dates */}
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-stone-600 mb-1">
-                    Programme Start <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
-                  />
-                  <p className="text-xs text-stone-400 mt-1">Pitstop dates are calculated from this.</p>
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-stone-600 mb-1">
-                    Goal Deadline <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={targetDate}
-                    onChange={(e) => setTargetDate(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-stone-600 mb-1">
+                  Programme Start <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
+                />
+                <p className="text-xs text-stone-400 mt-1">
+                  Goal end date auto-computed from SLA:{" "}
+                  <span className="text-stone-600 font-medium">
+                    {startDate
+                      ? new Date(computedTargetDate()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                      : "—"}
+                  </span>
+                </p>
               </div>
 
               {/* Pitstop preview */}

@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pit
     orderBy: { order: "asc" },
     select: {
       id: true, text: true, checked: true, status: true,
-      activity: { select: { id: true, title: true, status: true, scheduledAt: true, type: true } },
+      activities: { select: { id: true, title: true, status: true, scheduledAt: true, type: true }, orderBy: { scheduledAt: "asc" } },
     },
   });
   return Response.json(items);

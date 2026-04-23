@@ -25,7 +25,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } = body;
 
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
-  if (!targetDate) return Response.json({ error: "Target date required" }, { status: 400 });
   if (!startDate) return Response.json({ error: "Start date required" }, { status: 400 });
 
   const rawPitstops = rows[0].pitstops as DbPitstop[];
@@ -33,13 +32,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const goalStart = new Date(startDate);
   const goalOwnerId = ownerId ?? session.user.id;
 
+  // Auto-compute targetDate from max pitstop slaDays if not explicitly provided
+  const resolvedTargetDate = targetDate
+    ? new Date(targetDate)
+    : (() => {
+        const maxSla = pitstopTemplates.length > 0
+          ? Math.max(...pitstopTemplates.map((pt) => pt.slaDays))
+          : 365;
+        const d = new Date(goalStart);
+        d.setDate(d.getDate() + maxSla);
+        return d;
+      })();
+
   const goal = await prisma.goal.create({
     data: {
       title,
       description: description ?? null,
       status: "Active",
       ownerId: goalOwnerId,
-      targetDate: new Date(targetDate),
+      targetDate: resolvedTargetDate,
       needsDomain: needsDomain ?? null,
       needsSettlementId: needsSettlementId ?? null,
       needsClusterId: needsClusterId ?? null,
@@ -87,10 +98,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
 
+  // Fetch pitstops in template order (ORDER BY "order" ASC) — Prisma include does not
+  // guarantee insertion order, so we can't rely on goal.pitstops[idx] === template[idx].
+  const pitstopsOrdered = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "Pitstop"
+    WHERE "goalId" = ${goal.id} AND "deletedAt" IS NULL
+    ORDER BY "order" ASC
+  `;
+
   // Set progressTag on pitstops via raw SQL (new column, Prisma cache bypass)
   for (let idx = 0; idx < pitstopTemplates.length; idx++) {
     const tag = pitstopTemplates[idx]?.progressTag ?? null;
-    const pitstop = goal.pitstops[idx];
+    const pitstop = pitstopsOrdered[idx];
     if (!pitstop) continue;
     await prisma.$executeRaw`
       UPDATE "Pitstop" SET "progressTag" = ${tag} WHERE id = ${pitstop.id}
@@ -120,7 +139,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const [piIdxStr, ciIdxStr] = key.split("_");
       const piIdx = Number(piIdxStr);
       const ciIdx = Number(ciIdxStr);
-      const pitstop = goal.pitstops[piIdx];
+      const pitstop = pitstopsOrdered[piIdx];
       if (!pitstop) continue;
       const pt = pitstopTemplates[piIdx];
       const checklistItem = pt?.checklist?.[ciIdx];
