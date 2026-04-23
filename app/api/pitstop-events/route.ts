@@ -16,7 +16,7 @@ const include = {
     },
   },
   createdBy: { select: { id: true, name: true, image: true } },
-  attendees: { select: { id: true, userId: true, user: { select: { id: true, name: true, image: true } } } },
+  attendees: { select: { id: true, userId: true, status: true, user: { select: { id: true, name: true, image: true } } } },
 } as const;
 
 export async function GET() {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   const { title, description, type, scheduledAt, endsAt, location, pitstopIds = [], attendeeIds = [], checklistItemId } = await req.json();
   if (!title || !scheduledAt) return Response.json({ error: "Title and date required" }, { status: 400 });
 
-  // Auto-add owners of all linked pitstops as attendees
+  // Auto-add owners of all linked pitstops as attendees (accepted — they're already on the work)
   let ownerIds: string[] = [];
   if (pitstopIds.length > 0) {
     const linked = await prisma.pitstop.findMany({
@@ -49,7 +49,11 @@ export async function POST(req: NextRequest) {
     ownerIds = linked.filter(p => p.ownerId).map(p => p.ownerId!);
   }
 
-  const allAttendeeIds = Array.from(new Set([...ownerIds, ...attendeeIds]));
+  const creatorId = session.user.id;
+  // Everyone who is auto-added (owner) or the creator → accepted
+  const acceptedIds = Array.from(new Set([creatorId, ...ownerIds]));
+  // Explicitly tagged others who aren't already accepted → pending (need to approve)
+  const pendingIds = attendeeIds.filter((id: string) => !acceptedIds.includes(id));
 
   const event = await prisma.pitstopEvent.create({
     data: {
@@ -59,19 +63,19 @@ export async function POST(req: NextRequest) {
       scheduledAt: new Date(scheduledAt),
       endsAt: endsAt ? new Date(endsAt) : null,
       location: location || null,
-      createdById: session.user.id,
+      createdById: creatorId,
       checklistItemId: checklistItemId ?? null,
-      pitstops: {
-        create: pitstopIds.map((pitstopId: string) => ({ pitstopId })),
-      },
+      pitstops: { create: pitstopIds.map((pitstopId: string) => ({ pitstopId })) },
       attendees: {
-        create: allAttendeeIds.map((userId: string) => ({ userId })),
+        create: [
+          ...acceptedIds.map((userId: string) => ({ userId, status: "accepted" })),
+          ...pendingIds.map((userId: string) => ({ userId, status: "pending" })),
+        ],
       },
     },
     include,
   });
 
-  // When linked to a checklist item, update its status to Scheduled
   if (checklistItemId) {
     await prisma.$executeRaw`
       UPDATE "ChecklistItem"
@@ -81,22 +85,42 @@ export async function POST(req: NextRequest) {
     `;
   }
 
-  // Notify attendees they've been tagged (exclude creator)
   const creatorName = session.user.name ?? "Someone";
-  const taggedIds = allAttendeeIds.filter((id) => id !== session.user.id);
-  if (taggedIds.length > 0) {
+  const dateLabel = new Date(scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+  // Invite (pending) attendees — they need to accept or decline
+  if (pendingIds.length > 0) {
     await prisma.notification.createMany({
-      data: taggedIds.map((userId) => ({
+      data: pendingIds.map((userId: string) => ({
+        userId,
+        type: "ActivityTagged" as const,
+        title: `${creatorName} invited you to "${title}"`,
+        body: dateLabel,
+        link: `/activities?invite=${event.id}`,
+      })),
+    });
+    sendPushToUsers(pendingIds, {
+      title: `${creatorName} invited you to "${title}"`,
+      body: dateLabel,
+      link: `/activities?invite=${event.id}`,
+    });
+  }
+
+  // Notify auto-added owners (not the creator) — informational, no action needed
+  const notifyOwnerIds = ownerIds.filter(id => id !== creatorId);
+  if (notifyOwnerIds.length > 0) {
+    await prisma.notification.createMany({
+      data: notifyOwnerIds.map((userId: string) => ({
         userId,
         type: "ActivityTagged" as const,
         title: `${creatorName} added you to "${title}"`,
-        body: new Date(scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+        body: dateLabel,
         link: `/activities`,
       })),
     });
-    sendPushToUsers(taggedIds, {
+    sendPushToUsers(notifyOwnerIds, {
       title: `${creatorName} added you to "${title}"`,
-      body: new Date(scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+      body: dateLabel,
       link: `/activities`,
     });
   }

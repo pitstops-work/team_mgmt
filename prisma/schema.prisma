@@ -1029,6 +1029,7 @@ model PitstopEventAttendee {
   id      String @id @default(cuid())
   eventId String
   userId  String
+  status  String @default("accepted") // accepted | pending | declined
 
   event PitstopEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)

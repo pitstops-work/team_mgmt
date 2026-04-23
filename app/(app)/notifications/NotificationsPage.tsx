@@ -30,6 +30,43 @@ const typeLabel: Record<string, string> = {
 };
 
 type FollowupState = "idle" | "loading" | "done" | "cancelled" | "rescheduling" | "rescheduled" | "no";
+type InviteState = "idle" | "loading" | "accepted" | "declined";
+
+function ActivityInviteActions({ eventId, onResponded }: { eventId: string; onResponded: () => void }) {
+  const [state, setState] = useState<InviteState>("idle");
+  const [error, setError] = useState("");
+
+  const respond = async (action: "accept" | "decline") => {
+    setState("loading");
+    setError("");
+    const res = await fetch(`/api/pitstop-events/${eventId}/attendance`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) { setError("Something went wrong."); setState("idle"); return; }
+    setState(action === "accept" ? "accepted" : "declined");
+    onResponded();
+  };
+
+  if (state === "accepted") return <p className="text-xs text-emerald-600 font-medium mt-2">✓ You&apos;re going</p>;
+  if (state === "declined") return <p className="text-xs text-stone-400 font-medium mt-2">Invite declined</p>;
+  if (state === "loading") return <p className="text-xs text-stone-400 mt-2">Saving…</p>;
+
+  return (
+    <div className="flex gap-2 mt-2">
+      <button onClick={() => respond("accept")}
+        className="px-3 py-1 text-xs rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium transition-colors">
+        Accept
+      </button>
+      <button onClick={() => respond("decline")}
+        className="px-3 py-1 text-xs rounded-md bg-stone-100 hover:bg-stone-200 text-stone-600 font-medium transition-colors">
+        Decline
+      </button>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}
 
 function ActivityFollowupActions({ eventId, onResponded }: { eventId: string; onResponded: () => void }) {
   const [state, setState] = useState<FollowupState>("idle");
@@ -143,7 +180,9 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
         <div className="space-y-1">
           {notifications.map((n) => {
             const isFollowup = n.type === "ActivityFollowup" || n.type === "ActivityMorningNudge";
+            const isInvite = n.type === "ActivityTagged" && !!n.link?.includes("?invite=");
             const eventId = isFollowup && n.link ? new URL(n.link, "http://x").searchParams.get("followup") : null;
+            const inviteEventId = isInvite && n.link ? new URL(n.link, "http://x").searchParams.get("invite") : null;
 
             const inner = (
               <div className={`flex items-start gap-3 px-4 py-3.5 rounded-lg border transition-colors ${
@@ -172,6 +211,15 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
                       }}
                     />
                   )}
+                  {isInvite && inviteEventId && (
+                    <ActivityInviteActions
+                      eventId={inviteEventId}
+                      onResponded={() => {
+                        fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
+                        setNotifications((ns) => ns.filter((x) => x.id !== n.id));
+                      }}
+                    />
+                  )}
                 </div>
                 {!n.read && (
                   <button
@@ -185,7 +233,7 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
               </div>
             );
 
-            if (isFollowup) return <div key={n.id}>{inner}</div>;
+            if (isFollowup || isInvite) return <div key={n.id}>{inner}</div>;
 
             return n.link ? (
               <Link key={n.id} href={n.link} onClick={() => !n.read && markRead(n.id)}>
