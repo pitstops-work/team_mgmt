@@ -10,10 +10,10 @@ export default async function MapPage() {
   const userId = session?.user?.id;
 
   const me = userId
-    ? await prisma.user.findUnique({ where: { id: userId }, select: { designation: true } })
+    ? await prisma.user.findUnique({ where: { id: userId }, select: { designation: true, role: true } })
     : null;
 
-  // designation is a new column — read via raw SQL to bypass Prisma cache
+  // designation is read via raw SQL to bypass Prisma cache
   let designation = "Other";
   if (userId) {
     const rows = await prisma.$queryRaw<{ designation: string }[]>`
@@ -28,6 +28,7 @@ export default async function MapPage() {
         <MapDashboard
           currentUserId={userId ?? undefined}
           currentUserDesignation={designation}
+          currentUserRole={me?.role ?? session?.user?.role ?? "member"}
         />
       </Suspense>
     </div>

@@ -16,7 +16,7 @@ export default async function DashboardPage({
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const currentUserId = session!.user!.id!;
-  const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true, designation: true } });
+  const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true, designation: true, role: true } });
   const cityFilter = goalCityFilter(me?.cityId);
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
@@ -243,6 +243,7 @@ export default async function DashboardPage({
       initialGoals={JSON.parse(JSON.stringify(goals))}
       currentUserId={currentUserId}
       currentUserDesignation={me?.designation ?? "Other"}
+      currentUserRole={me?.role ?? session?.user?.role ?? "member"}
       searchResults={searchResults ? JSON.parse(JSON.stringify(searchResults)) : null}
       users={users}
       programs={programs}

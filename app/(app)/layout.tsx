@@ -31,7 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex h-screen overflow-hidden">
         <AppNav user={session.user} unreadCount={unreadCount} isAdmin={isAdminUser(session)} isViewer={session.user.role === "viewer"} />
         <main className="relative flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>
-        {isSuperAdmin(session.user.email) && <AgentPanel />}
+        {isSuperAdmin(session) && <AgentPanel />}
       </div>
       </QueryProvider>
     </SessionProvider>

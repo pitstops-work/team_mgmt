@@ -42,6 +42,7 @@ interface Props {
   onClose: () => void;
   currentUserId?: string;
   currentUserDesignation?: string;
+  currentUserRole?: string;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -58,7 +59,7 @@ function fmtDate(iso: string) {
 
 export default function ZoneClusterSidebar({
   type, name, parentZone, dbId, geoData, clusterIndex, zoneIndex, onClose,
-  currentUserId, currentUserDesignation,
+  currentUserId, currentUserDesignation, currentUserRole,
 }: Props) {
   const [goals, setGoals] = useState<GoalWithPitstops[]>([]);
   const [loading, setLoading] = useState(false);
@@ -357,6 +358,7 @@ export default function ZoneClusterSidebar({
         onCreated={() => setGoalPrefill(null)}
         currentUserId={currentUserId}
         currentUserDesignation={currentUserDesignation}
+        currentUserRole={currentUserRole}
       />
     )}
     </>

@@ -1,0 +1,739 @@
+"use client";
+
+import { useState, useEffect, useCallback, use } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import {
+  ChevronLeft, Plus, Trash2, ChevronUp, ChevronDown,
+  GripVertical, Save, AlertTriangle, CheckCircle, ChevronRight,
+} from "lucide-react";
+import type { DbTemplate, DbPitstop, DbTemplateParam } from "@/lib/templateDb";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+const PITSTOP_TYPES = [
+  "Meeting", "Training", "SiteVisit", "Discussion",
+  "AppDevelopment", "Budgeting", "Proposal", "Research", "Review", "Custom", "Milestone",
+];
+const RECURRENCES = ["None", "Weekly", "Monthly", "Quarterly"];
+const PROGRESS_TAGS = ["Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring"];
+const PARAM_TYPES = ["number", "text", "choice"] as const;
+const CATEGORIES = ["Community Programs", "Programmes", "Field Programmes", "Zonal Leadership"];
+
+// ── Small helpers ────────────────────────────────────────────────────────────
+
+function move<T>(arr: T[], from: number, to: number): T[] {
+  const out = [...arr];
+  const [el] = out.splice(from, 1);
+  out.splice(to, 0, el);
+  return out;
+}
+
+function blankPitstop(): DbPitstop {
+  return {
+    title: "New Pitstop",
+    type: "Meeting",
+    notes: "",
+    slaDays: 30,
+    startSlaDays: 0,
+    recurrence: "None",
+    progressTag: undefined,
+    checklist: [],
+  };
+}
+
+function blankParam(): DbTemplateParam {
+  return { key: "", label: "", type: "text" };
+}
+
+// ── Sub-components ───────────────────────────────────────────────────────────
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-stone-500 mb-1">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const inputCls = "w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white";
+const selectCls = inputCls;
+
+// ── Param Editor ─────────────────────────────────────────────────────────────
+
+function ParamEditor({
+  param,
+  index,
+  total,
+  onChange,
+  onRemove,
+  onMove,
+}: {
+  param: DbTemplateParam;
+  index: number;
+  total: number;
+  onChange: (p: DbTemplateParam) => void;
+  onRemove: () => void;
+  onMove: (dir: -1 | 1) => void;
+}) {
+  const update = (patch: Partial<DbTemplateParam>) => onChange({ ...param, ...patch });
+
+  return (
+    <div className="border border-stone-200 rounded-xl bg-white p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <GripVertical className="w-4 h-4 text-stone-300 shrink-0" />
+        <span className="text-xs font-medium text-stone-600 flex-1">Param {index + 1}</span>
+        <button onClick={() => onMove(-1)} disabled={index === 0} className="p-1 hover:bg-stone-100 rounded disabled:opacity-30">
+          <ChevronUp className="w-3.5 h-3.5 text-stone-400" />
+        </button>
+        <button onClick={() => onMove(1)} disabled={index === total - 1} className="p-1 hover:bg-stone-100 rounded disabled:opacity-30">
+          <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+        </button>
+        <button onClick={onRemove} className="p-1 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Key (used in {placeholders})">
+          <input
+            className={inputCls}
+            value={param.key}
+            onChange={(e) => update({ key: e.target.value.replace(/\s/g, "") })}
+            placeholder="e.g. creches"
+          />
+        </Field>
+        <Field label="Label (shown to user)">
+          <input className={inputCls} value={param.label} onChange={(e) => update({ label: e.target.value })} placeholder="e.g. Number of creches" />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Type">
+          <select className={selectCls} value={param.type} onChange={(e) => update({ type: e.target.value as DbTemplateParam["type"] })}>
+            {PARAM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </Field>
+        {param.type === "number" && (
+          <>
+            <Field label="Min">
+              <input type="number" className={inputCls} value={param.min ?? ""} onChange={(e) => update({ min: e.target.value ? Number(e.target.value) : undefined })} />
+            </Field>
+            <Field label="Max">
+              <input type="number" className={inputCls} value={param.max ?? ""} onChange={(e) => update({ max: e.target.value ? Number(e.target.value) : undefined })} />
+            </Field>
+          </>
+        )}
+        {param.type === "text" && (
+          <div className="col-span-2">
+            <Field label="Placeholder">
+              <input className={inputCls} value={param.placeholder ?? ""} onChange={(e) => update({ placeholder: e.target.value })} />
+            </Field>
+          </div>
+        )}
+      </div>
+
+      {param.type === "choice" && (
+        <Field label="Options (value | label, one per line)">
+          <textarea
+            rows={3}
+            className={inputCls + " font-mono text-xs resize-none"}
+            value={(param.options ?? []).map((o) => `${o.value} | ${o.label}`).join("\n")}
+            onChange={(e) => {
+              const options = e.target.value
+                .split("\n")
+                .map((line) => {
+                  const [value, ...rest] = line.split("|").map((s) => s.trim());
+                  return { value: value ?? "", label: (rest.join("|").trim() || value) ?? "" };
+                })
+                .filter((o) => o.value);
+              update({ options });
+            }}
+            placeholder={"new | New programme\nexisting | Existing programme"}
+          />
+        </Field>
+      )}
+    </div>
+  );
+}
+
+// ── Pitstop Editor ────────────────────────────────────────────────────────────
+
+function PitstopEditor({
+  pitstop,
+  index,
+  total,
+  onChange,
+  onRemove,
+  onMove,
+}: {
+  pitstop: DbPitstop;
+  index: number;
+  total: number;
+  onChange: (p: DbPitstop) => void;
+  onRemove: () => void;
+  onMove: (dir: -1 | 1) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const update = (patch: Partial<DbPitstop>) => onChange({ ...pitstop, ...patch });
+
+  const addChecklistItem = () =>
+    update({ checklist: [...pitstop.checklist, { text: "" }] });
+
+  const removeChecklistItem = (i: number) =>
+    update({ checklist: pitstop.checklist.filter((_, idx) => idx !== i) });
+
+  const updateChecklistItem = (i: number, text: string) =>
+    update({
+      checklist: pitstop.checklist.map((item, idx) => (idx === i ? { text } : item)),
+    });
+
+  const moveChecklistItem = (i: number, dir: -1 | 1) =>
+    update({ checklist: move(pitstop.checklist, i, i + dir) });
+
+  return (
+    <div className="border border-stone-200 rounded-xl bg-white overflow-hidden">
+      {/* Header row */}
+      <div className="flex items-center gap-2 px-4 py-3">
+        <GripVertical className="w-4 h-4 text-stone-300 shrink-0" />
+        <button
+          className="flex-1 text-left min-w-0"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-stone-800 truncate">{pitstop.title || "Untitled"}</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-stone-100 text-stone-500 rounded-full shrink-0">{pitstop.type}</span>
+            {pitstop.recurrence && pitstop.recurrence !== "None" && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-sky-50 text-sky-600 rounded-full shrink-0">{pitstop.recurrence}</span>
+            )}
+            <span className="text-xs text-stone-400 shrink-0 ml-auto">{pitstop.checklist.length} items</span>
+          </div>
+        </button>
+        <button onClick={() => onMove(-1)} disabled={index === 0} className="p-1 hover:bg-stone-100 rounded disabled:opacity-30">
+          <ChevronUp className="w-3.5 h-3.5 text-stone-400" />
+        </button>
+        <button onClick={() => onMove(1)} disabled={index === total - 1} className="p-1 hover:bg-stone-100 rounded disabled:opacity-30">
+          <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+        </button>
+        <button onClick={onRemove} className="p-1 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={() => setOpen((v) => !v)} className="p-1 hover:bg-stone-100 rounded">
+          <ChevronRight className={`w-3.5 h-3.5 text-stone-400 transition-transform ${open ? "rotate-90" : ""}`} />
+        </button>
+      </div>
+
+      {open && (
+        <div className="border-t border-stone-100 px-4 pb-4 pt-3 space-y-4">
+          {/* Title + Type row */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Field label="Title">
+                <input className={inputCls} value={pitstop.title} onChange={(e) => update({ title: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Type">
+              <select className={selectCls} value={pitstop.type} onChange={(e) => update({ type: e.target.value })}>
+                {PITSTOP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          {/* SLA + Recurrence + Phase */}
+          <div className="grid grid-cols-4 gap-3">
+            <Field label="Start (days after goal start)">
+              <input
+                type="number"
+                className={inputCls}
+                value={pitstop.startSlaDays}
+                onChange={(e) => update({ startSlaDays: Number(e.target.value) })}
+              />
+            </Field>
+            <Field label="Target (days after goal start)">
+              <input
+                type="number"
+                className={inputCls}
+                value={pitstop.slaDays}
+                onChange={(e) => update({ slaDays: Number(e.target.value) })}
+              />
+            </Field>
+            <Field label="Recurrence">
+              <select className={selectCls} value={pitstop.recurrence ?? "None"} onChange={(e) => update({ recurrence: e.target.value })}>
+                {RECURRENCES.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </Field>
+            <Field label="Phase tag">
+              <select
+                className={selectCls}
+                value={pitstop.progressTag ?? ""}
+                onChange={(e) => update({ progressTag: e.target.value || undefined })}
+              >
+                <option value="">(auto)</option>
+                {PROGRESS_TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          {/* Notes */}
+          <Field label="Notes (supports {paramKey} placeholders)">
+            <textarea
+              rows={4}
+              className={inputCls + " resize-y"}
+              value={pitstop.notes}
+              onChange={(e) => update({ notes: e.target.value })}
+            />
+          </Field>
+
+          {/* Checklist */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-stone-500">Checklist items</span>
+              <button
+                onClick={addChecklistItem}
+                className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-800 transition-colors"
+              >
+                <Plus className="w-3 h-3" /> Add item
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {pitstop.checklist.map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <button onClick={() => moveChecklistItem(i, -1)} disabled={i === 0} className="p-0.5 hover:bg-stone-100 rounded disabled:opacity-30">
+                    <ChevronUp className="w-3 h-3 text-stone-400" />
+                  </button>
+                  <button onClick={() => moveChecklistItem(i, 1)} disabled={i === pitstop.checklist.length - 1} className="p-0.5 hover:bg-stone-100 rounded disabled:opacity-30">
+                    <ChevronDown className="w-3 h-3 text-stone-400" />
+                  </button>
+                  <input
+                    className="flex-1 px-2.5 py-1 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+                    value={item.text}
+                    onChange={(e) => updateChecklistItem(i, e.target.value)}
+                    placeholder="Checklist item text (supports {paramKey})"
+                  />
+                  <button onClick={() => removeChecklistItem(i)} className="p-1 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              {pitstop.checklist.length === 0 && (
+                <p className="text-xs text-stone-400 italic">No checklist items yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Editor Page ─────────────────────────────────────────────────────────
+
+export default function TemplateEditorPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const isNew = id === "new";
+
+  const { data: session } = useSession();
+  const router = useRouter();
+  const isAdmin = session?.user?.role === "admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+
+  const [template, setTemplate] = useState<Partial<DbTemplate>>({
+    slug: "",
+    name: "",
+    description: "",
+    category: "Community Programs",
+    icon: "🎯",
+    needsDomain: undefined,
+    sortOrder: 99,
+    parameters: [],
+    pitstops: [],
+    isActive: true,
+  });
+  const [loading, setLoading] = useState(!isNew);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [activeSection, setActiveSection] = useState<"info" | "params" | "pitstops">("info");
+
+  const load = useCallback(async () => {
+    if (isNew) return;
+    setLoading(true);
+    const res = await fetch(`/api/admin/templates/${id}`);
+    if (res.ok) {
+      const data = await res.json();
+      setTemplate(data);
+    }
+    setLoading(false);
+  }, [id, isNew]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (session && !isAdmin) router.replace("/settings");
+  }, [session, isAdmin, router]);
+
+  if (!isAdmin) return null;
+
+  const pitstops = (template.pitstops ?? []) as DbPitstop[];
+  const parameters = (template.parameters ?? []) as DbTemplateParam[];
+
+  const updatePitstop = (i: number, pt: DbPitstop) => {
+    const next = [...pitstops];
+    next[i] = pt;
+    setTemplate((t) => ({ ...t, pitstops: next }));
+  };
+
+  const removePitstop = (i: number) =>
+    setTemplate((t) => ({ ...t, pitstops: pitstops.filter((_, idx) => idx !== i) }));
+
+  const movePitstop = (i: number, dir: -1 | 1) =>
+    setTemplate((t) => ({ ...t, pitstops: move(pitstops, i, i + dir) }));
+
+  const addPitstop = () =>
+    setTemplate((t) => ({ ...t, pitstops: [...pitstops, blankPitstop()] }));
+
+  const updateParam = (i: number, p: DbTemplateParam) => {
+    const next = [...parameters];
+    next[i] = p;
+    setTemplate((t) => ({ ...t, parameters: next }));
+  };
+
+  const removeParam = (i: number) =>
+    setTemplate((t) => ({ ...t, parameters: parameters.filter((_, idx) => idx !== i) }));
+
+  const moveParam = (i: number, dir: -1 | 1) =>
+    setTemplate((t) => ({ ...t, parameters: move(parameters, i, i + dir) }));
+
+  const addParam = () =>
+    setTemplate((t) => ({ ...t, parameters: [...parameters, blankParam()] }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    setStatus("idle");
+
+    try {
+      let res: Response;
+      if (isNew) {
+        res = await fetch("/api/admin/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(template),
+        });
+      } else {
+        res = await fetch(`/api/admin/templates/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(template),
+        });
+      }
+
+      if (res.ok) {
+        setStatus("saved");
+        setTimeout(() => setStatus("idle"), 3000);
+        if (isNew) {
+          const data = await res.json();
+          router.replace(`/settings/templates/${data.id}`);
+        }
+      } else {
+        const data = await res.json();
+        setErrorMsg(data.error ?? "Failed to save");
+        setStatus("error");
+      }
+    } catch {
+      setErrorMsg("Network error");
+      setStatus("error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeactivate = async () => {
+    if (!confirm("Deactivate this template? It will no longer appear in the goals modal. You can reactivate it later.")) return;
+    await fetch(`/api/admin/templates/${id}`, { method: "DELETE" });
+    router.push("/settings/templates");
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!confirm(`Permanently delete "${template.name}"?\n\nThis removes the template from the database entirely and cannot be undone.`)) return;
+    await fetch(`/api/admin/templates/${id}?permanent=true`, { method: "DELETE" });
+    router.push("/settings/templates");
+  };
+
+  const handleReactivate = async () => {
+    setTemplate((t) => ({ ...t, isActive: true }));
+    // Will be saved when user clicks Save
+  };
+
+  const TAB_CLS = (active: boolean) =>
+    `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+      active
+        ? "border-stone-800 text-stone-900"
+        : "border-transparent text-stone-500 hover:text-stone-700"
+    }`;
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10 text-sm text-stone-400 text-center">Loading…</div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/settings/templates" className="text-stone-400 hover:text-stone-600 transition-colors">
+          <ChevronLeft className="w-5 h-5" />
+        </Link>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-semibold text-stone-900 truncate">
+            {isNew ? "New Template" : (template.name || "Edit Template")}
+          </h1>
+          {!isNew && template.slug && (
+            <p className="text-xs text-stone-400 font-mono">{template.slug}</p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {!isNew && template.isActive && (
+            <button
+              onClick={handleDeactivate}
+              className="px-3 py-1.5 text-xs border border-stone-200 text-stone-500 rounded-lg hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
+            >
+              Deactivate
+            </button>
+          )}
+          {!isNew && !template.isActive && (
+            <button
+              onClick={handleReactivate}
+              className="px-3 py-1.5 text-xs border border-emerald-200 text-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors"
+            >
+              Re-activate
+            </button>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+          >
+            {saving ? (
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : status === "saved" ? (
+              <CheckCircle className="w-4 h-4 text-emerald-300" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saving ? "Saving…" : status === "saved" ? "Saved" : "Save"}
+          </button>
+        </div>
+      </div>
+
+      {status === "error" && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {errorMsg}
+        </div>
+      )}
+
+      {!template.isActive && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          This template is inactive and will not appear in the goals modal. Click Re-activate and Save to restore it.
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex border-b border-stone-200 mb-6">
+        <button className={TAB_CLS(activeSection === "info")} onClick={() => setActiveSection("info")}>
+          Template Info
+        </button>
+        <button className={TAB_CLS(activeSection === "params")} onClick={() => setActiveSection("params")}>
+          Parameters <span className="ml-1 text-xs text-stone-400">({parameters.length})</span>
+        </button>
+        <button className={TAB_CLS(activeSection === "pitstops")} onClick={() => setActiveSection("pitstops")}>
+          Pitstops <span className="ml-1 text-xs text-stone-400">({pitstops.length})</span>
+        </button>
+      </div>
+
+      {/* ── Info Tab ─────────────────────────────────────────────────────── */}
+      {activeSection === "info" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-4 gap-4">
+            <Field label="Icon (emoji)">
+              <input
+                className={inputCls + " text-center text-xl"}
+                value={template.icon ?? ""}
+                onChange={(e) => setTemplate((t) => ({ ...t, icon: e.target.value }))}
+                maxLength={4}
+              />
+            </Field>
+            <div className="col-span-3">
+              <Field label="Name">
+                <input
+                  className={inputCls}
+                  value={template.name ?? ""}
+                  onChange={(e) => setTemplate((t) => ({ ...t, name: e.target.value }))}
+                  placeholder="e.g. Creche Programme"
+                />
+              </Field>
+            </div>
+          </div>
+
+          <Field label="Description">
+            <textarea
+              rows={3}
+              className={inputCls + " resize-y"}
+              value={template.description ?? ""}
+              onChange={(e) => setTemplate((t) => ({ ...t, description: e.target.value }))}
+              placeholder="Short description shown in the goals modal."
+            />
+          </Field>
+
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Category">
+              <select
+                className={selectCls}
+                value={template.category ?? ""}
+                onChange={(e) => setTemplate((t) => ({ ...t, category: e.target.value }))}
+              >
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="Other">Other</option>
+              </select>
+            </Field>
+            <Field label="Needs Domain (optional)">
+              <input
+                className={inputCls}
+                value={template.needsDomain ?? ""}
+                onChange={(e) => setTemplate((t) => ({ ...t, needsDomain: e.target.value || undefined }))}
+                placeholder="e.g. Creche"
+              />
+            </Field>
+            <Field label="Sort order">
+              <input
+                type="number"
+                className={inputCls}
+                value={template.sortOrder ?? 99}
+                onChange={(e) => setTemplate((t) => ({ ...t, sortOrder: Number(e.target.value) }))}
+              />
+            </Field>
+          </div>
+
+          {isNew && (
+            <Field label="Slug (URL-safe, unique ID)">
+              <input
+                className={inputCls + " font-mono"}
+                value={template.slug ?? ""}
+                onChange={(e) => setTemplate((t) => ({ ...t, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") }))}
+                placeholder="e.g. creche-programme-new"
+              />
+              <p className="text-xs text-stone-400 mt-1">Cannot be changed after creation. Used as the template ID in the wizard.</p>
+            </Field>
+          )}
+        </div>
+      )}
+
+      {/* ── Params Tab ───────────────────────────────────────────────────── */}
+      {activeSection === "params" && (
+        <div className="space-y-3">
+          <p className="text-xs text-stone-400">
+            Parameters appear as input fields when a user selects this template in the goal creation wizard.
+            Use <code className="bg-stone-100 px-1 rounded">{"{key}"}</code> in pitstop notes / titles / checklist items to substitute the value.
+          </p>
+
+          {parameters.map((p, i) => (
+            <ParamEditor
+              key={i}
+              param={p}
+              index={i}
+              total={parameters.length}
+              onChange={(updated) => updateParam(i, updated)}
+              onRemove={() => removeParam(i)}
+              onMove={(dir) => moveParam(i, dir)}
+            />
+          ))}
+
+          {parameters.length === 0 && (
+            <p className="text-sm text-stone-400 italic text-center py-8">
+              No parameters yet. Add one below.
+            </p>
+          )}
+
+          <button
+            onClick={addParam}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-stone-200 rounded-xl text-sm text-stone-500 hover:border-stone-300 hover:text-stone-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add parameter
+          </button>
+        </div>
+      )}
+
+      {/* ── Pitstops Tab ─────────────────────────────────────────────────── */}
+      {activeSection === "pitstops" && (
+        <div className="space-y-3">
+          <p className="text-xs text-stone-400">
+            Pitstops are created in this order when the template is applied.
+            Use <code className="bg-stone-100 px-1 rounded">{"{paramKey}"}</code> in titles, notes, and checklist items to insert parameter values.
+          </p>
+
+          {pitstops.map((pt, i) => (
+            <PitstopEditor
+              key={i}
+              pitstop={pt}
+              index={i}
+              total={pitstops.length}
+              onChange={(updated) => updatePitstop(i, updated)}
+              onRemove={() => removePitstop(i)}
+              onMove={(dir) => movePitstop(i, dir)}
+            />
+          ))}
+
+          {pitstops.length === 0 && (
+            <p className="text-sm text-stone-400 italic text-center py-8">
+              No pitstops yet. Add one below.
+            </p>
+          )}
+
+          <button
+            onClick={addPitstop}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-stone-200 rounded-xl text-sm text-stone-500 hover:border-stone-300 hover:text-stone-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add pitstop
+          </button>
+        </div>
+      )}
+
+      {/* Bottom bar */}
+      <div className="mt-8 flex items-center justify-between pt-4 border-t border-stone-200">
+        <Link href="/settings/templates" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">
+          ← Back to templates
+        </Link>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+
+      {/* Danger zone — permanent delete */}
+      {!isNew && (
+        <div className="mt-10 pt-6 border-t border-red-100">
+          <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">Danger zone</h3>
+          <div className="flex items-center justify-between px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
+            <div>
+              <p className="text-sm font-medium text-red-700">Delete template permanently</p>
+              <p className="text-xs text-red-400 mt-0.5">Removes the template from the database entirely. This cannot be undone.</p>
+            </div>
+            <button
+              onClick={handlePermanentDelete}
+              className="ml-4 shrink-0 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

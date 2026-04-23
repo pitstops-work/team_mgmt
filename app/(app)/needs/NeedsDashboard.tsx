@@ -100,7 +100,7 @@ function GapChip({ d, onClick }: { d: LevelStats["domains"][string] | undefined;
   }
   if (d.gap > 0) {
     if (onClick) return (
-      <button onClick={onClick} className="text-[10px] font-medium text-red-500 hover:text-red-700 hover:underline transition-colors" title="Create goal">
+      <button onClick={e => { e.stopPropagation(); onClick(); }} className="text-[10px] font-medium text-red-500 hover:text-red-700 hover:underline transition-colors" title="Create goal">
         -{d.gap}
       </button>
     );
@@ -424,11 +424,12 @@ export default function NeedsDashboard({
   cityProgress, cityProgressMap, zoneProgress, clusterProgress, settlementProgress,
   monthlyTrend, currentMonth,
   cityEntitlements, cityEntMap, zoneEntMap, clusterEntMap, settlementEntMap,
-  currentUserId, currentUserDesignation = "Other", allUsers = [],
+  currentUserId, currentUserDesignation = "Other", currentUserRole, allUsers = [],
 }: {
   cities: City[];
   currentUserId: string;
   currentUserDesignation?: string;
+  currentUserRole?: string;
   allUsers?: { id: string; name: string | null; image: string | null; designation?: string }[];
   totalSettlements: number;
   domainConfigs: DomainConfig[];
@@ -654,7 +655,7 @@ export default function NeedsDashboard({
                       const isOpen = openZones.has(zone.id);
                       return (
                         <div key={zone.id} id={`geo-row-${zone.id}`}>
-                          <button onClick={() => toggleZone(zone.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors text-left ${initZoneId === zone.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
+                          <div role="button" tabIndex={0} onClick={() => toggleZone(zone.id)} onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleZone(zone.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors cursor-pointer ${initZoneId === zone.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
                             {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
                             <Layers className="w-3.5 h-3.5 text-violet-400" />
                             <div className="min-w-0">
@@ -669,7 +670,7 @@ export default function NeedsDashboard({
                                 <GapChip d={z.stats.domains[domain]} onClick={z.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, zoneId: zone.id, label: z.name }) : undefined} />
                               </div>
                             ))}
-                          </button>
+                          </div>
                           {isOpen && z.stats.assessedCount > 0 && (
                             <div className="px-4 py-4 border-t border-stone-100 bg-white">
                               <DomainTable domains={z.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain) => setWizardState({ domain, zoneId: zone.id, label: z.name })} />
@@ -700,7 +701,7 @@ export default function NeedsDashboard({
                       const isOpen = openClusters.has(cluster.id);
                       return (
                         <div key={cluster.id} id={`geo-row-${cluster.id}`}>
-                          <button onClick={() => toggleCluster(cluster.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors text-left ${initClusterId === cluster.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
+                          <div role="button" tabIndex={0} onClick={() => toggleCluster(cluster.id)} onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleCluster(cluster.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors cursor-pointer ${initClusterId === cluster.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
                             {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
                             <Building2 className="w-3.5 h-3.5 text-emerald-500" />
                             <div className="min-w-0">
@@ -715,7 +716,7 @@ export default function NeedsDashboard({
                                 <GapChip d={cl.stats.domains[domain]} onClick={cl.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, clusterId: cluster.id, label: cl.name }) : undefined} />
                               </div>
                             ))}
-                          </button>
+                          </div>
                           {isOpen && cl.stats.assessedCount > 0 && (
                             <div className="px-4 py-4 border-t border-stone-100 bg-white">
                               <DomainTable domains={cl.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain) => setWizardState({ domain, clusterId: cluster.id, label: cl.name })} />
@@ -1474,6 +1475,7 @@ export default function NeedsDashboard({
           }}
           currentUserId={currentUserId}
           currentUserDesignation={currentUserDesignation}
+          currentUserRole={currentUserRole}
           allUsers={allUsers}
         />
       )}

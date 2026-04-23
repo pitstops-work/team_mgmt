@@ -37,7 +37,7 @@ interface PreviewPitstop {
   startSlaDays: number;
   slaDays: number;
   recurrence?: string;
-  checklist: { text: string }[];
+  checklist: { text: string; activityTitle?: string }[];
 }
 
 interface UserOption { id: string; name: string | null; image: string | null; designation?: string }
@@ -55,6 +55,7 @@ interface Props {
   // Current user context — drives owner picker visibility and geo requirements
   currentUserId?: string;
   currentUserDesignation?: string;
+  currentUserRole?: string;
   allUsers?: UserOption[];
 }
 
@@ -71,7 +72,7 @@ type GeoVal        = { cityId: string; zoneId: string; clusterId: string; settle
 export default function TemplatePickerModal({
   onClose, onCreated,
   needsDomain, needsSettlementId, needsClusterId, needsZoneId, needsCityId, geographyLabel,
-  currentUserId, currentUserDesignation, allUsers = [],
+  currentUserId, currentUserDesignation, currentUserRole, allUsers = [],
 }: Props) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selected, setSelected] = useState<Template | null>(null);
@@ -84,10 +85,12 @@ export default function TemplatePickerModal({
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<PreviewPitstop[]>([]);
   const [expandedPreview, setExpandedPreview] = useState<Set<number>>(new Set());
-  // activitySchedules: pitstop-index → ISO date string (YYYY-MM-DD)
-  const [activitySchedules, setActivitySchedules] = useState<Record<number, string>>({});
+  // activitySchedules: "${pitstopIdx}_${checklistIdx}" → ISO date string (YYYY-MM-DD)
+  const [activitySchedules, setActivitySchedules] = useState<Record<string, string>>({});
   // Owner — ZL/PM can create goals on behalf of an RP
-  const canPickOwner = ["ZL", "PM", "admin"].includes(currentUserDesignation ?? "");
+  const canPickOwner =
+    ["ZL", "PM", "admin", "super-admin"].includes(currentUserDesignation ?? "") ||
+    ["admin", "super-admin"].includes(currentUserRole ?? "");
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>(currentUserId ?? "");
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -200,14 +203,23 @@ export default function TemplatePickerModal({
     return { from, to };
   };
 
-  const isActivityDateValid = (idx: number) => {
-    const pt = preview[idx];
-    if (!pt || !activitySchedules[idx]) return false;
+  const isActivityDateValid = (pitstopIdx: number, checklistIdx: number) => {
+    const key = `${pitstopIdx}_${checklistIdx}`;
+    const dateStr = activitySchedules[key];
+    if (!dateStr) return false;
+    const pt = preview[pitstopIdx];
     const window = slaWindowFor(pt);
     if (!window) return true;
-    const d = new Date(activitySchedules[idx]);
+    const d = new Date(dateStr);
     return d >= window.from && d <= window.to;
   };
+
+  // Collect all (pitstopIdx, checklistIdx) pairs that need a scheduled date
+  const schedulableItems = preview.flatMap((pt, pi) =>
+    pt.checklist.flatMap((item, ci) =>
+      item.activityTitle ? [{ pi, ci, pt, item }] : []
+    )
+  );
 
   const isValid = () => {
     if (!title.trim() || !startDate || !targetDate) return false;
@@ -224,10 +236,9 @@ export default function TemplatePickerModal({
       return true;
     });
     if (!paramsOk) return false;
-    // All preview pitstops must have a valid activity date within their SLA window
-    if (preview.length > 0) {
-      for (let i = 0; i < preview.length; i++) {
-        if (!isActivityDateValid(i)) return false;
+    if (schedulableItems.length > 0) {
+      for (const { pi, ci } of schedulableItems) {
+        if (!isActivityDateValid(pi, ci)) return false;
       }
     }
     return true;
@@ -292,7 +303,7 @@ export default function TemplatePickerModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 flex-shrink-0">
           <div className="flex items-center gap-2">
-            {(step === "geo" || (step === "configure" && !needsDomain)) && (
+            {(step === "geo" || step === "configure") && (
               <button
                 onClick={() => step === "configure" ? setStep(geoPreFilled ? "pick" : "geo") : setStep("pick")}
                 className="text-stone-400 hover:text-stone-600 mr-1"
@@ -351,6 +362,33 @@ export default function TemplatePickerModal({
           {/* Geo step */}
           {step === "geo" && (
             <div className="p-6 space-y-4">
+
+              {/* Owner picker — shown here so it's visible before configure */}
+              {canPickOwner && allUsers.length > 0 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <label className="block text-xs font-semibold text-amber-800 mb-1.5">Creating for</label>
+                  <select
+                    value={selectedOwnerId}
+                    onChange={e => setSelectedOwnerId(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                  >
+                    <option value={currentUserId ?? ""}>Myself</option>
+                    {allUsers
+                      .filter(u => u.id !== currentUserId)
+                      .map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.name ?? u.id}{u.designation && u.designation !== "Other" ? ` (${u.designation})` : ""}
+                        </option>
+                      ))}
+                  </select>
+                  {selectedOwnerId && selectedOwnerId !== currentUserId && (
+                    <p className="text-[11px] text-amber-700 mt-1.5">
+                      Goal and pitstop ownership will be assigned to this person.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <p className="text-xs text-stone-400">
                 {geoMinLevel === "cluster"
                   ? "Select the cluster this goal belongs to. Cluster is required."
@@ -474,29 +512,14 @@ export default function TemplatePickerModal({
           {step === "configure" && selected && (
             <form id="template-form" onSubmit={handleSubmit} className="p-6 space-y-5">
 
-              {/* Owner picker — ZL/PM creating on behalf of an RP */}
-              {canPickOwner && allUsers.length > 0 && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <label className="block text-xs font-semibold text-amber-800 mb-1.5">Creating for</label>
-                  <select
-                    value={selectedOwnerId}
-                    onChange={e => setSelectedOwnerId(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
-                  >
-                    <option value={currentUserId ?? ""}>Myself</option>
-                    {allUsers
-                      .filter(u => u.id !== currentUserId)
-                      .map(u => (
-                        <option key={u.id} value={u.id}>
-                          {u.name ?? u.id}{u.designation && u.designation !== "Other" ? ` (${u.designation})` : ""}
-                        </option>
-                      ))}
-                  </select>
-                  {selectedOwnerId && selectedOwnerId !== currentUserId && (
-                    <p className="text-[11px] text-amber-700 mt-1.5">
-                      Goal and pitstop ownership will be assigned to this person. You will be added as a follower.
-                    </p>
-                  )}
+              {/* Owner selection carried forward from geo step — show summary if not creating for self */}
+              {canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId && allUsers.length > 0 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-amber-800">Creating for</p>
+                    <p className="text-sm text-amber-700">{allUsers.find(u => u.id === selectedOwnerId)?.name ?? selectedOwnerId}</p>
+                  </div>
+                  <button type="button" onClick={() => setSelectedOwnerId(currentUserId ?? "")} className="text-xs text-amber-600 underline">Change</button>
                 </div>
               )}
 
@@ -639,30 +662,32 @@ export default function TemplatePickerModal({
                 </div>
               )}
 
-              {/* Activity scheduling — required for each pitstop */}
-              {preview.length > 0 && (
+              {/* Activity scheduling — required for each checklist item with an activityTitle */}
+              {schedulableItems.length > 0 && (
                 <div>
                   <div className="flex items-center gap-1.5 mb-2">
                     <CalendarClock className="w-3.5 h-3.5 text-sky-500" />
-                    <p className="text-xs font-semibold text-stone-600 uppercase tracking-wide">Schedule First Activity</p>
+                    <p className="text-xs font-semibold text-stone-600 uppercase tracking-wide">Schedule RP Activities</p>
                   </div>
                   <p className="text-xs text-stone-400 mb-3 leading-relaxed">
-                    Pick an activity date for each pitstop within its SLA window. This is required before creating the goal.
+                    Pick a date for each RP activity within its SLA window. All activities must be scheduled before creating the goal.
                   </p>
-                  <div className="space-y-3">
-                    {preview.map((pt, idx) => {
+                  <div className="space-y-2">
+                    {schedulableItems.map(({ pi, ci, pt, item }) => {
+                      const key = `${pi}_${ci}`;
                       const window = slaWindowFor(pt);
-                      const dateVal = activitySchedules[idx] ?? "";
-                      const valid = !dateVal || isActivityDateValid(idx);
+                      const dateVal = activitySchedules[key] ?? "";
+                      const valid = !dateVal || isActivityDateValid(pi, ci);
                       const fromStr = window ? window.from.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
                       const toStr   = window ? window.to.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
                       return (
-                        <div key={idx} className={`rounded-lg border p-3 ${valid ? "border-stone-200 bg-stone-50" : "border-red-200 bg-red-50"}`}>
+                        <div key={key} className={`rounded-lg border p-3 ${valid ? "border-stone-200 bg-stone-50" : "border-red-200 bg-red-50"}`}>
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="min-w-0">
-                              <p className="text-xs font-semibold text-stone-800 truncate">{pt.title}</p>
+                              <p className="text-[10px] text-stone-400 truncate">{pt.title}</p>
+                              <p className="text-xs font-semibold text-stone-800 truncate">{item.activityTitle}</p>
                               {window && (
-                                <p className="text-[11px] text-stone-400 mt-0.5">SLA window: {fromStr} – {toStr}</p>
+                                <p className="text-[11px] text-stone-400 mt-0.5">SLA: {fromStr} – {toStr}</p>
                               )}
                             </div>
                             {dateVal && !valid && (
@@ -677,7 +702,7 @@ export default function TemplatePickerModal({
                             value={dateVal}
                             min={window ? window.from.toISOString().split("T")[0] : undefined}
                             max={window ? window.to.toISOString().split("T")[0] : undefined}
-                            onChange={(e) => setActivitySchedules(prev => ({ ...prev, [idx]: e.target.value }))}
+                            onChange={(e) => setActivitySchedules(prev => ({ ...prev, [key]: e.target.value }))}
                             className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
                               valid
                                 ? "border-stone-200 bg-white focus:ring-sky-400"

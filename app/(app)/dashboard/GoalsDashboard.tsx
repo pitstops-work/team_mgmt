@@ -89,6 +89,7 @@ interface Props {
   initialGoals: Goal[];
   currentUserId: string;
   currentUserDesignation?: string;
+  currentUserRole?: string;
   searchResults: SearchResults | null;
   users: { id: string; name: string | null; image: string | null; designation?: string }[];
   programs: { id: string; title: string }[];
@@ -307,7 +308,7 @@ function buildGeoTree(goals: Goal[]): GeoTree {
 }
 
 export default function GoalsDashboard({
-  initialGoals, currentUserId, currentUserDesignation = "Other", searchResults, users, programs,
+  initialGoals, currentUserId, currentUserDesignation = "Other", currentUserRole, searchResults, users, programs,
   threads, myPitstops, overviewData, phaseData = [], initialTab, initialFilter = "All",
 }: Props) {
   const searchParams = useSearchParams();
@@ -796,6 +797,7 @@ export default function GoalsDashboard({
           }}
           currentUserId={currentUserId}
           currentUserDesignation={currentUserDesignation}
+          currentUserRole={currentUserRole}
           allUsers={users}
         />
       )}

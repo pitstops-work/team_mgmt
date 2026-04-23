@@ -386,7 +386,7 @@ export default async function NeedsPage() {
   const session = await auth();
   const currentUserId = session!.user!.id!;
   const [meRow, cities, formulaRows, latestAssessments, goals] = await Promise.all([
-    prisma.user.findUnique({ where: { id: currentUserId }, select: { designation: true } }),
+    prisma.user.findUnique({ where: { id: currentUserId }, select: { designation: true, role: true } }),
     prisma.city.findMany({
       where: { deletedAt: null },
       include: {
@@ -825,6 +825,7 @@ export default async function NeedsPage() {
         cities={JSON.parse(JSON.stringify(cities))}
         currentUserId={currentUserId}
         currentUserDesignation={meRow?.designation ?? "Other"}
+        currentUserRole={meRow?.role ?? session?.user?.role ?? "member"}
         allUsers={JSON.parse(JSON.stringify(allUsers))}
         totalSettlements={allSettlements.length}
         domainConfigs={domainConfigs}

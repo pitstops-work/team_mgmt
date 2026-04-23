@@ -20,16 +20,17 @@ interface User {
   cityId: string | null;
 }
 
-const ROLES = ["admin", "member", "viewer"] as const;
+const ROLES = ["super-admin", "admin", "member", "viewer"] as const;
 type Role = typeof ROLES[number];
 
 const DESIGNATIONS = ["RP", "ZL", "PM", "Other"] as const;
 type Designation = typeof DESIGNATIONS[number];
 
 const ROLE_STYLE: Record<Role, string> = {
-  admin:  "bg-indigo-100 text-indigo-700",
-  member: "bg-emerald-100 text-emerald-700",
-  viewer: "bg-stone-100 text-stone-500",
+  "super-admin": "bg-amber-100 text-amber-700",
+  admin:         "bg-indigo-100 text-indigo-700",
+  member:        "bg-emerald-100 text-emerald-700",
+  viewer:        "bg-stone-100 text-stone-500",
 };
 
 const DESIGNATION_STYLE: Record<Designation, string> = {
@@ -42,7 +43,7 @@ const DESIGNATION_STYLE: Record<Designation, string> = {
 export default function UserManagementPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const isSuperAdmin = session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const isSuperAdmin = session?.user?.role === "super-admin";
 
   const [users, setUsers] = useState<User[]>([]);
   const [cities, setCities] = useState<City[]>([]);
@@ -206,8 +207,8 @@ export default function UserManagementPage() {
       </div>
 
       {/* Role legend */}
-      <div className="flex gap-2 mb-6">
-        {ROLES.map(r => (
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {ROLES.filter(r => r !== "super-admin" || isSuperAdmin).map(r => (
           <span key={r} className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${ROLE_STYLE[r]}`}>{r}</span>
         ))}
         <span className="text-xs text-stone-400 self-center ml-1">— viewer can only read, not edit</span>
@@ -218,6 +219,7 @@ export default function UserManagementPage() {
         {users.map(u => {
           const isEditing = editId === u.id;
           const role = (ROLES.includes(u.role as Role) ? u.role : "member") as Role;
+          const canEditRole = u.role !== "super-admin" || isSuperAdmin;
 
           return (
             <div key={u.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
@@ -243,15 +245,21 @@ export default function UserManagementPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={() => startEdit(u)} title="Edit" className="p-1.5 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => startReset(u.id)} title="Reset password" className="p-1.5 text-stone-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors">
-                      <KeyRound className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => handleDelete(u.id, u.email)} title="Delete" className="p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {canEditRole && (
+                      <button onClick={() => startEdit(u)} title="Edit" className="p-1.5 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {canEditRole && (
+                      <button onClick={() => startReset(u.id)} title="Reset password" className="p-1.5 text-stone-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors">
+                        <KeyRound className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {canEditRole && (
+                      <button onClick={() => handleDelete(u.id, u.email)} title="Delete" className="p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -277,7 +285,7 @@ export default function UserManagementPage() {
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex gap-1.5">
-                      {ROLES.filter(r => r !== "admin" || isSuperAdmin).map(r => (
+                      {ROLES.filter(r => r !== "super-admin" && (r !== "admin" || isSuperAdmin)).map(r => (
                         <button
                           key={r}
                           type="button"
@@ -426,7 +434,7 @@ export default function UserManagementPage() {
             </div>
             {/* Role + Designation selector */}
             <div className="flex gap-1.5 flex-wrap">
-              {ROLES.filter(r => r !== "admin" || isSuperAdmin).map(r => (
+              {ROLES.filter(r => r !== "super-admin" && (r !== "admin" || isSuperAdmin)).map(r => (
                 <button
                   key={r}
                   type="button"

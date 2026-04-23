@@ -4,6 +4,7 @@
 
 export interface ChecklistItemTemplate {
   text: string;
+  activityTitle?: string; // if set, this checklist item triggers a schedulable RP activity
 }
 
 export interface PitstopTemplate {
@@ -85,7 +86,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
         startSlaDays: 0,
         slaDays: 30,
         checklist: [
-          { text: `All ${n} creche(s) visited this month` },
+          { text: `All ${n} creche(s) visited this month`, activityTitle: "Monthly Creche Round Visit" },
           { text: "Caregiver conduct observed in each creche" },
           { text: "Child nutrition records reviewed" },
           { text: "Hygiene and safety standards checked against 24-point checklist" },
@@ -104,7 +105,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
         startSlaDays: 0,
         slaDays: 30,
         checklist: [
-          { text: "All supervisors present" },
+          { text: "All supervisors present", activityTitle: "Creche Supervisor Review Meeting" },
           { text: "Monthly rounds findings discussed per creche" },
           { text: "Caregiver performance issues identified and action owners assigned" },
           { text: "MIS data (Shishughar) cross-checked with field register data" },
@@ -131,7 +132,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
         { text: `Recruit ${Math.ceil(n / 40)} Cluster Coordinator(s)` },
         { text: `Recruit ${Math.ceil(n / 10)} Creche Supervisor(s)` },
         ...(needsSafetyCoord ? [{ text: "Recruit Safety Coordinator (required for 40+ creches)" }] : []),
-        { text: "Conduct team induction and orientation" },
+        { text: "Conduct team induction and orientation", activityTitle: "Team Induction & Orientation" },
         { text: "Set up team communication channels" },
       ],
     },
@@ -144,7 +145,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
       checklist: [
         { text: "Submit formal letter to District Collector" },
         { text: "Distribute letter to CDPO, DPO, BDO, and Block Health Officer" },
-        { text: "Meet with District/Block officials to explain program" },
+        { text: "Meet with District/Block officials to explain program", activityTitle: "Government Officials Meeting" },
         { text: "Obtain necessary approvals or NOCs" },
         { text: "Collect secondary demographic data (0-3 year olds in target area)" },
         { text: "Identify vulnerable/priority populations" },
@@ -158,7 +159,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
       slaDays: 30,
       checklist: [
         { text: "Analyse secondary data to shortlist villages" },
-        { text: "Conduct field visits to shortlisted villages" },
+        { text: "Conduct field visits to shortlisted villages", activityTitle: "Village Field Visits" },
         { text: `Confirm ${n} villages meeting eligibility criteria` },
         { text: "Conduct line listing of all 0-3 year olds in each village" },
         { text: "Document household enumeration data" },
@@ -172,7 +173,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
       startSlaDays: 21,
       slaDays: 45,
       checklist: [
-        { text: "Schedule and conduct Gram Sabha in each village" },
+        { text: "Schedule and conduct Gram Sabha in each village", activityTitle: "Gram Sabha Meetings" },
         { text: "Explain creche program, benefits, and difference from Anganwadi" },
         { text: "Discuss caregiver roles, responsibilities, and stipend" },
         { text: "Identify 2-3 potential caregiver candidates with community nomination" },
@@ -207,7 +208,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
       startSlaDays: 35,
       slaDays: 60,
       checklist: [
-        { text: "Identify facility meeting safety criteria in each village" },
+        { text: "Identify facility meeting safety criteria in each village", activityTitle: "Facility Site Visits" },
         { text: "Verify: central location, piped water, electricity, functional toilet" },
         { text: "Execute rent agreement for each facility" },
         { text: "Install/repair toilets if needed" },
@@ -249,7 +250,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
         { text: "Book residential training venue" },
         { text: "Arrange childcare for trainees' own children during training" },
         { text: "Prepare sample creche setup at training venue" },
-        { text: "Day 1: Exposure visit to an operational creche" },
+        { text: "Day 1: Exposure visit to an operational creche", activityTitle: "Pre-Service Caregiver Training" },
         { text: "Day 2: Context, child needs, caregiver roles, safety protocols" },
         { text: "Day 3: Food storage, water, egg handling, cooking demos, feeding practices" },
         { text: "Day 4: Child care, hygiene, engagement activities, first aid demo" },
@@ -266,7 +267,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
       slaDays: 90 + (trainingBatches - 1) * 7,
       checklist: [
         { text: "Confirm facility readiness (safety checklist — 24 points)" },
-        { text: "Conduct pre-opening community meeting and announce start date" },
+        { text: "Conduct pre-opening community meeting and announce start date", activityTitle: "Creche Launch Community Meeting" },
         { text: "Enroll children (name, age, gender, health history, emergency contacts)" },
         { text: "Obtain consent for growth monitoring and photography" },
         { text: "Register each child in Shishughar app and child card" },
@@ -287,7 +288,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
         { text: "Train caregivers on height/length measurement (infantometer vs stadiometer)" },
         { text: "Calibrate all weighing scales and measurement equipment" },
         { text: "Set quarterly calibration schedule (January, April, July, October)" },
-        { text: "Establish contact with local ANM, AWW, and ASHA workers" },
+        { text: "Establish contact with local ANM, AWW, and ASHA workers", activityTitle: "Health System Coordination Meeting" },
         { text: "Map immunisation due dates for all enrolled children in Shishughar" },
         { text: "Set up IFA supplementation tracking (bi-weekly for 6-59 months)" },
         { text: "Establish referral pathway to PHC/CHC" },
@@ -308,7 +309,7 @@ function buildCrecheTemplate(params: Record<string, string | number>): PitstopTe
         { text: "Establish Prabhaat Feri and Nukkad Natak community engagement schedule" },
         { text: "Plan bi-annual Measurement Day celebration" },
         { text: "Set up MIS reporting cadence in Shishughar app" },
-        { text: "Conduct first round of supportive supervision visits" },
+        { text: "Conduct first round of supportive supervision visits", activityTitle: "First Supervision Round Visits" },
         { text: "Document and share learnings from first month of operations" },
       ],
     },
@@ -342,7 +343,7 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
         { text: `Recruit ${clusters} Resource Centre Coordinator(s) (1 per cluster RCC)` },
         { text: "Recruit MIS Coordinator (1 overall)" },
         { text: `Recruit ${totalCOs} Community Organizers (2 per cluster, from community)` },
-        { text: "Conduct team induction and orientation session" },
+        { text: "Conduct team induction and orientation session", activityTitle: "Team Induction Session" },
         { text: "Map existing COs — assess interests, capacity, entitlement experience, stakeholder relationships" },
         { text: "Assign COs to clusters and settlements" },
         { text: "Set up team communication channels and review cadence" },
@@ -361,7 +362,7 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
         { text: "Identify existing community groups (active, inactive, or absent) per settlement" },
         { text: "Map existing Mahila Arogya Samiti (MAS) groups per settlement" },
         { text: "Locate PHC, Anganwadi, government schools, police station per cluster" },
-        { text: "Identify key community leaders and influencers in each settlement" },
+        { text: "Identify key community leaders and influencers in each settlement", activityTitle: "Settlement Mapping Visit" },
         { text: "Document findings in cluster planning sheet and share with team" },
       ],
     },
@@ -375,7 +376,7 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
         ...Array.from({ length: coTrainingBatches }, (_, i) => ({
           text: `Batch ${i + 1}: 3-day orientation for COs ${i * 20 + 1}–${Math.min((i + 1) * 20, totalCOs)}`,
         })),
-        { text: "Day 1 content: Programme objectives, community group formation, roles & responsibilities" },
+        { text: "Day 1 content: Programme objectives, community group formation, roles & responsibilities", activityTitle: "CO Orientation Training" },
         { text: "Day 2 content: Civic amenities baseline — categories, mapping tool, mobile app" },
         { text: "Day 3 content: MAS, Bal Raksha Samiti, SDMC, entitlements, stakeholder engagement" },
         { text: "Distribute mapping tools, registers, and mobile app access to all COs" },
@@ -395,7 +396,7 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
         { text: "Ensure group composition: women participation, parents of school-going children, cross-age" },
         { text: `Form/activate approx. ${totalCommunityGroups} community groups across all settlements` },
         { text: "Identify and confirm meeting space for each group" },
-        { text: "Conduct initial meeting for each group: objectives, roles & responsibilities, monthly schedule" },
+        { text: "Conduct initial meeting for each group: objectives, roles & responsibilities, monthly schedule", activityTitle: "Community Group Formation Meeting" },
         { text: "Introduce civic amenities baseline concept to each group" },
         { text: "Identify 2-3 group leaders per community group" },
         { text: "Document group roster, meeting schedule, and leader contacts in MIS" },
@@ -411,7 +412,7 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
         { text: "Map all existing MAS groups with CO support" },
         { text: `Identify gaps — target total of ${totalMASGroups} MAS groups across ${clusters} cluster(s)` },
         { text: "Work with ASHA workers to form MAS where none exist (1 per 300 HH)" },
-        { text: "Conduct first MAS meeting in each settlement — introduce programme and roles" },
+        { text: "Conduct first MAS meeting in each settlement — introduce programme and roles", activityTitle: "MAS Formation Meeting" },
         { text: "Link each MAS group with local PHC/Medical Officer" },
         { text: "Facilitate identification of 5 priority health issues per MAS group" },
         { text: "Begin Bal Raksha Samiti formation in settlements with school-going children" },
@@ -449,7 +450,7 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
         { text: "Map all relevant stakeholders per cluster: ASHA, ANM, PHC MO, police, ward/block officers" },
         { text: "Introduce programme to each stakeholder with formal letter and CO meeting" },
         { text: "Establish regular meeting schedule with PHC (monthly), police (monthly), ward officer (monthly)" },
-        { text: "Conduct first Adalat / grievance forum at slum level in each cluster" },
+        { text: "Conduct first Adalat / grievance forum at slum level in each cluster", activityTitle: "Stakeholder Engagement Meeting" },
         { text: "Invite stakeholders to attend cluster-level community group meetings" },
         { text: "Establish referral pathway for GBV/DV cases to police and support services" },
         { text: "Establish referral pathway for housing/land rights to relevant authorities" },
@@ -487,7 +488,7 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
         { text: "Train leaders on: how to identify and meet responsible department officer" },
         { text: "Train leaders on: writing complaint letters and follow-up process" },
         { text: "Train leaders on: housing rights and land title deed application process" },
-        { text: "Conduct exposure visit for community leaders to a well-functioning similar programme" },
+        { text: "Conduct exposure visit for community leaders to a well-functioning similar programme", activityTitle: "Community Leader Exposure Visit" },
         { text: "Begin tracking resolution rate of issues identified in baseline mapping" },
       ],
     },
@@ -501,7 +502,7 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
         { text: "Train COs on land title deed eligibility criteria and application process" },
         { text: "Conduct exposure visit for COs to an existing housing rights model" },
         { text: "Identify eligible households in each settlement" },
-        { text: "Conduct application collection drives (CO 3 days/month dedicated)" },
+        { text: "Conduct application collection drives (CO 3 days/month dedicated)", activityTitle: "Housing Rights Application Drive" },
         { text: "Submit applications to relevant authority (municipality/BDA/BBMP)" },
         { text: "Track application status per household in MIS" },
         { text: "Conduct department follow-up visits (monthly)" },
@@ -526,7 +527,7 @@ function buildWelfareRightsTemplate(params: Record<string, string | number>): Pi
         { text: "Define key metrics tracking: MAS meeting frequency and PHC issue resolution" },
         { text: "Define key metrics tracking: land/housing applications filed and resolved" },
         { text: "Define key metrics tracking: DV/GBV referrals made and follow-up status" },
-        { text: "Conduct first round of monthly reviews and document learnings" },
+        { text: "Conduct first round of monthly reviews and document learnings", activityTitle: "First Programme Review Meeting" },
       ],
     },
   ];
@@ -551,7 +552,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
         startSlaDays: 0,
         slaDays: 7,
         checklist: [
-          { text: "Visit 1 this week: centre activity for the day observed" },
+          { text: "Visit 1 this week: centre activity for the day observed", activityTitle: "Centre Visit" },
           { text: "Visit 1: coordinator supported on planned activity" },
           { text: "Visit 1: attendance register reviewed" },
           { text: "Visit 1: learning quality spot-check done" },
@@ -570,7 +571,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
         slaDays: 30,
         checklist: [
           { text: "Training topic aligned with monthly plan" },
-          { text: "Full session attended" },
+          { text: "Full session attended", activityTitle: "Monthly Children Programme Training" },
           { text: "Key learning shared with coordinator" },
           { text: "Coordinator practice / implementation plan agreed" },
           { text: "Attendance recorded" },
@@ -584,7 +585,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
         startSlaDays: 0,
         slaDays: 30,
         checklist: [
-          { text: "Target school(s) visited or DI contacted" },
+          { text: "Target school(s) visited or DI contacted", activityTitle: "School / DI Coordination Visit" },
           { text: "Out-of-school children list updated" },
           { text: "Dropout follow-up done with partner coordinator" },
           { text: "School engagement plan progressed" },
@@ -606,7 +607,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
         { text: `Recruit ${centres} Centre Coordinator(s) — graduate, preferably from community` },
         { text: `Recruit ${totalCOs} Children Outreach Worker(s) — must be from community` },
         { text: "Review and map any existing staff from current programme who are interested and equipped for children work" },
-        { text: "Conduct team induction: programme objectives, child rights, safe space principles" },
+        { text: "Conduct team induction: programme objectives, child rights, safe space principles", activityTitle: "Team Induction Session" },
         { text: "Assign staff to centres and clusters" },
         { text: "Set up team communication channels and weekly review schedule" },
       ],
@@ -618,7 +619,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
       startSlaDays: 7,
       slaDays: 28,
       checklist: [
-        { text: "Shortlist 2–3 potential buildings per cluster (within 1–1.5 km radius of community)" },
+        { text: "Shortlist 2–3 potential buildings per cluster (within 1–1.5 km radius of community)", activityTitle: "Centre Location Site Visit" },
         { text: "Verify minimum 400–500 sqft indoor space for learning corners and group activities" },
         { text: "Verify safe drinking water supply" },
         { text: "Verify functional and usable toilets" },
@@ -672,7 +673,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
       startSlaDays: 21,
       slaDays: 55,
       checklist: [
-        { text: "Outreach workers conduct door-to-door survey of children aged 4–14 in cluster" },
+        { text: "Outreach workers conduct door-to-door survey of children aged 4–14 in cluster", activityTitle: "Children Baseline Survey" },
         { text: "Record per child: name, gender, DOB, school/anganwadi status, mother tongue, health concerns" },
         { text: "Identify children with irregular school attendance" },
         { text: "Identify children who have dropped out entirely" },
@@ -692,7 +693,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
       startSlaDays: 28,
       slaDays: 50,
       checklist: [
-        { text: "Conduct initial 2-day orientation: programme objectives, child rights, safe space principles" },
+        { text: "Conduct initial 2-day orientation: programme objectives, child rights, safe space principles", activityTitle: "Staff Capacity Building Orientation" },
         { text: "Train on age-appropriate learning support: reading, writing, numeracy — informal methods" },
         { text: "Train on baseline assessment tools (observation, oral, worksheet, game-based)" },
         { text: "Train on facilitating library circles and promoting reading habits" },
@@ -711,7 +712,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
       slaDays: 65,
       checklist: [
         { text: "Confirm facility readiness: space, materials, staff, water, toilets" },
-        { text: "Conduct community meeting to announce CLC launch and daily schedule" },
+        { text: "Conduct community meeting to announce CLC launch and daily schedule", activityTitle: "CLC Launch Community Meeting" },
         { text: "Set up snack programme — identify rotating mothers to cook (egg/chana/banana for 50 children/day)" },
         { text: "Launch 3:30 pm slot: safe space and snack for Anganwadi returnees (4–6 yrs)" },
         { text: "Launch 4:30–6 pm slot: safe space, homework support, reading/writing for school children" },
@@ -728,7 +729,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
       startSlaDays: 55,
       slaDays: 90,
       checklist: [
-        { text: "Outreach workers visit all govt schools in cluster — meet teachers, collect data on irregular/dropout children" },
+        { text: "Outreach workers visit all govt schools in cluster — meet teachers, collect data on irregular/dropout children", activityTitle: "School & Anganwadi Outreach Visit" },
         { text: "Visit anganwadis — meet AWW, identify 4–6 yr children not yet enrolled" },
         { text: "Visit parents of identified dropout, irregular, and non-enrolled children" },
         { text: "Facilitate enrolment of 4–6 yr olds in anganwadi" },
@@ -752,7 +753,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
         { text: "Set up peer learning programme — older youth/adolescents as tutors and mentors" },
         { text: "Set up digital literacy sessions (laptop/computer access, basic digital skills)" },
         { text: "Establish weekly outdoor and indoor sports schedule" },
-        { text: "Conduct Summer camp (Camp 1 of 2 per year)" },
+        { text: "Conduct Summer camp (Camp 1 of 2 per year)", activityTitle: "Summer Life Skills Camp" },
         { text: "Schedule Dasara camp (Camp 2 of 2)" },
         { text: "Set up quarterly parenting sessions (themes: nutrition, child safety, school support)" },
         { text: "Identify children for annual leadership training programme" },
@@ -778,7 +779,7 @@ function buildChildrenTemplate(params: Record<string, string | number>): Pitstop
         { text: "Set DI resource person monthly full-day visit schedule (support, review, capacity building)" },
         { text: "Set urban team fortnightly visit schedule" },
         { text: "Set monthly review meeting: all centre coordinators + children lead" },
-        { text: "Conduct first monthly review — share learnings from launch period" },
+        { text: "Conduct first monthly review — share learnings from launch period", activityTitle: "First Monthly CLC Review Meeting" },
       ],
     },
   ];
@@ -803,7 +804,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
         startSlaDays: 0,
         slaDays: 7,
         checklist: [
-          { text: "Youth Resource Centre visited" },
+          { text: "Youth Resource Centre visited", activityTitle: "Saturday YRC Visit & CAP Review" },
           { text: "Coordinator supported on current programme priorities" },
           { text: "Youth groups met for CAP review" },
           { text: "CAP milestones status updated" },
@@ -821,7 +822,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
         slaDays: 30,
         checklist: [
           { text: "Training topic aligned with monthly plan" },
-          { text: "Full session attended" },
+          { text: "Full session attended", activityTitle: "Monthly Youth Programme Training" },
           { text: "Coordinator briefed post-training" },
           { text: "Implementation plan agreed with coordinator" },
           { text: "Attendance recorded" },
@@ -844,7 +845,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
         { text: `Recruit ${yrcs} YRC Coordinator(s)` },
         { text: `Recruit ${youthWorkers} Youth Worker(s) — must be from community, 2 per YRC` },
         { text: "Map existing community organizers — assess youth relationship-building track record" },
-        { text: "Conduct team induction: programme objectives, youth vulnerability context, gender lens" },
+        { text: "Conduct team induction: programme objectives, youth vulnerability context, gender lens", activityTitle: "Team Induction Session" },
         { text: "Contextualise with local data: 32% dropout after 10th grade, 63% working by 21, 28% married before 21" },
         { text: "Brief on local patterns: substance abuse, GBV, early pregnancy, undertrial cases" },
         { text: "Assign workers to YRCs; define reporting relationships" },
@@ -858,7 +859,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
       startSlaDays: 7,
       slaDays: 30,
       checklist: [
-        { text: `Shortlist 2–3 candidate locations per YRC — close to community, accessible from transport` },
+        { text: `Shortlist 2–3 candidate locations per YRC — close to community, accessible from transport`, activityTitle: "YRC Location Site Visit" },
         { text: "Verify minimum 700 sqft with 2–3 rooms (group space, library/reading area, counselling corner)" },
         { text: "Assess neighbourhood: noise tolerance for evening activities is critical" },
         { text: "Sensitise neighbours about programme purpose with support of landlord" },
@@ -895,7 +896,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
       slaDays: 45,
       checklist: [
         { text: "For existing staff: conduct 2-day/month preparatory training for 3–6 months (before official launch)" },
-        { text: "Conduct 3-day orientation for all new youth programme staff" },
+        { text: "Conduct 3-day orientation for all new youth programme staff", activityTitle: "Youth Staff Orientation Training" },
         { text: "Day 1: programme objectives, youth development context, gender and intersectionality" },
         { text: "Day 2: safe space facilitation, counselling basics, crisis identification and referral" },
         { text: "Day 3: YRC operations, outreach methods, documentation, MIS app" },
@@ -911,7 +912,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
       startSlaDays: 21,
       slaDays: 60,
       checklist: [
-        { text: `Enumerate youth aged 15–21 in all settlements — target ${totalYouth} total across ${yrcs} YRC(s)` },
+        { text: `Enumerate youth aged 15–21 in all settlements — target ${totalYouth} total across ${yrcs} YRC(s)`, activityTitle: "Youth Baseline Enumeration" },
         { text: "Record: name, gender, DOB, caste, religion, mother tongue, cluster/slum, contact, family details" },
         { text: "Record education/employment status: studying, studying+working, working, homemaker, job-seeking, dropout" },
         { text: "For dropouts: record reasons (financial, family emergency, marriage, substance use, lack of interest, etc.)" },
@@ -929,7 +930,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
       startSlaDays: 35,
       slaDays: 80,
       checklist: [
-        { text: "Conduct first round of small group meetings per settlement — introduce YRC and programme" },
+        { text: "Conduct first round of small group meetings per settlement — introduce YRC and programme", activityTitle: "Youth Small Group Meeting" },
         { text: "Hold awareness meetings at slum level (monthly)" },
         { text: "Set up cultural activities at YRC: musical instruments, indoor games, art & craft (daily/weekly)" },
         { text: "Organise first outdoor sports event or youth cultural programme for broad mobilisation" },
@@ -948,7 +949,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
       slaDays: 90,
       checklist: [
         { text: "Design 2-day capacity-building workshop curriculum for youth" },
-        { text: "Conduct first 2-day workshop — health, hygiene, reproductive health, nutrition" },
+        { text: "Conduct first 2-day workshop — health, hygiene, reproductive health, nutrition", activityTitle: "Youth Capacity Building Workshop" },
         { text: "Set up monthly session calendar: mental health, legal literacy, financial literacy, digital literacy" },
         { text: "Set up monthly session calendar: constitutional values, substance abuse, career counselling, SRHR" },
         { text: "Schedule quarterly Yuva Adda (gender equality, GBV, constitution, caste, pluralism, environment)" },
@@ -967,7 +968,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
       slaDays: 90,
       checklist: [
         { text: "Review baseline documentation gaps per youth: Aadhaar, voter ID, bank account, ration card, caste/income certificate" },
-        { text: "Organise documentation camps to address gaps in bulk" },
+        { text: "Organise documentation camps to address gaps in bulk", activityTitle: "Documentation Camp" },
         { text: "Register eligible youth with Nehru Yuva Kendra (NYK)" },
         { text: "Facilitate post-matric scholarship applications (SC/ST, minority, general)" },
         { text: "Facilitate BBMP fee reimbursement (Shulka Marupavathi) for eligible students" },
@@ -987,7 +988,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
       slaDays: 110,
       checklist: [
         { text: `Confirm ${youthLeaders} youth as leadership cohort (20 per worker)` },
-        { text: "Conduct leadership orientation: community development, rights, documentation, gender" },
+        { text: "Conduct leadership orientation: community development, rights, documentation, gender", activityTitle: "Youth Leadership Orientation" },
         { text: "Assign action research: assess functioning of a public institution (PHC, school, ration shop, SDMC)" },
         { text: "Support youth in documenting findings and drafting recommendations" },
         { text: "Facilitate youth-led presentation to relevant department official" },
@@ -1058,7 +1059,7 @@ function buildYouthTemplate(params: Record<string, string | number>): PitstopTem
         { text: "Set Foundation RP monthly visit schedule to all YRCs (handholding + review)" },
         { text: "Set monthly review meeting: all YRC coordinators + youth workers, led by Youth Lead" },
         { text: "Set monthly meeting of all Youth Leads by Foundation RP" },
-        { text: "Conduct first monthly review — document learnings from preparation and early engagement" },
+        { text: "Conduct first monthly review — document learnings from preparation and early engagement", activityTitle: "First Monthly Youth Programme Review" },
       ],
     },
   ];
@@ -1079,7 +1080,7 @@ function buildSeedingTemplate(params: Record<string, string | number>): PitstopT
       checklist: [
         { text: "Draft JD and initiate hiring for 2 seeding programme support roles" },
         { text: "Identify interim support from existing team while hires are in progress" },
-        { text: "Set up weekly Friday 9am tracking meeting (programme leads)" },
+        { text: "Set up weekly Friday 9am tracking meeting (programme leads)", activityTitle: "Weekly Team Tracking Meeting" },
         { text: "Define roles: who holds sourcing/screening centrally vs geo-level handholding" },
         { text: "Set up shared tracking sheet / MIS for seeding pipeline" },
         { text: "Onboard new hires and orient them on the seeding approach and categories" },
@@ -1093,7 +1094,7 @@ function buildSeedingTemplate(params: Record<string, string | number>): PitstopT
       slaDays: 45,
       checklist: [
         { text: "Design demand estimation questionnaire for Geo teams" },
-        { text: "Meet each Geo team lead — understand thematic gaps and expansion priorities" },
+        { text: "Meet each Geo team lead — understand thematic gaps and expansion priorities", activityTitle: "Geo Demand Meeting" },
         { text: "Identify programmatic domains with clarity and frameworks (e.g. livelihoods, creches)" },
         { text: "Identify geographies where seeding is a priority in the near term" },
         { text: "Understand Geo team capacity to handhold a seeded organisation (bandwidth, experience)" },
@@ -1110,7 +1111,7 @@ function buildSeedingTemplate(params: Record<string, string | number>): PitstopT
       checklist: [
         { text: "Identify 3–5 peer institutions doing seeding/incubation (social sector)" },
         { text: "Prepare structured learning questions: sourcing, screening, support model, failure modes" },
-        { text: "Conduct conversations with each institution — take structured notes" },
+        { text: "Conduct conversations with each institution — take structured notes", activityTitle: "Peer Institution Learning Conversations" },
         { text: "Understand how they differentiate between categories (freshers vs alumni vs young orgs)" },
         { text: "Understand their capacity-building approach and what worked" },
         { text: "Understand how they manage the 'thin line' between over-involvement and under-support" },
@@ -1225,7 +1226,7 @@ function buildSchemeLinkageTemplate(params: Record<string, string | number>): Pi
         { text: `Assign ${acs} Area Coordinator(s) (1 per 3–4 COs)` },
         { text: `Assign ${rccs} Resource Centre Coordinator(s) (1 per RCC)` },
         { text: "Assign MIS Coordinator (1 overall)" },
-        { text: "Conduct 3-day induction: scheme eligibility, document checklist, application process" },
+        { text: "Conduct 3-day induction: scheme eligibility, document checklist, application process", activityTitle: "Team Scheme Training" },
         { text: "Train on CMCHIS / PMJAY: eligibility (income <₹72k/year), docs (Aadhaar + Income cert), 1467 empanelled hospitals" },
         { text: "Train on PMJJBY: ₹2L life insurance @₹436/year, needs bank account, age 18–50" },
         { text: "Train on PMSBY: ₹2L accident insurance @₹20/year, needs bank account, age 18–70" },
@@ -1287,7 +1288,7 @@ function buildSchemeLinkageTemplate(params: Record<string, string | number>): Pi
       slaDays: 80,
       checklist: [
         { text: "Identify households with Aadhaar gaps from baseline — missing, incorrect name/DOB, mobile not seeded" },
-        { text: "Organise Aadhaar correction/enrollment camp or schedule CO-accompanied trips to Aadhaar centre" },
+        { text: "Organise Aadhaar correction/enrollment camp or schedule CO-accompanied trips to Aadhaar centre", activityTitle: "Document Camp" },
         { text: "Seed mobile number to Aadhaar for DBT linkage (UIDAI portal or Aadhaar centre)" },
         { text: "Identify households needing Income Certificate (new application or renewal/expired)" },
         { text: "Batch-apply Income Certificates at taluk office — track ETA (typically 4 days)" },
@@ -1408,7 +1409,7 @@ function buildSchemeLinkageTemplate(params: Record<string, string | number>): Pi
       startSlaDays: 60,
       slaDays: 180,
       checklist: [
-        { text: "Schedule monthly community meeting — share scheme enrollment numbers and pending list" },
+        { text: "Schedule monthly community meeting — share scheme enrollment numbers and pending list", activityTitle: "Community Review & Grievance Meeting" },
         { text: "Collect grievances: households denied schemes, bribery demands, application delays" },
         { text: "Categorise grievances: individual (name mismatch, doc issue) vs systemic (policy/process gap)" },
         { text: "Resolve individual cases: write application to concerned officer with supporting docs" },
@@ -1447,14 +1448,14 @@ function buildElderlyCentreTemplate(params: Record<string, string | number>): Pi
       { text: "Home-based care cases reviewed: physiotherapy, virtual OPD, assistive devices status" },
       { text: "Scheme linkage progress reviewed: entitlements pending vs. secured this month" },
       { text: "Escalations and incidents reviewed and closed or escalated" },
-      { text: "RP monthly visit to centre — observes operations and reviews with Activity Coordinator" },
+      { text: "RP monthly visit to centre — observes operations and reviews with Activity Coordinator", activityTitle: "RP Monthly Centre Visit" },
       { text: "Elderly centre reviewed as agenda item in monthly cluster meeting" },
       // Quarterly items
       { text: "[Quarterly] Friends of Elderly conduct full re-assessment of all elderly in designated areas" },
       { text: "[Quarterly] Update need categorisation: high / medium / low (drives home visit frequency)" },
       { text: "[Quarterly] Review enrollment — new priority cases, dropouts, and changes" },
       { text: "[Quarterly] Family sensitisation workshop conducted" },
-      { text: "[Quarterly] RP quarterly review with partner team — data, challenges, next quarter plan" },
+      { text: "[Quarterly] RP quarterly review with partner team — data, challenges, next quarter plan", activityTitle: "Quarterly Elderly Programme Review" },
     ],
   };
 
@@ -1470,7 +1471,7 @@ function buildElderlyCentreTemplate(params: Record<string, string | number>): Pi
       startSlaDays: 0,
       slaDays: 21,
       checklist: [
-        { text: "Map all elderly 60+ in the settlement — door-to-door enumeration" },
+        { text: "Map all elderly 60+ in the settlement — door-to-door enumeration", activityTitle: "Elderly Baseline Enumeration" },
         { text: "Record basic profile: name, age, household composition, whether living alone" },
         { text: "Categorise each elderly person: high / medium / low intensive needs (physical, mental, emotional)" },
         { text: "Flag priority cohort: abandoned, facing neglect, or living alone without family support" },
@@ -1496,7 +1497,7 @@ function buildElderlyCentreTemplate(params: Record<string, string | number>): Pi
         { text: "Set up recreational materials: games, craft supplies, storytelling resources" },
         { text: "Set up nutrition area: utensils, storage, meal preparation space" },
         { text: "Install signage and notice board" },
-        { text: "RP inspects facility and signs off before enrollment begins" },
+        { text: "RP inspects facility and signs off before enrollment begins", activityTitle: "Facility Inspection Visit" },
       ],
     },
     {
@@ -1510,7 +1511,7 @@ function buildElderlyCentreTemplate(params: Record<string, string | number>): Pi
         { text: "Recruit Helper from community (assists with mobility, daily needs, activity support)" },
         { text: `Identify and confirm Friends of Elderly cadre members (1 per 400 elderly; report to Activity Coordinator)` },
         { text: "Coordinate with technical partner to schedule training dates and venue" },
-        { text: "Conduct staff training: geriatric care basics, daily activity facilitation, health monitoring" },
+        { text: "Conduct staff training: geriatric care basics, daily activity facilitation, health monitoring", activityTitle: "Staff Geriatric Care Training" },
         { text: "Conduct Friends of Elderly training: home visit protocols, quarterly assessment, scheme linkage" },
         { text: "Train all staff on centre operations: attendance register, daily report, referral documentation" },
         { text: "Train staff on escalation protocols: when to refer to health services, when to alert RP" },
@@ -1524,7 +1525,7 @@ function buildElderlyCentreTemplate(params: Record<string, string | number>): Pi
       startSlaDays: 45,
       slaDays: 55,
       checklist: [
-        { text: "RP visits PHC, Namma Clinic, and government hospital to establish referral relationship" },
+        { text: "RP visits PHC, Namma Clinic, and government hospital to establish referral relationship", activityTitle: "Referral System Mapping Visit" },
         { text: "RP visits physiotherapy provider and confirms access pathway for home-based care cases" },
         { text: "RP visits virtual OPD / telemedicine service and confirms how referrals will be routed" },
         { text: "RP visits any local NGOs or CSOs providing complementary elderly services" },
@@ -1548,7 +1549,7 @@ function buildElderlyCentreTemplate(params: Record<string, string | number>): Pi
         { text: "Complete individual intake assessment: health status, special needs, family contact" },
         { text: "Arrange mobility support for elderly who cannot reach centre independently" },
         { text: "Assign Friends of Elderly to their designated settlement areas" },
-        { text: "Conduct first family sensitisation meeting with families of enrolled elderly" },
+        { text: "Conduct first family sensitisation meeting with families of enrolled elderly", activityTitle: "Elderly Centre Launch Meeting" },
         { text: "Launch centre on agreed date — Activity Coordinator and Helper present from Day 1" },
         { text: "Activate home visits for high needs and bed-ridden elderly from launch week" },
         { text: "RP present at launch and reviews first week operations with Activity Coordinator" },
@@ -1593,7 +1594,7 @@ function buildWaterATMTemplate(params: Record<string, string | number>): Pitstop
       { text: "Downtime log reviewed (target: >95% uptime; MTTR <4 hours minor, <24 hours major)" },
       { text: "Antiscalant and consumable stock checked — maintain 1–2 months buffer" },
       { text: "RP reviews operational dashboard — TDS trend, litres dispensed, downtime, revenue" },
-      { text: "RP monthly visit to plant — reviews all metrics with operator" },
+      { text: "RP monthly visit to plant — reviews all metrics with operator", activityTitle: "Monthly Plant Monitoring Visit" },
       { text: "Water ATM reviewed as agenda item in monthly cluster meeting" },
     ],
   };
@@ -1613,7 +1614,7 @@ function buildWaterATMTemplate(params: Record<string, string | number>): Pitstop
         { text: "Collect water sample from proposed borewell or source and send to certified lab" },
         { text: "Analyse for: TDS, pH, hardness, fluoride, nitrate, iron, arsenic, turbidity, E. coli, chloride" },
         { text: "Confirm TDS >500 mg/L (NGT prohibits RO on municipal water below this — document result)" },
-        { text: "RP conducts feasibility assessment: land permission, borewell permission, regulatory viability" },
+        { text: "RP conducts feasibility assessment: land permission, borewell permission, regulatory viability", activityTitle: "Site Feasibility Assessment Visit" },
         { text: "RP applies for / follows up on CGWB or state ground water board borewell approval" },
         { text: "RP follows up on SPCB Consent to Establish and municipal body NoC" },
         { text: "Identify plant site: minimum 15×12 ft, clean, ventilated, flood-safe, not near drains or toilets" },
@@ -1679,7 +1680,7 @@ function buildWaterATMTemplate(params: Record<string, string | number>): Pitstop
         { text: "Conduct health linkage awareness sessions: water quality, disease connection, why RO matters" },
         { text: "Conduct nukkad natak or community meeting on water safety and launch" },
         { text: "Set and communicate pricing: per-litre rate that covers operating costs (reference: ₹4 per 20L)" },
-        { text: "RP attends key SHG meeting to support community trust and address concerns" },
+        { text: "RP attends key SHG meeting to support community trust and address concerns", activityTitle: "SHG Engagement Meeting" },
       ],
     },
     {
@@ -1696,7 +1697,7 @@ function buildWaterATMTemplate(params: Record<string, string | number>): Pitstop
         { text: "Confirm ATM kiosk is placed at a high-visibility community node (near temple, school, main lane)" },
         { text: "Activate plant and ATM — confirm RFID cards, payment system, and flow meter are working" },
         { text: "Communicate launch date to all registered households" },
-        { text: "RP present at launch day" },
+        { text: "RP present at launch day", activityTitle: "Water ATM Launch & Community Rollout" },
         { text: "RP makes frequent site visits during first 2–3 weeks: adoption check, equipment issues, community hesitation" },
         { text: "RP reviews first-week dispensed volume and household adoption rate" },
       ],
@@ -1729,7 +1730,7 @@ function buildElderlyKitchenTemplate(params: Record<string, string | number>): P
       { text: "Check for leakage — overpayment, diversion, or missing stock" },
       { text: "Vendor performance reviewed; escalate or change vendor if needed" },
       { text: "Substitute kitchen arrangement confirmed for when kitchen woman is on leave" },
-      { text: "RP monthly visit to all kitchens in cluster completed" },
+      { text: "RP monthly visit to all kitchens in cluster completed", activityTitle: "Monthly Kitchen Round Visit" },
       { text: "Elderly kitchens reviewed as agenda item in monthly cluster meeting" },
     ],
   };
@@ -1751,7 +1752,7 @@ function buildElderlyKitchenTemplate(params: Record<string, string | number>): P
         { text: "Verify each candidate: cooks daily at home, not employed outside, physically capable" },
         { text: "Verify community standing and trust for each candidate" },
         { text: "CO prepares shortlist and presents to RP" },
-        { text: "RP visits to confirm final selection for each kitchen" },
+        { text: "RP visits to confirm final selection for each kitchen", activityTitle: "Kitchen Candidate Confirmation Visit" },
         { text: "Formalise understanding with selected kitchen women (role, stipend, daily expectations)" },
         { text: "Document kitchen locations and addresses" },
       ],
@@ -1782,7 +1783,7 @@ function buildElderlyKitchenTemplate(params: Record<string, string | number>): P
       startSlaDays: 20,
       slaDays: 30,
       checklist: [
-        { text: "RP conducts cluster-level training for all COs (hygiene, inventory management, menu)" },
+        { text: "RP conducts cluster-level training for all COs (hygiene, inventory management, menu)", activityTitle: "CO Kitchen Operations Training" },
         { text: "CO trains kitchen woman on food hygiene: handwashing, storage, utensil cleaning" },
         { text: "CO trains kitchen woman on the fixed menu: rice + vegetable side dish + ragi mudde + boiled egg" },
         { text: "CO trains kitchen woman on correct portion sizes for 15 persons" },
@@ -1807,7 +1808,7 @@ function buildElderlyKitchenTemplate(params: Record<string, string | number>): P
         { text: "Identify any special nutritional needs based on health condition" },
         { text: "Flag bed-ridden elderly requiring daily home delivery and note addresses" },
         { text: "Document enrollment details for all 15 per kitchen" },
-        { text: "RP verifies enrollment — meets a sample of enrolled elderly" },
+        { text: "RP verifies enrollment — meets a sample of enrolled elderly", activityTitle: "Enrollment Verification Visit" },
       ],
     },
     {
@@ -1825,7 +1826,7 @@ function buildElderlyKitchenTemplate(params: Record<string, string | number>): P
         { text: "Home delivery to bed-ridden elderly activated and confirmed working" },
         { text: "First vegetable delivery received and quality verified (3-day cycle)" },
         { text: "Any issues recorded in register and escalated to RP" },
-        { text: "RP visits during rollout phase to observe and support" },
+        { text: "RP visits during rollout phase to observe and support", activityTitle: "Kitchen Rollout Visit" },
       ],
     },
     monitoring,
@@ -1881,7 +1882,7 @@ function buildZoneReviewTemplate(params: Record<string, string | number>): Pitst
       startSlaDays: cycleDays - 2,
       slaDays: cycleDays,
       checklist: [
-        { text: `All ${n} RP(s) present (or send written update if absent)` },
+        { text: `All ${n} RP(s) present (or send written update if absent)`, activityTitle: "Zone Review Meeting" },
         { text: "Variance report reviewed with group" },
         { text: "Each RP's top blocker acknowledged and owner assigned" },
         { text: "Bright spots shared for learning" },
@@ -1907,7 +1908,7 @@ function buildZoneReviewTemplate(params: Record<string, string | number>): Pitst
               { text: "Capacity gaps and RP development needs documented" },
               { text: "Zone-level risks and mitigation plans noted" },
               { text: "Recommendations section drafted" },
-              { text: "Report reviewed with manager before submission" },
+              { text: "Report reviewed with manager before submission", activityTitle: "Quarterly Zone Report Review" },
               { text: "Report submitted to programme leadership" },
             ],
           },
@@ -1951,7 +1952,7 @@ function buildGrantProposalTemplate(params: Record<string, string | number>): Pi
         { text: `Review ${funder}'s published guidelines, focus areas, and grant ceiling` },
         { text: "Map our programme gaps to funder priorities" },
         { text: "Confirm there is no active grant agreement that would restrict new funding from this source" },
-        { text: "Establish contact with programme officer (if possible)" },
+        { text: "Establish contact with programme officer (if possible)", activityTitle: "Funder Alignment Meeting" },
         { text: "Collect community-level data to quantify the need" },
         { text: "Document alignment rationale (1-page internal note)" },
         { text: "Get internal sign-off to proceed with proposal" },
@@ -1987,7 +1988,7 @@ function buildGrantProposalTemplate(params: Record<string, string | number>): Pi
       checklist: [
         { text: "Invitation to submit full proposal received" },
         { text: "Proposal template/guidelines downloaded and read in full" },
-        { text: "Proposal writing team assembled (programme, finance, M&E)" },
+        { text: "Proposal writing team assembled (programme, finance, M&E)", activityTitle: "Proposal Writing Kickoff Meeting" },
         { text: "Theory of change section drafted" },
         { text: "Implementation plan with milestones drafted" },
         { text: "Monitoring and evaluation framework drafted" },
@@ -2032,7 +2033,7 @@ function buildGrantProposalTemplate(params: Record<string, string | number>): Pi
       slaDays: isNew ? 120 : 90,
       checklist: [
         { text: `${funder} queries responded to within 48 hours` },
-        { text: "Clarification calls or site visits accommodated" },
+        { text: "Clarification calls or site visits accommodated", activityTitle: "Funder Clarification Call" },
         { text: "Updated financials or additional documents provided if requested" },
         { text: "Internal tracking note updated with funder interactions" },
         { text: "Decision timeline confirmed with programme officer" },
@@ -2095,7 +2096,7 @@ function buildPartnerManagementTemplate(params: Record<string, string | number>)
       startSlaDays: 21,
       slaDays: 60,
       checklist: [
-        { text: "Partnership scoping meeting held with each partner" },
+        { text: "Partnership scoping meeting held with each partner", activityTitle: "Partnership Scoping Meeting" },
         { text: "Roles and responsibilities clearly agreed (who does what, where)" },
         { text: "Deliverables and timelines agreed" },
         { text: "Financial accountability terms (if funds involved) negotiated" },
@@ -2116,7 +2117,7 @@ function buildPartnerManagementTemplate(params: Record<string, string | number>)
         { text: "Partner team introduced to our programme framework" },
         { text: "Data collection tools and MIS walkthrough completed" },
         { text: "Quality standards and non-negotiables communicated" },
-        { text: "Field visit to partner's operational area completed" },
+        { text: "Field visit to partner's operational area completed", activityTitle: "Partner Field Visit & Onboarding" },
         { text: "First-quarter joint work plan co-created" },
         { text: "Primary points of contact confirmed on both sides" },
         { text: "Communication and escalation protocol agreed" },
@@ -2133,7 +2134,7 @@ function buildPartnerManagementTemplate(params: Record<string, string | number>)
       startSlaDays: isNew ? 90 : 0,
       slaDays: isNew ? 90 + 90 : 90,
       checklist: [
-        { text: `All ${n} partner(s) present at review` },
+        { text: `All ${n} partner(s) present at review`, activityTitle: "Quarterly Partner Joint Review" },
         { text: "Previous quarter deliverables reviewed against plan" },
         { text: "Data quality and reporting timeliness discussed" },
         { text: "Financial utilisation reviewed (if funds are involved)" },
@@ -2167,7 +2168,7 @@ function buildPartnerManagementTemplate(params: Record<string, string | number>)
       slaDays: isNew ? 365 : 365,
       checklist: [
         { text: `Annual outcome data compiled for all ${n} partner(s)` },
-        { text: "Health check conversation held with each partner (frank, two-way)" },
+        { text: "Health check conversation held with each partner (frank, two-way)", activityTitle: "Annual Partnership Health Review" },
         { text: "Partner satisfaction with the relationship assessed" },
         { text: "Our satisfaction with the partner's delivery assessed" },
         { text: "Renewal, scale-up, or exit recommendation drafted per partner" },
@@ -2194,7 +2195,7 @@ function buildCapacityBuildingTemplate(params: Record<string, string | number>):
   };
   const label = focusLabel[focus] ?? "All Domains";
 
-  const gapChecklist: Record<string, { text: string }[]> = {
+  const gapChecklist: Record<string, { text: string; activityTitle?: string }[]> = {
     field: [
       { text: "Field observation conducted with each RP (half-day shadow)" },
       { text: "Programme adherence rated per RP (0–10 checklist)" },
@@ -2216,7 +2217,7 @@ function buildCapacityBuildingTemplate(params: Record<string, string | number>):
       { text: "Best-practice RPs identified for peer learning" },
     ],
     all: [
-      { text: "Field observation conducted with each RP (half-day shadow)" },
+      { text: "Field observation conducted with each RP (half-day shadow)", activityTitle: "RP Field Observation (TNA)" },
       { text: "MIS submission timeliness and accuracy reviewed" },
       { text: "Community facilitation quality observed" },
       { text: `All ${n} RP individual skill profiles completed` },
@@ -2225,7 +2226,7 @@ function buildCapacityBuildingTemplate(params: Record<string, string | number>):
     ],
   };
 
-  const deliveryChecklist: Record<string, { text: string }[]> = {
+  const deliveryChecklist: Record<string, { text: string; activityTitle?: string }[]> = {
     field: [
       { text: "Training session facilitated (field protocols, safety, documentation)" },
       { text: "Role-play / field simulation included" },
@@ -2247,7 +2248,7 @@ function buildCapacityBuildingTemplate(params: Record<string, string | number>):
       { text: "Feedback given to each RP within 48 hours" },
     ],
     all: [
-      { text: "Full-day capacity building session delivered" },
+      { text: "Full-day capacity building session delivered", activityTitle: "Quarterly Capacity Building Session" },
       { text: "Field skills module completed" },
       { text: "Data and MIS module completed" },
       { text: "Community facilitation module completed" },
@@ -2299,7 +2300,7 @@ function buildCapacityBuildingTemplate(params: Record<string, string | number>):
       slaDays: 90,
       checklist: [
         { text: "Peer pairs assigned (strong RP + developing RP)" },
-        { text: "Field visits scheduled and conducted" },
+        { text: "Field visits scheduled and conducted", activityTitle: "Peer Learning Field Visit" },
         { text: `All ${n} RP(s) are either host or visitor this cycle` },
         { text: "Post-visit debrief (30 min) held with each pair" },
         { text: "Observations and takeaways documented" },
@@ -2314,7 +2315,7 @@ function buildCapacityBuildingTemplate(params: Record<string, string | number>):
       startSlaDays: 0,
       slaDays: 30,
       checklist: [
-        { text: `Check-ins scheduled and held with all ${n} RP(s) this month` },
+        { text: `Check-ins scheduled and held with all ${n} RP(s) this month`, activityTitle: "RP Coaching Check-in" },
         { text: "Each RP's individual development plan reviewed" },
         { text: "Blocker to skill growth identified (knowledge, confidence, workload, resource)" },
         { text: "Specific support offered (coaching, resource, escalation)" },
@@ -2568,26 +2569,26 @@ export const TEMPLATES: GoalTemplate[] = [
       const n = Number(params.creches) || 11;
       return [
         // WELFARE RIGHTS
-        { title: `WR: Community Group Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly meeting with all community groups at cluster level. Review WR cases, escalations, and organizer progress.", checklist: [{ text: "Pre-meeting agenda circulated to partner" }, { text: "All slum community groups represented" }, { text: "Active WR cases reviewed" }, { text: "Issues and escalations documented" }, { text: "Follow-up action owners assigned" }, { text: "Meeting notes shared with partner" }] },
-        { title: `WR: Partner Review Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with partner team (cluster coordinator + COs). Progress on pending cases, priorities for next month.", checklist: [{ text: "Cluster coordinator and all COs present" }, { text: "Previous month action items reviewed" }, { text: "Pending WR cases status updated" }, { text: "MIS data cross-checked with field reality" }, { text: "Next month priorities agreed" }] },
-        { title: `WR: Rights Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training on civic amenities, land & housing rights, welfare schemes. Topics rotate each month.", checklist: [{ text: "Training topic selected (civic amenities / land / housing / scheme)" }, { text: "Training material prepared" }, { text: "All COs and coordinator attended" }, { text: "Practice / role-play conducted" }, { text: "Attendance recorded" }, { text: "Follow-up material distributed" }] },
+        { title: `WR: Community Group Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly meeting with all community groups at cluster level. Review WR cases, escalations, and organizer progress.", checklist: [{ text: "Pre-meeting agenda circulated to partner" }, { text: "All slum community groups represented", activityTitle: "Community Group Monthly Meeting" }, { text: "Active WR cases reviewed" }, { text: "Issues and escalations documented" }, { text: "Follow-up action owners assigned" }, { text: "Meeting notes shared with partner" }] },
+        { title: `WR: Partner Review Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with partner team (cluster coordinator + COs). Progress on pending cases, priorities for next month.", checklist: [{ text: "Cluster coordinator and all COs present", activityTitle: "Partner Review Meeting" }, { text: "Previous month action items reviewed" }, { text: "Pending WR cases status updated" }, { text: "MIS data cross-checked with field reality" }, { text: "Next month priorities agreed" }] },
+        { title: `WR: Rights Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training on civic amenities, land & housing rights, welfare schemes. Topics rotate each month.", checklist: [{ text: "Training topic selected (civic amenities / land / housing / scheme)" }, { text: "Training material prepared" }, { text: "All COs and coordinator attended", activityTitle: "WR Rights Training" }, { text: "Practice / role-play conducted" }, { text: "Attendance recorded" }, { text: "Follow-up material distributed" }] },
         // CHILDREN
-        { title: `Children: Centre Visit (Twice-Weekly) — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Visit the children's centre twice a week (½ day each). Handhold coordinator in planned activities and quality review.", checklist: [{ text: "Centre activity for the day observed" }, { text: "Coordinator supported on planned activity" }, { text: "Attendance register reviewed" }, { text: "Learning quality spot-check done" }, { text: "Infrastructure / material needs flagged" }, { text: "Coordinator debrief completed" }] },
+        { title: `Children: Centre Visit (Twice-Weekly) — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Visit the children's centre twice a week (½ day each). Handhold coordinator in planned activities and quality review.", checklist: [{ text: "Centre activity for the day observed", activityTitle: "Children's Centre Visit" }, { text: "Coordinator supported on planned activity" }, { text: "Attendance register reviewed" }, { text: "Learning quality spot-check done" }, { text: "Infrastructure / material needs flagged" }, { text: "Coordinator debrief completed" }] },
         { title: `Children: Monthly Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly training for children's programme activities. Reinforce with coordinator post-session.", checklist: [{ text: "Training topic aligned with monthly plan" }, { text: "Full session attended" }, { text: "Key learning shared with coordinator" }, { text: "Attendance recorded" }] },
-        { title: `Children: Govt School / DI Coordination — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Visit relevant government schools and coordinate with DI on dropout follow-up and school-community engagement.", checklist: [{ text: "Target school(s) visited / DI contacted" }, { text: "Out-of-school children list updated" }, { text: "Dropout follow-up done with partner" }, { text: "School engagement plan progressed" }, { text: "Next steps documented" }] },
+        { title: `Children: Govt School / DI Coordination — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Visit relevant government schools and coordinate with DI on dropout follow-up and school-community engagement.", checklist: [{ text: "Target school(s) visited / DI contacted", activityTitle: "School / DI Coordination Visit" }, { text: "Out-of-school children list updated" }, { text: "Dropout follow-up done with partner" }, { text: "School engagement plan progressed" }, { text: "Next steps documented" }] },
         // YOUTH
-        { title: `Youth: Saturday Centre Visit + CAP Review — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Every Saturday: visit youth resource centre and review CAP progress with youth groups (½ day/week).", checklist: [{ text: "Youth centre visited" }, { text: "Coordinator supported" }, { text: "Youth groups met for CAP review" }, { text: "CAP milestones status updated" }, { text: "Blockers / issues logged" }, { text: "Wins noted for motivation" }] },
+        { title: `Youth: Saturday Centre Visit + CAP Review — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Every Saturday: visit youth resource centre and review CAP progress with youth groups (½ day/week).", checklist: [{ text: "Youth centre visited", activityTitle: "Youth Centre Visit & CAP Review" }, { text: "Coordinator supported" }, { text: "Youth groups met for CAP review" }, { text: "CAP milestones status updated" }, { text: "Blockers / issues logged" }, { text: "Wins noted for motivation" }] },
         { title: `Youth: Monthly Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly youth programme training. Brief coordinator on key takeaways.", checklist: [{ text: "Training topic aligned with monthly plan" }, { text: "Full session attended" }, { text: "Coordinator briefed post-training" }, { text: "Attendance recorded" }] },
         // ELDERLY
-        { title: `Elderly: Monthly Centre and Outreach Review — ${cluster}`, type: "Review", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review of elderly care centre operations and outreach coverage.", checklist: [{ text: "Centre visited and operations observed" }, { text: "Outreach coverage vs. target reviewed" }, { text: "Caregiver welfare checked" }, { text: "Health referral cases followed up" }, { text: "Issues escalated with action owners" }] },
+        { title: `Elderly: Monthly Centre and Outreach Review — ${cluster}`, type: "Review", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review of elderly care centre operations and outreach coverage.", checklist: [{ text: "Centre visited and operations observed", activityTitle: "Elderly Centre Monthly Visit" }, { text: "Outreach coverage vs. target reviewed" }, { text: "Caregiver welfare checked" }, { text: "Health referral cases followed up" }, { text: "Issues escalated with action owners" }] },
         { title: `Elderly: Monthly Team Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training for full elderly care team (coordinator, helpers, outreach workers, part-time therapists).", checklist: [{ text: "Training topic prepared" }, { text: "All staff attended" }, { text: "Practical demonstration included" }, { text: "Action points documented" }] },
-        { title: `Elderly: Field Day with COs — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "One full day each with CO-1 and CO-2 on the field. Observe work, provide coaching. 2 days/month total.", checklist: [{ text: "Field day with CO-1 completed" }, { text: "Field day with CO-2 completed" }, { text: "Field observations documented for both" }, { text: "Coaching and support provided" }] },
+        { title: `Elderly: Field Day with COs — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "One full day each with CO-1 and CO-2 on the field. Observe work, provide coaching. 2 days/month total.", checklist: [{ text: "Field day with CO-1 completed", activityTitle: "CO Field Day" }, { text: "Field day with CO-2 completed" }, { text: "Field observations documented for both" }, { text: "Coaching and support provided" }] },
         { title: `Elderly: CSO Referral Mapping — ${cluster}`, type: "Research", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Map local CSOs and govt services for elderly referrals. Establish active referral relationships.", checklist: [{ text: "CSOs / govt services identified" }, { text: "At least 2 new referral contacts established" }, { text: "Referral directory updated and shared" }, { text: "At least 1 successful referral completed and documented" }] },
         // CRECHES
-        { title: `Creche: Monthly Rounds (${n} creches) — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: `Monthly 2-hour visit to each of the ${n} creches in the cluster (~3 days/month).`, checklist: [{ text: `All ${n} creches visited this month` }, { text: "Caregiver conduct observed in each creche" }, { text: "Child nutrition records reviewed" }, { text: "Hygiene and safety standards checked" }, { text: "Issues flagged to supervisor immediately" }, { text: "Creche visit log updated" }] },
-        { title: `Creche: Supervisor Review — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with creche supervisors. Quality concerns, caregiver issues, expansion pipeline.", checklist: [{ text: "Both supervisors attended" }, { text: "Monthly rounds findings discussed" }, { text: "Caregiver performance issues addressed" }, { text: "Expansion / new creche pipeline reviewed" }, { text: "Action items documented" }] },
+        { title: `Creche: Monthly Rounds (${n} creches) — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: `Monthly 2-hour visit to each of the ${n} creches in the cluster (~3 days/month).`, checklist: [{ text: `All ${n} creches visited this month`, activityTitle: "Monthly Creche Round Visit" }, { text: "Caregiver conduct observed in each creche" }, { text: "Child nutrition records reviewed" }, { text: "Hygiene and safety standards checked" }, { text: "Issues flagged to supervisor immediately" }, { text: "Creche visit log updated" }] },
+        { title: `Creche: Supervisor Review — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with creche supervisors. Quality concerns, caregiver issues, expansion pipeline.", checklist: [{ text: "Both supervisors attended", activityTitle: "Creche Supervisor Review Meeting" }, { text: "Monthly rounds findings discussed" }, { text: "Caregiver performance issues addressed" }, { text: "Expansion / new creche pipeline reviewed" }, { text: "Action items documented" }] },
         // TEAM & ADMIN
-        { title: "City / Zonal Team Review", type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly city-level or zonal RP team review. Present cluster updates and cross-learn.", checklist: [{ text: "Attended city / zonal team review" }, { text: "Cluster update presented" }, { text: "Cross-learning shared with team" }, { text: "Systemic issues flagged to PM" }, { text: "Action items noted" }] },
+        { title: "City / Zonal Team Review", type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly city-level or zonal RP team review. Present cluster updates and cross-learn.", checklist: [{ text: "Attended city / zonal team review", activityTitle: "City/Zonal Team Review Meeting" }, { text: "Cluster update presented" }, { text: "Cross-learning shared with team" }, { text: "Systemic issues flagged to PM" }, { text: "Action items noted" }] },
         { title: "Quarterly Report and Programme Review", type: "Review", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Quarterly report covering all programme domains. Data, analysis, challenges, learnings, and next quarter plan.", checklist: [{ text: "WR data compiled" }, { text: "Children programme data compiled" }, { text: "Youth programme data compiled" }, { text: "Elderly programme data compiled" }, { text: "Creche programme data compiled" }, { text: "Partner inputs received" }, { text: "Challenges and learnings written" }, { text: "Next quarter priorities drafted" }, { text: "Report reviewed with PM" }, { text: "Report submitted on time" }] },
         { title: "Documentation and Desk Work", type: "Custom", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "~2 days/month for field notes, MIS updates, partner communications, and coordination.", checklist: [{ text: "Field visit notes compiled" }, { text: "MIS / database updated" }, { text: "Partner communications responded to" }, { text: "Pending escalations followed up" }, { text: "Leave and attendance recorded" }] },
       ];
@@ -2605,18 +2606,18 @@ export const TEMPLATES: GoalTemplate[] = [
     build(params) {
       const clusters = String(params.clusterNames || "Base Clusters");
       return [
-        { title: `WR: Combined Community & Partner Review — ${clusters}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Combined monthly meeting: community group reps + partner team together. Covers WR cases, partner progress, and issues. Run for each base cluster on rotation.", checklist: [{ text: "Community group representatives present" }, { text: "Partner (coordinator + COs) present" }, { text: "Active WR cases reviewed" }, { text: "Previous month action items followed up" }, { text: "Next month priorities agreed" }, { text: "Notes shared with partner within 2 days" }] },
-        { title: `WR: Rights Training (Quarterly) — ${clusters}`, type: "Training", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Quarterly rights training for partner team. Can be run as a joint session across all base clusters in the zone.", checklist: [{ text: "Training topic selected for the quarter" }, { text: "All base cluster COs invited" }, { text: "Training material prepared" }, { text: "Attendance recorded" }, { text: "Follow-up material distributed" }] },
-        { title: `Children: Weekly Centre Visit — ${clusters}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Visit children's centre once a week (½ day). Rotate across clusters if covering more than one.", checklist: [{ text: "Centre activities observed" }, { text: "Coordinator supported" }, { text: "Attendance register reviewed" }, { text: "Learning quality spot-check done" }, { text: "Material needs noted" }] },
+        { title: `WR: Combined Community & Partner Review — ${clusters}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Combined monthly meeting: community group reps + partner team together. Covers WR cases, partner progress, and issues. Run for each base cluster on rotation.", checklist: [{ text: "Community group representatives present", activityTitle: "Community & Partner Review Meeting" }, { text: "Partner (coordinator + COs) present" }, { text: "Active WR cases reviewed" }, { text: "Previous month action items followed up" }, { text: "Next month priorities agreed" }, { text: "Notes shared with partner within 2 days" }] },
+        { title: `WR: Rights Training (Quarterly) — ${clusters}`, type: "Training", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Quarterly rights training for partner team. Can be run as a joint session across all base clusters in the zone.", checklist: [{ text: "Training topic selected for the quarter", activityTitle: "WR Rights Training" }, { text: "All base cluster COs invited" }, { text: "Training material prepared" }, { text: "Attendance recorded" }, { text: "Follow-up material distributed" }] },
+        { title: `Children: Weekly Centre Visit — ${clusters}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Visit children's centre once a week (½ day). Rotate across clusters if covering more than one.", checklist: [{ text: "Centre activities observed", activityTitle: "Children's Centre Visit" }, { text: "Coordinator supported" }, { text: "Attendance register reviewed" }, { text: "Learning quality spot-check done" }, { text: "Material needs noted" }] },
         { title: `Children: Monthly Training — ${clusters}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly children's programme training. Reinforce with coordinator.", checklist: [{ text: "Full session attended" }, { text: "Key points shared with coordinator" }, { text: "Attendance recorded" }] },
-        { title: `Youth: Fortnightly Centre Visit + CAP Review — ${clusters}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Visit youth centre fortnightly (every other Saturday). Lighter than typical given lower scale.", checklist: [{ text: "Visit 1 (fortnight 1): centre visited" }, { text: "Visit 1: youth groups met, CAP reviewed" }, { text: "Visit 2 (fortnight 2): centre visited" }, { text: "Visit 2: youth groups met, CAP reviewed" }, { text: "Issues and wins documented" }] },
+        { title: `Youth: Fortnightly Centre Visit + CAP Review — ${clusters}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Visit youth centre fortnightly (every other Saturday). Lighter than typical given lower scale.", checklist: [{ text: "Visit 1 (fortnight 1): centre visited", activityTitle: "Youth Centre Visit & CAP Review" }, { text: "Visit 1: youth groups met, CAP reviewed" }, { text: "Visit 2 (fortnight 2): centre visited" }, { text: "Visit 2: youth groups met, CAP reviewed" }, { text: "Issues and wins documented" }] },
         { title: `Youth: Monthly Training — ${clusters}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly youth programme training.", checklist: [{ text: "Full session attended" }, { text: "Coordinator briefed post-training" }, { text: "Attendance recorded" }] },
-        { title: `Elderly: Monthly Review + Team Training — ${clusters}`, type: "Review", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Combined monthly session: review centre + outreach, then conduct team training in one visit day.", checklist: [{ text: "Centre visited and operations observed" }, { text: "Outreach coverage reviewed" }, { text: "Caregiver welfare checked" }, { text: "Training topic delivered" }, { text: "Action points documented" }] },
-        { title: `Elderly: Field Day with CO — ${clusters}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Spend one day with the community organizer on the field. Base cluster typically has 1 CO.", checklist: [{ text: "Field day with CO completed" }, { text: "Outreach households visited and observed" }, { text: "CO capacity gaps identified" }, { text: "Coaching provided" }, { text: "Observations documented" }] },
+        { title: `Elderly: Monthly Review + Team Training — ${clusters}`, type: "Review", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Combined monthly session: review centre + outreach, then conduct team training in one visit day.", checklist: [{ text: "Centre visited and operations observed", activityTitle: "Elderly Centre Monthly Visit" }, { text: "Outreach coverage reviewed" }, { text: "Caregiver welfare checked" }, { text: "Training topic delivered" }, { text: "Action points documented" }] },
+        { title: `Elderly: Field Day with CO — ${clusters}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Spend one day with the community organizer on the field. Base cluster typically has 1 CO.", checklist: [{ text: "Field day with CO completed", activityTitle: "CO Field Day" }, { text: "Outreach households visited and observed" }, { text: "CO capacity gaps identified" }, { text: "Coaching provided" }, { text: "Observations documented" }] },
         { title: `Elderly: CSO Referral Mapping — ${clusters}`, type: "Research", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Map and establish CSO / govt service referrals for elderly in all base clusters.", checklist: [{ text: "CSOs / govt services identified" }, { text: "At least 1 new referral contact established per cluster" }, { text: "Referral directory updated" }, { text: "At least 1 referral completed and documented" }] },
-        { title: `Creche: Monthly Rounds — ${clusters}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly visits to all creches across base clusters (~5–6 per cluster). ~1.5 days per cluster.", checklist: [{ text: "All creches in all base clusters visited" }, { text: "Caregiver conduct observed" }, { text: "Child nutrition records reviewed" }, { text: "Hygiene and safety checked" }, { text: "Issues flagged to supervisor" }, { text: "Creche visit log updated" }] },
-        { title: `Creche: Supervisor Review — ${clusters}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with creche supervisors covering all base clusters.", checklist: [{ text: "Supervisors for all clusters attended" }, { text: "Monthly rounds findings discussed" }, { text: "Caregiver concerns addressed" }, { text: "Action items documented" }] },
-        { title: "City / Zonal Team Review", type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly city or zonal review. Present updates across all base clusters.", checklist: [{ text: "Attended review" }, { text: "Update presented for all clusters" }, { text: "Cross-learning shared" }, { text: "Action items noted" }] },
+        { title: `Creche: Monthly Rounds — ${clusters}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly visits to all creches across base clusters (~5–6 per cluster). ~1.5 days per cluster.", checklist: [{ text: "All creches in all base clusters visited", activityTitle: "Monthly Creche Round Visit" }, { text: "Caregiver conduct observed" }, { text: "Child nutrition records reviewed" }, { text: "Hygiene and safety checked" }, { text: "Issues flagged to supervisor" }, { text: "Creche visit log updated" }] },
+        { title: `Creche: Supervisor Review — ${clusters}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with creche supervisors covering all base clusters.", checklist: [{ text: "Supervisors for all clusters attended", activityTitle: "Creche Supervisor Review Meeting" }, { text: "Monthly rounds findings discussed" }, { text: "Caregiver concerns addressed" }, { text: "Action items documented" }] },
+        { title: "City / Zonal Team Review", type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly city or zonal review. Present updates across all base clusters.", checklist: [{ text: "Attended review", activityTitle: "City/Zonal Team Review Meeting" }, { text: "Update presented for all clusters" }, { text: "Cross-learning shared" }, { text: "Action items noted" }] },
         { title: `Quarterly Report — ${clusters}`, type: "Review", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Quarterly report covering all base clusters managed in one document.", checklist: [{ text: "Data compiled for all clusters" }, { text: "Partner inputs received" }, { text: "Challenges and learnings written" }, { text: "Next quarter priorities per cluster drafted" }, { text: "Report reviewed with PM and submitted" }] },
         { title: "Documentation and Desk Work", type: "Custom", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Field notes, MIS updates, communications across 2–3 clusters.", checklist: [{ text: "Field notes compiled for all clusters" }, { text: "MIS updated for all clusters" }, { text: "Partner communications responded to" }, { text: "Leave and attendance recorded" }] },
       ];
@@ -2638,31 +2639,31 @@ export const TEMPLATES: GoalTemplate[] = [
       const cc = Number(params.childrenCentres) || 3;
       const n = Number(params.creches) || 22;
       const centreChecklist = Array.from({ length: cc }, (_, i) => [
-        { text: `Centre ${i + 1}: visit 1 of 2 this week` },
+        { text: `Centre ${i + 1}: visit 1 of 2 this week`, activityTitle: `Children's Centre ${i + 1} Visit` },
         { text: `Centre ${i + 1}: visit 2 of 2 this week` },
       ]).flat();
       return [
         // WR — same as typical
-        { title: `WR: Community Group Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly meeting with all community groups. Full coverage may have more slums — ensure all are represented.", checklist: [{ text: "Pre-meeting agenda circulated" }, { text: "All community groups represented" }, { text: "Active WR cases reviewed" }, { text: "Issues documented" }, { text: "Follow-up actions assigned" }, { text: "Notes shared with partner" }] },
-        { title: `WR: Partner Review Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with partner team. Full coverage may have more COs — plan extra time.", checklist: [{ text: "All COs and coordinator present" }, { text: "Previous month actions reviewed" }, { text: "Pending cases updated" }, { text: "Next month priorities agreed" }] },
-        { title: `WR: Rights Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training on civic amenities, land, housing rights, and welfare schemes.", checklist: [{ text: "Topic selected" }, { text: "Material prepared" }, { text: "All COs attended" }, { text: "Practice included" }, { text: "Attendance recorded" }] },
+        { title: `WR: Community Group Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly meeting with all community groups. Full coverage may have more slums — ensure all are represented.", checklist: [{ text: "Pre-meeting agenda circulated" }, { text: "All community groups represented", activityTitle: "Community Group Monthly Meeting" }, { text: "Active WR cases reviewed" }, { text: "Issues documented" }, { text: "Follow-up actions assigned" }, { text: "Notes shared with partner" }] },
+        { title: `WR: Partner Review Meeting — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with partner team. Full coverage may have more COs — plan extra time.", checklist: [{ text: "All COs and coordinator present", activityTitle: "Partner Review Meeting" }, { text: "Previous month actions reviewed" }, { text: "Pending cases updated" }, { text: "Next month priorities agreed" }] },
+        { title: `WR: Rights Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training on civic amenities, land, housing rights, and welfare schemes.", checklist: [{ text: "Topic selected" }, { text: "Material prepared" }, { text: "All COs attended", activityTitle: "WR Rights Training" }, { text: "Practice included" }, { text: "Attendance recorded" }] },
         // CHILDREN — multiple centres + weekly school
         { title: `Children: Centre Visits — All ${cc} Centres (Twice-Weekly) — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: `Visit each of the ${cc} children's centres twice a week. This is the highest-effort item (~8–12 days/month).`, checklist: [...centreChecklist, { text: "Coordinator support given at each centre" }, { text: "Learning quality spot-check in at least 2 centres" }, { text: "Issues and material needs flagged" }] },
         { title: `Children: Monthly Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly training. With multiple centres, ensure all coordinators are briefed post-session.", checklist: [{ text: "Full session attended" }, { text: `All ${cc} centre coordinators briefed` }, { text: "Attendance recorded" }] },
-        { title: `Children: Weekly Govt School Visit + DI Coordination — ${cluster}`, type: "Meeting", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Weekly school visit (¼ day). Full coverage includes active school-community work and dropout tracking.", checklist: [{ text: "Target school visited this week" }, { text: "School head / teacher met" }, { text: "Out-of-school / dropout follow-up done" }, { text: "DI coordination progressed" }, { text: "Field notes recorded" }] },
+        { title: `Children: Weekly Govt School Visit + DI Coordination — ${cluster}`, type: "Meeting", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Weekly school visit (¼ day). Full coverage includes active school-community work and dropout tracking.", checklist: [{ text: "Target school visited this week", activityTitle: "School / DI Coordination Visit" }, { text: "School head / teacher met" }, { text: "Out-of-school / dropout follow-up done" }, { text: "DI coordination progressed" }, { text: "Field notes recorded" }] },
         // YOUTH — multiple centres
-        { title: `Youth: Saturday Visits — All Centres + CAP Review — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Visit all youth centres every Saturday and review CAP progress. Full coverage has 2–3 centres.", checklist: [{ text: "Youth Centre 1 visited" }, { text: "Youth Centre 2 visited" }, { text: "Youth Centre 3 visited (if applicable)" }, { text: "Youth groups met for CAP review in each centre" }, { text: "CAP milestones updated" }, { text: "Each coordinator supported" }] },
+        { title: `Youth: Saturday Visits — All Centres + CAP Review — ${cluster}`, type: "SiteVisit", recurrence: "Weekly", startSlaDays: 0, slaDays: 7, notes: "Visit all youth centres every Saturday and review CAP progress. Full coverage has 2–3 centres.", checklist: [{ text: "Youth Centre 1 visited", activityTitle: "Youth Centre Visit & CAP Review" }, { text: "Youth Centre 2 visited" }, { text: "Youth Centre 3 visited (if applicable)" }, { text: "Youth groups met for CAP review in each centre" }, { text: "CAP milestones updated" }, { text: "Each coordinator supported" }] },
         { title: `Youth: Monthly Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Attend monthly training. Ensure all centre coordinators are briefed.", checklist: [{ text: "Full session attended" }, { text: "All youth coordinators briefed" }, { text: "Attendance recorded" }] },
         // ELDERLY — same as typical
-        { title: `Elderly: Monthly Centre and Outreach Review — ${cluster}`, type: "Review", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review of elderly care centre and outreach. No change from typical cluster.", checklist: [{ text: "Centre visited" }, { text: "Outreach coverage reviewed" }, { text: "Caregiver welfare checked" }, { text: "Referral cases followed up" }, { text: "Issues escalated" }] },
+        { title: `Elderly: Monthly Centre and Outreach Review — ${cluster}`, type: "Review", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review of elderly care centre and outreach. No change from typical cluster.", checklist: [{ text: "Centre visited", activityTitle: "Elderly Centre Monthly Visit" }, { text: "Outreach coverage reviewed" }, { text: "Caregiver welfare checked" }, { text: "Referral cases followed up" }, { text: "Issues escalated" }] },
         { title: `Elderly: Monthly Team Training — ${cluster}`, type: "Training", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly training for the full elderly care team.", checklist: [{ text: "All staff attended" }, { text: "Training topic prepared" }, { text: "Action points documented" }] },
-        { title: `Elderly: Field Day with COs — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "One full day each with CO-1 and CO-2. 2 days/month total.", checklist: [{ text: "Field day with CO-1 completed" }, { text: "Field day with CO-2 completed" }, { text: "Observations documented for both" }, { text: "Coaching provided" }] },
+        { title: `Elderly: Field Day with COs — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "One full day each with CO-1 and CO-2. 2 days/month total.", checklist: [{ text: "Field day with CO-1 completed", activityTitle: "CO Field Day" }, { text: "Field day with CO-2 completed" }, { text: "Observations documented for both" }, { text: "Coaching provided" }] },
         { title: `Elderly: CSO Referral Network — ${cluster}`, type: "Research", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Map and maintain referral network. Full coverage = higher referral volume — ensure network is active.", checklist: [{ text: "Referral directory reviewed and updated" }, { text: "At least 2 new contacts added" }, { text: "Referral utilisation data compiled" }, { text: "At least 2 successful referrals documented" }, { text: "Referral gaps identified and actioned" }] },
         // CRECHES — double
-        { title: `Creche: Monthly Rounds — All ${n} Creches — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: `Monthly 2-hour visit to each of the ${n} creches. Plan as a 2-week rolling schedule (~6 days/month).`, checklist: [{ text: "Week 1: first batch of creches visited" }, { text: "Week 2: second batch visited" }, { text: "Week 3: third batch visited" }, { text: "Week 4: fourth batch visited" }, { text: "Caregiver conduct observed in all creches" }, { text: "Nutrition records reviewed" }, { text: "Safety checks done" }, { text: "Concerns flagged same day" }, { text: `All ${n} creches logged` }] },
-        { title: `Creche: Supervisor Review — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with both creche supervisors.", checklist: [{ text: "Both supervisors present" }, { text: "Rounds findings discussed" }, { text: "Caregiver issues addressed" }, { text: "Expansion pipeline reviewed" }, { text: "Action items documented" }] },
+        { title: `Creche: Monthly Rounds — All ${n} Creches — ${cluster}`, type: "SiteVisit", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: `Monthly 2-hour visit to each of the ${n} creches. Plan as a 2-week rolling schedule (~6 days/month).`, checklist: [{ text: "Week 1: first batch of creches visited", activityTitle: "Monthly Creche Round Visit" }, { text: "Week 2: second batch visited" }, { text: "Week 3: third batch visited" }, { text: "Week 4: fourth batch visited" }, { text: "Caregiver conduct observed in all creches" }, { text: "Nutrition records reviewed" }, { text: "Safety checks done" }, { text: "Concerns flagged same day" }, { text: `All ${n} creches logged` }] },
+        { title: `Creche: Supervisor Review — ${cluster}`, type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly review with both creche supervisors.", checklist: [{ text: "Both supervisors present", activityTitle: "Creche Supervisor Review Meeting" }, { text: "Rounds findings discussed" }, { text: "Caregiver issues addressed" }, { text: "Expansion pipeline reviewed" }, { text: "Action items documented" }] },
         // ADMIN
-        { title: "City / Zonal Team Review", type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly city/zonal review. Full coverage RP's cluster is a benchmark — bring detailed updates.", checklist: [{ text: "Attended review" }, { text: "Detailed cluster update presented" }, { text: "Lessons from full coverage shared" }, { text: "Systemic issues flagged to PM" }, { text: "Action items noted" }] },
+        { title: "City / Zonal Team Review", type: "Meeting", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "Monthly city/zonal review. Full coverage RP's cluster is a benchmark — bring detailed updates.", checklist: [{ text: "Attended review", activityTitle: "City/Zonal Team Review Meeting" }, { text: "Detailed cluster update presented" }, { text: "Lessons from full coverage shared" }, { text: "Systemic issues flagged to PM" }, { text: "Action items noted" }] },
         { title: "Quarterly Report and Programme Review", type: "Review", recurrence: "Quarterly", startSlaDays: 0, slaDays: 90, notes: "Most comprehensive quarterly report. Captures the saturation model in practice and informs planning.", checklist: [{ text: "WR data compiled" }, { text: `Children data — all ${cc} centres compiled` }, { text: "Youth data — all centres compiled" }, { text: "Elderly data compiled" }, { text: `Creche data — all ${n} creches compiled` }, { text: "School engagement outcomes documented" }, { text: "Partner inputs received" }, { text: "What-worked / what-didn't section included" }, { text: "Next quarter priorities drafted" }, { text: "Report reviewed with PM and submitted" }] },
         { title: "Documentation and Desk Work", type: "Custom", recurrence: "Monthly", startSlaDays: 0, slaDays: 30, notes: "~2 days/month. Volume is higher in full coverage given more centres and partner touchpoints.", checklist: [{ text: "Field notes from all centres compiled" }, { text: "MIS updated (all domains)" }, { text: "Partner communications responded to" }, { text: "Escalations followed up" }, { text: "Leave and attendance recorded" }] },
       ];

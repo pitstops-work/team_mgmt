@@ -27,6 +27,7 @@ interface SettlementSidebarProps {
   onClose: () => void;
   currentUserId?: string;
   currentUserDesignation?: string;
+  currentUserRole?: string;
 }
 
 interface ClusterPitstop {
@@ -58,7 +59,7 @@ function parseHH(desc: string): string | null {
   return m ? `${m[1]} HH` : null;
 }
 
-export default function SettlementSidebar({ feature, geoData, onClose, currentUserId, currentUserDesignation }: SettlementSidebarProps) {
+export default function SettlementSidebar({ feature, geoData, onClose, currentUserId, currentUserDesignation, currentUserRole }: SettlementSidebarProps) {
   const [note, setNote] = useState("");
   const [noteDirty, setNoteDirty] = useState(false);
   const [noteSaving, setNoteSaving] = useState(false);
@@ -514,6 +515,7 @@ export default function SettlementSidebar({ feature, geoData, onClose, currentUs
         onCreated={() => setGoalPrefill(null)}
         currentUserId={currentUserId}
         currentUserDesignation={currentUserDesignation}
+        currentUserRole={currentUserRole}
       />
     )}
     </>

@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isAdminUser, isSuperAdmin } from "@/lib/roleGuard";
 
-const VALID_ROLES = ["admin", "member", "viewer"] as const;
+const VALID_ROLES = ["super-admin", "admin", "member", "viewer"] as const;
 const VALID_DESIGNATIONS = ["RP", "ZL", "PM", "Other"] as const;
 
 export async function PATCH(
@@ -24,12 +24,17 @@ export async function PATCH(
     return Response.json({ error: "Invalid designation" }, { status: 400 });
   }
 
-  // Only super-admin can grant or revoke the admin role
-  if (role === "admin" || (role && role !== "admin")) {
+  // Only super-admin can grant, revoke, or change admin/super-admin roles
+  if (role) {
     const targetUser = await prisma.user.findUnique({ where: { id }, select: { role: true } });
-    const changingAdminStatus = role === "admin" || targetUser?.role === "admin";
-    if (changingAdminStatus && !isSuperAdmin(session?.user?.email)) {
-      return Response.json({ error: "Only the super-admin can change admin role" }, { status: 403 });
+    const involvesSuperAdmin = role === "super-admin" || targetUser?.role === "super-admin";
+    const involvesAdmin = role === "admin" || targetUser?.role === "admin";
+    if ((involvesSuperAdmin || involvesAdmin) && !isSuperAdmin(session)) {
+      return Response.json({ error: "Only the super-admin can change admin or super-admin roles" }, { status: 403 });
+    }
+    // Prevent removing super-admin from themselves
+    if (targetUser?.role === "super-admin" && role !== "super-admin" && id === session?.user?.id) {
+      return Response.json({ error: "Cannot remove your own super-admin role" }, { status: 400 });
     }
   }
 
@@ -81,6 +86,12 @@ export async function DELETE(
 
   if (id === session!.user!.id) {
     return Response.json({ error: "Cannot delete your own account" }, { status: 400 });
+  }
+
+  // Only super-admin can delete admin/super-admin users
+  const target = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+  if ((target?.role === "admin" || target?.role === "super-admin") && !isSuperAdmin(session)) {
+    return Response.json({ error: "Only the super-admin can delete admin users" }, { status: 403 });
   }
 
   await prisma.user.delete({ where: { id } });

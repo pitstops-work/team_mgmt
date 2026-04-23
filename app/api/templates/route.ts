@@ -1,15 +1,33 @@
-import { TEMPLATES } from "@/lib/templates";
+import prisma from "@/lib/prisma";
 
 export async function GET() {
-  // Strip the `build` function — only return metadata + parameters
-  const list = TEMPLATES.map(({ id, name, description, category, icon, needsDomain, parameters }) => ({
-    id,
-    name,
-    description,
-    category,
-    icon,
-    needsDomain: needsDomain ?? null,
-    parameters,
+  const rows = await prisma.$queryRaw<
+    {
+      id: string;
+      slug: string;
+      name: string;
+      description: string;
+      category: string;
+      icon: string;
+      needsDomain: string | null;
+      parameters: unknown;
+    }[]
+  >`
+    SELECT id, slug, name, description, category, icon, "needsDomain", parameters
+    FROM "GoalTemplateDef"
+    WHERE "isActive" = true
+    ORDER BY "sortOrder" ASC, name ASC
+  `;
+
+  const list = rows.map((r) => ({
+    id: r.slug,  // keep slug as id for backward compat with TemplatePickerModal
+    name: r.name,
+    description: r.description,
+    category: r.category,
+    icon: r.icon,
+    needsDomain: r.needsDomain ?? null,
+    parameters: r.parameters,
   }));
+
   return Response.json(list);
 }

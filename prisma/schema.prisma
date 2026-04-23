@@ -1408,3 +1408,19 @@ model PasswordResetToken {
 
   @@index([email])
 }
+
+model GoalTemplateDef {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String   @default("")
+  category    String
+  icon        String   @default("🎯")
+  needsDomain String?
+  sortOrder   Int      @default(0)
+  parameters  Json     @default("[]")
+  pitstops    Json     @default("[]")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

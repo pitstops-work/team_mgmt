@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages } from "lucide-react";
+import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages, LayoutTemplate } from "lucide-react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import { useSession } from "next-auth/react";
@@ -173,22 +173,35 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* User management — admin only */}
+      {/* User management + template builder — admin only */}
       {isAdmin && (
         <section className="mb-10">
           <h2 className="text-sm font-semibold text-stone-700 mb-1">Administration</h2>
-          <p className="text-xs text-stone-500 mb-3">Manage user accounts — only visible to you.</p>
-          <Link
-            href="/settings/users"
-            className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-stone-800">User Management</p>
-              <p className="text-xs text-stone-400">Add · delete · reset passwords</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-stone-300" />
-          </Link>
+          <p className="text-xs text-stone-500 mb-3">Admin-only tools — not visible to other members.</p>
+          <div className="space-y-2">
+            <Link
+              href="/settings/users"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">User Management</p>
+                <p className="text-xs text-stone-400">Add · delete · reset passwords</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+            <Link
+              href="/settings/templates"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <LayoutTemplate className="w-4 h-4 text-violet-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">Goal Templates</p>
+                <p className="text-xs text-stone-400">Edit pitstops · checklists · SLAs · parameters</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+          </div>
         </section>
       )}
 
