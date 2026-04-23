@@ -205,8 +205,8 @@ export default async function DashboardPage({
   ]);
 
   // Phase data — raw SQL because progressTag is a new column
-  const phaseRows = await prisma.$queryRaw<{ goalId: string; progressTag: string | null; status: string }[]>`
-    SELECT p."goalId", p."progressTag", p.status::text
+  const phaseRows = await prisma.$queryRaw<{ id: string; goalId: string; title: string; progressTag: string | null; status: string }[]>`
+    SELECT p.id, p."goalId", p.title, p."progressTag", p.status::text
     FROM "Pitstop" p
     JOIN "Goal" g ON p."goalId" = g.id
     WHERE p."deletedAt" IS NULL AND g."deletedAt" IS NULL

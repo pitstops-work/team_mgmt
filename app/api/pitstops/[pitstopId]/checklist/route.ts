@@ -9,7 +9,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pit
   const items = await prisma.checklistItem.findMany({
     where: { pitstopId },
     orderBy: { order: "asc" },
-    select: { id: true, text: true, checked: true },
+    select: {
+      id: true, text: true, checked: true, status: true,
+      activity: { select: { id: true, title: true, status: true, scheduledAt: true, type: true } },
+    },
   });
   return Response.json(items);
 }

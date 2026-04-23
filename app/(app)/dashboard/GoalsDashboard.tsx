@@ -70,7 +70,17 @@ interface SearchResults {
   pitstops: { id: string; title: string; goal: { id: string; title: string } }[];
 }
 
-type PhaseRow = { goalId: string; progressTag: string | null; status: string };
+type PhaseRow = { id: string; goalId: string; title: string; progressTag: string | null; status: string };
+
+type ChecklistDrillItem = {
+  id: string;
+  text: string;
+  checked: boolean;
+  status: string;
+  activity: { id: string; title: string; status: string; scheduledAt: string; type: string } | null;
+};
+
+type DrillState = { goalId: string; goalTitle: string; tag: PhaseTag; pitstops: PhaseRow[] } | null;
 
 const PHASE_TAGS = ["Team", "Baseline", "Permissions", "Infrastructure", "Training", "Live", "Monitoring"] as const;
 type PhaseTag = typeof PHASE_TAGS[number];
@@ -881,7 +891,175 @@ function GoalCard({ goal, onHover }: { goal: Goal; onHover: (id: string) => void
 
 // ── Phase Matrix ──────────────────────────────────────────────────────────────
 
+const PITSTOP_STATUS_COLORS: Record<string, string> = {
+  Done:       "bg-emerald-100 text-emerald-700",
+  InProgress: "bg-sky-100 text-sky-700",
+  Upcoming:   "bg-stone-100 text-stone-500",
+};
+const CHECKLIST_STATUS_COLORS: Record<string, string> = {
+  Done:       "bg-emerald-100 text-emerald-700",
+  InProgress: "bg-sky-100 text-sky-700",
+  Scheduled:  "bg-amber-100 text-amber-700",
+  Blocked:    "bg-red-100 text-red-700",
+  Cancelled:  "bg-stone-100 text-stone-400",
+  Rescheduled:"bg-violet-100 text-violet-700",
+  NotStarted: "bg-stone-100 text-stone-400",
+};
+const EVENT_STATUS_COLORS: Record<string, string> = {
+  Done:       "bg-emerald-100 text-emerald-700",
+  Scheduled:  "bg-sky-100 text-sky-700",
+  Cancelled:  "bg-stone-100 text-stone-400",
+  Flagged:    "bg-red-100 text-red-700",
+  Rescheduled:"bg-violet-100 text-violet-700",
+};
+
+function DrillDownPanel({ drill, onClose }: { drill: NonNullable<DrillState>; onClose: () => void }) {
+  const [expandedPitstop, setExpandedPitstop] = useState<string | null>(null);
+  const [checklistMap, setChecklistMap] = useState<Record<string, ChecklistDrillItem[]>>({});
+  const [loadingPitstop, setLoadingPitstop] = useState<string | null>(null);
+  const [expandedChecklist, setExpandedChecklist] = useState<string | null>(null);
+
+  const togglePitstop = async (pitstopId: string) => {
+    if (expandedPitstop === pitstopId) { setExpandedPitstop(null); return; }
+    setExpandedPitstop(pitstopId);
+    setExpandedChecklist(null);
+    if (!checklistMap[pitstopId]) {
+      setLoadingPitstop(pitstopId);
+      const res = await fetch(`/api/pitstops/${pitstopId}/checklist`);
+      const data = await res.json();
+      setChecklistMap(prev => ({ ...prev, [pitstopId]: data }));
+      setLoadingPitstop(null);
+    }
+  };
+
+  const toggleChecklist = (itemId: string) => {
+    setExpandedChecklist(prev => prev === itemId ? null : itemId);
+  };
+
+  const colors = PHASE_COLORS[drill.tag];
+
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/20" />
+      <div
+        className="relative z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className={`px-5 py-4 border-b border-stone-100 flex items-start gap-3`}>
+          <div className="flex-1 min-w-0">
+            <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-semibold mb-1.5 ${colors.pill}`}>
+              {drill.tag}
+            </span>
+            <p className="text-sm font-semibold text-stone-800 leading-tight line-clamp-2">{drill.goalTitle}</p>
+            <p className="text-xs text-stone-400 mt-0.5">{drill.pitstops.length} pitstop{drill.pitstops.length !== 1 ? "s" : ""}</p>
+          </div>
+          <button onClick={onClose} className="flex-shrink-0 p-1 text-stone-400 hover:text-stone-700 transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        {/* Pitstop list */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5">
+          <p className="text-[10px] font-medium text-stone-400 uppercase tracking-wide mb-2">Double-click a pitstop to see checklist</p>
+          {drill.pitstops.map(p => {
+            const isExpanded = expandedPitstop === p.id;
+            const isLoading = loadingPitstop === p.id;
+            const items = checklistMap[p.id] ?? [];
+            const statusColor = PITSTOP_STATUS_COLORS[p.status] ?? "bg-stone-100 text-stone-400";
+
+            return (
+              <div key={p.id} className="rounded-lg border border-stone-100 overflow-hidden">
+                <div
+                  className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer select-none transition-colors ${isExpanded ? "bg-stone-50" : "bg-white hover:bg-stone-50"}`}
+                  onDoubleClick={() => togglePitstop(p.id)}
+                >
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${statusColor}`}>
+                    {p.status}
+                  </span>
+                  <span className="text-xs text-stone-700 font-medium flex-1 min-w-0">{p.title}</span>
+                  {isExpanded ? (
+                    <ChevronDown className="w-3 h-3 text-stone-400 flex-shrink-0" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3 text-stone-300 flex-shrink-0" />
+                  )}
+                </div>
+
+                {isExpanded && (
+                  <div className="border-t border-stone-100 bg-stone-50 px-3 py-2 space-y-1">
+                    {isLoading && <p className="text-xs text-stone-400 py-1">Loading…</p>}
+                    {!isLoading && items.length === 0 && (
+                      <p className="text-xs text-stone-400 py-1">No checklist items</p>
+                    )}
+                    {!isLoading && items.length > 0 && (
+                      <>
+                        <p className="text-[10px] font-medium text-stone-400 uppercase tracking-wide mb-1.5">Double-click a checklist item to see activity</p>
+                        {items.map(item => {
+                          const cColor = CHECKLIST_STATUS_COLORS[item.status] ?? "bg-stone-100 text-stone-400";
+                          const isChecklistExpanded = expandedChecklist === item.id;
+                          return (
+                            <div key={item.id}>
+                              <div
+                                className={`flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer select-none transition-colors ${isChecklistExpanded ? "bg-white" : "hover:bg-white"}`}
+                                onDoubleClick={() => toggleChecklist(item.id)}
+                              >
+                                <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 ${cColor}`}>
+                                  {item.status === "NotStarted" ? "Not Started" : item.status}
+                                </span>
+                                <span className={`text-xs flex-1 min-w-0 ${item.checked ? "line-through text-stone-400" : "text-stone-600"}`}>
+                                  {item.text}
+                                </span>
+                                {item.activity && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0 mt-1.5" title="Has linked activity" />
+                                )}
+                              </div>
+                              {isChecklistExpanded && (
+                                <div className="ml-2 mt-0.5 mb-1 px-3 py-2 bg-white rounded-lg border border-stone-100">
+                                  {item.activity ? (
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${EVENT_STATUS_COLORS[item.activity.status] ?? "bg-stone-100 text-stone-400"}`}>
+                                        {item.activity.status}
+                                      </span>
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-medium text-stone-700 truncate">{item.activity.title}</p>
+                                        <p className="text-[10px] text-stone-400">
+                                          {item.activity.type} · {new Date(item.activity.scheduledAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-stone-400">No activity linked to this item</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="px-5 py-3 border-t border-stone-100">
+          <Link
+            href={`/goals/${drill.pitstops[0]?.goalId}`}
+            className="text-xs text-sky-600 hover:text-sky-800 font-medium"
+          >
+            Open full goal →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PhaseMatrix({ goals, phaseData }: { goals: Goal[]; phaseData: PhaseRow[] }) {
+  const [drill, setDrill] = useState<DrillState>(null);
+
   // Build per-goal, per-tag counts
   const tagMap = new Map<string, Map<PhaseTag, { total: number; done: number }>>();
   for (const row of phaseData) {
@@ -907,62 +1085,71 @@ function PhaseMatrix({ goals, phaseData }: { goals: Goal[]; phaseData: PhaseRow[
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 mb-4">
-        <p className="text-xs text-stone-500">Showing {visibleGoals.length} goals with phase-tagged pitstops. Each cell shows done / total for that phase.</p>
-      </div>
-
-      {/* Header row */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs border-separate border-spacing-0">
-          <thead>
-            <tr>
-              <th className="text-left py-2 pr-4 font-medium text-stone-500 whitespace-nowrap min-w-[180px]">Goal</th>
-              {PHASE_TAGS.map((tag) => (
-                <th key={tag} className="py-2 px-1 text-center font-medium whitespace-nowrap">
-                  <span className={`inline-block px-2 py-0.5 rounded border text-[10px] ${PHASE_COLORS[tag].pill}`}>{tag}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleGoals.map((goal, i) => {
-              const gMap = tagMap.get(goal.id) ?? new Map();
-              return (
-                <tr key={goal.id} className={i % 2 === 0 ? "bg-white" : "bg-stone-50"}>
-                  <td className="py-2 pr-4">
-                    <Link href={`/goals/${goal.id}`} className="font-medium text-stone-800 hover:text-sky-600 truncate block max-w-[200px]">
-                      {goal.title}
-                    </Link>
-                  </td>
-                  {PHASE_TAGS.map((tag) => {
-                    const cell = gMap.get(tag);
-                    if (!cell) return <td key={tag} className="py-2 px-1 text-center text-stone-200">—</td>;
-                    const pct = Math.round((cell.done / cell.total) * 100);
-                    const allDone = cell.done === cell.total;
-                    const none = cell.done === 0;
-                    return (
-                      <td key={tag} className="py-2 px-1">
-                        <div className="flex flex-col items-center gap-0.5">
-                          <div className="w-12 h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${allDone ? "bg-emerald-500" : none ? "bg-stone-200" : PHASE_COLORS[tag].filled}`}
-                              style={{ width: `${pct}%` }}
-                            />
+    <>
+      {drill && <DrillDownPanel drill={drill} onClose={() => setDrill(null)} />}
+      <div className="space-y-3">
+        <p className="text-xs text-stone-500 mb-4">
+          Showing {visibleGoals.length} goals with phase-tagged pitstops. Each cell shows done / total. Double-click a cell to drill down.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-separate border-spacing-0">
+            <thead>
+              <tr>
+                <th className="text-left py-2 pr-4 font-medium text-stone-500 whitespace-nowrap min-w-[180px]">Goal</th>
+                {PHASE_TAGS.map((tag) => (
+                  <th key={tag} className="py-2 px-1 text-center font-medium whitespace-nowrap">
+                    <span className={`inline-block px-2 py-0.5 rounded border text-[10px] ${PHASE_COLORS[tag].pill}`}>{tag}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleGoals.map((goal, i) => {
+                const gMap = tagMap.get(goal.id) ?? new Map();
+                return (
+                  <tr key={goal.id} className={i % 2 === 0 ? "bg-white" : "bg-stone-50"}>
+                    <td className="py-2 pr-4">
+                      <Link href={`/goals/${goal.id}`} className="font-medium text-stone-800 hover:text-sky-600 truncate block max-w-[200px]">
+                        {goal.title}
+                      </Link>
+                    </td>
+                    {PHASE_TAGS.map((tag) => {
+                      const cell = gMap.get(tag);
+                      if (!cell) return <td key={tag} className="py-2 px-1 text-center text-stone-200">—</td>;
+                      const pct = Math.round((cell.done / cell.total) * 100);
+                      const allDone = cell.done === cell.total;
+                      const none = cell.done === 0;
+                      const isActive = drill?.goalId === goal.id && drill?.tag === tag;
+                      return (
+                        <td key={tag} className="py-2 px-1">
+                          <div
+                            className={`flex flex-col items-center gap-0.5 rounded-md p-1 cursor-pointer transition-colors ${isActive ? "bg-stone-100 ring-1 ring-stone-300" : "hover:bg-stone-50"}`}
+                            onDoubleClick={() => {
+                              const pitstops = phaseData.filter(r => r.goalId === goal.id && r.progressTag === tag);
+                              setDrill({ goalId: goal.id, goalTitle: goal.title, tag, pitstops });
+                            }}
+                            title="Double-click to drill down"
+                          >
+                            <div className="w-12 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${allDone ? "bg-emerald-500" : none ? "bg-stone-200" : PHASE_COLORS[tag].filled}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className={`text-[10px] tabular-nums ${allDone ? "text-emerald-600" : "text-stone-500"}`}>
+                              {cell.done}/{cell.total}
+                            </span>
                           </div>
-                          <span className={`text-[10px] tabular-nums ${allDone ? "text-emerald-600" : "text-stone-500"}`}>
-                            {cell.done}/{cell.total}
-                          </span>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
