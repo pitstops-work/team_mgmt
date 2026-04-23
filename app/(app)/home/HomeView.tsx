@@ -108,12 +108,24 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function KpiTile({ label, value, sub, accent }: { label: string; value: number | string; sub?: string; accent?: string }) {
-  return (
-    <div className="bg-white rounded-xl border border-stone-200 px-4 py-3.5">
+function KpiTile({ label, value, sub, accent, href }: { label: string; value: number | string; sub?: string; accent?: string; href?: string }) {
+  const inner = (
+    <>
       <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wide mb-1">{label}</p>
       <p className={`text-2xl font-bold ${accent ?? "text-stone-800"}`}>{value}</p>
       {sub && <p className="text-[11px] text-stone-400 mt-0.5">{sub}</p>}
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} className="bg-white rounded-xl border border-stone-200 px-4 py-3.5 block hover:border-sky-200 hover:bg-sky-50/30 transition-colors">
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <div className="bg-white rounded-xl border border-stone-200 px-4 py-3.5">
+      {inner}
     </div>
   );
 }
@@ -574,14 +586,14 @@ function AdminOverviewTab({ dash, todayActivities }: { dash: AdminDash; todayAct
     <div className="space-y-8">
       {/* KPI tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiTile label="Active Goals"    value={dash.kpis.activeGoals}    sub={`of ${totalGoals} total`} accent="text-sky-600" />
-        <KpiTile label="Completed Goals" value={dash.kpis.completeGoals}  sub="all time"               accent="text-emerald-600" />
-        <KpiTile label="Overdue Pitstops" value={dash.kpis.overduepitstops} sub="past target date"     accent={dash.kpis.overduepitstops > 0 ? "text-red-500" : "text-stone-800"} />
-        <KpiTile label="Done This Month" value={dash.kpis.doneThisMonth}  sub="pitstops completed"     accent="text-violet-600" />
-        <KpiTile label="This Week"       value={dash.kpis.activitiesThisWeek} sub="activities scheduled" />
-        <KpiTile label="Paused Goals"    value={dash.kpis.pausedGoals}    sub="need attention"          accent={dash.kpis.pausedGoals > 0 ? "text-amber-500" : "text-stone-800"} />
-        <KpiTile label="Team Members"    value={dash.kpis.totalUsers}     sub="registered users" />
-        <KpiTile label="Active Zones"    value={dash.zones.filter(z => z.activeGoals > 0).length} sub={`of ${dash.zones.length} zones`} />
+        <KpiTile label="Active Goals"     value={dash.kpis.activeGoals}    sub={`of ${totalGoals} total`} accent="text-sky-600"    href="/dashboard" />
+        <KpiTile label="Completed Goals"  value={dash.kpis.completeGoals}  sub="all time"               accent="text-emerald-600" href="/dashboard" />
+        <KpiTile label="Overdue Pitstops" value={dash.kpis.overduepitstops} sub="past target date"     accent={dash.kpis.overduepitstops > 0 ? "text-red-500" : "text-stone-800"} href="/dashboard" />
+        <KpiTile label="Done This Month"  value={dash.kpis.doneThisMonth}  sub="pitstops completed"     accent="text-violet-600"  href="/dashboard" />
+        <KpiTile label="This Week"        value={dash.kpis.activitiesThisWeek} sub="activities scheduled" href="/activities" />
+        <KpiTile label="Paused Goals"     value={dash.kpis.pausedGoals}    sub="need attention"         accent={dash.kpis.pausedGoals > 0 ? "text-amber-500" : "text-stone-800"} href="/dashboard" />
+        <KpiTile label="Team Members"     value={dash.kpis.totalUsers}     sub="registered users"       href="/settings/users" />
+        <KpiTile label="Active Zones"     value={dash.zones.filter(z => z.activeGoals > 0).length} sub={`of ${dash.zones.length} zones`} href="/needs" />
       </div>
 
       {/* Charts row */}
@@ -1352,8 +1364,8 @@ export default function HomeView({
       </div>
 
       {/* Tab bar */}
-      <div className="px-5 sm:px-8 border-b border-stone-100 overflow-x-auto">
-        <div className="flex gap-1 -mb-px pt-3 min-w-max">
+      <div className="border-b border-stone-200 bg-white">
+        <div className="px-5 sm:px-8 flex gap-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {(tabs as readonly { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }> }[]).map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
@@ -1361,13 +1373,13 @@ export default function HomeView({
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex-shrink-0 ${
                   isActive
                     ? "border-sky-500 text-sky-700"
-                    : "border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300"
+                    : "border-transparent text-stone-500 hover:text-stone-800"
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
                 {tab.label}
               </button>
             );

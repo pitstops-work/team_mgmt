@@ -338,7 +338,7 @@ export default async function HomePage() {
   // ── Admin pilot dashboard data ────────────────────────────────────────────
   let adminDash: AdminDash | null = null;
 
-  if (isSuperAdmin) {
+  if (isSuperAdmin || designation === "Leader") {
     const monthStart = new Date(now);
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
