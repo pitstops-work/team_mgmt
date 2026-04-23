@@ -61,6 +61,68 @@ export type ClusterStatus = {
   checklistCount: number;
 };
 
+// ── Admin dashboard types ─────────────────────────────────────────────────────
+
+export type AdminKPIs = {
+  activeGoals: number;
+  pausedGoals: number;
+  completeGoals: number;
+  overduepitstops: number;
+  doneThisMonth: number;
+  activitiesThisWeek: number;
+  totalUsers: number;
+};
+
+export type AdminZone = {
+  id: string;
+  name: string;
+  leadName: string | null;
+  cityName: string | null;
+  activeGoals: number;
+  clusters: { id: string; name: string; activeGoals: number }[];
+};
+
+export type AdminUser = {
+  id: string;
+  name: string | null;
+  designation: string;
+  reportsToId: string | null;
+  activeGoals: number;
+  openPitstops: number;
+};
+
+export type AdminGoal = {
+  id: string;
+  title: string;
+  status: string;
+  needsDomain: string | null;
+  needsClusterId: string | null;
+  ownerId: string | null;
+  owner: { id: string; name: string | null; designation: string | null } | null;
+  pitstops: { id: string; status: string }[];
+};
+
+export type OverduePitstop = {
+  id: string;
+  title: string;
+  targetDate: string | null;
+  status: string;
+  goal: { id: string; title: string };
+  owner: { name: string | null } | null;
+};
+
+export type AdminDash = {
+  kpis: AdminKPIs;
+  pitstopByStatus: { status: string; count: number }[];
+  goalByStatus: { status: string; count: number }[];
+  zones: AdminZone[];
+  users: AdminUser[];
+  goals: AdminGoal[];
+  domainStats: DomainStat[];
+  overdueList: OverduePitstop[];
+  upcoming: { id: string; title: string; type: string; scheduledAt: string; location: string | null }[];
+};
+
 export default async function HomePage() {
   const session = await auth();
   const userId = session!.user!.id!;
@@ -101,7 +163,6 @@ export default async function HomePage() {
     domainConfigs,
     myZone,
   ] = await Promise.all([
-    // Today's activities — own for RP/ZL, all for others
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
@@ -112,7 +173,6 @@ export default async function HomePage() {
       orderBy: { scheduledAt: "asc" },
     }),
 
-    // This week's activities — own/team for RP/ZL, all for others
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
@@ -126,7 +186,6 @@ export default async function HomePage() {
       orderBy: { scheduledAt: "asc" },
     }),
 
-    // Open checklist items — own/team for RP/ZL, all for others
     prisma.checklistItem.findMany({
       where: {
         status: { notIn: ["Done", "Cancelled"] },
@@ -151,7 +210,6 @@ export default async function HomePage() {
       take: 50,
     }),
 
-    // Goals — own/team for RP/ZL, all for others
     prisma.goal.findMany({
       where: { deletedAt: null, ...(isScoped ? { ownerId: { in: teamIds } } : {}) },
       select: {
@@ -166,14 +224,12 @@ export default async function HomePage() {
       take: 100,
     }),
 
-    // Domain labels for coverage tab
     prisma.needsFormulaConfig.findMany({
       where: { isActive: true },
       select: { domain: true, label: true },
       orderBy: { sortOrder: "asc" },
     }),
 
-    // ZL's zone
     designation === "ZL"
       ? prisma.zone.findFirst({
           where: { leadId: userId, deletedAt: null },
@@ -191,7 +247,7 @@ export default async function HomePage() {
 
   const domainLabels = Object.fromEntries(domainConfigs.map(d => [d.domain, d.label ?? d.domain]));
 
-  // ── RP: per-cluster domain stats (from assigned clusters, not from goals) ──
+  // ── RP: per-cluster domain stats ──────────────────────────────────────────
   let rpClusterStats: ClusterStat[] = [];
   if (designation === "RP") {
     const assignedClusters = await prisma.cluster.findMany({
@@ -277,6 +333,151 @@ export default async function HomePage() {
     }));
   }
 
+  // ── Admin pilot dashboard data ────────────────────────────────────────────
+  let adminDash: AdminDash | null = null;
+
+  if (!isScoped) {
+    const monthStart = new Date(now);
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const in14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+    const [
+      goalGroups,
+      pitstopGroups,
+      overdueCount,
+      doneThisMonthCount,
+      activitiesThisWeekCount,
+      totalUsersCount,
+      zonesRaw,
+      usersRaw,
+      adminGoalsRaw,
+      overdueListRaw,
+      upcomingListRaw,
+      openPitstopsRaw,
+    ] = await Promise.all([
+      prisma.goal.groupBy({ by: ["status"], _count: { id: true }, where: { deletedAt: null } }),
+      prisma.pitstop.groupBy({ by: ["status"], _count: { id: true }, where: { deletedAt: null } }),
+      prisma.pitstop.count({ where: { deletedAt: null, targetDate: { lt: todayStart }, status: { in: ["Upcoming", "InProgress"] } } }),
+      prisma.pitstop.count({ where: { deletedAt: null, completedAt: { gte: monthStart } } }),
+      prisma.pitstopEvent.count({ where: { deletedAt: null, scheduledAt: { gte: weekStart, lte: weekEnd } } }),
+      prisma.user.count(),
+      prisma.zone.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true, name: true, leadId: true,
+          lead: { select: { name: true } },
+          city: { select: { name: true } },
+          clusters: { where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } },
+        },
+        orderBy: { name: "asc" },
+      }),
+      prisma.user.findMany({
+        select: { id: true, name: true, designation: true, reportsToId: true },
+        orderBy: [{ designation: "asc" }, { name: "asc" }],
+      }),
+      prisma.goal.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true, title: true, status: true,
+          needsDomain: true, needsClusterId: true,
+          ownerId: true,
+          owner: { select: { id: true, name: true, designation: true } },
+          pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 500,
+      }),
+      prisma.pitstop.findMany({
+        where: { deletedAt: null, targetDate: { lt: todayStart }, status: { in: ["Upcoming", "InProgress"] } },
+        select: {
+          id: true, title: true, targetDate: true, status: true,
+          goal: { select: { id: true, title: true } },
+          owner: { select: { name: true } },
+        },
+        orderBy: { targetDate: "asc" },
+        take: 15,
+      }),
+      prisma.pitstopEvent.findMany({
+        where: { deletedAt: null, scheduledAt: { gte: todayStart, lte: in14Days }, status: "Scheduled" },
+        select: { id: true, title: true, type: true, scheduledAt: true, location: true },
+        orderBy: { scheduledAt: "asc" },
+        take: 30,
+      }),
+      // Open pitstops (Upcoming/InProgress) per owner — for user workload
+      prisma.pitstop.findMany({
+        where: { deletedAt: null, status: { in: ["Upcoming", "InProgress"] }, ownerId: { not: null } },
+        select: { ownerId: true },
+      }),
+    ]);
+
+    const clusterActiveGoals: Record<string, number> = {};
+    for (const g of adminGoalsRaw) {
+      if (g.status === "Active" && g.needsClusterId) {
+        clusterActiveGoals[g.needsClusterId] = (clusterActiveGoals[g.needsClusterId] ?? 0) + 1;
+      }
+    }
+
+    // Compute per-user counts from fetched data
+    const activeGoalsByOwner: Record<string, number> = {};
+    for (const g of adminGoalsRaw) {
+      if ((g.status === "Active" || g.status === "Paused") && g.ownerId) {
+        activeGoalsByOwner[g.ownerId] = (activeGoalsByOwner[g.ownerId] ?? 0) + 1;
+      }
+    }
+    const openPitstopsByOwner: Record<string, number> = {};
+    for (const p of openPitstopsRaw) {
+      if (p.ownerId) openPitstopsByOwner[p.ownerId] = (openPitstopsByOwner[p.ownerId] ?? 0) + 1;
+    }
+
+    const goalStatusMap: Record<string, number> = {};
+    for (const g of goalGroups) goalStatusMap[g.status] = g._count.id;
+
+    const pitstopStatusMap: Record<string, number> = {};
+    for (const p of pitstopGroups) pitstopStatusMap[p.status] = p._count.id;
+
+    adminDash = {
+      kpis: {
+        activeGoals: goalStatusMap["Active"] ?? 0,
+        pausedGoals: goalStatusMap["Paused"] ?? 0,
+        completeGoals: goalStatusMap["Complete"] ?? 0,
+        overduepitstops: overdueCount,
+        doneThisMonth: doneThisMonthCount,
+        activitiesThisWeek: activitiesThisWeekCount,
+        totalUsers: totalUsersCount,
+      },
+      goalByStatus: Object.entries(goalStatusMap)
+        .map(([status, count]) => ({ status, count }))
+        .sort((a, b) => b.count - a.count),
+      pitstopByStatus: Object.entries(pitstopStatusMap)
+        .map(([status, count]) => ({ status, count }))
+        .sort((a, b) => b.count - a.count),
+      zones: zonesRaw.map(z => ({
+        id: z.id, name: z.name,
+        leadName: z.lead?.name ?? null,
+        cityName: z.city?.name ?? null,
+        clusters: z.clusters.map(c => ({
+          id: c.id, name: c.name,
+          activeGoals: clusterActiveGoals[c.id] ?? 0,
+        })),
+        activeGoals: z.clusters.reduce((sum, c) => sum + (clusterActiveGoals[c.id] ?? 0), 0),
+      })),
+      users: usersRaw.map(u => ({
+        id: u.id, name: u.name, designation: u.designation ?? "Other",
+        reportsToId: u.reportsToId,
+        activeGoals: activeGoalsByOwner[u.id] ?? 0,
+        openPitstops: openPitstopsByOwner[u.id] ?? 0,
+      })),
+      goals: JSON.parse(JSON.stringify(adminGoalsRaw)),
+      domainStats: computeDomainStats(
+        adminGoalsRaw.map(g => ({ ...g, parameter: null, outcomeCount: null })),
+        domainLabels,
+      ),
+      overdueList: JSON.parse(JSON.stringify(overdueListRaw)),
+      upcoming: JSON.parse(JSON.stringify(upcomingListRaw)),
+    };
+  }
+
   return (
     <HomeView
       userId={userId}
@@ -293,6 +494,7 @@ export default async function HomePage() {
       zlClusterStats={zlClusterStats}
       clusterStatus={clusterStatus}
       teamMembers={JSON.parse(JSON.stringify(teamMembers))}
+      adminDash={adminDash}
     />
   );
 }
