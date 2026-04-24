@@ -77,13 +77,16 @@ export default function GoalDetail({
   goal: initialGoal,
   users,
   currentUserId,
+  currentUserRole = "member",
   isFollowing: initialIsFollowing,
 }: {
   goal: Goal;
   users: User[];
   currentUserId: string;
+  currentUserRole?: string;
   isFollowing: boolean;
 }) {
+  const isAdmin = currentUserRole === "admin" || currentUserRole === "super-admin";
   const [showCreatePitstop, setShowCreatePitstop] = useState(false);
   const [showEditGoal, setShowEditGoal] = useState(false);
   const [deletingGoal, setDeletingGoal] = useState(false);
@@ -91,6 +94,7 @@ export default function GoalDetail({
   const [panelPitstopId, setPanelPitstopId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -192,6 +196,7 @@ export default function GoalDetail({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setUploadError(null);
     const fd = new FormData();
     fd.append("file", file);
     fd.append("goalId", goal.id);
@@ -199,6 +204,9 @@ export default function GoalDetail({
     if (res.ok) {
       const att = await res.json();
       updateGoal((g) => ({ ...g, attachments: [...g.attachments, att] }));
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setUploadError(err.error ?? "Upload failed. Please try again.");
     }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -488,6 +496,7 @@ export default function GoalDetail({
             </button>
             <input ref={fileInputRef} type="file" className="hidden" onChange={handleGoalFileUpload} />
           </div>
+          {uploadError && <p className="text-[10px] text-red-500 mb-1">{uploadError}</p>}
           {goal.attachments.length === 0 ? (
             <p className="text-xs text-stone-400">No anchor documents attached.</p>
           ) : (
@@ -558,6 +567,7 @@ export default function GoalDetail({
                   users={users}
                   isFirst={idx === 0}
                   isLast={idx === sortedPitstops.length - 1}
+                  isAdmin={isAdmin}
                   onReorder={handleReorder}
                   onHover={prefetchPitstop}
                   onOwnerChange={(ownerId) => handlePitstopOwnerChange(pitstop.id, ownerId)}
@@ -749,6 +759,7 @@ type PitstopRowProps = {
   users: User[];
   isFirst: boolean;
   isLast: boolean;
+  isAdmin: boolean;
   onReorder: (id: string, dir: "up" | "down") => void;
   onHover: (id: string) => void;
   onOwnerChange: (ownerId: string) => void;
@@ -779,6 +790,7 @@ function PitstopRow({
   users,
   isFirst,
   isLast,
+  isAdmin,
   onReorder,
   onHover,
   onOwnerChange,
@@ -975,8 +987,8 @@ function PitstopRow({
                   {pitstop.attachments.length}
                 </span>
               )}
-              {/* Inline target date */}
-              {editingDate ? (
+              {/* Inline target date — edit restricted to admin */}
+              {isAdmin && editingDate ? (
                 <input
                   type="date"
                   value={editDate}
@@ -986,7 +998,7 @@ function PitstopRow({
                   onClick={e => e.stopPropagation()}
                   className="text-xs border-b border-sky-400 outline-none bg-transparent text-stone-600"
                 />
-              ) : (
+              ) : isAdmin ? (
                 <button
                   onClick={startEditDate}
                   className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 group/date"
@@ -998,7 +1010,12 @@ function PitstopRow({
                     : <span className="opacity-0 group-hover/row:opacity-60">Add date</span>
                   }
                 </button>
-              )}
+              ) : pitstop.targetDate ? (
+                <span className="flex items-center gap-1 text-xs text-stone-400">
+                  <Calendar className="w-3 h-3" />
+                  {new Date(pitstop.targetDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>

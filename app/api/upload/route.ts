@@ -20,13 +20,21 @@ export async function POST(req: NextRequest) {
 
   if (!file) return Response.json({ error: "No file provided" }, { status: 400 });
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
+  try {
+    await mkdir(UPLOAD_DIR, { recursive: true });
+  } catch {
+    return Response.json({ error: "File storage unavailable. Contact admin." }, { status: 500 });
+  }
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
   const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   const filePath = path.join(UPLOAD_DIR, safeName);
-  await writeFile(filePath, buffer);
+  try {
+    await writeFile(filePath, buffer);
+  } catch {
+    return Response.json({ error: "File storage unavailable. Contact admin." }, { status: 500 });
+  }
 
   const attachment = await prisma.attachment.create({
     data: {

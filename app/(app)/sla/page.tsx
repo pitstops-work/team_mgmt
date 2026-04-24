@@ -46,15 +46,24 @@ export default async function SlaPage() {
     },
     select: {
       id: true,
+      text: true,
       status: true,
       completedAt: true,
       assigneeId: true,
       assignee: { select: { id: true, name: true, designation: true } },
       pitstop: {
         select: {
+          id: true,
+          title: true,
           ownerId: true,
-          owner: { select: { id: true, name: true, designation: true } },
+          owner: {
+            select: {
+              id: true, name: true, designation: true,
+              city: { select: { id: true, name: true } },
+            },
+          },
           targetDate: true,
+          goal: { select: { id: true, title: true } },
           needsSettlement: {
             select: {
               id: true, name: true,
@@ -90,7 +99,15 @@ export default async function SlaPage() {
       slaStatus = deadline < now ? "overdue" : "ontrack";
     }
 
-    const person = ci.assignee ?? ci.pitstop.owner;
+    const daysOverdue = slaStatus === "overdue"
+      ? Math.floor((now.getTime() - new Date(deadline).getTime()) / 86400000)
+      : slaStatus === "late" && ci.completedAt
+        ? Math.floor((new Date(ci.completedAt).getTime() - new Date(deadline).getTime()) / 86400000)
+        : 0;
+
+    const person = ci.assignee ?? (ci.pitstop.owner
+      ? { id: ci.pitstop.owner.id, name: ci.pitstop.owner.name, designation: ci.pitstop.owner.designation }
+      : null);
 
     let geo: SlaItem["geo"] = { settlement: null, cluster: null, zone: null, city: null };
     const p = ci.pitstop;
@@ -121,9 +138,21 @@ export default async function SlaPage() {
         zone: { id: p.needsZone.id, name: p.needsZone.name },
         city: p.needsZone.city ?? null,
       };
+    } else if (p.owner?.city) {
+      // fallback: use owner's assigned city
+      geo = { settlement: null, cluster: null, zone: null, city: p.owner.city };
     }
 
-    return { id: ci.id, slaStatus, person, geo };
+    return {
+      id: ci.id,
+      text: ci.text,
+      slaStatus,
+      daysOverdue,
+      goal: { id: p.goal.id, title: p.goal.title },
+      pitstop: { id: p.id, title: p.title, targetDate: deadline.toISOString() },
+      person,
+      geo,
+    };
   });
 
   // Admin with no city assigned → warn rather than show empty data

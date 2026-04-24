@@ -38,12 +38,14 @@ export default async function GoalPage({ params }: { params: Promise<{ goalId: s
   if (!goal) notFound();
 
   const isFollowing = goal.followers.some((f) => f.userId === session!.user!.id);
+  const currentUserRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
 
   return (
     <GoalDetail
       goal={JSON.parse(JSON.stringify(goal))}
       users={JSON.parse(JSON.stringify(users))}
       currentUserId={session!.user!.id!}
+      currentUserRole={currentUserRole}
       isFollowing={isFollowing}
     />
   );

@@ -9,7 +9,11 @@ export type SlaStatus = "within" | "late" | "overdue" | "ontrack";
 
 export type SlaItem = {
   id: string;
+  text: string;
   slaStatus: SlaStatus;
+  daysOverdue: number;
+  goal: { id: string; title: string };
+  pitstop: { id: string; title: string; targetDate: string };
   person: { id: string; name: string | null; designation: string | null } | null;
   geo: {
     settlement: { id: string; name: string } | null;
@@ -26,7 +30,7 @@ type Stats = { total: number; within: number; late: number; overdue: number; ont
 function stats(items: SlaItem[]): Stats {
   let within = 0, late = 0, overdue = 0, ontrack = 0;
   for (const i of items) {
-    if (i.slaStatus === "within")  within++;
+    if (i.slaStatus === "within")       within++;
     else if (i.slaStatus === "late")    late++;
     else if (i.slaStatus === "overdue") overdue++;
     else                                ontrack++;
@@ -51,6 +55,14 @@ function rateBg(pct: number) {
   return "bg-red-400";
 }
 
+// ── Layout constants (must match between header and data rows) ────────────────
+
+const COL = {
+  total:   "w-10 text-right",
+  stat:    "w-12 flex items-center gap-1",
+  rate:    "w-24 flex items-center gap-1.5",
+};
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StatTile({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
@@ -63,58 +75,103 @@ function StatTile({ label, value, sub, accent }: { label: string; value: string 
   );
 }
 
-function StatusBadge({ status }: { status: SlaStatus }) {
-  if (status === "within")  return <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">In SLA</span>;
-  if (status === "late")    return <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Late</span>;
-  if (status === "overdue") return <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">Overdue</span>;
-  return                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">On Track</span>;
-}
-
-function StatsRow({ s, showRate = true }: { s: Stats; showRate?: boolean }) {
-  const pct = rate(s);
+function TableHeader({ nameLabel = "Name" }: { nameLabel?: string }) {
   return (
-    <div className="flex items-center gap-3 flex-shrink-0">
-      <span className="text-[11px] text-stone-400 w-8 text-right">{s.total}</span>
-      <div className="flex items-center gap-1">
-        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-        <span className="text-[11px] text-emerald-600 font-medium w-5">{s.within}</span>
+    <div className="flex items-center gap-2 px-3 py-2 border-b border-stone-200 bg-stone-50">
+      <span className="flex-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">{nameLabel}</span>
+      <div className="flex items-center gap-2 flex-shrink-0 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">
+        <span className={COL.total}>Total</span>
+        <span className={COL.stat}><CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />SLA</span>
+        <span className={COL.stat}><Clock className="w-3 h-3 text-amber-400 flex-shrink-0" />Late</span>
+        <span className={COL.stat}><AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0" />Over</span>
+        <span className={COL.stat}><Circle className="w-3 h-3 text-sky-300 flex-shrink-0" />Track</span>
+        <span className={COL.rate}>Rate</span>
       </div>
-      <div className="flex items-center gap-1">
-        <Clock className="w-3 h-3 text-amber-400" />
-        <span className="text-[11px] text-amber-600 w-5">{s.late}</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <AlertTriangle className="w-3 h-3 text-red-400" />
-        <span className="text-[11px] text-red-500 font-medium w-5">{s.overdue}</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <Circle className="w-3 h-3 text-sky-300" />
-        <span className="text-[11px] text-stone-400 w-5">{s.ontrack}</span>
-      </div>
-      {showRate && (
-        <div className="flex items-center gap-1.5 w-16">
-          <div className="flex-1 bg-stone-100 rounded-full h-1.5 overflow-hidden">
-            <div className={`h-full rounded-full ${rateBg(pct)}`} style={{ width: `${pct}%` }} />
-          </div>
-          <span className={`text-[11px] font-semibold w-8 text-right ${rateColor(pct)}`}>{pct}%</span>
-        </div>
-      )}
     </div>
   );
 }
 
-function TableHeader() {
+function StatsRow({ s }: { s: Stats }) {
+  const pct = rate(s);
   return (
-    <div className="flex items-center gap-3 px-3 py-2 border-b border-stone-100">
-      <span className="flex-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">Name</span>
-      <div className="flex items-center gap-3 flex-shrink-0 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">
-        <span className="w-8 text-right">Total</span>
-        <span className="w-14 flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-400" />SLA</span>
-        <span className="w-14 flex items-center gap-1"><Clock className="w-3 h-3 text-amber-400" />Late</span>
-        <span className="w-14 flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-red-400" />Overdue</span>
-        <span className="w-14 flex items-center gap-1"><Circle className="w-3 h-3 text-sky-300" />On Track</span>
-        <span className="w-[104px] text-right">Rate</span>
+    <div className="flex items-center gap-2 flex-shrink-0">
+      <span className={`text-[11px] text-stone-500 ${COL.total}`}>{s.total}</span>
+      <span className={`text-[11px] text-emerald-600 font-medium ${COL.stat}`}>
+        <CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" />{s.within}
+      </span>
+      <span className={`text-[11px] text-amber-600 ${COL.stat}`}>
+        <Clock className="w-3 h-3 text-amber-400 flex-shrink-0" />{s.late}
+      </span>
+      <span className={`text-[11px] text-red-500 font-medium ${COL.stat}`}>
+        <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0" />{s.overdue}
+      </span>
+      <span className={`text-[11px] text-stone-400 ${COL.stat}`}>
+        <Circle className="w-3 h-3 text-sky-300 flex-shrink-0" />{s.ontrack}
+      </span>
+      <div className={COL.rate}>
+        <div className="flex-1 bg-stone-100 rounded-full h-1.5 overflow-hidden">
+          <div className={`h-full rounded-full ${rateBg(pct)}`} style={{ width: `${pct}%` }} />
+        </div>
+        <span className={`text-[11px] font-semibold w-8 text-right flex-shrink-0 ${rateColor(pct)}`}>{pct}%</span>
       </div>
+    </div>
+  );
+}
+
+// ── Drill-down list (shared by person and geo) ─────────────────────────────────
+
+function DrillDownList({ items }: { items: SlaItem[] }) {
+  const delayed = items.filter(i => i.slaStatus === "overdue" || i.slaStatus === "late");
+  if (delayed.length === 0) return (
+    <div className="px-4 py-2 text-[11px] text-stone-400 italic">No delayed items.</div>
+  );
+
+  // Group by goal → pitstop
+  const byGoal = new Map<string, { goalTitle: string; byPitstop: Map<string, { pitstopTitle: string; items: SlaItem[] }> }>();
+  for (const item of delayed) {
+    if (!byGoal.has(item.goal.id)) {
+      byGoal.set(item.goal.id, { goalTitle: item.goal.title, byPitstop: new Map() });
+    }
+    const g = byGoal.get(item.goal.id)!;
+    if (!g.byPitstop.has(item.pitstop.id)) {
+      g.byPitstop.set(item.pitstop.id, { pitstopTitle: item.pitstop.title, items: [] });
+    }
+    g.byPitstop.get(item.pitstop.id)!.items.push(item);
+  }
+
+  return (
+    <div className="border-t border-stone-100 bg-stone-50/60">
+      {Array.from(byGoal.values()).map(({ goalTitle, byPitstop }) => (
+        <div key={goalTitle} className="px-4 pt-2 pb-1">
+          <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide mb-1">{goalTitle}</p>
+          {Array.from(byPitstop.values()).map(({ pitstopTitle, items: pItems }) => (
+            <div key={pitstopTitle} className="mb-2 pl-2 border-l-2 border-stone-200">
+              <p className="text-[11px] font-medium text-stone-700 mb-1">
+                {pitstopTitle}
+                <span className="ml-1.5 text-[10px] text-stone-400 font-normal">
+                  target: {new Date(pItems[0].pitstop.targetDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              </p>
+              <div className="space-y-0.5">
+                {pItems.map(ci => (
+                  <div key={ci.id} className="flex items-center gap-2 pl-2">
+                    {ci.slaStatus === "overdue"
+                      ? <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0" />
+                      : <Clock className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                    }
+                    <span className="text-[11px] text-stone-600 flex-1 truncate">{ci.text}</span>
+                    {ci.daysOverdue > 0 && (
+                      <span className={`text-[10px] font-semibold flex-shrink-0 ${ci.slaStatus === "overdue" ? "text-red-500" : "text-amber-600"}`}>
+                        {ci.slaStatus === "overdue" ? `${ci.daysOverdue}d overdue` : `${ci.daysOverdue}d late`}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
@@ -130,6 +187,8 @@ const DESIG_COLOR: Record<string, string> = {
 };
 
 function ByPerson({ items }: { items: SlaItem[] }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
   const byPerson = useMemo(() => {
     const map = new Map<string, { person: SlaItem["person"]; items: SlaItem[] }>();
     for (const item of items) {
@@ -138,30 +197,52 @@ function ByPerson({ items }: { items: SlaItem[] }) {
       map.get(key)!.items.push(item);
     }
     return Array.from(map.values())
-      .map(({ person, items }) => ({ person, s: stats(items) }))
-      .sort((a, b) => rate(a.s) - rate(b.s)); // worst first
+      .map(({ person, items: pItems }) => ({ person, items: pItems, s: stats(pItems) }))
+      .sort((a, b) => rate(a.s) - rate(b.s));
   }, [items]);
 
   if (byPerson.length === 0) return <p className="text-sm text-stone-400 py-6 px-1">No data.</p>;
 
+  const toggle = (key: string) => setExpanded(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
+
   return (
     <div className="rounded-lg border border-stone-200 overflow-hidden overflow-x-auto">
-      <div className="min-w-[580px]">
+      <div className="min-w-[600px]">
         <TableHeader />
         <div className="divide-y divide-stone-100">
-          {byPerson.map(({ person, s }, i) => (
-            <div key={person?.id ?? i} className="flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-stone-50">
-              <div className="flex-1 min-w-0 flex items-center gap-2">
-                <span className="text-sm text-stone-800 font-medium truncate">{person?.name ?? "Unassigned"}</span>
-                {person?.designation && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${DESIG_COLOR[person.designation] ?? "bg-stone-100 text-stone-600"}`}>
-                    {person.designation}
-                  </span>
-                )}
+          {byPerson.map(({ person, items: pItems, s }) => {
+            const key = person?.id ?? "__none__";
+            const isOpen = expanded.has(key);
+            const hasDelayed = pItems.some(i => i.slaStatus === "overdue" || i.slaStatus === "late");
+            return (
+              <div key={key}>
+                <button
+                  onClick={() => hasDelayed && toggle(key)}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 bg-white text-left transition-colors ${hasDelayed ? "hover:bg-stone-50 cursor-pointer" : "cursor-default"}`}
+                >
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    {hasDelayed
+                      ? (isOpen ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />)
+                      : <span className="w-3.5 flex-shrink-0" />
+                    }
+                    <span className="text-sm text-stone-800 font-medium truncate">{person?.name ?? "Unassigned"}</span>
+                    {person?.designation && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${DESIG_COLOR[person.designation] ?? "bg-stone-100 text-stone-600"}`}>
+                        {person.designation}
+                      </span>
+                    )}
+                  </div>
+                  <StatsRow s={s} />
+                </button>
+                {isOpen && <DrillDownList items={pItems} />}
               </div>
-              <StatsRow s={s} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -225,9 +306,9 @@ function buildTree(items: SlaItem[]): GeoNode[] {
 
 const LEVEL_INDENT: Record<string, string> = {
   city: "pl-3",
-  zone: "pl-7",
-  cluster: "pl-11",
-  settlement: "pl-15",
+  zone: "pl-8",
+  cluster: "pl-13",
+  settlement: "pl-18",
 };
 const LEVEL_COLOR: Record<string, string> = {
   city:       "bg-stone-100 text-stone-600",
@@ -238,23 +319,26 @@ const LEVEL_COLOR: Record<string, string> = {
 
 function GeoTree({ nodes, depth = 0 }: { nodes: GeoNode[]; depth?: number }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set(nodes.map(n => n.id)));
+  const [drillOpen, setDrillOpen] = useState<Set<string>>(new Set());
 
   return (
     <div>
       {nodes.map(node => {
         const s = stats(node.items);
-        const pct = rate(s);
         const isOpen = open.has(node.id);
+        const isDrillOpen = drillOpen.has(node.id);
         const hasChildren = node.children.length > 0;
+        const hasDelayed = node.items.some(i => i.slaStatus === "overdue" || i.slaStatus === "late");
         const indent = LEVEL_INDENT[node.level] ?? "pl-3";
+        const isLeaf = !hasChildren;
 
         return (
           <div key={node.id}>
             <div
-              className={`flex items-center gap-3 py-2.5 pr-3 border-b border-stone-100 hover:bg-stone-50 ${indent} ${node.level === "city" ? "bg-stone-50" : "bg-white"}`}
+              className={`flex items-center gap-2 py-2.5 pr-3 border-b border-stone-100 ${indent} ${node.level === "city" ? "bg-stone-50" : "bg-white"}`}
             >
               <div className="flex-1 min-w-0 flex items-center gap-2">
-                {hasChildren && (
+                {hasChildren ? (
                   <button
                     onClick={() => setOpen(prev => {
                       const next = new Set(prev);
@@ -266,8 +350,21 @@ function GeoTree({ nodes, depth = 0 }: { nodes: GeoNode[]; depth?: number }) {
                   >
                     {isOpen ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
                   </button>
+                ) : hasDelayed ? (
+                  <button
+                    onClick={() => setDrillOpen(prev => {
+                      const next = new Set(prev);
+                      if (next.has(node.id)) next.delete(node.id);
+                      else next.add(node.id);
+                      return next;
+                    })}
+                    className="flex-shrink-0"
+                  >
+                    {isDrillOpen ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                  </button>
+                ) : (
+                  <span className="w-3.5 flex-shrink-0" />
                 )}
-                {!hasChildren && <span className="w-3.5 flex-shrink-0" />}
                 <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${LEVEL_COLOR[node.level]}`}>
                   {node.level}
                 </span>
@@ -277,6 +374,7 @@ function GeoTree({ nodes, depth = 0 }: { nodes: GeoNode[]; depth?: number }) {
               </div>
               <StatsRow s={s} />
             </div>
+            {isLeaf && isDrillOpen && <DrillDownList items={node.items} />}
             {isOpen && hasChildren && (
               <GeoTree nodes={node.children} depth={depth + 1} />
             )}
@@ -293,19 +391,8 @@ function ByGeography({ items }: { items: SlaItem[] }) {
 
   return (
     <div className="rounded-lg border border-stone-200 overflow-hidden overflow-x-auto">
-      <div className="min-w-[580px]">
-        {/* legend row */}
-        <div className="flex items-center gap-3 px-3 py-2 border-b border-stone-100 bg-stone-50">
-          <span className="flex-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">Location</span>
-          <div className="flex items-center gap-3 flex-shrink-0 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">
-            <span className="w-8 text-right">Total</span>
-            <span className="w-14">✓ SLA</span>
-            <span className="w-14">⏱ Late</span>
-            <span className="w-14">⚠ Overdue</span>
-            <span className="w-14">On Track</span>
-            <span className="w-[104px] text-right">Rate</span>
-          </div>
-        </div>
+      <div className="min-w-[600px]">
+        <TableHeader nameLabel="Location" />
         <GeoTree nodes={tree} />
       </div>
     </div>

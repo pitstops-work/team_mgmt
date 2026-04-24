@@ -425,6 +425,7 @@ export default function PitstopDetail({
   preferredLang: initialPreferredLang,
 }: Props) {
   const isViewer = currentUserRole === "viewer";
+  const isAdmin = currentUserRole === "admin" || currentUserRole === "super-admin";
   const searchParams = useSearchParams();
   const [pitstop, setPitstop] = useState(initialPitstop);
   const [preferredLang, setPreferredLang] = useState(initialPreferredLang);
@@ -932,7 +933,7 @@ export default function PitstopDetail({
                 <Calendar className="w-3.5 h-3.5" />
                 Timeline
               </span>
-              {!isViewer && (
+              {isAdmin && (
                 <button onClick={() => { setEditingDates((v) => !v); setDatesError(""); }} className="text-xs text-sky-600 hover:text-sky-700">
                   {editingDates ? "Cancel" : "Edit"}
                 </button>
