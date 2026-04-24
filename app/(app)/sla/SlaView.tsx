@@ -314,7 +314,7 @@ function ByGeography({ items }: { items: SlaItem[] }) {
 
 // ── Main SlaView ──────────────────────────────────────────────────────────────
 
-export default function SlaView({ items }: { items: SlaItem[] }) {
+export default function SlaView({ items, showCityFilter = false }: { items: SlaItem[]; showCityFilter?: boolean }) {
   const [cityFilter, setCityFilter] = useState<string>("All");
   const [tab, setTab] = useState<"person" | "geo">("person");
 
@@ -324,9 +324,9 @@ export default function SlaView({ items }: { items: SlaItem[] }) {
   }, [items]);
 
   const filtered = useMemo(() => {
-    if (cityFilter === "All") return items;
+    if (!showCityFilter || cityFilter === "All") return items;
     return items.filter(i => i.geo.city?.name === cityFilter);
-  }, [items, cityFilter]);
+  }, [items, cityFilter, showCityFilter]);
 
   const s = stats(filtered);
   const pct = rate(s);
@@ -366,8 +366,8 @@ export default function SlaView({ items }: { items: SlaItem[] }) {
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-sky-200   inline-block" />On track</span>
       </div>
 
-      {/* City filter */}
-      {cities.length > 1 && (
+      {/* City filter — super admin only */}
+      {showCityFilter && cities.length > 1 && (
         <div className="flex gap-2 flex-wrap">
           {["All", ...cities].map(c => (
             <button
