@@ -744,7 +744,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   inviteEventId?: string | null;
 }) {
   const today = new Date(); today.setHours(12, 0, 0, 0);
-  const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [anchorDate, setAnchorDate] = useState(today);
   const [events, setEvents] = useState(initialEvents);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);

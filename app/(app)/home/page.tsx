@@ -79,7 +79,7 @@ export type AdminZone = {
   leadName: string | null;
   cityName: string | null;
   activeGoals: number;
-  clusters: { id: string; name: string; activeGoals: number }[];
+  clusters: { id: string; name: string; activeGoals: number; settlements: { id: string; name: string }[] }[];
 };
 
 export type AdminUser = {
@@ -119,8 +119,9 @@ export type AdminDash = {
   users: AdminUser[];
   goals: AdminGoal[];
   domainStats: DomainStat[];
+  domainConfigs: { domain: string; label: string }[];
   overdueList: OverduePitstop[];
-  upcoming: { id: string; title: string; type: string; scheduledAt: string; location: string | null }[];
+  upcoming: { id: string; title: string; type: string; scheduledAt: string; location: string | null; attendees: { user: { name: string | null } }[] }[];
 };
 
 export default async function HomePage() {
@@ -171,7 +172,10 @@ export default async function HomePage() {
         scheduledAt: { gte: todayStart, lte: todayEnd },
         ...(isScoped ? { attendees: { some: { userId } } } : {}),
       },
-      select: { id: true, title: true, type: true, scheduledAt: true, location: true, status: true },
+      select: {
+        id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        attendees: { select: { user: { select: { id: true, name: true } } } },
+      },
       orderBy: { scheduledAt: "asc" },
     }),
 
@@ -370,7 +374,14 @@ export default async function HomePage() {
           id: true, name: true, leadId: true,
           lead: { select: { name: true } },
           city: { select: { name: true } },
-          clusters: { where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } },
+          clusters: {
+          where: { deletedAt: null },
+          orderBy: { name: "asc" },
+          select: {
+            id: true, name: true,
+            settlements: { where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } },
+          },
+        },
         },
         orderBy: { name: "asc" },
       }),
@@ -383,6 +394,7 @@ export default async function HomePage() {
         select: {
           id: true, title: true, status: true,
           needsDomain: true, needsClusterId: true,
+          parameter: true, outcomeCount: true,
           ownerId: true,
           owner: { select: { id: true, name: true, designation: true } },
           pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
@@ -402,7 +414,10 @@ export default async function HomePage() {
       }),
       prisma.pitstopEvent.findMany({
         where: { deletedAt: null, scheduledAt: { gte: todayStart, lte: in14Days }, status: "Scheduled" },
-        select: { id: true, title: true, type: true, scheduledAt: true, location: true },
+        select: {
+          id: true, title: true, type: true, scheduledAt: true, location: true,
+          attendees: { select: { user: { select: { name: true } } } },
+        },
         orderBy: { scheduledAt: "asc" },
         take: 30,
       }),
@@ -461,6 +476,7 @@ export default async function HomePage() {
         clusters: z.clusters.map(c => ({
           id: c.id, name: c.name,
           activeGoals: clusterActiveGoals[c.id] ?? 0,
+          settlements: c.settlements,
         })),
         activeGoals: z.clusters.reduce((sum, c) => sum + (clusterActiveGoals[c.id] ?? 0), 0),
       })),
@@ -471,10 +487,8 @@ export default async function HomePage() {
         openPitstops: openPitstopsByOwner[u.id] ?? 0,
       })),
       goals: JSON.parse(JSON.stringify(adminGoalsRaw)),
-      domainStats: computeDomainStats(
-        adminGoalsRaw.map(g => ({ ...g, parameter: null, outcomeCount: null })),
-        domainLabels,
-      ),
+      domainStats: computeDomainStats(adminGoalsRaw, domainLabels),
+      domainConfigs: domainConfigs.map(d => ({ domain: d.domain, label: d.label ?? d.domain })),
       overdueList: JSON.parse(JSON.stringify(overdueListRaw)),
       upcoming: JSON.parse(JSON.stringify(upcomingListRaw)),
     };

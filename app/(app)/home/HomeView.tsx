@@ -108,7 +108,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function KpiTile({ label, value, sub, accent, href }: { label: string; value: number | string; sub?: string; accent?: string; href?: string }) {
+function KpiTile({ label, value, sub, accent, href, onClick }: { label: string; value: number | string; sub?: string; accent?: string; href?: string; onClick?: () => void }) {
   const inner = (
     <>
       <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wide mb-1">{label}</p>
@@ -121,6 +121,13 @@ function KpiTile({ label, value, sub, accent, href }: { label: string; value: nu
       <Link href={href} className="bg-white rounded-xl border border-stone-200 px-4 py-3.5 block hover:border-sky-200 hover:bg-sky-50/30 transition-colors">
         {inner}
       </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button onClick={onClick} className="bg-white rounded-xl border border-stone-200 px-4 py-3.5 text-left w-full hover:border-sky-200 hover:bg-sky-50/30 transition-colors">
+        {inner}
+      </button>
     );
   }
   return (
@@ -139,6 +146,7 @@ function ProgressBar({ pct, color }: { pct: number; color: string }) {
 }
 
 function ActivityRow({ a }: { a: Activity }) {
+  const names = a.attendees?.map(att => att.user.name).filter(Boolean) ?? [];
   return (
     <Link href="/activities"
       className="flex items-start gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
@@ -148,6 +156,9 @@ function ActivityRow({ a }: { a: Activity }) {
         <p className="text-xs text-stone-400 mt-0.5">
           {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""} · {a.type}
         </p>
+        {names.length > 0 && (
+          <p className="text-[10px] text-stone-400 mt-0.5 truncate">{names.join(", ")}</p>
+        )}
       </div>
       {a.status !== "Scheduled" && (
         <span className="text-[10px] text-stone-400 border border-stone-200 rounded px-1.5 py-0.5 capitalize flex-shrink-0">
@@ -217,8 +228,8 @@ function DomainTable({ stats }: { stats: DomainStat[] }) {
   if (stats.length === 0) return <EmptyState message="No domain-tagged goals yet." />;
   const maxPlanned = Math.max(...stats.map(s => s.planned), 1);
   return (
-    <div className="rounded-lg border border-stone-200 overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="rounded-lg border border-stone-200 overflow-hidden overflow-x-auto">
+      <table className="w-full text-sm min-w-[320px]">
         <thead>
           <tr className="bg-stone-50 border-b border-stone-200">
             <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Domain</th>
@@ -317,7 +328,7 @@ function TodayTab({
                       {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
                     </p>
                     {a.attendees && a.attendees.length > 0 && (
-                      <p className="text-[10px] text-stone-300 mt-0.5">
+                      <p className="text-[10px] text-stone-300 mt-0.5 truncate">
                         {a.attendees.map(att => att.user.name).filter(Boolean).join(", ")}
                       </p>
                     )}
@@ -434,8 +445,8 @@ function ZLClusterStatusTab({ clusterStatus }: { clusterStatus: ClusterStatus[] 
     return <EmptyState message="No clusters in your zone yet." />;
   }
   return (
-    <div className="rounded-lg border border-stone-200 overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="rounded-lg border border-stone-200 overflow-hidden overflow-x-auto">
+      <table className="w-full text-sm min-w-[420px]">
         <thead>
           <tr className="bg-stone-50 border-b border-stone-200">
             <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Cluster</th>
@@ -565,7 +576,7 @@ function GoalsTab({
 
 // ── Admin: Overview ───────────────────────────────────────────────────────────
 
-function AdminOverviewTab({ dash, todayActivities }: { dash: AdminDash; todayActivities: Activity[] }) {
+function AdminOverviewTab({ dash, todayActivities, onTabSwitch }: { dash: AdminDash; todayActivities: Activity[]; onTabSwitch: (tab: TabKey, goalStatus?: string) => void }) {
   const totalGoals = dash.kpis.activeGoals + dash.kpis.pausedGoals + dash.kpis.completeGoals;
 
   // Goal status data for bar chart
@@ -586,14 +597,14 @@ function AdminOverviewTab({ dash, todayActivities }: { dash: AdminDash; todayAct
     <div className="space-y-8">
       {/* KPI tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiTile label="Active Goals"     value={dash.kpis.activeGoals}    sub={`of ${totalGoals} total`} accent="text-sky-600"    href="/dashboard" />
-        <KpiTile label="Completed Goals"  value={dash.kpis.completeGoals}  sub="all time"               accent="text-emerald-600" href="/dashboard" />
-        <KpiTile label="Overdue Pitstops" value={dash.kpis.overduepitstops} sub="past target date"     accent={dash.kpis.overduepitstops > 0 ? "text-red-500" : "text-stone-800"} href="/dashboard" />
-        <KpiTile label="Done This Month"  value={dash.kpis.doneThisMonth}  sub="pitstops completed"     accent="text-violet-600"  href="/dashboard" />
+        <KpiTile label="Active Goals"     value={dash.kpis.activeGoals}    sub={`of ${totalGoals} total`} accent="text-sky-600"    onClick={() => onTabSwitch("goals", "Active")} />
+        <KpiTile label="Completed Goals"  value={dash.kpis.completeGoals}  sub="all time"               accent="text-emerald-600" onClick={() => onTabSwitch("goals", "Complete")} />
+        <KpiTile label="Overdue Pitstops" value={dash.kpis.overduepitstops} sub="past target date"     accent={dash.kpis.overduepitstops > 0 ? "text-red-500" : "text-stone-800"} />
+        <KpiTile label="Done This Month"  value={dash.kpis.doneThisMonth}  sub="pitstops completed"     accent="text-violet-600" />
         <KpiTile label="This Week"        value={dash.kpis.activitiesThisWeek} sub="activities scheduled" href="/activities" />
-        <KpiTile label="Paused Goals"     value={dash.kpis.pausedGoals}    sub="need attention"         accent={dash.kpis.pausedGoals > 0 ? "text-amber-500" : "text-stone-800"} href="/dashboard" />
+        <KpiTile label="Paused Goals"     value={dash.kpis.pausedGoals}    sub="need attention"         accent={dash.kpis.pausedGoals > 0 ? "text-amber-500" : "text-stone-800"} onClick={() => onTabSwitch("goals", "Paused")} />
         <KpiTile label="Team Members"     value={dash.kpis.totalUsers}     sub="registered users"       href="/settings/users" />
-        <KpiTile label="Active Zones"     value={dash.zones.filter(z => z.activeGoals > 0).length} sub={`of ${dash.zones.length} zones`} href="/needs" />
+        <KpiTile label="Active Zones"     value={dash.zones.filter(z => z.activeGoals > 0).length} sub={`of ${dash.zones.length} zones`} onClick={() => onTabSwitch("geography")} />
       </div>
 
       {/* Charts row */}
@@ -698,17 +709,23 @@ function AdminOverviewTab({ dash, todayActivities }: { dash: AdminDash; todayAct
             ? <EmptyState message="No activities scheduled." />
             : (
               <div className="space-y-2">
-                {dash.upcoming.slice(0, 8).map(a => (
-                  <Link key={a.id} href="/activities"
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-stone-800 truncate">{a.title}</p>
-                      <p className="text-xs text-stone-400">{fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}</p>
-                    </div>
-                    <span className="text-[10px] text-stone-400 flex-shrink-0">{a.type}</span>
-                  </Link>
-                ))}
+                {dash.upcoming.slice(0, 8).map(a => {
+                  const names = a.attendees?.map(att => att.user.name).filter(Boolean) ?? [];
+                  return (
+                    <Link key={a.id} href="/activities"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-stone-800 truncate">{a.title}</p>
+                        <p className="text-xs text-stone-400">{fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}</p>
+                        {names.length > 0 && (
+                          <p className="text-[10px] text-stone-400 truncate">{names.join(", ")}</p>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-stone-400 flex-shrink-0">{a.type}</span>
+                    </Link>
+                  );
+                })}
                 {dash.upcoming.length > 8 && (
                   <Link href="/activities" className="text-xs text-sky-500 hover:text-sky-700 px-1 block">
                     +{dash.upcoming.length - 8} more →
@@ -725,17 +742,27 @@ function AdminOverviewTab({ dash, todayActivities }: { dash: AdminDash; todayAct
 
 // ── Admin: Goals tab ──────────────────────────────────────────────────────────
 
-function AdminGoalsTab({ goals }: { goals: AdminGoal[] }) {
-  const [statusFilter, setStatusFilter] = useState<string>("All");
+function AdminGoalsTab({ goals, domainConfigs = [], initialStatusFilter = "All" }: { goals: AdminGoal[]; domainConfigs?: { domain: string; label: string }[]; initialStatusFilter?: string }) {
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter);
   const [domainFilter, setDomainFilter] = useState<string>("All");
   const [search, setSearch] = useState("");
   const [groupBy, setGroupBy] = useState<"none" | "status" | "domain" | "owner">("status");
   const [sortBy, setSortBy] = useState<"title" | "progress" | "owner">("title");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Active", "Paused", "Complete"]));
 
+  // Sync when parent changes the initial filter (e.g. clicking a KPI tile)
+  const [prevInitial, setPrevInitial] = useState(initialStatusFilter);
+  if (prevInitial !== initialStatusFilter) {
+    setPrevInitial(initialStatusFilter);
+    setStatusFilter(initialStatusFilter);
+  }
+
+  // Domain filter options from config (all domains, not just ones with goals)
   const allDomains = useMemo(() => {
+    if (domainConfigs.length > 0) return domainConfigs;
     const ds = new Set(goals.map(g => g.needsDomain).filter(Boolean) as string[]);
-    return Array.from(ds).sort();
-  }, [goals]);
+    return Array.from(ds).sort().map(d => ({ domain: d, label: d }));
+  }, [domainConfigs, goals]);
 
   const filtered = useMemo(() => {
     return goals.filter(g => {
@@ -777,6 +804,15 @@ function AdminGoalsTab({ goals }: { goals: AdminGoal[] }) {
 
   const groupOrder = groupBy === "status" ? ["Active", "Paused", "Complete"] : Object.keys(grouped).sort();
 
+  function toggleGroup(key: string) {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-5">
       {/* Filter bar */}
@@ -805,7 +841,7 @@ function AdminGoalsTab({ goals }: { goals: AdminGoal[] }) {
             className="text-sm border border-stone-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none"
           >
             <option value="All">All domains</option>
-            {allDomains.map(d => <option key={d} value={d}>{d}</option>)}
+            {allDomains.map(d => <option key={d.domain} value={d.domain}>{d.label}</option>)}
           </select>
         )}
         <select
@@ -834,58 +870,65 @@ function AdminGoalsTab({ goals }: { goals: AdminGoal[] }) {
       {groupOrder.map(gkey => {
         const items = grouped[gkey] ?? [];
         if (items.length === 0) return null;
+        const isExpanded = groupBy === "none" || expandedGroups.has(gkey);
         return (
           <div key={gkey || "all"}>
             {groupBy !== "none" && (
-              <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => toggleGroup(gkey)}
+                className="flex items-center gap-2 mb-2 w-full text-left hover:opacity-80 transition-opacity"
+              >
                 {groupBy === "status" && <span className={`w-2 h-2 rounded-full ${STATUS_DOT[gkey] ?? "bg-stone-300"}`} />}
-                <h3 className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
+                <h3 className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider flex-1">
                   {gkey} ({items.length})
                 </h3>
+                {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+              </button>
+            )}
+            {isExpanded && (
+              <div className="space-y-2">
+                {items.map(g => {
+                  const done  = g.pitstops.filter(p => p.status === "Done").length;
+                  const total = g.pitstops.length;
+                  const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+                  return (
+                    <Link key={g.id} href={`/goals/${g.id}`}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors group">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[g.status] ?? "bg-stone-300"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-800 group-hover:text-sky-700 truncate">{g.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {g.owner?.name && (
+                            <span className="text-[10px] text-stone-400">{g.owner.name}</span>
+                          )}
+                          {g.owner?.designation && (
+                            <span className={`text-[10px] px-1 rounded ${DESIGNATION_COLOR[g.owner.designation] ?? "bg-stone-100 text-stone-600"}`}>
+                              {g.owner.designation}
+                            </span>
+                          )}
+                          {g.needsDomain && (
+                            <span className="text-[10px] text-stone-300">{g.needsDomain}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {total > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-20 h-1 bg-stone-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-sky-400 rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[10px] text-stone-400 w-10 text-right">{done}/{total}</span>
+                          </div>
+                        )}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_BADGE[g.status] ?? "bg-stone-50 text-stone-500 border-stone-200"}`}>
+                          {g.status}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
-            <div className="space-y-2">
-              {items.map(g => {
-                const done  = g.pitstops.filter(p => p.status === "Done").length;
-                const total = g.pitstops.length;
-                const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
-                return (
-                  <Link key={g.id} href={`/goals/${g.id}`}
-                    className="flex items-center gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors group">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[g.status] ?? "bg-stone-300"}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-stone-800 group-hover:text-sky-700 truncate">{g.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {g.owner?.name && (
-                          <span className="text-[10px] text-stone-400">{g.owner.name}</span>
-                        )}
-                        {g.owner?.designation && (
-                          <span className={`text-[10px] px-1 rounded ${DESIGNATION_COLOR[g.owner.designation] ?? "bg-stone-100 text-stone-600"}`}>
-                            {g.owner.designation}
-                          </span>
-                        )}
-                        {g.needsDomain && (
-                          <span className="text-[10px] text-stone-300">{g.needsDomain}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      {total > 0 && (
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-20 h-1 bg-stone-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-sky-400 rounded-full" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-[10px] text-stone-400 w-10 text-right">{done}/{total}</span>
-                        </div>
-                      )}
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_BADGE[g.status] ?? "bg-stone-50 text-stone-500 border-stone-200"}`}>
-                        {g.status}
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
           </div>
         );
       })}
@@ -899,6 +942,7 @@ function AdminGoalsTab({ goals }: { goals: AdminGoal[] }) {
 
 function AdminGeoTab({ zones }: { zones: AdminZone[] }) {
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
+  const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
   const [cityFilter, setCityFilter] = useState<string>("All");
 
   const cities = useMemo(() => {
@@ -923,6 +967,15 @@ function AdminGeoTab({ zones }: { zones: AdminZone[] }) {
 
   function toggleZone(id: string) {
     setExpandedZones(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleCluster(id: string) {
+    setExpandedClusters(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -990,19 +1043,46 @@ function AdminGeoTab({ zones }: { zones: AdminZone[] }) {
                   </button>
 
                   {isOpen && z.clusters.length > 0 && (
-                    <div className="border-t border-stone-100 bg-stone-50 px-4 py-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {z.clusters.map(c => (
-                          <div key={c.id} className="flex items-center justify-between px-3 py-2 bg-white rounded-lg border border-stone-200">
-                            <span className="text-sm text-stone-700">{c.name}</span>
-                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                              c.activeGoals > 0 ? "bg-sky-50 text-sky-600" : "bg-stone-100 text-stone-400"
-                            }`}>
-                              {c.activeGoals} goals
-                            </span>
+                    <div className="border-t border-stone-100 bg-stone-50 px-4 py-3 space-y-2">
+                      {z.clusters.map(c => {
+                        const clusterOpen = expandedClusters.has(c.id);
+                        return (
+                          <div key={c.id} className="rounded-lg border border-stone-200 bg-white overflow-hidden">
+                            <button
+                              onClick={() => toggleCluster(c.id)}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-stone-50 transition-colors text-left"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm text-stone-700 font-medium">{c.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${
+                                  c.activeGoals > 0 ? "bg-sky-50 text-sky-600" : "bg-stone-100 text-stone-400"
+                                }`}>
+                                  {c.activeGoals} goals
+                                </span>
+                                {c.settlements.length > 0 && (
+                                  <span className="text-[10px] text-stone-400">{c.settlements.length} settlements</span>
+                                )}
+                                {c.settlements.length > 0 && (
+                                  clusterOpen ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                                )}
+                              </div>
+                            </button>
+                            {clusterOpen && c.settlements.length > 0 && (
+                              <div className="border-t border-stone-100 bg-stone-50 px-3 py-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                  {c.settlements.map(s => (
+                                    <span key={s.id} className="text-xs text-stone-600 px-2 py-1 bg-white rounded border border-stone-200 truncate">
+                                      {s.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1174,7 +1254,7 @@ function AdminTeamTab({ users }: { users: AdminUser[] }) {
 
 // ── Admin: Pipeline tab ───────────────────────────────────────────────────────
 
-function AdminPipelineTab({ dash, weekActivities }: { dash: AdminDash; weekActivities: Activity[] }) {
+function AdminPipelineTab({ dash }: { dash: AdminDash }) {
   const totalPitstops = dash.pitstopByStatus.reduce((s, p) => s + p.count, 0);
   const maxCount = Math.max(...dash.pitstopByStatus.map(p => p.count), 1);
 
@@ -1222,17 +1302,24 @@ function AdminPipelineTab({ dash, weekActivities }: { dash: AdminDash; weekActiv
         </div>
       </div>
 
-      {/* Pitstop status chart */}
+      {/* Goal status chart */}
       <div className="bg-white rounded-xl border border-stone-200 p-4">
-        <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wide mb-4">Pitstop Status Distribution</p>
+        <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wide mb-4">Goal Status</p>
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={dash.pitstopByStatus} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
-            <XAxis dataKey="status" tick={{ fontSize: 11, fill: "#78716c" }} axisLine={false} tickLine={false} />
+          <BarChart
+            data={[
+              { name: "Active",   count: dash.kpis.activeGoals,   fill: "#38bdf8" },
+              { name: "Paused",   count: dash.kpis.pausedGoals,   fill: "#fbbf24" },
+              { name: "Complete", count: dash.kpis.completeGoals, fill: "#34d399" },
+            ]}
+            margin={{ top: 0, right: 8, left: -20, bottom: 0 }}
+          >
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#78716c" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: "#78716c" }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e7e5e4" }} cursor={{ fill: "#f5f5f4" }} />
-            <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={48}>
-              {dash.pitstopByStatus.map((d, i) => (
-                <Cell key={i} fill={PITSTOP_STATUS_COLOR[d.status] ?? "#d1d5db"} />
+            <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={60}>
+              {[{ fill: "#38bdf8" }, { fill: "#fbbf24" }, { fill: "#34d399" }].map((d, i) => (
+                <Cell key={i} fill={d.fill} />
               ))}
             </Bar>
           </BarChart>
@@ -1243,7 +1330,7 @@ function AdminPipelineTab({ dash, weekActivities }: { dash: AdminDash; weekActiv
       <div>
         <div className="flex items-center gap-2 mb-3">
           <CalendarClock className="w-3.5 h-3.5 text-sky-400" />
-          <SectionTitle>Upcoming activities — next 14 days</SectionTitle>
+          <SectionTitle>Upcoming pitstop activities — next 14 days</SectionTitle>
         </div>
         {Object.keys(upcomingByDate).length === 0
           ? <EmptyState message="No activities scheduled in the next 14 days." />
@@ -1253,25 +1340,29 @@ function AdminPipelineTab({ dash, weekActivities }: { dash: AdminDash; weekActiv
                 <div key={dateLabel}>
                   <p className="text-xs font-semibold text-stone-500 mb-2">{dateLabel}</p>
                   <div className="space-y-1.5">
-                    {acts.map(a => (
-                      <Link key={a.id} href="/activities"
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-stone-800 truncate">{a.title}</p>
-                          {a.location && <p className="text-xs text-stone-400">{a.location}</p>}
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-[10px] text-stone-400">{fmtTime(a.scheduledAt)}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                            a.type === "Visit" ? "bg-violet-100 text-violet-600" :
-                            a.type === "Meeting" ? "bg-sky-100 text-sky-600" :
-                            a.type === "Training" ? "bg-emerald-100 text-emerald-600" :
-                            "bg-stone-100 text-stone-500"
-                          }`}>{a.type}</span>
-                        </div>
-                      </Link>
-                    ))}
+                    {acts.map(a => {
+                      const names = a.attendees?.map(att => att.user.name).filter(Boolean) ?? [];
+                      return (
+                        <Link key={a.id} href="/activities"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-stone-800 truncate">{a.title}</p>
+                            {a.location && <p className="text-xs text-stone-400">{a.location}</p>}
+                            {names.length > 0 && <p className="text-[10px] text-stone-400 truncate">{names.join(", ")}</p>}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-[10px] text-stone-400">{fmtTime(a.scheduledAt)}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                              a.type === "Visit" ? "bg-violet-100 text-violet-600" :
+                              a.type === "Meeting" ? "bg-sky-100 text-sky-600" :
+                              a.type === "Training" ? "bg-emerald-100 text-emerald-600" :
+                              "bg-stone-100 text-stone-500"
+                            }`}>{a.type}</span>
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -1345,6 +1436,12 @@ export default function HomeView({
     : OTHER_TABS;
   const defaultTab: TabKey = isAdmin ? "overview" : "today";
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
+  const [goalInitialStatus, setGoalInitialStatus] = useState<string>("All");
+
+  function onTabSwitch(tab: TabKey, goalStatus?: string) {
+    if (goalStatus !== undefined) setGoalInitialStatus(goalStatus);
+    setActiveTab(tab);
+  }
 
   const firstName = userName.split(" ")[0] || userName;
   const designationBadge = designation !== "Other"
@@ -1421,10 +1518,10 @@ export default function HomeView({
 
         {/* Admin tabs */}
         {activeTab === "overview" && adminDash && (
-          <AdminOverviewTab dash={adminDash} todayActivities={todayActivities} />
+          <AdminOverviewTab dash={adminDash} todayActivities={todayActivities} onTabSwitch={onTabSwitch} />
         )}
         {activeTab === "goals" && adminDash && (
-          <AdminGoalsTab goals={adminDash.goals} />
+          <AdminGoalsTab goals={adminDash.goals} domainConfigs={adminDash.domainConfigs} initialStatusFilter={goalInitialStatus} />
         )}
         {activeTab === "geography" && adminDash && (
           <AdminGeoTab zones={adminDash.zones} />
@@ -1433,7 +1530,7 @@ export default function HomeView({
           <AdminTeamTab users={adminDash.users} />
         )}
         {activeTab === "pipeline" && adminDash && (
-          <AdminPipelineTab dash={adminDash} weekActivities={weekActivities} />
+          <AdminPipelineTab dash={adminDash} />
         )}
       </div>
     </div>
