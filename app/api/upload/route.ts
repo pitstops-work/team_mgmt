@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file") as File | null;
   const pitstopId = formData.get("pitstopId") as string | null;
   const goalId = formData.get("goalId") as string | null;
+  const checklistItemId = formData.get("checklistItemId") as string | null;
 
   if (!file) return Response.json({ error: "No file provided" }, { status: 400 });
 
@@ -31,6 +32,33 @@ export async function POST(req: NextRequest) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("Blob upload failed:", msg);
     return Response.json({ error: `Upload failed: ${msg}` }, { status: 500 });
+  }
+
+  if (checklistItemId) {
+    // Raw SQL insert to avoid Lambda warm-cache issues with new checklistItemId column
+    const id = crypto.randomUUID().replace(/-/g, "");
+    await prisma.$executeRaw`
+      INSERT INTO "Attachment" (id, name, type, url, size, "mimeType", "checklistItemId", "createdAt")
+      VALUES (
+        ${id}, ${file.name}, 'File'::"AttachmentType", ${url},
+        ${file.size ?? null}::int, ${file.type || null},
+        ${checklistItemId}, NOW()
+      )
+    `;
+    // Mark the checklist item Done
+    await prisma.$executeRaw`
+      UPDATE "ChecklistItem"
+      SET
+        status        = 'Done'::"ChecklistItemStatus",
+        checked       = TRUE,
+        "completedAt" = NOW(),
+        "updatedAt"   = NOW()
+      WHERE id = ${checklistItemId}
+    `;
+    const attachment = await prisma.$queryRaw<{ id: string; name: string; url: string }[]>`
+      SELECT id, name, url FROM "Attachment" WHERE id = ${id} LIMIT 1
+    `;
+    return Response.json(attachment[0], { status: 201 });
   }
 
   const attachment = await prisma.attachment.create({

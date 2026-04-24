@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft, ChevronUp, ChevronDown, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar,
-  CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History, FileText, UserPlus,
+  CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History, FileText, UserPlus, Mic, Square, Loader2,
 } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
 import OwnerPicker from "@/components/OwnerPicker";
@@ -135,7 +135,7 @@ const STATUS_CFG: Record<ChecklistStatus, { label: string; cls: string }> = {
 
 function ChecklistItemRow({
   item, users, pitstopId, isFirst, isLast,
-  onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onMove,
+  onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onMove, onVoiceLogged, onAttachmentLogged,
 }: {
   item: ChecklistItem;
   users: User[];
@@ -149,6 +149,8 @@ function ChecklistItemRow({
   onDelete: (id: string) => void;
   onActivityCreated: (itemId: string, activity: ActivityRef) => void;
   onMove: (id: string, direction: "up" | "down") => void;
+  onVoiceLogged: (id: string, notes: string) => void;
+  onAttachmentLogged: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -159,6 +161,60 @@ function ChecklistItemRow({
   const [actDate, setActDate] = useState("");
   const [actTitle, setActTitle] = useState(item.text);
   const [savingActivity, setSavingActivity] = useState(false);
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
+  const [uploading, setUploading] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("checklistItemId", item.id);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (res.ok) onAttachmentLogged(item.id);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const startVoiceLog = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setVoiceState("processing");
+        try {
+          const blob = new Blob(chunksRef.current, { type: mimeType });
+          const fd = new FormData();
+          fd.append("audio", blob, `recording.${mimeType.includes("mp4") ? "mp4" : "webm"}`);
+          const res = await fetch(`/api/checklist/${item.id}/voice`, { method: "POST", body: fd });
+          if (res.ok) {
+            const updated = await res.json();
+            onVoiceLogged(item.id, updated.notes ?? "");
+          }
+        } finally {
+          setVoiceState("idle");
+        }
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setVoiceState("recording");
+    } catch {
+      setVoiceState("idle");
+    }
+  }, [item.id, onVoiceLogged]);
+
+  const stopVoiceLog = useCallback(() => {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+  }, []);
 
   const assignee = users.find((u) => u.id === item.assigneeId) ?? null;
   const cfg = STATUS_CFG[item.status as ChecklistStatus] ?? STATUS_CFG.NotStarted;
@@ -188,6 +244,23 @@ function ChecklistItemRow({
 
   return (
     <div className={`rounded-lg border group transition-colors ${isFaded ? "border-stone-100 bg-stone-50/50" : "border-stone-200 bg-white"}`}>
+      {voiceState === "recording" && (
+        <div className="flex items-center justify-between px-2.5 pt-2 pb-1">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-[10px] text-red-600 font-medium">Recording… tap stop when done</span>
+          </div>
+          <button onClick={stopVoiceLog} className="p-1 bg-red-500 hover:bg-red-600 text-white rounded transition-colors" title="Stop recording">
+            <Square className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+      {voiceState === "processing" && (
+        <div className="flex items-center gap-1.5 px-2.5 pt-2 pb-1">
+          <Loader2 className="w-3 h-3 text-stone-400 animate-spin" />
+          <span className="text-[10px] text-stone-500">Transcribing &amp; translating…</span>
+        </div>
+      )}
       <div className="flex items-start gap-2 p-2.5">
         <input
           type="checkbox"
@@ -283,6 +356,31 @@ function ChecklistItemRow({
               <Calendar className="w-2.5 h-2.5" />
               + Activity
             </button>
+
+            {/* Voice log — only when not done */}
+            {!isFaded && voiceState === "idle" && (
+              <button
+                onClick={startVoiceLog}
+                className="text-[9px] text-stone-400 hover:text-red-500 flex items-center gap-0.5 transition-colors"
+                title="Log a voice note to mark done"
+              >
+                <Mic className="w-2.5 h-2.5" />
+                Log
+              </button>
+            )}
+
+            {/* Attach to mark done — only when not done */}
+            {!isFaded && voiceState === "idle" && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="text-[9px] text-stone-400 hover:text-sky-500 flex items-center gap-0.5 transition-colors disabled:opacity-40"
+                title="Upload a file to mark done"
+              >
+                {uploading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Paperclip className="w-2.5 h-2.5" />}
+                Attach
+              </button>
+            )}
 
             {/* Notes indicator */}
             {item.notes && !expanded && (
@@ -408,6 +506,7 @@ function ChecklistItemRow({
           )}
         </div>
       )}
+      <input ref={fileInputRef} type="file" className="hidden" onChange={handleAttachFile} />
     </div>
   );
 }
@@ -579,6 +678,26 @@ export default function PitstopDetail({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ notes: notes || null }),
     });
+  };
+
+  const handleVoiceLogged = (itemId: string, notes: string) => {
+    const newItems = pitstop.checklistItems.map((i) =>
+      i.id === itemId ? { ...i, checked: true, status: "Done" as const, notes } : i
+    );
+    const allChecked = newItems.every((i) => i.checked);
+    const anyChecked = newItems.some((i) => i.checked);
+    const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
+    setPitstop((p) => ({ ...p, checklistItems: newItems, status: derived }));
+  };
+
+  const handleAttachmentLogged = (itemId: string) => {
+    const newItems = pitstop.checklistItems.map((i) =>
+      i.id === itemId ? { ...i, checked: true, status: "Done" as const } : i
+    );
+    const allChecked = newItems.every((i) => i.checked);
+    const anyChecked = newItems.some((i) => i.checked);
+    const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
+    setPitstop((p) => ({ ...p, checklistItems: newItems, status: derived }));
   };
 
   const handleActivityCreated = (itemId: string, activity: ActivityRef) => {
@@ -1236,6 +1355,8 @@ export default function PitstopDetail({
                     onDelete={handleDeleteCheckItem}
                     onActivityCreated={handleActivityCreated}
                     onMove={handleMoveItem}
+                    onVoiceLogged={handleVoiceLogged}
+                    onAttachmentLogged={handleAttachmentLogged}
                   />
                 ))
             )}

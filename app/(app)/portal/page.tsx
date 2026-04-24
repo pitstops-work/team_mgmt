@@ -1,0 +1,70 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { CalendarClock, Target } from "lucide-react";
+import Avatar from "@/components/Avatar";
+import SignOutButton from "@/components/SignOutButton";
+
+export default async function PortalPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  const firstName = session.user.name?.split(" ")[0] ?? "there";
+
+  return (
+    <div className="min-h-full bg-stone-50 flex flex-col items-center justify-center px-6 py-12">
+
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 mb-10">
+        <div className="w-9 h-9 rounded-xl bg-sky-500 flex items-center justify-center shadow-sm">
+          <Target className="w-5 h-5 text-white" />
+        </div>
+        <span className="text-xl font-semibold text-stone-900 tracking-tight">Pitstop</span>
+      </div>
+
+      {/* Greeting */}
+      <p className="text-stone-500 text-sm mb-8">Good day, {firstName}. What are you here for?</p>
+
+      {/* Two cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
+
+        {/* Operations */}
+        <Link
+          href="/home"
+          className="group flex flex-col gap-3 p-6 bg-sky-500 hover:bg-sky-600 rounded-2xl shadow-sm transition-all hover:shadow-md"
+        >
+          <div className="w-10 h-10 rounded-xl bg-sky-400/50 flex items-center justify-center">
+            <CalendarClock className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <p className="text-white font-semibold text-base">Operations</p>
+            <p className="text-sky-100 text-xs mt-0.5 leading-relaxed">Rounds · Activities · Checklists · Threads</p>
+          </div>
+        </Link>
+
+        {/* Setup */}
+        <Link
+          href="/dashboard"
+          className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md"
+        >
+          <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
+            <Target className="w-5 h-5 text-stone-500" />
+          </div>
+          <div>
+            <p className="text-stone-800 font-semibold text-base">Setup</p>
+            <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Goals · Maps · Planning · Review</p>
+          </div>
+        </Link>
+
+      </div>
+
+      {/* User + sign out */}
+      <div className="mt-12 flex items-center gap-3">
+        <Avatar name={session.user.name} image={session.user.image} size="sm" />
+        <span className="text-sm text-stone-500">{session.user.name ?? session.user.email}</span>
+        <SignOutButton />
+      </div>
+
+    </div>
+  );
+}
