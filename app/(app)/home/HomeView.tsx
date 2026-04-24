@@ -24,7 +24,7 @@ type Activity = {
 type ChecklistItem = {
   id: string; text: string; status: string; checked: boolean;
   pitstop: {
-    id: string; title: string; targetDate: string | null; ownerId: string;
+    id: string; title: string; targetDate: string | null; status: string; ownerId: string;
     owner: { id: string; name: string | null };
     goal: { id: string; title: string };
   };
@@ -1521,6 +1521,10 @@ function RPChecklistRow({
 
 // ── RP Action tab (replaces TodayTab for RP) ───────────────────────────────────
 
+const PITSTOP_STATUS_PRIORITY: Record<string, number> = {
+  InProgress: 0, Upcoming: 1, Blocked: 2,
+};
+
 function RPActionTab({
   overdueActivities,
   todayActivities,
@@ -1535,10 +1539,12 @@ function RPActionTab({
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
 
   const now = new Date();
+  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
 
-  // Events that are past their scheduled time and still "Scheduled"
+  // Events past their scheduled time and still "Scheduled"
   const pastDueToday = todayActivities.filter(
     a => new Date(a.scheduledAt) < now && a.status === "Scheduled" && !doneIds.has(a.id)
   );
@@ -1552,19 +1558,50 @@ function RPActionTab({
     a => new Date(a.scheduledAt) >= now && a.status === "Scheduled"
   );
 
-  // This week (not today)
-  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  // Later this week
   const laterThisWeek = weekActivities.filter(
     a => new Date(a.scheduledAt) > todayEnd && a.status === "Scheduled"
   );
 
-  // Open checklist items (not already completed inline)
-  const STATUS_PRIORITY: Record<string, number> = {
-    InProgress: 0, Scheduled: 1, NotStarted: 2, Blocked: 3, Rescheduled: 4,
-  };
-  const openItems = weekChecklists
-    .filter(ci => !completedItemIds.has(ci.id))
-    .sort((a, b) => (STATUS_PRIORITY[a.status] ?? 9) - (STATUS_PRIORITY[b.status] ?? 9));
+  // Group open checklist items by pitstop, sorted InProgress first
+  const openByPitstop = useMemo(() => {
+    const map: Record<string, { pitstop: ChecklistItem["pitstop"]; items: ChecklistItem[] }> = {};
+    for (const ci of weekChecklists) {
+      if (completedItemIds.has(ci.id)) continue;
+      const pid = ci.pitstop.id;
+      if (!map[pid]) map[pid] = { pitstop: ci.pitstop, items: [] };
+      map[pid].items.push(ci);
+    }
+    return Object.values(map).sort((a, b) =>
+      (PITSTOP_STATUS_PRIORITY[a.pitstop.status] ?? 9) - (PITSTOP_STATUS_PRIORITY[b.pitstop.status] ?? 9)
+    );
+  }, [weekChecklists, completedItemIds]);
+  function toggle(id: string) {
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function isOpen(id: string) {
+    // InProgress pitstops start open; others start closed
+    const isInProgress = openByPitstop.find(g => g.pitstop.id === id)?.pitstop.status === "InProgress";
+    return isInProgress ? !collapsedIds.has(id) : collapsedIds.has(id + "__open");
+  }
+  function toggleSimple(id: string) {
+    const isInProgress = openByPitstop.find(g => g.pitstop.id === id)?.pitstop.status === "InProgress";
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (isInProgress) {
+        if (next.has(id)) next.delete(id); else next.add(id);
+      } else {
+        if (next.has(id + "__open")) next.delete(id + "__open"); else next.add(id + "__open");
+      }
+      return next;
+    });
+  }
+
+  const totalOpenItems = weekChecklists.filter(ci => !completedItemIds.has(ci.id)).length;
 
   async function handleDone(eventId: string) {
     setLoadingDoneId(eventId);
@@ -1580,10 +1617,14 @@ function RPActionTab({
     }
   }
 
+  const PITSTOP_STATUS_DOT: Record<string, string> = {
+    InProgress: "bg-amber-400", Upcoming: "bg-sky-300", Blocked: "bg-red-400",
+  };
+
   return (
     <div className="space-y-8">
 
-      {/* 1. Needs action */}
+      {/* 1. Needs action — overdue activities */}
       {needsAction.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
@@ -1622,33 +1663,74 @@ function RPActionTab({
         </div>
       )}
 
-      {/* 2. Open checklist items */}
+      {/* 2. Open checklist items — grouped by pitstop */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <SectionTitle>
-            Open items{openItems.length > 0 ? ` (${openItems.length})` : ""}
-          </SectionTitle>
+          <SectionTitle>Open items ({totalOpenItems})</SectionTitle>
         </div>
-        {openItems.length === 0
+        {openByPitstop.length === 0
           ? <EmptyState message="All checklist items are done." />
           : (
-            <div className="space-y-2">
-              {openItems.slice(0, 20).map(ci => (
-                <RPChecklistRow
-                  key={ci.id}
-                  item={ci}
-                  onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
-                />
-              ))}
-              {openItems.length > 20 && (
-                <p className="text-xs text-stone-400 px-1">+{openItems.length - 20} more items</p>
-              )}
+            <div className="space-y-3">
+              {openByPitstop.map(({ pitstop, items }) => {
+                const expanded = isOpen(pitstop.id);
+                return (
+                  <div key={pitstop.id} className="rounded-xl border border-stone-200 overflow-hidden">
+                    {/* Pitstop header */}
+                    <button
+                      onClick={() => toggleSimple(pitstop.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-stone-50 hover:bg-stone-100 transition-colors text-left"
+                    >
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${PITSTOP_STATUS_DOT[pitstop.status] ?? "bg-stone-300"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-700 truncate">{pitstop.title}</p>
+                        <p className="text-xs text-stone-400 truncate">{pitstop.goal.title}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          pitstop.status === "InProgress" ? "bg-amber-100 text-amber-700" :
+                          pitstop.status === "Upcoming"   ? "bg-sky-50 text-sky-600" :
+                          "bg-stone-100 text-stone-500"
+                        }`}>
+                          {pitstop.status}
+                        </span>
+                        <span className="text-[10px] text-stone-400">{items.length} items</span>
+                        {expanded
+                          ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" />
+                          : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                        }
+                      </div>
+                    </button>
+
+                    {/* Items */}
+                    {expanded && (
+                      <div className="divide-y divide-stone-100">
+                        {items.slice(0, 8).map(ci => (
+                          <RPChecklistRow
+                            key={ci.id}
+                            item={ci}
+                            onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
+                          />
+                        ))}
+                        {items.length > 8 && (
+                          <Link
+                            href={`/goals/${pitstop.goal.id}/pitstops/${pitstop.id}`}
+                            className="flex items-center gap-2 px-4 py-2.5 text-xs text-sky-600 hover:text-sky-800 hover:bg-sky-50 transition-colors"
+                          >
+                            +{items.length - 8} more items — open pitstop →
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )
         }
       </div>
 
-      {/* 3. Today's upcoming */}
+      {/* 3. Today's upcoming activities */}
       {todayUpcoming.length > 0 && (
         <div>
           <SectionTitle>Today — coming up</SectionTitle>
@@ -1663,7 +1745,7 @@ function RPActionTab({
         <div>
           <SectionTitle>Later this week</SectionTitle>
           <div className="space-y-2">
-            {laterThisWeek.slice(0, 7).map(a => (
+            {laterThisWeek.slice(0, 5).map(a => (
               <Link key={a.id} href="/activities"
                 className="flex items-start gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
@@ -1675,16 +1757,16 @@ function RPActionTab({
                 </div>
               </Link>
             ))}
-            {laterThisWeek.length > 7 && (
+            {laterThisWeek.length > 5 && (
               <Link href="/activities" className="text-xs text-sky-500 hover:text-sky-700 px-1 block">
-                +{laterThisWeek.length - 7} more this week →
+                +{laterThisWeek.length - 5} more this week →
               </Link>
             )}
           </div>
         </div>
       )}
 
-      {needsAction.length === 0 && openItems.length === 0 && todayUpcoming.length === 0 && laterThisWeek.length === 0 && (
+      {needsAction.length === 0 && totalOpenItems === 0 && todayUpcoming.length === 0 && laterThisWeek.length === 0 && (
         <EmptyState message="Nothing pending. Go to Activities to schedule more." />
       )}
 

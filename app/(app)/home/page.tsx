@@ -208,7 +208,7 @@ export default async function HomePage() {
         id: true, text: true, status: true, checked: true,
         pitstop: {
           select: {
-            id: true, title: true, targetDate: true,
+            id: true, title: true, targetDate: true, status: true,
             ownerId: true,
             owner: { select: { id: true, name: true } },
             goal: { select: { id: true, title: true } },
@@ -216,7 +216,7 @@ export default async function HomePage() {
         },
       },
       orderBy: { order: "asc" },
-      take: 50,
+      take: 200,
     }),
 
     prisma.goal.findMany({
