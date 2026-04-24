@@ -1099,10 +1099,23 @@ export default function PitstopDetail({
             ) : (
               <div className="space-y-1">
                 {pitstop.attachments.map((att) => (
-                  <a key={att.id} href={`/api/attachment/${att.id}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 truncate">
-                    <Paperclip className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{att.name}</span>
-                  </a>
+                  <div key={att.id} className="group flex items-center gap-1.5">
+                    <a href={`/api/attachment/${att.id}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 truncate flex-1 min-w-0">
+                      <Paperclip className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{att.name}</span>
+                    </a>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Delete "${att.name}"?`)) return;
+                        await fetch(`/api/attachments/${att.id}`, { method: "DELETE" });
+                        setPitstop(p => ({ ...p, attachments: p.attachments.filter(a => a.id !== att.id) }));
+                      }}
+                      className="opacity-0 group-hover:opacity-100 flex-shrink-0 text-stone-300 hover:text-red-500 transition-all"
+                      title="Delete"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

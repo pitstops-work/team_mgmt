@@ -502,16 +502,28 @@ export default function GoalDetail({
           ) : (
             <div className="flex flex-wrap gap-2">
               {goal.attachments.map((att) => (
-                <a
-                  key={att.id}
-                  href={`/api/attachment/${att.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-stone-50 border border-stone-200 rounded-md text-xs text-stone-700 hover:text-sky-600 hover:border-sky-200 transition-colors"
-                >
-                  <Paperclip className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate max-w-[160px]">{att.name}</span>
-                </a>
+                <div key={att.id} className="group flex items-center gap-1 px-2.5 py-1 bg-stone-50 border border-stone-200 rounded-md hover:border-sky-200 transition-colors">
+                  <a
+                    href={`/api/attachment/${att.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-stone-700 hover:text-sky-600"
+                  >
+                    <Paperclip className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate max-w-[140px]">{att.name}</span>
+                  </a>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Delete "${att.name}"?`)) return;
+                      await fetch(`/api/attachments/${att.id}`, { method: "DELETE" });
+                      updateGoal(g => ({ ...g, attachments: g.attachments.filter(a => a.id !== att.id) }));
+                    }}
+                    className="ml-1 opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-500 transition-all"
+                    title="Delete"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               ))}
             </div>
           )}
