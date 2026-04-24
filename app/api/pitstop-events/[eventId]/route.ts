@@ -42,13 +42,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
     if (status === "Done") {
       await prisma.$executeRaw`
         UPDATE "PitstopEvent"
-        SET status = 'Done'::"PitstopEventStatus", "updatedAt" = NOW()
+        SET status = 'Done'::"PitstopEventStatus", "completedAt" = NOW(), "updatedAt" = NOW()
         WHERE id = ${eventId}
       `;
       if (current[0].checklistItemId) {
         await prisma.$executeRaw`
           UPDATE "ChecklistItem"
-          SET status = 'Done'::"ChecklistItemStatus", checked = TRUE, "updatedAt" = NOW()
+          SET status = 'Done'::"ChecklistItemStatus", checked = TRUE, "completedAt" = NOW(), "updatedAt" = NOW()
           WHERE id = ${current[0].checklistItemId}
         `;
       }

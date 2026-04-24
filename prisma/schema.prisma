@@ -244,6 +244,7 @@ model ChecklistItem {
   assigneeId  String?
   notes       String?
   order       Int                 @default(0)
+  completedAt DateTime?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
@@ -990,6 +991,7 @@ model PitstopEvent {
   rescheduledFrom    DateTime?
   rescheduleReason   String?
   cancellationReason String?
+  completedAt        DateTime?
   deletedAt          DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt

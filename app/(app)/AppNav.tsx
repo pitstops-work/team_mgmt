@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarClock, MoreHorizontal, X, Layers, BookOpen, ClipboardList, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck, FileText } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarClock, MoreHorizontal, X, Layers, BookOpen, ClipboardList, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck, FileText, Timer } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -115,6 +115,12 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
             <NavLink href="/report" active={pathname === "/report"}>
               <FileText className="w-3.5 h-3.5 text-stone-500" />
               Report
+            </NavLink>
+          )}
+          {isAdmin && (
+            <NavLink href="/sla" active={pathname === "/sla"}>
+              <Timer className="w-3.5 h-3.5 text-stone-500" />
+              SLA
             </NavLink>
           )}
           <NavLink href="/standup" active={pathname === "/standup"}>
@@ -276,11 +282,12 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
 
               {/* People & work */}
               {([
-                { href: "/people",  icon: <Users className="w-5 h-5" />,       label: "People",             show: !isRP },
-                { href: "/review",  icon: <ClipboardCheck className="w-5 h-5" />, label: "Review",          show: !isRP && !isZL },
-                { href: "/report",  icon: <FileText className="w-5 h-5" />,    label: "Report",              show: !isRP && !isZL },
-                { href: "/standup", icon: <ClipboardList className="w-5 h-5" />, label: "Field Notes",      show: true },
-                { href: "/themes",  icon: <Tag className="w-5 h-5" />,         label: "Themes",              show: !isRP && !isZL },
+                { href: "/people",  icon: <Users className="w-5 h-5" />,           label: "People",       show: !isRP },
+                { href: "/review",  icon: <ClipboardCheck className="w-5 h-5" />, label: "Review",      show: !isRP && !isZL },
+                { href: "/report",  icon: <FileText className="w-5 h-5" />,        label: "Report",       show: !isRP && !isZL },
+                { href: "/sla",     icon: <Timer className="w-5 h-5" />,           label: "SLA",          show: isAdmin },
+                { href: "/standup", icon: <ClipboardList className="w-5 h-5" />,   label: "Field Notes",  show: true },
+                { href: "/themes",  icon: <Tag className="w-5 h-5" />,             label: "Themes",       show: !isRP && !isZL },
               ] as { href: string; icon: React.ReactNode; label: string; show: boolean }[])
                 .filter(i => i.show)
                 .map(item => (

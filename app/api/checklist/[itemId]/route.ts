@@ -28,12 +28,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
   const item = await prisma.$executeRaw`
     UPDATE "ChecklistItem"
     SET
-      "checked"    = COALESCE(${resolvedChecked ?? null}::boolean, "checked"),
-      "text"       = COALESCE(${text?.trim() ?? null}::text, "text"),
-      "status"     = COALESCE(${resolvedStatus ?? null}::"ChecklistItemStatus", "status"),
-      "assigneeId" = CASE WHEN ${assigneeId !== undefined}::boolean THEN ${assigneeId ?? null}::text ELSE "assigneeId" END,
-      "notes"      = CASE WHEN ${notes !== undefined}::boolean THEN ${notes ?? null}::text ELSE "notes" END,
-      "updatedAt"  = NOW()
+      "checked"     = COALESCE(${resolvedChecked ?? null}::boolean, "checked"),
+      "text"        = COALESCE(${text?.trim() ?? null}::text, "text"),
+      "status"      = COALESCE(${resolvedStatus ?? null}::"ChecklistItemStatus", "status"),
+      "completedAt" = CASE
+        WHEN ${resolvedStatus === "Done"}::boolean THEN NOW()
+        WHEN ${resolvedStatus !== undefined && resolvedStatus !== "Done"}::boolean THEN NULL
+        ELSE "completedAt"
+      END,
+      "assigneeId"  = CASE WHEN ${assigneeId !== undefined}::boolean THEN ${assigneeId ?? null}::text ELSE "assigneeId" END,
+      "notes"       = CASE WHEN ${notes !== undefined}::boolean THEN ${notes ?? null}::text ELSE "notes" END,
+      "updatedAt"   = NOW()
     WHERE id = ${itemId}
   `;
 
