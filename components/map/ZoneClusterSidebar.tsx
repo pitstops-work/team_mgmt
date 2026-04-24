@@ -43,6 +43,7 @@ interface Props {
   currentUserId?: string;
   currentUserDesignation?: string;
   currentUserRole?: string;
+  allUsers?: { id: string; name: string | null; image: string | null; designation?: string }[];
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -59,7 +60,7 @@ function fmtDate(iso: string) {
 
 export default function ZoneClusterSidebar({
   type, name, parentZone, dbId, geoData, clusterIndex, zoneIndex, onClose,
-  currentUserId, currentUserDesignation, currentUserRole,
+  currentUserId, currentUserDesignation, currentUserRole, allUsers = [],
 }: Props) {
   const [goals, setGoals] = useState<GoalWithPitstops[]>([]);
   const [loading, setLoading] = useState(false);
@@ -360,6 +361,7 @@ export default function ZoneClusterSidebar({
         currentUserId={currentUserId}
         currentUserDesignation={currentUserDesignation}
         currentUserRole={currentUserRole}
+        allUsers={allUsers}
       />
     )}
     </>

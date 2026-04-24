@@ -430,31 +430,37 @@ export default function TemplatePickerModal({
           {step === "geo" && (
             <div className="p-6 space-y-4">
 
-              {/* Owner picker — shown here so it's visible before configure */}
-              {canPickOwner && allUsers.length > 0 && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <label className="block text-xs font-semibold text-amber-800 mb-1.5">Creating for</label>
-                  <select
-                    value={selectedOwnerId}
-                    onChange={e => setSelectedOwnerId(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
-                  >
-                    <option value={currentUserId ?? ""}>Myself</option>
-                    {allUsers
-                      .filter(u => u.id !== currentUserId)
-                      .map(u => (
-                        <option key={u.id} value={u.id}>
-                          {u.name ?? u.id}{u.designation && u.designation !== "Other" ? ` (${u.designation})` : ""}
-                        </option>
-                      ))}
-                  </select>
-                  {selectedOwnerId && selectedOwnerId !== currentUserId && (
-                    <p className="text-[11px] text-amber-700 mt-1.5">
-                      Goal and pitstop ownership will be assigned to this person.
-                    </p>
-                  )}
-                </div>
-              )}
+              {/* Owner picker — always shown so every user knows who owns the goal */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <label className="block text-xs font-semibold text-amber-800 mb-1.5">Creating for</label>
+                {canPickOwner && allUsers.length > 0 ? (
+                  <>
+                    <select
+                      value={selectedOwnerId}
+                      onChange={e => setSelectedOwnerId(e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                    >
+                      <option value={currentUserId ?? ""}>Myself</option>
+                      {allUsers
+                        .filter(u => u.id !== currentUserId)
+                        .map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.name ?? u.id}{u.designation && u.designation !== "Other" ? ` (${u.designation})` : ""}
+                          </option>
+                        ))}
+                    </select>
+                    {selectedOwnerId && selectedOwnerId !== currentUserId && (
+                      <p className="text-[11px] text-amber-700 mt-1.5">
+                        Goal and pitstop ownership will be assigned to this person.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-amber-800 font-medium">
+                    {allUsers.find(u => u.id === currentUserId)?.name ?? "Myself"}
+                  </p>
+                )}
+              </div>
 
               <p className="text-xs text-stone-400">
                 {geoMinLevel === "cluster"

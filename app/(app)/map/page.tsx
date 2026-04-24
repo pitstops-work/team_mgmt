@@ -22,6 +22,10 @@ export default async function MapPage() {
     designation = rows[0]?.designation ?? "Other";
   }
 
+  const allUsers = userId
+    ? await prisma.user.findMany({ select: { id: true, name: true, image: true, designation: true }, orderBy: { name: "asc" } })
+    : [];
+
   return (
     <div className="absolute inset-0">
       <Suspense>
@@ -29,6 +33,7 @@ export default async function MapPage() {
           currentUserId={userId ?? undefined}
           currentUserDesignation={designation}
           currentUserRole={me?.role ?? session?.user?.role ?? "member"}
+          allUsers={JSON.parse(JSON.stringify(allUsers))}
         />
       </Suspense>
     </div>

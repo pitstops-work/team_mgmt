@@ -46,7 +46,8 @@ const CITY_CENTERS: Record<MapCity, { latlng: [number, number]; zoom: number }> 
   chennai:   { latlng: [13.0827, 80.2707], zoom: 12 },
 };
 
-export default function MapDashboard({ currentUserId, currentUserDesignation, currentUserRole }: { currentUserId?: string; currentUserDesignation?: string; currentUserRole?: string }) {
+type UserOption = { id: string; name: string | null; image: string | null; designation?: string };
+export default function MapDashboard({ currentUserId, currentUserDesignation, currentUserRole, allUsers = [] }: { currentUserId?: string; currentUserDesignation?: string; currentUserRole?: string; allUsers?: UserOption[] }) {
   const [activeCity, setActiveCity] = useState<MapCity>("bangalore");
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(
     new Set(LAYERS.filter(l => l.city === "bangalore" && l.key !== "schools").map((l) => l.key))
@@ -431,6 +432,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           currentUserId={currentUserId}
           currentUserDesignation={currentUserDesignation}
           currentUserRole={currentUserRole}
+          allUsers={allUsers}
         />
 
         {/* Centre detail sidebar (children centre / youth centre / creche) */}
@@ -458,6 +460,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           currentUserId={currentUserId}
           currentUserDesignation={currentUserDesignation}
           currentUserRole={currentUserRole}
+          allUsers={allUsers}
         />
 
         {/* Stats panel */}
