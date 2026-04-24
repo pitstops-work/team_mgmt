@@ -1,21 +1,64 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { isAdminUser } from "@/lib/roleGuard";
 import ThreadsList from "./ThreadsList";
 
 export default async function ThreadsPage() {
   const session = await auth();
   const userId = session!.user!.id!;
+  const userRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
+  const isAdmin = isAdminUser(session);
 
-  const [threads, goals, users, pitstops, events] = await Promise.all([
-    prisma.thread.findMany({
-      where: {
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { designation: true, reportsToId: true },
+  });
+  const designation = me?.designation ?? "Other";
+
+  // Scope thread visibility by role/designation
+  let teamIds: string[] = [userId];
+  if (designation === "ZL" || designation === "PM") {
+    const reports = await prisma.user.findMany({
+      where: { reportsToId: userId },
+      select: { id: true },
+    });
+    teamIds = [userId, ...reports.map(r => r.id)];
+  }
+
+  // Build thread visibility filter
+  const threadWhere = isAdmin
+    ? { deletedAt: null }
+    : designation === "RP"
+    ? {
         deletedAt: null,
+        OR: [
+          { pitstop: { deletedAt: null, ownerId: userId } },
+          { goal: { deletedAt: null, ownerId: userId } },
+          { eventId: { not: null } },
+        ],
+      }
+    : designation === "ZL" || designation === "PM"
+    ? {
+        deletedAt: null,
+        OR: [
+          { pitstop: { deletedAt: null, ownerId: { in: teamIds } } },
+          { goal: { deletedAt: null, ownerId: { in: teamIds } } },
+          { eventId: { not: null } },
+        ],
+      }
+    : { deletedAt: null };
+
+  const [threads, goals, users] = await Promise.all([
+    prisma.thread.findMany({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where: {
+        ...threadWhere,
         OR: [
           { pitstop: { deletedAt: null, goal: { deletedAt: null } } },
           { goalId: { not: null } },
           { eventId: { not: null } },
         ],
-      },
+      } as any,
       select: {
         id: true,
         name: true,
@@ -23,6 +66,7 @@ export default async function ThreadsPage() {
         pitstopId: true,
         goalId: true,
         eventId: true,
+        checklistItemId: true,
         pitstop: {
           select: {
             id: true, title: true,
@@ -39,6 +83,9 @@ export default async function ThreadsPage() {
         event: {
           select: { id: true, title: true, scheduledAt: true },
         },
+        checklistItem: {
+          select: { id: true, text: true },
+        },
         _count: { select: { messages: { where: { deletedAt: null } } } },
         messages: {
           where: { deletedAt: null },
@@ -49,11 +96,47 @@ export default async function ThreadsPage() {
       },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.goal.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
+    // Goals scoped by role
+    isAdmin
+      ? prisma.goal.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } })
+      : prisma.goal.findMany({
+          where: { deletedAt: null, ownerId: { in: teamIds } },
+          select: { id: true, title: true },
+          orderBy: { title: "asc" },
+        }),
     prisma.user.findMany({ select: { id: true, name: true, image: true } }),
-    prisma.pitstop.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
-    prisma.pitstopEvent.findMany({ select: { id: true, title: true }, orderBy: { title: "asc" } }),
   ]);
+
+  // Fetch all pitstops for goals user can access (for thread creation wizard)
+  const goalIds = goals.map(g => g.id);
+  const pitstops = await prisma.pitstop.findMany({
+    where: { deletedAt: null, goalId: { in: goalIds } },
+    select: { id: true, title: true, goalId: true },
+    orderBy: { order: "asc" },
+  });
+
+  // Fetch all checklist items for those pitstops
+  const pitstopIds = pitstops.map(p => p.id);
+  const checklistItemsRaw = await prisma.$queryRaw<{
+    id: string; text: string; pitstopId: string; status: string;
+  }[]>`
+    SELECT id, text, "pitstopId", status::text
+    FROM "ChecklistItem"
+    WHERE "pitstopId" = ANY(${pitstopIds})
+    ORDER BY "order" ASC
+  `;
+
+  // Fetch events for those pitstops
+  const events = pitstopIds.length > 0
+    ? await prisma.$queryRaw<{ id: string; title: string; pitstopId: string }[]>`
+        SELECT DISTINCT pe.id, pe.title, pep."pitstopId"
+        FROM "PitstopEvent" pe
+        JOIN "PitstopEventPitstop" pep ON pep."eventId" = pe.id
+        WHERE pep."pitstopId" = ANY(${pitstopIds})
+          AND pe."deletedAt" IS NULL
+        ORDER BY pe.title
+      `
+    : [];
 
   const langRows = await prisma.$queryRaw<{ preferredLang: string }[]>`
     SELECT "preferredLang" FROM "User" WHERE id = ${userId} LIMIT 1
@@ -65,10 +148,12 @@ export default async function ThreadsPage() {
       threads={JSON.parse(JSON.stringify(threads))}
       goals={JSON.parse(JSON.stringify(goals))}
       pitstops={JSON.parse(JSON.stringify(pitstops))}
+      checklistItems={JSON.parse(JSON.stringify(checklistItemsRaw))}
       events={JSON.parse(JSON.stringify(events))}
       users={JSON.parse(JSON.stringify(users))}
       currentUserId={userId}
       currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
+      currentUserRole={userRole}
       preferredLang={preferredLang}
     />
   );

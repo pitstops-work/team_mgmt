@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { MessageSquare, X, ArrowUpRight } from "lucide-react";
+import { MessageSquare, X, ArrowUpRight, Plus, ChevronRight, Target, CheckSquare, CalendarClock } from "lucide-react";
 import Avatar from "@/components/Avatar";
-import MultiSelect from "@/components/MultiSelect";
 import MessageBubble from "@/app/(app)/goals/[goalId]/pitstops/[pitstopId]/MessageBubble";
 import MessageComposer from "@/app/(app)/goals/[goalId]/pitstops/[pitstopId]/MessageComposer";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 type User = { id: string; name: string | null; image: string | null };
 type Goal = { id: string; title: string };
-type Pitstop = { id: string; title: string };
-type Event = { id: string; title: string };
+type Pitstop = { id: string; title: string; goalId: string };
+type ChecklistItemOption = { id: string; text: string; pitstopId: string; status: string };
+type EventOption = { id: string; title: string; pitstopId: string };
 type Thread = {
   id: string;
   name: string;
@@ -19,9 +20,11 @@ type Thread = {
   pitstopId: string | null;
   goalId: string | null;
   eventId: string | null;
+  checklistItemId: string | null;
   pitstop: { id: string; title: string; goal: Goal; owner: User | null } | null;
   goal: { id: string; title: string; owner: User | null } | null;
   event: { id: string; title: string; scheduledAt: string } | null;
+  checklistItem: { id: string; text: string } | null;
   _count: { messages: number };
   messages: { body: string; createdAt: string; author: { name: string | null } }[];
 };
@@ -39,42 +42,17 @@ type Message = {
   translating?: boolean;
 };
 
-type Level = "all" | "goal" | "pitstop" | "activity";
-
-const LEVEL_BADGE: Record<string, { label: string; cls: string }> = {
-  goal:     { label: "Goal",     cls: "bg-violet-50 text-violet-600 border-violet-200" },
-  pitstop:  { label: "Pitstop",  cls: "bg-sky-50 text-sky-600 border-sky-200" },
-  activity: { label: "Activity", cls: "bg-amber-50 text-amber-600 border-amber-200" },
-};
-
-function getLevel(t: Thread): "goal" | "pitstop" | "activity" {
-  if (t.goalId) return "goal";
-  if (t.eventId) return "activity";
-  return "pitstop";
-}
-
-function getPitstopHref(t: Thread): string | null {
-  if (t.pitstop) return `/goals/${t.pitstop.goal.id}/pitstops/${t.pitstop.id}?thread=${t.id}`;
-  if (t.goal) return `/goals/${t.goal.id}`;
-  return null;
-}
-
-function getBreadcrumb(t: Thread): string {
-  if (t.goal) return t.goal.title;
-  if (t.pitstop) return `${t.pitstop.goal.title} › ${t.pitstop.title}`;
-  if (t.event) return t.event.title;
-  return "";
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return `${h}h`;
   const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
+  if (d < 7) return `${d}d`;
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
@@ -82,38 +60,239 @@ function formatBody(body: string): string {
   return body.replace(/@\[([^\]]+)\]\([^)]+\)/g, "@$1");
 }
 
+function getBreadcrumb(t: Thread): string {
+  const parts: string[] = [];
+  if (t.goal) parts.push(t.goal.title);
+  else if (t.pitstop) { parts.push(t.pitstop.goal.title); parts.push(t.pitstop.title); }
+  if (t.checklistItem) parts.push(t.checklistItem.text);
+  if (t.event) parts.push(t.event.title);
+  return parts.join(" › ");
+}
+
+function getOpenHref(t: Thread): string | null {
+  if (t.pitstop) return `/goals/${t.pitstop.goal.id}/pitstops/${t.pitstop.id}?thread=${t.id}`;
+  if (t.goal) return `/goals/${t.goal.id}`;
+  return null;
+}
+
+const TAG_CFG: Record<string, { label: string; cls: string }> = {
+  goal:     { label: "Goal",      cls: "bg-violet-50 text-violet-600 border-violet-200" },
+  pitstop:  { label: "Pitstop",   cls: "bg-sky-50 text-sky-600 border-sky-200" },
+  checklist: { label: "Checklist", cls: "bg-teal-50 text-teal-600 border-teal-200" },
+  activity: { label: "Activity",  cls: "bg-amber-50 text-amber-600 border-amber-200" },
+};
+
+function getThreadTags(t: Thread): string[] {
+  const tags: string[] = [];
+  if (t.goalId) tags.push("goal");
+  if (t.pitstopId) tags.push("pitstop");
+  if (t.checklistItemId) tags.push("checklist");
+  if (t.eventId) tags.push("activity");
+  return tags;
+}
+
+// ── New Thread Wizard ─────────────────────────────────────────────────────────
+
+function NewThreadWizard({
+  goals, pitstops, checklistItems, events,
+  onClose, onCreated,
+}: {
+  goals: Goal[];
+  pitstops: Pitstop[];
+  checklistItems: ChecklistItemOption[];
+  events: EventOption[];
+  onClose: () => void;
+  onCreated: (thread: Thread) => void;
+}) {
+  const [goalId, setGoalId] = useState("");
+  const [pitstopId, setPitstopId] = useState("");
+  const [checklistItemId, setChecklistItemId] = useState("");
+  const [eventId, setEventId] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const goalPitstops = pitstops.filter(p => p.goalId === goalId);
+  const pitstopChecklist = checklistItems.filter(ci => ci.pitstopId === pitstopId);
+  const pitstopEvents = events.filter(e => e.pitstopId === pitstopId);
+
+  const isValid = !!goalId && !!name.trim();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValid) return;
+    setLoading(true);
+    setError("");
+    try {
+      let endpoint = "";
+      let body: Record<string, string> = { name: name.trim() };
+
+      if (pitstopId) {
+        endpoint = `/api/pitstops/${pitstopId}/threads`;
+        if (checklistItemId) body.checklistItemId = checklistItemId;
+        if (eventId) body.eventId = eventId;
+      } else {
+        endpoint = `/api/goals/${goalId}/threads`;
+      }
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const thread = await res.json();
+      onCreated(thread);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sel = "w-full px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
+          <h2 className="text-base font-semibold text-stone-900">New Thread</h2>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {/* Goal (required) */}
+          <div>
+            <label className="flex items-center gap-1.5 text-xs font-medium text-stone-600 mb-1">
+              <Target className="w-3.5 h-3.5 text-violet-500" />
+              Goal <span className="text-red-400">*</span>
+            </label>
+            <select
+              value={goalId}
+              onChange={e => { setGoalId(e.target.value); setPitstopId(""); setChecklistItemId(""); setEventId(""); }}
+              className={sel}
+              required
+            >
+              <option value="">— select a goal —</option>
+              {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+            </select>
+          </div>
+
+          {/* Pitstop (optional) */}
+          {goalId && (
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-stone-600 mb-1">
+                <ChevronRight className="w-3.5 h-3.5 text-sky-500" />
+                Pitstop <span className="text-stone-400 font-normal">(optional)</span>
+              </label>
+              <select
+                value={pitstopId}
+                onChange={e => { setPitstopId(e.target.value); setChecklistItemId(""); setEventId(""); }}
+                className={sel}
+              >
+                <option value="">— none (goal-level thread) —</option>
+                {goalPitstops.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Checklist item (optional, only if pitstop selected) */}
+          {pitstopId && pitstopChecklist.length > 0 && (
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-stone-600 mb-1">
+                <CheckSquare className="w-3.5 h-3.5 text-teal-500" />
+                Checklist Item <span className="text-stone-400 font-normal">(optional)</span>
+              </label>
+              <select value={checklistItemId} onChange={e => setChecklistItemId(e.target.value)} className={sel}>
+                <option value="">— none —</option>
+                {pitstopChecklist.map(ci => <option key={ci.id} value={ci.id}>{ci.text}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Activity (optional, only if pitstop selected) */}
+          {pitstopId && pitstopEvents.length > 0 && (
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-stone-600 mb-1">
+                <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
+                Activity <span className="text-stone-400 font-normal">(optional)</span>
+              </label>
+              <select value={eventId} onChange={e => setEventId(e.target.value)} className={sel}>
+                <option value="">— none —</option>
+                {pitstopEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Thread name */}
+          <div>
+            <label className="text-xs font-medium text-stone-600 mb-1 block">Thread Name <span className="text-red-400">*</span></label>
+            <input
+              autoFocus={!goalId}
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Baseline data collection"
+              className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+              required
+            />
+          </div>
+
+          {error && <p className="text-sm text-red-500">{error}</p>}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!isValid || loading}
+              className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {loading ? "Creating…" : "Create Thread"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
 interface Props {
   threads: Thread[];
   goals: Goal[];
   pitstops: Pitstop[];
-  events: Event[];
+  checklistItems: ChecklistItemOption[];
+  events: EventOption[];
   users: User[];
   currentUserId: string;
   currentUserName: string;
+  currentUserRole?: string;
   preferredLang: string;
 }
 
-export default function ThreadsList({ threads, goals, pitstops, events, users, currentUserId, preferredLang }: Props) {
-  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
-  const [selectedPitstops, setSelectedPitstops] = useState<string[]>([]);
-  const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
+export default function ThreadsList({
+  threads: initialThreads,
+  goals, pitstops, checklistItems, events,
+  users, currentUserId, preferredLang,
+}: Props) {
+  const [threads, setThreads] = useState<Thread[]>(initialThreads);
   const [query, setQuery] = useState("");
-  const [level, setLevel] = useState<Level>("all");
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(threads[0]?.id ?? null);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(initialThreads[0]?.id ?? null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [showNewThread, setShowNewThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeThread = threads.find(t => t.id === activeThreadId) ?? null;
 
-  // Reset contextual filters when level changes
-  useEffect(() => {
-    setSelectedGoals([]);
-    setSelectedPitstops([]);
-    setSelectedEvents([]);
-  }, [level]);
-
-  // Load messages when thread changes
   useEffect(() => {
     if (!activeThreadId) return;
     setLoadingMessages(true);
@@ -125,13 +304,18 @@ export default function ThreadsList({ threads, goals, pitstops, events, users, c
       .finally(() => setLoadingMessages(false));
   }, [activeThreadId]);
 
-  // Scroll to bottom when messages load or new message arrives
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
   const handleMessageSent = (msg: unknown) => {
     setMessages(prev => [...prev, msg as Message]);
+    // Bump updatedAt for this thread optimistically
+    setThreads(prev => prev.map(t =>
+      t.id === activeThreadId
+        ? { ...t, updatedAt: new Date().toISOString(), messages: [{ body: (msg as Message).body, createdAt: new Date().toISOString(), author: { name: (msg as Message).author?.name ?? null } }] }
+        : t
+    ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
   };
 
   const handleMessageUpdated = (msg: unknown) => {
@@ -141,108 +325,68 @@ export default function ThreadsList({ threads, goals, pitstops, events, users, c
     );
   };
 
-  const filtered = threads
-    .filter(t => level === "all" || getLevel(t) === level)
-    .filter(t => {
-      if (level === "all" || level === "goal") {
-        if (selectedGoals.length === 0) return true;
-        return t.pitstop ? selectedGoals.includes(t.pitstop.goal.id) :
-               t.goal    ? selectedGoals.includes(t.goal.id) : false;
-      }
-      if (level === "pitstop") {
-        if (selectedPitstops.length === 0) return true;
-        return t.pitstopId ? selectedPitstops.includes(t.pitstopId) : false;
-      }
-      if (level === "activity") {
-        if (selectedEvents.length === 0) return true;
-        return t.eventId ? selectedEvents.includes(t.eventId) : false;
-      }
-      return true;
-    })
-    .filter(t => !query || (
+  const handleThreadCreated = (thread: Thread) => {
+    setThreads(prev => [thread, ...prev]);
+    setActiveThreadId(thread.id);
+    setShowNewThread(false);
+  };
+
+  const filtered = threads.filter(t =>
+    !query || (
       t.name.toLowerCase().includes(query.toLowerCase()) ||
       (t.pitstop?.title ?? "").toLowerCase().includes(query.toLowerCase()) ||
       (t.pitstop?.goal.title ?? "").toLowerCase().includes(query.toLowerCase()) ||
       (t.goal?.title ?? "").toLowerCase().includes(query.toLowerCase()) ||
-      (t.event?.title ?? "").toLowerCase().includes(query.toLowerCase())
-    ));
-
-  const hasFilters = selectedGoals.length > 0 || selectedPitstops.length > 0 ||
-                     selectedEvents.length > 0 || query || level !== "all";
-
-  const clearFilters = () => {
-    setSelectedGoals([]);
-    setSelectedPitstops([]);
-    setSelectedEvents([]);
-    setQuery("");
-    setLevel("all");
-  };
+      (t.event?.title ?? "").toLowerCase().includes(query.toLowerCase()) ||
+      (t.checklistItem?.text ?? "").toLowerCase().includes(query.toLowerCase())
+    )
+  );
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* ── Left panel: thread list ─────────────────────────────────────── */}
+      {showNewThread && (
+        <NewThreadWizard
+          goals={goals}
+          pitstops={pitstops}
+          checklistItems={checklistItems}
+          events={events}
+          onClose={() => setShowNewThread(false)}
+          onCreated={handleThreadCreated}
+        />
+      )}
+
+      {/* ── Left panel: WhatsApp-style thread list ─────────────────────── */}
       <div className={`${activeThreadId ? "hidden sm:flex" : "flex"} w-full sm:w-80 flex-shrink-0 flex-col border-r border-stone-200 bg-white h-full`}>
         <div className="px-4 pt-5 pb-3 border-b border-stone-100">
-          <h1 className="text-base font-semibold text-stone-900 mb-3">Threads</h1>
-
-          {/* Level tabs */}
-          <div className="flex gap-1 mb-2.5 flex-wrap">
-            {(["all", "goal", "pitstop", "activity"] as const).map(l => (
-              <button key={l} onClick={() => setLevel(l)}
-                className={`px-2.5 py-0.5 text-xs font-medium rounded-full transition-colors ${
-                  level === l ? "bg-stone-900 text-white" : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
-                }`}>
-                {l === "all" ? "All" : l.charAt(0).toUpperCase() + l.slice(1)}
-                <span className="ml-1 opacity-50">
-                  ({l === "all" ? threads.length : threads.filter(t => getLevel(t) === l).length})
-                </span>
-              </button>
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-base font-semibold text-stone-900">Threads</h1>
+            <button
+              onClick={() => setShowNewThread(true)}
+              className="flex items-center gap-1 px-2.5 py-1 bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New
+            </button>
           </div>
-
-          {/* Search */}
-          <div className="flex items-center gap-1.5 mb-2">
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search…"
-              className="flex-1 px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 min-w-0" />
-            {hasFilters && (
-              <button onClick={clearFilters} className="text-stone-400 hover:text-stone-600 flex-shrink-0">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Contextual filter — changes based on selected level */}
-          {(level === "all" || level === "goal") && (
-            <MultiSelect
-              options={goals.map(g => ({ value: g.id, label: g.title }))}
-              value={selectedGoals}
-              onChange={setSelectedGoals}
-              placeholder="All Goals"
-            />
-          )}
-          {level === "pitstop" && (
-            <MultiSelect
-              options={pitstops.map(p => ({ value: p.id, label: p.title }))}
-              value={selectedPitstops}
-              onChange={setSelectedPitstops}
-              placeholder="All Pitstops"
-            />
-          )}
-          {level === "activity" && (
-            <MultiSelect
-              options={events.map(e => ({ value: e.id, label: e.title }))}
-              value={selectedEvents}
-              onChange={setSelectedEvents}
-              placeholder="All Activities"
-            />
-          )}
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search threads…"
+            className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {threads.length === 0 ? (
             <div className="text-center py-16 px-4">
               <MessageSquare className="w-8 h-8 text-stone-200 mx-auto mb-2" />
-              <p className="text-sm text-stone-500">No threads yet</p>
+              <p className="text-sm text-stone-500 mb-2">No threads yet</p>
+              <button
+                onClick={() => setShowNewThread(true)}
+                className="text-xs text-sky-500 hover:text-sky-700 underline"
+              >
+                Start a new thread
+              </button>
             </div>
           ) : filtered.length === 0 ? (
             <p className="text-center text-stone-400 text-xs py-12">No threads match.</p>
@@ -250,31 +394,47 @@ export default function ThreadsList({ threads, goals, pitstops, events, users, c
             <div className="divide-y divide-stone-100">
               {filtered.map(t => {
                 const lastMsg = t.messages[0];
-                const lvl = getLevel(t);
-                const badge = LEVEL_BADGE[lvl];
+                const tags = getThreadTags(t);
                 const isActive = t.id === activeThreadId;
+                const breadcrumb = getBreadcrumb(t);
                 return (
-                  <button key={t.id} onClick={() => setActiveThreadId(t.id)}
-                    className={`w-full text-left px-4 py-3 transition-colors ${isActive ? "bg-sky-50" : "hover:bg-stone-50"}`}>
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveThreadId(t.id)}
+                    className={`w-full text-left px-4 py-3 transition-colors ${isActive ? "bg-sky-50 border-l-2 border-sky-500" : "hover:bg-stone-50"}`}
+                  >
                     <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-stone-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-stone-400" />
+                      <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <MessageSquare className="w-4 h-4 text-stone-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <span className={`text-xs font-medium truncate ${isActive ? "text-sky-700" : "text-stone-800"}`}>{t.name}</span>
-                          <span className="text-[10px] text-stone-400 flex-shrink-0">{timeAgo(t.updatedAt)}</span>
+                          <span className={`text-xs font-semibold truncate ${isActive ? "text-sky-700" : "text-stone-800"}`}>
+                            {t.name}
+                          </span>
+                          <span className="text-[10px] text-stone-400 flex-shrink-0 ml-1">{timeAgo(t.updatedAt)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className={`text-[10px] font-medium px-1 py-0.5 rounded border flex-shrink-0 ${badge.cls}`}>{badge.label}</span>
-                          <p className="text-[11px] text-stone-400 truncate">{getBreadcrumb(t)}</p>
-                        </div>
-                        {lastMsg && (
-                          <p className="text-[11px] text-stone-500 mt-1 line-clamp-1">
-                            <span className="font-medium">{lastMsg.author.name}:</span>{" "}
-                            {formatBody(lastMsg.body)}
-                          </p>
+                        {breadcrumb && (
+                          <p className="text-[10px] text-stone-400 truncate mt-0.5">{breadcrumb}</p>
                         )}
+                        <div className="flex items-center justify-between gap-1 mt-1">
+                          <p className="text-[11px] text-stone-500 truncate flex-1">
+                            {lastMsg
+                              ? <><span className="font-medium">{lastMsg.author.name}:</span> {formatBody(lastMsg.body)}</>
+                              : <span className="italic">No messages yet</span>
+                            }
+                          </p>
+                          <div className="flex gap-0.5 flex-shrink-0">
+                            {tags.map(tag => {
+                              const cfg = TAG_CFG[tag];
+                              return (
+                                <span key={tag} className={`text-[9px] font-medium px-1 py-0.5 rounded border ${cfg.cls}`}>
+                                  {cfg.label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </button>
@@ -285,32 +445,53 @@ export default function ThreadsList({ threads, goals, pitstops, events, users, c
         </div>
       </div>
 
-      {/* ── Right panel: thread messages ────────────────────────────────── */}
+      {/* ── Right panel: messages ───────────────────────────────────────── */}
       <div className={`${activeThreadId ? "flex" : "hidden sm:flex"} flex-1 flex-col h-full bg-stone-50 min-w-0`}>
         {!activeThread ? (
-          <div className="flex-1 flex items-center justify-center text-stone-400">
+          <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <MessageSquare className="w-10 h-10 text-stone-200 mx-auto mb-3" />
-              <p className="text-sm">Select a thread to read messages</p>
+              <p className="text-sm text-stone-400 mb-3">Select a thread to read messages</p>
+              <button
+                onClick={() => setShowNewThread(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors mx-auto"
+              >
+                <Plus className="w-4 h-4" />
+                New Thread
+              </button>
             </div>
           </div>
         ) : (
           <>
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-stone-200 flex-shrink-0">
-              <button className="sm:hidden text-stone-500 hover:text-stone-700"
-                onClick={() => setActiveThreadId(null)}>
+              <button
+                className="sm:hidden text-stone-500 hover:text-stone-700"
+                onClick={() => setActiveThreadId(null)}
+              >
                 <X className="w-4 h-4" />
               </button>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-stone-900 truncate">{activeThread.name}</p>
-                <p className="text-xs text-stone-400 truncate">{getBreadcrumb(activeThread)}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  {getThreadTags(activeThread).map(tag => {
+                    const cfg = TAG_CFG[tag];
+                    return (
+                      <span key={tag} className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${cfg.cls}`}>
+                        {cfg.label}
+                      </span>
+                    );
+                  })}
+                  <p className="text-[10px] text-stone-400 truncate">{getBreadcrumb(activeThread)}</p>
+                </div>
               </div>
-              {getPitstopHref(activeThread) && (
-                <Link href={getPitstopHref(activeThread)!}
-                  className="flex items-center gap-1 text-xs text-stone-400 hover:text-sky-600 flex-shrink-0">
+              {getOpenHref(activeThread) && (
+                <a
+                  href={getOpenHref(activeThread)!}
+                  className="flex items-center gap-1 text-xs text-stone-400 hover:text-sky-600 flex-shrink-0"
+                >
                   Open <ArrowUpRight className="w-3.5 h-3.5" />
-                </Link>
+                </a>
               )}
             </div>
 

@@ -121,6 +121,7 @@ export type AdminDash = {
   domainStats: DomainStat[];
   domainConfigs: { domain: string; label: string }[];
   overdueList: OverduePitstop[];
+  doneThisMonthList: OverduePitstop[];
   upcoming: { id: string; title: string; type: string; scheduledAt: string; location: string | null; attendees: { user: { name: string | null } }[] }[];
 };
 
@@ -359,6 +360,7 @@ export default async function HomePage() {
       usersRaw,
       adminGoalsRaw,
       overdueListRaw,
+      doneThisMonthListRaw,
       upcomingListRaw,
       openPitstopsRaw,
     ] = await Promise.all([
@@ -411,6 +413,16 @@ export default async function HomePage() {
         },
         orderBy: { targetDate: "asc" },
         take: 15,
+      }),
+      prisma.pitstop.findMany({
+        where: { deletedAt: null, completedAt: { gte: monthStart } },
+        select: {
+          id: true, title: true, targetDate: true, status: true,
+          goal: { select: { id: true, title: true } },
+          owner: { select: { name: true } },
+        },
+        orderBy: { completedAt: "desc" },
+        take: 20,
       }),
       prisma.pitstopEvent.findMany({
         where: { deletedAt: null, scheduledAt: { gte: todayStart, lte: in14Days }, status: "Scheduled" },
@@ -490,6 +502,7 @@ export default async function HomePage() {
       domainStats: computeDomainStats(adminGoalsRaw, domainLabels),
       domainConfigs: domainConfigs.map(d => ({ domain: d.domain, label: d.label ?? d.domain })),
       overdueList: JSON.parse(JSON.stringify(overdueListRaw)),
+      doneThisMonthList: JSON.parse(JSON.stringify(doneThisMonthListRaw)),
       upcoming: JSON.parse(JSON.stringify(upcomingListRaw)),
     };
   }

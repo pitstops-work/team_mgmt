@@ -30,12 +30,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pit
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { pitstopId } = await params;
-  const { name } = await req.json();
+  const { name, checklistItemId, eventId } = await req.json();
   if (!name) return Response.json({ error: "Name required" }, { status: 400 });
 
   const thread = await prisma.thread.create({
-    data: { name, pitstopId },
-    include: { messages: true },
+    data: {
+      name,
+      pitstopId,
+      ...(checklistItemId ? { checklistItemId } : {}),
+      ...(eventId ? { eventId } : {}),
+    },
+    include: {
+      messages: true,
+      pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } }, owner: { select: { id: true, name: true, image: true } } } },
+      goal: { select: { id: true, title: true, owner: { select: { id: true, name: true, image: true } } } },
+      event: { select: { id: true, title: true, scheduledAt: true } },
+      checklistItem: { select: { id: true, text: true } },
+      _count: { select: { messages: { where: { deletedAt: null } } } },
+    },
   });
 
   return Response.json(thread, { status: 201 });

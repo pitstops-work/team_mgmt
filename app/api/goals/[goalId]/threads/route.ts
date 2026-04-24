@@ -36,7 +36,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
 
   const thread = await prisma.thread.create({
     data: { name, goalId },
-    include: { messages: true },
+    include: {
+      messages: true,
+      pitstop: { select: { id: true, title: true, goal: { select: { id: true, title: true } }, owner: { select: { id: true, name: true, image: true } } } },
+      goal: { select: { id: true, title: true, owner: { select: { id: true, name: true, image: true } } } },
+      event: { select: { id: true, title: true, scheduledAt: true } },
+      checklistItem: { select: { id: true, text: true } },
+      _count: { select: { messages: { where: { deletedAt: null } } } },
+    },
   });
 
   return Response.json(thread, { status: 201 });

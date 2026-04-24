@@ -839,12 +839,16 @@ function PitstopRow({
   const commitDate = async () => {
     setEditingDate(false);
     const newDate = editDate || null;
+    const prev = pitstop.targetDate;
     onUpdated({ ...pitstop, targetDate: newDate });
-    await fetch(`/api/pitstops/${pitstop.id}`, {
+    const res = await fetch(`/api/pitstops/${pitstop.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ targetDate: newDate }),
     });
+    if (!res.ok) {
+      onUpdated({ ...pitstop, targetDate: prev });
+    }
   };
 
   const handleClone = async () => {

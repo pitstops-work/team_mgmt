@@ -86,6 +86,9 @@ export default function MessageComposer({ threadId, users, onSent, onMessageUpda
     if (res.ok) {
       const att = await res.json();
       setAttachments((prev) => [...prev, { id: att.id, name: att.name }]);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setMicError(err.error ?? "File upload failed. Please try again.");
     }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";

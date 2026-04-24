@@ -134,6 +134,8 @@ export default async function PitstopPage({
 
   const subscribedThreadIds = new Set(subscriptions.map((s) => s.threadId));
 
+  const currentUserRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
+
   return (
     <PitstopDetail
       pitstop={JSON.parse(JSON.stringify(pitstop))}
@@ -141,6 +143,7 @@ export default async function PitstopPage({
       siblingPitstops={JSON.parse(JSON.stringify(siblingPitstops))}
       currentUserId={userId}
       currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
+      currentUserRole={currentUserRole}
       subscribedThreadIds={Array.from(subscribedThreadIds)}
       preferredLang={preferredLang}
     />

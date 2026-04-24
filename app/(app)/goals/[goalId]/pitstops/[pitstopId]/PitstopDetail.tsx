@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ChevronLeft, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar,
+  ChevronLeft, ChevronUp, ChevronDown, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar,
   CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History, FileText, UserPlus,
 } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
@@ -109,6 +109,7 @@ interface Props {
   siblingPitstops: SiblingPitstop[];
   currentUserId: string;
   currentUserName: string;
+  currentUserRole?: string;
   subscribedThreadIds: string[];
   preferredLang: string;
 }
@@ -133,18 +134,21 @@ const STATUS_CFG: Record<ChecklistStatus, { label: string; cls: string }> = {
 // ── ChecklistItemRow ──────────────────────────────────────────────────────────
 
 function ChecklistItemRow({
-  item, users, pitstopId,
-  onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated,
+  item, users, pitstopId, isFirst, isLast,
+  onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onMove,
 }: {
   item: ChecklistItem;
   users: User[];
   pitstopId: string;
+  isFirst: boolean;
+  isLast: boolean;
   onToggle: (id: string, checked: boolean) => void;
   onUpdateStatus: (id: string, status: string) => void;
   onUpdateAssignee: (id: string, assigneeId: string | null) => void;
   onUpdateNotes: (id: string, notes: string) => void;
   onDelete: (id: string) => void;
   onActivityCreated: (itemId: string, activity: ActivityRef) => void;
+  onMove: (id: string, direction: "up" | "down") => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -291,6 +295,24 @@ function ChecklistItemRow({
         </div>
 
         {/* Item actions (hover) */}
+        <div className="flex flex-col items-center gap-0 flex-shrink-0">
+          <button
+            onClick={() => onMove(item.id, "up")}
+            disabled={isFirst}
+            className="p-0.5 text-stone-300 hover:text-stone-500 disabled:opacity-20 transition-colors"
+            title="Move up"
+          >
+            <ChevronUp className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onMove(item.id, "down")}
+            disabled={isLast}
+            className="p-0.5 text-stone-300 hover:text-stone-500 disabled:opacity-20 transition-colors"
+            title="Move down"
+          >
+            <ChevronDown className="w-3 h-3" />
+          </button>
+        </div>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
           <button
             onClick={() => { setExpanded(true); setEditingNotes(true); setNotesDraft(item.notes ?? ""); }}
@@ -398,9 +420,11 @@ export default function PitstopDetail({
   siblingPitstops,
   currentUserId,
   currentUserName,
+  currentUserRole = "member",
   subscribedThreadIds: initialSubscribedThreadIds,
   preferredLang: initialPreferredLang,
 }: Props) {
+  const isViewer = currentUserRole === "viewer";
   const searchParams = useSearchParams();
   const [pitstop, setPitstop] = useState(initialPitstop);
   const [preferredLang, setPreferredLang] = useState(initialPreferredLang);
@@ -429,6 +453,7 @@ export default function PitstopDetail({
   const [datesError, setDatesError] = useState("");
   const [newThreadName, setNewThreadName] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set(initialSubscribedThreadIds));
   const [verifying, setVerifying] = useState(false);
   const [dateReason, setDateReason] = useState("");
@@ -569,6 +594,30 @@ export default function PitstopDetail({
     await fetch(`/api/checklist/${itemId}`, { method: "DELETE" });
   };
 
+  const handleMoveItem = async (itemId: string, direction: "up" | "down") => {
+    setPitstop((p) => {
+      const items = [...p.checklistItems].sort((a, b) => a.order - b.order);
+      const idx = items.findIndex(i => i.id === itemId);
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= items.length) return p;
+      const newOrder = items[idx].order;
+      const swapOrder = items[swapIdx].order;
+      return {
+        ...p,
+        checklistItems: p.checklistItems.map(i => {
+          if (i.id === itemId) return { ...i, order: swapOrder };
+          if (i.id === items[swapIdx].id) return { ...i, order: newOrder };
+          return i;
+        }),
+      };
+    });
+    await fetch("/api/checklist/reorder", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pitstopId: pitstop.id, itemId, direction }),
+    });
+  };
+
   // ── Dependency handlers ─────────────────────────────────────────────────────
 
   const handleAddDep = async (blockedById: string) => {
@@ -636,6 +685,7 @@ export default function PitstopDetail({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setUploadError(null);
     const fd = new FormData();
     fd.append("file", file);
     fd.append("pitstopId", pitstop.id);
@@ -643,6 +693,9 @@ export default function PitstopDetail({
     if (res.ok) {
       const att = await res.json();
       setPitstop((p) => ({ ...p, attachments: [...p.attachments, att] }));
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setUploadError(err.error ?? "Upload failed. Please try again.");
     }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -879,9 +932,11 @@ export default function PitstopDetail({
                 <Calendar className="w-3.5 h-3.5" />
                 Timeline
               </span>
-              <button onClick={() => { setEditingDates((v) => !v); setDatesError(""); }} className="text-xs text-sky-600 hover:text-sky-700">
-                {editingDates ? "Cancel" : "Edit"}
-              </button>
+              {!isViewer && (
+                <button onClick={() => { setEditingDates((v) => !v); setDatesError(""); }} className="text-xs text-sky-600 hover:text-sky-700">
+                  {editingDates ? "Cancel" : "Edit"}
+                </button>
+              )}
             </div>
             {editingDates ? (
               <div className="space-y-2">
@@ -1035,6 +1090,9 @@ export default function PitstopDetail({
               </button>
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
             </div>
+            {uploadError && (
+              <p className="text-[10px] text-red-500 mb-1">{uploadError}</p>
+            )}
             {pitstop.attachments.length === 0 ? (
               <p className="text-xs text-stone-400">No files attached.</p>
             ) : (
@@ -1147,20 +1205,25 @@ export default function PitstopDetail({
                 <p className="text-[10px] text-stone-300 mt-1">Add items below to track progress.</p>
               </div>
             ) : (
-              pitstop.checklistItems.map((item) => (
-                <ChecklistItemRow
-                  key={item.id}
-                  item={item}
-                  users={users}
-                  pitstopId={pitstop.id}
-                  onToggle={handleToggleCheck}
-                  onUpdateStatus={handleUpdateItemStatus}
-                  onUpdateAssignee={handleUpdateItemAssignee}
-                  onUpdateNotes={handleUpdateItemNotes}
-                  onDelete={handleDeleteCheckItem}
-                  onActivityCreated={handleActivityCreated}
-                />
-              ))
+              [...pitstop.checklistItems]
+                .sort((a, b) => a.order - b.order)
+                .map((item, idx, arr) => (
+                  <ChecklistItemRow
+                    key={item.id}
+                    item={item}
+                    users={users}
+                    pitstopId={pitstop.id}
+                    isFirst={idx === 0}
+                    isLast={idx === arr.length - 1}
+                    onToggle={handleToggleCheck}
+                    onUpdateStatus={handleUpdateItemStatus}
+                    onUpdateAssignee={handleUpdateItemAssignee}
+                    onUpdateNotes={handleUpdateItemNotes}
+                    onDelete={handleDeleteCheckItem}
+                    onActivityCreated={handleActivityCreated}
+                    onMove={handleMoveItem}
+                  />
+                ))
             )}
           </div>
 
