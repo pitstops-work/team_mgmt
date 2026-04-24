@@ -4,6 +4,7 @@ import SessionProvider from "@/components/SessionProvider";
 import QueryProvider from "@/components/QueryProvider";
 import AppNav from "./AppNav";
 import PushSubscriber from "@/components/PushSubscriber";
+import { PWAInstallBanner } from "@/components/PWAInstallButton";
 import NavigationProgress from "@/components/NavigationProgress";
 import ActivityPing from "@/components/ActivityPing";
 import SearchShortcut from "@/components/SearchShortcut";
@@ -32,6 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex h-screen overflow-hidden">
         <AppNav user={session.user} unreadCount={unreadCount} isAdmin={isAdminUser(session)} isViewer={session.user.role === "viewer"} designation={me?.designation ?? "Other"} />
         <main className="relative flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>
+        <PWAInstallBanner />
         {isSuperAdmin(session) && <AgentPanel />}
       </div>
       </QueryProvider>
