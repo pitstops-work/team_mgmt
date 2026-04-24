@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   CalendarClock, CheckSquare, Target, MapPin, BarChart3, ChevronRight,
   LayoutDashboard, Users, TrendingUp, AlertTriangle, CheckCircle2,
   Clock, Activity, Filter, ChevronDown, ChevronUp,
+  Mic, Square, Loader2, Paperclip,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend,
@@ -1410,6 +1411,287 @@ function AdminPipelineTab({ dash }: { dash: AdminDash }) {
   );
 }
 
+// ── RP Checklist row with inline voice + attach ───────────────────────────────
+
+function RPChecklistRow({
+  item,
+  onCompleted,
+}: {
+  item: ChecklistItem;
+  onCompleted: (id: string) => void;
+}) {
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
+  const [uploading, setUploading] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function startVoiceLog() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setVoiceState("processing");
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const fd = new FormData();
+        fd.append("audio", blob, "voice.webm");
+        const res = await fetch(`/api/checklist/${item.id}/voice`, { method: "POST", body: fd });
+        if (res.ok) onCompleted(item.id);
+        setVoiceState("idle");
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setVoiceState("recording");
+    } catch {
+      setVoiceState("idle");
+    }
+  }
+
+  function stopVoiceLog() {
+    mediaRecorderRef.current?.stop();
+  }
+
+  async function handleAttach(file: File) {
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("checklistItemId", item.id);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    setUploading(false);
+    if (res.ok) onCompleted(item.id);
+  }
+
+  const isBusy = voiceState !== "idle" || uploading;
+
+  return (
+    <div className="flex items-start gap-3 px-4 py-2.5 rounded-lg border border-stone-200 bg-white">
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${CHECKLIST_STATUS_DOT[item.status] ?? "bg-stone-200"}`} />
+      <div className="flex-1 min-w-0">
+        {voiceState === "recording" && (
+          <div className="flex items-center gap-2 mb-1.5 px-2 py-1 bg-red-50 border border-red-200 rounded-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+            <span className="text-xs text-red-600 flex-1">Recording…</span>
+            <button onClick={stopVoiceLog} className="text-xs text-red-600 font-medium hover:text-red-800">Stop</button>
+          </div>
+        )}
+        {voiceState === "processing" && (
+          <div className="flex items-center gap-2 mb-1.5 px-2 py-1 bg-sky-50 border border-sky-200 rounded-md">
+            <Loader2 className="w-3 h-3 text-sky-500 animate-spin flex-shrink-0" />
+            <span className="text-xs text-sky-600">Transcribing…</span>
+          </div>
+        )}
+        <Link href={`/goals/${item.pitstop.goal.id}/pitstops/${item.pitstop.id}`}>
+          <p className="text-sm text-stone-800 truncate hover:text-sky-700 transition-colors">{item.text}</p>
+          <p className="text-xs text-stone-400 mt-0.5 truncate">{item.pitstop.goal.title} · {item.pitstop.title}</p>
+        </Link>
+      </div>
+      {!isBusy && (
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          <button
+            onClick={startVoiceLog}
+            className="flex items-center gap-1 text-xs px-2 py-1.5 text-stone-500 hover:text-sky-600 hover:bg-sky-50 rounded-md transition-colors"
+            title="Voice log"
+          >
+            <Mic className="w-3 h-3" />
+            <span className="hidden sm:inline">Log</span>
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1 text-xs px-2 py-1.5 text-stone-500 hover:text-sky-600 hover:bg-sky-50 rounded-md transition-colors"
+            title="Attach file"
+          >
+            <Paperclip className="w-3 h-3" />
+            <span className="hidden sm:inline">Attach</span>
+          </button>
+        </div>
+      )}
+      {uploading && <Loader2 className="w-3.5 h-3.5 text-stone-400 animate-spin flex-shrink-0 mt-1" />}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleAttach(f); e.target.value = ""; }}
+      />
+    </div>
+  );
+}
+
+// ── RP Action tab (replaces TodayTab for RP) ───────────────────────────────────
+
+function RPActionTab({
+  overdueActivities,
+  todayActivities,
+  weekActivities,
+  weekChecklists,
+}: {
+  overdueActivities: Activity[];
+  todayActivities: Activity[];
+  weekActivities: Activity[];
+  weekChecklists: ChecklistItem[];
+}) {
+  const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
+  const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
+  const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
+
+  const now = new Date();
+
+  // Events that are past their scheduled time and still "Scheduled"
+  const pastDueToday = todayActivities.filter(
+    a => new Date(a.scheduledAt) < now && a.status === "Scheduled" && !doneIds.has(a.id)
+  );
+  const needsAction = [
+    ...overdueActivities.filter(a => !doneIds.has(a.id)),
+    ...pastDueToday,
+  ];
+
+  // Today's upcoming (not yet due)
+  const todayUpcoming = todayActivities.filter(
+    a => new Date(a.scheduledAt) >= now && a.status === "Scheduled"
+  );
+
+  // This week (not today)
+  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  const laterThisWeek = weekActivities.filter(
+    a => new Date(a.scheduledAt) > todayEnd && a.status === "Scheduled"
+  );
+
+  // Open checklist items (not already completed inline)
+  const STATUS_PRIORITY: Record<string, number> = {
+    InProgress: 0, Scheduled: 1, NotStarted: 2, Blocked: 3, Rescheduled: 4,
+  };
+  const openItems = weekChecklists
+    .filter(ci => !completedItemIds.has(ci.id))
+    .sort((a, b) => (STATUS_PRIORITY[a.status] ?? 9) - (STATUS_PRIORITY[b.status] ?? 9));
+
+  async function handleDone(eventId: string) {
+    setLoadingDoneId(eventId);
+    try {
+      await fetch(`/api/pitstop-events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Done" }),
+      });
+      setDoneIds(prev => new Set([...prev, eventId]));
+    } finally {
+      setLoadingDoneId(null);
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+
+      {/* 1. Needs action */}
+      {needsAction.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <SectionTitle>Needs action ({needsAction.length})</SectionTitle>
+          </div>
+          <div className="space-y-2">
+            {needsAction.map(a => (
+              <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-amber-200 bg-amber-50">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}
+                    {a.location ? ` · ${a.location}` : ""}
+                  </p>
+                </div>
+                <div className="flex gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => handleDone(a.id)}
+                    disabled={loadingDoneId === a.id}
+                    className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+                  >
+                    {loadingDoneId === a.id ? "…" : "Done"}
+                  </button>
+                  <Link
+                    href="/activities"
+                    className="text-xs px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 text-stone-600 rounded-lg font-medium transition-colors"
+                  >
+                    Reschedule
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 2. Open checklist items */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <SectionTitle>
+            Open items{openItems.length > 0 ? ` (${openItems.length})` : ""}
+          </SectionTitle>
+        </div>
+        {openItems.length === 0
+          ? <EmptyState message="All checklist items are done." />
+          : (
+            <div className="space-y-2">
+              {openItems.slice(0, 20).map(ci => (
+                <RPChecklistRow
+                  key={ci.id}
+                  item={ci}
+                  onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
+                />
+              ))}
+              {openItems.length > 20 && (
+                <p className="text-xs text-stone-400 px-1">+{openItems.length - 20} more items</p>
+              )}
+            </div>
+          )
+        }
+      </div>
+
+      {/* 3. Today's upcoming */}
+      {todayUpcoming.length > 0 && (
+        <div>
+          <SectionTitle>Today — coming up</SectionTitle>
+          <div className="space-y-2">
+            {todayUpcoming.map(a => <ActivityRow key={a.id} a={a} />)}
+          </div>
+        </div>
+      )}
+
+      {/* 4. Later this week */}
+      {laterThisWeek.length > 0 && (
+        <div>
+          <SectionTitle>Later this week</SectionTitle>
+          <div className="space-y-2">
+            {laterThisWeek.slice(0, 7).map(a => (
+              <Link key={a.id} href="/activities"
+                className="flex items-start gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
+                  </p>
+                </div>
+              </Link>
+            ))}
+            {laterThisWeek.length > 7 && (
+              <Link href="/activities" className="text-xs text-sky-500 hover:text-sky-700 px-1 block">
+                +{laterThisWeek.length - 7} more this week →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {needsAction.length === 0 && openItems.length === 0 && todayUpcoming.length === 0 && laterThisWeek.length === 0 && (
+        <EmptyState message="Nothing pending. Go to Activities to schedule more." />
+      )}
+
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN HomeView
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1417,7 +1699,6 @@ function AdminPipelineTab({ dash }: { dash: AdminDash }) {
 const RP_TABS = [
   { key: "today",    label: "Today",          icon: CalendarClock },
   { key: "coverage", label: "Field Coverage", icon: BarChart3 },
-  { key: "goals",    label: "My Goals",       icon: Target },
 ] as const;
 
 const ZL_TABS = [
@@ -1446,7 +1727,7 @@ type TabKey = "today" | "coverage" | "clusters" | "goals" | "overview" | "geogra
 export default function HomeView({
   userId, userName, designation, greeting, todayLabel,
   todayActivities, weekActivities, weekChecklists, myGoals,
-  rpClusterStats, zlZoneName, zlClusterStats, clusterStatus, teamMembers,
+  rpClusterStats, rpOverdueActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers,
   adminDash,
 }: {
   userId: string;
@@ -1459,6 +1740,7 @@ export default function HomeView({
   weekChecklists: ChecklistItem[];
   myGoals: Goal[];
   rpClusterStats: ClusterStat[];
+  rpOverdueActivities: Activity[];
   zlZoneName: string | null;
   zlClusterStats: ClusterStat[];
   clusterStatus: ClusterStatus[];
@@ -1523,8 +1805,18 @@ export default function HomeView({
       {/* Tab content */}
       <div className={`flex-1 px-5 sm:px-8 py-6 pb-24 sm:pb-8 ${activeTab === "overview" || activeTab === "pipeline" || activeTab === "team" ? "max-w-5xl" : "max-w-3xl"}`}>
 
-        {/* Shared: Today */}
-        {activeTab === "today" && (
+        {/* RP: Action-first today view */}
+        {activeTab === "today" && designation === "RP" && (
+          <RPActionTab
+            overdueActivities={rpOverdueActivities}
+            todayActivities={todayActivities}
+            weekActivities={weekActivities}
+            weekChecklists={weekChecklists}
+          />
+        )}
+
+        {/* Non-RP: shared Today tab */}
+        {activeTab === "today" && designation !== "RP" && (
           <TodayTab
             todayActivities={todayActivities}
             weekActivities={weekActivities}

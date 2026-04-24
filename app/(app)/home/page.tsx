@@ -35,7 +35,8 @@ function computeDomainStats(goals: Pick<GoalRow, "needsDomain" | "status" | "par
     if (!stats[g.needsDomain]) stats[g.needsDomain] = { planned: 0, done: 0 };
     if (g.status === "Complete") {
       stats[g.needsDomain].done += g.outcomeCount ?? g.parameter ?? 0;
-    } else if (g.status === "Active") {
+    } else if (g.status !== "Cancelled") {
+      // Active, Paused, InProgress — all count as planned
       stats[g.needsDomain].planned += g.parameter ?? 0;
     }
   }
@@ -166,6 +167,7 @@ export default async function HomePage() {
     myGoals,
     domainConfigs,
     myZone,
+    rpOverdueActivities,
   ] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: {
@@ -250,6 +252,24 @@ export default async function HomePage() {
           },
         })
       : Promise.resolve(null),
+
+    // RP only: past-due events still in Scheduled status
+    designation === "RP"
+      ? prisma.pitstopEvent.findMany({
+          where: {
+            deletedAt: null,
+            status: "Scheduled",
+            scheduledAt: { lt: todayStart },
+            attendees: { some: { userId } },
+          },
+          select: {
+            id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            attendees: { select: { user: { select: { id: true, name: true } } } },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
   ]);
 
   const domainLabels = Object.fromEntries(domainConfigs.map(d => [d.domain, d.label ?? d.domain]));
@@ -519,6 +539,7 @@ export default async function HomePage() {
       weekChecklists={JSON.parse(JSON.stringify(weekChecklists))}
       myGoals={JSON.parse(JSON.stringify(myGoals))}
       rpClusterStats={rpClusterStats}
+      rpOverdueActivities={JSON.parse(JSON.stringify(rpOverdueActivities))}
       zlZoneName={myZone?.name ?? null}
       zlClusterStats={zlClusterStats}
       clusterStatus={clusterStatus}
