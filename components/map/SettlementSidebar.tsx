@@ -28,7 +28,7 @@ interface SettlementSidebarProps {
   currentUserId?: string;
   currentUserDesignation?: string;
   currentUserRole?: string;
-  allUsers?: { id: string; name: string | null; image: string | null; designation?: string }[];
+  allUsers?: { id: string; name: string | null; image: string | null; designation?: string; reportsToId?: string | null }[];
 }
 
 interface ClusterPitstop {

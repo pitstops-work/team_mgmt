@@ -46,7 +46,7 @@ const CITY_CENTERS: Record<MapCity, { latlng: [number, number]; zoom: number }> 
   chennai:   { latlng: [13.0827, 80.2707], zoom: 12 },
 };
 
-type UserOption = { id: string; name: string | null; image: string | null; designation?: string };
+type UserOption = { id: string; name: string | null; image: string | null; designation?: string; reportsToId?: string | null };
 export default function MapDashboard({ currentUserId, currentUserDesignation, currentUserRole, allUsers = [] }: { currentUserId?: string; currentUserDesignation?: string; currentUserRole?: string; allUsers?: UserOption[] }) {
   const [activeCity, setActiveCity] = useState<MapCity>("bangalore");
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(

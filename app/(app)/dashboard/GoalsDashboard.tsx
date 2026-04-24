@@ -101,7 +101,7 @@ interface Props {
   currentUserDesignation?: string;
   currentUserRole?: string;
   searchResults: SearchResults | null;
-  users: { id: string; name: string | null; image: string | null; designation?: string }[];
+  users: { id: string; name: string | null; image: string | null; designation?: string; reportsToId?: string | null }[];
   programs: { id: string; title: string }[];
   threads: Thread[];
   myPitstops: MyPitstop[];

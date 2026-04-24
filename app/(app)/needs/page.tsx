@@ -652,7 +652,7 @@ export default async function NeedsPage() {
     prisma.layerFeature.count({ where: { layerKey: "creches" } }),
     prisma.layerFeature.count({ where: { layerKey: "children_centres" } }),
     prisma.layerFeature.count({ where: { layerKey: "youth_centres" } }),
-    prisma.user.findMany({ select: { id: true, name: true, image: true, designation: true }, orderBy: { name: "asc" } }),
+    prisma.user.findMany({ select: { id: true, name: true, image: true, designation: true, reportsToId: true }, orderBy: { name: "asc" } }),
   ]);
   const geoCounts: Record<string, number> = {
     ChildrenCentre:      childrenCount,

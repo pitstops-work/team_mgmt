@@ -23,7 +23,7 @@ export default async function MapPage() {
   }
 
   const allUsers = userId
-    ? await prisma.user.findMany({ select: { id: true, name: true, image: true, designation: true }, orderBy: { name: "asc" } })
+    ? await prisma.user.findMany({ select: { id: true, name: true, image: true, designation: true, reportsToId: true }, orderBy: { name: "asc" } })
     : [];
 
   return (

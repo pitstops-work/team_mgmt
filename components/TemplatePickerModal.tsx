@@ -40,7 +40,7 @@ interface PreviewPitstop {
   checklist: { text: string; activityTitle?: string }[];
 }
 
-interface UserOption { id: string; name: string | null; image: string | null; designation?: string }
+interface UserOption { id: string; name: string | null; image: string | null; designation?: string; reportsToId?: string | null }
 
 interface Props {
   onClose: () => void;
@@ -95,6 +95,26 @@ export default function TemplatePickerModal({
   const canPickOwner =
     ["ZL", "PM", "admin", "super-admin"].includes(currentUserDesignation ?? "") ||
     ["admin", "super-admin"].includes(currentUserRole ?? "");
+
+  // Filter allUsers to only those the current user can delegate to (hierarchy-aware)
+  const visibleUsers: UserOption[] = (() => {
+    const isAdmin = ["admin", "super-admin"].includes(currentUserRole ?? "");
+    if (isAdmin) return allUsers;
+
+    if (currentUserDesignation === "ZL") {
+      // ZL can create for their direct RP reportees only
+      return allUsers.filter(u => u.reportsToId === currentUserId);
+    }
+    if (currentUserDesignation === "PM") {
+      // PM can create for direct ZL reportees + those ZLs' RP reportees
+      const directIds = new Set(
+        allUsers.filter(u => u.reportsToId === currentUserId).map(u => u.id)
+      );
+      return allUsers.filter(u => u.reportsToId === currentUserId || (u.reportsToId && directIds.has(u.reportsToId)));
+    }
+    return [];
+  })();
+
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>(currentUserId ?? "");
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -433,7 +453,7 @@ export default function TemplatePickerModal({
               {/* Owner picker — always shown so every user knows who owns the goal */}
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <label className="block text-xs font-semibold text-amber-800 mb-1.5">Creating for</label>
-                {canPickOwner && allUsers.length > 0 ? (
+                {canPickOwner && visibleUsers.length > 0 ? (
                   <>
                     <select
                       value={selectedOwnerId}
@@ -441,13 +461,11 @@ export default function TemplatePickerModal({
                       className="w-full px-3 py-1.5 text-sm border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
                     >
                       <option value={currentUserId ?? ""}>Myself</option>
-                      {allUsers
-                        .filter(u => u.id !== currentUserId)
-                        .map(u => (
-                          <option key={u.id} value={u.id}>
-                            {u.name ?? u.id}{u.designation && u.designation !== "Other" ? ` (${u.designation})` : ""}
-                          </option>
-                        ))}
+                      {visibleUsers.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.name ?? u.id}{u.designation && u.designation !== "Other" ? ` (${u.designation})` : ""}
+                        </option>
+                      ))}
                     </select>
                     {selectedOwnerId && selectedOwnerId !== currentUserId && (
                       <p className="text-[11px] text-amber-700 mt-1.5">
@@ -634,11 +652,11 @@ export default function TemplatePickerModal({
             <form id="template-form" onSubmit={handleSubmit} className="p-6 space-y-5">
 
               {/* Owner selection carried forward from geo step — show summary if not creating for self */}
-              {canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId && allUsers.length > 0 && (
+              {canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId && visibleUsers.length > 0 && (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-amber-800">Creating for</p>
-                    <p className="text-sm text-amber-700">{allUsers.find(u => u.id === selectedOwnerId)?.name ?? selectedOwnerId}</p>
+                    <p className="text-sm text-amber-700">{visibleUsers.find(u => u.id === selectedOwnerId)?.name ?? selectedOwnerId}</p>
                   </div>
                   <button type="button" onClick={() => setSelectedOwnerId(currentUserId ?? "")} className="text-xs text-amber-600 underline">Change</button>
                 </div>

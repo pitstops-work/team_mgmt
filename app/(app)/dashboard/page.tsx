@@ -44,7 +44,7 @@ export default async function DashboardPage({
     }),
     prisma.user.findMany({
       where: (designation === "RP" || designation === "ZL") ? { id: { in: teamIds } } : {},
-      select: { id: true, name: true, image: true, designation: true },
+      select: { id: true, name: true, image: true, designation: true, reportsToId: true },
       orderBy: { name: "asc" },
     }),
     prisma.program.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
