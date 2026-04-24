@@ -52,6 +52,8 @@ interface Props {
   needsZoneId?: string;
   needsCityId?: string;
   geographyLabel?: string;
+  // How many existing facilities of this domain already exist at this geography
+  existingCount?: number;
   // Current user context — drives owner picker visibility and geo requirements
   currentUserId?: string;
   currentUserDesignation?: string;
@@ -72,9 +74,12 @@ type GeoVal        = { cityId: string; zoneId: string; clusterId: string; settle
 export default function TemplatePickerModal({
   onClose, onCreated,
   needsDomain, needsSettlementId, needsClusterId, needsZoneId, needsCityId, geographyLabel,
+  existingCount,
   currentUserId, currentUserDesignation, currentUserRole, allUsers = [],
 }: Props) {
   const [templates, setTemplates] = useState<Template[]>([]);
+  // When domain context given: filtered set shown in "pick" step (empty = show all)
+  const [domainTemplates, setDomainTemplates] = useState<Template[]>([]);
   const [selected, setSelected] = useState<Template | null>(null);
   const [step, setStep] = useState<Step>("pick");
 
@@ -96,7 +101,7 @@ export default function TemplatePickerModal({
   const [error, setError] = useState("");
 
   // Geo step — only used when geo is NOT pre-filled from parent context
-  const geoPreFilled = !!(needsCityId || needsClusterId || needsZoneId);
+  const geoPreFilled = !!(needsCityId || needsClusterId || needsZoneId || needsSettlementId);
   const [geoRaw, setGeoRaw] = useState<RawGeo | null>(null);
   const [geoVal, setGeoVal] = useState<GeoVal>({ cityId: "", zoneId: "", clusterId: "", settlementId: "" });
 
@@ -130,17 +135,35 @@ export default function TemplatePickerModal({
       .then((list: Template[]) => {
         setTemplates(list);
 
-        if (needsDomain) {
-          if (SUB_DOMAIN_PARENT[needsDomain]) {
-            // Sub-domain — show redirect screen
-            setStep("redirect");
-            return;
-          }
-          // Find matching template and auto-select
-          const match = list.find((t) => t.needsDomain === needsDomain);
-          if (match) {
-            selectTemplate(match);
-          }
+        if (!needsDomain) return;
+
+        // Sub-domain — redirect to parent programme
+        if (SUB_DOMAIN_PARENT[needsDomain]) {
+          setStep("redirect");
+          return;
+        }
+
+        // Collect all templates for this domain
+        const matching = list.filter((t) => t.needsDomain === needsDomain);
+        const newTpl      = matching.find((t) => !t.name.includes("(Existing)"));
+        const existingTpl = matching.find((t) =>  t.name.includes("(Existing)"));
+
+        // Build the option set: always include "new"; include "existing" only if there are existing facilities
+        const options: Template[] = [];
+        if (newTpl) options.push(newTpl);
+        if (existingTpl && (existingCount ?? 0) > 0) options.push(existingTpl);
+
+        if (options.length === 0) {
+          // No domain-specific templates — show full picker
+          return;
+        }
+        if (options.length === 1) {
+          // Only one choice — auto-select and advance
+          selectTemplate(options[0]);
+        } else {
+          // Two choices (new + existing) — show domain-filtered picker
+          setDomainTemplates(options);
+          setStep("pick");
         }
       })
       .catch(() => {});
@@ -311,7 +334,16 @@ export default function TemplatePickerModal({
           <div className="flex items-center gap-2">
             {(step === "geo" || step === "configure") && (
               <button
-                onClick={() => step === "configure" ? setStep(geoPreFilled ? "pick" : "geo") : setStep("pick")}
+                onClick={() => {
+                  if (step === "configure") {
+                    // Go back: if geo was pre-filled and domain picker is available, go to pick; else go to geo
+                    if (geoPreFilled && domainTemplates.length > 0) setStep("pick");
+                    else if (geoPreFilled) setStep("pick");
+                    else setStep("geo");
+                  } else {
+                    setStep("pick");
+                  }
+                }}
                 className="text-stone-400 hover:text-stone-600 mr-1"
               >
                 <ChevronRight className="w-4 h-4 rotate-180" />
@@ -490,7 +522,50 @@ export default function TemplatePickerModal({
               {templates.length === 0 && (
                 <p className="text-sm text-stone-400 text-center py-8">Loading templates…</p>
               )}
-              {Object.entries(byCategory).map(([category, items]) => (
+
+              {/* Domain-filtered picker: shown when + clicked from a specific domain gap */}
+              {domainTemplates.length > 0 && (
+                <div className="space-y-3">
+                  {geographyLabel && (
+                    <p className="text-xs text-stone-400">
+                      Creating a goal for <span className="font-medium text-stone-600">{geographyLabel}</span>. Choose which kind:
+                    </p>
+                  )}
+                  {domainTemplates.map((t) => {
+                    const isExisting = t.name.includes("(Existing)");
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => selectTemplate(t)}
+                        className={`w-full text-left flex items-start gap-4 px-4 py-4 border rounded-xl transition-all group ${
+                          isExisting
+                            ? "bg-amber-50 hover:bg-amber-100 border-amber-200 hover:border-amber-300"
+                            : "bg-sky-50 hover:bg-sky-100 border-sky-200 hover:border-sky-300"
+                        }`}
+                      >
+                        <span className="text-2xl flex-shrink-0 mt-0.5">{t.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="text-sm font-semibold text-stone-900">{t.name}</p>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                              isExisting
+                                ? "bg-amber-200 text-amber-800"
+                                : "bg-sky-200 text-sky-800"
+                            }`}>
+                              {isExisting ? "Existing" : "New"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-500 leading-relaxed">{t.description}</p>
+                        </div>
+                        <ChevronRight className={`w-4 h-4 flex-shrink-0 mt-1 ${isExisting ? "text-amber-300 group-hover:text-amber-500" : "text-sky-300 group-hover:text-sky-500"}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Full picker: shown when no domain context (general "New Goal" button) */}
+              {domainTemplates.length === 0 && Object.entries(byCategory).map(([category, items]) => (
                 <div key={category}>
                   <p className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">{category}</p>
                   <div className="space-y-2">

@@ -111,7 +111,7 @@ function GapChip({ d, onClick }: { d: LevelStats["domains"][string] | undefined;
 
 // ── Coverage: Domain table ────────────────────────────────────────────────────
 
-function DomainTable({ domains, domainConfigs, onCreateGoal }: { domains: DomainStats; domainConfigs: DomainConfig[]; onCreateGoal?: (domain: string) => void }) {
+function DomainTable({ domains, domainConfigs, onCreateGoal }: { domains: DomainStats; domainConfigs: DomainConfig[]; onCreateGoal?: (domain: string, existingCount: number) => void }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -155,7 +155,7 @@ function DomainTable({ domains, domainConfigs, onCreateGoal }: { domains: Domain
                 </td>
                 {onCreateGoal && (
                   <td className="py-2 pl-1">
-                    <button onClick={() => onCreateGoal(domain)} className="p-0.5 rounded text-stone-300 hover:text-sky-500 hover:bg-sky-50 transition-colors" title="Create goal">
+                    <button onClick={() => onCreateGoal(domain, d?.existing ?? 0)} className="p-0.5 rounded text-stone-300 hover:text-sky-500 hover:bg-sky-50 transition-colors" title="Create goal">
                       <Plus className="w-3 h-3" />
                     </button>
                   </td>
@@ -464,6 +464,7 @@ export default function NeedsDashboard({
     zoneId?: string;
     cityId?: string;
     label?: string;
+    existingCount?: number;
   } | null>(null);
   const [zoneSummary, setZoneSummary]     = useState<ZoneSummary[] | null>(null);
   const [clusterSummary, setClusterSummary] = useState<ClusterSummary[] | null>(null);
@@ -623,7 +624,7 @@ export default function NeedsDashboard({
                     {domainConfigs.map(({ domain, label, color, domainType }) => (
                       <DomainCard
                         key={domain} label={label} color={color} d={activeCityStats.domains[domain]} domainType={domainType}
-                        onCreateGoal={() => setWizardState({ domain, cityId: selectedCityId ?? cities[0]?.id, label })}
+                        onCreateGoal={() => setWizardState({ domain, cityId: selectedCityId ?? cities[0]?.id, label, existingCount: activeCityStats.domains[domain]?.existing ?? 0 })}
                       />
                     ))}
                   </div>
@@ -631,7 +632,7 @@ export default function NeedsDashboard({
                     <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Full breakdown</p>
                     <DomainTable
                       domains={activeCityStats.domains} domainConfigs={domainConfigs}
-                      onCreateGoal={(domain) => setWizardState({ domain, cityId: selectedCityId ?? cities[0]?.id })}
+                      onCreateGoal={(domain, existingCount) => setWizardState({ domain, cityId: selectedCityId ?? cities[0]?.id, existingCount })}
                     />
                   </div>
                 </>
@@ -667,13 +668,13 @@ export default function NeedsDashboard({
                             <div className="flex justify-center"><SaturationChip score={z.stats.saturationScore} /></div>
                             {domainConfigs.map(({ domain }) => (
                               <div key={domain} className="flex justify-center">
-                                <GapChip d={z.stats.domains[domain]} onClick={z.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, zoneId: zone.id, label: z.name }) : undefined} />
+                                <GapChip d={z.stats.domains[domain]} onClick={z.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, zoneId: zone.id, label: z.name, existingCount: z.stats.domains[domain]?.existing ?? 0 }) : undefined} />
                               </div>
                             ))}
                           </div>
                           {isOpen && z.stats.assessedCount > 0 && (
                             <div className="px-4 py-4 border-t border-stone-100 bg-white">
-                              <DomainTable domains={z.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain) => setWizardState({ domain, zoneId: zone.id, label: z.name })} />
+                              <DomainTable domains={z.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain, existingCount) => setWizardState({ domain, zoneId: zone.id, label: z.name, existingCount })} />
                             </div>
                           )}
                           {isOpen && z.stats.assessedCount === 0 && (
@@ -713,13 +714,13 @@ export default function NeedsDashboard({
                             <div className="flex justify-center"><SaturationChip score={cl.stats.saturationScore} /></div>
                             {domainConfigs.map(({ domain }) => (
                               <div key={domain} className="flex justify-center">
-                                <GapChip d={cl.stats.domains[domain]} onClick={cl.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, clusterId: cluster.id, label: cl.name }) : undefined} />
+                                <GapChip d={cl.stats.domains[domain]} onClick={cl.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, clusterId: cluster.id, label: cl.name, existingCount: cl.stats.domains[domain]?.existing ?? 0 }) : undefined} />
                               </div>
                             ))}
                           </div>
                           {isOpen && cl.stats.assessedCount > 0 && (
                             <div className="px-4 py-4 border-t border-stone-100 bg-white">
-                              <DomainTable domains={cl.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain) => setWizardState({ domain, clusterId: cluster.id, label: cl.name })} />
+                              <DomainTable domains={cl.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain, existingCount) => setWizardState({ domain, clusterId: cluster.id, label: cl.name, existingCount })} />
                             </div>
                           )}
                           {isOpen && cl.stats.assessedCount === 0 && (
@@ -780,7 +781,7 @@ export default function NeedsDashboard({
                           {domainConfigs.map(({ domain }) => (
                             <div key={domain} className="flex justify-center">
                               {isAssessed && ss
-                                ? <GapChip d={ss.stats.domains[domain]} onClick={ss.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, settlementId: s.id, label: s.name }) : undefined} />
+                                ? <GapChip d={ss.stats.domains[domain]} onClick={ss.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, settlementId: s.id, label: s.name, existingCount: ss.stats.domains[domain]?.existing ?? 0 }) : undefined} />
                                 : <span className="text-[10px] text-stone-200">·</span>
                               }
                             </div>
@@ -1468,6 +1469,7 @@ export default function NeedsDashboard({
           needsZoneId={wizardState.zoneId}
           needsCityId={wizardState.cityId}
           geographyLabel={wizardState.label}
+          existingCount={wizardState.existingCount}
           onClose={() => setWizardState(null)}
           onCreated={() => {
             setWizardState(null);

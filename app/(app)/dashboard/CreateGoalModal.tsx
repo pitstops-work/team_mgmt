@@ -29,6 +29,7 @@ export interface GoalPrefill {
   domainLabel: string;
   domainColor: string;
   gap: number;
+  existingCount?: number;
   needsZoneId?: string;
   needsClusterId?: string;
   needsSettlementId?: string;

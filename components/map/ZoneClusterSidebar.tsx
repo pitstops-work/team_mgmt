@@ -354,6 +354,7 @@ export default function ZoneClusterSidebar({
         needsClusterId={goalPrefill.needsClusterId}
         needsSettlementId={goalPrefill.needsSettlementId}
         geographyLabel={goalPrefill.geoLabel}
+        existingCount={goalPrefill.existingCount}
         onClose={() => setGoalPrefill(null)}
         onCreated={() => setGoalPrefill(null)}
         currentUserId={currentUserId}

@@ -118,6 +118,7 @@ export interface NeedsGoalContext {
   domainLabel: string;
   domainColor: string;
   gap: number;
+  existingCount: number;
   needsZoneId?: string;
   needsClusterId?: string;
   needsSettlementId?: string;
@@ -278,6 +279,7 @@ export default function NeedsPanel({ mode, name, cluster, zone, settlementId, on
                       domainLabel: d.label,
                       domainColor: d.color,
                       gap,
+                      existingCount: existing,
                       needsZoneId:       data.zone?.id,
                       needsClusterId:    data.cluster?.id,
                       needsSettlementId: data.settlement?.id,
