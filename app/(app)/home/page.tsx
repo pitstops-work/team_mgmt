@@ -26,28 +26,37 @@ type GoalRow = {
   pitstops: { id: string; status: string }[];
 };
 
-export type DomainStat = { domain: string; label: string; planned: number; done: number; gap: number };
+export type DomainStat = { domain: string; label: string; planned: number; done: number; gap: number; goalCount: number; doneGoalCount: number; hasParams: boolean };
 
 function computeDomainStats(goals: Pick<GoalRow, "needsDomain" | "status" | "parameter" | "outcomeCount">[], domainLabels: Record<string, string>): DomainStat[] {
-  const stats: Record<string, { planned: number; done: number }> = {};
+  const stats: Record<string, { planned: number; done: number; goalCount: number; doneGoalCount: number }> = {};
   for (const g of goals) {
     if (!g.needsDomain) continue;
-    if (!stats[g.needsDomain]) stats[g.needsDomain] = { planned: 0, done: 0 };
+    if (!stats[g.needsDomain]) stats[g.needsDomain] = { planned: 0, done: 0, goalCount: 0, doneGoalCount: 0 };
     if (g.status === "Complete") {
       stats[g.needsDomain].done += g.outcomeCount ?? g.parameter ?? 0;
+      stats[g.needsDomain].doneGoalCount++;
     } else if (g.status !== "Cancelled") {
-      // Active, Paused, InProgress — all count as planned
       stats[g.needsDomain].planned += g.parameter ?? 0;
+      stats[g.needsDomain].goalCount++;
     }
   }
   return Object.entries(stats)
-    .map(([domain, { planned, done }]) => ({
-      domain,
-      label: domainLabels[domain] ?? domain,
-      planned,
-      done,
-      gap: Math.max(0, planned - done),
-    }))
+    .map(([domain, { planned, done, goalCount, doneGoalCount }]) => {
+      const hasParams = planned > 0 || done > 0;
+      const effectivePlanned = hasParams ? planned : goalCount;
+      const effectiveDone   = hasParams ? done   : doneGoalCount;
+      return {
+        domain,
+        label: domainLabels[domain] ?? domain,
+        planned: effectivePlanned,
+        done:    effectiveDone,
+        gap:     Math.max(0, effectivePlanned - effectiveDone),
+        goalCount,
+        doneGoalCount,
+        hasParams,
+      };
+    })
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 

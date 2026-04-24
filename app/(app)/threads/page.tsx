@@ -17,48 +17,74 @@ export default async function ThreadsPage() {
 
   // Scope thread visibility by role/designation
   let teamIds: string[] = [userId];
-  if (designation === "ZL" || designation === "PM") {
+  if (designation === "ZL") {
     const reports = await prisma.user.findMany({
       where: { reportsToId: userId },
       select: { id: true },
     });
     teamIds = [userId, ...reports.map(r => r.id)];
+  } else if (designation === "PM") {
+    const directReports = await prisma.user.findMany({
+      where: { reportsToId: userId },
+      select: { id: true },
+    });
+    const directIds = directReports.map(r => r.id);
+    const indirectReports = directIds.length > 0
+      ? await prisma.user.findMany({
+          where: { reportsToId: { in: directIds } },
+          select: { id: true },
+        })
+      : [];
+    teamIds = [userId, ...directIds, ...indirectReports.map(r => r.id)];
   }
 
-  // Build thread visibility filter
-  const threadWhere = isAdmin
+  // Pre-fetch owned IDs for RP/ZL/PM so the filter uses simple IN clauses
+  // (nested relation filters with OR can silently over-include in complex schemas)
+  let ownedGoalIds: string[] = [];
+  let ownedPitstopIds: string[] = [];
+  if (!isAdmin && (designation === "RP" || designation === "ZL" || designation === "PM")) {
+    const [gRows, pRows] = await Promise.all([
+      prisma.goal.findMany({
+        where: { deletedAt: null, ownerId: { in: teamIds } },
+        select: { id: true },
+      }),
+      prisma.pitstop.findMany({
+        where: { deletedAt: null, ownerId: { in: teamIds } },
+        select: { id: true },
+      }),
+    ]);
+    ownedGoalIds    = gRows.map(r => r.id);
+    ownedPitstopIds = pRows.map(r => r.id);
+  }
+
+  // Build thread visibility filter (ownership-based)
+  const ownershipWhere = isAdmin
     ? { deletedAt: null }
-    : designation === "RP"
+    : designation === "RP" || designation === "ZL" || designation === "PM"
     ? {
         deletedAt: null,
         OR: [
-          { pitstop: { deletedAt: null, ownerId: userId } },
-          { goal: { deletedAt: null, ownerId: userId } },
-          { eventId: { not: null } },
-        ],
-      }
-    : designation === "ZL" || designation === "PM"
-    ? {
-        deletedAt: null,
-        OR: [
-          { pitstop: { deletedAt: null, ownerId: { in: teamIds } } },
-          { goal: { deletedAt: null, ownerId: { in: teamIds } } },
-          { eventId: { not: null } },
+          ...(ownedPitstopIds.length > 0 ? [{ pitstopId: { in: ownedPitstopIds } }] : []),
+          ...(ownedGoalIds.length    > 0 ? [{ goalId:    { in: ownedGoalIds    } }] : []),
+          { subscriptions: { some: { userId } } },
         ],
       }
     : { deletedAt: null };
 
+  // Validity filter: thread must be attached to a live pitstop/goal/event
+  // (separate so it doesn't overwrite the OR in ownershipWhere)
+  const validWhere = {
+    OR: [
+      { pitstop: { deletedAt: null, goal: { deletedAt: null } } },
+      { goalId: { not: null } },
+      { eventId: { not: null } },
+    ],
+  };
+
   const [threads, goals, users] = await Promise.all([
     prisma.thread.findMany({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      where: {
-        ...threadWhere,
-        OR: [
-          { pitstop: { deletedAt: null, goal: { deletedAt: null } } },
-          { goalId: { not: null } },
-          { eventId: { not: null } },
-        ],
-      } as any,
+      where: { AND: [ownershipWhere, validWhere] } as any,
       select: {
         id: true,
         name: true,

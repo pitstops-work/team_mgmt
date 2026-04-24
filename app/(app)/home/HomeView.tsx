@@ -227,14 +227,16 @@ function GoalRow({ goal, showOwner }: { goal: Goal; showOwner?: boolean }) {
 
 function DomainTable({ stats }: { stats: DomainStat[] }) {
   if (stats.length === 0) return <EmptyState message="No domain-tagged goals yet." />;
-  const maxPlanned = Math.max(...stats.map(s => s.planned), 1);
+  const anyHasParams = stats.some(s => s.hasParams);
   return (
     <div className="rounded-lg border border-stone-200 overflow-hidden overflow-x-auto">
       <table className="w-full text-sm min-w-[320px]">
         <thead>
           <tr className="bg-stone-50 border-b border-stone-200">
             <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Domain</th>
-            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Planned</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">
+              {anyHasParams ? "Planned" : "Goals"}
+            </th>
             <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Done</th>
             <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wide">Gap</th>
           </tr>
@@ -254,13 +256,23 @@ function DomainTable({ stats }: { stats: DomainStat[] }) {
                   )}
                 </div>
               </td>
-              <td className="px-4 py-2.5 text-sm text-right text-stone-600">{s.planned}</td>
+              <td className="px-4 py-2.5 text-sm text-right text-stone-600">
+                {s.planned}
+                {!s.hasParams && s.goalCount > 0 && (
+                  <span className="text-[10px] text-stone-400 ml-1">goals</span>
+                )}
+              </td>
               <td className="px-4 py-2.5 text-sm text-right text-emerald-600 font-medium">{s.done}</td>
               <td className={`px-4 py-2.5 text-sm text-right font-medium ${s.gap > 0 ? "text-amber-600" : "text-stone-400"}`}>{s.gap}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      {!anyHasParams && (
+        <p className="px-4 py-2 text-[10px] text-stone-400 bg-stone-50 border-t border-stone-100">
+          Showing goal counts — set targets on goals to see planned coverage numbers.
+        </p>
+      )}
     </div>
   );
 }
@@ -392,13 +404,16 @@ function ZLCoverageTab({ zoneName, clusterStats }: { zoneName: string | null; cl
     );
   }
 
-  const zoneStats: Record<string, { label: string; planned: number; done: number; gap: number }> = {};
+  const zoneStats: Record<string, { label: string; planned: number; done: number; gap: number; goalCount: number; doneGoalCount: number; hasParams: boolean }> = {};
   for (const c of clusterStats) {
     for (const s of c.stats) {
-      if (!zoneStats[s.domain]) zoneStats[s.domain] = { label: s.label, planned: 0, done: 0, gap: 0 };
-      zoneStats[s.domain].planned += s.planned;
-      zoneStats[s.domain].done    += s.done;
-      zoneStats[s.domain].gap     += s.gap;
+      if (!zoneStats[s.domain]) zoneStats[s.domain] = { label: s.label, planned: 0, done: 0, gap: 0, goalCount: 0, doneGoalCount: 0, hasParams: false };
+      zoneStats[s.domain].planned      += s.planned;
+      zoneStats[s.domain].done         += s.done;
+      zoneStats[s.domain].gap          += s.gap;
+      zoneStats[s.domain].goalCount    += s.goalCount;
+      zoneStats[s.domain].doneGoalCount += s.doneGoalCount;
+      if (s.hasParams) zoneStats[s.domain].hasParams = true;
     }
   }
   const zoneSummary: DomainStat[] = Object.entries(zoneStats).map(([domain, v]) => ({
