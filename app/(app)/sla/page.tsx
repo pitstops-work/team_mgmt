@@ -63,7 +63,13 @@ export default async function SlaPage() {
             },
           },
           targetDate: true,
-          goal: { select: { id: true, title: true } },
+          goal: {
+            select: {
+              id: true, title: true,
+              needsCity: { select: { id: true, name: true } },
+              needsZone: { select: { id: true, name: true, city: { select: { id: true, name: true } } } },
+            },
+          },
           needsSettlement: {
             select: {
               id: true, name: true,
@@ -139,8 +145,11 @@ export default async function SlaPage() {
         city: p.needsZone.city ?? null,
       };
     } else if (p.owner?.city) {
-      // fallback: use owner's assigned city
       geo = { settlement: null, cluster: null, zone: null, city: p.owner.city };
+    } else if (p.goal.needsCity) {
+      geo = { settlement: null, cluster: null, zone: null, city: p.goal.needsCity };
+    } else if (p.goal.needsZone?.city) {
+      geo = { settlement: null, cluster: null, zone: { id: p.goal.needsZone.id, name: p.goal.needsZone.name }, city: p.goal.needsZone.city };
     }
 
     return {
@@ -148,7 +157,7 @@ export default async function SlaPage() {
       text: ci.text,
       slaStatus,
       daysOverdue,
-      goal: { id: p.goal.id, title: p.goal.title },
+      goal: { id: p.goal.id, title: p.goal.title ?? "" },
       pitstop: { id: p.id, title: p.title, targetDate: deadline.toISOString() },
       person,
       geo,

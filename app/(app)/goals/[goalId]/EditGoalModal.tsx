@@ -37,9 +37,10 @@ interface Props {
   goal: Goal;
   onClose: () => void;
   onUpdated: (data: Partial<Goal>) => void;
+  isAdmin?: boolean;
 }
 
-export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
+export default function EditGoalModal({ goal, onClose, onUpdated, isAdmin = false }: Props) {
   const [title, setTitle] = useState(goal.title);
   const [description, setDescription] = useState(goal.description ?? "");
   const [status, setStatus] = useState(goal.status);
@@ -245,13 +246,21 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
                 Deadline <span className="text-red-400">*</span>
                 {originalDate && <Lock className="w-3 h-3 text-amber-500 ml-0.5" />}
               </label>
-              <input
-                type="date"
-                value={targetDate}
-                onChange={(e) => { setTargetDate(e.target.value); setDeadlineReason(""); }}
-                required
-                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 ${deadlineChanged ? "border-amber-400 bg-amber-50" : "border-stone-200"}`}
-              />
+              {isAdmin ? (
+                <input
+                  type="date"
+                  value={targetDate}
+                  onChange={(e) => { setTargetDate(e.target.value); setDeadlineReason(""); }}
+                  required
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 ${deadlineChanged ? "border-amber-400 bg-amber-50" : "border-stone-200"}`}
+                />
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-2 text-sm bg-stone-50 border border-stone-200 rounded-lg text-stone-500">
+                  <Lock className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+                  {targetDate || "Not set"}
+                  <span className="text-[10px] text-stone-400 ml-1">(admin only)</span>
+                </div>
+              )}
             </div>
 
             <div className="flex-1">
@@ -352,7 +361,7 @@ export default function EditGoalModal({ goal, onClose, onUpdated }: Props) {
             </div>
           )}
 
-          {deadlineChanged && (
+          {isAdmin && deadlineChanged && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
               <p className="text-xs font-medium text-amber-800 flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5 flex-shrink-0" />

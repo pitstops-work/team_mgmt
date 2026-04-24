@@ -671,6 +671,7 @@ export default function GoalDetail({
       {showEditGoal && (
         <EditGoalModal
           goal={goal}
+          isAdmin={isAdmin}
           onClose={() => setShowEditGoal(false)}
           onUpdated={(updated) => {
             updateGoal((g) => ({ ...g, ...updated }));
