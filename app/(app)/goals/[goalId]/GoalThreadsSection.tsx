@@ -320,7 +320,7 @@ export default function GoalThreadsSection({
                                 {msg.attachments.length > 0 && (
                                   <div className="flex flex-wrap gap-1">
                                     {msg.attachments.map(a => (
-                                      <a key={a.id} href={a.url} target="_blank" rel="noreferrer"
+                                      <a key={a.id} href={`/api/attachment/${a.id}`} target="_blank" rel="noreferrer"
                                         className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-stone-100 hover:bg-stone-200 text-stone-500 rounded">
                                         <Paperclip className="w-2.5 h-2.5" />{a.name}
                                       </a>

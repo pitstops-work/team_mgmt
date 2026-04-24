@@ -116,7 +116,7 @@ export default function MessageBubble({ message, isOwn, preferredLang }: Props) 
             {message.attachments.map((att) => (
               <a
                 key={att.id}
-                href={att.url}
+                href={`/api/attachment/${att.id}`}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-md transition-colors"

@@ -1099,7 +1099,7 @@ export default function PitstopDetail({
             ) : (
               <div className="space-y-1">
                 {pitstop.attachments.map((att) => (
-                  <a key={att.id} href={att.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 truncate">
+                  <a key={att.id} href={`/api/attachment/${att.id}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 truncate">
                     <Paperclip className="w-3 h-3 flex-shrink-0" />
                     <span className="truncate">{att.name}</span>
                   </a>

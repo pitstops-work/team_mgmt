@@ -504,7 +504,7 @@ export default function GoalDetail({
               {goal.attachments.map((att) => (
                 <a
                   key={att.id}
-                  href={att.url}
+                  href={`/api/attachment/${att.id}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1.5 px-2.5 py-1 bg-stone-50 border border-stone-200 rounded-md text-xs text-stone-700 hover:text-sky-600 hover:border-sky-200 transition-colors"
