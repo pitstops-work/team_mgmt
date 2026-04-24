@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarClock, MoreHorizontal, X, Layers, BookOpen, ClipboardList, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck, FileText, Timer } from "lucide-react";
+import { Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare, CalendarClock, MoreHorizontal, X, Layers, BookOpen, ClipboardList, Tag, MapPin, CalendarRange, ClipboardCheck, HelpCircle, BarChart3, ShieldCheck, FileText, Timer, MessageSquare } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
@@ -126,6 +126,10 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
           <NavLink href="/standup" active={pathname === "/standup"}>
             <ClipboardList className="w-3.5 h-3.5 text-stone-500" />
             Field Notes
+          </NavLink>
+          <NavLink href="/threads" active={pathname === "/threads"}>
+            <MessageSquare className="w-3.5 h-3.5 text-stone-500" />
+            Threads
           </NavLink>
           {!isRP && !isZL && (
             <NavLink href="/themes" active={pathname.startsWith("/themes")}>
@@ -286,7 +290,8 @@ export default function AppNav({ user, unreadCount, isAdmin, isViewer, designati
                 { href: "/review",  icon: <ClipboardCheck className="w-5 h-5" />, label: "Review",      show: !isRP && !isZL },
                 { href: "/report",  icon: <FileText className="w-5 h-5" />,        label: "Report",       show: !isRP && !isZL },
                 { href: "/sla",     icon: <Timer className="w-5 h-5" />,           label: "SLA",          show: isAdmin },
-                { href: "/standup", icon: <ClipboardList className="w-5 h-5" />,   label: "Field Notes",  show: true },
+                { href: "/standup", icon: <ClipboardList className="w-5 h-5" />,    label: "Field Notes",  show: true },
+                { href: "/threads", icon: <MessageSquare className="w-5 h-5" />,   label: "Threads",      show: true },
                 { href: "/themes",  icon: <Tag className="w-5 h-5" />,             label: "Themes",       show: !isRP && !isZL },
               ] as { href: string; icon: React.ReactNode; label: string; show: boolean }[])
                 .filter(i => i.show)
