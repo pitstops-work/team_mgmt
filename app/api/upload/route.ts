@@ -1,13 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-
-// On Render: UPLOAD_DIR points to the mounted disk, files are served via /api/files/
-// Locally: files go to public/uploads and are served by Next.js static file serving
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), "public", "uploads");
-const UPLOAD_URL_PREFIX = process.env.UPLOAD_DIR ? "/api/files" : "/uploads";
+import { put } from "@vercel/blob";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -20,27 +14,20 @@ export async function POST(req: NextRequest) {
 
   if (!file) return Response.json({ error: "No file provided" }, { status: 400 });
 
+  let url: string;
   try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-  } catch {
-    return Response.json({ error: "File storage unavailable. Contact admin." }, { status: 500 });
-  }
-
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-  const filePath = path.join(UPLOAD_DIR, safeName);
-  try {
-    await writeFile(filePath, buffer);
-  } catch {
-    return Response.json({ error: "File storage unavailable. Contact admin." }, { status: 500 });
+    const blob = await put(file.name, file, { access: "public" });
+    url = blob.url;
+  } catch (e) {
+    console.error("Blob upload failed:", e);
+    return Response.json({ error: "File upload failed. Please try again." }, { status: 500 });
   }
 
   const attachment = await prisma.attachment.create({
     data: {
       name: file.name,
       type: "File",
-      url: `${UPLOAD_URL_PREFIX}/${safeName}`,
+      url,
       size: file.size,
       mimeType: file.type,
       pitstopId: pitstopId ?? undefined,
