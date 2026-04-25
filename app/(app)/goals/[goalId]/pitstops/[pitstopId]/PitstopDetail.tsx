@@ -49,6 +49,7 @@ type ChecklistItem = {
   assigneeId: string | null;
   notes: string | null;
   activities: ActivityRef[];
+  attachments: Attachment[];
 };
 type DepPitstop = { id: string; title: string; status: string };
 type Dependency = { id: string; blockedBy: DepPitstop };
@@ -150,7 +151,7 @@ function ChecklistItemRow({
   onActivityCreated: (itemId: string, activity: ActivityRef) => void;
   onMove: (id: string, direction: "up" | "down") => void;
   onVoiceLogged: (id: string, notes: string) => void;
-  onAttachmentLogged: (id: string) => void;
+  onAttachmentLogged: (id: string, attachment: Attachment) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -175,7 +176,10 @@ function ChecklistItemRow({
     fd.append("file", file);
     fd.append("checklistItemId", item.id);
     const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (res.ok) onAttachmentLogged(item.id);
+    if (res.ok) {
+      const att: Attachment = await res.json();
+      onAttachmentLogged(item.id, att);
+    }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -347,6 +351,20 @@ function ChecklistItemRow({
                 <Calendar className="w-2.5 h-2.5" />
                 {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
               </Link>
+            ))}
+            {/* Attachment chips */}
+            {item.attachments?.map((att) => (
+              <a
+                key={att.id}
+                href={`/api/attachments/${att.id}/download`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[9px] text-stone-500 bg-stone-50 border border-stone-200 px-1.5 py-0.5 rounded flex items-center gap-1 hover:bg-stone-100 transition-colors max-w-[120px] truncate"
+                title={att.name}
+              >
+                <Paperclip className="w-2.5 h-2.5 flex-shrink-0" />
+                <span className="truncate">{att.name}</span>
+              </a>
             ))}
             {/* Schedule button — always available */}
             <button
@@ -690,9 +708,11 @@ export default function PitstopDetail({
     setPitstop((p) => ({ ...p, checklistItems: newItems, status: derived }));
   };
 
-  const handleAttachmentLogged = (itemId: string) => {
+  const handleAttachmentLogged = (itemId: string, attachment: Attachment) => {
     const newItems = pitstop.checklistItems.map((i) =>
-      i.id === itemId ? { ...i, checked: true, status: "Done" as const } : i
+      i.id === itemId
+        ? { ...i, checked: true, status: "Done" as const, attachments: [...(i.attachments ?? []), attachment] }
+        : i
     );
     const allChecked = newItems.every((i) => i.checked);
     const anyChecked = newItems.some((i) => i.checked);

@@ -125,10 +125,26 @@ export default async function PitstopPage({
       activityMap.set(r.checklistItemId, arr);
     }
 
+    const attachmentRows = await prisma.$queryRaw<{
+      checklistItemId: string; id: string; name: string; url: string; type: string; mimeType: string | null;
+    }[]>`
+      SELECT "checklistItemId", id, name, url, type::text, "mimeType"
+      FROM "Attachment"
+      WHERE "checklistItemId" = ANY(${checklistIds})
+      ORDER BY "createdAt" ASC
+    `;
+    const attachmentMap = new Map<string, { id: string; name: string; url: string; type: string; mimeType: string | null }[]>();
+    for (const r of attachmentRows) {
+      const arr = attachmentMap.get(r.checklistItemId) ?? [];
+      arr.push({ id: r.id, name: r.name, url: r.url, type: r.type, mimeType: r.mimeType });
+      attachmentMap.set(r.checklistItemId, arr);
+    }
+
     for (const ci of pitstop.checklistItems) {
       const row = ciMap.get(ci.id);
       if (row) Object.assign(ci, row);
       (ci as Record<string, unknown>).activities = activityMap.get(ci.id) ?? [];
+      (ci as Record<string, unknown>).attachments = attachmentMap.get(ci.id) ?? [];
     }
   }
 
