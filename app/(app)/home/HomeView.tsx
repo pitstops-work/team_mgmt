@@ -1554,7 +1554,16 @@ function RPActionTab({
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
+  // InProgress pitstops start expanded; track which ones the user collapsed
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  function isOpen(id: string) { return !collapsedIds.has(id); }
+  function toggleSimple(id: string) {
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
@@ -1591,32 +1600,11 @@ function RPActionTab({
       (PITSTOP_STATUS_PRIORITY[a.pitstop.status] ?? 9) - (PITSTOP_STATUS_PRIORITY[b.pitstop.status] ?? 9)
     );
   }, [weekChecklists, completedItemIds]);
-  function toggle(id: string) {
-    setCollapsedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
-  function isOpen(id: string) {
-    // InProgress pitstops start open; others start closed
-    const isInProgress = openByPitstop.find(g => g.pitstop.id === id)?.pitstop.status === "InProgress";
-    return isInProgress ? !collapsedIds.has(id) : collapsedIds.has(id + "__open");
-  }
-  function toggleSimple(id: string) {
-    const isInProgress = openByPitstop.find(g => g.pitstop.id === id)?.pitstop.status === "InProgress";
-    setCollapsedIds(prev => {
-      const next = new Set(prev);
-      if (isInProgress) {
-        if (next.has(id)) next.delete(id); else next.add(id);
-      } else {
-        if (next.has(id + "__open")) next.delete(id + "__open"); else next.add(id + "__open");
-      }
-      return next;
-    });
-  }
 
-  const totalOpenItems = weekChecklists.filter(ci => !completedItemIds.has(ci.id)).length;
+  const inProgressGroups = openByPitstop.filter(g => g.pitstop.status === "InProgress");
+  const upcomingGroups   = openByPitstop.filter(g => g.pitstop.status !== "InProgress");
+  const upcomingItemCount = upcomingGroups.reduce((s, g) => s + g.items.length, 0);
+  const inProgressItemCount = inProgressGroups.reduce((s, g) => s + g.items.length, 0);
 
   async function handleDone(eventId: string) {
     setLoadingDoneId(eventId);
@@ -1678,71 +1666,84 @@ function RPActionTab({
         </div>
       )}
 
-      {/* 2. Open checklist items — grouped by pitstop */}
+      {/* 2. Active pitstop items (InProgress only) */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <SectionTitle>Open items ({totalOpenItems})</SectionTitle>
+          <SectionTitle>
+            {inProgressGroups.length > 0
+              ? `Active items (${inProgressItemCount})`
+              : "Active items"}
+          </SectionTitle>
         </div>
-        {openByPitstop.length === 0
-          ? <EmptyState message="All checklist items are done." />
-          : (
-            <div className="space-y-3">
-              {openByPitstop.map(({ pitstop, items }) => {
-                const expanded = isOpen(pitstop.id);
-                return (
-                  <div key={pitstop.id} className="rounded-xl border border-stone-200 overflow-hidden">
-                    {/* Pitstop header */}
-                    <button
-                      onClick={() => toggleSimple(pitstop.id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-stone-50 hover:bg-stone-100 transition-colors text-left"
-                    >
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${PITSTOP_STATUS_DOT[pitstop.status] ?? "bg-stone-300"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-700 truncate">{pitstop.title}</p>
-                        <p className="text-xs text-stone-400 truncate">{pitstop.goal.title}</p>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                          pitstop.status === "InProgress" ? "bg-amber-100 text-amber-700" :
-                          pitstop.status === "Upcoming"   ? "bg-sky-50 text-sky-600" :
-                          "bg-stone-100 text-stone-500"
-                        }`}>
-                          {pitstop.status}
-                        </span>
-                        <span className="text-[10px] text-stone-400">{items.length} items</span>
-                        {expanded
-                          ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" />
-                          : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-                        }
-                      </div>
-                    </button>
 
-                    {/* Items */}
-                    {expanded && (
-                      <div className="divide-y divide-stone-100">
-                        {items.slice(0, 8).map(ci => (
-                          <RPChecklistRow
-                            key={ci.id}
-                            item={ci}
-                            onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
-                          />
-                        ))}
-                        {items.length > 8 && (
-                          <Link
-                            href={`/goals/${pitstop.goal.id}/pitstops/${pitstop.id}`}
-                            className="flex items-center gap-2 px-4 py-2.5 text-xs text-sky-600 hover:text-sky-800 hover:bg-sky-50 transition-colors"
-                          >
-                            +{items.length - 8} more items — open pitstop →
-                          </Link>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+        {inProgressGroups.length === 0 ? (
+          <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-5 text-center">
+            <p className="text-sm text-stone-500">No pitstops in progress.</p>
+            <p className="text-xs text-stone-400 mt-1">Start a pitstop in your goals to begin tracking field work.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {inProgressGroups.map(({ pitstop, items }) => {
+              const expanded = isOpen(pitstop.id);
+              return (
+                <div key={pitstop.id} className="rounded-xl border border-amber-200 overflow-hidden">
+                  <button
+                    onClick={() => toggleSimple(pitstop.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 hover:bg-amber-100/70 transition-colors text-left"
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0 bg-amber-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-stone-700 truncate">{pitstop.title}</p>
+                      <p className="text-xs text-stone-400 truncate">{pitstop.goal.title}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-100 text-amber-700">In progress</span>
+                      <span className="text-[10px] text-stone-400">{items.length} items</span>
+                      {expanded
+                        ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" />
+                        : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                      }
+                    </div>
+                  </button>
+                  {expanded && (
+                    <div className="divide-y divide-stone-100">
+                      {items.slice(0, 8).map(ci => (
+                        <RPChecklistRow
+                          key={ci.id}
+                          item={ci}
+                          onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
+                        />
+                      ))}
+                      {items.length > 8 && (
+                        <Link
+                          href={`/goals/${pitstop.goal.id}/pitstops/${pitstop.id}`}
+                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-sky-600 hover:text-sky-800 hover:bg-sky-50 transition-colors"
+                        >
+                          +{items.length - 8} more — open pitstop →
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Upcoming pitstops summary */}
+        {upcomingGroups.length > 0 && (
+          <div className="mt-3 flex items-center justify-between px-4 py-3 rounded-xl border border-stone-200 bg-stone-50">
+            <div>
+              <p className="text-xs font-medium text-stone-500">
+                {upcomingItemCount} items across {upcomingGroups.length} upcoming pitstop{upcomingGroups.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-[11px] text-stone-400 mt-0.5">Start a pitstop to move items here</p>
             </div>
-          )
-        }
+            <Link href={`/goals/${upcomingGroups[0].pitstop.goal.id}`} className="text-xs text-sky-500 hover:text-sky-700 font-medium">
+              View goals →
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* 3. Today's upcoming activities */}
@@ -1781,7 +1782,7 @@ function RPActionTab({
         </div>
       )}
 
-      {needsAction.length === 0 && totalOpenItems === 0 && todayUpcoming.length === 0 && laterThisWeek.length === 0 && (
+      {needsAction.length === 0 && inProgressItemCount === 0 && todayUpcoming.length === 0 && laterThisWeek.length === 0 && (
         <EmptyState message="Nothing pending. Go to Activities to schedule more." />
       )}
 
