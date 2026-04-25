@@ -1437,9 +1437,21 @@ function RPChecklistRow({
 }) {
   const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
   const [uploading, setUploading] = useState(false);
+  const [markingDone, setMarkingDone] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleDone() {
+    setMarkingDone(true);
+    const res = await fetch(`/api/checklist/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Done", checked: true }),
+    });
+    if (res.ok) onCompleted(item.id);
+    setMarkingDone(false);
+  }
 
   async function startVoiceLog() {
     try {
@@ -1479,7 +1491,7 @@ function RPChecklistRow({
     if (res.ok) onCompleted(item.id);
   }
 
-  const isBusy = voiceState !== "idle" || uploading;
+  const isBusy = voiceState !== "idle" || uploading || markingDone;
 
   return (
     <div className="flex items-start gap-3 px-4 py-2.5 rounded-lg border border-stone-200 bg-white">
@@ -1506,6 +1518,13 @@ function RPChecklistRow({
       {!isBusy && (
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
+            onClick={handleDone}
+            className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md font-medium transition-colors"
+            title="Mark done"
+          >
+            Done
+          </button>
+          <button
             onClick={startVoiceLog}
             className="flex items-center gap-1 text-xs px-2 py-1.5 text-stone-500 hover:text-sky-600 hover:bg-sky-50 rounded-md transition-colors"
             title="Voice log"
@@ -1523,6 +1542,7 @@ function RPChecklistRow({
           </button>
         </div>
       )}
+      {markingDone && <Loader2 className="w-3.5 h-3.5 text-emerald-500 animate-spin flex-shrink-0 mt-1" />}
       {uploading && <Loader2 className="w-3.5 h-3.5 text-stone-400 animate-spin flex-shrink-0 mt-1" />}
       <input
         type="file"
