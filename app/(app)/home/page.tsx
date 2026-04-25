@@ -182,7 +182,12 @@ export default async function HomePage() {
       where: {
         deletedAt: null,
         scheduledAt: { gte: todayStart, lte: todayEnd },
-        ...(isScoped ? { attendees: { some: { userId } } } : {}),
+        ...(isScoped ? {
+          OR: [
+            { attendees: { some: { userId } } },
+            { pitstops: { some: { pitstop: { ownerId: userId, deletedAt: null } } } },
+          ],
+        } : {}),
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
@@ -195,7 +200,13 @@ export default async function HomePage() {
       where: {
         deletedAt: null,
         scheduledAt: { gte: weekStart, lte: weekEnd },
-        ...(isScoped ? { attendees: { some: { userId: { in: teamIds } } } } : {}),
+        ...(isScoped ? {
+          OR: [
+            { attendees: { some: { userId: { in: teamIds } } } },
+            // Also include events on pitstops owned by this RP/ZL
+            { pitstops: { some: { pitstop: { ownerId: { in: teamIds }, deletedAt: null } } } },
+          ],
+        } : {}),
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
@@ -269,7 +280,10 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { lt: todayStart },
-            attendees: { some: { userId } },
+            OR: [
+              { attendees: { some: { userId } } },
+              { pitstops: { some: { pitstop: { ownerId: userId, deletedAt: null } } } },
+            ],
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,

@@ -1799,16 +1799,22 @@ function RPActionTab({
           <SectionTitle>Later this week</SectionTitle>
           <div className="space-y-2">
             {laterThisWeek.slice(0, 5).map(a => (
-              <Link key={a.id} href="/activities"
-                className="flex items-start gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+              <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
                   <p className="text-xs text-stone-400 mt-0.5">
                     {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
                   </p>
                 </div>
-              </Link>
+                <button
+                  onClick={() => handleDone(a.id)}
+                  disabled={loadingDoneId === a.id}
+                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0"
+                >
+                  {loadingDoneId === a.id ? "…" : "Done"}
+                </button>
+              </div>
             ))}
             {laterThisWeek.length > 5 && (
               <Link href="/activities" className="text-xs text-sky-500 hover:text-sky-700 px-1 block">
