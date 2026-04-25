@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { put } from "@vercel/blob";
+import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
         "updatedAt"   = NOW()
       WHERE id = ${checklistItemId}
     `;
+    await autoAdvancePitstopFromItem(checklistItemId);
     const attachment = await prisma.$queryRaw<{ id: string; name: string; url: string }[]>`
       SELECT id, name, url FROM "Attachment" WHERE id = ${id} LIMIT 1
     `;

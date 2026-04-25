@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
 
 const VALID_STATUSES = [
   "NotStarted", "Scheduled", "InProgress", "Done", "Blocked", "Rescheduled", "Cancelled",
@@ -43,6 +44,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
   `;
 
   if (!item) return Response.json({ error: "Not found" }, { status: 404 });
+
+  if (resolvedStatus === "Done") {
+    await autoAdvancePitstopFromItem(itemId);
+  }
 
   const updated = await prisma.$queryRaw<{
     id: string; text: string; checked: boolean; order: number;

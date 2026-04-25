@@ -1601,10 +1601,20 @@ function RPActionTab({
     );
   }, [weekChecklists, completedItemIds]);
 
-  const inProgressGroups = openByPitstop.filter(g => g.pitstop.status === "InProgress");
+  const inProgressGroups = openByPitstop
+    .filter(g => g.pitstop.status === "InProgress")
+    .sort((a, b) => {
+      const ta = a.pitstop.targetDate ? new Date(a.pitstop.targetDate).getTime() : Infinity;
+      const tb = b.pitstop.targetDate ? new Date(b.pitstop.targetDate).getTime() : Infinity;
+      return ta - tb;
+    });
   const upcomingGroups   = openByPitstop.filter(g => g.pitstop.status !== "InProgress");
   const upcomingItemCount = upcomingGroups.reduce((s, g) => s + g.items.length, 0);
   const inProgressItemCount = inProgressGroups.reduce((s, g) => s + g.items.length, 0);
+
+  const IN_PROGRESS_CAP = 3;
+  const [showAllInProgress, setShowAllInProgress] = useState(false);
+  const visibleInProgress = showAllInProgress ? inProgressGroups : inProgressGroups.slice(0, IN_PROGRESS_CAP);
 
   async function handleDone(eventId: string) {
     setLoadingDoneId(eventId);
@@ -1683,7 +1693,7 @@ function RPActionTab({
           </div>
         ) : (
           <div className="space-y-3">
-            {inProgressGroups.map(({ pitstop, items }) => {
+            {visibleInProgress.map(({ pitstop, items }) => {
               const expanded = isOpen(pitstop.id);
               return (
                 <div key={pitstop.id} className="rounded-xl border border-amber-200 overflow-hidden">
@@ -1727,6 +1737,16 @@ function RPActionTab({
                 </div>
               );
             })}
+            {inProgressGroups.length > IN_PROGRESS_CAP && (
+              <button
+                onClick={() => setShowAllInProgress(v => !v)}
+                className="w-full text-xs text-sky-600 hover:text-sky-800 py-2 text-center"
+              >
+                {showAllInProgress
+                  ? "Show fewer"
+                  : `Show ${inProgressGroups.length - IN_PROGRESS_CAP} more in-progress pitstop${inProgressGroups.length - IN_PROGRESS_CAP > 1 ? "s" : ""} →`}
+              </button>
+            )}
           </div>
         )}
 
@@ -1751,7 +1771,24 @@ function RPActionTab({
         <div>
           <SectionTitle>Today — coming up</SectionTitle>
           <div className="space-y-2">
-            {todayUpcoming.map(a => <ActivityRow key={a.id} a={a} />)}
+            {todayUpcoming.map(a => (
+              <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDone(a.id)}
+                  disabled={loadingDoneId === a.id}
+                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0"
+                >
+                  {loadingDoneId === a.id ? "…" : "Done"}
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}

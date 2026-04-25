@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { uploadAudio, transcribeAudio, translateToAll } from "@/lib/voice";
+import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
 
 export const maxDuration = 60;
 
@@ -56,6 +57,8 @@ export async function POST(
       "updatedAt"   = NOW()
     WHERE id = ${itemId}
   `;
+
+  await autoAdvancePitstopFromItem(itemId);
 
   const updated = await prisma.$queryRaw<{
     id: string; text: string; checked: boolean; status: string; notes: string | null;

@@ -28,6 +28,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     select: { recurrence: true, startDate: true, targetDate: true, status: true, goalId: true, order: true, priority: true, ownerId: true },
   });
 
+  // Block manual Upcoming → InProgress: pitstops auto-advance when first checklist item is Done
+  if (data.status === "InProgress" && existing?.status === "Upcoming") {
+    return Response.json(
+      { error: "Pitstops advance to In Progress automatically when field work begins (first checklist item completed)." },
+      { status: 422 }
+    );
+  }
+
   const pitstop = await prisma.pitstop.update({
     where: { id: pitstopId },
     data: {

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
+import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
 
 const include = {
   pitstops: {
@@ -51,6 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
           SET status = 'Done'::"ChecklistItemStatus", checked = TRUE, "completedAt" = NOW(), "updatedAt" = NOW()
           WHERE id = ${current[0].checklistItemId}
         `;
+        await autoAdvancePitstopFromItem(current[0].checklistItemId);
       }
     } else if (status === "Cancelled") {
       const reason: string = cancellationReason ?? null;
