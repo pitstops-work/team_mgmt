@@ -1699,8 +1699,9 @@ function ZLTeamHealthTab({
                   </span>
                   {stat.overduePitstops > 0 ? (
                     <button
+                      type="button"
                       onClick={() => setExpandedDelayed(isDelayedOpen ? null : rp.id)}
-                      className="flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors"
+                      className="flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-100 active:bg-red-200 transition-colors cursor-pointer"
                     >
                       {stat.overduePitstops} delayed
                       {isDelayedOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -1714,8 +1715,11 @@ function ZLTeamHealthTab({
               </div>
 
               {/* Delayed pitstops drill-down */}
-              {isDelayedOpen && stat.delayedPitstops.length > 0 && (
+              {isDelayedOpen && (
                 <div className="space-y-2 pt-1 border-t border-stone-100">
+                  {stat.delayedPitstops.length === 0 && (
+                    <p className="text-xs text-stone-400 py-1">No detail available.</p>
+                  )}
                   {stat.delayedPitstops.map(p => (
                     <div key={p.id} className="bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5">
                       <div className="flex items-start justify-between gap-2">
