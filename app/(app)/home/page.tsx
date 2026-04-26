@@ -91,6 +91,7 @@ export type ZLHealthStat = {
   totalOverdueActivities: number;
   totalChecklists: number;
   doneChecklists: number;
+  delayedPitstops: RPPitstopDetail[];
 };
 
 export type RPHealthStat = {
@@ -507,6 +508,10 @@ export default async function HomePage() {
   let pmZLChecklists: any[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let pmMyActivities: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pmRPOverdueActivities: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pmRPChecklists: any[] = [];
   let pmZoneClusterMap: { id: string; name: string; clusterIds: string[] }[] = [];
   let pmClusterStats: ClusterStat[] = [];
   let pmClusterStatus: ClusterStatus[] = [];
@@ -621,11 +626,12 @@ export default async function HomePage() {
           totalOverdueActivities: zlRpStat.reduce((s, r) => s + r.overdueActivities, 0),
           totalChecklists: zlRpStat.reduce((s, r) => s + r.totalChecklists, 0),
           doneChecklists: zlRpStat.reduce((s, r) => s + r.doneChecklists, 0),
+          delayedPitstops: zlRpStat.flatMap(r => r.delayedPitstops),
         };
       });
 
       // PM Today tab: ZL-level operational data
-      const [pmZLOverdueRaw, pmZLChecklistsRaw, pmMyActivitiesRaw, pmZonesRaw] = await Promise.all([
+      const [pmZLOverdueRaw, pmZLChecklistsRaw, pmMyActivitiesRaw, pmZonesRaw, pmRPOverdueRaw, pmRPChecklistsFullRaw] = await Promise.all([
         // Overdue activities on ZL-owned pitstops
         prisma.pitstopEvent.findMany({
           where: {
@@ -693,11 +699,57 @@ export default async function HomePage() {
           },
           orderBy: { name: "asc" },
         }),
+        // Overdue activities on RP-owned pitstops (for PM Today → Your RPs section)
+        allRpIds.length > 0
+          ? prisma.pitstopEvent.findMany({
+              where: {
+                deletedAt: null, status: "Scheduled", scheduledAt: { lt: todayStart },
+                pitstops: { some: { pitstop: { ownerId: { in: allRpIds }, deletedAt: null } } },
+              },
+              select: {
+                id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+                attendees: { select: { user: { select: { id: true, name: true } } } },
+                pitstops: {
+                  where: { pitstop: { ownerId: { in: allRpIds }, deletedAt: null } },
+                  select: { pitstop: { select: { ownerId: true, targetDate: true, goal: { select: { id: true, title: true, needsClusterId: true } } } } },
+                  take: 1,
+                },
+              },
+              orderBy: { scheduledAt: "asc" }, take: 300,
+            })
+          : Promise.resolve([]),
+        // Open checklists on RP-owned pitstops (for PM Today → Your RPs section)
+        allRpIds.length > 0
+          ? prisma.checklistItem.findMany({
+              where: {
+                status: { notIn: ["Done", "Cancelled"] },
+                pitstop: { deletedAt: null, ownerId: { in: allRpIds }, goal: { deletedAt: null } },
+              },
+              select: {
+                id: true, text: true, status: true, checked: true, completionType: true,
+                activities: {
+                  where: { status: { notIn: ["Cancelled", "Done"] } },
+                  select: { id: true, title: true, status: true, scheduledAt: true, type: true },
+                  orderBy: { scheduledAt: "asc" }, take: 1,
+                },
+                pitstop: {
+                  select: {
+                    id: true, title: true, targetDate: true, status: true, ownerId: true,
+                    owner: { select: { id: true, name: true } },
+                    goal: { select: { id: true, title: true } },
+                  },
+                },
+              },
+              orderBy: { order: "asc" }, take: 500,
+            })
+          : Promise.resolve([]),
       ]);
 
-      pmZLOverdueActivities = JSON.parse(JSON.stringify(pmZLOverdueRaw));
-      pmZLChecklists        = JSON.parse(JSON.stringify(pmZLChecklistsRaw));
-      pmMyActivities        = JSON.parse(JSON.stringify(pmMyActivitiesRaw));
+      pmZLOverdueActivities  = JSON.parse(JSON.stringify(pmZLOverdueRaw));
+      pmZLChecklists         = JSON.parse(JSON.stringify(pmZLChecklistsRaw));
+      pmMyActivities         = JSON.parse(JSON.stringify(pmMyActivitiesRaw));
+      pmRPOverdueActivities  = JSON.parse(JSON.stringify(pmRPOverdueRaw));
+      pmRPChecklists         = JSON.parse(JSON.stringify(pmRPChecklistsFullRaw));
 
       // PM cluster coverage + status
       const pmClusterIds = pmZonesRaw.flatMap(z => z.clusters.map(c => c.id));
@@ -1027,6 +1079,8 @@ export default async function HomePage() {
       pmZLOverdueActivities={pmZLOverdueActivities}
       pmZLChecklists={pmZLChecklists}
       pmMyActivities={pmMyActivities}
+      pmRPOverdueActivities={pmRPOverdueActivities}
+      pmRPChecklists={pmRPChecklists}
       pmZoneClusterMap={pmZoneClusterMap}
       pmClusterStats={pmClusterStats}
       pmClusterStatus={pmClusterStatus}
