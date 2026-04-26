@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { isAdminUser, isSuperAdmin } from "@/lib/roleGuard";
 
 const VALID_ROLES = ["super-admin", "admin", "member", "viewer"] as const;
-const VALID_DESIGNATIONS = ["RP", "ZL", "PM", "Other"] as const;
+const VALID_DESIGNATIONS = ["RP", "ZL", "PM", "Leader", "Other"] as const;
 
 export async function PATCH(
   req: Request,
