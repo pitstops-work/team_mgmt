@@ -1609,6 +1609,18 @@ function slaHeaderLabel(dateKey: string, todayMs: number): { label: string; isOv
 
 // ── ZL Team Health tab ───────────────────────────────────────────────────────
 
+function HealthBar({ value, total, color = "bg-sky-500" }: { value: number; total: number; color?: string }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[11px] text-stone-500 tabular-nums w-8 text-right">{pct}%</span>
+    </div>
+  );
+}
+
 function ZLTeamHealthTab({
   teamMembers,
   rpTeamHealth,
@@ -1616,132 +1628,149 @@ function ZLTeamHealthTab({
   teamMembers: TeamMember[];
   rpTeamHealth: RPHealthStat[];
 }) {
+  const [expandedDelayed, setExpandedDelayed] = useState<string | null>(null);
+
   if (teamMembers.length === 0) {
-    return (
-      <div className="text-sm text-stone-400 text-center py-16">No RPs reporting to you yet.</div>
-    );
-  }
-
-  function healthDot(stat: RPHealthStat) {
-    if (stat.overduePitstops > 0) return "bg-red-500";
-    if (stat.overdueActivities > 0) return "bg-amber-400";
-    return "bg-emerald-500";
-  }
-
-  function healthLabel(stat: RPHealthStat) {
-    if (stat.overduePitstops > 0) return "Needs attention";
-    if (stat.overdueActivities > 0) return "Activities overdue";
-    return "On track";
+    return <div className="text-sm text-stone-400 text-center py-16">No RPs reporting to you yet.</div>;
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-stone-400 uppercase tracking-wide font-semibold mb-4">
+    <div className="space-y-4">
+      <p className="text-xs text-stone-400 uppercase tracking-wide font-semibold">
         {teamMembers.length} RP{teamMembers.length !== 1 ? "s" : ""}
       </p>
 
       {teamMembers.map(rp => {
         const stat = rpTeamHealth.find(s => s.rpId === rp.id);
         if (!stat) return null;
-        const dot = healthDot(stat);
-        const label = healthLabel(stat);
+
+        const isDelayedOpen = expandedDelayed === rp.id;
+        const clPct = stat.totalChecklists > 0
+          ? Math.round((stat.doneChecklists / stat.totalChecklists) * 100)
+          : null;
+        const dotColor = stat.overduePitstops > 0 ? "bg-red-500"
+          : stat.overdueActivities > 0 ? "bg-amber-400"
+          : "bg-emerald-500";
+        const dotLabel = stat.overduePitstops > 0 ? "Needs attention"
+          : stat.overdueActivities > 0 ? "Activities overdue"
+          : "On track";
 
         return (
-          <div key={rp.id} className="bg-white border border-stone-200 rounded-xl p-4 space-y-3">
-            {/* Header row */}
-            <div className="flex items-center justify-between">
+          <div key={rp.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-3">
               <div className="flex items-center gap-2.5">
                 <Avatar name={rp.name} image={rp.image} size="sm" />
                 <span className="text-sm font-semibold text-stone-800">{rp.name ?? "Unnamed"}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${dot}`} />
-                <span className="text-xs text-stone-500">{label}</span>
+                <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+                <span className="text-xs text-stone-500">{dotLabel}</span>
               </div>
             </div>
 
-            {/* Stats grid */}
-            <div className="grid grid-cols-2 gap-2">
-              {/* Goals */}
-              <div className="bg-stone-50 rounded-lg p-2.5 space-y-1">
-                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
-                  <Target className="w-3 h-3" /> Goals
-                </p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {stat.activeGoals > 0 && (
-                    <span className="text-xs font-medium text-sky-700 bg-sky-50 border border-sky-100 px-1.5 py-0.5 rounded-md">
-                      {stat.activeGoals} active
-                    </span>
-                  )}
-                  {stat.pausedGoals > 0 && (
-                    <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-md">
-                      {stat.pausedGoals} paused
-                    </span>
-                  )}
-                  {stat.completeGoals > 0 && (
-                    <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md">
-                      {stat.completeGoals} done
-                    </span>
-                  )}
-                  {stat.activeGoals === 0 && stat.pausedGoals === 0 && stat.completeGoals === 0 && (
-                    <span className="text-xs text-stone-400">No goals yet</span>
-                  )}
+            <div className="px-4 pb-4 space-y-3">
+              {/* Goals progress */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
+                    <Target className="w-3 h-3" /> Goals
+                  </span>
+                  <span className="text-[11px] text-stone-500">
+                    {stat.completeGoals} of {stat.totalGoals} complete
+                    {stat.pausedGoals > 0 && (
+                      <span className="ml-1.5 text-amber-500">· {stat.pausedGoals} paused</span>
+                    )}
+                  </span>
                 </div>
+                <HealthBar value={stat.completeGoals} total={stat.totalGoals} color="bg-emerald-500" />
               </div>
 
-              {/* Pitstops */}
-              <div className="bg-stone-50 rounded-lg p-2.5 space-y-1">
-                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Pitstops
-                </p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {stat.openPitstops > 0 && (
-                    <span className="text-xs font-medium text-violet-700 bg-violet-50 border border-violet-100 px-1.5 py-0.5 rounded-md">
-                      {stat.openPitstops} open
-                    </span>
-                  )}
-                  {stat.overduePitstops > 0 && (
-                    <span className="text-xs font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md">
-                      {stat.overduePitstops} overdue
-                    </span>
-                  )}
-                  {stat.openPitstops === 0 && (
-                    <span className="text-xs text-stone-400">All clear</span>
-                  )}
+              {/* Pitstop SLA health */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Pitstops
+                  </span>
                 </div>
-              </div>
-
-              {/* Activities */}
-              <div className="bg-stone-50 rounded-lg p-2.5 space-y-1">
-                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
-                  <CalendarClock className="w-3 h-3" /> Activities
-                </p>
                 <div className="flex items-center gap-2">
-                  {stat.overdueActivities > 0 ? (
-                    <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-md">
-                      {stat.overdueActivities} overdue
-                    </span>
+                  <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
+                    {stat.onTrackPitstops} within SLA
+                  </span>
+                  {stat.overduePitstops > 0 ? (
+                    <button
+                      onClick={() => setExpandedDelayed(isDelayedOpen ? null : rp.id)}
+                      className="flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors"
+                    >
+                      {stat.overduePitstops} delayed
+                      {isDelayedOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
                   ) : (
-                    <span className="text-xs text-stone-400">None overdue</span>
+                    <span className="text-xs text-stone-400 bg-stone-50 border border-stone-100 px-2 py-1 rounded-lg">
+                      0 delayed
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* Checklists */}
-              <div className="bg-stone-50 rounded-lg p-2.5 space-y-1">
-                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
-                  <CheckSquare className="w-3 h-3" /> Checklists
-                </p>
-                <div className="flex items-center gap-2">
-                  {stat.openChecklists > 0 ? (
-                    <span className="text-xs font-medium text-teal-700 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded-md">
-                      {stat.openChecklists} open
-                    </span>
-                  ) : (
-                    <span className="text-xs text-stone-400">All done</span>
-                  )}
+              {/* Delayed pitstops drill-down */}
+              {isDelayedOpen && stat.delayedPitstops.length > 0 && (
+                <div className="space-y-2 pt-1 border-t border-stone-100">
+                  {stat.delayedPitstops.map(p => (
+                    <div key={p.id} className="bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold text-stone-800">{p.title}</p>
+                          <p className="text-[11px] text-stone-500">{p.goalTitle}</p>
+                        </div>
+                        <span className="text-[11px] font-medium text-red-600 whitespace-nowrap">
+                          {p.daysOverdue}d overdue
+                        </span>
+                      </div>
+                      {p.pendingChecklists.length > 0 ? (
+                        <div>
+                          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">
+                            Pending checklists
+                          </p>
+                          <ul className="space-y-0.5">
+                            {p.pendingChecklists.map(ci => (
+                              <li key={ci.id} className="flex items-start gap-1.5 text-[11px] text-stone-600">
+                                <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-red-300 flex-shrink-0" />
+                                {ci.text}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-stone-400">No pending checklists</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
+
+              {/* Checklist completion */}
+              {stat.totalChecklists > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
+                      <CheckSquare className="w-3 h-3" /> Checklist completion
+                    </span>
+                    <span className="text-[11px] text-stone-500">
+                      {stat.doneChecklists} of {stat.totalChecklists} done · {clPct}%
+                    </span>
+                  </div>
+                  <HealthBar value={stat.doneChecklists} total={stat.totalChecklists} color="bg-teal-500" />
+                </div>
+              )}
+
+              {/* Overdue activities note */}
+              {stat.overdueActivities > 0 && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {stat.overdueActivities} overdue activit{stat.overdueActivities === 1 ? "y" : "ies"} not yet marked done
+                </div>
+              )}
             </div>
           </div>
         );
