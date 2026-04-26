@@ -1578,7 +1578,7 @@ function RPTodayTab({
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
-  const [collapsedPitstopIds, setCollapsedPitstopIds] = useState<Set<string>>(new Set());
+  const [collapsedSlaGroups, setCollapsedSlaGroups] = useState<Set<string>>(new Set());
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
@@ -1604,16 +1604,18 @@ function RPTodayTab({
 
   // Bucket: checklists — open items
   const openChecklists = weekChecklists.filter(ci => !completedItemIds.has(ci.id));
-  const checklistByPitstop = useMemo(() => {
-    const map: Record<string, { pitstop: ChecklistItem["pitstop"]; items: ChecklistItem[] }> = {};
+  const checklistBySlaDate = useMemo(() => {
+    const map: Record<string, ChecklistItem[]> = {};
     for (const ci of openChecklists) {
-      const pid = ci.pitstop.id;
-      if (!map[pid]) map[pid] = { pitstop: ci.pitstop, items: [] };
-      map[pid].items.push(ci);
+      const key = ci.pitstop.targetDate ? ci.pitstop.targetDate.slice(0, 10) : "no-date";
+      if (!map[key]) map[key] = [];
+      map[key].push(ci);
     }
-    return Object.values(map).sort((a, b) =>
-      (PITSTOP_STATUS_PRIORITY[a.pitstop.status] ?? 9) - (PITSTOP_STATUS_PRIORITY[b.pitstop.status] ?? 9)
-    );
+    return Object.entries(map).sort(([a], [b]) => {
+      if (a === "no-date") return 1;
+      if (b === "no-date") return -1;
+      return new Date(a).getTime() - new Date(b).getTime();
+    });
   }, [openChecklists]);
 
   async function handleDone(eventId: string) {
@@ -1630,10 +1632,10 @@ function RPTodayTab({
     }
   }
 
-  function togglePitstop(id: string) {
-    setCollapsedPitstopIds(prev => {
+  function toggleSlaGroup(key: string) {
+    setCollapsedSlaGroups(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }
@@ -1712,34 +1714,43 @@ function RPTodayTab({
     );
   }
 
-  // Checklist drill-down — grouped by pitstop
+  // Checklist drill-down — grouped by SLA date
   function ChecklistDrillList() {
-    if (checklistByPitstop.length === 0) return <EmptyState message="No open checklist items." />;
+    if (checklistBySlaDate.length === 0) return <EmptyState message="No open checklist items." />;
+    const todayMs = new Date(new Date().toDateString()).getTime();
     return (
       <div className="space-y-3">
-        {checklistByPitstop.map(({ pitstop, items }) => {
-          const expanded = !collapsedPitstopIds.has(pitstop.id);
+        {checklistBySlaDate.map(([dateKey, items]) => {
+          const expanded = !collapsedSlaGroups.has(dateKey);
+          let label: string;
+          let isOverdue = false;
+          if (dateKey === "no-date") {
+            label = "No due date";
+          } else {
+            const dMs = new Date(dateKey).getTime();
+            if (dMs === todayMs) {
+              label = "Due today";
+            } else if (dMs < todayMs) {
+              isOverdue = true;
+              label = `Overdue · ${fmtDate(dateKey)}`;
+            } else {
+              label = `Due ${fmtDate(dateKey)}`;
+            }
+          }
           return (
-            <div key={pitstop.id} className="rounded-xl border border-stone-200 overflow-hidden">
+            <div key={dateKey} className={`rounded-xl border overflow-hidden ${isOverdue ? "border-amber-200" : "border-stone-200"}`}>
               <button
-                onClick={() => togglePitstop(pitstop.id)}
-                className="w-full flex items-center gap-3 px-4 py-3 bg-stone-50 hover:bg-stone-100/70 transition-colors text-left"
+                onClick={() => toggleSlaGroup(dateKey)}
+                className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${isOverdue ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}
               >
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  pitstop.status === "InProgress" ? "bg-amber-400" :
-                  pitstop.status === "Blocked" ? "bg-red-400" : "bg-sky-300"
-                }`} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-700 truncate">{pitstop.title}</p>
-                  <p className="text-xs text-stone-400 truncate">{pitstop.goal.title}</p>
+                  <p className={`text-sm font-semibold ${isOverdue ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
+                  <p className="text-xs text-stone-400">{items.length} item{items.length !== 1 ? "s" : ""}</p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-[10px] text-stone-400">{items.length} items</span>
-                  {expanded
-                    ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" />
-                    : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-                  }
-                </div>
+                {expanded
+                  ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+                  : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+                }
               </button>
               {expanded && (
                 <div className="divide-y divide-stone-100">
