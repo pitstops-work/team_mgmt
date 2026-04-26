@@ -227,6 +227,13 @@ export default async function HomePage() {
       },
       select: {
         id: true, text: true, status: true, checked: true,
+        completionType: true,
+        activities: {
+          where: { status: { notIn: ["Cancelled", "Done"] } },
+          select: { id: true, title: true, status: true, scheduledAt: true, type: true },
+          orderBy: { scheduledAt: "asc" },
+          take: 1,
+        },
         pitstop: {
           select: {
             id: true, title: true, targetDate: true, status: true,

@@ -23,6 +23,8 @@ type Activity = {
 
 type ChecklistItem = {
   id: string; text: string; status: string; checked: boolean;
+  completionType: "Activity" | "Voice" | "Upload";
+  activities: { id: string; title: string; status: string; scheduledAt: string; type: string }[];
   pitstop: {
     id: string; title: string; targetDate: string | null; status: string; ownerId: string;
     owner: { id: string; name: string | null };
@@ -1426,7 +1428,7 @@ function AdminPipelineTab({ dash }: { dash: AdminDash }) {
   );
 }
 
-// ── RP Checklist row with inline voice + attach ───────────────────────────────
+// ── RP Checklist row — read-only item + activity with completion action ────────
 
 function RPChecklistRow({
   item,
@@ -1442,12 +1444,15 @@ function RPChecklistRow({
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleDone() {
+  const activity = item.activities[0] ?? null;
+
+  async function handleActivityDone() {
+    if (!activity) return;
     setMarkingDone(true);
-    const res = await fetch(`/api/checklist/${item.id}`, {
+    const res = await fetch(`/api/pitstop-events/${activity.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Done", checked: true }),
+      body: JSON.stringify({ status: "Done" }),
     });
     if (res.ok) onCompleted(item.id);
     setMarkingDone(false);
@@ -1494,56 +1499,64 @@ function RPChecklistRow({
   const isBusy = voiceState !== "idle" || uploading || markingDone;
 
   return (
-    <div className="flex items-start gap-3 px-4 py-2.5 rounded-lg border border-stone-200 bg-white">
-      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${CHECKLIST_STATUS_DOT[item.status] ?? "bg-stone-200"}`} />
-      <div className="flex-1 min-w-0">
-        {voiceState === "recording" && (
-          <div className="flex items-center gap-2 mb-1.5 px-2 py-1 bg-red-50 border border-red-200 rounded-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-            <span className="text-xs text-red-600 flex-1">Recording…</span>
-            <button onClick={stopVoiceLog} className="text-xs text-red-600 font-medium hover:text-red-800">Stop</button>
-          </div>
-        )}
-        {voiceState === "processing" && (
-          <div className="flex items-center gap-2 mb-1.5 px-2 py-1 bg-sky-50 border border-sky-200 rounded-md">
-            <Loader2 className="w-3 h-3 text-sky-500 animate-spin flex-shrink-0" />
-            <span className="text-xs text-sky-600">Transcribing…</span>
-          </div>
-        )}
-        <Link href={`/goals/${item.pitstop.goal.id}/pitstops/${item.pitstop.id}`}>
-          <p className="text-sm text-stone-800 truncate hover:text-sky-700 transition-colors">{item.text}</p>
-          <p className="text-xs text-stone-400 mt-0.5 truncate">{item.pitstop.goal.title} · {item.pitstop.title}</p>
-        </Link>
-      </div>
-      {!isBusy && (
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          <button
-            onClick={handleDone}
-            className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md font-medium transition-colors"
-            title="Mark done"
-          >
-            Done
-          </button>
-          <button
-            onClick={startVoiceLog}
-            className="flex items-center gap-1 text-xs px-2 py-1.5 text-stone-500 hover:text-sky-600 hover:bg-sky-50 rounded-md transition-colors"
-            title="Voice log"
-          >
-            <Mic className="w-3 h-3" />
-            <span className="hidden sm:inline">Log</span>
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1 text-xs px-2 py-1.5 text-stone-500 hover:text-sky-600 hover:bg-sky-50 rounded-md transition-colors"
-            title="Attach file"
-          >
-            <Paperclip className="w-3 h-3" />
-            <span className="hidden sm:inline">Attach</span>
-          </button>
+    <div className="px-4 py-3 space-y-2">
+      {/* Checklist item — read-only */}
+      <div className="flex items-start gap-2.5">
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${CHECKLIST_STATUS_DOT[item.status] ?? "bg-stone-200"}`} />
+        <div className="min-w-0">
+          <Link href={`/goals/${item.pitstop.goal.id}/pitstops/${item.pitstop.id}`}>
+            <p className="text-sm text-stone-800 hover:text-sky-700 transition-colors">{item.text}</p>
+            <p className="text-xs text-stone-400 mt-0.5 truncate">{item.pitstop.goal.title} · {item.pitstop.title}</p>
+          </Link>
         </div>
+      </div>
+
+      {/* Linked activity with action */}
+      {activity ? (
+        <div className="ml-4.5 flex items-center gap-2 px-3 py-2 bg-stone-50 rounded-lg border border-stone-100">
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[activity.type] ?? "bg-stone-300"}`} />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-stone-600 truncate">{activity.title}</p>
+            <p className="text-[10px] text-stone-400">{fmtDate(activity.scheduledAt)} · {fmtTime(activity.scheduledAt)}</p>
+          </div>
+          {item.completionType === "Activity" && !isBusy && (
+            <button
+              onClick={handleActivityDone}
+              className="text-xs px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md font-medium transition-colors flex-shrink-0"
+            >
+              Done
+            </button>
+          )}
+          {item.completionType === "Voice" && (
+            voiceState === "recording" ? (
+              <button onClick={stopVoiceLog} className="text-xs px-2.5 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md font-medium transition-colors flex-shrink-0">
+                Stop
+              </button>
+            ) : voiceState === "idle" && !uploading && !markingDone ? (
+              <button onClick={startVoiceLog} className="flex items-center gap-1 text-xs px-2.5 py-1.5 text-stone-500 hover:text-sky-600 hover:bg-sky-50 rounded-md transition-colors flex-shrink-0">
+                <Mic className="w-3 h-3" /> Log
+              </button>
+            ) : null
+          )}
+          {item.completionType === "Upload" && !isBusy && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 text-stone-500 hover:text-sky-600 hover:bg-sky-50 rounded-md transition-colors flex-shrink-0"
+            >
+              <Paperclip className="w-3 h-3" /> Attach
+            </button>
+          )}
+          {(markingDone || uploading || voiceState === "processing") && (
+            <Loader2 className="w-3.5 h-3.5 text-stone-400 animate-spin flex-shrink-0" />
+          )}
+          {voiceState === "processing" && (
+            <span className="text-[10px] text-sky-600 flex-shrink-0">Transcribing…</span>
+          )}
+        </div>
+      ) : (
+        <p className="ml-4.5 text-[10px] text-stone-300 italic">No activity scheduled</p>
       )}
-      {markingDone && <Loader2 className="w-3.5 h-3.5 text-emerald-500 animate-spin flex-shrink-0 mt-1" />}
-      {uploading && <Loader2 className="w-3.5 h-3.5 text-stone-400 animate-spin flex-shrink-0 mt-1" />}
+
       <input
         type="file"
         ref={fileInputRef}
@@ -1579,6 +1592,7 @@ function RPTodayTab({
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
   const [collapsedSlaGroups, setCollapsedSlaGroups] = useState<Set<string>>(new Set());
+  const [checklistGoalFilter, setChecklistGoalFilter] = useState<string>("all");
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
@@ -1604,9 +1618,17 @@ function RPTodayTab({
 
   // Bucket: checklists — open items
   const openChecklists = weekChecklists.filter(ci => !completedItemIds.has(ci.id));
+  const checklistGoals = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const ci of openChecklists) seen.set(ci.pitstop.goal.id, ci.pitstop.goal.title);
+    return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [openChecklists]);
   const checklistBySlaDate = useMemo(() => {
+    const filtered = checklistGoalFilter === "all"
+      ? openChecklists
+      : openChecklists.filter(ci => ci.pitstop.goal.id === checklistGoalFilter);
     const map: Record<string, ChecklistItem[]> = {};
-    for (const ci of openChecklists) {
+    for (const ci of filtered) {
       const key = ci.pitstop.targetDate ? ci.pitstop.targetDate.slice(0, 10) : "no-date";
       if (!map[key]) map[key] = [];
       map[key].push(ci);
@@ -1616,7 +1638,7 @@ function RPTodayTab({
       if (b === "no-date") return -1;
       return new Date(a).getTime() - new Date(b).getTime();
     });
-  }, [openChecklists]);
+  }, [openChecklists, checklistGoalFilter]);
 
   async function handleDone(eventId: string) {
     setLoadingDoneId(eventId);
@@ -1714,12 +1736,25 @@ function RPTodayTab({
     );
   }
 
-  // Checklist drill-down — grouped by SLA date
+  // Checklist drill-down — grouped by SLA date, filterable by goal
   function ChecklistDrillList() {
-    if (checklistBySlaDate.length === 0) return <EmptyState message="No open checklist items." />;
+    if (openChecklists.length === 0) return <EmptyState message="No open checklist items." />;
     const todayMs = new Date(new Date().toDateString()).getTime();
     return (
       <div className="space-y-3">
+        {checklistGoals.length > 1 && (
+          <select
+            value={checklistGoalFilter}
+            onChange={e => setChecklistGoalFilter(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700"
+          >
+            <option value="all">All goals</option>
+            {checklistGoals.map(([id, title]) => (
+              <option key={id} value={id}>{title}</option>
+            ))}
+          </select>
+        )}
+        {checklistBySlaDate.length === 0 && <EmptyState message="No items for this goal." />}
         {checklistBySlaDate.map(([dateKey, items]) => {
           const expanded = !collapsedSlaGroups.has(dateKey);
           let label: string;
