@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import L from "leaflet";
+import maplibregl from "maplibre-gl";
 import { X, MapPin, SquarePen, Check } from "lucide-react";
 import { LAYERS } from "@/lib/layers";
 
@@ -10,7 +10,8 @@ interface ClusterOption { id: string; name: string; zoneId: string }
 interface ZoneOption    { id: string; name: string }
 interface PartnerOption { id: string; key: string; label: string; color: string }
 
-// Built-in NGO partners from LAYERS config
+type LngLat = { lng: number; lat: number };
+
 const BUILT_IN_PARTNERS: PartnerOption[] = LAYERS
   .filter(l => l.type === "polygon" && l.key !== "custom_settlements")
   .map(l => ({ id: l.key, key: l.key, label: l.label, color: l.color }));
@@ -29,36 +30,119 @@ const CENTRE_TYPES: Record<string, string[]> = {
   resource_centres: ["Resource Centre", "Community Resource Centre"],
 };
 
+const DRAW_SOURCE = "admin-draw";
+
 interface Props {
-  mapRef: React.MutableRefObject<L.Map | null>;
+  mapRef: React.MutableRefObject<maplibregl.Map | null>;
   onRefresh: () => void;
+}
+
+function ensureDrawSource(map: maplibregl.Map) {
+  if (map.getSource(DRAW_SOURCE)) return;
+  map.addSource(DRAW_SOURCE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({
+    id: "admin-draw-polygon",
+    type: "fill",
+    source: DRAW_SOURCE,
+    filter: ["==", "$type", "Polygon"],
+    paint: { "fill-color": "#f59e0b", "fill-opacity": 0.12 },
+  });
+  map.addLayer({
+    id: "admin-draw-polygon-line",
+    type: "line",
+    source: DRAW_SOURCE,
+    filter: ["==", "$type", "Polygon"],
+    paint: { "line-color": "#f59e0b", "line-width": 2, "line-dasharray": [6, 4] },
+  });
+  map.addLayer({
+    id: "admin-draw-line",
+    type: "line",
+    source: DRAW_SOURCE,
+    filter: ["==", "$type", "LineString"],
+    paint: { "line-color": "#f59e0b", "line-width": 2, "line-dasharray": [6, 4] },
+  });
+  map.addLayer({
+    id: "admin-draw-vertices",
+    type: "circle",
+    source: DRAW_SOURCE,
+    filter: ["all", ["==", "$type", "Point"], ["!=", ["get", "pinType"], "pin"]],
+    paint: { "circle-radius": 5, "circle-color": "#f59e0b", "circle-stroke-width": 2, "circle-stroke-color": "white" },
+  });
+  map.addLayer({
+    id: "admin-draw-pin",
+    type: "circle",
+    source: DRAW_SOURCE,
+    filter: ["all", ["==", "$type", "Point"], ["==", ["get", "pinType"], "pin"]],
+    paint: { "circle-radius": 9, "circle-color": "#6366f1", "circle-stroke-width": 2.5, "circle-stroke-color": "white" },
+  });
+}
+
+function updateDrawPreview(map: maplibregl.Map, pendingPin: LngLat | null, drawVertices: LngLat[]) {
+  const src = map.getSource(DRAW_SOURCE) as maplibregl.GeoJSONSource | undefined;
+  if (!src) return;
+
+  const features: GeoJSON.Feature[] = [];
+
+  if (pendingPin) {
+    features.push({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [pendingPin.lng, pendingPin.lat] },
+      properties: { pinType: "pin" },
+    });
+  }
+
+  if (drawVertices.length > 0) {
+    drawVertices.forEach(v =>
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [v.lng, v.lat] },
+        properties: { pinType: "vertex" },
+      })
+    );
+    if (drawVertices.length >= 2) {
+      features.push({
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: drawVertices.map(v => [v.lng, v.lat]) },
+        properties: {},
+      });
+    }
+    if (drawVertices.length >= 3) {
+      const ring = [...drawVertices.map(v => [v.lng, v.lat]), [drawVertices[0].lng, drawVertices[0].lat]];
+      features.push({
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [ring] },
+        properties: {},
+      });
+    }
+  }
+
+  src.setData({ type: "FeatureCollection", features });
+}
+
+function clearDrawPreview(map: maplibregl.Map) {
+  const src = map.getSource(DRAW_SOURCE) as maplibregl.GeoJSONSource | undefined;
+  src?.setData({ type: "FeatureCollection", features: [] });
 }
 
 export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"pin" | "polygon" | null>(null);
 
-  // Reference data
   const [clusters, setClusters] = useState<ClusterOption[]>([]);
   const [zones, setZones]       = useState<ZoneOption[]>([]);
   const [partners, setPartners] = useState<PartnerOption[]>([]);
   const [settlements, setSettlements] = useState<SettlementRef[]>([]);
 
-  // Pin state
   const [pinForm, setPinForm] = useState({ name: "", layerKey: "creches", centreType: "Creche", partner: "", settlementId: "", clusterId: "", zoneId: "", notes: "" });
-  const [pendingPin, setPendingPin] = useState<L.LatLng | null>(null);
+  const [pendingPin, setPendingPin] = useState<LngLat | null>(null);
   const [pinSaving, setPinSaving] = useState(false);
 
-  // Polygon draw state — use a ref for the live vertex list so dblclick
-  // handler can read the current value without stale closures
-  const [drawVertices, setDrawVertices] = useState<L.LatLng[]>([]);
-  const drawVerticesRef = useRef<L.LatLng[]>([]);
-  const [pendingPolygon, setPendingPolygon] = useState<L.LatLng[] | null>(null);
+  const [drawVertices, setDrawVertices] = useState<LngLat[]>([]);
+  const drawVerticesRef = useRef<LngLat[]>([]);
+  const [pendingPolygon, setPendingPolygon] = useState<LngLat[] | null>(null);
   const [polyZoneId, setPolyZoneId] = useState("");
   const [polyForm, setPolyForm] = useState({ name: "", clusterId: "", partnerId: "" });
   const [polySaving, setPolySaving] = useState(false);
-
-  const drawGroupRef = useRef<L.LayerGroup | null>(null);
 
   const [toast, setToast] = useState<string | null>(null);
   const showToast = useCallback((msg: string) => {
@@ -66,13 +150,12 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // Merged partner list: built-ins first, then any extra DB partners
   const allPartners = [
     ...BUILT_IN_PARTNERS,
     ...partners.filter(d => !BUILT_IN_PARTNERS.some(b => b.key === d.key)),
   ];
 
-  // Load reference data once when panel opens
+  // Load reference data when panel opens
   useEffect(() => {
     if (!open) return;
     Promise.all([
@@ -91,32 +174,24 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     });
   }, [open]);
 
-  // Draw preview layer
+  // Initialize draw source when panel opens
+  useEffect(() => {
+    if (!open) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const tryInit = () => {
+      if (map.isStyleLoaded()) ensureDrawSource(map);
+      else map.once("load", () => ensureDrawSource(map));
+    };
+    tryInit();
+  }, [open, mapRef]);
+
+  // Update draw preview when vertices or pin change
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (!drawGroupRef.current) {
-      drawGroupRef.current = L.layerGroup().addTo(map);
-    }
-    const group = drawGroupRef.current;
-    group.clearLayers();
-
-    if (pendingPin) {
-      L.circleMarker(pendingPin, {
-        radius: 9, fillColor: "#6366f1", color: "white", weight: 2.5, fillOpacity: 1,
-      }).addTo(group);
-    }
-
-    if (drawVertices.length > 0) {
-      drawVertices.forEach(v =>
-        L.circleMarker(v, { radius: 5, fillColor: "#f59e0b", color: "white", weight: 2, fillOpacity: 1 }).addTo(group)
-      );
-      if (drawVertices.length >= 3) {
-        L.polygon(drawVertices, { color: "#f59e0b", weight: 2, dashArray: "6 4", fillColor: "#f59e0b", fillOpacity: 0.12 }).addTo(group);
-      } else if (drawVertices.length >= 2) {
-        L.polyline(drawVertices, { color: "#f59e0b", weight: 2, dashArray: "6 4" }).addTo(group);
-      }
-    }
+    ensureDrawSource(map);
+    updateDrawPreview(map, pendingPin, drawVertices);
   }, [pendingPin, drawVertices, mapRef]);
 
   // Map click / dblclick handlers
@@ -124,22 +199,20 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     const map = mapRef.current;
     if (!map || !mode) return;
 
-    const container = map.getContainer();
-    container.style.cursor = "crosshair";
+    map.getCanvas().style.cursor = "crosshair";
 
-    const clickHandler = (e: L.LeafletMouseEvent) => {
+    const clickHandler = (e: maplibregl.MapMouseEvent) => {
       if (mode === "pin") {
-        setPendingPin(e.latlng);
+        setPendingPin(e.lngLat);
       } else if (mode === "polygon") {
-        const next = [...drawVerticesRef.current, e.latlng];
+        const next = [...drawVerticesRef.current, e.lngLat];
         drawVerticesRef.current = next;
         setDrawVertices(next);
       }
     };
 
-    const dblClickHandler = (e: L.LeafletMouseEvent) => {
-      // Leaflet fires click×2 then dblclick — trim the last vertex (stray 2nd click)
-      L.DomEvent.stop(e);
+    const dblClickHandler = (e: maplibregl.MapMouseEvent) => {
+      e.preventDefault();
       const pts = drawVerticesRef.current.slice(0, -1);
       drawVerticesRef.current = [];
       setDrawVertices([]);
@@ -156,21 +229,22 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
       map.off("click", clickHandler);
       map.off("dblclick", dblClickHandler);
       map.doubleClickZoom.enable();
-      container.style.cursor = "";
+      map.getCanvas().style.cursor = "";
     };
   }, [mode, mapRef]);
 
   // Clean up when panel closes
   useEffect(() => {
     if (!open) {
-      drawGroupRef.current?.clearLayers();
+      const map = mapRef.current;
+      if (map) clearDrawPreview(map);
       setPendingPin(null);
       drawVerticesRef.current = [];
       setDrawVertices([]);
       setPendingPolygon(null);
       setMode(null);
     }
-  }, [open]);
+  }, [open, mapRef]);
 
   function cancelMode() {
     setMode(null);
@@ -178,7 +252,8 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
     drawVerticesRef.current = [];
     setDrawVertices([]);
     setPendingPolygon(null);
-    drawGroupRef.current?.clearLayers();
+    const map = mapRef.current;
+    if (map) clearDrawPreview(map);
   }
 
   async function savePin() {
@@ -205,7 +280,8 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
       showToast("Point saved");
       setPendingPin(null);
       setPinForm({ name: "", layerKey: "creches", centreType: "Creche", partner: "", settlementId: "", clusterId: "", zoneId: "", notes: "" });
-      drawGroupRef.current?.clearLayers();
+      const map = mapRef.current;
+      if (map) clearDrawPreview(map);
       onRefresh();
     } else {
       showToast("Failed to save");
@@ -239,28 +315,19 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
       setDrawVertices([]);
       setPolyZoneId("");
       setPolyForm({ name: "", clusterId: "", partnerId: "" });
-      drawGroupRef.current?.clearLayers();
+      const map = mapRef.current;
+      if (map) clearDrawPreview(map);
       onRefresh();
     } else {
       showToast("Failed to save");
     }
   }
 
-  // Derived: cluster→zone cascade for pin form
   const pinCluster = clusters.find(c => c.id === pinForm.clusterId);
   const pinZoneId = pinForm.zoneId || pinCluster?.zoneId || "";
+  const pinClusters = pinForm.zoneId ? clusters.filter(c => c.zoneId === pinForm.zoneId) : clusters;
+  const polyClusters = polyZoneId ? clusters.filter(c => c.zoneId === polyZoneId) : clusters;
 
-  // Filtered clusters for pin form (by selected zone)
-  const pinClusters = pinForm.zoneId
-    ? clusters.filter(c => c.zoneId === pinForm.zoneId)
-    : clusters;
-
-  // Filtered clusters for polygon form (by selected zone)
-  const polyClusters = polyZoneId
-    ? clusters.filter(c => c.zoneId === polyZoneId)
-    : clusters;
-
-  // ── Closed state — just the "Edit Map" button ─────────────────────────────
   if (!open) {
     return (
       <button
@@ -277,7 +344,6 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
 
   return (
     <>
-      {/* Edit mode toolbar */}
       <div className="absolute bottom-28 sm:bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-2 items-center bg-white border border-indigo-300 shadow-xl px-3 py-2 rounded-2xl">
         <span className="text-xs font-bold text-indigo-700 mr-1">Edit Map</span>
         {!mode && !pendingPin && !pendingPolygon && (
@@ -312,7 +378,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
         </button>
       </div>
 
-      {/* ── Pin form ────────────────────────────────────────────────────────── */}
+      {/* Pin form */}
       {pendingPin && (
         <div className="absolute top-16 left-3 right-3 sm:top-4 sm:right-4 sm:left-auto sm:w-80 z-20 bg-white rounded-xl shadow-2xl border border-indigo-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 bg-indigo-50 flex items-center justify-between">
@@ -320,11 +386,9 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
             <span className="text-xs text-indigo-400 font-mono">{pendingPin.lat.toFixed(5)}, {pendingPin.lng.toFixed(5)}</span>
           </div>
           <div className="p-4 space-y-3 overflow-y-auto max-h-[72vh]">
-
             <Field label="Name *">
               <input className="inp" value={pinForm.name} onChange={e => setPinForm(f => ({ ...f, name: e.target.value }))} placeholder="Centre name" autoFocus />
             </Field>
-
             <div className="grid grid-cols-2 gap-2">
               <Field label="Layer type *">
                 <select className="inp" value={pinForm.layerKey} onChange={e => {
@@ -340,14 +404,12 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
                 </select>
               </Field>
             </div>
-
             <Field label="Partner">
               <select className="inp" value={pinForm.partner} onChange={e => setPinForm(f => ({ ...f, partner: e.target.value }))}>
                 <option value="">— None —</option>
                 {allPartners.map(p => <option key={p.id} value={p.key}>{p.label}</option>)}
               </select>
             </Field>
-
             <Field label="Settlement">
               <select className="inp" value={pinForm.settlementId} onChange={e => {
                 const sid = e.target.value;
@@ -359,12 +421,10 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
                 {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </Field>
-
             <div className="grid grid-cols-2 gap-2">
               <Field label="Zone">
                 <select className="inp" value={pinZoneId} onChange={e => {
-                  const zid = e.target.value;
-                  setPinForm(f => ({ ...f, zoneId: zid, clusterId: "" }));
+                  setPinForm(f => ({ ...f, zoneId: e.target.value, clusterId: "" }));
                 }}>
                   <option value="">— All zones —</option>
                   {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
@@ -381,11 +441,9 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
                 </select>
               </Field>
             </div>
-
             <Field label="Notes">
               <textarea className="inp resize-none" rows={2} value={pinForm.notes} onChange={e => setPinForm(f => ({ ...f, notes: e.target.value }))} />
             </Field>
-
             <div className="flex gap-2 pt-1">
               <button onClick={savePin} disabled={!pinForm.name.trim() || pinSaving} className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 hover:bg-indigo-700 transition-colors">
                 <Check className="w-3.5 h-3.5" /> {pinSaving ? "Saving…" : "Save Point"}
@@ -396,7 +454,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
         </div>
       )}
 
-      {/* ── Polygon form ─────────────────────────────────────────────────────── */}
+      {/* Polygon form */}
       {pendingPolygon && (
         <div className="absolute top-16 left-3 right-3 sm:top-4 sm:right-4 sm:left-auto sm:w-80 z-20 bg-white rounded-xl shadow-2xl border border-amber-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 bg-amber-50 flex items-center justify-between">
@@ -404,11 +462,9 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
             <span className="text-xs text-amber-500">{pendingPolygon.length} vertices</span>
           </div>
           <div className="p-4 space-y-3 overflow-y-auto max-h-[72vh]">
-
             <Field label="Settlement name *">
               <input className="inp" value={polyForm.name} onChange={e => setPolyForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Mattikere Slum" autoFocus />
             </Field>
-
             <div className="grid grid-cols-2 gap-2">
               <Field label="Zone">
                 <select className="inp" value={polyZoneId} onChange={e => { setPolyZoneId(e.target.value); setPolyForm(f => ({ ...f, clusterId: "" })); }}>
@@ -423,14 +479,12 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
                 </select>
               </Field>
             </div>
-
             <Field label="Partner NGO">
               <select className="inp" value={polyForm.partnerId} onChange={e => setPolyForm(f => ({ ...f, partnerId: e.target.value }))}>
                 <option value="">— None —</option>
                 {partners.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
             </Field>
-
             <div className="flex gap-2 pt-1">
               <button onClick={savePolygon} disabled={!polyForm.name.trim() || !polyForm.clusterId || polySaving} className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50 hover:bg-amber-600 transition-colors">
                 <Check className="w-3.5 h-3.5" /> {polySaving ? "Saving…" : "Save Settlement"}

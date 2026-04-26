@@ -62,27 +62,17 @@ button:active, a:active, [role="button"]:active {
   }
 }
 
-/* ── Leaflet map fixes ─────────────────────────────────────────────────────── */
-.leaflet-pane { z-index: 0 !important; }
-.leaflet-top,
-.leaflet-bottom { z-index: 10 !important; }
+/* ── MapLibre map fixes ──────────────────────────────────────────────────────── */
+.maplibregl-popup-content { padding: 0 !important; border-radius: 10px !important; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important; }
+.maplibregl-popup-close-button { padding: 4px 8px !important; font-size: 16px !important; color: #64748b; }
+.maplibregl-popup-tip { display: none; }
+.maplibregl-ctrl-logo { display: none !important; }
 
-.map-popup { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; min-width: 180px; }
+.map-popup { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; min-width: 180px; padding: 12px 14px; }
 .map-popup .badge { display: inline-block; color: white; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-bottom: 6px; }
 .map-popup h3 { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: #1e293b; }
 .map-popup .info { font-size: 12px; color: #475569; line-height: 1.5; }
 
-/* Zone / cluster boundary labels */
-.boundary-label {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  pointer-events: none;
-  white-space: nowrap;
-}
-.zone-label { font-size: 13px; color: #1e293b; opacity: 0.7; }
-.cluster-label { font-size: 10px; color: #334155; opacity: 0.75; }
+/* input utility used in map admin panel */
+.inp { width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; font-size: 13px; color: #1e293b; outline: none; background: white; }
+.inp:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.12); }

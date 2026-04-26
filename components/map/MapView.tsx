@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { LAYERS, type LayerConfig, type LayerKey, type MapCity } from "@/lib/layers";
 import { type MapFilter, settlementMatchesFilter, centreMatchesFilter } from "@/lib/mapFilter";
 
@@ -48,7 +48,7 @@ interface MapViewProps {
   activeCity: MapCity;
   mapFilter: MapFilter | null;
   onCentreClick?: (partner: string, zone: string, cluster: string, centreFeature?: CentreFeature) => void;
-  sharedMapRef?: React.MutableRefObject<L.Map | null>;
+  sharedMapRef?: React.MutableRefObject<maplibregl.Map | null>;
   progressMode?: boolean;
   progressHealth?: ProgressHealth;
   schoolFeatures?: { type: string; features: unknown[] };
@@ -59,20 +59,49 @@ interface MapViewProps {
   healthClusterMap?: Record<string, boolean>;
 }
 
-interface FeatureLayer {
-  leafletLayer: L.Path;
-  props: Record<string, string>;
-  baseColor: string;
+const CITY_CENTERS: Record<MapCity, { center: [number, number]; zoom: number }> = {
+  bangalore: { center: [77.5946, 12.9716], zoom: 11 },
+  chennai:   { center: [80.2707, 13.0827], zoom: 12 },
+};
+
+const ZONE_BOUNDS: Record<string, [[number, number], [number, number]]> = {
+  North:   [[77.45, 13.0],  [77.75, 13.2]],
+  South:   [[77.45, 12.75], [77.75, 12.97]],
+  Central: [[77.52, 12.92], [77.65, 13.05]],
+  West:    [[77.42, 12.88], [77.56, 13.08]],
+};
+
+const HEALTH_COLORS: Record<string, string> = {
+  red:   "#ef4444",
+  amber: "#f59e0b",
+  green: "#10b981",
+};
+
+const CENTRE_LAYER_KEYS: LayerKey[] = ["children_centres", "youth_centres", "creches", "resource_centres"];
+
+function polygonCentroid(feature: { geometry: { type: string; coordinates: number[][][] | number[][][][] } }): [number, number] {
+  try {
+    const ring = feature.geometry.type === "MultiPolygon"
+      ? (feature.geometry.coordinates as number[][][][])[0][0]
+      : (feature.geometry.coordinates as number[][][])[0];
+    const lng = ring.reduce((s, c) => s + c[0], 0) / ring.length;
+    const lat = ring.reduce((s, c) => s + c[1], 0) / ring.length;
+    return [lat, lng]; // return [lat, lng] for external API consistency
+  } catch {
+    return [0, 0];
+  }
 }
 
-const BANGALORE_CENTER: L.LatLngTuple = [12.9716, 77.5946];
-
-const ZONE_BOUNDS: Record<string, L.LatLngBoundsLiteral> = {
-  North:   [[13.0, 77.45], [13.2, 77.75]],
-  South:   [[12.75, 77.45], [12.97, 77.75]],
-  Central: [[12.92, 77.52], [13.05, 77.65]],
-  West:    [[12.88, 77.42], [13.08, 77.56]],
-};
+function getPolygonEnvelope(feature: { geometry: { type: string; coordinates: number[][][] | number[][][][] } }): [number, number][] {
+  try {
+    if (feature.geometry.type === "MultiPolygon") {
+      return (feature.geometry.coordinates as number[][][][]).flatMap(p => p[0]) as [number, number][];
+    }
+    return (feature.geometry.coordinates as number[][][])[0] as [number, number][];
+  } catch {
+    return [];
+  }
+}
 
 function makePolygonPopup(name: string, layer: LayerConfig, desc: string, zone?: string, cluster?: string) {
   return `
@@ -120,84 +149,58 @@ function makeProgrammeCentrePopup(
   `;
 }
 
-const CENTRE_LAYER_KEYS: LayerKey[] = ["children_centres", "youth_centres", "creches", "resource_centres"];
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildCentreLayer(
-  layerConfig: LayerConfig,
-  group: L.LayerGroup,
-  geojson: any,
-  mapFilter: MapFilter | null,
-  onCentreClick?: (partner: string, zone: string, cluster: string, centreFeature?: CentreFeature) => void
-) {
-  group.clearLayers();
-  const isProgrammeCentre = ["children_centres", "youth_centres", "creches"].includes(layerConfig.key);
-  L.geoJSON(geojson, {
-    filter: (feature) => {
-      if (!mapFilter) return true;
-      return centreMatchesFilter(
+function filterCentreGeojson(geojson: any, mapFilter: MapFilter | null): any {
+  if (!mapFilter) return geojson;
+  return {
+    ...geojson,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    features: geojson.features.filter((f: any) =>
+      centreMatchesFilter(
         mapFilter,
-        feature.properties?.partner ?? "",
-        feature.properties?.zone ?? "",
-        feature.properties?.cluster ?? ""
-      );
-    },
-    pointToLayer: (_f, latlng) =>
-      L.circleMarker(latlng, {
-        radius: isProgrammeCentre ? 9 : 8,
-        fillColor: layerConfig.color,
-        color: "white",
-        weight: isProgrammeCentre ? 3 : 2.5,
-        opacity: 1, fillOpacity: 1,
-      }),
-    onEachFeature: (feature, layer) => {
-      const props = feature.properties ?? {};
-      const name = props.name || layerConfig.label;
-      if (isProgrammeCentre) {
-        layer.bindPopup(makeProgrammeCentrePopup(
-          props.centre_type || layerConfig.label, name,
-          props.partner || "", props.zone || "", props.cluster || "",
-          layerConfig.color, props.note || ""
-        ), { maxWidth: 300 });
-      } else {
-        layer.bindPopup(makeRCPopup(name, props.description || ""), { maxWidth: 300 });
-      }
-      if (onCentreClick && isProgrammeCentre) {
-        layer.on("click", (e) => {
-          L.DomEvent.stopPropagation(e);
-          const latlng: [number, number] = [e.latlng.lat, e.latlng.lng];
-          const centreFeature: CentreFeature = {
-            name,
-            centreType: props.centre_type || layerConfig.label,
-            layerKey: layerConfig.key,
-            layerColor: layerConfig.color,
-            matchedSettlement: props.matched_settlement || "",
-            zone: props.zone || "",
-            cluster: props.cluster || "",
-            partner: props.partner || "",
-            latlng,
-          };
-          onCentreClick(props.partner || "", props.zone || "", props.cluster || "", centreFeature);
-        });
-      } else if (onCentreClick) {
-        layer.on("click", (e) => {
-          L.DomEvent.stopPropagation(e);
-          onCentreClick(props.partner || "", props.zone || "", props.cluster || "");
-        });
-      }
-    },
-  }).addTo(group);
+        f.properties?.partner ?? "",
+        f.properties?.zone ?? "",
+        f.properties?.cluster ?? ""
+      )
+    ),
+  };
 }
 
-const HEALTH_COLORS: Record<string, string> = {
-  red:   "#ef4444",
-  amber: "#f59e0b",
-  green: "#10b981",
-};
+const BASEMAP_LAYERS = { carto: "carto-layer", osm: "osm-layer", satellite: "satellite-layer" };
 
-const CITY_CENTERS: Record<MapCity, { latlng: L.LatLngTuple; zoom: number }> = {
-  bangalore: { latlng: [12.9716, 77.5946], zoom: 11 },
-  chennai:   { latlng: [13.0827, 80.2707], zoom: 12 },
+const INITIAL_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  sources: {
+    "carto-source": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors © CARTO",
+    },
+    "osm-source": {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+    },
+    "satellite-source": {
+      type: "raster",
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      attribution: "© Esri, Maxar",
+    },
+  },
+  layers: [
+    { id: "carto-layer",     type: "raster", source: "carto-source"     },
+    { id: "osm-layer",       type: "raster", source: "osm-source",      layout: { visibility: "none" } },
+    { id: "satellite-layer", type: "raster", source: "satellite-source", layout: { visibility: "none" } },
+  ],
 };
 
 export default function MapView({
@@ -215,556 +218,806 @@ export default function MapView({
   showHealthClusters = false,
   healthClusterMap = {},
 }: MapViewProps) {
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const layerGroupsRef = useRef<Partial<Record<LayerKey, L.LayerGroup>>>({});
-  const zoneBoundaryGroupRef = useRef<L.LayerGroup | null>(null);
-  const clusterBoundaryGroupRef = useRef<L.LayerGroup | null>(null);
-  const zoneBoundaryLayersRef = useRef<Map<string, L.Path>>(new Map());
-  const clusterBoundaryLayersRef = useRef<Map<string, L.Path>>(new Map());
-  // Original fill colors for boundaries (needed to reset after progress mode)
-  const zoneBoundaryColorsRef = useRef<Map<string, string>>(new Map());
-  const clusterBoundaryColorsRef = useRef<Map<string, string>>(new Map());
-  const allFeatureLayers = useRef<FeatureLayer[]>([]);
-  const featureLayersByKey = useRef<Partial<Record<LayerKey, L.Layer[]>>>({});
-  const schoolLayerGroupRef = useRef<L.LayerGroup | null>(null);
-  const healthLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const layersReadyRef = useRef(false);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const settlementFeaturesRef = useRef<Partial<Record<LayerKey, any[]>>>({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const centreGeoJSONRef = useRef<Partial<Record<LayerKey, any>>>({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const zoneFeaturesRef = useRef<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clusterFeaturesRef = useRef<any[]>([]);
+
+  const mapFilterRef = useRef(mapFilter);
+  const onCentreClickRef = useRef(onCentreClick);
+  const onSettlementClickRef = useRef(onSettlementClick);
+  const onZoneSelectRef = useRef(onZoneSelect);
+  const onClusterSelectRef = useRef(onClusterSelect);
+  const visibleLayersRef = useRef(visibleLayers);
+  const progressHealthRef = useRef(progressHealth);
 
   const [basemap, setBasemap] = useState<"carto" | "osm" | "satellite">("carto");
   const [showZones, setShowZones] = useState(false);
   const [showClusters, setShowClusters] = useState(false);
-  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const showZonesRef = useRef(false);
+  const showClustersRef = useRef(false);
 
-  const onZoneSelectRef = useRef(onZoneSelect);
-  const onClusterSelectRef = useRef(onClusterSelect);
+  useEffect(() => { mapFilterRef.current = mapFilter; }, [mapFilter]);
+  useEffect(() => { onCentreClickRef.current = onCentreClick; }, [onCentreClick]);
+  useEffect(() => { onSettlementClickRef.current = onSettlementClick; }, [onSettlementClick]);
   useEffect(() => { onZoneSelectRef.current = onZoneSelect; }, [onZoneSelect]);
   useEffect(() => { onClusterSelectRef.current = onClusterSelect; }, [onClusterSelect]);
-
-  const onSettlementClickRef = useRef(onSettlementClick);
-  useEffect(() => { onSettlementClickRef.current = onSettlementClick; }, [onSettlementClick]);
-
-  const visibleLayersRef = useRef(visibleLayers);
   useEffect(() => { visibleLayersRef.current = visibleLayers; }, [visibleLayers]);
+  useEffect(() => { progressHealthRef.current = progressHealth; }, [progressHealth]);
+  useEffect(() => { showZonesRef.current = showZones; }, [showZones]);
+  useEffect(() => { showClustersRef.current = showClusters; }, [showClusters]);
 
-  // Store raw GeoJSON for centre layers so we can rebuild with map filter
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const centreGeoJSONRef = useRef<Partial<Record<LayerKey, any>>>({});
-  const mapFilterRef = useRef(mapFilter);
-  useEffect(() => { mapFilterRef.current = mapFilter; }, [mapFilter]);
-  const onCentreClickRef = useRef(onCentreClick);
-  useEffect(() => { onCentreClickRef.current = onCentreClick; }, [onCentreClick]);
-
-  // Swap tile layer when basemap changes
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    if (tileLayerRef.current) map.removeLayer(tileLayerRef.current);
-    if (basemap === "carto") {
-      tileLayerRef.current = L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-        { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>', subdomains: "abcd", maxZoom: 19 }
-      ).addTo(map);
-    } else if (basemap === "satellite") {
-      tileLayerRef.current = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { attribution: '&copy; <a href="https://www.esri.com">Esri</a>, Maxar, Earthstar Geographics', maxZoom: 19 }
-      ).addTo(map);
-    } else {
-      tileLayerRef.current = L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19 }
-      ).addTo(map);
-    }
-    tileLayerRef.current.bringToBack();
-  }, [basemap]);
-
+  // ── Map initialization ────────────────────────────────────────────────────
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
 
-    const map = L.map(containerRef.current, { center: BANGALORE_CENTER, zoom: 11 });
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: INITIAL_STYLE,
+      center: CITY_CENTERS.bangalore.center,
+      zoom: CITY_CENTERS.bangalore.zoom,
+    });
 
-    tileLayerRef.current = L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>', subdomains: "abcd", maxZoom: 19 }
-    ).addTo(map);
+    map.on("load", () => {
+      // ── Settlement polygon layers ────────────────────────────────────────
+      LAYERS.filter((l) => l.file && l.type === "polygon").forEach((layerConfig) => {
+        fetch(layerConfig.file)
+          .then((r) => r.json())
+          .then((geojson) => {
+            settlementFeaturesRef.current[layerConfig.key] = geojson.features;
+
+            const srcId = `${layerConfig.key}-source`;
+            const fillId = `${layerConfig.key}-fill`;
+            const lineId = `${layerConfig.key}-line`;
+            const vis = visibleLayersRef.current.has(layerConfig.key) ? "visible" : "none";
+
+            map.addSource(srcId, { type: "geojson", data: geojson });
+
+            map.addLayer({
+              id: fillId,
+              type: "fill",
+              source: srcId,
+              paint: {
+                "fill-color": [
+                  "case",
+                  ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
+                  ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
+                  ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                  layerConfig.color,
+                ],
+                "fill-opacity": [
+                  "case",
+                  ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.5,
+                  ["==", ["get", "health"], "dim"], 0.1,
+                  0.25,
+                ],
+              },
+              layout: { visibility: vis },
+            });
+
+            map.addLayer({
+              id: lineId,
+              type: "line",
+              source: srcId,
+              paint: {
+                "line-color": [
+                  "case",
+                  ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
+                  ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
+                  ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                  layerConfig.color,
+                ],
+                "line-width": 2,
+                "line-opacity": 0.9,
+              },
+              layout: { visibility: vis },
+            });
+
+            // Click handler
+            map.on("click", fillId, (e) => {
+              if (!e.features?.length) return;
+              const props = e.features[0].properties ?? {};
+              const name = props.name || "Unnamed";
+              const centroid = polygonCentroid(e.features[0] as unknown as { geometry: { type: string; coordinates: number[][][] } });
+
+              new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+                .setLngLat(e.lngLat)
+                .setHTML(makePolygonPopup(name, layerConfig, props.description || "", props.zone, props.cluster))
+                .addTo(map);
+
+              onSettlementClickRef.current({
+                name, layerKey: layerConfig.key,
+                layerColor: layerConfig.color, layerLabel: layerConfig.label,
+                zone: props.zone || "", cluster: props.cluster || "",
+                description: props.description || "", centroid,
+              });
+            });
+
+            map.on("mouseenter", fillId, () => { map.getCanvas().style.cursor = "pointer"; });
+            map.on("mouseleave", fillId, () => { map.getCanvas().style.cursor = ""; });
+
+            // Apply map filter highlighting if active
+            const mf = mapFilterRef.current;
+            if (mf && (mf.partnerKeys.size > 0 || mf.zones.size > 0 || mf.clusters.size > 0)) {
+              applyFilterHighlight(map, mf, visibleLayersRef.current);
+            }
+
+            // Apply progress health if active
+            if (progressHealthRef.current) {
+              enrichSourceWithHealth(map, layerConfig.key, progressHealthRef.current);
+            }
+          });
+      });
+
+      // ── Centre point layers ──────────────────────────────────────────────
+      LAYERS.filter((l) => l.file && l.type === "point").forEach((layerConfig) => {
+        fetch(layerConfig.file)
+          .then((r) => r.json())
+          .then((geojson) => {
+            centreGeoJSONRef.current[layerConfig.key] = geojson;
+            const filtered = filterCentreGeojson(geojson, mapFilterRef.current);
+            const srcId = `${layerConfig.key}-source`;
+            const circId = `${layerConfig.key}-circle`;
+            const isProgramme = ["children_centres", "youth_centres", "creches"].includes(layerConfig.key);
+            const vis = visibleLayersRef.current.has(layerConfig.key) ? "visible" : "none";
+
+            map.addSource(srcId, { type: "geojson", data: filtered });
+            map.addLayer({
+              id: circId,
+              type: "circle",
+              source: srcId,
+              paint: {
+                "circle-radius": isProgramme ? 9 : 8,
+                "circle-color": layerConfig.color,
+                "circle-stroke-width": isProgramme ? 3 : 2.5,
+                "circle-stroke-color": "white",
+              },
+              layout: { visibility: vis },
+            });
+
+            map.on("click", circId, (e) => {
+              if (!e.features?.length) return;
+              const props = e.features[0].properties ?? {};
+              const name = props.name || layerConfig.label;
+
+              const html = isProgramme
+                ? makeProgrammeCentrePopup(
+                    props.centre_type || layerConfig.label, name,
+                    props.partner || "", props.zone || "", props.cluster || "",
+                    layerConfig.color, props.note || ""
+                  )
+                : makeRCPopup(name, props.description || "");
+
+              new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+                .setLngLat(e.lngLat)
+                .setHTML(html)
+                .addTo(map);
+
+              if (onCentreClickRef.current && isProgramme) {
+                const latlng: [number, number] = [e.lngLat.lat, e.lngLat.lng];
+                const centreFeature: CentreFeature = {
+                  name, centreType: props.centre_type || layerConfig.label,
+                  layerKey: layerConfig.key, layerColor: layerConfig.color,
+                  matchedSettlement: props.matched_settlement || "",
+                  zone: props.zone || "", cluster: props.cluster || "",
+                  partner: props.partner || "", latlng,
+                };
+                onCentreClickRef.current(props.partner || "", props.zone || "", props.cluster || "", centreFeature);
+              } else if (onCentreClickRef.current) {
+                onCentreClickRef.current(props.partner || "", props.zone || "", props.cluster || "");
+              }
+            });
+
+            map.on("mouseenter", circId, () => { map.getCanvas().style.cursor = "pointer"; });
+            map.on("mouseleave", circId, () => { map.getCanvas().style.cursor = ""; });
+          });
+      });
+
+      // ── School markers source ────────────────────────────────────────────
+      map.addSource("schools-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "schools-circle",
+        type: "circle",
+        source: "schools-source",
+        paint: {
+          "circle-radius": 7,
+          "circle-color": ["get", "color"],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "white",
+        },
+        layout: { visibility: visibleLayersRef.current.has("schools") ? "visible" : "none" },
+      });
+      map.on("click", "schools-circle", (e) => {
+        if (!e.features?.length) return;
+        const props = e.features[0].properties ?? {};
+        const TYPE_LABELS: Record<string, string> = {
+          "Government": "Govt School", "BBMP": "BBMP School", "Karnataka Public School": "KPS",
+        };
+        const TYPE_COLORS: Record<string, string> = {
+          "Government": "#dc2626", "BBMP": "#1e293b", "Karnataka Public School": "#0288D1",
+        };
+        const sType = props.schoolType ?? "Government";
+        const color = TYPE_COLORS[sType] ?? "#16a34a";
+        const settlementList = JSON.parse(props.settlements || "[]")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
+          .join("");
+        new maplibregl.Popup({ maxWidth: "280px", className: "maplibre-popup-clean" })
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="map-popup">
+            <span class="badge" style="background:${color}">${TYPE_LABELS[sType] ?? "School"}</span>
+            <h3>${props.name}</h3>
+            ${props.address ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.address}</div>` : ""}
+            ${settlementList ? `<div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements</div><ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul></div>` : ""}
+          </div>`)
+          .addTo(map);
+      });
+      map.on("mouseenter", "schools-circle", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "schools-circle", () => { map.getCanvas().style.cursor = ""; });
+
+      // ── Health centre source ─────────────────────────────────────────────
+      map.addSource("health-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "health-circle",
+        type: "circle",
+        source: "health-source",
+        paint: {
+          "circle-radius": 7,
+          "circle-color": ["get", "color"],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "white",
+          "circle-translate": [0, 0],
+        },
+        layout: { visibility: visibleLayersRef.current.has("health_centres") ? "visible" : "none" },
+      });
+      map.on("click", "health-circle", (e) => {
+        if (!e.features?.length) return;
+        const props = e.features[0].properties ?? {};
+        const TYPE_CONFIG: Record<string, { color: string; label: string }> = {
+          "CRC": { color: "#7c3aed", label: "CRC" },
+          "Foundation Health Centre": { color: "#0284c7", label: "Foundation HC" },
+          "Government Health Centre": { color: "#059669", label: "Govt Health Centre" },
+          "Referral Helpdesk Hospital": { color: "#d97706", label: "Referral Hospital" },
+          "Super Speciality Hospital": { color: "#dc2626", label: "Super Speciality" },
+        };
+        const cfg = TYPE_CONFIG[props.centreType ?? ""] ?? { color: "#e11d48", label: "Health Centre" };
+        const settlementList = JSON.parse(props.settlements || "[]")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
+          .join("");
+        new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="map-popup">
+            <span class="badge" style="background:${cfg.color}">${cfg.label}</span>
+            <h3>${props.name}</h3>
+            ${props.notes ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.notes}</div>` : ""}
+            ${settlementList ? `<div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements (≤2 km)</div><ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul></div>` : `<div style="margin-top:6px;font-size:11px;color:#94a3b8;font-style:italic">No settlements within 2 km</div>`}
+          </div>`)
+          .addTo(map);
+      });
+      map.on("mouseenter", "health-circle", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "health-circle", () => { map.getCanvas().style.cursor = ""; });
+
+      // ── Zone boundaries ──────────────────────────────────────────────────
+      fetch("/api/map/geojson/zones").then((r) => r.json()).then((gj) => {
+        zoneFeaturesRef.current = gj.features ?? [];
+        map.addSource("zones-source", { type: "geojson", data: gj });
+        map.addLayer({
+          id: "zones-fill",
+          type: "fill",
+          source: "zones-source",
+          paint: {
+            "fill-color": [
+              "case",
+              ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
+              ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
+              ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+              ["get", "color"],
+            ],
+            "fill-opacity": ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.22, 0.07],
+          },
+          layout: { visibility: "none" },
+        });
+        map.addLayer({
+          id: "zones-line",
+          type: "line",
+          source: "zones-source",
+          paint: {
+            "line-color": ["get", "color"],
+            "line-width": 2.5,
+            "line-opacity": 0.85,
+            "line-dasharray": [8, 5],
+          },
+          layout: { visibility: "none" },
+        });
+        map.addLayer({
+          id: "zones-label",
+          type: "symbol",
+          source: "zones-source",
+          layout: {
+            "text-field": ["get", "zone"],
+            "text-size": 12,
+            "text-font": ["Open Sans Bold", "Arial Unicode MS Regular"],
+            "symbol-placement": "point",
+            "text-transform": "uppercase",
+            "text-letter-spacing": 0.08,
+            visibility: "none",
+          },
+          paint: {
+            "text-color": "#1e293b",
+            "text-halo-color": "rgba(255,255,255,0.9)",
+            "text-halo-width": 2,
+            "text-opacity": 0.7,
+          },
+        });
+        map.on("click", "zones-fill", (e) => {
+          if (!e.features?.length) return;
+          onZoneSelectRef.current(e.features[0].properties?.zone ?? null);
+        });
+        map.on("mouseenter", "zones-fill", () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", "zones-fill", () => { map.getCanvas().style.cursor = ""; });
+      });
+
+      // ── Cluster boundaries ───────────────────────────────────────────────
+      fetch("/api/map/geojson/clusters").then((r) => r.json()).then((gj) => {
+        clusterFeaturesRef.current = gj.features ?? [];
+        map.addSource("clusters-source", { type: "geojson", data: gj });
+        map.addLayer({
+          id: "clusters-fill",
+          type: "fill",
+          source: "clusters-source",
+          paint: {
+            "fill-color": [
+              "case",
+              ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
+              ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
+              ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+              ["get", "color"],
+            ],
+            "fill-opacity": ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09],
+          },
+          layout: { visibility: "none" },
+        });
+        map.addLayer({
+          id: "clusters-line",
+          type: "line",
+          source: "clusters-source",
+          paint: {
+            "line-color": ["get", "color"],
+            "line-width": 1.8,
+            "line-opacity": 0.8,
+            "line-dasharray": [5, 4],
+          },
+          layout: { visibility: "none" },
+        });
+        map.addLayer({
+          id: "clusters-label",
+          type: "symbol",
+          source: "clusters-source",
+          layout: {
+            "text-field": ["get", "label"],
+            "text-size": 10,
+            "text-font": ["Open Sans Bold", "Arial Unicode MS Regular"],
+            "symbol-placement": "point",
+            "text-transform": "uppercase",
+            "text-letter-spacing": 0.05,
+            visibility: "none",
+          },
+          paint: {
+            "text-color": "#334155",
+            "text-halo-color": "rgba(255,255,255,0.9)",
+            "text-halo-width": 1.5,
+            "text-opacity": 0.75,
+          },
+        });
+        map.on("click", "clusters-fill", (e) => {
+          if (!e.features?.length) return;
+          onClusterSelectRef.current(e.features[0].properties?.cluster ?? null);
+        });
+        map.on("mouseenter", "clusters-fill", () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", "clusters-fill", () => { map.getCanvas().style.cursor = ""; });
+      });
+
+      layersReadyRef.current = true;
+    });
+
+    // ── Imperative refs ──────────────────────────────────────────────────────
+    flyToRef.current = (latlng, zoom = 16) =>
+      map.flyTo({ center: [latlng[1], latlng[0]], zoom, duration: 700 });
+
+    flyToCityRef.current = (city: MapCity) =>
+      map.flyTo({ center: CITY_CENTERS[city].center, zoom: CITY_CENTERS[city].zoom, duration: 800 });
+
+    openPopupRef.current = (layerKey, featureIdx) => {
+      const features = settlementFeaturesRef.current[layerKey];
+      const centreGeojson = centreGeoJSONRef.current[layerKey];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allFeatures: any[] = features ?? centreGeojson?.features ?? [];
+      const feature = allFeatures[featureIdx];
+      if (!feature) return;
+
+      let center: [number, number];
+      if (feature.geometry.type === "Point") {
+        center = feature.geometry.coordinates as [number, number]; // already [lng, lat]
+      } else {
+        const [lat, lng] = polygonCentroid(feature);
+        center = [lng, lat];
+      }
+
+      map.flyTo({ center, zoom: 16, duration: 700 });
+
+      const layerConfig = LAYERS.find((l) => l.key === layerKey);
+      if (!layerConfig) return;
+      const props = feature.properties ?? {};
+      const html = layerConfig.type === "polygon"
+        ? makePolygonPopup(props.name || "Unnamed", layerConfig, props.description || "", props.zone, props.cluster)
+        : makeProgrammeCentrePopup(
+            props.centre_type || layerConfig.label, props.name || layerConfig.label,
+            props.partner || "", props.zone || "", props.cluster || "", layerConfig.color
+          );
+
+      setTimeout(() => {
+        new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+          .setLngLat(center)
+          .setHTML(html)
+          .addTo(map);
+      }, 750);
+    };
 
     mapRef.current = map;
     if (sharedMapRef) sharedMapRef.current = map;
-    allFeatureLayers.current = [];
 
-    flyToRef.current = (latlng, zoom = 16) =>
-      map.flyTo(latlng, zoom, { duration: 0.7 });
-    flyToCityRef.current = (city: MapCity) => {
-      const { latlng, zoom } = CITY_CENTERS[city];
-      map.flyTo(latlng, zoom, { duration: 0.8 });
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      layersReadyRef.current = false;
+      if (sharedMapRef) sharedMapRef.current = null;
     };
-    openPopupRef.current = (layerKey, featureIdx) => {
-      const layer = featureLayersByKey.current[layerKey]?.[featureIdx];
-      if (!layer) return;
-      const latlng = (layer as L.CircleMarker).getLatLng?.() ??
-        (layer as L.Polygon).getBounds?.().getCenter();
-      if (latlng) map.flyTo(latlng, 16, { duration: 0.7 });
-      setTimeout(() => (layer as L.Layer & { openPopup: () => void }).openPopup?.(), 750);
-    };
-
-    LAYERS.filter((l) => l.file).forEach((layerConfig) => {
-      const group = L.layerGroup().addTo(map);
-      layerGroupsRef.current[layerConfig.key] = group;
-      featureLayersByKey.current[layerConfig.key] = [];
-
-      fetch(layerConfig.file)
-        .then((r) => r.json())
-        .then((geojson) => {
-          if (layerConfig.type === "polygon") {
-            L.geoJSON(geojson, {
-              style: {
-                color: layerConfig.color, weight: 2, opacity: 0.9,
-                fillColor: layerConfig.color, fillOpacity: 0.25,
-              },
-              onEachFeature: (feature, layer) => {
-                const props = feature.properties ?? {};
-                const name = props.name || "Unnamed";
-                const desc = props.description || "";
-                const zone = props.zone || "";
-                const cluster = props.cluster || "";
-
-                layer.bindPopup(makePolygonPopup(name, layerConfig, desc, zone, cluster), { maxWidth: 300 });
-
-                const path = layer as L.Path;
-                path.on("mouseover", () => path.setStyle({ fillOpacity: 0.55, weight: 3 }));
-                path.on("mouseout", () => path.setStyle({
-                  fillOpacity: path.options.fillOpacity ?? 0.25, weight: 2,
-                }));
-                path.on("click", () => {
-                  // Compute polygon centroid (average of outer ring coordinates)
-                  let centroid: [number, number] = [0, 0];
-                  try {
-                    const geom = feature.geometry as { type: string; coordinates: number[][][] | number[][][][] };
-                    const ring = geom.type === "MultiPolygon"
-                      ? (geom.coordinates as number[][][][])[0][0]
-                      : (geom.coordinates as number[][][])[0];
-                    const lat = ring.reduce((s, c) => s + c[1], 0) / ring.length;
-                    const lng = ring.reduce((s, c) => s + c[0], 0) / ring.length;
-                    centroid = [lat, lng];
-                  } catch {}
-                  onSettlementClickRef.current({
-                    name, layerKey: layerConfig.key,
-                    layerColor: layerConfig.color, layerLabel: layerConfig.label,
-                    zone, cluster, description: desc, centroid,
-                  });
-                });
-
-                allFeatureLayers.current.push({
-                  leafletLayer: path,
-                  props: { zone, cluster, name, layer: layerConfig.key },
-                  baseColor: layerConfig.color,
-                });
-                featureLayersByKey.current[layerConfig.key]!.push(layer);
-              },
-            }).addTo(group);
-          } else {
-            // Store raw GeoJSON for centre layers (needed for map filter rebuilds)
-            if (CENTRE_LAYER_KEYS.includes(layerConfig.key)) {
-              centreGeoJSONRef.current[layerConfig.key] = geojson;
-            }
-            buildCentreLayer(
-              layerConfig, group, geojson, mapFilterRef.current,
-              (p, z, c, cf) => onCentreClickRef.current?.(p, z, c, cf)
-            );
-          }
-        });
-    });
-
-    schoolLayerGroupRef.current = L.layerGroup().addTo(map);
-    healthLayerGroupRef.current = L.layerGroup().addTo(map);
-
-    // ── Boundary layers (zone + cluster) — loaded once, toggled via state ──
-    const zoneBoundaryGroup = L.layerGroup();
-    const clusterBoundaryGroup = L.layerGroup();
-    zoneBoundaryGroupRef.current = zoneBoundaryGroup;
-    clusterBoundaryGroupRef.current = clusterBoundaryGroup;
-
-    fetch("/api/map/geojson/zones").then((r) => r.json()).then((gj) => {
-      L.geoJSON(gj, {
-        style: (f) => ({
-          color: f?.properties.color ?? "#64748b",
-          weight: 2.5,
-          opacity: 0.85,
-          fillColor: f?.properties.color ?? "#64748b",
-          fillOpacity: 0.07,
-          dashArray: "8 5",
-        }),
-        onEachFeature: (feature, layer) => {
-          const zone = feature.properties.zone as string;
-          layer.bindTooltip(zone, { permanent: true, direction: "center", className: "boundary-label zone-label" });
-          (layer as L.Path).on("click", () => onZoneSelectRef.current(zone));
-          (layer as L.Path).on("mouseover", () => (layer as L.Path).setStyle({ fillOpacity: 0.18, weight: 3 }));
-          (layer as L.Path).on("mouseout", () => (layer as L.Path).setStyle({ fillOpacity: 0.07, weight: 2.5 }));
-          zoneBoundaryLayersRef.current.set(zone, layer as L.Path);
-          zoneBoundaryColorsRef.current.set(zone, feature.properties.color ?? "#64748b");
-        },
-      }).addTo(zoneBoundaryGroup);
-    });
-
-    fetch("/api/map/geojson/clusters").then((r) => r.json()).then((gj) => {
-      L.geoJSON(gj, {
-        style: (f) => ({
-          color: f?.properties.color ?? "#64748b",
-          weight: 1.8,
-          opacity: 0.8,
-          fillColor: f?.properties.color ?? "#64748b",
-          fillOpacity: 0.09,
-          dashArray: "5 4",
-        }),
-        onEachFeature: (feature, layer) => {
-          const cluster = feature.properties.cluster as string;
-          const label = feature.properties.label as string;
-          layer.bindTooltip(label, { permanent: true, direction: "center", className: "boundary-label cluster-label" });
-          (layer as L.Path).on("click", () => onClusterSelectRef.current(cluster));
-          (layer as L.Path).on("mouseover", () => (layer as L.Path).setStyle({ fillOpacity: 0.22, weight: 2.5 }));
-          (layer as L.Path).on("mouseout", () => (layer as L.Path).setStyle({ fillOpacity: 0.09, weight: 1.8 }));
-          clusterBoundaryLayersRef.current.set(cluster, layer as L.Path);
-          clusterBoundaryColorsRef.current.set(cluster, feature.properties.color ?? "#64748b");
-        },
-      }).addTo(clusterBoundaryGroup);
-    });
-
-    return () => { map.remove(); mapRef.current = null; if (sharedMapRef) sharedMapRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Helper: enrich settlement source with health data ──────────────────────
+  function enrichSourceWithHealth(map: maplibregl.Map, key: LayerKey, ph: NonNullable<ProgressHealth>) {
+    const src = map.getSource(`${key}-source`) as maplibregl.GeoJSONSource | undefined;
+    const rawFeatures = settlementFeaturesRef.current[key];
+    if (!src || !rawFeatures) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const enriched = rawFeatures.map((f: any) => {
+      const h = ph.settlements[(f.properties?.name ?? "").toLowerCase()];
+      return { ...f, properties: { ...f.properties, health: h ?? "dim" } };
+    });
+    src.setData({ type: "FeatureCollection", features: enriched });
+  }
+
+  // ── Helper: apply zone/cluster filter highlighting ─────────────────────────
+  function applyFilterHighlight(map: maplibregl.Map, filter: MapFilter | null, visible: Set<LayerKey>) {
+    LAYERS.filter((l) => l.file && l.type === "polygon").forEach((layerConfig) => {
+      const fillId = `${layerConfig.key}-fill`;
+      const lineId = `${layerConfig.key}-line`;
+      if (!map.getLayer(fillId)) return;
+      if (!visible.has(layerConfig.key)) return;
+
+      const hasFilter = filter && (filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0);
+      if (!hasFilter) {
+        map.setPaintProperty(fillId, "fill-opacity", 0.25);
+        map.setPaintProperty(lineId, "line-width", 2);
+        return;
+      }
+
+      const rawFeatures = settlementFeaturesRef.current[layerConfig.key] ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const enriched = rawFeatures.map((f: any) => {
+        const matches = settlementMatchesFilter(filter!, layerConfig.key, f.properties?.zone, f.properties?.cluster);
+        return { ...f, properties: { ...f.properties, filterMatch: matches ? 1 : 0 } };
+      });
+      (map.getSource(`${layerConfig.key}-source`) as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features: enriched });
+      map.setPaintProperty(fillId, "fill-opacity", ["case", ["==", ["get", "filterMatch"], 1], 0.55, 0.08]);
+      map.setPaintProperty(lineId, "line-width", ["case", ["==", ["get", "filterMatch"], 1], 2.5, 1]);
+    });
+  }
+
+  // ── Layer visibility toggling ─────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReadyRef.current) return;
+    LAYERS.filter((l) => l.file).forEach((layerConfig) => {
+      const vis = visibleLayers.has(layerConfig.key) ? "visible" : "none";
+      if (layerConfig.type === "polygon") {
+        if (map.getLayer(`${layerConfig.key}-fill`)) map.setLayoutProperty(`${layerConfig.key}-fill`, "visibility", vis);
+        if (map.getLayer(`${layerConfig.key}-line`)) map.setLayoutProperty(`${layerConfig.key}-line`, "visibility", vis);
+      } else {
+        if (map.getLayer(`${layerConfig.key}-circle`)) map.setLayoutProperty(`${layerConfig.key}-circle`, "visibility", vis);
+      }
+    });
+    // Re-apply filter after visibility change
+    applyFilterHighlight(map, mapFilterRef.current, visibleLayers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleLayers]);
+
+  // ── Basemap switching ─────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    LAYERS.filter((l) => l.file).forEach((layerConfig) => {
-      const group = layerGroupsRef.current[layerConfig.key];
-      if (!group) return;
-      if (visibleLayers.has(layerConfig.key)) {
-        if (!map.hasLayer(group)) group.addTo(map);
-      } else {
-        if (map.hasLayer(group)) map.removeLayer(group);
+    Object.entries(BASEMAP_LAYERS).forEach(([key, layerId]) => {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", key === basemap ? "visible" : "none");
       }
     });
-    // Re-apply filter styles so newly-visible layers get correct styles
-    applyZoneClusterHighlight(mapFilterRef.current, visibleLayers);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleLayers]);
+  }, [basemap]);
 
   // ── Progress health colouring ─────────────────────────────────────────────
-  // When progressMode is on: override polygon fill with red/amber/green.
-  // When off: restore all polygons and boundaries to their original colours.
   useEffect(() => {
-    if (!progressMode || !progressHealth) {
-      // Restore settlement polygons to their original layer colour
-      allFeatureLayers.current.forEach(({ leafletLayer, baseColor }) => {
-        leafletLayer.setStyle({ fillColor: baseColor, color: baseColor, fillOpacity: 0.25, opacity: 0.9, weight: 2 });
-      });
-      // Restore zone boundaries
-      zoneBoundaryLayersRef.current.forEach((layer, zoneName) => {
-        const orig = zoneBoundaryColorsRef.current.get(zoneName) ?? "#64748b";
-        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.07, opacity: 0.85, weight: 2.5 });
-      });
-      // Restore cluster boundaries
-      clusterBoundaryLayersRef.current.forEach((layer, clusterKey) => {
-        const orig = clusterBoundaryColorsRef.current.get(clusterKey) ?? "#64748b";
-        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.09, opacity: 0.8, weight: 1.8 });
-      });
-      return;
-    }
+    const map = mapRef.current;
+    if (!map) return;
 
-    // Apply health colours — settlement polygons
-    allFeatureLayers.current.forEach(({ leafletLayer, props, baseColor }) => {
-      const key = (props.name ?? "").toLowerCase();
-      const health = progressHealth.settlements[key];
-      const hc = health ? HEALTH_COLORS[health] : null;
-      if (hc) {
-        leafletLayer.setStyle({ fillColor: hc, color: hc, fillOpacity: 0.5, opacity: 1, weight: 2 });
+    LAYERS.filter((l) => l.file && l.type === "polygon").forEach((layerConfig) => {
+      const src = map.getSource(`${layerConfig.key}-source`) as maplibregl.GeoJSONSource | undefined;
+      const rawFeatures = settlementFeaturesRef.current[layerConfig.key];
+      if (!src || !rawFeatures) return;
+
+      if (!progressMode || !progressHealth) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const restored = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: undefined } }));
+        src.setData({ type: "FeatureCollection", features: restored });
       } else {
-        // Settlements with no goals: dim
-        leafletLayer.setStyle({ fillColor: baseColor, color: baseColor, fillOpacity: 0.1, opacity: 0.4, weight: 1 });
+        enrichSourceWithHealth(map, layerConfig.key, progressHealth);
       }
     });
 
     // Zone boundaries
-    zoneBoundaryLayersRef.current.forEach((layer, zoneName) => {
-      const health = progressHealth.zones[zoneName.toLowerCase()];
-      const hc = health ? HEALTH_COLORS[health] : null;
-      if (hc) {
-        layer.setStyle({ fillColor: hc, color: hc, fillOpacity: 0.22, opacity: 1, weight: 3 });
+    const zoneSrc = map.getSource("zones-source") as maplibregl.GeoJSONSource | undefined;
+    if (zoneSrc && zoneFeaturesRef.current.length > 0) {
+      if (!progressMode || !progressHealth) {
+        zoneSrc.setData({ type: "FeatureCollection", features: zoneFeaturesRef.current });
       } else {
-        const orig = zoneBoundaryColorsRef.current.get(zoneName) ?? "#64748b";
-        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.05, opacity: 0.5, weight: 2 });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = zoneFeaturesRef.current.map((f: any) => ({
+          ...f, properties: { ...f.properties, health: progressHealth.zones[(f.properties?.zone ?? "").toLowerCase()] ?? "" },
+        }));
+        zoneSrc.setData({ type: "FeatureCollection", features: enriched });
       }
-    });
+    }
 
     // Cluster boundaries
-    clusterBoundaryLayersRef.current.forEach((layer, clusterKey) => {
-      const health = progressHealth.clusters[clusterKey.toLowerCase()];
-      const hc = health ? HEALTH_COLORS[health] : null;
-      if (hc) {
-        layer.setStyle({ fillColor: hc, color: hc, fillOpacity: 0.18, opacity: 1, weight: 2.5 });
+    const clusterSrc = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
+    if (clusterSrc && clusterFeaturesRef.current.length > 0) {
+      if (!progressMode || !progressHealth) {
+        clusterSrc.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
       } else {
-        const orig = clusterBoundaryColorsRef.current.get(clusterKey) ?? "#64748b";
-        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.06, opacity: 0.5, weight: 1.5 });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = clusterFeaturesRef.current.map((f: any) => ({
+          ...f, properties: { ...f.properties, health: progressHealth.clusters[(f.properties?.cluster ?? "").toLowerCase()] ?? "" },
+        }));
+        clusterSrc.setData({ type: "FeatureCollection", features: enriched });
       }
-    });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progressMode, progressHealth]);
 
-  // Rebuild centre layer groups when map filter changes
+  // ── Rebuild centre layers when map filter changes ─────────────────────────
   useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
     CENTRE_LAYER_KEYS.forEach((key) => {
-      const layerConfig = LAYERS.find((l) => l.key === key);
-      const group = layerGroupsRef.current[key];
       const geojson = centreGeoJSONRef.current[key];
-      if (layerConfig && group && geojson) {
-        buildCentreLayer(
-          layerConfig, group, geojson, mapFilter,
-          (p, z, c, cf) => onCentreClickRef.current?.(p, z, c, cf)
-        );
-      }
+      const src = map.getSource(`${key}-source`) as maplibregl.GeoJSONSource | undefined;
+      if (!src || !geojson) return;
+      src.setData(filterCentreGeojson(geojson, mapFilter));
     });
-    // Also re-apply settlement styling
-    applyZoneClusterHighlight(mapFilter, visibleLayersRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Also apply filter highlight to settlement layers
+    applyFilterHighlight(map, mapFilter, visibleLayersRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapFilter]);
 
-  // Render / update school markers when data or visibility changes
+  // ── School markers ────────────────────────────────────────────────────────
   useEffect(() => {
-    const group = schoolLayerGroupRef.current;
-    if (!group) return;
-    group.clearLayers();
-    if (!visibleLayers.has("schools") || !schoolFeatures) return;
+    const map = mapRef.current;
+    const src = map?.getSource("schools-source") as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
 
     const TYPE_COLORS: Record<string, string> = {
-      "Government":             "#dc2626",
-      "BBMP":                   "#1e293b",
-      "Karnataka Public School":"#0288D1",
+      "Government": "#dc2626", "BBMP": "#1e293b", "Karnataka Public School": "#0288D1",
     };
-    const TYPE_LABELS: Record<string, string> = {
-      "Government":             "Govt School",
-      "BBMP":                   "BBMP School",
-      "Karnataka Public School":"KPS",
-    };
+
+    if (!visibleLayers.has("schools") || !schoolFeatures) {
+      src.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (schoolFeatures.features as any[]).forEach((feature: any) => {
-      const [lng, lat] = feature.geometry.coordinates;
-      const props = feature.properties ?? {};
-      const sType: string = props.schoolType ?? "Government";
+    const features = (schoolFeatures.features as any[]).filter((f: any) => {
+      if (!schoolTypes) return true;
+      return schoolTypes.has(f.properties?.schoolType ?? "Government");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }).map((f: any) => ({
+      ...f,
+      properties: {
+        ...f.properties,
+        color: TYPE_COLORS[f.properties?.schoolType ?? "Government"] ?? "#16a34a",
+        settlements: JSON.stringify(f.properties?.settlements ?? []),
+      },
+    }));
 
-      // Filter by active types
-      if (schoolTypes && !schoolTypes.has(sType)) return;
-
-      const color = TYPE_COLORS[sType] ?? "#16a34a";
-      const marker = L.circleMarker([lat, lng] as L.LatLngTuple, {
-        radius: 7,
-        fillColor: color,
-        color: "white",
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 0.9,
-      });
-
-      const settlementList = (props.settlements ?? [])
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
-        .join("");
-
-      marker.bindPopup(`
-        <div class="map-popup">
-          <span class="badge" style="background:${color}">${TYPE_LABELS[sType] ?? "School"}</span>
-          <h3>${props.name}</h3>
-          ${props.address ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.address}</div>` : ""}
-          ${settlementList ? `
-            <div style="margin-top:8px">
-              <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements</div>
-              <ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul>
-            </div>` : ""}
-        </div>
-      `, { maxWidth: 280 });
-
-      group.addLayer(marker);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    src.setData({ type: "FeatureCollection", features });
+    if (map?.getLayer("schools-circle")) map.setLayoutProperty("schools-circle", "visibility", "visible");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolFeatures, visibleLayers, schoolTypes]);
 
-  // Render health centre markers
+  // ── Health centre markers ─────────────────────────────────────────────────
   useEffect(() => {
-    const group = healthLayerGroupRef.current;
-    if (!group) return;
-    group.clearLayers();
-    if (!visibleLayers.has("health_centres") || !healthFeatures) return;
+    const map = mapRef.current;
+    const src = map?.getSource("health-source") as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
 
-    const TYPE_CONFIG: Record<string, { color: string; label: string }> = {
-      "CRC":                       { color: "#7c3aed", label: "CRC" },
-      "Foundation Health Centre":  { color: "#0284c7", label: "Foundation HC" },
-      "Government Health Centre":  { color: "#059669", label: "Govt Health Centre" },
-      "Referral Helpdesk Hospital":{ color: "#d97706", label: "Referral Hospital" },
-      "Super Speciality Hospital": { color: "#dc2626", label: "Super Speciality" },
+    const TYPE_COLORS: Record<string, string> = {
+      "CRC": "#7c3aed", "Foundation Health Centre": "#0284c7",
+      "Government Health Centre": "#059669", "Referral Helpdesk Hospital": "#d97706",
+      "Super Speciality Hospital": "#dc2626",
     };
 
+    if (!visibleLayers.has("health_centres") || !healthFeatures) {
+      src.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (healthFeatures.features as any[]).forEach((feature: any) => {
-      const [lng, lat] = feature.geometry.coordinates;
-      const props = feature.properties ?? {};
-      const cType: string = props.centreType ?? "";
-      if (healthTypes && !healthTypes.has(cType)) return;
+    const features = (healthFeatures.features as any[]).filter((f: any) => {
+      if (!healthTypes) return true;
+      return healthTypes.has(f.properties?.centreType ?? "");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }).map((f: any) => ({
+      ...f,
+      properties: {
+        ...f.properties,
+        color: TYPE_COLORS[f.properties?.centreType ?? ""] ?? "#e11d48",
+        settlements: JSON.stringify(f.properties?.settlements ?? []),
+      },
+    }));
 
-      const cfg = TYPE_CONFIG[cType] ?? { color: "#e11d48", label: "Health Centre" };
-
-      // Diamond shape via rotated square marker using divIcon
-      const icon = L.divIcon({
-        className: "",
-        html: `<div style="width:12px;height:12px;background:${cfg.color};transform:rotate(45deg);border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6],
-      });
-
-      const marker = L.marker([lat, lng] as L.LatLngTuple, { icon });
-
-      const settlementList = (props.settlements ?? [])
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
-        .join("");
-
-      marker.bindPopup(`
-        <div class="map-popup">
-          <span class="badge" style="background:${cfg.color}">${cfg.label}</span>
-          <h3>${props.name}</h3>
-          ${props.notes ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.notes}</div>` : ""}
-          ${settlementList ? `
-            <div style="margin-top:8px">
-              <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements (≤2 km)</div>
-              <ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul>
-            </div>` : `<div style="margin-top:6px;font-size:11px;color:#94a3b8;font-style:italic">No settlements within 2 km</div>`}
-        </div>
-      `, { maxWidth: 300 });
-
-      group.addLayer(marker);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    src.setData({ type: "FeatureCollection", features });
+    if (map?.getLayer("health-circle")) map.setLayoutProperty("health-circle", "visibility", "visible");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [healthFeatures, visibleLayers, healthTypes]);
 
-  // Health cluster overlay — tint cluster boundaries by health status
+  // ── Health cluster overlay ────────────────────────────────────────────────
   useEffect(() => {
-    // Ensure cluster boundary group is visible when overlay is on
     const map = mapRef.current;
-    const group = clusterBoundaryGroupRef.current;
-    if (map && group && showHealthClusters && !map.hasLayer(group)) group.addTo(map);
+    const src = map?.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
+    if (!src || !clusterFeaturesRef.current.length) return;
 
-    clusterBoundaryLayersRef.current.forEach((layer, clusterKey) => {
-      if (!showHealthClusters) {
-        // Reset to default styling (re-use original color)
-        const orig = clusterBoundaryColorsRef.current.get(clusterKey) ?? "#64748b";
-        layer.setStyle({ fillColor: orig, color: orig, fillOpacity: 0.09, opacity: 0.8, weight: 1.8, dashArray: "5 4" });
-      } else {
-        const isHealth = healthClusterMap[clusterKey] ?? healthClusterMap[clusterKey.replace(/_/g, " ")] ?? false;
-        if (isHealth) {
-          layer.setStyle({ fillColor: "#f43f5e", color: "#e11d48", fillOpacity: 0.22, opacity: 1, weight: 2.5, dashArray: undefined });
-        } else {
-          layer.setStyle({ fillColor: "#94a3b8", color: "#94a3b8", fillOpacity: 0.06, opacity: 0.4, weight: 1.5, dashArray: "5 4" });
-        }
-      }
+    // Ensure cluster layer is visible when overlay is on
+    if (showHealthClusters && map?.getLayer("clusters-fill")) {
+      map.setLayoutProperty("clusters-fill", "visibility", "visible");
+      map.setLayoutProperty("clusters-line", "visibility", "visible");
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const enriched = clusterFeaturesRef.current.map((f: any) => {
+      const key = f.properties?.cluster ?? "";
+      const isHealth = showHealthClusters && (healthClusterMap[key] ?? healthClusterMap[key.replace(/_/g, " ")] ?? false);
+      return { ...f, properties: { ...f.properties, healthOverlay: isHealth ? "health" : "" } };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    if (showHealthClusters) {
+      src.setData({ type: "FeatureCollection", features: enriched });
+      if (map?.getLayer("clusters-fill")) {
+        map?.setPaintProperty("clusters-fill", "fill-color", [
+          "case", ["==", ["get", "healthOverlay"], "health"], "#f43f5e", ["get", "color"],
+        ]);
+        map?.setPaintProperty("clusters-fill", "fill-opacity", [
+          "case", ["==", ["get", "healthOverlay"], "health"], 0.22, 0.06,
+        ]);
+      }
+    } else {
+      src.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
+      if (map?.getLayer("clusters-fill")) {
+        map?.setPaintProperty("clusters-fill", "fill-color", [
+          "case",
+          ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
+          ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
+          ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+          ["get", "color"],
+        ]);
+        map?.setPaintProperty("clusters-fill", "fill-opacity", [
+          "case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09,
+        ]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHealthClusters, healthClusterMap]);
 
-  function applyZoneClusterHighlight(
-    filter: MapFilter | null, visible: Set<LayerKey>
-  ) {
-    const map = mapRef.current;
-    if (!map) return;
-    const hasFilter = filter && (
-      filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0
-    );
-    allFeatureLayers.current.forEach(({ leafletLayer, props, baseColor }) => {
-      // Only touch polygons whose layer group is currently visible
-      if (!visible.has(props.layer as LayerKey)) return;
-      if (!hasFilter) {
-        leafletLayer.setStyle({ fillColor: baseColor, fillOpacity: 0.25, opacity: 0.9, weight: 2 });
-        return;
-      }
-      const matches = settlementMatchesFilter(filter!, props.layer, props.zone, props.cluster);
-      if (matches) {
-        leafletLayer.setStyle({ fillColor: baseColor, fillOpacity: 0.55, opacity: 1, weight: 2.5 });
-        leafletLayer.bringToFront();
-      } else {
-        leafletLayer.setStyle({ fillColor: "#94a3b8", fillOpacity: 0.08, opacity: 0.3, weight: 1 });
-      }
-    });
-  }
-
+  // ── Zone flyTo ────────────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    // FlyTo behavior based on zone/cluster selection
     if (activeZone && !activeCluster && ZONE_BOUNDS[activeZone]) {
-      map.flyToBounds(ZONE_BOUNDS[activeZone], { duration: 0.8, padding: [30, 30] });
+      map.fitBounds(ZONE_BOUNDS[activeZone], { duration: 800, padding: 30 });
     } else if (!activeZone && !activeCluster) {
-      const { latlng, zoom } = CITY_CENTERS[activeCity];
-      map.flyTo(latlng, zoom, { duration: 0.8 });
+      map.flyTo({ center: CITY_CENTERS[activeCity].center, zoom: CITY_CENTERS[activeCity].zoom, duration: 800 });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Update zone highlight
+    const src = map.getSource("zones-source") as maplibregl.GeoJSONSource | undefined;
+    if (src && zoneFeaturesRef.current.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const enriched = zoneFeaturesRef.current.map((f: any) => ({
+        ...f, properties: { ...f.properties, active: f.properties?.zone === activeZone ? 1 : 0 },
+      }));
+      src.setData({ type: "FeatureCollection", features: enriched });
+      if (map.getLayer("zones-fill")) {
+        map.setPaintProperty("zones-fill", "fill-opacity", [
+          "case",
+          ["==", ["get", "active"], 1], 0.18,
+          activeZone ? 0.03 : ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.22, 0.07],
+        ]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeZone, activeCluster, activeCity]);
 
+  // ── Cluster flyTo ─────────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !activeCluster) return;
-    const matched = allFeatureLayers.current.filter((f) => f.props.cluster === activeCluster);
-    if (!matched.length) return;
-    const bounds = L.latLngBounds([]);
-    matched.forEach(({ leafletLayer }) => {
-      try {
-        const b = (leafletLayer as L.Polygon).getBounds();
-        if (b.isValid()) bounds.extend(b);
-      } catch {}
+
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    Object.values(settlementFeaturesRef.current).forEach((features) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      features?.forEach((f: any) => {
+        if (f.properties?.cluster !== activeCluster) return;
+        getPolygonEnvelope(f).forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng); minLat = Math.min(minLat, lat);
+          maxLng = Math.max(maxLng, lng); maxLat = Math.max(maxLat, lat);
+        });
+      });
     });
-    if (bounds.isValid()) map.flyToBounds(bounds, { duration: 0.8, padding: [60, 60] });
+    if (isFinite(minLng)) {
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 800, padding: 60 });
+    }
+
+    // Update cluster highlight
+    const src = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
+    if (src && clusterFeaturesRef.current.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const enriched = clusterFeaturesRef.current.map((f: any) => ({
+        ...f, properties: { ...f.properties, active: f.properties?.cluster === activeCluster ? 1 : 0 },
+      }));
+      src.setData({ type: "FeatureCollection", features: enriched });
+      if (map.getLayer("clusters-fill")) {
+        map.setPaintProperty("clusters-fill", "fill-opacity", [
+          "case",
+          ["==", ["get", "active"], 1], 0.22,
+          activeCluster ? 0.03 : ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09],
+        ]);
+      }
+    }
   }, [activeCluster]);
 
-  // Toggle zone/cluster boundary visibility
+  // ── Zone/cluster overlay toggles ──────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
-    const group = zoneBoundaryGroupRef.current;
-    if (!map || !group) return;
-    if (showZones) { if (!map.hasLayer(group)) group.addTo(map); }
-    else { if (map.hasLayer(group)) map.removeLayer(group); }
+    if (!map) return;
+    const vis = showZones ? "visible" : "none";
+    ["zones-fill", "zones-line", "zones-label"].forEach((id) => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+    });
   }, [showZones]);
 
   useEffect(() => {
     const map = mapRef.current;
-    const group = clusterBoundaryGroupRef.current;
-    if (!map || !group) return;
-    if (showClusters) { if (!map.hasLayer(group)) group.addTo(map); }
-    else { if (map.hasLayer(group)) map.removeLayer(group); }
+    if (!map) return;
+    const vis = showClusters ? "visible" : "none";
+    ["clusters-fill", "clusters-line", "clusters-label"].forEach((id) => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+    });
   }, [showClusters]);
-
-  // Highlight active zone/cluster boundary
-  useEffect(() => {
-    zoneBoundaryLayersRef.current.forEach((layer, zone) => {
-      if (!activeZone) {
-        layer.setStyle({ fillOpacity: 0.07, weight: 2.5, opacity: 0.85 });
-      } else if (zone === activeZone) {
-        layer.setStyle({ fillOpacity: 0.18, weight: 3.5, opacity: 1 });
-        layer.bringToFront();
-      } else {
-        layer.setStyle({ fillOpacity: 0.03, weight: 1.5, opacity: 0.4 });
-      }
-    });
-  }, [activeZone]);
-
-  useEffect(() => {
-    clusterBoundaryLayersRef.current.forEach((layer, cluster) => {
-      if (!activeCluster) {
-        layer.setStyle({ fillOpacity: 0.09, weight: 1.8, opacity: 0.8 });
-      } else if (cluster === activeCluster) {
-        layer.setStyle({ fillOpacity: 0.22, weight: 3, opacity: 1 });
-        layer.bringToFront();
-      } else {
-        layer.setStyle({ fillOpacity: 0.03, weight: 1, opacity: 0.3 });
-      }
-    });
-  }, [activeCluster]);
 
   return (
     <div className="relative w-full h-full">
@@ -789,7 +1042,7 @@ export default function MapView({
         </div>
       )}
 
-      {/* Bottom-right controls: boundary toggles + basemap */}
+      {/* Bottom-right controls */}
       <div className="absolute bottom-28 sm:bottom-6 right-3 z-10 flex flex-col gap-1.5 items-end">
         <button
           onClick={() => setShowZones((v) => !v)}
@@ -823,7 +1076,6 @@ export default function MapView({
           {basemap === "carto" ? "OSM" : basemap === "osm" ? "Satellite" : "Carto"}
         </button>
       </div>
-
     </div>
   );
 }

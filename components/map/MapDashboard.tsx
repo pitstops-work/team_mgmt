@@ -98,7 +98,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
   const flyToRef = useRef<((latlng: [number, number], zoom?: number) => void) | null>(null);
   const openPopupRef = useRef<((layerKey: LayerKey, featureIdx: number) => void) | null>(null);
   const flyToCityRef = useRef<((city: MapCity) => void) | null>(null);
-  const sharedMapRef = useRef<import("leaflet").Map | null>(null);
+  const sharedMapRef = useRef<import("maplibre-gl").Map | null>(null);
 
   const geoData = useGeoData();
 
