@@ -2961,10 +2961,10 @@ export default function HomeView({
   adminDash: AdminDash | null;
 }) {
   const isAdmin = !!adminDash;
-  const tabs = designation === "ZL" ? ZL_TABS
+  const tabs = isAdmin ? ADMIN_TABS
+    : designation === "ZL" ? ZL_TABS
     : designation === "RP" ? RP_TABS
     : designation === "PM" ? PM_TABS
-    : isAdmin ? ADMIN_TABS
     : OTHER_TABS;
   const defaultTab: TabKey = isAdmin ? "overview" : "today";
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
