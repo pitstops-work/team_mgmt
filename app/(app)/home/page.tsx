@@ -80,8 +80,22 @@ export type RPPitstopDetail = {
   pendingChecklists: { id: string; text: string }[];
 };
 
+export type ZLHealthStat = {
+  zlId: string;
+  totalGoals: number;
+  activeGoals: number;
+  completeGoals: number;
+  pausedGoals: number;
+  rpCount: number;
+  totalDelayedPitstops: number;
+  totalOverdueActivities: number;
+  totalChecklists: number;
+  doneChecklists: number;
+};
+
 export type RPHealthStat = {
   rpId: string;
+  zlId: string | null;
   totalGoals: number;
   activeGoals: number;
   pausedGoals: number;
@@ -193,7 +207,7 @@ export default async function HomePage() {
     teamIds = [userId, ...teamMembers.map(m => m.id)];
   }
 
-  const isScoped = designation === "RP" || designation === "ZL";
+  const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
 
   const [
     todayActivities,
@@ -466,6 +480,7 @@ export default async function HomePage() {
 
       return {
         rpId: rp.id,
+        zlId: null,
         totalGoals: rpGoals.length,
         activeGoals: rpGoals.filter(g => g.status === "Active").length,
         pausedGoals: rpGoals.filter(g => g.status === "Paused").length,
@@ -478,6 +493,128 @@ export default async function HomePage() {
         delayedPitstops,
       };
     });
+  }
+
+  // ── PM: ZL + RP health stats ──────────────────────────────────────────────
+  type PMTeamMember = { id: string; name: string | null; image: string | null; reportsToId: string | null };
+  let pmZLMembers: PMTeamMember[] = [];
+  let pmRPMembers: PMTeamMember[] = [];
+  let pmZLHealth: ZLHealthStat[] = [];
+  let pmRPHealth: RPHealthStat[] = [];
+
+  if (designation === "PM") {
+    pmZLMembers = await prisma.user.findMany({
+      where: { reportsToId: userId },
+      select: { id: true, name: true, image: true, reportsToId: true },
+    });
+
+    if (pmZLMembers.length > 0) {
+      const zlIds = pmZLMembers.map(z => z.id);
+      pmRPMembers = await prisma.user.findMany({
+        where: { reportsToId: { in: zlIds } },
+        select: { id: true, name: true, image: true, reportsToId: true },
+      });
+
+      const allRpIds = pmRPMembers.map(r => r.id);
+      const pmTodayMs = todayStart.getTime();
+
+      const [pmRpPitstops, pmRpChecklists, pmOverdueActs] = await Promise.all([
+        allRpIds.length > 0
+          ? prisma.pitstop.findMany({
+              where: { deletedAt: null, ownerId: { in: allRpIds }, goal: { deletedAt: null } },
+              select: {
+                id: true, title: true, ownerId: true, status: true, targetDate: true,
+                goal: { select: { title: true } },
+                checklistItems: {
+                  where: { status: { notIn: ["Done", "Cancelled"] } },
+                  select: { id: true, text: true },
+                  orderBy: { order: "asc" },
+                },
+              },
+            })
+          : Promise.resolve([]),
+        allRpIds.length > 0
+          ? prisma.checklistItem.findMany({
+              where: { pitstop: { deletedAt: null, ownerId: { in: allRpIds }, goal: { deletedAt: null } } },
+              select: { status: true, pitstop: { select: { ownerId: true } } },
+            })
+          : Promise.resolve([]),
+        allRpIds.length > 0
+          ? prisma.pitstopEvent.findMany({
+              where: {
+                deletedAt: null, status: "Scheduled",
+                scheduledAt: { lt: todayStart },
+                pitstops: { some: { pitstop: { ownerId: { in: allRpIds }, deletedAt: null } } },
+              },
+              select: {
+                id: true,
+                pitstops: {
+                  where: { pitstop: { ownerId: { in: allRpIds }, deletedAt: null } },
+                  select: { pitstop: { select: { ownerId: true } } },
+                  take: 1,
+                },
+              },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      // Compute RPHealthStat for every RP across all ZLs
+      pmRPHealth = pmRPMembers.map(rp => {
+        const rpGoals  = myGoals.filter(g => g.ownerId === rp.id);
+        const rpPits   = pmRpPitstops.filter(p => p.ownerId === rp.id);
+        const rpCls    = pmRpChecklists.filter(ci => ci.pitstop.ownerId === rp.id);
+        const overdueActs = pmOverdueActs.filter(a =>
+          a.pitstops.some((ep: { pitstop: { ownerId: string | null } }) => ep.pitstop.ownerId === rp.id)
+        );
+
+        const openPits    = rpPits.filter(p => p.status === "Upcoming" || p.status === "InProgress");
+        const delayedPits = openPits.filter(p => p.targetDate != null && new Date(p.targetDate).getTime() < pmTodayMs);
+        const onTrackPits = openPits.filter(p => !p.targetDate || new Date(p.targetDate).getTime() >= pmTodayMs);
+
+        const delayedPitstops: RPPitstopDetail[] = delayedPits
+          .sort((a, b) => new Date(a.targetDate!).getTime() - new Date(b.targetDate!).getTime())
+          .map(p => ({
+            id: p.id, title: p.title, goalTitle: p.goal.title,
+            targetDate: p.targetDate ? p.targetDate.toISOString() : null,
+            daysOverdue: p.targetDate ? Math.floor((pmTodayMs - new Date(p.targetDate).getTime()) / 86400000) : 0,
+            pendingChecklists: p.checklistItems.map(ci => ({ id: ci.id, text: ci.text })),
+          }));
+
+        return {
+          rpId: rp.id,
+          zlId: rp.reportsToId,
+          totalGoals: rpGoals.length,
+          activeGoals: rpGoals.filter(g => g.status === "Active").length,
+          pausedGoals: rpGoals.filter(g => g.status === "Paused").length,
+          completeGoals: rpGoals.filter(g => g.status === "Complete").length,
+          onTrackPitstops: onTrackPits.length,
+          overduePitstops: delayedPits.length,
+          overdueActivities: overdueActs.length,
+          totalChecklists: rpCls.length,
+          doneChecklists: rpCls.filter(ci => ci.status === "Done").length,
+          delayedPitstops,
+        };
+      });
+
+      // Aggregate ZL-level health from RP health
+      pmZLHealth = pmZLMembers.map(zl => {
+        const zlGoals  = myGoals.filter(g => g.ownerId === zl.id);
+        const zlRPIds  = pmRPMembers.filter(r => r.reportsToId === zl.id).map(r => r.id);
+        const zlRpStat = pmRPHealth.filter(r => zlRPIds.includes(r.rpId));
+        return {
+          zlId: zl.id,
+          totalGoals: zlGoals.length,
+          activeGoals: zlGoals.filter(g => g.status === "Active").length,
+          completeGoals: zlGoals.filter(g => g.status === "Complete").length,
+          pausedGoals: zlGoals.filter(g => g.status === "Paused").length,
+          rpCount: zlRPIds.length,
+          totalDelayedPitstops: zlRpStat.reduce((s, r) => s + r.overduePitstops, 0),
+          totalOverdueActivities: zlRpStat.reduce((s, r) => s + r.overdueActivities, 0),
+          totalChecklists: zlRpStat.reduce((s, r) => s + r.totalChecklists, 0),
+          doneChecklists: zlRpStat.reduce((s, r) => s + r.doneChecklists, 0),
+        };
+      });
+    }
   }
 
   // ── RP: per-cluster domain stats ──────────────────────────────────────────
@@ -754,6 +891,10 @@ export default async function HomePage() {
       clusterStatus={clusterStatus}
       teamMembers={JSON.parse(JSON.stringify(teamMembers))}
       rpTeamHealth={rpTeamHealth}
+      pmZLMembers={JSON.parse(JSON.stringify(pmZLMembers))}
+      pmRPMembers={JSON.parse(JSON.stringify(pmRPMembers))}
+      pmZLHealth={pmZLHealth}
+      pmRPHealth={JSON.parse(JSON.stringify(pmRPHealth))}
       adminDash={adminDash}
     />
   );
