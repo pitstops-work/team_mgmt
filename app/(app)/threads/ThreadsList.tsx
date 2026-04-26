@@ -12,7 +12,7 @@ type User = { id: string; name: string | null; image: string | null };
 type Goal = { id: string; title: string };
 type Pitstop = { id: string; title: string; goalId: string };
 type ChecklistItemOption = { id: string; text: string; pitstopId: string; status: string };
-type EventOption = { id: string; title: string; pitstopId: string };
+type EventOption = { id: string; title: string; pitstopId: string; checklistItemId: string | null };
 type Thread = {
   id: string;
   name: string;
@@ -115,6 +115,15 @@ function NewThreadWizard({
   const goalPitstops = pitstops.filter(p => p.goalId === goalId);
   const pitstopChecklist = checklistItems.filter(ci => ci.pitstopId === pitstopId);
   const pitstopEvents = events.filter(e => e.pitstopId === pitstopId);
+  // Cascade: if a checklist item is selected, only show activities linked to it
+  const filteredEvents = checklistItemId
+    ? pitstopEvents.filter(e => e.checklistItemId === checklistItemId)
+    : pitstopEvents;
+  // Cascade: if an activity is selected, only show the checklist item linked to it
+  const selectedEvent = eventId ? pitstopEvents.find(e => e.id === eventId) : null;
+  const filteredChecklist = selectedEvent?.checklistItemId
+    ? pitstopChecklist.filter(ci => ci.id === selectedEvent.checklistItemId)
+    : pitstopChecklist;
 
   const isValid = !!goalId && !!name.trim();
 
@@ -202,29 +211,37 @@ function NewThreadWizard({
           )}
 
           {/* Checklist item (optional, only if pitstop selected) */}
-          {pitstopId && pitstopChecklist.length > 0 && (
+          {pitstopId && filteredChecklist.length > 0 && (
             <div>
               <label className="flex items-center gap-1.5 text-xs font-medium text-stone-600 mb-1">
                 <CheckSquare className="w-3.5 h-3.5 text-teal-500" />
                 Checklist Item <span className="text-stone-400 font-normal">(optional)</span>
               </label>
-              <select value={checklistItemId} onChange={e => setChecklistItemId(e.target.value)} className={sel}>
+              <select
+                value={checklistItemId}
+                onChange={e => { setChecklistItemId(e.target.value); setEventId(""); }}
+                className={sel}
+              >
                 <option value="">— none —</option>
-                {pitstopChecklist.map(ci => <option key={ci.id} value={ci.id}>{ci.text}</option>)}
+                {filteredChecklist.map(ci => <option key={ci.id} value={ci.id}>{ci.text}</option>)}
               </select>
             </div>
           )}
 
           {/* Activity (optional, only if pitstop selected) */}
-          {pitstopId && pitstopEvents.length > 0 && (
+          {pitstopId && filteredEvents.length > 0 && (
             <div>
               <label className="flex items-center gap-1.5 text-xs font-medium text-stone-600 mb-1">
                 <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
                 Activity <span className="text-stone-400 font-normal">(optional)</span>
               </label>
-              <select value={eventId} onChange={e => setEventId(e.target.value)} className={sel}>
+              <select
+                value={eventId}
+                onChange={e => { setEventId(e.target.value); setChecklistItemId(""); }}
+                className={sel}
+              >
                 <option value="">— none —</option>
-                {pitstopEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+                {filteredEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
               </select>
             </div>
           )}

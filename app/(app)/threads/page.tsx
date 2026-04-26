@@ -152,10 +152,10 @@ export default async function ThreadsPage() {
     ORDER BY "order" ASC
   `;
 
-  // Fetch events for those pitstops
+  // Fetch events for those pitstops (include checklistItemId for cascade)
   const events = pitstopIds.length > 0
-    ? await prisma.$queryRaw<{ id: string; title: string; pitstopId: string }[]>`
-        SELECT DISTINCT pe.id, pe.title, pep."pitstopId"
+    ? await prisma.$queryRaw<{ id: string; title: string; pitstopId: string; checklistItemId: string | null }[]>`
+        SELECT DISTINCT pe.id, pe.title, pep."pitstopId", pe."checklistItemId"
         FROM "PitstopEvent" pe
         JOIN "PitstopEventPitstop" pep ON pep."eventId" = pe.id
         WHERE pep."pitstopId" = ANY(${pitstopIds})
