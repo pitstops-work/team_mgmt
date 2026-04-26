@@ -162,7 +162,10 @@ export default async function HomePage() {
   if (designation === "ZL") {
     teamMembers = await prisma.user.findMany({
       where: { reportsToId: userId },
-      select: { id: true, name: true, image: true },
+      select: {
+        id: true, name: true, image: true,
+        rpClusters: { where: { deletedAt: null }, select: { id: true, name: true } },
+      },
     });
     teamIds = [userId, ...teamMembers.map(m => m.id)];
   }
@@ -178,6 +181,7 @@ export default async function HomePage() {
     myZone,
     rpOverdueActivities,
     rpDoneActivities,
+    zlOverdueActivities,
   ] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: {
@@ -320,6 +324,29 @@ export default async function HomePage() {
           },
           orderBy: { scheduledAt: "desc" },
           take: 50,
+        })
+      : Promise.resolve([]),
+
+    // ZL only: team overdue activities (past Scheduled, owned by any team member)
+    designation === "ZL"
+      ? prisma.pitstopEvent.findMany({
+          where: {
+            deletedAt: null,
+            status: "Scheduled",
+            scheduledAt: { lt: todayStart },
+            pitstops: { some: { pitstop: { ownerId: { in: teamIds }, deletedAt: null } } },
+          },
+          select: {
+            id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            attendees: { select: { user: { select: { id: true, name: true } } } },
+            pitstops: {
+              where: { pitstop: { ownerId: { in: teamIds }, deletedAt: null } },
+              select: { pitstop: { select: { ownerId: true } } },
+              take: 1,
+            },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 150,
         })
       : Promise.resolve([]),
   ]);
@@ -593,6 +620,7 @@ export default async function HomePage() {
       rpClusterStats={rpClusterStats}
       rpOverdueActivities={JSON.parse(JSON.stringify(rpOverdueActivities))}
       rpDoneActivities={JSON.parse(JSON.stringify(rpDoneActivities))}
+      zlOverdueActivities={JSON.parse(JSON.stringify(zlOverdueActivities))}
       zlZoneName={myZone?.name ?? null}
       zlClusterStats={zlClusterStats}
       clusterStatus={clusterStatus}
