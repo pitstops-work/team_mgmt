@@ -15,23 +15,32 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
   });
   const designation = me?.designation ?? "Other";
 
-  // Scope events: RP sees own, ZL sees team's, others see all
+  // Scope events: RP sees own, ZL sees team, PM sees ZLs + their RPs, others see all
   let teamIds: string[] = [userId];
   if (designation === "ZL") {
     const team = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
     teamIds = [userId, ...team.map(m => m.id)];
+  } else if (designation === "PM") {
+    const zls = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
+    const zlIds = zls.map(z => z.id);
+    const rps = zlIds.length > 0
+      ? await prisma.user.findMany({ where: { reportsToId: { in: zlIds } }, select: { id: true } })
+      : [];
+    teamIds = [userId, ...zlIds, ...rps.map(r => r.id)];
   }
-  const eventAttendeeFilter = (designation === "RP" || designation === "ZL")
+
+  const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
+  const eventAttendeeFilter = isScoped
     ? { attendees: { some: { userId: { in: teamIds } } } }
     : {};
 
   // Scope pitstops for the "link to activity" picker similarly
-  const pitstopOwnerFilter = (designation === "RP" || designation === "ZL")
+  const pitstopOwnerFilter = isScoped
     ? { ownerId: { in: teamIds } }
     : {};
 
   // Scope users shown in attendee picker
-  const userFilter = (designation === "RP" || designation === "ZL")
+  const userFilter = isScoped
     ? { id: { in: teamIds } }
     : {};
 
