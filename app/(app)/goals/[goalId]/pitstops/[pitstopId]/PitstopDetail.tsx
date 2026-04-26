@@ -137,7 +137,7 @@ const STATUS_CFG: Record<ChecklistStatus, { label: string; cls: string }> = {
 
 function ChecklistItemRow({
   item, users, pitstopId, isFirst, isLast,
-  onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onMove, onVoiceLogged, onAttachmentLogged,
+  onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onMove, onVoiceLogged, onAttachmentLogged, onAttachmentDeleted,
 }: {
   item: ChecklistItem;
   users: User[];
@@ -153,6 +153,7 @@ function ChecklistItemRow({
   onMove: (id: string, direction: "up" | "down") => void;
   onVoiceLogged: (id: string, notes: string) => void;
   onAttachmentLogged: (id: string, attachment: Attachment) => void;
+  onAttachmentDeleted: (itemId: string, attachmentId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -165,9 +166,17 @@ function ChecklistItemRow({
   const [savingActivity, setSavingActivity] = useState(false);
   const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
   const [uploading, setUploading] = useState(false);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleDeleteAttachment(attachmentId: string) {
+    setDeletingAttachmentId(attachmentId);
+    const res = await fetch(`/api/attachments/${attachmentId}`, { method: "DELETE" });
+    if (res.ok) onAttachmentDeleted(item.id, attachmentId);
+    setDeletingAttachmentId(null);
+  }
 
   const handleAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -359,17 +368,31 @@ function ChecklistItemRow({
             ))}
             {/* Attachment chips */}
             {item.attachments?.map((att) => (
-              <a
-                key={att.id}
-                href={`/api/attachments/${att.id}/download`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[9px] text-stone-500 bg-stone-50 border border-stone-200 px-1.5 py-0.5 rounded flex items-center gap-1 hover:bg-stone-100 transition-colors max-w-[120px] truncate"
-                title={att.name}
-              >
-                <Paperclip className="w-2.5 h-2.5 flex-shrink-0" />
-                <span className="truncate">{att.name}</span>
-              </a>
+              <span key={att.id} className="flex items-center gap-0.5 text-[9px] text-stone-500 bg-stone-50 border border-stone-200 rounded max-w-[140px]">
+                <a
+                  href={`/api/attachments/${att.id}/download`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-1.5 py-0.5 hover:bg-stone-100 transition-colors truncate"
+                  title={att.name}
+                >
+                  <Paperclip className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span className="truncate">{att.name}</span>
+                </a>
+                {item.completionType === "Upload" && (
+                  <button
+                    onClick={() => handleDeleteAttachment(att.id)}
+                    disabled={deletingAttachmentId === att.id}
+                    className="px-1 py-0.5 text-stone-300 hover:text-red-500 disabled:opacity-40 transition-colors flex-shrink-0"
+                    title="Delete attachment"
+                  >
+                    {deletingAttachmentId === att.id
+                      ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                      : <X className="w-2.5 h-2.5" />
+                    }
+                  </button>
+                )}
+              </span>
             ))}
             {/* Schedule button — always available */}
             <button
@@ -719,6 +742,23 @@ export default function PitstopDetail({
         ? { ...i, checked: true, status: "Done" as const, attachments: [...(i.attachments ?? []), attachment] }
         : i
     );
+    const allChecked = newItems.every((i) => i.checked);
+    const anyChecked = newItems.some((i) => i.checked);
+    const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
+    setPitstop((p) => ({ ...p, checklistItems: newItems, status: derived }));
+  };
+
+  const handleAttachmentDeleted = (itemId: string, attachmentId: string) => {
+    const newItems = pitstop.checklistItems.map((i) => {
+      if (i.id !== itemId) return i;
+      const remainingAttachments = (i.attachments ?? []).filter(a => a.id !== attachmentId);
+      const resetDone = remainingAttachments.length === 0;
+      return {
+        ...i,
+        attachments: remainingAttachments,
+        ...(resetDone ? { checked: false, status: "NotStarted" as const } : {}),
+      };
+    });
     const allChecked = newItems.every((i) => i.checked);
     const anyChecked = newItems.some((i) => i.checked);
     const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
@@ -1382,6 +1422,7 @@ export default function PitstopDetail({
                     onMove={handleMoveItem}
                     onVoiceLogged={handleVoiceLogged}
                     onAttachmentLogged={handleAttachmentLogged}
+                    onAttachmentDeleted={handleAttachmentDeleted}
                   />
                 ))
             )}

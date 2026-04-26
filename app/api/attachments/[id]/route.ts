@@ -14,12 +14,26 @@ export async function DELETE(
   if (veto) return veto;
 
   const { id } = await params;
-  const attachment = await prisma.attachment.findUnique({ where: { id }, select: { url: true } });
+  const attachment = await prisma.attachment.findUnique({
+    where: { id },
+    select: { url: true, checklistItemId: true },
+  });
   if (!attachment) return Response.json({ error: "Not found" }, { status: 404 });
 
   // Delete from Blob storage, then from DB
   try { await del(attachment.url); } catch { /* blob may already be gone */ }
   await prisma.attachment.delete({ where: { id } });
+
+  // If this was completing a checklist item, reset it when no attachments remain
+  if (attachment.checklistItemId) {
+    const remaining = await prisma.attachment.count({ where: { checklistItemId: attachment.checklistItemId } });
+    if (remaining === 0) {
+      await prisma.checklistItem.update({
+        where: { id: attachment.checklistItemId },
+        data: { status: "NotStarted", checked: false, completedAt: null },
+      });
+    }
+  }
 
   return Response.json({ ok: true });
 }
