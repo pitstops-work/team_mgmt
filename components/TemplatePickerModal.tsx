@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, ChevronRight, ChevronDown, Layers, ArrowRight, CalendarClock, AlertCircle } from "lucide-react";
+import { X, ChevronRight, ChevronDown, Layers, ArrowRight } from "lucide-react";
 
 // Sub-domains redirect to their parent programme
 const SUB_DOMAIN_PARENT: Record<string, { label: string; templateId: string; programmeName: string }> = {
@@ -89,8 +89,6 @@ export default function TemplatePickerModal({
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<PreviewPitstop[]>([]);
   const [expandedPreview, setExpandedPreview] = useState<Set<number>>(new Set());
-  // activitySchedules: "${pitstopIdx}_${checklistIdx}" → ISO date string (YYYY-MM-DD)
-  const [activitySchedules, setActivitySchedules] = useState<Record<string, string>>({});
   // Owner — ZL/PM can create goals on behalf of an RP
   const canPickOwner =
     ["ZL", "PM", "admin", "super-admin"].includes(currentUserDesignation ?? "") ||
@@ -259,7 +257,6 @@ export default function TemplatePickerModal({
       if (res.ok) {
         const pts: PreviewPitstop[] = await res.json();
         setPreview(pts);
-        setActivitySchedules({});
       }
     } catch {
       // preview is optional
@@ -274,32 +271,6 @@ export default function TemplatePickerModal({
     if (allFilled) handlePreview();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramValues, selected, step]);
-
-  const slaWindowFor = (pt: PreviewPitstop) => {
-    if (!startDate) return null;
-    const base = new Date(startDate);
-    const from = new Date(base); from.setDate(from.getDate() + pt.startSlaDays);
-    const to   = new Date(base); to.setDate(to.getDate()   + pt.slaDays);
-    return { from, to };
-  };
-
-  const isActivityDateValid = (pitstopIdx: number, checklistIdx: number) => {
-    const key = `${pitstopIdx}_${checklistIdx}`;
-    const dateStr = activitySchedules[key];
-    if (!dateStr) return false;
-    const pt = preview[pitstopIdx];
-    const window = slaWindowFor(pt);
-    if (!window) return true;
-    const d = new Date(dateStr);
-    return d >= window.from && d <= window.to;
-  };
-
-  // Collect all (pitstopIdx, checklistIdx) pairs that need a scheduled date
-  const schedulableItems = preview.flatMap((pt, pi) =>
-    pt.checklist.flatMap((item, ci) =>
-      item.activityTitle ? [{ pi, ci, pt, item }] : []
-    )
-  );
 
   const computedTargetDate = (): string => {
     const maxSla = preview.length > 0 ? Math.max(...preview.map((pt) => pt.slaDays)) : 365;
@@ -323,11 +294,6 @@ export default function TemplatePickerModal({
       return true;
     });
     if (!paramsOk) return false;
-    if (schedulableItems.length > 0) {
-      for (const { pi, ci } of schedulableItems) {
-        if (!isActivityDateValid(pi, ci)) return false;
-      }
-    }
     return true;
   };
 
@@ -351,7 +317,6 @@ export default function TemplatePickerModal({
           needsClusterId: geoVal.clusterId || null,
           needsZoneId: geoVal.zoneId || null,
           needsCityId: geoVal.cityId || null,
-          activitySchedules,
           ...(canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId
             ? { ownerId: selectedOwnerId }
             : {}),
@@ -790,60 +755,6 @@ export default function TemplatePickerModal({
                         )}
                       </div>
                     ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Activity scheduling — required for each checklist item with an activityTitle */}
-              {schedulableItems.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <CalendarClock className="w-3.5 h-3.5 text-sky-500" />
-                    <p className="text-xs font-semibold text-stone-600 uppercase tracking-wide">Schedule RP Activities</p>
-                  </div>
-                  <p className="text-xs text-stone-400 mb-3 leading-relaxed">
-                    Pick a date for each RP activity within its SLA window. All activities must be scheduled before creating the goal.
-                  </p>
-                  <div className="space-y-2">
-                    {schedulableItems.map(({ pi, ci, pt, item }) => {
-                      const key = `${pi}_${ci}`;
-                      const window = slaWindowFor(pt);
-                      const dateVal = activitySchedules[key] ?? "";
-                      const valid = !dateVal || isActivityDateValid(pi, ci);
-                      const fromStr = window ? window.from.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-                      const toStr   = window ? window.to.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-                      return (
-                        <div key={key} className={`rounded-lg border p-3 ${valid ? "border-stone-200 bg-stone-50" : "border-red-200 bg-red-50"}`}>
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="min-w-0">
-                              <p className="text-[10px] text-stone-400 truncate">{pt.title}</p>
-                              <p className="text-xs font-semibold text-stone-800 truncate">{item.activityTitle}</p>
-                              {window && (
-                                <p className="text-[11px] text-stone-400 mt-0.5">SLA: {fromStr} – {toStr}</p>
-                              )}
-                            </div>
-                            {dateVal && !valid && (
-                              <div className="flex items-center gap-1 text-red-500 flex-shrink-0">
-                                <AlertCircle className="w-3.5 h-3.5" />
-                                <span className="text-[11px]">Outside window</span>
-                              </div>
-                            )}
-                          </div>
-                          <input
-                            type="date"
-                            value={dateVal}
-                            min={window ? window.from.toISOString().split("T")[0] : undefined}
-                            max={window ? window.to.toISOString().split("T")[0] : undefined}
-                            onChange={(e) => setActivitySchedules(prev => ({ ...prev, [key]: e.target.value }))}
-                            className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
-                              valid
-                                ? "border-stone-200 bg-white focus:ring-sky-400"
-                                : "border-red-300 bg-white focus:ring-red-400"
-                            }`}
-                          />
-                        </div>
-                      );
-                    })}
                   </div>
                 </div>
               )}
