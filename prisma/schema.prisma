@@ -73,6 +73,7 @@ model User {
   confirmedGoals       Goal[]                @relation("GoalConfirmer")
   dateChanges          PitstopDateChange[]   @relation("DateChanger")
   checklistItems       ChecklistItem[]       @relation("ChecklistItemAssignee")
+  loginEvents          UserLoginEvent[]
 }
 
 model Account {
@@ -1441,4 +1442,14 @@ model GoalTemplateDef {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model UserLoginEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider  String   @default("credentials")
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

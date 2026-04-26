@@ -40,8 +40,12 @@ export const authOptions: AuthOptions = {
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
 
-        // Record login time (fire-and-forget — don't block auth on DB write)
-        prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
+        // Record login time + history (fire-and-forget — don't block auth on DB write)
+        const now = new Date();
+        Promise.all([
+          prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: now } }),
+          prisma.userLoginEvent.create({ data: { userId: user.id, provider: "credentials" } }),
+        ]).catch(() => {});
 
         return { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role ?? "member" };
       },
@@ -75,6 +79,8 @@ export const authOptions: AuthOptions = {
             lastSeenAt: new Date(),
           },
         });
+        // Record login event for Google (fire-and-forget)
+        prisma.userLoginEvent.create({ data: { userId: dbUser.id, provider: "google" } }).catch(() => {});
         token.id = dbUser.id;
         token.role = (adminEmail && dbUser.email === adminEmail && dbUser.role !== "super-admin")
           ? "super-admin"

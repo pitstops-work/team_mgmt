@@ -172,6 +172,30 @@ export type AdminOverdueActivity = {
   goalId: string | null; goalTitle: string | null;
 };
 
+export type AdminEngagementStat = {
+  userId: string;
+  name: string | null;
+  image: string | null;
+  designation: string;
+  lastLoginAt: string | null;
+  logins7d: number;
+  logins30d: number;
+  // Activity completion discipline (pitstop-owner's events)
+  activitiesTotal: number;
+  activitiesCompleted: number;
+  completionRate: number;        // 0-100
+  sameDayCount: number;
+  nextDayCount: number;
+  twothreeDayCount: number;
+  withinWeekCount: number;
+  weekPlusCount: number;
+  neverCompletedCount: number;
+  // Pitstop freshness
+  lastPitstopActivityAt: string | null;
+  totalActivePitstops: number;
+  stalePitstopCount: number;     // open pitstops not touched in 14d
+};
+
 export type AdminGoal = {
   id: string;
   title: string;
@@ -207,6 +231,7 @@ export type AdminDash = {
   personHealth: AdminPersonHealth[];
   delayedPitstopsAll: AdminDelayedPitstop[];
   overdueActivitiesList: AdminOverdueActivity[];
+  engagement: AdminEngagementStat[];
 };
 
 export default async function HomePage() {
@@ -970,7 +995,7 @@ export default async function HomePage() {
         orderBy: { name: "asc" },
       }),
       prisma.user.findMany({
-        select: { id: true, name: true, image: true, designation: true, reportsToId: true },
+        select: { id: true, name: true, image: true, designation: true, reportsToId: true, lastSeenAt: true },
         orderBy: [{ designation: "asc" }, { name: "asc" }],
       }),
       prisma.goal.findMany({
@@ -1051,6 +1076,115 @@ export default async function HomePage() {
         take: 500,
       }),
     ]);
+
+    // --- Engagement queries (parallel, after main Promise.all) ---
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo  = new Date(now.getTime() - 7  * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const [loginCountsRaw, activityLatencyRaw, pitstopFreshnessRaw] = await Promise.all([
+      // Login counts per user (7d and 30d windows)
+      prisma.$queryRaw<{ user_id: string; logins_7d: bigint; logins_30d: bigint }[]>`
+        SELECT
+          "userId" AS user_id,
+          COUNT(*) FILTER (WHERE "createdAt" >= ${sevenDaysAgo})  AS logins_7d,
+          COUNT(*) FILTER (WHERE "createdAt" >= ${thirtyDaysAgo}) AS logins_30d
+        FROM "UserLoginEvent"
+        GROUP BY "userId"
+      `,
+      // Activity completion latency buckets per pitstop owner
+      prisma.$queryRaw<{
+        owner_id: string;
+        total: bigint; completed: bigint;
+        same_day: bigint; next_day: bigint;
+        two_three_days: bigint; within_week: bigint;
+        week_plus: bigint; never_completed: bigint;
+      }[]>`
+        SELECT
+          p."ownerId" AS owner_id,
+          COUNT(DISTINCT pe.id) AS total,
+          COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'Done'::"PitstopEventStatus") AS completed,
+          COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'Done'::"PitstopEventStatus"
+            AND pe."completedAt"::date = pe."scheduledAt"::date) AS same_day,
+          COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'Done'::"PitstopEventStatus"
+            AND (pe."completedAt"::date - pe."scheduledAt"::date) = 1) AS next_day,
+          COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'Done'::"PitstopEventStatus"
+            AND (pe."completedAt"::date - pe."scheduledAt"::date) BETWEEN 2 AND 3) AS two_three_days,
+          COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'Done'::"PitstopEventStatus"
+            AND (pe."completedAt"::date - pe."scheduledAt"::date) BETWEEN 4 AND 7) AS within_week,
+          COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'Done'::"PitstopEventStatus"
+            AND (pe."completedAt"::date - pe."scheduledAt"::date) > 7) AS week_plus,
+          COUNT(DISTINCT pe.id) FILTER (WHERE pe.status != 'Done'::"PitstopEventStatus"
+            AND pe.status != 'Cancelled'::"PitstopEventStatus") AS never_completed
+        FROM "PitstopEvent" pe
+        JOIN "PitstopEventPitstop" pep ON pep."eventId" = pe.id
+        JOIN "Pitstop" p ON p.id = pep."pitstopId" AND p."deletedAt" IS NULL
+        WHERE pe."deletedAt" IS NULL AND pe."scheduledAt" < ${todayStart}
+          AND p."ownerId" IS NOT NULL
+        GROUP BY p."ownerId"
+      `,
+      // Pitstop freshness: last activity date + stale (not touched in 14d) per owner
+      prisma.$queryRaw<{
+        owner_id: string;
+        last_activity: Date | null;
+        total_open: bigint;
+        stale_count: bigint;
+      }[]>`
+        SELECT
+          p."ownerId" AS owner_id,
+          MAX(GREATEST(p."updatedAt", COALESCE(ci."updatedAt", p."updatedAt"))) AS last_activity,
+          COUNT(DISTINCT p.id) FILTER (WHERE p.status::text IN ('Upcoming', 'InProgress')) AS total_open,
+          COUNT(DISTINCT p.id) FILTER (
+            WHERE p.status::text IN ('Upcoming', 'InProgress')
+              AND p."updatedAt" < ${fourteenDaysAgo}
+          ) AS stale_count
+        FROM "Pitstop" p
+        LEFT JOIN "ChecklistItem" ci ON ci."pitstopId" = p.id
+        WHERE p."deletedAt" IS NULL AND p."ownerId" IS NOT NULL
+        GROUP BY p."ownerId"
+      `,
+    ]);
+
+    // Build lookup maps for engagement
+    const loginByUser: Record<string, { logins7d: number; logins30d: number }> = {};
+    for (const r of loginCountsRaw) {
+      loginByUser[r.user_id] = { logins7d: Number(r.logins_7d), logins30d: Number(r.logins_30d) };
+    }
+    const latencyByOwner: Record<string, typeof activityLatencyRaw[0]> = {};
+    for (const r of activityLatencyRaw) latencyByOwner[r.owner_id] = r;
+    const freshnessMap: Record<string, typeof pitstopFreshnessRaw[0]> = {};
+    for (const r of pitstopFreshnessRaw) freshnessMap[r.owner_id] = r;
+
+    const adminEngagement: AdminEngagementStat[] = usersRaw
+      .filter(u => u.designation === "RP" || u.designation === "ZL" || u.designation === "PM")
+      .map(u => {
+        const lg = loginByUser[u.id];
+        const lt = latencyByOwner[u.id];
+        const fr = freshnessMap[u.id];
+        const total      = lt ? Number(lt.total)      : 0;
+        const completed  = lt ? Number(lt.completed)  : 0;
+        return {
+          userId: u.id,
+          name: u.name,
+          image: u.image ?? null,
+          designation: u.designation ?? "Other",
+          lastLoginAt: u.lastSeenAt ? u.lastSeenAt.toISOString() : null,
+          logins7d:    lg?.logins7d  ?? 0,
+          logins30d:   lg?.logins30d ?? 0,
+          activitiesTotal:      total,
+          activitiesCompleted:  completed,
+          completionRate:       total > 0 ? Math.round(completed / total * 100) : 0,
+          sameDayCount:         lt ? Number(lt.same_day)       : 0,
+          nextDayCount:         lt ? Number(lt.next_day)       : 0,
+          twothreeDayCount:     lt ? Number(lt.two_three_days) : 0,
+          withinWeekCount:      lt ? Number(lt.within_week)    : 0,
+          weekPlusCount:        lt ? Number(lt.week_plus)      : 0,
+          neverCompletedCount:  lt ? Number(lt.never_completed): 0,
+          lastPitstopActivityAt: fr?.last_activity ? fr.last_activity.toISOString() : null,
+          totalActivePitstops:  fr ? Number(fr.total_open) : 0,
+          stalePitstopCount:    fr ? Number(fr.stale_count) : 0,
+        };
+      });
 
     const clusterActiveGoals: Record<string, number> = {};
     for (const g of adminGoalsRaw) {
@@ -1223,6 +1357,7 @@ export default async function HomePage() {
       personHealth: adminPersonHealth,
       delayedPitstopsAll,
       overdueActivitiesList,
+      engagement: adminEngagement,
     };
   }
 
