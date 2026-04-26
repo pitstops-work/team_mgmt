@@ -11,7 +11,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
-import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat, RPPitstopDetail, AdminDash, AdminGoal, AdminUser, AdminZone, OverduePitstop } from "./page";
+import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat, RPPitstopDetail, AdminDash, AdminGoal, AdminUser, AdminZone, OverduePitstop, AdminPersonHealth, AdminDelayedPitstop, AdminOverdueActivity } from "./page";
 import Avatar from "@/components/Avatar";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -629,8 +629,47 @@ function AdminOverviewTab({ dash, todayActivities, onTabSwitch }: { dash: AdminD
     fill: PITSTOP_STATUS_COLOR[p.status] ?? "#d1d5db",
   }));
 
+  const pmMembers = dash.personHealth.filter(p => p.designation === "PM");
+  const slaPct = (dash.kpis.slaOnTrack + dash.kpis.overduepitstops) > 0
+    ? Math.round(dash.kpis.slaOnTrack / (dash.kpis.slaOnTrack + dash.kpis.overduepitstops) * 100)
+    : 100;
+  const clPct = dash.kpis.checklistTotal > 0
+    ? Math.round(dash.kpis.checklistDone / dash.kpis.checklistTotal * 100)
+    : null;
+
   return (
     <div className="space-y-8">
+      {/* Org health signal row */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className={`rounded-xl border p-4 ${dash.kpis.overdueActivities > 0 ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-white"}`}>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-1 flex items-center gap-1">
+            <CalendarClock className="w-3 h-3" /> Overdue Activities
+          </p>
+          <p className={`text-2xl font-bold ${dash.kpis.overdueActivities > 0 ? "text-amber-700" : "text-stone-800"}`}>
+            {dash.kpis.overdueActivities}
+          </p>
+          <button onClick={() => onTabSwitch("attention")} className="text-[10px] text-sky-500 hover:text-sky-700 mt-1">
+            View triage →
+          </button>
+        </div>
+        <div className={`rounded-xl border p-4 ${slaPct < 80 ? "border-red-200 bg-red-50" : slaPct < 95 ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-white"}`}>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-1 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Pitstops On-Track
+          </p>
+          <p className={`text-2xl font-bold ${slaPct < 80 ? "text-red-700" : slaPct < 95 ? "text-amber-700" : "text-emerald-700"}`}>
+            {slaPct}%
+          </p>
+          <p className="text-[10px] text-stone-400 mt-1">{dash.kpis.slaOnTrack} on-track · {dash.kpis.overduepitstops} delayed</p>
+        </div>
+        <div className="rounded-xl border border-stone-200 bg-white p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-1 flex items-center gap-1">
+            <CheckSquare className="w-3 h-3" /> Checklist Completion
+          </p>
+          <p className="text-2xl font-bold text-teal-700">{clPct !== null ? `${clPct}%` : "—"}</p>
+          {clPct !== null && <p className="text-[10px] text-stone-400 mt-1">{dash.kpis.checklistDone} of {dash.kpis.checklistTotal}</p>}
+        </div>
+      </div>
+
       {/* KPI tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <KpiTile label="Active Goals"     value={dash.kpis.activeGoals}    sub={`of ${totalGoals} total`} accent="text-sky-600"    onClick={() => onTabSwitch("goals", "Active")} />
@@ -642,6 +681,41 @@ function AdminOverviewTab({ dash, todayActivities, onTabSwitch }: { dash: AdminD
         <KpiTile label="Team Members"     value={dash.kpis.totalUsers}     sub="registered users"       href="/settings/users" />
         <KpiTile label="Active Zones"     value={dash.zones.filter(z => z.activeGoals > 0).length} sub={`of ${dash.zones.length} zones`} onClick={() => onTabSwitch("geography")} />
       </div>
+
+      {/* PM health chips */}
+      {pmMembers.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5" /> PM Pulse
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {pmMembers.map(pm => {
+              const dot = pm.overduePitstops > 0 ? "bg-red-500" : pm.overdueActivities > 0 ? "bg-amber-400" : "bg-emerald-500";
+              return (
+                <button
+                  key={pm.userId}
+                  type="button"
+                  onClick={() => onTabSwitch("team-health")}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors text-left"
+                >
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+                  <span className="text-sm font-medium text-stone-800 flex-1 truncate">{pm.name}</span>
+                  {pm.overduePitstops > 0 && (
+                    <span className="text-xs font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                      {pm.overduePitstops} delayed
+                    </span>
+                  )}
+                  {pm.overdueActivities > 0 && (
+                    <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                      {pm.overdueActivities} overdue
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* KPI drill-down panels */}
       {drillDown === "overdue" && (
@@ -1319,6 +1393,382 @@ function AdminTeamTab({ users }: { users: AdminUser[] }) {
       </div>
 
       {sorted.length === 0 && <EmptyState message="No team members found." />}
+    </div>
+  );
+}
+
+// ── Admin: Attention tab ──────────────────────────────────────────────────────
+
+function AdminAttentionTab({ dash }: { dash: AdminDash }) {
+  const [section, setSection] = useState<"pitstops" | "activities">("pitstops");
+  const [desigFilter, setDesigFilter] = useState("All");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  function toggleId(id: string) {
+    setExpandedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  }
+
+  const filteredPitstops: AdminDelayedPitstop[] = desigFilter === "All"
+    ? dash.delayedPitstopsAll
+    : dash.delayedPitstopsAll.filter(p => p.ownerDesignation === desigFilter);
+
+  const filteredActivities: AdminOverdueActivity[] = desigFilter === "All"
+    ? dash.overdueActivitiesList
+    : dash.overdueActivitiesList.filter(a => a.ownerDesignation === desigFilter);
+
+  const sectionCount = section === "pitstops" ? filteredPitstops.length : filteredActivities.length;
+
+  return (
+    <div className="space-y-4">
+      {/* Section toggle */}
+      <div className="flex gap-2 flex-wrap">
+        <button type="button" onClick={() => setSection("pitstops")}
+          className={`text-sm px-3 py-1.5 rounded-lg border font-medium transition-colors ${section === "pitstops" ? "bg-red-500 text-white border-red-500" : "border-stone-200 text-stone-600 hover:border-red-300"}`}>
+          {dash.delayedPitstopsAll.length} Delayed Pitstops
+        </button>
+        <button type="button" onClick={() => setSection("activities")}
+          className={`text-sm px-3 py-1.5 rounded-lg border font-medium transition-colors ${section === "activities" ? "bg-amber-500 text-white border-amber-500" : "border-stone-200 text-stone-600 hover:border-amber-300"}`}>
+          {dash.overdueActivitiesList.length} Overdue Activities
+        </button>
+      </div>
+
+      {/* Designation filter */}
+      <div className="flex gap-2 flex-wrap">
+        {["All", "PM", "ZL", "RP"].map(d => (
+          <button key={d} type="button" onClick={() => setDesigFilter(d)}
+            className={`text-xs px-3 py-1 rounded-full border transition-colors ${desigFilter === d ? "bg-sky-500 text-white border-sky-500" : "border-stone-200 text-stone-600 hover:border-sky-300"}`}>
+            {d}
+          </button>
+        ))}
+        <span className="ml-auto text-xs text-stone-400 self-center">{sectionCount} item{sectionCount !== 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Delayed pitstops */}
+      {section === "pitstops" && (
+        <div className="space-y-2">
+          {filteredPitstops.length === 0
+            ? <EmptyState message="No delayed pitstops." />
+            : filteredPitstops.map(p => {
+                const isOpen = expandedIds.has(p.id);
+                return (
+                  <div key={p.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/goals/${p.goalId}`} className="text-sm font-medium text-stone-800 hover:text-sky-700 truncate block">{p.title}</Link>
+                        <p className="text-xs text-stone-500 truncate">{p.goalTitle}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {p.ownerName && <span className="text-[10px] text-stone-500">{p.ownerName}</span>}
+                          {p.ownerDesignation && (
+                            <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${DESIGNATION_COLOR[p.ownerDesignation] ?? "bg-stone-100 text-stone-500"}`}>
+                              {p.ownerDesignation}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {p.targetDate && (
+                          <span className="text-xs font-bold text-red-700">{p.daysOverdue}d</span>
+                        )}
+                        {p.pendingChecklists.length > 0 && (
+                          <button type="button" onClick={() => toggleId(p.id)}
+                            className="text-[10px] font-medium text-violet-700 bg-violet-50 border border-violet-100 px-1.5 py-0.5 rounded hover:bg-violet-100 flex items-center gap-0.5">
+                            {p.pendingChecklists.length} checklist
+                            {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {isOpen && (
+                      <div className="border-t border-stone-100 bg-stone-50 px-4 py-2 space-y-1">
+                        {p.pendingChecklists.map(ci => (
+                          <p key={ci.id} className="text-xs text-stone-600 flex items-start gap-1.5">
+                            <span className="w-1 h-1 rounded-full bg-stone-400 mt-1.5 flex-shrink-0" />
+                            {ci.text}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+          }
+        </div>
+      )}
+
+      {/* Overdue activities */}
+      {section === "activities" && (
+        <div className="space-y-2">
+          {filteredActivities.length === 0
+            ? <EmptyState message="No overdue activities." />
+            : filteredActivities.map(a => (
+                <div key={a.id} className="bg-white border border-stone-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                    {a.goalTitle && <p className="text-xs text-stone-500 truncate">{a.goalTitle}</p>}
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {a.ownerName && <span className="text-[10px] text-stone-500">{a.ownerName}</span>}
+                      {a.ownerDesignation && (
+                        <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${DESIGNATION_COLOR[a.ownerDesignation] ?? "bg-stone-100 text-stone-500"}`}>
+                          {a.ownerDesignation}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-amber-700 flex-shrink-0">{fmtDateShort(a.scheduledAt)}</span>
+                </div>
+              ))
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Admin: Team Health tab ─────────────────────────────────────────────────────
+
+function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[] }) {
+  const [expandedPMs, setExpandedPMs] = useState<Set<string>>(new Set());
+  const [expandedZLs, setExpandedZLs] = useState<Set<string>>(new Set());
+  const [expandedDelayedRP, setExpandedDelayedRP] = useState<string | null>(null);
+
+  const pms = personHealth.filter(p => p.designation === "PM");
+  const zls = personHealth.filter(p => p.designation === "ZL");
+  const rps = personHealth.filter(p => p.designation === "RP");
+
+  function togglePM(id: string) { setExpandedPMs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; }); }
+  function toggleZL(id: string) { setExpandedZLs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; }); }
+
+  function pmAgg(pm: AdminPersonHealth) {
+    const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
+    const pmRPs = rps.filter(r => pmZLs.some(z => z.userId === r.reportsToId));
+    const team = [...pmZLs, ...pmRPs];
+    return {
+      zlCount: pmZLs.length, rpCount: pmRPs.length,
+      delayed: pm.overduePitstops + team.reduce((s, m) => s + m.overduePitstops, 0),
+      overdueActs: pm.overdueActivities + team.reduce((s, m) => s + m.overdueActivities, 0),
+      clDone: pm.doneChecklists + team.reduce((s, m) => s + m.doneChecklists, 0),
+      clTotal: pm.totalChecklists + team.reduce((s, m) => s + m.totalChecklists, 0),
+    };
+  }
+
+  function zlAgg(zl: AdminPersonHealth) {
+    const zlRPs = rps.filter(r => r.reportsToId === zl.userId);
+    return {
+      rpCount: zlRPs.length,
+      delayed: zl.overduePitstops + zlRPs.reduce((s, r) => s + r.overduePitstops, 0),
+      overdueActs: zl.overdueActivities + zlRPs.reduce((s, r) => s + r.overdueActivities, 0),
+      clDone: zl.doneChecklists + zlRPs.reduce((s, r) => s + r.doneChecklists, 0),
+      clTotal: zl.totalChecklists + zlRPs.reduce((s, r) => s + r.totalChecklists, 0),
+    };
+  }
+
+  // ZLs not under any PM in the health list
+  const unmanagedZLs = zls.filter(z => !pms.some(pm => pm.userId === z.reportsToId));
+  // RPs not under any ZL in the health list
+  const unmanagedRPs = rps.filter(r => !zls.some(z => z.userId === r.reportsToId));
+
+  function RPCard({ rp }: { rp: AdminPersonHealth }) {
+    const isDelayedOpen = expandedDelayedRP === rp.userId;
+    const dot = rp.overduePitstops > 0 ? "bg-red-500" : rp.overdueActivities > 0 ? "bg-amber-400" : "bg-emerald-500";
+    const clPct = rp.totalChecklists > 0 ? Math.round(rp.doneChecklists / rp.totalChecklists * 100) : null;
+    return (
+      <div className="bg-white border border-stone-200 rounded-lg p-2.5">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Avatar name={rp.name} image={rp.image} size="xs" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-stone-800 truncate">{rp.name}</p>
+            {clPct !== null && <p className="text-[10px] text-stone-400">{rp.doneChecklists}/{rp.totalChecklists} · {clPct}%</p>}
+          </div>
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+        </div>
+        {rp.totalGoals > 0 && (
+          <div className="mb-1.5">
+            <HealthBar value={rp.completeGoals} total={rp.totalGoals} color="bg-emerald-500" />
+            <p className="text-[10px] text-stone-400 mt-0.5">{rp.completeGoals}/{rp.totalGoals} goals</p>
+          </div>
+        )}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {rp.overduePitstops > 0 ? (
+            <button type="button" onClick={() => setExpandedDelayedRP(isDelayedOpen ? null : rp.userId)}
+              className="text-[10px] font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded hover:bg-red-100 flex items-center gap-0.5">
+              {rp.overduePitstops} delayed {isDelayedOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+            </button>
+          ) : <span className="text-[10px] text-stone-300">0 delayed</span>}
+          {rp.overdueActivities > 0 && (
+            <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">
+              {rp.overdueActivities} overdue
+            </span>
+          )}
+        </div>
+        {isDelayedOpen && rp.delayedPitstops.length > 0 && (
+          <div className="mt-2 space-y-1.5 border-t border-stone-100 pt-2">
+            {(rp.delayedPitstops as RPPitstopDetail[]).map(p => (
+              <div key={p.id} className="bg-red-50 border border-red-100 rounded p-2">
+                <p className="text-[11px] font-medium text-stone-800 truncate">{p.title}</p>
+                <p className="text-[10px] text-stone-500 truncate">{p.goalTitle}</p>
+                <div className="flex items-center justify-between mt-0.5">
+                  {p.targetDate && <span className="text-[10px] font-medium text-red-700">{p.daysOverdue}d overdue</span>}
+                  {p.pendingChecklists.length > 0 && <span className="text-[10px] text-stone-400">{p.pendingChecklists.length} pending</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (personHealth.length === 0) {
+    return <EmptyState message="No team members found." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* PM-level cards */}
+      {pms.map(pm => {
+        const agg = pmAgg(pm);
+        const isOpen = expandedPMs.has(pm.userId);
+        const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
+        const dot = agg.delayed > 0 ? "bg-red-500" : agg.overdueActs > 0 ? "bg-amber-400" : "bg-emerald-500";
+        const clPct = agg.clTotal > 0 ? Math.round(agg.clDone / agg.clTotal * 100) : null;
+        return (
+          <div key={pm.userId} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+            <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+              <Avatar name={pm.name} image={pm.image} size="sm" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-stone-800">{pm.name ?? "Unnamed"}</p>
+                <p className="text-xs text-stone-400">{agg.zlCount} ZL{agg.zlCount !== 1 ? "s" : ""} · {agg.rpCount} RP{agg.rpCount !== 1 ? "s" : ""}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {agg.delayed > 0 && (
+                  <span className="text-xs font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded">{agg.delayed} delayed</span>
+                )}
+                {agg.overdueActs > 0 && (
+                  <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">{agg.overdueActs} overdue</span>
+                )}
+                <span className={`w-2 h-2 rounded-full ${dot}`} />
+              </div>
+            </div>
+            {clPct !== null && (
+              <div className="px-4 pb-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-stone-400 flex items-center gap-1"><CheckSquare className="w-3 h-3" /> Team checklist</span>
+                  <span className="text-[10px] text-stone-400">{agg.clDone}/{agg.clTotal} · {clPct}%</span>
+                </div>
+                <HealthBar value={agg.clDone} total={agg.clTotal} color="bg-teal-500" />
+              </div>
+            )}
+            {pmZLs.length > 0 && (
+              <button type="button" onClick={() => togglePM(pm.userId)}
+                className="w-full text-xs text-sky-700 bg-sky-50 border-t border-sky-100 px-4 py-2 flex items-center justify-center gap-1 hover:bg-sky-100 transition-colors">
+                {isOpen ? "Hide" : "Show"} {pmZLs.length} ZL{pmZLs.length !== 1 ? "s" : ""}
+                {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+            )}
+            {isOpen && (
+              <div className="border-t border-stone-100 bg-stone-50 px-3 py-3 space-y-2">
+                {pmZLs.map(zl => {
+                  const zAgg = zlAgg(zl);
+                  const zlRPs = rps.filter(r => r.reportsToId === zl.userId);
+                  const zlOpen = expandedZLs.has(zl.userId);
+                  const zDot = zAgg.delayed > 0 ? "bg-red-500" : zAgg.overdueActs > 0 ? "bg-amber-400" : "bg-emerald-500";
+                  const zClPct = zAgg.clTotal > 0 ? Math.round(zAgg.clDone / zAgg.clTotal * 100) : null;
+                  return (
+                    <div key={zl.userId} className="bg-white border border-stone-200 rounded-lg overflow-hidden">
+                      <div className="flex items-center gap-2.5 px-3 py-2.5">
+                        <Avatar name={zl.name} image={zl.image} size="xs" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-stone-800">{zl.name ?? "Unnamed"}</p>
+                          <p className="text-[10px] text-stone-400">
+                            {zAgg.rpCount} RP{zAgg.rpCount !== 1 ? "s" : ""}
+                            {zClPct !== null && <span> · {zClPct}% checklist</span>}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {zAgg.delayed > 0 && (
+                            <span className="text-[10px] font-medium text-red-700 bg-red-50 border border-red-100 px-1 py-0.5 rounded">{zAgg.delayed} delayed</span>
+                          )}
+                          {zAgg.overdueActs > 0 && (
+                            <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1 py-0.5 rounded">{zAgg.overdueActs} overdue</span>
+                          )}
+                          <span className={`w-1.5 h-1.5 rounded-full ${zDot}`} />
+                        </div>
+                      </div>
+                      {zlRPs.length > 0 && (
+                        <button type="button" onClick={() => toggleZL(zl.userId)}
+                          className="w-full text-[10px] text-stone-500 bg-stone-50 border-t border-stone-100 px-3 py-1.5 flex items-center justify-center gap-1 hover:bg-stone-100 transition-colors">
+                          {zlOpen ? "Hide" : "Show"} {zlRPs.length} RP{zlRPs.length !== 1 ? "s" : ""}
+                          {zlOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                      )}
+                      {zlOpen && (
+                        <div className="border-t border-stone-100 bg-stone-50 px-2 py-2 space-y-1.5">
+                          {zlRPs.map(rp => <RPCard key={rp.userId} rp={rp} />)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* ZLs not under any PM */}
+      {unmanagedZLs.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">ZLs (unassigned to PM)</p>
+          <div className="space-y-2">
+            {unmanagedZLs.map(zl => {
+              const zAgg = zlAgg(zl);
+              const zlRPs = rps.filter(r => r.reportsToId === zl.userId);
+              const zlOpen = expandedZLs.has(zl.userId);
+              const dot = zAgg.delayed > 0 ? "bg-red-500" : zAgg.overdueActs > 0 ? "bg-amber-400" : "bg-emerald-500";
+              return (
+                <div key={zl.userId} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-4 py-3">
+                    <Avatar name={zl.name} image={zl.image} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-stone-800">{zl.name ?? "Unnamed"}</p>
+                      <p className="text-xs text-stone-400">{zAgg.rpCount} RP{zAgg.rpCount !== 1 ? "s" : ""}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {zAgg.delayed > 0 && <span className="text-xs font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded">{zAgg.delayed} delayed</span>}
+                      {zAgg.overdueActs > 0 && <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">{zAgg.overdueActs} overdue</span>}
+                      <span className={`w-2 h-2 rounded-full ${dot}`} />
+                    </div>
+                  </div>
+                  {zlRPs.length > 0 && (
+                    <button type="button" onClick={() => toggleZL(zl.userId)}
+                      className="w-full text-xs text-stone-500 bg-stone-50 border-t border-stone-100 px-4 py-2 flex items-center justify-center gap-1 hover:bg-stone-100">
+                      {zlOpen ? "Hide" : "Show"} {zlRPs.length} RP{zlRPs.length !== 1 ? "s" : ""}
+                      {zlOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                  )}
+                  {zlOpen && (
+                    <div className="border-t border-stone-100 bg-stone-50 px-2 py-2 space-y-1.5">
+                      {zlRPs.map(rp => <RPCard key={rp.userId} rp={rp} />)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* RPs not under any ZL */}
+      {unmanagedRPs.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">RPs (unassigned to ZL)</p>
+          <div className="space-y-1.5">
+            {unmanagedRPs.map(rp => <RPCard key={rp.userId} rp={rp} />)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3501,13 +3951,13 @@ const ZL_TABS = [
 ] as const;
 
 const ADMIN_TABS = [
-  { key: "overview",  label: "Overview",        icon: LayoutDashboard },
-  { key: "goals",     label: "Goals",           icon: Target },
-  { key: "coverage",  label: "Field Coverage",  icon: BarChart3 },
-  { key: "geography", label: "Geography",       icon: MapPin },
-  { key: "team",      label: "Team",            icon: Users },
-  { key: "pipeline",  label: "Pipeline",        icon: TrendingUp },
-  { key: "today",     label: "Today",           icon: CalendarClock },
+  { key: "overview",    label: "Overview",      icon: LayoutDashboard },
+  { key: "attention",   label: "Attention",     icon: AlertTriangle },
+  { key: "team-health", label: "Team Health",   icon: Activity },
+  { key: "goals",       label: "Goals",         icon: Target },
+  { key: "coverage",    label: "Field Coverage", icon: BarChart3 },
+  { key: "geography",   label: "Geography",     icon: MapPin },
+  { key: "team",        label: "Team",          icon: Users },
 ] as const;
 
 const PM_TABS = [
@@ -3524,7 +3974,7 @@ const OTHER_TABS = [
   { key: "goals", label: "Goals", icon: Target },
 ] as const;
 
-type TabKey = "today" | "health" | "zl-health" | "rp-health" | "coverage" | "clusters" | "goals" | "overview" | "geography" | "team" | "pipeline";
+type TabKey = "today" | "health" | "zl-health" | "rp-health" | "coverage" | "clusters" | "goals" | "overview" | "geography" | "team" | "pipeline" | "attention" | "team-health";
 
 export default function HomeView({
   userId, userName, designation, greeting, todayLabel,
@@ -3730,6 +4180,12 @@ export default function HomeView({
         {/* Admin tabs */}
         {activeTab === "overview" && adminDash && (
           <AdminOverviewTab dash={adminDash} todayActivities={todayActivities} onTabSwitch={onTabSwitch} />
+        )}
+        {activeTab === "attention" && adminDash && (
+          <AdminAttentionTab dash={adminDash} />
+        )}
+        {activeTab === "team-health" && adminDash && (
+          <AdminTeamHealthTab personHealth={adminDash.personHealth} />
         )}
         {activeTab === "goals" && adminDash && (
           <AdminGoalsTab goals={adminDash.goals} domainConfigs={adminDash.domainConfigs} initialStatusFilter={goalInitialStatus} />

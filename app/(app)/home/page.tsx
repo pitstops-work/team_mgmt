@@ -116,9 +116,13 @@ export type AdminKPIs = {
   pausedGoals: number;
   completeGoals: number;
   overduepitstops: number;
+  overdueActivities: number;
+  slaOnTrack: number;
   doneThisMonth: number;
   activitiesThisWeek: number;
   totalUsers: number;
+  checklistDone: number;
+  checklistTotal: number;
 };
 
 export type AdminZone = {
@@ -133,10 +137,39 @@ export type AdminZone = {
 export type AdminUser = {
   id: string;
   name: string | null;
+  image: string | null;
   designation: string;
   reportsToId: string | null;
   activeGoals: number;
   openPitstops: number;
+};
+
+export type AdminPersonHealth = {
+  userId: string;
+  name: string | null;
+  image: string | null;
+  designation: string;
+  reportsToId: string | null;
+  totalGoals: number; activeGoals: number; pausedGoals: number; completeGoals: number;
+  onTrackPitstops: number; overduePitstops: number;
+  overdueActivities: number;
+  totalChecklists: number; doneChecklists: number;
+  delayedPitstops: RPPitstopDetail[];
+};
+
+export type AdminDelayedPitstop = {
+  id: string; title: string; goalTitle: string; goalId: string;
+  targetDate: string | null; daysOverdue: number;
+  ownerId: string | null; ownerName: string | null;
+  ownerDesignation: string | null; ownerReportsToId: string | null;
+  pendingChecklists: { id: string; text: string }[];
+};
+
+export type AdminOverdueActivity = {
+  id: string; title: string; type: string; scheduledAt: string;
+  ownerId: string | null; ownerName: string | null;
+  ownerDesignation: string | null; ownerReportsToId: string | null;
+  goalId: string | null; goalTitle: string | null;
 };
 
 export type AdminGoal = {
@@ -171,6 +204,9 @@ export type AdminDash = {
   overdueList: OverduePitstop[];
   doneThisMonthList: OverduePitstop[];
   upcoming: { id: string; title: string; type: string; scheduledAt: string; location: string | null; attendees: { user: { name: string | null } }[] }[];
+  personHealth: AdminPersonHealth[];
+  delayedPitstopsAll: AdminDelayedPitstop[];
+  overdueActivitiesList: AdminOverdueActivity[];
 };
 
 export default async function HomePage() {
@@ -903,10 +939,12 @@ export default async function HomePage() {
       zonesRaw,
       usersRaw,
       adminGoalsRaw,
-      overdueListRaw,
+      allDelayedPitstopsDetailedRaw,
       doneThisMonthListRaw,
       upcomingListRaw,
       openPitstopsRaw,
+      allChecklistsRaw,
+      allOverdueActivitiesRaw,
     ] = await Promise.all([
       prisma.goal.groupBy({ by: ["status"], _count: { id: true }, where: { deletedAt: null } }),
       prisma.pitstop.groupBy({ by: ["status"], _count: { id: true }, where: { deletedAt: null } }),
@@ -921,18 +959,18 @@ export default async function HomePage() {
           lead: { select: { name: true } },
           city: { select: { name: true } },
           clusters: {
-          where: { deletedAt: null },
-          orderBy: { name: "asc" },
-          select: {
-            id: true, name: true,
-            settlements: { where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } },
+            where: { deletedAt: null },
+            orderBy: { name: "asc" },
+            select: {
+              id: true, name: true,
+              settlements: { where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } },
+            },
           },
-        },
         },
         orderBy: { name: "asc" },
       }),
       prisma.user.findMany({
-        select: { id: true, name: true, designation: true, reportsToId: true },
+        select: { id: true, name: true, image: true, designation: true, reportsToId: true },
         orderBy: [{ designation: "asc" }, { name: "asc" }],
       }),
       prisma.goal.findMany({
@@ -948,15 +986,19 @@ export default async function HomePage() {
         orderBy: { updatedAt: "desc" },
         take: 500,
       }),
+      // All delayed pitstops with full owner + checklist detail
       prisma.pitstop.findMany({
         where: { deletedAt: null, targetDate: { lt: todayStart }, status: { in: ["Upcoming", "InProgress"] } },
         select: {
-          id: true, title: true, targetDate: true, status: true,
+          id: true, title: true, ownerId: true, targetDate: true, status: true,
           goal: { select: { id: true, title: true } },
-          owner: { select: { name: true } },
+          owner: { select: { id: true, name: true, designation: true, reportsToId: true, image: true } },
+          checklistItems: {
+            where: { status: { notIn: ["Done", "Cancelled"] } },
+            select: { id: true, text: true },
+          },
         },
         orderBy: { targetDate: "asc" },
-        take: 15,
       }),
       prisma.pitstop.findMany({
         where: { deletedAt: null, completedAt: { gte: monthStart } },
@@ -977,10 +1019,36 @@ export default async function HomePage() {
         orderBy: { scheduledAt: "asc" },
         take: 30,
       }),
-      // Open pitstops (Upcoming/InProgress) per owner — for user workload
+      // Open pitstops per owner — workload + on-track counts
       prisma.pitstop.findMany({
         where: { deletedAt: null, status: { in: ["Upcoming", "InProgress"] }, ownerId: { not: null } },
-        select: { ownerId: true },
+        select: { id: true, ownerId: true },
+      }),
+      // Checklist items for org-wide completion rate + per-person health
+      prisma.checklistItem.findMany({
+        where: { pitstop: { deletedAt: null, owner: { designation: { in: ["RP", "ZL", "PM"] } } } },
+        select: { status: true, pitstop: { select: { ownerId: true } } },
+      }),
+      // All overdue activities with pitstop owner info
+      prisma.pitstopEvent.findMany({
+        where: { deletedAt: null, status: "Scheduled", scheduledAt: { lt: todayStart } },
+        select: {
+          id: true, title: true, type: true, scheduledAt: true,
+          pitstops: {
+            select: {
+              pitstop: {
+                select: {
+                  ownerId: true,
+                  owner: { select: { id: true, name: true, designation: true, reportsToId: true } },
+                  goal: { select: { id: true, title: true } },
+                },
+              },
+            },
+            take: 1,
+          },
+        },
+        orderBy: { scheduledAt: "asc" },
+        take: 500,
       }),
     ]);
 
@@ -991,7 +1059,6 @@ export default async function HomePage() {
       }
     }
 
-    // Compute per-user counts from fetched data
     const activeGoalsByOwner: Record<string, number> = {};
     for (const g of adminGoalsRaw) {
       if ((g.status === "Active" || g.status === "Paused") && g.ownerId) {
@@ -1009,22 +1076,120 @@ export default async function HomePage() {
     const pitstopStatusMap: Record<string, number> = {};
     for (const p of pitstopGroups) pitstopStatusMap[p.status] = p._count.id;
 
+    // Stringify Prisma Date objects
+    const allDelayedPitstops = JSON.parse(JSON.stringify(allDelayedPitstopsDetailedRaw)) as {
+      id: string; title: string; ownerId: string | null; targetDate: string | null; status: string;
+      goal: { id: string; title: string };
+      owner: { id: string; name: string | null; designation: string | null; reportsToId: string | null; image: string | null } | null;
+      checklistItems: { id: string; text: string }[];
+    }[];
+
+    const adminTodayMs = todayStart.getTime();
+
+    // Per-owner lookup maps for health computation
+    const delayedByOwner: Record<string, typeof allDelayedPitstops> = {};
+    for (const p of allDelayedPitstops) {
+      if (p.ownerId) (delayedByOwner[p.ownerId] ??= []).push(p);
+    }
+
+    const clsByOwner: Record<string, { total: number; done: number }> = {};
+    for (const ci of allChecklistsRaw) {
+      const oid = ci.pitstop.ownerId;
+      if (!oid) continue;
+      if (!clsByOwner[oid]) clsByOwner[oid] = { total: 0, done: 0 };
+      clsByOwner[oid].total++;
+      if (ci.status === "Done") clsByOwner[oid].done++;
+    }
+
+    const overdueActsByOwner: Record<string, number> = {};
+    for (const a of allOverdueActivitiesRaw) {
+      const oid = a.pitstops[0]?.pitstop.ownerId;
+      if (oid) overdueActsByOwner[oid] = (overdueActsByOwner[oid] ?? 0) + 1;
+    }
+
+    // Per-person health stats for Team Health + Overview chips
+    const adminPersonHealth: AdminPersonHealth[] = usersRaw
+      .filter(u => u.designation === "RP" || u.designation === "ZL" || u.designation === "PM")
+      .map(u => {
+        const userGoals  = adminGoalsRaw.filter(g => g.ownerId === u.id);
+        const userDelayed = delayedByOwner[u.id] ?? [];
+        const userCls     = clsByOwner[u.id] ?? { total: 0, done: 0 };
+        const totalOpen   = openPitstopsByOwner[u.id] ?? 0;
+
+        const delayedPitstops: RPPitstopDetail[] = userDelayed.map(p => ({
+          id: p.id, title: p.title, goalTitle: p.goal.title,
+          targetDate: p.targetDate,
+          daysOverdue: p.targetDate ? Math.floor((adminTodayMs - new Date(p.targetDate).getTime()) / 86400000) : 0,
+          pendingChecklists: p.checklistItems.map(ci => ({ id: ci.id, text: ci.text })),
+        }));
+
+        return {
+          userId: u.id,
+          name: u.name,
+          image: u.image ?? null,
+          designation: u.designation ?? "Other",
+          reportsToId: u.reportsToId,
+          totalGoals: userGoals.length,
+          activeGoals: userGoals.filter(g => g.status === "Active").length,
+          pausedGoals: userGoals.filter(g => g.status === "Paused").length,
+          completeGoals: userGoals.filter(g => g.status === "Complete").length,
+          onTrackPitstops: Math.max(0, totalOpen - userDelayed.length),
+          overduePitstops: userDelayed.length,
+          overdueActivities: overdueActsByOwner[u.id] ?? 0,
+          totalChecklists: userCls.total,
+          doneChecklists: userCls.done,
+          delayedPitstops,
+        };
+      });
+
+    // Org-wide health aggregates
+    const orgDoneCls    = Object.values(clsByOwner).reduce((s, v) => s + v.done, 0);
+    const orgTotalCls   = Object.values(clsByOwner).reduce((s, v) => s + v.total, 0);
+    const orgOvActs     = allOverdueActivitiesRaw.length;
+    const slaOnTrack    = Math.max(0, openPitstopsRaw.length - allDelayedPitstops.length);
+
+    // Reshape for Attention tab
+    const delayedPitstopsAll: AdminDelayedPitstop[] = allDelayedPitstops.map(p => ({
+      id: p.id, title: p.title, goalTitle: p.goal.title, goalId: p.goal.id,
+      targetDate: p.targetDate,
+      daysOverdue: p.targetDate ? Math.floor((adminTodayMs - new Date(p.targetDate).getTime()) / 86400000) : 0,
+      ownerId: p.ownerId,
+      ownerName: p.owner?.name ?? null,
+      ownerDesignation: p.owner?.designation ?? null,
+      ownerReportsToId: p.owner?.reportsToId ?? null,
+      pendingChecklists: p.checklistItems,
+    }));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const overdueActivitiesList: AdminOverdueActivity[] = JSON.parse(JSON.stringify(allOverdueActivitiesRaw)).map((a: any) => {
+      const ps = a.pitstops[0]?.pitstop;
+      return {
+        id: a.id, title: a.title, type: a.type, scheduledAt: a.scheduledAt,
+        ownerId: ps?.ownerId ?? null,
+        ownerName: ps?.owner?.name ?? null,
+        ownerDesignation: ps?.owner?.designation ?? null,
+        ownerReportsToId: ps?.owner?.reportsToId ?? null,
+        goalId: ps?.goal?.id ?? null,
+        goalTitle: ps?.goal?.title ?? null,
+      };
+    });
+
     adminDash = {
       kpis: {
         activeGoals: goalStatusMap["Active"] ?? 0,
         pausedGoals: goalStatusMap["Paused"] ?? 0,
         completeGoals: goalStatusMap["Complete"] ?? 0,
         overduepitstops: overdueCount,
+        overdueActivities: orgOvActs,
+        slaOnTrack,
         doneThisMonth: doneThisMonthCount,
         activitiesThisWeek: activitiesThisWeekCount,
         totalUsers: totalUsersCount,
+        checklistDone: orgDoneCls,
+        checklistTotal: orgTotalCls,
       },
-      goalByStatus: Object.entries(goalStatusMap)
-        .map(([status, count]) => ({ status, count }))
-        .sort((a, b) => b.count - a.count),
-      pitstopByStatus: Object.entries(pitstopStatusMap)
-        .map(([status, count]) => ({ status, count }))
-        .sort((a, b) => b.count - a.count),
+      goalByStatus: Object.entries(goalStatusMap).map(([status, count]) => ({ status, count })).sort((a, b) => b.count - a.count),
+      pitstopByStatus: Object.entries(pitstopStatusMap).map(([status, count]) => ({ status, count })).sort((a, b) => b.count - a.count),
       zones: zonesRaw.map(z => ({
         id: z.id, name: z.name,
         leadName: z.lead?.name ?? null,
@@ -1037,7 +1202,8 @@ export default async function HomePage() {
         activeGoals: z.clusters.reduce((sum, c) => sum + (clusterActiveGoals[c.id] ?? 0), 0),
       })),
       users: usersRaw.map(u => ({
-        id: u.id, name: u.name, designation: u.designation ?? "Other",
+        id: u.id, name: u.name, image: u.image ?? null,
+        designation: u.designation ?? "Other",
         reportsToId: u.reportsToId,
         activeGoals: activeGoalsByOwner[u.id] ?? 0,
         openPitstops: openPitstopsByOwner[u.id] ?? 0,
@@ -1045,9 +1211,18 @@ export default async function HomePage() {
       goals: JSON.parse(JSON.stringify(adminGoalsRaw)),
       domainStats: computeDomainStats(adminGoalsRaw, domainLabels),
       domainConfigs: domainConfigs.map(d => ({ domain: d.domain, label: d.label ?? d.domain })),
-      overdueList: JSON.parse(JSON.stringify(overdueListRaw)),
+      overdueList: allDelayedPitstops.slice(0, 15).map(p => ({
+        id: p.id, title: p.title,
+        targetDate: p.targetDate,
+        status: p.status,
+        goal: p.goal,
+        owner: p.owner ? { name: p.owner.name } : null,
+      })),
       doneThisMonthList: JSON.parse(JSON.stringify(doneThisMonthListRaw)),
       upcoming: JSON.parse(JSON.stringify(upcomingListRaw)),
+      personHealth: adminPersonHealth,
+      delayedPitstopsAll,
+      overdueActivitiesList,
     };
   }
 
