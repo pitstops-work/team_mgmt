@@ -3,6 +3,7 @@
 export interface DbChecklistItem {
   text: string;
   activityTitle?: string;
+  completionType?: string;
 }
 
 export interface DbPitstop {
@@ -60,6 +61,7 @@ export function interpolatePitstops(
     checklist: pt.checklist.map((item) => ({
       text: interpolate(item.text, params),
       ...(item.activityTitle ? { activityTitle: interpolate(item.activityTitle, params) } : {}),
+      ...(item.completionType ? { completionType: item.completionType } : {}),
     })),
   }));
 }

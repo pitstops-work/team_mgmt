@@ -47,12 +47,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
         WHERE id = ${eventId}
       `;
       if (current[0].checklistItemId) {
-        await prisma.$executeRaw`
-          UPDATE "ChecklistItem"
-          SET status = 'Done'::"ChecklistItemStatus", checked = TRUE, "completedAt" = NOW(), "updatedAt" = NOW()
-          WHERE id = ${current[0].checklistItemId}
+        const [ci] = await prisma.$queryRaw<{ completionType: string }[]>`
+          SELECT "completionType"::text FROM "ChecklistItem" WHERE id = ${current[0].checklistItemId}
         `;
-        await autoAdvancePitstopFromItem(current[0].checklistItemId);
+        if (!ci || ci.completionType === 'Activity') {
+          await prisma.$executeRaw`
+            UPDATE "ChecklistItem"
+            SET status = 'Done'::"ChecklistItemStatus", checked = TRUE, "completedAt" = NOW(), "updatedAt" = NOW()
+            WHERE id = ${current[0].checklistItemId}
+          `;
+          await autoAdvancePitstopFromItem(current[0].checklistItemId);
+        }
       }
     } else if (status === "Cancelled") {
       const reason: string = cancellationReason ?? null;

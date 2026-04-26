@@ -47,6 +47,13 @@ export async function POST(
     return Response.json({ error: "Transcription failed" }, { status: 500 });
   }
 
+  const [ci] = await prisma.$queryRaw<{ completionType: string }[]>`
+    SELECT "completionType"::text FROM "ChecklistItem" WHERE id = ${itemId}
+  `;
+  if (ci?.completionType !== 'Voice') {
+    return Response.json({ error: "This item must be completed via its scheduled activity" }, { status: 400 });
+  }
+
   await prisma.$executeRaw`
     UPDATE "ChecklistItem"
     SET

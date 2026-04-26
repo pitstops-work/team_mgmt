@@ -46,17 +46,22 @@ export async function POST(req: NextRequest) {
         ${checklistItemId}, NOW()
       )
     `;
-    // Mark the checklist item Done
-    await prisma.$executeRaw`
-      UPDATE "ChecklistItem"
-      SET
-        status        = 'Done'::"ChecklistItemStatus",
-        checked       = TRUE,
-        "completedAt" = NOW(),
-        "updatedAt"   = NOW()
-      WHERE id = ${checklistItemId}
+    // Only close the item if it is Upload-typed
+    const [ci] = await prisma.$queryRaw<{ completionType: string }[]>`
+      SELECT "completionType"::text FROM "ChecklistItem" WHERE id = ${checklistItemId}
     `;
-    await autoAdvancePitstopFromItem(checklistItemId);
+    if (ci?.completionType === 'Upload') {
+      await prisma.$executeRaw`
+        UPDATE "ChecklistItem"
+        SET
+          status        = 'Done'::"ChecklistItemStatus",
+          checked       = TRUE,
+          "completedAt" = NOW(),
+          "updatedAt"   = NOW()
+        WHERE id = ${checklistItemId}
+      `;
+      await autoAdvancePitstopFromItem(checklistItemId);
+    }
     const attachment = await prisma.$queryRaw<{ id: string; name: string; url: string }[]>`
       SELECT id, name, url FROM "Attachment" WHERE id = ${id} LIMIT 1
     `;

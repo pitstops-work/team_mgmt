@@ -48,6 +48,7 @@ type ChecklistItem = {
   status: string;
   assigneeId: string | null;
   notes: string | null;
+  completionType?: string; // 'Activity' | 'Voice' | 'Upload'
   activities: ActivityRef[];
   attachments: Attachment[];
 };
@@ -269,8 +270,12 @@ function ChecklistItemRow({
         <input
           type="checkbox"
           checked={item.checked}
-          onChange={(e) => onToggle(item.id, e.target.checked)}
-          className="mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0"
+          onChange={(e) => {
+            if (item.completionType && item.completionType !== 'Activity') return;
+            onToggle(item.id, e.target.checked);
+          }}
+          disabled={!!(item.completionType && item.completionType !== 'Activity' && !item.checked)}
+          className="mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         />
         <div className="flex-1 min-w-0 space-y-1">
           <p className={`text-xs leading-relaxed ${isFaded ? "line-through text-stone-400" : "text-stone-700"}`}>
@@ -375,8 +380,8 @@ function ChecklistItemRow({
               + Activity
             </button>
 
-            {/* Voice log — only when not done */}
-            {!isFaded && voiceState === "idle" && (
+            {/* Voice log — only for Voice-typed items */}
+            {!isFaded && voiceState === "idle" && item.completionType === 'Voice' && (
               <button
                 onClick={startVoiceLog}
                 className="text-[9px] text-stone-400 hover:text-red-500 flex items-center gap-0.5 transition-colors"
@@ -387,8 +392,8 @@ function ChecklistItemRow({
               </button>
             )}
 
-            {/* Attach to mark done — only when not done */}
-            {!isFaded && voiceState === "idle" && (
+            {/* Attach to mark done — only for Upload-typed items */}
+            {!isFaded && voiceState === "idle" && item.completionType === 'Upload' && (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}

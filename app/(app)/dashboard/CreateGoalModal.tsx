@@ -24,6 +24,14 @@ interface GapData {
   eligibleByDomain?: Record<string, number>;
 }
 
+interface TemplateParam { key: string; label: string; type: string }
+interface Template {
+  id: string; // slug
+  name: string;
+  needsDomain: string | null;
+  parameters: TemplateParam[];
+}
+
 export interface GoalPrefill {
   needsDomain: string;
   domainLabel: string;
@@ -172,7 +180,7 @@ function DomainStep({
           const done       = gapData.actuals[d.domain]?.done ?? 0;
           const inProgress = gapData.actuals[d.domain]?.inProgress ?? 0;
           const gap        = Math.max(0, target - done);
-          const passGap    = isEnt ? eligible : gap; // entitlement: pass full eligible as the "gap" so parameter auto-sets to 100%
+          const passGap    = isEnt ? eligible : gap;
           const isActive   = selected === d.domain;
           const noGap      = gap === 0;
 
@@ -230,6 +238,7 @@ function DomainStep({
 function GoalForm({
   title, setTitle,
   description, setDescription,
+  startDate, setStartDate,
   targetDate, setTargetDate,
   status, setStatus,
   parameter, setParameter,
@@ -238,6 +247,7 @@ function GoalForm({
   domainLabel,
   domainType,
   isOperational,
+  hasTemplate,
   loading,
   error,
   onSubmit,
@@ -245,6 +255,7 @@ function GoalForm({
 }: {
   title: string; setTitle: (v: string) => void;
   description: string; setDescription: (v: string) => void;
+  startDate: string; setStartDate: (v: string) => void;
   targetDate: string; setTargetDate: (v: string) => void;
   status: string; setStatus: (v: string) => void;
   parameter: string; setParameter: (v: string) => void;
@@ -253,6 +264,7 @@ function GoalForm({
   domainLabel: string;
   domainType?: string;
   isOperational: boolean;
+  hasTemplate: boolean;
   loading: boolean;
   error: string;
   onSubmit: (e: React.FormEvent) => void;
@@ -343,6 +355,18 @@ function GoalForm({
       <div className="flex gap-3">
         <div className="flex-1">
           <label className="block text-xs font-medium text-stone-600 mb-1">
+            Start date {hasTemplate && <span className="text-red-400">*</span>}
+          </label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            required={hasTemplate}
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+          />
+        </div>
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-stone-600 mb-1">
             Deadline <span className="text-red-400">*</span>
           </label>
           <input
@@ -365,6 +389,12 @@ function GoalForm({
           </select>
         </div>
       </div>
+
+      {hasTemplate && (
+        <p className="text-xs text-sky-600 bg-sky-50 px-3 py-2 rounded-lg">
+          Pitstops, checklists, and activities will be auto-created and scheduled from today.
+        </p>
+      )}
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -390,10 +420,7 @@ function GoalForm({
 // ── Main modal ────────────────────────────────────────────────────────────────
 
 export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) {
-  // Wizard step (ignored when prefill provided — goes straight to form)
   const [step, setStep] = useState<1 | 2 | 3>(1);
-
-  // Goal type: APF (needs-domain) or operational
   const [isOperational, setIsOperational] = useState(false);
 
   // Step 1: geography
@@ -407,19 +434,32 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
   const [selectedDomainColor, setColor]   = useState(prefill?.domainColor     ?? "#6366f1");
   const [selectedDomainType, setDomainType] = useState("");
 
-  // Step 3: goal form
-  const [title, setTitle]           = useState("");
-  const [description, setDescription] = useState("");
-  const [targetDate, setTargetDate] = useState("");
-  const [status, setStatus]         = useState("Active");
-  const [parameter, setParameter]   = useState(prefill?.gap ? String(prefill.gap) : "");
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState("");
+  // Templates: fetched once, matched against selected domain
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [matchedTemplate, setMatchedTemplate] = useState<Template | null>(null);
 
-  // Fetch geo data on mount (needed for both wizard and prefill display)
+  // Step 3: goal form
+  const [title, setTitle]             = useState("");
+  const [description, setDescription] = useState("");
+  const [startDate, setStartDate]     = useState(() => new Date().toISOString().split("T")[0]);
+  const [targetDate, setTargetDate]   = useState("");
+  const [status, setStatus]           = useState("Active");
+  const [parameter, setParameter]     = useState(prefill?.gap ? String(prefill.gap) : "");
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState("");
+
+  // Fetch geo data and templates on mount
   useEffect(() => {
     fetch("/api/geography").then(r => r.json()).then(setGeo);
+    fetch("/api/templates").then(r => r.json()).then(setTemplates);
   }, []);
+
+  // Match template when domain selection changes
+  useEffect(() => {
+    if (!needsDomain) { setMatchedTemplate(null); return; }
+    const match = templates.find(t => t.needsDomain === needsDomain) ?? null;
+    setMatchedTemplate(match);
+  }, [needsDomain, templates]);
 
   // Fetch gap data when entering step 2 (APF path only)
   useEffect(() => {
@@ -451,31 +491,58 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
     setLoading(true);
     setError("");
 
-    // Resolve geo IDs — prefer prefill, then wizard selection
     const resolvedNeedsSettlementId = prefill?.needsSettlementId ?? (geoVal.settlementId || undefined);
     const resolvedNeedsClusterId    = prefill?.needsClusterId    ?? (!geoVal.settlementId && geoVal.clusterId ? geoVal.clusterId : undefined);
     const resolvedNeedsZoneId       = prefill?.needsZoneId       ?? (!geoVal.settlementId && !geoVal.clusterId && geoVal.zoneId ? geoVal.zoneId : undefined);
     const resolvedNeedsCityId       = !geoVal.settlementId && !geoVal.clusterId && !geoVal.zoneId && geoVal.cityId ? geoVal.cityId : undefined;
 
-    const payload = {
-      title: title.trim(),
-      description: description.trim() || null,
-      status,
-      targetDate,
-      needsDomain: isOperational ? null : (needsDomain || null),
-      ...(parameter && { parameter: parseFloat(parameter) }),
-      ...(resolvedNeedsSettlementId && { needsSettlementId: resolvedNeedsSettlementId }),
-      ...(resolvedNeedsClusterId    && { needsClusterId: resolvedNeedsClusterId }),
-      ...(resolvedNeedsZoneId       && { needsZoneId: resolvedNeedsZoneId }),
-      ...(resolvedNeedsCityId       && { needsCityId: resolvedNeedsCityId }),
-    };
-
     try {
-      const res = await fetch("/api/goals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      let res: Response;
+
+      if (!isOperational && matchedTemplate) {
+        // Find the first numeric parameter key to map the wizard's count/units value
+        const numericParam = matchedTemplate.parameters.find(p => p.type === "number");
+        const templateParams = numericParam && parameter
+          ? { [numericParam.key]: parseFloat(parameter) }
+          : {};
+
+        res = await fetch(`/api/templates/${matchedTemplate.id}/apply`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: description.trim() || null,
+            startDate,
+            targetDate,
+            params: templateParams,
+            needsDomain: needsDomain || null,
+            ...(resolvedNeedsSettlementId && { needsSettlementId: resolvedNeedsSettlementId }),
+            ...(resolvedNeedsClusterId    && { needsClusterId: resolvedNeedsClusterId }),
+            ...(resolvedNeedsZoneId       && { needsZoneId: resolvedNeedsZoneId }),
+            ...(resolvedNeedsCityId       && { needsCityId: resolvedNeedsCityId }),
+          }),
+        });
+      } else {
+        // Operational goals or domains without a template — create bare goal
+        const payload = {
+          title: title.trim(),
+          description: description.trim() || null,
+          status,
+          targetDate,
+          needsDomain: isOperational ? null : (needsDomain || null),
+          ...(parameter && { parameter: parseFloat(parameter) }),
+          ...(resolvedNeedsSettlementId && { needsSettlementId: resolvedNeedsSettlementId }),
+          ...(resolvedNeedsClusterId    && { needsClusterId: resolvedNeedsClusterId }),
+          ...(resolvedNeedsZoneId       && { needsZoneId: resolvedNeedsZoneId }),
+          ...(resolvedNeedsCityId       && { needsCityId: resolvedNeedsCityId }),
+        };
+        res = await fetch("/api/goals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
       if (!res.ok) throw new Error("Failed");
       onCreated(await res.json());
     } catch {
@@ -488,8 +555,6 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   const effectiveStep = prefill ? 3 : step;
-
-  // Operational wizard is 2 steps (geo → form); APF is 3 steps
   const totalSteps = isOperational ? 2 : 3;
   const displayStep = isOperational && effectiveStep === 3 ? 2 : effectiveStep;
 
@@ -539,7 +604,6 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
           {/* Step 1: Geography + goal type toggle */}
           {effectiveStep === 1 && (
             <>
-              {/* Goal type toggle */}
               <div className="flex items-center gap-1 mb-4 bg-stone-100 rounded-xl p-1 w-fit">
                 <button
                   onClick={() => { setIsOperational(false); setNeedsDomain(""); }}
@@ -596,7 +660,6 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
                   setColor(color);
                   setDomainType(domainType);
                   if (domainType === "entitlement") {
-                    // Snap to city-level scope and fetch city-wide eligible HH count
                     setGeoVal(v => ({ cityId: v.cityId, zoneId: "", clusterId: "", settlementId: "" }));
                     const cId = geoVal.cityId;
                     if (cId) {
@@ -635,6 +698,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
             <GoalForm
               title={title} setTitle={setTitle}
               description={description} setDescription={setDescription}
+              startDate={startDate} setStartDate={setStartDate}
               targetDate={targetDate} setTargetDate={setTargetDate}
               status={status} setStatus={setStatus}
               parameter={parameter} setParameter={setParameter}
@@ -643,6 +707,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
               domainLabel={selectedDomainLabel}
               domainType={selectedDomainType}
               isOperational={isOperational}
+              hasTemplate={!isOperational && !!matchedTemplate}
               loading={loading}
               error={error}
               onSubmit={handleSubmit}

@@ -2,6 +2,53 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { DbPitstop, interpolatePitstops } from "@/lib/templateDb";
+import {
+  buildScheduleConfig,
+  getWorkingDays,
+  nearestWorkingDay,
+  distributeAcrossDays,
+  pitstopTypeToEventType,
+} from "@/lib/scheduleActivities";
+
+async function resolveCityName(
+  needsCityId?: string | null,
+  needsZoneId?: string | null,
+  needsClusterId?: string | null,
+  needsSettlementId?: string | null,
+): Promise<string | null> {
+  if (needsCityId) {
+    const rows = await prisma.$queryRaw<{ name: string }[]>`
+      SELECT name FROM "City" WHERE id = ${needsCityId} LIMIT 1
+    `;
+    return rows[0]?.name ?? null;
+  }
+  if (needsSettlementId) {
+    const rows = await prisma.$queryRaw<{ name: string }[]>`
+      SELECT c.name FROM "City" c
+      JOIN "Settlement" s ON s."cityId" = c.id
+      WHERE s.id = ${needsSettlementId} LIMIT 1
+    `;
+    return rows[0]?.name ?? null;
+  }
+  if (needsClusterId) {
+    const rows = await prisma.$queryRaw<{ name: string }[]>`
+      SELECT c.name FROM "City" c
+      JOIN "Zone" z ON z."cityId" = c.id
+      JOIN "Cluster" cl ON cl."zoneId" = z.id
+      WHERE cl.id = ${needsClusterId} LIMIT 1
+    `;
+    return rows[0]?.name ?? null;
+  }
+  if (needsZoneId) {
+    const rows = await prisma.$queryRaw<{ name: string }[]>`
+      SELECT c.name FROM "City" c
+      JOIN "Zone" z ON z."cityId" = c.id
+      WHERE z.id = ${needsZoneId} LIMIT 1
+    `;
+    return rows[0]?.name ?? null;
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -20,8 +67,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const {
     title, description, targetDate, startDate, params: templateParams,
     needsDomain, needsSettlementId, needsClusterId, needsZoneId, needsCityId,
-    activitySchedules, // Record<number, string> — pitstop index → ISO date string
-    ownerId,           // Override goal/pitstop owner (ZL creating on behalf of RP)
+    ownerId,
   } = body;
 
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
@@ -32,7 +78,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const goalStart = new Date(startDate);
   const goalOwnerId = ownerId ?? session.user.id;
 
-  // Auto-compute targetDate from max pitstop slaDays if not explicitly provided
   const resolvedTargetDate = targetDate
     ? new Date(targetDate)
     : (() => {
@@ -98,15 +143,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
 
-  // Fetch pitstops in template order (ORDER BY "order" ASC) — Prisma include does not
-  // guarantee insertion order, so we can't rely on goal.pitstops[idx] === template[idx].
+  // Fetch pitstops in template order — Prisma include does not guarantee insertion order
   const pitstopsOrdered = await prisma.$queryRaw<{ id: string }[]>`
     SELECT id FROM "Pitstop"
     WHERE "goalId" = ${goal.id} AND "deletedAt" IS NULL
     ORDER BY "order" ASC
   `;
 
-  // Set progressTag on pitstops via raw SQL (new column, Prisma cache bypass)
+  // Set progressTag on pitstops
   for (let idx = 0; idx < pitstopTemplates.length; idx++) {
     const tag = pitstopTemplates[idx]?.progressTag ?? null;
     const pitstop = pitstopsOrdered[idx];
@@ -116,7 +160,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     `;
   }
 
-  // Goal owner auto-follows; if ZL created on behalf of RP, both follow
+  // Set completionType on checklist items (Activity is the default; only non-Activity types need updating)
+  for (let piIdx = 0; piIdx < pitstopTemplates.length; piIdx++) {
+    const pitstop = pitstopsOrdered[piIdx];
+    if (!pitstop) continue;
+    const pt = pitstopTemplates[piIdx];
+    const ciIds = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "ChecklistItem" WHERE "pitstopId" = ${pitstop.id} ORDER BY "order" ASC
+    `;
+    for (let ciIdx = 0; ciIdx < pt.checklist.length; ciIdx++) {
+      const item = pt.checklist[ciIdx];
+      const dbId = ciIds[ciIdx]?.id;
+      if (!dbId || !item.completionType || item.completionType === "Activity") continue;
+      const ct = item.completionType;
+      await prisma.$executeRaw`
+        UPDATE "ChecklistItem"
+        SET "completionType" = ${ct}::"ChecklistCompletionType"
+        WHERE id = ${dbId}
+      `;
+    }
+  }
+
+  // Auto-follow: goal owner always follows; creator also follows if creating on behalf of someone else
   await prisma.goalFollow.upsert({
     where: { userId_goalId: { userId: goalOwnerId, goalId: goal.id } },
     create: { userId: goalOwnerId, goalId: goal.id },
@@ -130,54 +195,68 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
   }
 
-  // Create one PitstopEvent per scheduled checklist-item activity
-  // Key format: "${pitstopIdx}_${checklistIdx}" → ISO date string
-  if (activitySchedules && typeof activitySchedules === "object") {
-    const entries = Object.entries(activitySchedules) as [string, string][];
-    for (const [key, dateStr] of entries) {
-      if (!dateStr) continue;
-      const [piIdxStr, ciIdxStr] = key.split("_");
-      const piIdx = Number(piIdxStr);
-      const ciIdx = Number(ciIdxStr);
-      const pitstop = pitstopsOrdered[piIdx];
-      if (!pitstop) continue;
-      const pt = pitstopTemplates[piIdx];
-      const checklistItem = pt?.checklist?.[ciIdx];
-      if (!checklistItem?.activityTitle) continue;
+  // Auto-schedule activities for checklist items that have an activityTitle
+  const appSettings = await prisma.$queryRaw<{ key: string; value: string }[]>`
+    SELECT key, value FROM "AppSetting"
+  `;
+  const schedConfig = buildScheduleConfig(appSettings);
+  const cityName = await resolveCityName(needsCityId, needsZoneId, needsClusterId, needsSettlementId);
 
-      const validTypes = ["Meeting", "Visit", "Event"];
-      const eventType = validTypes.includes(pt?.type ?? "") ? pt.type : "Meeting";
+  for (let piIdx = 0; piIdx < pitstopTemplates.length; piIdx++) {
+    const pitstop = pitstopsOrdered[piIdx];
+    const pt = pitstopTemplates[piIdx];
+    if (!pitstop || !pt) continue;
+
+    const itemsWithActivity = pt.checklist
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item }) => !!item.activityTitle);
+
+    if (itemsWithActivity.length === 0) continue;
+
+    const pitstopWindowStart = new Date(goalStart);
+    pitstopWindowStart.setDate(pitstopWindowStart.getDate() + pt.startSlaDays);
+    const pitstopWindowEnd = new Date(goalStart);
+    pitstopWindowEnd.setDate(pitstopWindowEnd.getDate() + pt.slaDays);
+
+    const workingDays = getWorkingDays(pitstopWindowStart, pitstopWindowEnd, cityName, schedConfig);
+    const effectiveDays = workingDays.length > 0
+      ? workingDays
+      : [nearestWorkingDay(pitstopWindowEnd, cityName, schedConfig)];
+
+    const scheduledDates = distributeAcrossDays(itemsWithActivity.length, effectiveDays);
+    const eventType = pitstopTypeToEventType(pt.type);
+
+    const ciIds = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "ChecklistItem" WHERE "pitstopId" = ${pitstop.id} ORDER BY "order" ASC
+    `;
+
+    for (let i = 0; i < itemsWithActivity.length; i++) {
+      const { item, idx: ciIdx } = itemsWithActivity[i];
+      const scheduledAt = scheduledDates[i];
+      const dbId = ciIds[ciIdx]?.id;
+      if (!dbId || !scheduledAt) continue;
 
       const event = await prisma.pitstopEvent.create({
         data: {
-          title: checklistItem.activityTitle,
+          title: item.activityTitle!,
           type: eventType as any,
-          scheduledAt: new Date(dateStr),
+          scheduledAt,
           createdById: session.user.id,
           pitstops: { create: [{ pitstopId: pitstop.id }] },
-          attendees: { create: [{ userId: session.user.id }] },
+          attendees: { create: [{ userId: goalOwnerId }] },
         },
         select: { id: true },
       });
 
-      // Link event to the specific checklist item and mark it Scheduled
-      const dbItem = await prisma.$queryRaw<{ id: string }[]>`
-        SELECT id FROM "ChecklistItem"
-        WHERE "pitstopId" = ${pitstop.id}
-        ORDER BY "order" ASC
-        OFFSET ${ciIdx} LIMIT 1
+      await prisma.$executeRaw`
+        UPDATE "PitstopEvent" SET "checklistItemId" = ${dbId}
+        WHERE id = ${event.id} AND "checklistItemId" IS NULL
       `;
-      if (dbItem[0]) {
-        await prisma.$executeRaw`
-          UPDATE "PitstopEvent" SET "checklistItemId" = ${dbItem[0].id}
-          WHERE id = ${event.id} AND "checklistItemId" IS NULL
-        `;
-        await prisma.$executeRaw`
-          UPDATE "ChecklistItem"
-          SET status = 'Scheduled'::"ChecklistItemStatus", "updatedAt" = NOW()
-          WHERE id = ${dbItem[0].id} AND status = 'NotStarted'::"ChecklistItemStatus"
-        `;
-      }
+      await prisma.$executeRaw`
+        UPDATE "ChecklistItem"
+        SET status = 'Scheduled'::"ChecklistItemStatus", "updatedAt" = NOW()
+        WHERE id = ${dbId} AND status = 'NotStarted'::"ChecklistItemStatus"
+      `;
     }
   }
 

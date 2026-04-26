@@ -241,10 +241,11 @@ model ChecklistItem {
   text        String
   checked     Boolean             @default(false)
   status      ChecklistItemStatus @default(NotStarted)
-  assigneeId  String?
-  notes       String?
-  order       Int                 @default(0)
-  completedAt DateTime?
+  assigneeId     String?
+  notes          String?
+  completionType ChecklistCompletionType @default(Activity)
+  order          Int                 @default(0)
+  completedAt    DateTime?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
@@ -263,6 +264,12 @@ enum ChecklistItemStatus {
   Blocked
   Rescheduled
   Cancelled
+}
+
+enum ChecklistCompletionType {
+  Activity
+  Voice
+  Upload
 }
 
 model PitstopDependency {

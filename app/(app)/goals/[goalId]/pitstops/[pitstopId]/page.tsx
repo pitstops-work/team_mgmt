@@ -103,9 +103,9 @@ export default async function PitstopPage({
   const checklistIds = pitstop.checklistItems.map((ci) => ci.id);
   if (checklistIds.length > 0) {
     const ciRows = await prisma.$queryRaw<{
-      id: string; status: string; assigneeId: string | null; notes: string | null;
+      id: string; status: string; assigneeId: string | null; notes: string | null; completionType: string;
     }[]>`
-      SELECT id, status::text, "assigneeId", notes
+      SELECT id, status::text, "assigneeId", notes, "completionType"::text
       FROM "ChecklistItem" WHERE id = ANY(${checklistIds})
     `;
     const ciMap = new Map(ciRows.map((r) => [r.id, r]));
