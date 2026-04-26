@@ -638,7 +638,7 @@ function NeedsActionPanel({ events, currentUserId, onUpdated }: {
         <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
         <p className="text-xs font-semibold text-amber-800">Needs Action — {actionable.length} scheduled {actionable.length === 1 ? "activity" : "activities"} need logging</p>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2 max-h-48 overflow-y-auto">
         {actionable.map(ev => {
           const isOverdue = ev.scheduledAt.slice(0, 10) < todayYMD;
           const isExpanded = active.id === ev.id;
