@@ -177,6 +177,7 @@ export default async function HomePage() {
     domainConfigs,
     myZone,
     rpOverdueActivities,
+    rpDoneActivities,
   ] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: {
@@ -291,6 +292,27 @@ export default async function HomePage() {
           },
           orderBy: { scheduledAt: "asc" },
           take: 20,
+        })
+      : Promise.resolve([]),
+
+    // RP only: past events already marked Done (so RP can see what they've updated)
+    designation === "RP"
+      ? prisma.pitstopEvent.findMany({
+          where: {
+            deletedAt: null,
+            status: "Done",
+            scheduledAt: { lt: todayStart },
+            OR: [
+              { attendees: { some: { userId } } },
+              { pitstops: { some: { pitstop: { ownerId: userId, deletedAt: null } } } },
+            ],
+          },
+          select: {
+            id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            attendees: { select: { user: { select: { id: true, name: true } } } },
+          },
+          orderBy: { scheduledAt: "desc" },
+          take: 50,
         })
       : Promise.resolve([]),
   ]);
@@ -563,6 +585,7 @@ export default async function HomePage() {
       myGoals={JSON.parse(JSON.stringify(myGoals))}
       rpClusterStats={rpClusterStats}
       rpOverdueActivities={JSON.parse(JSON.stringify(rpOverdueActivities))}
+      rpDoneActivities={JSON.parse(JSON.stringify(rpDoneActivities))}
       zlZoneName={myZone?.name ?? null}
       zlClusterStats={zlClusterStats}
       clusterStatus={clusterStatus}

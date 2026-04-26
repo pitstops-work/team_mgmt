@@ -1554,64 +1554,59 @@ function RPChecklistRow({
   );
 }
 
-// ── RP Action tab (replaces TodayTab for RP) ───────────────────────────────────
+// ── RP Today tab — tile overview + drill-down ─────────────────────────────────
 
 const PITSTOP_STATUS_PRIORITY: Record<string, number> = {
   InProgress: 0, Upcoming: 1, Blocked: 2,
 };
 
-function RPActionTab({
+function RPTodayTab({
   overdueActivities,
   todayActivities,
   weekActivities,
   weekChecklists,
+  doneActivities,
 }: {
   overdueActivities: Activity[];
   todayActivities: Activity[];
   weekActivities: Activity[];
   weekChecklists: ChecklistItem[];
+  doneActivities: Activity[];
 }) {
+  type Bucket = "overdue" | "today" | "week" | "checklists" | "done";
+  const [bucket, setBucket] = useState<Bucket | null>(null);
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
-  // InProgress pitstops start expanded; track which ones the user collapsed
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
-  function isOpen(id: string) { return !collapsedIds.has(id); }
-  function toggleSimple(id: string) {
-    setCollapsedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
+  const [collapsedPitstopIds, setCollapsedPitstopIds] = useState<Set<string>>(new Set());
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
 
-  // Events past their scheduled time and still "Scheduled"
+  // Bucket: overdue — past + past-due-today, still Scheduled
   const pastDueToday = todayActivities.filter(
     a => new Date(a.scheduledAt) < now && a.status === "Scheduled" && !doneIds.has(a.id)
   );
-  const needsAction = [
+  const overdueItems = [
     ...overdueActivities.filter(a => !doneIds.has(a.id)),
     ...pastDueToday,
-  ];
+  ].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
-  // Today's upcoming (not yet due)
-  const todayUpcoming = todayActivities.filter(
-    a => new Date(a.scheduledAt) >= now && a.status === "Scheduled"
+  // Bucket: today — scheduled for today, not yet past due
+  const todayItems = todayActivities.filter(
+    a => new Date(a.scheduledAt) >= now && a.status === "Scheduled" && !doneIds.has(a.id)
   );
 
-  // Later this week
-  const laterThisWeek = weekActivities.filter(
+  // Bucket: rest of week — after today, still Scheduled
+  const weekItems = weekActivities.filter(
     a => new Date(a.scheduledAt) > todayEnd && a.status === "Scheduled"
   );
 
-  // Group open checklist items by pitstop, sorted InProgress first
-  const openByPitstop = useMemo(() => {
+  // Bucket: checklists — open items
+  const openChecklists = weekChecklists.filter(ci => !completedItemIds.has(ci.id));
+  const checklistByPitstop = useMemo(() => {
     const map: Record<string, { pitstop: ChecklistItem["pitstop"]; items: ChecklistItem[] }> = {};
-    for (const ci of weekChecklists) {
-      if (completedItemIds.has(ci.id)) continue;
+    for (const ci of openChecklists) {
       const pid = ci.pitstop.id;
       if (!map[pid]) map[pid] = { pitstop: ci.pitstop, items: [] };
       map[pid].items.push(ci);
@@ -1619,22 +1614,7 @@ function RPActionTab({
     return Object.values(map).sort((a, b) =>
       (PITSTOP_STATUS_PRIORITY[a.pitstop.status] ?? 9) - (PITSTOP_STATUS_PRIORITY[b.pitstop.status] ?? 9)
     );
-  }, [weekChecklists, completedItemIds]);
-
-  const inProgressGroups = openByPitstop
-    .filter(g => g.pitstop.status === "InProgress")
-    .sort((a, b) => {
-      const ta = a.pitstop.targetDate ? new Date(a.pitstop.targetDate).getTime() : Infinity;
-      const tb = b.pitstop.targetDate ? new Date(b.pitstop.targetDate).getTime() : Infinity;
-      return ta - tb;
-    });
-  const upcomingGroups   = openByPitstop.filter(g => g.pitstop.status !== "InProgress");
-  const upcomingItemCount = upcomingGroups.reduce((s, g) => s + g.items.length, 0);
-  const inProgressItemCount = inProgressGroups.reduce((s, g) => s + g.items.length, 0);
-
-  const IN_PROGRESS_CAP = 3;
-  const [showAllInProgress, setShowAllInProgress] = useState(false);
-  const visibleInProgress = showAllInProgress ? inProgressGroups : inProgressGroups.slice(0, IN_PROGRESS_CAP);
+  }, [openChecklists]);
 
   async function handleDone(eventId: string) {
     setLoadingDoneId(eventId);
@@ -1650,205 +1630,256 @@ function RPActionTab({
     }
   }
 
-  const PITSTOP_STATUS_DOT: Record<string, string> = {
-    InProgress: "bg-amber-400", Upcoming: "bg-sky-300", Blocked: "bg-red-400",
-  };
+  function togglePitstop(id: string) {
+    setCollapsedPitstopIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
-  return (
-    <div className="space-y-8">
+  // Activity drill-down list — used by overdue, today, week buckets
+  function ActivityDrillList({
+    items,
+    showDone,
+    emptyMsg,
+  }: {
+    items: Activity[];
+    showDone: boolean;
+    emptyMsg: string;
+  }) {
+    if (items.length === 0) return <EmptyState message={emptyMsg} />;
 
-      {/* 1. Needs action — overdue activities */}
-      {needsAction.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-            <SectionTitle>Needs action ({needsAction.length})</SectionTitle>
-          </div>
-          <div className="space-y-2">
-            {needsAction.map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-amber-200 bg-amber-50">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}
-                    {a.location ? ` · ${a.location}` : ""}
-                  </p>
-                </div>
-                <div className="flex gap-1.5 flex-shrink-0">
-                  <button
-                    onClick={() => handleDone(a.id)}
-                    disabled={loadingDoneId === a.id}
-                    className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
-                  >
-                    {loadingDoneId === a.id ? "…" : "Done"}
-                  </button>
-                  <Link
-                    href="/activities"
-                    className="text-xs px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 text-stone-600 rounded-lg font-medium transition-colors"
-                  >
-                    Reschedule
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+    // Group by day for week view
+    const grouped: Record<string, Activity[]> = {};
+    for (const a of items) {
+      const day = new Date(a.scheduledAt).toDateString();
+      if (!grouped[day]) grouped[day] = [];
+      grouped[day].push(a);
+    }
+    const days = Object.keys(grouped);
 
-      {/* 2. Active pitstop items (InProgress only) */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <SectionTitle>
-            {inProgressGroups.length > 0
-              ? `Active items (${inProgressItemCount})`
-              : "Active items"}
-          </SectionTitle>
-        </div>
-
-        {inProgressGroups.length === 0 ? (
-          <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-5 text-center">
-            <p className="text-sm text-stone-500">No pitstops in progress.</p>
-            <p className="text-xs text-stone-400 mt-1">Start a pitstop in your goals to begin tracking field work.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {visibleInProgress.map(({ pitstop, items }) => {
-              const expanded = isOpen(pitstop.id);
-              return (
-                <div key={pitstop.id} className="rounded-xl border border-amber-200 overflow-hidden">
-                  <button
-                    onClick={() => toggleSimple(pitstop.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 hover:bg-amber-100/70 transition-colors text-left"
-                  >
-                    <span className="w-2 h-2 rounded-full flex-shrink-0 bg-amber-400" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-stone-700 truncate">{pitstop.title}</p>
-                      <p className="text-xs text-stone-400 truncate">{pitstop.goal.title}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-100 text-amber-700">In progress</span>
-                      <span className="text-[10px] text-stone-400">{items.length} items</span>
-                      {expanded
-                        ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" />
-                        : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-                      }
-                    </div>
-                  </button>
-                  {expanded && (
-                    <div className="divide-y divide-stone-100">
-                      {items.slice(0, 8).map(ci => (
-                        <RPChecklistRow
-                          key={ci.id}
-                          item={ci}
-                          onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
-                        />
-                      ))}
-                      {items.length > 8 && (
-                        <Link
-                          href={`/goals/${pitstop.goal.id}/pitstops/${pitstop.id}`}
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-sky-600 hover:text-sky-800 hover:bg-sky-50 transition-colors"
-                        >
-                          +{items.length - 8} more — open pitstop →
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {inProgressGroups.length > IN_PROGRESS_CAP && (
-              <button
-                onClick={() => setShowAllInProgress(v => !v)}
-                className="w-full text-xs text-sky-600 hover:text-sky-800 py-2 text-center"
-              >
-                {showAllInProgress
-                  ? "Show fewer"
-                  : `Show ${inProgressGroups.length - IN_PROGRESS_CAP} more in-progress pitstop${inProgressGroups.length - IN_PROGRESS_CAP > 1 ? "s" : ""} →`}
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Upcoming pitstops summary */}
-        {upcomingGroups.length > 0 && (
-          <div className="mt-3 flex items-center justify-between px-4 py-3 rounded-xl border border-stone-200 bg-stone-50">
-            <div>
-              <p className="text-xs font-medium text-stone-500">
-                {upcomingItemCount} items across {upcomingGroups.length} upcoming pitstop{upcomingGroups.length > 1 ? "s" : ""}
+    return (
+      <div className="space-y-4">
+        {days.map(day => (
+          <div key={day}>
+            {days.length > 1 && (
+              <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-2">
+                {fmtDate(grouped[day][0].scheduledAt)}
               </p>
-              <p className="text-[11px] text-stone-400 mt-0.5">Start a pitstop to move items here</p>
+            )}
+            <div className="space-y-2">
+              {grouped[day].map(a => (
+                <div
+                  key={a.id}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+                    doneIds.has(a.id)
+                      ? "border-emerald-200 bg-emerald-50 opacity-60"
+                      : a.status === "Done"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : bucket === "overdue"
+                      ? "border-amber-200 bg-amber-50"
+                      : "border-stone-200 bg-white"
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                    <p className={`text-xs mt-0.5 ${bucket === "overdue" ? "text-amber-700" : "text-stone-400"}`}>
+                      {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}
+                      {a.location ? ` · ${a.location}` : ""}
+                    </p>
+                  </div>
+                  {a.status === "Done" || doneIds.has(a.id) ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                  ) : showDone ? (
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => handleDone(a.id)}
+                        disabled={loadingDoneId === a.id}
+                        className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+                      >
+                        {loadingDoneId === a.id ? "…" : "Done"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
             </div>
-            <Link href={`/goals/${upcomingGroups[0].pitstop.goal.id}`} className="text-xs text-sky-500 hover:text-sky-700 font-medium">
-              View goals →
-            </Link>
           </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Checklist drill-down — grouped by pitstop
+  function ChecklistDrillList() {
+    if (checklistByPitstop.length === 0) return <EmptyState message="No open checklist items." />;
+    return (
+      <div className="space-y-3">
+        {checklistByPitstop.map(({ pitstop, items }) => {
+          const expanded = !collapsedPitstopIds.has(pitstop.id);
+          return (
+            <div key={pitstop.id} className="rounded-xl border border-stone-200 overflow-hidden">
+              <button
+                onClick={() => togglePitstop(pitstop.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-stone-50 hover:bg-stone-100/70 transition-colors text-left"
+              >
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  pitstop.status === "InProgress" ? "bg-amber-400" :
+                  pitstop.status === "Blocked" ? "bg-red-400" : "bg-sky-300"
+                }`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-700 truncate">{pitstop.title}</p>
+                  <p className="text-xs text-stone-400 truncate">{pitstop.goal.title}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-[10px] text-stone-400">{items.length} items</span>
+                  {expanded
+                    ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" />
+                    : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                  }
+                </div>
+              </button>
+              {expanded && (
+                <div className="divide-y divide-stone-100">
+                  {items.map(ci => (
+                    <RPChecklistRow
+                      key={ci.id}
+                      item={ci}
+                      onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Tile grid
+  const tiles: {
+    key: Bucket; label: string; sub: string; count: number;
+    bg: string; border: string; numColor: string; icon: React.ReactNode;
+  }[] = [
+    {
+      key: "overdue",
+      label: "Needs action",
+      sub: "Past activities without update",
+      count: overdueItems.length,
+      bg: "bg-amber-50", border: "border-amber-200", numColor: "text-amber-600",
+      icon: <AlertTriangle className="w-5 h-5 text-amber-500" />,
+    },
+    {
+      key: "today",
+      label: "Today",
+      sub: "Activities scheduled for today",
+      count: todayItems.length,
+      bg: "bg-sky-50", border: "border-sky-200", numColor: "text-sky-600",
+      icon: <CalendarClock className="w-5 h-5 text-sky-500" />,
+    },
+    {
+      key: "week",
+      label: "Rest of week",
+      sub: "Activities scheduled this week",
+      count: weekItems.length,
+      bg: "bg-indigo-50", border: "border-indigo-200", numColor: "text-indigo-600",
+      icon: <Clock className="w-5 h-5 text-indigo-500" />,
+    },
+    {
+      key: "checklists",
+      label: "Open checklists",
+      sub: "Checklist items not yet done",
+      count: openChecklists.length,
+      bg: "bg-violet-50", border: "border-violet-200", numColor: "text-violet-600",
+      icon: <CheckSquare className="w-5 h-5 text-violet-500" />,
+    },
+    {
+      key: "done",
+      label: "Past updated",
+      sub: "Activities already marked done",
+      count: doneActivities.length,
+      bg: "bg-emerald-50", border: "border-emerald-200", numColor: "text-emerald-600",
+      icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
+    },
+  ];
+
+  // Drill-down view
+  if (bucket !== null) {
+    const tile = tiles.find(t => t.key === bucket)!;
+    return (
+      <div>
+        <button
+          onClick={() => setBucket(null)}
+          className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 mb-5 transition-colors"
+        >
+          <ChevronDown className="w-4 h-4 rotate-90" />
+          Back to overview
+        </button>
+        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${tile.border} ${tile.bg} mb-5`}>
+          {tile.icon}
+          <div>
+            <p className="text-sm font-semibold text-stone-800">{tile.label}</p>
+            <p className="text-xs text-stone-500">{tile.sub}</p>
+          </div>
+          <span className={`ml-auto text-2xl font-bold ${tile.numColor}`}>{tile.count}</span>
+        </div>
+
+        {bucket === "overdue" && (
+          <ActivityDrillList items={overdueItems} showDone emptyMsg="No overdue activities." />
+        )}
+        {bucket === "today" && (
+          <ActivityDrillList items={todayItems} showDone emptyMsg="No activities remaining today." />
+        )}
+        {bucket === "week" && (
+          <ActivityDrillList items={weekItems} showDone={false} emptyMsg="No activities scheduled for the rest of this week." />
+        )}
+        {bucket === "checklists" && <ChecklistDrillList />}
+        {bucket === "done" && (
+          <ActivityDrillList items={doneActivities} showDone={false} emptyMsg="No past activities marked done yet." />
         )}
       </div>
+    );
+  }
 
-      {/* 3. Today's upcoming activities */}
-      {todayUpcoming.length > 0 && (
-        <div>
-          <SectionTitle>Today — coming up</SectionTitle>
-          <div className="space-y-2">
-            {todayUpcoming.map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                  <p className="text-xs text-stone-400 mt-0.5">
-                    {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleDone(a.id)}
-                  disabled={loadingDoneId === a.id}
-                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0"
-                >
-                  {loadingDoneId === a.id ? "…" : "Done"}
-                </button>
-              </div>
-            ))}
-          </div>
+  // Tile overview
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-3">
+        {tiles.map((t, idx) => (
+          <button
+            key={t.key}
+            onClick={() => setBucket(t.key)}
+            className={`text-left px-4 py-4 rounded-xl border ${t.border} ${t.bg} hover:shadow-sm transition-all ${
+              idx === tiles.length - 1 && tiles.length % 2 !== 0 ? "col-span-2" : ""
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2 mb-2">
+              {t.icon}
+              <span className={`text-3xl font-bold leading-none ${t.numColor}`}>{t.count}</span>
+            </div>
+            <p className="text-sm font-semibold text-stone-800">{t.label}</p>
+            <p className="text-[11px] text-stone-500 mt-0.5">{t.sub}</p>
+          </button>
+        ))}
+      </div>
+
+      {overdueItems.length > 0 && (
+        <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50">
+          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700 font-medium flex-1">
+            {overdueItems.length} activit{overdueItems.length === 1 ? "y" : "ies"} overdue — tap to update
+          </p>
+          <button
+            onClick={() => setBucket("overdue")}
+            className="text-xs font-semibold text-amber-700 hover:text-amber-900"
+          >
+            View →
+          </button>
         </div>
       )}
-
-      {/* 4. Later this week */}
-      {laterThisWeek.length > 0 && (
-        <div>
-          <SectionTitle>Later this week</SectionTitle>
-          <div className="space-y-2">
-            {laterThisWeek.slice(0, 5).map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                  <p className="text-xs text-stone-400 mt-0.5">
-                    {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleDone(a.id)}
-                  disabled={loadingDoneId === a.id}
-                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0"
-                >
-                  {loadingDoneId === a.id ? "…" : "Done"}
-                </button>
-              </div>
-            ))}
-            {laterThisWeek.length > 5 && (
-              <Link href="/activities" className="text-xs text-sky-500 hover:text-sky-700 px-1 block">
-                +{laterThisWeek.length - 5} more this week →
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
-
-      {needsAction.length === 0 && inProgressItemCount === 0 && todayUpcoming.length === 0 && laterThisWeek.length === 0 && (
-        <EmptyState message="Nothing pending. Go to Activities to schedule more." />
-      )}
-
     </div>
   );
 }
@@ -1888,7 +1919,7 @@ type TabKey = "today" | "coverage" | "clusters" | "goals" | "overview" | "geogra
 export default function HomeView({
   userId, userName, designation, greeting, todayLabel,
   todayActivities, weekActivities, weekChecklists, myGoals,
-  rpClusterStats, rpOverdueActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers,
+  rpClusterStats, rpOverdueActivities, rpDoneActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers,
   adminDash,
 }: {
   userId: string;
@@ -1902,6 +1933,7 @@ export default function HomeView({
   myGoals: Goal[];
   rpClusterStats: ClusterStat[];
   rpOverdueActivities: Activity[];
+  rpDoneActivities: Activity[];
   zlZoneName: string | null;
   zlClusterStats: ClusterStat[];
   clusterStatus: ClusterStatus[];
@@ -1966,13 +1998,14 @@ export default function HomeView({
       {/* Tab content */}
       <div className={`flex-1 px-5 sm:px-8 py-6 pb-24 sm:pb-8 ${activeTab === "overview" || activeTab === "pipeline" || activeTab === "team" ? "max-w-5xl" : "max-w-3xl"}`}>
 
-        {/* RP: Action-first today view */}
+        {/* RP: tile overview + drill-down today view */}
         {activeTab === "today" && designation === "RP" && (
-          <RPActionTab
+          <RPTodayTab
             overdueActivities={rpOverdueActivities}
             todayActivities={todayActivities}
             weekActivities={weekActivities}
             weekChecklists={weekChecklists}
+            doneActivities={rpDoneActivities}
           />
         )}
 
