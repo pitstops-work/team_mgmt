@@ -1884,6 +1884,103 @@ function RPTodayTab({
   );
 }
 
+// ── Tab: Admin Field Coverage ─────────────────────────────────────────────────
+
+function AdminCoverageTab({ dash }: { dash: AdminDash }) {
+  // Build a zone-name → DomainStat[] map from all goals, using the zones/clusters in adminDash
+  const clusterToZone = new Map<string, { zoneId: string; zoneName: string }>();
+  for (const zone of dash.zones) {
+    for (const cluster of zone.clusters) {
+      clusterToZone.set(cluster.id, { zoneId: zone.id, zoneName: zone.name });
+    }
+  }
+
+  // Aggregate domain stats per zone
+  const zoneStatMap: Record<string, Record<string, { label: string; planned: number; done: number; goalCount: number; doneGoalCount: number; hasParams: boolean }>> = {};
+  for (const g of dash.goals) {
+    if (!g.needsDomain || !g.needsClusterId) continue;
+    const zoneInfo = clusterToZone.get(g.needsClusterId);
+    if (!zoneInfo) continue;
+    if (!zoneStatMap[zoneInfo.zoneId]) zoneStatMap[zoneInfo.zoneId] = {};
+    const map = zoneStatMap[zoneInfo.zoneId];
+    if (!map[g.needsDomain]) map[g.needsDomain] = { label: g.needsDomain, planned: 0, done: 0, goalCount: 0, doneGoalCount: 0, hasParams: false };
+    const entry = map[g.needsDomain];
+    if (g.status === "Complete") {
+      entry.done += (g as any).outcomeCount ?? (g as any).parameter ?? 0;
+      entry.doneGoalCount++;
+    } else if (g.status !== "Cancelled") {
+      entry.planned += (g as any).parameter ?? 0;
+      entry.goalCount++;
+      if ((g as any).parameter) entry.hasParams = true;
+    }
+  }
+
+  // Resolve domain labels from global domainStats
+  const labelMap = Object.fromEntries(dash.domainStats.map(d => [d.domain, d.label]));
+  for (const zoneMap of Object.values(zoneStatMap)) {
+    for (const entry of Object.values(zoneMap)) {
+      if (labelMap[entry.label]) entry.label = labelMap[entry.label];
+    }
+  }
+
+  const zonesWithStats = dash.zones
+    .map(z => ({
+      id: z.id,
+      name: z.name,
+      cityName: z.cityName,
+      stats: Object.entries(zoneStatMap[z.id] ?? {})
+        .map(([domain, v]) => ({
+          domain,
+          label: v.label,
+          planned: v.planned,
+          done: v.done,
+          gap: Math.max(0, v.planned - v.done),
+          goalCount: v.goalCount,
+          doneGoalCount: v.doneGoalCount,
+          hasParams: v.hasParams,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    }))
+    .filter(z => z.stats.length > 0);
+
+  return (
+    <div className="space-y-8">
+      {/* Overall */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <SectionTitle>All zones — overall</SectionTitle>
+          <Link href="/needs" className="text-[10px] text-sky-500 hover:text-sky-700 flex items-center gap-0.5">
+            Full analysis <ChevronRight className="w-3 h-3" />
+          </Link>
+        </div>
+        <DomainTable stats={dash.domainStats} />
+      </div>
+
+      {/* Per zone */}
+      {zonesWithStats.length > 0 && (
+        <div>
+          <SectionTitle>By zone</SectionTitle>
+          <div className="space-y-6">
+            {zonesWithStats.map(z => (
+              <div key={z.id}>
+                <p className="text-xs font-medium text-stone-600 mb-2">
+                  {z.name}{z.cityName ? <span className="text-stone-400 font-normal"> · {z.cityName}</span> : null}
+                </p>
+                <DomainTable stats={z.stats} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className="text-[10px] text-stone-300 px-1">
+        Planned = active goal targets · Done = completed outcomes · Gap = planned − done.{" "}
+        <Link href="/needs" className="text-sky-400 hover:text-sky-600">See full coverage analysis →</Link>
+      </p>
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN HomeView
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1901,12 +1998,13 @@ const ZL_TABS = [
 ] as const;
 
 const ADMIN_TABS = [
-  { key: "overview",  label: "Overview",   icon: LayoutDashboard },
-  { key: "goals",     label: "Goals",      icon: Target },
-  { key: "geography", label: "Geography",  icon: MapPin },
-  { key: "team",      label: "Team",       icon: Users },
-  { key: "pipeline",  label: "Pipeline",   icon: TrendingUp },
-  { key: "today",     label: "Today",      icon: CalendarClock },
+  { key: "overview",  label: "Overview",        icon: LayoutDashboard },
+  { key: "goals",     label: "Goals",           icon: Target },
+  { key: "coverage",  label: "Field Coverage",  icon: BarChart3 },
+  { key: "geography", label: "Geography",       icon: MapPin },
+  { key: "team",      label: "Team",            icon: Users },
+  { key: "pipeline",  label: "Pipeline",        icon: TrendingUp },
+  { key: "today",     label: "Today",           icon: CalendarClock },
 ] as const;
 
 const OTHER_TABS = [
@@ -2025,6 +2123,9 @@ export default function HomeView({
         )}
         {activeTab === "coverage" && designation === "ZL" && (
           <ZLCoverageTab zoneName={zlZoneName} clusterStats={zlClusterStats} />
+        )}
+        {activeTab === "coverage" && isAdmin && adminDash && (
+          <AdminCoverageTab dash={adminDash} />
         )}
         {activeTab === "clusters" && designation === "ZL" && (
           <ZLClusterStatusTab clusterStatus={clusterStatus} />
