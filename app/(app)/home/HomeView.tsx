@@ -11,7 +11,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
-import type { DomainStat, ClusterStat, ClusterStatus, AdminDash, AdminGoal, AdminUser, AdminZone, OverduePitstop } from "./page";
+import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, AdminDash, AdminGoal, AdminUser, AdminZone, OverduePitstop } from "./page";
 import Avatar from "@/components/Avatar";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1607,6 +1607,149 @@ function slaHeaderLabel(dateKey: string, todayMs: number): { label: string; isOv
   return { label: `Due ${fmtDate(dateKey)}`, isOverdue: false };
 }
 
+// ── ZL Team Health tab ───────────────────────────────────────────────────────
+
+function ZLTeamHealthTab({
+  teamMembers,
+  rpTeamHealth,
+}: {
+  teamMembers: TeamMember[];
+  rpTeamHealth: RPHealthStat[];
+}) {
+  if (teamMembers.length === 0) {
+    return (
+      <div className="text-sm text-stone-400 text-center py-16">No RPs reporting to you yet.</div>
+    );
+  }
+
+  function healthDot(stat: RPHealthStat) {
+    if (stat.overduePitstops > 0) return "bg-red-500";
+    if (stat.overdueActivities > 0) return "bg-amber-400";
+    return "bg-emerald-500";
+  }
+
+  function healthLabel(stat: RPHealthStat) {
+    if (stat.overduePitstops > 0) return "Needs attention";
+    if (stat.overdueActivities > 0) return "Activities overdue";
+    return "On track";
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-stone-400 uppercase tracking-wide font-semibold mb-4">
+        {teamMembers.length} RP{teamMembers.length !== 1 ? "s" : ""}
+      </p>
+
+      {teamMembers.map(rp => {
+        const stat = rpTeamHealth.find(s => s.rpId === rp.id);
+        if (!stat) return null;
+        const dot = healthDot(stat);
+        const label = healthLabel(stat);
+
+        return (
+          <div key={rp.id} className="bg-white border border-stone-200 rounded-xl p-4 space-y-3">
+            {/* Header row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Avatar name={rp.name} image={rp.image} size="sm" />
+                <span className="text-sm font-semibold text-stone-800">{rp.name ?? "Unnamed"}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${dot}`} />
+                <span className="text-xs text-stone-500">{label}</span>
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Goals */}
+              <div className="bg-stone-50 rounded-lg p-2.5 space-y-1">
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
+                  <Target className="w-3 h-3" /> Goals
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {stat.activeGoals > 0 && (
+                    <span className="text-xs font-medium text-sky-700 bg-sky-50 border border-sky-100 px-1.5 py-0.5 rounded-md">
+                      {stat.activeGoals} active
+                    </span>
+                  )}
+                  {stat.pausedGoals > 0 && (
+                    <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-md">
+                      {stat.pausedGoals} paused
+                    </span>
+                  )}
+                  {stat.completeGoals > 0 && (
+                    <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md">
+                      {stat.completeGoals} done
+                    </span>
+                  )}
+                  {stat.activeGoals === 0 && stat.pausedGoals === 0 && stat.completeGoals === 0 && (
+                    <span className="text-xs text-stone-400">No goals yet</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Pitstops */}
+              <div className="bg-stone-50 rounded-lg p-2.5 space-y-1">
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Pitstops
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {stat.openPitstops > 0 && (
+                    <span className="text-xs font-medium text-violet-700 bg-violet-50 border border-violet-100 px-1.5 py-0.5 rounded-md">
+                      {stat.openPitstops} open
+                    </span>
+                  )}
+                  {stat.overduePitstops > 0 && (
+                    <span className="text-xs font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md">
+                      {stat.overduePitstops} overdue
+                    </span>
+                  )}
+                  {stat.openPitstops === 0 && (
+                    <span className="text-xs text-stone-400">All clear</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Activities */}
+              <div className="bg-stone-50 rounded-lg p-2.5 space-y-1">
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
+                  <CalendarClock className="w-3 h-3" /> Activities
+                </p>
+                <div className="flex items-center gap-2">
+                  {stat.overdueActivities > 0 ? (
+                    <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-md">
+                      {stat.overdueActivities} overdue
+                    </span>
+                  ) : (
+                    <span className="text-xs text-stone-400">None overdue</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Checklists */}
+              <div className="bg-stone-50 rounded-lg p-2.5 space-y-1">
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide flex items-center gap-1">
+                  <CheckSquare className="w-3 h-3" /> Checklists
+                </p>
+                <div className="flex items-center gap-2">
+                  {stat.openChecklists > 0 ? (
+                    <span className="text-xs font-medium text-teal-700 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded-md">
+                      {stat.openChecklists} open
+                    </span>
+                  ) : (
+                    <span className="text-xs text-stone-400">All done</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── ZL Today tab ─────────────────────────────────────────────────────────────
 
 type ZLDrillDown =
@@ -2413,6 +2556,7 @@ const RP_TABS = [
 
 const ZL_TABS = [
   { key: "today",    label: "Today",           icon: CalendarClock },
+  { key: "health",   label: "Team Health",     icon: Activity },
   { key: "coverage", label: "Field Coverage",  icon: BarChart3 },
   { key: "clusters", label: "Cluster Status",  icon: MapPin },
   { key: "goals",    label: "Goals",           icon: Target },
@@ -2433,12 +2577,12 @@ const OTHER_TABS = [
   { key: "goals", label: "Goals", icon: Target },
 ] as const;
 
-type TabKey = "today" | "coverage" | "clusters" | "goals" | "overview" | "geography" | "team" | "pipeline";
+type TabKey = "today" | "health" | "coverage" | "clusters" | "goals" | "overview" | "geography" | "team" | "pipeline";
 
 export default function HomeView({
   userId, userName, designation, greeting, todayLabel,
   todayActivities, weekActivities, weekChecklists, myGoals,
-  rpClusterStats, rpOverdueActivities, rpDoneActivities, zlOverdueActivities, zlMyActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers,
+  rpClusterStats, rpOverdueActivities, rpDoneActivities, zlOverdueActivities, zlMyActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers, rpTeamHealth,
   adminDash,
 }: {
   userId: string;
@@ -2459,6 +2603,7 @@ export default function HomeView({
   zlClusterStats: ClusterStat[];
   clusterStatus: ClusterStatus[];
   teamMembers: TeamMember[];
+  rpTeamHealth: RPHealthStat[];
   adminDash: AdminDash | null;
 }) {
   const isAdmin = !!adminDash;
@@ -2527,6 +2672,14 @@ export default function HomeView({
             weekActivities={weekActivities}
             weekChecklists={weekChecklists}
             doneActivities={rpDoneActivities}
+          />
+        )}
+
+        {/* ZL Team Health tab */}
+        {activeTab === "health" && designation === "ZL" && (
+          <ZLTeamHealthTab
+            teamMembers={teamMembers}
+            rpTeamHealth={rpTeamHealth}
           />
         )}
 

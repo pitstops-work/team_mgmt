@@ -71,6 +71,17 @@ export type ClusterStatus = {
   checklistCount: number;
 };
 
+export type RPHealthStat = {
+  rpId: string;
+  activeGoals: number;
+  pausedGoals: number;
+  completeGoals: number;
+  openPitstops: number;
+  overduePitstops: number;
+  overdueActivities: number;
+  openChecklists: number;
+};
+
 // ── Admin dashboard types ─────────────────────────────────────────────────────
 
 export type AdminKPIs = {
@@ -391,6 +402,38 @@ export default async function HomePage() {
 
   const domainLabels = Object.fromEntries(domainConfigs.map(d => [d.domain, d.label ?? d.domain]));
 
+  // ── ZL: per-RP health stats ───────────────────────────────────────────────
+  let rpTeamHealth: RPHealthStat[] = [];
+  if (designation === "ZL" && teamMembers.length > 0) {
+    const rpIds = teamMembers.map(m => m.id);
+    const rpPitstops = await prisma.pitstop.findMany({
+      where: { deletedAt: null, ownerId: { in: rpIds }, goal: { deletedAt: null } },
+      select: { ownerId: true, status: true, targetDate: true },
+    });
+    const todayMs = todayStart.getTime();
+    rpTeamHealth = teamMembers.map(rp => {
+      const rpGoals = myGoals.filter(g => g.ownerId === rp.id);
+      const rpPits = rpPitstops.filter(p => p.ownerId === rp.id);
+      const rpOverdueActs = zlOverdueActivities.filter(a =>
+        a.pitstops.some((ep: { pitstop: { ownerId: string | null } }) => ep.pitstop.ownerId === rp.id)
+      );
+      const rpChecklists = weekChecklists.filter(ci => ci.pitstop.ownerId === rp.id);
+      return {
+        rpId: rp.id,
+        activeGoals: rpGoals.filter(g => g.status === "Active").length,
+        pausedGoals: rpGoals.filter(g => g.status === "Paused").length,
+        completeGoals: rpGoals.filter(g => g.status === "Complete").length,
+        openPitstops: rpPits.filter(p => p.status === "Upcoming" || p.status === "InProgress").length,
+        overduePitstops: rpPits.filter(p =>
+          (p.status === "Upcoming" || p.status === "InProgress") &&
+          p.targetDate != null && new Date(p.targetDate).getTime() < todayMs
+        ).length,
+        overdueActivities: rpOverdueActs.length,
+        openChecklists: rpChecklists.length,
+      };
+    });
+  }
+
   // ── RP: per-cluster domain stats ──────────────────────────────────────────
   let rpClusterStats: ClusterStat[] = [];
   if (designation === "RP") {
@@ -664,6 +707,7 @@ export default async function HomePage() {
       zlClusterStats={zlClusterStats}
       clusterStatus={clusterStatus}
       teamMembers={JSON.parse(JSON.stringify(teamMembers))}
+      rpTeamHealth={rpTeamHealth}
       adminDash={adminDash}
     />
   );
