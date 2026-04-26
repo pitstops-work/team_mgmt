@@ -2,7 +2,7 @@
   "name": "Pitstop",
   "short_name": "Pitstop",
   "description": "Async threaded team workspace",
-  "start_url": "/home",
+  "start_url": "/portal",
   "scope": "/",
   "display": "standalone",
   "background_color": "#fafaf9",
