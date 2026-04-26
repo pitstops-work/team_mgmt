@@ -1,8 +1,6 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import dynamic from "next/dynamic";
-
-const RoutePlannerView = dynamic(() => import("./RoutePlannerView"), { ssr: false });
+import RoutePlannerLoader from "./RoutePlannerLoader";
 
 export const metadata = { title: "Route Planner · Urban Program" };
 
@@ -89,7 +87,7 @@ export default async function RoutePlannerPage() {
 
   return (
     <div className="absolute inset-0">
-      <RoutePlannerView stops={stops} />
+      <RoutePlannerLoader stops={stops} />
     </div>
   );
 }
