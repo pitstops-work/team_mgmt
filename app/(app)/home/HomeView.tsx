@@ -1528,10 +1528,40 @@ function AdminAttentionTab({ dash }: { dash: AdminDash }) {
 
 // ── Admin: Team Health tab ─────────────────────────────────────────────────────
 
+function PitstopDetailCard({ p, ownerName }: { p: RPPitstopDetail; ownerName?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-red-50 border border-red-100 rounded p-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-medium text-stone-800 truncate">{p.title}</p>
+          <p className="text-[10px] text-stone-500 truncate">{p.goalTitle}{ownerName && ` · ${ownerName}`}</p>
+        </div>
+        {p.targetDate && <span className="text-[10px] font-semibold text-red-700 flex-shrink-0">{p.daysOverdue}d overdue</span>}
+      </div>
+      {p.pendingChecklists.length > 0 && (
+        <button type="button" onClick={() => setOpen(v => !v)}
+          className="mt-1 text-[10px] text-stone-500 hover:text-stone-700 flex items-center gap-0.5">
+          {p.pendingChecklists.length} pending {open ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+        </button>
+      )}
+      {open && (
+        <ul className="mt-1 space-y-0.5 pl-2 border-l-2 border-red-200">
+          {p.pendingChecklists.map(ci => (
+            <li key={ci.id} className="text-[10px] text-stone-600 leading-tight">{ci.text}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[] }) {
   const [expandedPMs, setExpandedPMs] = useState<Set<string>>(new Set());
   const [expandedZLs, setExpandedZLs] = useState<Set<string>>(new Set());
   const [expandedDelayedRP, setExpandedDelayedRP] = useState<string | null>(null);
+  const [expandedDelayedZL, setExpandedDelayedZL] = useState<string | null>(null);
+  const [expandedDelayedPM, setExpandedDelayedPM] = useState<string | null>(null);
 
   const pms = personHealth.filter(p => p.designation === "PM");
   const zls = personHealth.filter(p => p.designation === "ZL");
@@ -1539,6 +1569,24 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
 
   function togglePM(id: string) { setExpandedPMs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; }); }
   function toggleZL(id: string) { setExpandedZLs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; }); }
+
+  function zlAllDelayed(zl: AdminPersonHealth): (RPPitstopDetail & { ownerName: string })[] {
+    const zlRPs = rps.filter(r => r.reportsToId === zl.userId);
+    return [
+      ...zl.delayedPitstops.map(p => ({ ...p, ownerName: zl.name ?? "Unnamed" })),
+      ...zlRPs.flatMap(r => r.delayedPitstops.map(p => ({ ...p, ownerName: r.name ?? "Unnamed" }))),
+    ];
+  }
+
+  function pmAllDelayed(pm: AdminPersonHealth): (RPPitstopDetail & { ownerName: string })[] {
+    const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
+    const pmRPs = rps.filter(r => pmZLs.some(z => z.userId === r.reportsToId));
+    return [
+      ...pm.delayedPitstops.map(p => ({ ...p, ownerName: pm.name ?? "Unnamed" })),
+      ...pmZLs.flatMap(z => z.delayedPitstops.map(p => ({ ...p, ownerName: z.name ?? "Unnamed" }))),
+      ...pmRPs.flatMap(r => r.delayedPitstops.map(p => ({ ...p, ownerName: r.name ?? "Unnamed" }))),
+    ];
+  }
 
   function pmAgg(pm: AdminPersonHealth) {
     const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
@@ -1605,14 +1653,7 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
         {isDelayedOpen && rp.delayedPitstops.length > 0 && (
           <div className="mt-2 space-y-1.5 border-t border-stone-100 pt-2">
             {(rp.delayedPitstops as RPPitstopDetail[]).map(p => (
-              <div key={p.id} className="bg-red-50 border border-red-100 rounded p-2">
-                <p className="text-[11px] font-medium text-stone-800 truncate">{p.title}</p>
-                <p className="text-[10px] text-stone-500 truncate">{p.goalTitle}</p>
-                <div className="flex items-center justify-between mt-0.5">
-                  {p.targetDate && <span className="text-[10px] font-medium text-red-700">{p.daysOverdue}d overdue</span>}
-                  {p.pendingChecklists.length > 0 && <span className="text-[10px] text-stone-400">{p.pendingChecklists.length} pending</span>}
-                </div>
-              </div>
+              <PitstopDetailCard key={p.id} p={p} />
             ))}
           </div>
         )}
@@ -1633,6 +1674,8 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
         const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
         const dot = agg.delayed > 0 ? "bg-red-500" : agg.overdueActs > 0 ? "bg-amber-400" : "bg-emerald-500";
         const clPct = agg.clTotal > 0 ? Math.round(agg.clDone / agg.clTotal * 100) : null;
+        const pmDelayed = pmAllDelayed(pm);
+        const isPMDelayedOpen = expandedDelayedPM === pm.userId;
         return (
           <div key={pm.userId} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
             <div className="flex items-center gap-3 px-4 pt-4 pb-3">
@@ -1643,7 +1686,11 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {agg.delayed > 0 && (
-                  <span className="text-xs font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded">{agg.delayed} delayed</span>
+                  <button type="button" onClick={() => setExpandedDelayedPM(isPMDelayedOpen ? null : pm.userId)}
+                    className="text-xs font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded hover:bg-red-100 flex items-center gap-0.5">
+                    {agg.delayed} delayed
+                    {isPMDelayedOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  </button>
                 )}
                 {agg.overdueActs > 0 && (
                   <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">{agg.overdueActs} overdue</span>
@@ -1651,6 +1698,12 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
                 <span className={`w-2 h-2 rounded-full ${dot}`} />
               </div>
             </div>
+            {isPMDelayedOpen && pmDelayed.length > 0 && (
+              <div className="px-4 pb-3 pt-2 space-y-1.5 border-t border-red-50">
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Delayed Pitstops</p>
+                {pmDelayed.map(p => <PitstopDetailCard key={`${pm.userId}-${p.id}`} p={p} ownerName={p.ownerName} />)}
+              </div>
+            )}
             {clPct !== null && (
               <div className="px-4 pb-3">
                 <div className="flex items-center justify-between mb-1">
@@ -1675,6 +1728,8 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
                   const zlOpen = expandedZLs.has(zl.userId);
                   const zDot = zAgg.delayed > 0 ? "bg-red-500" : zAgg.overdueActs > 0 ? "bg-amber-400" : "bg-emerald-500";
                   const zClPct = zAgg.clTotal > 0 ? Math.round(zAgg.clDone / zAgg.clTotal * 100) : null;
+                  const zlDelayed = zlAllDelayed(zl);
+                  const isZLDelayedOpen = expandedDelayedZL === zl.userId;
                   return (
                     <div key={zl.userId} className="bg-white border border-stone-200 rounded-lg overflow-hidden">
                       <div className="flex items-center gap-2.5 px-3 py-2.5">
@@ -1688,7 +1743,11 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           {zAgg.delayed > 0 && (
-                            <span className="text-[10px] font-medium text-red-700 bg-red-50 border border-red-100 px-1 py-0.5 rounded">{zAgg.delayed} delayed</span>
+                            <button type="button" onClick={() => setExpandedDelayedZL(isZLDelayedOpen ? null : zl.userId)}
+                              className="text-[10px] font-medium text-red-700 bg-red-50 border border-red-100 px-1 py-0.5 rounded hover:bg-red-100 flex items-center gap-0.5">
+                              {zAgg.delayed} delayed
+                              {isZLDelayedOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                            </button>
                           )}
                           {zAgg.overdueActs > 0 && (
                             <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1 py-0.5 rounded">{zAgg.overdueActs} overdue</span>
@@ -1696,6 +1755,12 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
                           <span className={`w-1.5 h-1.5 rounded-full ${zDot}`} />
                         </div>
                       </div>
+                      {isZLDelayedOpen && zlDelayed.length > 0 && (
+                        <div className="px-3 py-2 space-y-1.5 border-t border-red-50">
+                          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Delayed Pitstops</p>
+                          {zlDelayed.map(p => <PitstopDetailCard key={`${zl.userId}-${p.id}`} p={p} ownerName={p.ownerName} />)}
+                        </div>
+                      )}
                       {zlRPs.length > 0 && (
                         <button type="button" onClick={() => toggleZL(zl.userId)}
                           className="w-full text-[10px] text-stone-500 bg-stone-50 border-t border-stone-100 px-3 py-1.5 flex items-center justify-center gap-1 hover:bg-stone-100 transition-colors">
@@ -1727,6 +1792,8 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
               const zlRPs = rps.filter(r => r.reportsToId === zl.userId);
               const zlOpen = expandedZLs.has(zl.userId);
               const dot = zAgg.delayed > 0 ? "bg-red-500" : zAgg.overdueActs > 0 ? "bg-amber-400" : "bg-emerald-500";
+              const zlDelayed = zlAllDelayed(zl);
+              const isZLDelayedOpen = expandedDelayedZL === zl.userId;
               return (
                 <div key={zl.userId} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
                   <div className="flex items-center gap-2.5 px-4 py-3">
@@ -1736,11 +1803,23 @@ function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[
                       <p className="text-xs text-stone-400">{zAgg.rpCount} RP{zAgg.rpCount !== 1 ? "s" : ""}</p>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {zAgg.delayed > 0 && <span className="text-xs font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded">{zAgg.delayed} delayed</span>}
+                      {zAgg.delayed > 0 && (
+                        <button type="button" onClick={() => setExpandedDelayedZL(isZLDelayedOpen ? null : zl.userId)}
+                          className="text-xs font-medium text-red-700 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded hover:bg-red-100 flex items-center gap-0.5">
+                          {zAgg.delayed} delayed
+                          {isZLDelayedOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                      )}
                       {zAgg.overdueActs > 0 && <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">{zAgg.overdueActs} overdue</span>}
                       <span className={`w-2 h-2 rounded-full ${dot}`} />
                     </div>
                   </div>
+                  {isZLDelayedOpen && zlDelayed.length > 0 && (
+                    <div className="px-4 py-2 space-y-1.5 border-t border-red-50">
+                      <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Delayed Pitstops</p>
+                      {zlDelayed.map(p => <PitstopDetailCard key={`${zl.userId}-${p.id}`} p={p} ownerName={p.ownerName} />)}
+                    </div>
+                  )}
                   {zlRPs.length > 0 && (
                     <button type="button" onClick={() => toggleZL(zl.userId)}
                       className="w-full text-xs text-stone-500 bg-stone-50 border-t border-stone-100 px-4 py-2 flex items-center justify-center gap-1 hover:bg-stone-100">
