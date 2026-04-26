@@ -213,10 +213,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (itemsWithActivity.length === 0) continue;
 
+    const rawStartSla = Number(pt.startSlaDays ?? 0);
+    const rawSla = Number(pt.slaDays ?? 0);
+    // Guard: if window is zero-width or inverted, derive from recurrence
+    const effectiveSla = rawSla > rawStartSla ? rawSla : rawStartSla + (
+      pt.recurrence === "Quarterly" ? 90 : pt.recurrence === "Weekly" ? 7 : 30
+    );
+
     const pitstopWindowStart = new Date(goalStart);
-    pitstopWindowStart.setDate(pitstopWindowStart.getDate() + pt.startSlaDays);
+    pitstopWindowStart.setDate(pitstopWindowStart.getDate() + rawStartSla);
     const pitstopWindowEnd = new Date(goalStart);
-    pitstopWindowEnd.setDate(pitstopWindowEnd.getDate() + pt.slaDays);
+    pitstopWindowEnd.setDate(pitstopWindowEnd.getDate() + effectiveSla);
 
     const workingDays = getWorkingDays(pitstopWindowStart, pitstopWindowEnd, cityName, schedConfig);
     const effectiveDays = workingDays.length > 0

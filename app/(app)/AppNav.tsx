@@ -68,7 +68,7 @@ export default function AppNav({
     { href: "/help",      icon: <HelpCircle className="w-3.5 h-3.5" />,       label: "Manual"         },
   ];
 
-  const setupNav = isZL ? setupNavZL : setupNavRP;
+  const setupNav = (isAdmin || isZL) ? setupNavZL : setupNavRP;
 
   // ── Operations nav items ───────────────────────────────────────────────────
   const operationsNav = [
