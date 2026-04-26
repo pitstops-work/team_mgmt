@@ -182,6 +182,7 @@ export default async function HomePage() {
     rpOverdueActivities,
     rpDoneActivities,
     zlOverdueActivities,
+    zlMyActivities,
   ] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: {
@@ -341,12 +342,49 @@ export default async function HomePage() {
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               where: { pitstop: { ownerId: { in: teamIds }, deletedAt: null } },
-              select: { pitstop: { select: { ownerId: true } } },
+              select: {
+                pitstop: {
+                  select: {
+                    ownerId: true, targetDate: true,
+                    goal: { select: { id: true, title: true, needsClusterId: true } },
+                  },
+                },
+              },
               take: 1,
             },
           },
           orderBy: { scheduledAt: "asc" },
           take: 150,
+        })
+      : Promise.resolve([]),
+
+    // ZL only: own upcoming scheduled activities (today + this week) with goal/cluster context
+    designation === "ZL"
+      ? prisma.pitstopEvent.findMany({
+          where: {
+            deletedAt: null,
+            status: "Scheduled",
+            scheduledAt: { gte: todayStart, lte: weekEnd },
+            pitstops: { some: { pitstop: { ownerId: userId, deletedAt: null } } },
+          },
+          select: {
+            id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            attendees: { select: { user: { select: { id: true, name: true } } } },
+            pitstops: {
+              where: { pitstop: { ownerId: userId, deletedAt: null } },
+              select: {
+                pitstop: {
+                  select: {
+                    ownerId: true, targetDate: true,
+                    goal: { select: { id: true, title: true, needsClusterId: true } },
+                  },
+                },
+              },
+              take: 1,
+            },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 100,
         })
       : Promise.resolve([]),
   ]);
@@ -621,6 +659,7 @@ export default async function HomePage() {
       rpOverdueActivities={JSON.parse(JSON.stringify(rpOverdueActivities))}
       rpDoneActivities={JSON.parse(JSON.stringify(rpDoneActivities))}
       zlOverdueActivities={JSON.parse(JSON.stringify(zlOverdueActivities))}
+      zlMyActivities={JSON.parse(JSON.stringify(zlMyActivities))}
       zlZoneName={myZone?.name ?? null}
       zlClusterStats={zlClusterStats}
       clusterStatus={clusterStatus}

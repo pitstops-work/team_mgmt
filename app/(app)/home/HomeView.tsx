@@ -51,7 +51,13 @@ type ZLTeamActivity = {
   id: string; title: string; type: string; scheduledAt: string;
   location?: string | null; status: string;
   attendees: { user: { id: string; name: string | null } }[];
-  pitstops: { pitstop: { ownerId: string } }[];
+  pitstops: {
+    pitstop: {
+      ownerId: string;
+      targetDate: string | null;
+      goal: { id: string; title: string; needsClusterId: string | null };
+    };
+  }[];
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1578,211 +1584,250 @@ function RPChecklistRow({
   );
 }
 
+// ── shared helpers ────────────────────────────────────────────────────────────
+
+function groupBySla(activities: ZLTeamActivity[]) {
+  const map: Record<string, ZLTeamActivity[]> = {};
+  for (const a of activities) {
+    const key = a.pitstops[0]?.pitstop.targetDate?.slice(0, 10) ?? "no-date";
+    (map[key] ??= []).push(a);
+  }
+  return Object.entries(map).sort(([a], [b]) => {
+    if (a === "no-date") return 1;
+    if (b === "no-date") return -1;
+    return new Date(a).getTime() - new Date(b).getTime();
+  });
+}
+
+function slaHeaderLabel(dateKey: string, todayMs: number): { label: string; isOverdue: boolean } {
+  if (dateKey === "no-date") return { label: "No due date", isOverdue: false };
+  const dMs = new Date(dateKey).getTime();
+  if (dMs === todayMs) return { label: "Due today", isOverdue: false };
+  if (dMs < todayMs) return { label: `Overdue · ${fmtDate(dateKey)}`, isOverdue: true };
+  return { label: `Due ${fmtDate(dateKey)}`, isOverdue: false };
+}
+
 // ── ZL Today tab ─────────────────────────────────────────────────────────────
+
+type ZLDrillDown =
+  | { type: "rp-overdue";    rpId: string }
+  | { type: "rp-checklists"; rpId: string }
+  | null;
 
 function ZLTodayTab({
   userId,
   teamMembers,
   weekChecklists,
   zlOverdueActivities,
-  todayActivities,
-  weekActivities,
+  zlMyActivities,
+  clusterStatus,
 }: {
   userId: string;
   teamMembers: TeamMember[];
   weekChecklists: ChecklistItem[];
   zlOverdueActivities: ZLTeamActivity[];
-  todayActivities: Activity[];
-  weekActivities: Activity[];
+  zlMyActivities: ZLTeamActivity[];
+  clusterStatus: ClusterStatus[];
 }) {
-  const [selectedRpId, setSelectedRpId] = useState<string | null>(null);
-  const [rpCompletedActivityIds, setRpCompletedActivityIds] = useState<Set<string>>(new Set());
-  const [rpCompletedChecklistIds, setRpCompletedChecklistIds] = useState<Set<string>>(new Set());
+  const [drillDown, setDrillDown] = useState<ZLDrillDown>(null);
+  const [completedActivityIds, setCompletedActivityIds] = useState<Set<string>>(new Set());
+  const [completedChecklistIds, setCompletedChecklistIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
-  const [expandedSlaGroups, setExpandedSlaGroups] = useState<Set<string>>(new Set());
-  const [checklistGoalFilter, setChecklistGoalFilter] = useState<string>("all");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [goalFilter, setGoalFilter] = useState("all");
+  const [myClusterFilter, setMyClusterFilter] = useState("all");
+  const [myGoalFilter, setMyGoalFilter] = useState("all");
+  const [myExpandedGroups, setMyExpandedGroups] = useState<Set<string>>(new Set());
 
-  const now = new Date();
-  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  const todayMs = new Date(new Date().toDateString()).getTime();
+
+  function backToTeam() {
+    setDrillDown(null);
+    setGoalFilter("all");
+    setExpandedGroups(new Set());
+  }
+
+  function toggleGroup(key: string, setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
+    setter(prev => { const s = new Set(prev); if (s.has(key)) s.delete(key); else s.add(key); return s; });
+  }
+
+  async function handleDone(activityId: string) {
+    setLoadingDoneId(activityId);
+    await fetch(`/api/pitstop-events/${activityId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Done" }),
+    });
+    setCompletedActivityIds(prev => new Set([...prev, activityId]));
+    setLoadingDoneId(null);
+  }
 
   // Per-RP summaries
   const rpSummaries = teamMembers.map(rp => ({
     ...rp,
     clusterLabel: (rp.rpClusters ?? []).map(c => c.name).join(", ") || "—",
-    overdueCount: zlOverdueActivities.filter(
-      a => !rpCompletedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === rp.id
-    ).length,
-    checklistCount: weekChecklists.filter(
-      ci => !rpCompletedChecklistIds.has(ci.id) && ci.pitstop.ownerId === rp.id
-    ).length,
+    overdueCount: zlOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === rp.id).length,
+    checklistCount: weekChecklists.filter(ci => !completedChecklistIds.has(ci.id) && ci.pitstop.ownerId === rp.id).length,
   }));
 
-  // ZL's own overdue + today activities
-  const myOverdue = zlOverdueActivities.filter(
-    a => !rpCompletedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === userId
-  );
-  const myToday = todayActivities.filter(a =>
-    new Date(a.scheduledAt) >= now && a.status === "Scheduled"
-  );
+  // ZL's own activities: overdue + upcoming (merged)
+  const myAllActivities = [
+    ...zlOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === userId),
+    ...zlMyActivities.filter(a => !completedActivityIds.has(a.id)),
+  ];
 
-  async function handleActivityDone(activityId: string) {
-    setLoadingDoneId(activityId);
-    await fetch(`/api/pitstop-events/${activityId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Done" }),
-    });
-    setRpCompletedActivityIds(prev => new Set([...prev, activityId]));
-    setLoadingDoneId(null);
-  }
+  // Cascading cluster→goal for "my activities"
+  const myClusters = Array.from(
+    new Map(myAllActivities.flatMap(a => {
+      const cId = a.pitstops[0]?.pitstop.goal.needsClusterId;
+      if (!cId) return [];
+      const name = clusterStatus.find(c => c.clusterId === cId)?.name ?? cId;
+      return [[cId, name]];
+    })).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]));
 
-  function toggleSlaGroup(key: string) {
-    setExpandedSlaGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  }
+  const myGoals = Array.from(
+    new Map(myAllActivities
+      .filter(a => myClusterFilter === "all" || a.pitstops[0]?.pitstop.goal.needsClusterId === myClusterFilter)
+      .map(a => { const g = a.pitstops[0]?.pitstop.goal; return g ? [g.id, g.title] as [string,string] : null; })
+      .filter((x): x is [string,string] => x !== null)
+    ).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]));
 
-  // ── RP drill-down view ──────────────────────────────────────────────────────
-  if (selectedRpId) {
-    const rp = teamMembers.find(m => m.id === selectedRpId)!;
-    const rpOverdue = zlOverdueActivities.filter(
-      a => !rpCompletedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === selectedRpId
-    );
-    const rpChecklists = weekChecklists.filter(
-      ci => !rpCompletedChecklistIds.has(ci.id) && ci.pitstop.ownerId === selectedRpId
-    );
-    const todayMs = new Date(new Date().toDateString()).getTime();
+  const myFiltered = myAllActivities.filter(a => {
+    const p = a.pitstops[0]?.pitstop;
+    if (myClusterFilter !== "all" && p?.goal.needsClusterId !== myClusterFilter) return false;
+    if (myGoalFilter !== "all" && p?.goal.id !== myGoalFilter) return false;
+    return true;
+  });
+  const myByDate = groupBySla(myFiltered);
 
-    const checklistGoals = Array.from(
-      new Map(rpChecklists.map(ci => [ci.pitstop.goal.id, ci.pitstop.goal.title])).entries()
-    ).sort((a, b) => a[1].localeCompare(b[1]));
-
-    const filtered = checklistGoalFilter === "all"
-      ? rpChecklists
-      : rpChecklists.filter(ci => ci.pitstop.goal.id === checklistGoalFilter);
-
-    const checklistByDate = Object.entries(
-      filtered.reduce<Record<string, ChecklistItem[]>>((acc, ci) => {
-        const key = ci.pitstop.targetDate ? ci.pitstop.targetDate.slice(0, 10) : "no-date";
-        (acc[key] ??= []).push(ci);
-        return acc;
-      }, {})
-    ).sort(([a], [b]) => {
-      if (a === "no-date") return 1;
-      if (b === "no-date") return -1;
-      return new Date(a).getTime() - new Date(b).getTime();
-    });
+  // ── RP overdue drill-down ───────────────────────────────────────────────────
+  if (drillDown?.type === "rp-overdue") {
+    const rp = teamMembers.find(m => m.id === drillDown.rpId)!;
+    const items = zlOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === drillDown.rpId);
+    const goals = Array.from(new Map(items.map(a => { const g = a.pitstops[0]?.pitstop.goal; return [g.id, g.title] as [string,string]; })).entries()).sort((a,b) => a[1].localeCompare(b[1]));
+    const filtered = goalFilter === "all" ? items : items.filter(a => a.pitstops[0]?.pitstop.goal.id === goalFilter);
+    const grouped = groupBySla(filtered);
 
     return (
       <div>
-        <button
-          onClick={() => { setSelectedRpId(null); setChecklistGoalFilter("all"); setExpandedSlaGroups(new Set()); }}
-          className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 mb-5 transition-colors"
-        >
-          <ChevronDown className="w-4 h-4 rotate-90" />
-          Back to team
+        <button onClick={backToTeam} className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 mb-5 transition-colors">
+          <ChevronDown className="w-4 h-4 rotate-90" /> Back to team
         </button>
-
-        {/* RP header */}
         <div className="flex items-center gap-3 mb-5">
           <Avatar name={rp.name} size="sm" />
           <div>
             <p className="text-sm font-semibold text-stone-800">{rp.name}</p>
-            <p className="text-xs text-stone-400">{(rp.rpClusters ?? []).map(c => c.name).join(", ") || "No cluster"}</p>
+            <p className="text-xs text-stone-400">{(rp.rpClusters ?? []).map(c => c.name).join(", ") || "No cluster"} · Overdue activities</p>
           </div>
         </div>
-
-        {/* Overdue activities */}
-        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Overdue activities</p>
-        {rpOverdue.length === 0 ? (
-          <p className="text-sm text-stone-400 mb-6">No overdue activities.</p>
-        ) : (
-          <div className="space-y-2 mb-6">
-            {rpOverdue.map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                  <p className="text-xs text-amber-700">{fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}</p>
-                </div>
-                <button
-                  onClick={() => handleActivityDone(a.id)}
-                  disabled={loadingDoneId === a.id}
-                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0"
-                >
-                  {loadingDoneId === a.id ? "…" : "Done"}
-                </button>
-              </div>
-            ))}
-          </div>
+        {goals.length > 1 && (
+          <select value={goalFilter} onChange={e => { setGoalFilter(e.target.value); setExpandedGroups(new Set()); }}
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700 mb-3">
+            <option value="all">All goals</option>
+            {goals.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
+          </select>
         )}
-
-        {/* Open checklists */}
-        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Open checklists</p>
-        {rpChecklists.length === 0 ? (
-          <p className="text-sm text-stone-400">No open checklist items.</p>
-        ) : (
-          <div className="space-y-3">
-            {checklistGoals.length > 1 && (
-              <select
-                value={checklistGoalFilter}
-                onChange={e => { setChecklistGoalFilter(e.target.value); setExpandedSlaGroups(new Set()); }}
-                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700"
-              >
-                <option value="all">All goals</option>
-                {checklistGoals.map(([id, title]) => (
-                  <option key={id} value={id}>{title}</option>
-                ))}
-              </select>
-            )}
-            {checklistByDate.length === 0 && (
-              <p className="text-sm text-stone-400">No items for this goal.</p>
-            )}
-            {checklistByDate.map(([dateKey, items]) => {
-              const expanded = expandedSlaGroups.has(dateKey);
-              let label: string;
-              let isOverdue = false;
-              if (dateKey === "no-date") {
-                label = "No due date";
-              } else {
-                const dMs = new Date(dateKey).getTime();
-                if (dMs === todayMs) label = "Due today";
-                else if (dMs < todayMs) { isOverdue = true; label = `Overdue · ${fmtDate(dateKey)}`; }
-                else label = `Due ${fmtDate(dateKey)}`;
-              }
+        {grouped.length === 0
+          ? <p className="text-sm text-stone-400">No overdue activities{goalFilter !== "all" ? " for this goal" : ""}.</p>
+          : <div className="space-y-3">{grouped.map(([dateKey, acts]) => {
+              const { label, isOverdue: ov } = slaHeaderLabel(dateKey, todayMs);
+              const expanded = expandedGroups.has(dateKey);
               return (
-                <div key={dateKey} className={`rounded-xl border overflow-hidden ${isOverdue ? "border-amber-200" : "border-stone-200"}`}>
-                  <button
-                    onClick={() => toggleSlaGroup(dateKey)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${isOverdue ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}
-                  >
+                <div key={dateKey} className={`rounded-xl border overflow-hidden ${ov ? "border-amber-200" : "border-stone-200"}`}>
+                  <button onClick={() => toggleGroup(dateKey, setExpandedGroups)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${ov ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${isOverdue ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
-                      <p className="text-xs text-stone-400">{items.length} item{items.length !== 1 ? "s" : ""}</p>
+                      <p className={`text-sm font-semibold ${ov ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
+                      <p className="text-xs text-stone-400">{acts.length} activit{acts.length !== 1 ? "ies" : "y"}</p>
                     </div>
-                    {expanded
-                      ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
-                      : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
-                    }
+                    {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />}
                   </button>
                   {expanded && (
                     <div className="divide-y divide-stone-100">
-                      {items.map(ci => (
-                        <RPChecklistRow
-                          key={ci.id}
-                          item={ci}
-                          onCompleted={id => setRpCompletedChecklistIds(prev => new Set([...prev, id]))}
-                        />
+                      {acts.map(a => (
+                        <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                            <p className="text-xs text-amber-700">{fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}</p>
+                          </div>
+                          <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0">
+                            {loadingDoneId === a.id ? "…" : "Done"}
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}
                 </div>
               );
-            })}
+            })}</div>
+        }
+      </div>
+    );
+  }
+
+  // ── RP checklists drill-down ────────────────────────────────────────────────
+  if (drillDown?.type === "rp-checklists") {
+    const rp = teamMembers.find(m => m.id === drillDown.rpId)!;
+    const items = weekChecklists.filter(ci => !completedChecklistIds.has(ci.id) && ci.pitstop.ownerId === drillDown.rpId);
+    const goals = Array.from(new Map(items.map(ci => [ci.pitstop.goal.id, ci.pitstop.goal.title] as [string,string])).entries()).sort((a,b) => a[1].localeCompare(b[1]));
+    const filtered = goalFilter === "all" ? items : items.filter(ci => ci.pitstop.goal.id === goalFilter);
+    const grouped = Object.entries(
+      filtered.reduce<Record<string, ChecklistItem[]>>((acc, ci) => {
+        const key = ci.pitstop.targetDate?.slice(0, 10) ?? "no-date";
+        (acc[key] ??= []).push(ci); return acc;
+      }, {})
+    ).sort(([a],[b]) => { if (a==="no-date") return 1; if (b==="no-date") return -1; return new Date(a).getTime()-new Date(b).getTime(); });
+
+    return (
+      <div>
+        <button onClick={backToTeam} className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 mb-5 transition-colors">
+          <ChevronDown className="w-4 h-4 rotate-90" /> Back to team
+        </button>
+        <div className="flex items-center gap-3 mb-5">
+          <Avatar name={rp.name} size="sm" />
+          <div>
+            <p className="text-sm font-semibold text-stone-800">{rp.name}</p>
+            <p className="text-xs text-stone-400">{(rp.rpClusters ?? []).map(c => c.name).join(", ") || "No cluster"} · Open checklists</p>
           </div>
+        </div>
+        {goals.length > 1 && (
+          <select value={goalFilter} onChange={e => { setGoalFilter(e.target.value); setExpandedGroups(new Set()); }}
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700 mb-3">
+            <option value="all">All goals</option>
+            {goals.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
+          </select>
         )}
+        {items.length === 0
+          ? <p className="text-sm text-stone-400">No open checklist items.</p>
+          : grouped.length === 0
+          ? <p className="text-sm text-stone-400">No items for this goal.</p>
+          : <div className="space-y-3">{grouped.map(([dateKey, cis]) => {
+              const { label, isOverdue: ov } = slaHeaderLabel(dateKey, todayMs);
+              const expanded = expandedGroups.has(dateKey);
+              return (
+                <div key={dateKey} className={`rounded-xl border overflow-hidden ${ov ? "border-amber-200" : "border-stone-200"}`}>
+                  <button onClick={() => toggleGroup(dateKey, setExpandedGroups)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${ov ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold ${ov ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
+                      <p className="text-xs text-stone-400">{cis.length} item{cis.length !== 1 ? "s" : ""}</p>
+                    </div>
+                    {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />}
+                  </button>
+                  {expanded && (
+                    <div className="divide-y divide-stone-100">
+                      {cis.map(ci => (
+                        <RPChecklistRow key={ci.id} item={ci} onCompleted={id => setCompletedChecklistIds(prev => new Set([...prev, id]))} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}</div>
+        }
       </div>
     );
   }
@@ -1793,74 +1838,104 @@ function ZLTodayTab({
       {/* RP health rows */}
       <div>
         <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Your team</p>
-        {teamMembers.length === 0 ? (
-          <p className="text-sm text-stone-400">No RPs assigned yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {rpSummaries.map(rp => (
-              <button
-                key={rp.id}
-                onClick={() => { setSelectedRpId(rp.id); setChecklistGoalFilter("all"); setExpandedSlaGroups(new Set()); }}
-                className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm transition-all"
-              >
-                <Avatar name={rp.name} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-stone-800 truncate">{rp.name}</p>
-                  <p className="text-xs text-stone-400 truncate">{rp.clusterLabel}</p>
+        {teamMembers.length === 0
+          ? <p className="text-sm text-stone-400">No RPs assigned yet.</p>
+          : <div className="space-y-2">
+              {rpSummaries.map(rp => (
+                <div key={rp.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
+                  <Avatar name={rp.name} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-stone-800 truncate">{rp.name}</p>
+                    <p className="text-xs text-stone-400 truncate">{rp.clusterLabel}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {rp.overdueCount > 0
+                      ? <button onClick={() => { setDrillDown({ type: "rp-overdue", rpId: rp.id }); setGoalFilter("all"); setExpandedGroups(new Set()); }}
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
+                          {rp.overdueCount} overdue
+                        </button>
+                      : <span className="text-xs text-stone-300">0 overdue</span>
+                    }
+                    {rp.checklistCount > 0
+                      ? <button onClick={() => { setDrillDown({ type: "rp-checklists", rpId: rp.id }); setGoalFilter("all"); setExpandedGroups(new Set()); }}
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors">
+                          {rp.checklistCount} checklist
+                        </button>
+                      : <span className="text-xs text-stone-300">0 checklist</span>
+                    }
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {rp.overdueCount > 0 && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                      {rp.overdueCount} overdue
-                    </span>
-                  )}
-                  {rp.checklistCount > 0 && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
-                      {rp.checklistCount} checklist
-                    </span>
-                  )}
-                  {rp.overdueCount === 0 && rp.checklistCount === 0 && (
-                    <span className="text-xs text-emerald-600 font-medium">All clear</span>
-                  )}
-                  <ChevronDown className="w-3.5 h-3.5 text-stone-300 -rotate-90" />
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+        }
       </div>
 
       {/* ZL's own activities */}
-      {(myOverdue.length > 0 || myToday.length > 0) && (
+      {myAllActivities.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Your activities</p>
-          <div className="space-y-2">
-            {myOverdue.map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                  <p className="text-xs text-amber-700">{fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}</p>
-                </div>
-                <button
-                  onClick={() => handleActivityDone(a.id)}
-                  disabled={loadingDoneId === a.id}
-                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0"
-                >
-                  {loadingDoneId === a.id ? "…" : "Done"}
-                </button>
-              </div>
-            ))}
-            {myToday.map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                  <p className="text-xs text-stone-400">{fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}</p>
-                </div>
-              </div>
-            ))}
+          {/* Filters */}
+          <div className="flex gap-2 mb-3">
+            {myClusters.length > 1 && (
+              <select value={myClusterFilter}
+                onChange={e => { setMyClusterFilter(e.target.value); setMyGoalFilter("all"); setMyExpandedGroups(new Set()); }}
+                className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700">
+                <option value="all">All clusters</option>
+                {myClusters.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+            )}
+            {myGoals.length > 1 && (
+              <select value={myGoalFilter}
+                onChange={e => { setMyGoalFilter(e.target.value); setMyExpandedGroups(new Set()); }}
+                className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700">
+                <option value="all">All goals</option>
+                {myGoals.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
+              </select>
+            )}
           </div>
+          {myByDate.length === 0
+            ? <p className="text-sm text-stone-400">No activities for this filter.</p>
+            : <div className="space-y-3">{myByDate.map(([dateKey, acts]) => {
+                const { label, isOverdue: ov } = slaHeaderLabel(dateKey, todayMs);
+                const expanded = myExpandedGroups.has(dateKey);
+                return (
+                  <div key={dateKey} className={`rounded-xl border overflow-hidden ${ov ? "border-amber-200" : "border-stone-200"}`}>
+                    <button onClick={() => toggleGroup(dateKey, setMyExpandedGroups)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${ov ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${ov ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
+                        <p className="text-xs text-stone-400">{acts.length} activit{acts.length !== 1 ? "ies" : "y"}</p>
+                      </div>
+                      {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />}
+                    </button>
+                    {expanded && (
+                      <div className="divide-y divide-stone-100">
+                        {acts.map(a => {
+                          const isOv = new Date(a.scheduledAt) < new Date(new Date().toDateString());
+                          return (
+                            <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                                <p className={`text-xs ${isOv ? "text-amber-700" : "text-stone-400"}`}>
+                                  {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}
+                                </p>
+                              </div>
+                              {isOv && (
+                                <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0">
+                                  {loadingDoneId === a.id ? "…" : "Done"}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}</div>
+          }
         </div>
       )}
     </div>
@@ -2363,7 +2438,7 @@ type TabKey = "today" | "coverage" | "clusters" | "goals" | "overview" | "geogra
 export default function HomeView({
   userId, userName, designation, greeting, todayLabel,
   todayActivities, weekActivities, weekChecklists, myGoals,
-  rpClusterStats, rpOverdueActivities, rpDoneActivities, zlOverdueActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers,
+  rpClusterStats, rpOverdueActivities, rpDoneActivities, zlOverdueActivities, zlMyActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers,
   adminDash,
 }: {
   userId: string;
@@ -2379,6 +2454,7 @@ export default function HomeView({
   rpOverdueActivities: Activity[];
   rpDoneActivities: Activity[];
   zlOverdueActivities: ZLTeamActivity[];
+  zlMyActivities: ZLTeamActivity[];
   zlZoneName: string | null;
   zlClusterStats: ClusterStat[];
   clusterStatus: ClusterStatus[];
@@ -2461,8 +2537,8 @@ export default function HomeView({
             teamMembers={teamMembers}
             weekChecklists={weekChecklists}
             zlOverdueActivities={zlOverdueActivities}
-            todayActivities={todayActivities}
-            weekActivities={weekActivities}
+            zlMyActivities={zlMyActivities}
+            clusterStatus={clusterStatus}
           />
         )}
 
