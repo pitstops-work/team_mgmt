@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import RoutePlannerView from "./RoutePlannerView";
+import dynamic from "next/dynamic";
+
+const RoutePlannerView = dynamic(() => import("./RoutePlannerView"), { ssr: false });
 
 export const metadata = { title: "Route Planner · Urban Program" };
 
