@@ -1591,7 +1591,7 @@ function RPTodayTab({
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
-  const [collapsedSlaGroups, setCollapsedSlaGroups] = useState<Set<string>>(new Set());
+  const [expandedSlaGroups, setExpandedSlaGroups] = useState<Set<string>>(new Set());
   const [checklistGoalFilter, setChecklistGoalFilter] = useState<string>("all");
 
   const now = new Date();
@@ -1655,7 +1655,7 @@ function RPTodayTab({
   }
 
   function toggleSlaGroup(key: string) {
-    setCollapsedSlaGroups(prev => {
+    setExpandedSlaGroups(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
@@ -1756,7 +1756,7 @@ function RPTodayTab({
         )}
         {checklistBySlaDate.length === 0 && <EmptyState message="No items for this goal." />}
         {checklistBySlaDate.map(([dateKey, items]) => {
-          const expanded = !collapsedSlaGroups.has(dateKey);
+          const expanded = expandedSlaGroups.has(dateKey);
           let label: string;
           let isOverdue = false;
           if (dateKey === "no-date") {
