@@ -702,7 +702,7 @@ export default function MapView({
     LAYERS.filter((l) => l.file && l.type === "polygon").forEach((layerConfig) => {
       const fillId = `${layerConfig.key}-fill`;
       const lineId = `${layerConfig.key}-line`;
-      if (!map.getLayer(fillId)) return;
+      if (!map.getLayer(fillId) || !map.getLayer(lineId)) return;
       if (!visible.has(layerConfig.key)) return;
 
       const hasFilter = filter && (filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0);
