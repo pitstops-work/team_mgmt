@@ -501,6 +501,15 @@ export default async function HomePage() {
   let pmRPMembers: PMTeamMember[] = [];
   let pmZLHealth: ZLHealthStat[] = [];
   let pmRPHealth: RPHealthStat[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pmZLOverdueActivities: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pmZLChecklists: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pmMyActivities: any[] = [];
+  let pmZoneClusterMap: { id: string; name: string; clusterIds: string[] }[] = [];
+  let pmClusterStats: ClusterStat[] = [];
+  let pmClusterStatus: ClusterStatus[] = [];
 
   if (designation === "PM") {
     pmZLMembers = await prisma.user.findMany({
@@ -614,6 +623,126 @@ export default async function HomePage() {
           doneChecklists: zlRpStat.reduce((s, r) => s + r.doneChecklists, 0),
         };
       });
+
+      // PM Today tab: ZL-level operational data
+      const [pmZLOverdueRaw, pmZLChecklistsRaw, pmMyActivitiesRaw, pmZonesRaw] = await Promise.all([
+        // Overdue activities on ZL-owned pitstops
+        prisma.pitstopEvent.findMany({
+          where: {
+            deletedAt: null, status: "Scheduled", scheduledAt: { lt: todayStart },
+            pitstops: { some: { pitstop: { ownerId: { in: zlIds }, deletedAt: null } } },
+          },
+          select: {
+            id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            attendees: { select: { user: { select: { id: true, name: true } } } },
+            pitstops: {
+              where: { pitstop: { ownerId: { in: zlIds }, deletedAt: null } },
+              select: { pitstop: { select: { ownerId: true, targetDate: true, goal: { select: { id: true, title: true, needsClusterId: true } } } } },
+              take: 1,
+            },
+          },
+          orderBy: { scheduledAt: "asc" }, take: 150,
+        }),
+        // Open checklists on ZL-owned pitstops
+        prisma.checklistItem.findMany({
+          where: {
+            status: { notIn: ["Done", "Cancelled"] },
+            pitstop: { deletedAt: null, ownerId: { in: zlIds }, goal: { deletedAt: null } },
+          },
+          select: {
+            id: true, text: true, status: true, checked: true, completionType: true,
+            activities: {
+              where: { status: { notIn: ["Cancelled", "Done"] } },
+              select: { id: true, title: true, status: true, scheduledAt: true, type: true },
+              orderBy: { scheduledAt: "asc" }, take: 1,
+            },
+            pitstop: {
+              select: {
+                id: true, title: true, targetDate: true, status: true, ownerId: true,
+                owner: { select: { id: true, name: true } },
+                goal: { select: { id: true, title: true } },
+              },
+            },
+          },
+          orderBy: { order: "asc" }, take: 200,
+        }),
+        // PM's own upcoming activities
+        prisma.pitstopEvent.findMany({
+          where: {
+            deletedAt: null, status: "Scheduled",
+            scheduledAt: { gte: todayStart, lte: weekEnd },
+            pitstops: { some: { pitstop: { ownerId: userId, deletedAt: null } } },
+          },
+          select: {
+            id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            attendees: { select: { user: { select: { id: true, name: true } } } },
+            pitstops: {
+              where: { pitstop: { ownerId: userId, deletedAt: null } },
+              select: { pitstop: { select: { ownerId: true, targetDate: true, goal: { select: { id: true, title: true, needsClusterId: true } } } } },
+              take: 1,
+            },
+          },
+          orderBy: { scheduledAt: "asc" },
+        }),
+        // PM's zones (via ZL leads)
+        prisma.zone.findMany({
+          where: { leadId: { in: zlIds }, deletedAt: null },
+          select: {
+            id: true, name: true,
+            clusters: { where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } },
+          },
+          orderBy: { name: "asc" },
+        }),
+      ]);
+
+      pmZLOverdueActivities = JSON.parse(JSON.stringify(pmZLOverdueRaw));
+      pmZLChecklists        = JSON.parse(JSON.stringify(pmZLChecklistsRaw));
+      pmMyActivities        = JSON.parse(JSON.stringify(pmMyActivitiesRaw));
+
+      // PM cluster coverage + status
+      const pmClusterIds = pmZonesRaw.flatMap(z => z.clusters.map(c => c.id));
+      pmZoneClusterMap   = pmZonesRaw.map(z => ({ id: z.id, name: z.name, clusterIds: z.clusters.map(c => c.id) }));
+
+      if (pmClusterIds.length > 0) {
+        const [pmCGoals, pmCPitstops, pmCActivities, pmCChecklists] = await Promise.all([
+          prisma.goal.findMany({
+            where: { deletedAt: null, needsClusterId: { in: pmClusterIds } },
+            select: { needsDomain: true, needsClusterId: true, status: true, parameter: true, outcomeCount: true },
+          }),
+          prisma.pitstop.findMany({
+            where: { deletedAt: null, status: { in: ["Upcoming", "InProgress"] }, goal: { deletedAt: null, needsClusterId: { in: pmClusterIds } } },
+            select: { id: true, goal: { select: { needsClusterId: true } } },
+          }),
+          prisma.pitstopEvent.findMany({
+            where: { deletedAt: null, scheduledAt: { gte: weekStart, lte: weekEnd }, pitstops: { some: { pitstop: { goal: { needsClusterId: { in: pmClusterIds } } } } } },
+            select: { id: true, pitstops: { select: { pitstop: { select: { goal: { select: { needsClusterId: true } } } } } } },
+          }),
+          prisma.checklistItem.findMany({
+            where: { status: { notIn: ["Done", "Cancelled"] }, pitstop: { deletedAt: null, goal: { deletedAt: null, needsClusterId: { in: pmClusterIds } } } },
+            select: { id: true, pitstop: { select: { goal: { select: { needsClusterId: true } } } } },
+          }),
+        ]);
+
+        const activeGoalsByCluster: Record<string, number> = {};
+        for (const g of pmCGoals.filter(g => g.status !== "Complete" && g.status !== "Paused")) {
+          if (g.needsClusterId) activeGoalsByCluster[g.needsClusterId] = (activeGoalsByCluster[g.needsClusterId] ?? 0) + 1;
+        }
+
+        pmClusterStats = pmZonesRaw.flatMap(z => z.clusters.map(c => ({
+          clusterId: c.id,
+          clusterName: c.name,
+          stats: computeDomainStats(pmCGoals.filter(g => g.needsClusterId === c.id), domainLabels),
+        })));
+
+        pmClusterStatus = pmZonesRaw.flatMap(z => z.clusters.map(c => ({
+          clusterId: c.id,
+          name: c.name,
+          goalCount: activeGoalsByCluster[c.id] ?? 0,
+          pitstopCount: pmCPitstops.filter(p => p.goal.needsClusterId === c.id).length,
+          activityCount: pmCActivities.filter(a => a.pitstops.some(ep => ep.pitstop.goal.needsClusterId === c.id)).length,
+          checklistCount: pmCChecklists.filter(ci => ci.pitstop.goal.needsClusterId === c.id).length,
+        })));
+      }
     }
   }
 
@@ -895,6 +1024,12 @@ export default async function HomePage() {
       pmRPMembers={JSON.parse(JSON.stringify(pmRPMembers))}
       pmZLHealth={pmZLHealth}
       pmRPHealth={JSON.parse(JSON.stringify(pmRPHealth))}
+      pmZLOverdueActivities={pmZLOverdueActivities}
+      pmZLChecklists={pmZLChecklists}
+      pmMyActivities={pmMyActivities}
+      pmZoneClusterMap={pmZoneClusterMap}
+      pmClusterStats={pmClusterStats}
+      pmClusterStatus={pmClusterStatus}
       adminDash={adminDash}
     />
   );
