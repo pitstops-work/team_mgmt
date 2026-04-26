@@ -182,6 +182,26 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const veto = viewerForbidden(session); if (veto) return veto;
 
   const { goalId } = await params;
-  await prisma.goal.update({ where: { id: goalId }, data: { deletedAt: new Date() } });
+  const now = new Date();
+
+  // Soft-delete all pitstops belonging to this goal
+  await prisma.pitstop.updateMany({
+    where: { goalId, deletedAt: null },
+    data: { deletedAt: now },
+  });
+
+  // Soft-delete all PitstopEvents linked to those pitstops (via junction table)
+  await prisma.$executeRaw`
+    UPDATE "PitstopEvent" SET "deletedAt" = ${now}
+    WHERE "deletedAt" IS NULL
+      AND id IN (
+        SELECT ep."eventId"
+        FROM "PitstopEventPitstop" ep
+        JOIN "Pitstop" p ON p.id = ep."pitstopId"
+        WHERE p."goalId" = ${goalId}
+      )
+  `;
+
+  await prisma.goal.update({ where: { id: goalId }, data: { deletedAt: now } });
   return Response.json({ ok: true });
 }
