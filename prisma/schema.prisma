@@ -757,10 +757,11 @@ model GoalTheme {
 // ── Geography: City → Zone → Cluster → Settlement ────────────────────────────
 
 model City {
-  id        String    @id @default(cuid())
-  name      String
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
+  id               String    @id @default(cuid())
+  name             String
+  totalSettlements Int       @default(0)
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
 
   zones       Zone[]
   settlements Settlement[]
