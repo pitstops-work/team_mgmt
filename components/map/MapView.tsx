@@ -508,91 +508,101 @@ export default function MapView({
       });
 
       // ── School markers source ────────────────────────────────────────────
-      if (map.getSource("schools-source")) return;
-      map.addSource("schools-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-      map.addLayer({
-        id: "schools-circle",
-        type: "circle",
-        source: "schools-source",
-        paint: {
-          "circle-radius": 7,
-          "circle-color": ["get", "color"],
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "white",
-        },
-        layout: { visibility: visibleLayersRef.current.has("schools") ? "visible" : "none" },
-      });
-      map.on("click", "schools-circle", (e) => {
-        if (!e.features?.length) return;
-        const props = e.features[0].properties ?? {};
-        const TYPE_LABELS: Record<string, string> = {
-          "Government": "Govt School", "BBMP": "BBMP School", "Karnataka Public School": "KPS",
-        };
-        const TYPE_COLORS: Record<string, string> = {
-          "Government": "#dc2626", "BBMP": "#1e293b", "Karnataka Public School": "#0288D1",
-        };
-        const sType = props.schoolType ?? "Government";
-        const color = TYPE_COLORS[sType] ?? "#16a34a";
-        const settlementList = JSON.parse(props.settlements || "[]")
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
-          .join("");
-        new maplibregl.Popup({ maxWidth: "280px", className: "maplibre-popup-clean" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="map-popup">
-            <span class="badge" style="background:${color}">${TYPE_LABELS[sType] ?? "School"}</span>
-            <h3>${props.name}</h3>
-            ${props.address ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.address}</div>` : ""}
-            ${settlementList ? `<div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements</div><ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul></div>` : ""}
-          </div>`)
-          .addTo(map);
-      });
-      map.on("mouseenter", "schools-circle", () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", "schools-circle", () => { map.getCanvas().style.cursor = ""; });
+      try {
+        if (!map.getSource("schools-source")) {
+          map.addSource("schools-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+          map.addLayer({
+            id: "schools-circle",
+            type: "circle",
+            source: "schools-source",
+            paint: {
+              "circle-radius": 7,
+              "circle-color": ["get", "color"],
+              "circle-stroke-width": 2,
+              "circle-stroke-color": "white",
+            },
+            layout: { visibility: visibleLayersRef.current.has("schools") ? "visible" : "none" },
+          });
+          map.on("click", "schools-circle", (e) => {
+            if (!e.features?.length) return;
+            const props = e.features[0].properties ?? {};
+            const TYPE_LABELS: Record<string, string> = {
+              "Government": "Govt School", "BBMP": "BBMP School", "Karnataka Public School": "KPS",
+            };
+            const TYPE_COLORS: Record<string, string> = {
+              "Government": "#dc2626", "BBMP": "#1e293b", "Karnataka Public School": "#0288D1",
+            };
+            const sType = props.schoolType ?? "Government";
+            const color = TYPE_COLORS[sType] ?? "#16a34a";
+            const settlementList = JSON.parse(props.settlements || "[]")
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
+              .join("");
+            new maplibregl.Popup({ maxWidth: "280px", className: "maplibre-popup-clean" })
+              .setLngLat(e.lngLat)
+              .setHTML(`<div class="map-popup">
+                <span class="badge" style="background:${color}">${TYPE_LABELS[sType] ?? "School"}</span>
+                <h3>${props.name}</h3>
+                ${props.address ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.address}</div>` : ""}
+                ${settlementList ? `<div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements</div><ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul></div>` : ""}
+              </div>`)
+              .addTo(map);
+          });
+          map.on("mouseenter", "schools-circle", () => { map.getCanvas().style.cursor = "pointer"; });
+          map.on("mouseleave", "schools-circle", () => { map.getCanvas().style.cursor = ""; });
+        }
+      } catch (err) {
+        console.warn("[MapView] schools source setup skipped:", err instanceof Error ? err.message : err);
+      }
 
       // ── Health centre source ─────────────────────────────────────────────
-      if (map.getSource("health-source")) return;
-      map.addSource("health-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-      map.addLayer({
-        id: "health-circle",
-        type: "circle",
-        source: "health-source",
-        paint: {
-          "circle-radius": 7,
-          "circle-color": ["get", "color"],
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "white",
-          "circle-translate": [0, 0],
-        },
-        layout: { visibility: visibleLayersRef.current.has("health_centres") ? "visible" : "none" },
-      });
-      map.on("click", "health-circle", (e) => {
-        if (!e.features?.length) return;
-        const props = e.features[0].properties ?? {};
-        const TYPE_CONFIG: Record<string, { color: string; label: string }> = {
-          "CRC": { color: "#7c3aed", label: "CRC" },
-          "Foundation Health Centre": { color: "#0284c7", label: "Foundation HC" },
-          "Government Health Centre": { color: "#059669", label: "Govt Health Centre" },
-          "Referral Helpdesk Hospital": { color: "#d97706", label: "Referral Hospital" },
-          "Super Speciality Hospital": { color: "#dc2626", label: "Super Speciality" },
-        };
-        const cfg = TYPE_CONFIG[props.centreType ?? ""] ?? { color: "#e11d48", label: "Health Centre" };
-        const settlementList = JSON.parse(props.settlements || "[]")
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
-          .join("");
-        new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="map-popup">
-            <span class="badge" style="background:${cfg.color}">${cfg.label}</span>
-            <h3>${props.name}</h3>
-            ${props.notes ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.notes}</div>` : ""}
-            ${settlementList ? `<div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements (≤2 km)</div><ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul></div>` : `<div style="margin-top:6px;font-size:11px;color:#94a3b8;font-style:italic">No settlements within 2 km</div>`}
-          </div>`)
-          .addTo(map);
-      });
-      map.on("mouseenter", "health-circle", () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", "health-circle", () => { map.getCanvas().style.cursor = ""; });
+      try {
+        if (!map.getSource("health-source")) {
+          map.addSource("health-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+          map.addLayer({
+            id: "health-circle",
+            type: "circle",
+            source: "health-source",
+            paint: {
+              "circle-radius": 7,
+              "circle-color": ["get", "color"],
+              "circle-stroke-width": 2,
+              "circle-stroke-color": "white",
+              "circle-translate": [0, 0],
+            },
+            layout: { visibility: visibleLayersRef.current.has("health_centres") ? "visible" : "none" },
+          });
+          map.on("click", "health-circle", (e) => {
+            if (!e.features?.length) return;
+            const props = e.features[0].properties ?? {};
+            const TYPE_CONFIG: Record<string, { color: string; label: string }> = {
+              "CRC": { color: "#7c3aed", label: "CRC" },
+              "Foundation Health Centre": { color: "#0284c7", label: "Foundation HC" },
+              "Government Health Centre": { color: "#059669", label: "Govt Health Centre" },
+              "Referral Helpdesk Hospital": { color: "#d97706", label: "Referral Hospital" },
+              "Super Speciality Hospital": { color: "#dc2626", label: "Super Speciality" },
+            };
+            const cfg = TYPE_CONFIG[props.centreType ?? ""] ?? { color: "#e11d48", label: "Health Centre" };
+            const settlementList = JSON.parse(props.settlements || "[]")
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
+              .join("");
+            new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+              .setLngLat(e.lngLat)
+              .setHTML(`<div class="map-popup">
+                <span class="badge" style="background:${cfg.color}">${cfg.label}</span>
+                <h3>${props.name}</h3>
+                ${props.notes ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.notes}</div>` : ""}
+                ${settlementList ? `<div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements (≤2 km)</div><ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul></div>` : `<div style="margin-top:6px;font-size:11px;color:#94a3b8;font-style:italic">No settlements within 2 km</div>`}
+              </div>`)
+              .addTo(map);
+          });
+          map.on("mouseenter", "health-circle", () => { map.getCanvas().style.cursor = "pointer"; });
+          map.on("mouseleave", "health-circle", () => { map.getCanvas().style.cursor = ""; });
+        }
+      } catch (err) {
+        console.warn("[MapView] health source setup skipped:", err instanceof Error ? err.message : err);
+      }
 
       // ── Zone boundaries ──────────────────────────────────────────────────
       fetch("/api/map/geojson/zones").then((r) => r.json()).then((gj) => {
