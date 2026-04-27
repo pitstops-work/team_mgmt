@@ -112,9 +112,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ go
     // Clone activities (PitstopEvents) linked to this pitstop
     for (const junction of p.events) {
       const ev = junction.event;
-      // Skip completed or cancelled events — no point carrying those forward
-      if (ev.status === "Cancelled" || ev.status === "Done") continue;
-
       const newEventId = randomUUID();
       await prisma.pitstopEvent.create({
         data: {
