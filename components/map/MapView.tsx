@@ -1051,7 +1051,7 @@ export default function MapView({
       ch = new BroadcastChannel("pitstop:geo");
       ch.onmessage = () => {
         const map = mapRef.current;
-        if (!map) return;
+        if (!map || !map.isStyleLoaded()) return;
         fetch("/api/map/geojson/zones").then(r => r.json()).then(gj => {
           if (mapRef.current !== map) return;
           zoneFeaturesRef.current = gj.features ?? [];

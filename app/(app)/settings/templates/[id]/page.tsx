@@ -8,7 +8,8 @@ import {
   ChevronLeft, Plus, Trash2, ChevronUp, ChevronDown,
   GripVertical, Save, AlertTriangle, CheckCircle, ChevronRight,
 } from "lucide-react";
-import type { DbTemplate, DbPitstop, DbTemplateParam } from "@/lib/templateDb";
+import type { DbTemplate, DbPitstop, DbTemplateParam, DbActivity } from "@/lib/templateDb";
+import { normalizeActivities } from "@/lib/templateDb";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -186,18 +187,42 @@ function PitstopEditor({
   const update = (patch: Partial<DbPitstop>) => onChange({ ...pitstop, ...patch });
 
   const addChecklistItem = () =>
-    update({ checklist: [...pitstop.checklist, { text: "", completionType: "Activity", activityTitle: "" }] });
+    update({ checklist: [...pitstop.checklist, { text: "", activities: [] }] });
 
   const removeChecklistItem = (i: number) =>
     update({ checklist: pitstop.checklist.filter((_, idx) => idx !== i) });
 
-  const updateChecklistItem = (i: number, patch: Partial<{ text: string; completionType: string; activityTitle: string }>) =>
+  const updateChecklistItemText = (i: number, text: string) =>
     update({
-      checklist: pitstop.checklist.map((item, idx) => idx === i ? { ...item, ...patch } : item),
+      checklist: pitstop.checklist.map((item, idx) => idx === i ? { ...item, text } : item),
     });
 
   const moveChecklistItem = (i: number, dir: -1 | 1) =>
     update({ checklist: move(pitstop.checklist, i, i + dir) });
+
+  const addActivity = (itemIdx: number) =>
+    update({
+      checklist: pitstop.checklist.map((item, idx) => idx === itemIdx
+        ? { ...item, activities: [...(item.activities ?? []), { title: "", completionType: "Activity" }] }
+        : item),
+    });
+
+  const removeActivity = (itemIdx: number, actIdx: number) =>
+    update({
+      checklist: pitstop.checklist.map((item, idx) => idx === itemIdx
+        ? { ...item, activities: (item.activities ?? []).filter((_, ai) => ai !== actIdx) }
+        : item),
+    });
+
+  const updateActivity = (itemIdx: number, actIdx: number, patch: Partial<DbActivity>) =>
+    update({
+      checklist: pitstop.checklist.map((item, idx) => idx === itemIdx
+        ? {
+            ...item,
+            activities: (item.activities ?? []).map((act, ai) => ai === actIdx ? { ...act, ...patch } : act),
+          }
+        : item),
+    });
 
   return (
     <div className="border border-stone-200 rounded-xl bg-white overflow-hidden">
@@ -304,48 +329,71 @@ function PitstopEditor({
               </button>
             </div>
             <div className="space-y-2">
-              {pitstop.checklist.map((item, i) => (
-                <div key={i} className="border border-stone-200 rounded-lg bg-stone-50 p-2 space-y-1.5">
-                  {/* Row 1: reorder + text + delete */}
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => moveChecklistItem(i, -1)} disabled={i === 0} className="p-0.5 hover:bg-stone-200 rounded disabled:opacity-30 shrink-0">
-                      <ChevronUp className="w-3 h-3 text-stone-400" />
-                    </button>
-                    <button onClick={() => moveChecklistItem(i, 1)} disabled={i === pitstop.checklist.length - 1} className="p-0.5 hover:bg-stone-200 rounded disabled:opacity-30 shrink-0">
-                      <ChevronDown className="w-3 h-3 text-stone-400" />
-                    </button>
-                    <input
-                      className="flex-1 px-2.5 py-1 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
-                      value={item.text}
-                      onChange={(e) => updateChecklistItem(i, { text: e.target.value })}
-                      placeholder="Checklist item text (supports {paramKey})"
-                    />
-                    <button onClick={() => removeChecklistItem(i)} className="p-1 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors shrink-0">
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                  {/* Row 2: completion type + activity title */}
-                  <div className="flex items-center gap-2 pl-7">
-                    <select
-                      className="px-2 py-1 text-xs border border-stone-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-stone-300 text-stone-600 shrink-0"
-                      value={item.completionType ?? ""}
-                      onChange={(e) => updateChecklistItem(i, { completionType: e.target.value || undefined })}
-                    >
-                      {COMPLETION_TYPES.map(ct => (
-                        <option key={ct.value} value={ct.value}>{ct.label}</option>
-                      ))}
-                    </select>
-                    {(item.completionType === "Activity" || item.completionType === "Voice" || item.completionType === "Upload") && (
+              {pitstop.checklist.map((item, i) => {
+                const activities = normalizeActivities(item);
+                return (
+                  <div key={i} className="border border-stone-200 rounded-lg bg-stone-50 p-2 space-y-2">
+                    {/* Row: reorder + text + delete */}
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => moveChecklistItem(i, -1)} disabled={i === 0} className="p-0.5 hover:bg-stone-200 rounded disabled:opacity-30 shrink-0">
+                        <ChevronUp className="w-3 h-3 text-stone-400" />
+                      </button>
+                      <button onClick={() => moveChecklistItem(i, 1)} disabled={i === pitstop.checklist.length - 1} className="p-0.5 hover:bg-stone-200 rounded disabled:opacity-30 shrink-0">
+                        <ChevronDown className="w-3 h-3 text-stone-400" />
+                      </button>
                       <input
-                        className="flex-1 px-2.5 py-1 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-stone-300 bg-white text-stone-700"
-                        value={item.activityTitle ?? ""}
-                        onChange={(e) => updateChecklistItem(i, { activityTitle: e.target.value })}
-                        placeholder={`Activity title for scheduling (supports {paramKey})`}
+                        className="flex-1 px-2.5 py-1 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+                        value={item.text}
+                        onChange={(e) => updateChecklistItemText(i, e.target.value)}
+                        placeholder="Checklist item text (supports {paramKey})"
                       />
-                    )}
+                      <button onClick={() => removeChecklistItem(i)} className="p-1 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors shrink-0">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {/* Activities sub-section */}
+                    <div className="pl-6 border-l-2 border-stone-200 ml-4 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Activities</span>
+                        <button
+                          onClick={() => addActivity(i)}
+                          className="flex items-center gap-0.5 text-[10px] text-stone-400 hover:text-stone-700 transition-colors"
+                        >
+                          <Plus className="w-2.5 h-2.5" /> Add
+                        </button>
+                      </div>
+                      {activities.length === 0 && (
+                        <p className="text-[11px] text-stone-300 italic">No activities — item completes as checkbox</p>
+                      )}
+                      {activities.map((act, ai) => (
+                        <div key={ai} className="flex items-center gap-1.5">
+                          <input
+                            className="flex-1 px-2 py-1 text-xs border border-stone-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-stone-300"
+                            value={act.title}
+                            onChange={(e) => updateActivity(i, ai, { title: e.target.value })}
+                            placeholder="Activity title (supports {paramKey})"
+                          />
+                          <select
+                            className="px-1.5 py-1 text-xs border border-stone-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-stone-300 shrink-0"
+                            value={act.completionType}
+                            onChange={(e) => updateActivity(i, ai, { completionType: e.target.value })}
+                          >
+                            {COMPLETION_TYPES.filter(ct => ct.value !== "").map(ct => (
+                              <option key={ct.value} value={ct.value}>{ct.label}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => removeActivity(i, ai)}
+                            className="p-0.5 hover:bg-red-50 rounded text-stone-300 hover:text-red-400 transition-colors shrink-0"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {pitstop.checklist.length === 0 && (
                 <p className="text-xs text-stone-400 italic">No checklist items yet.</p>
               )}
@@ -391,6 +439,20 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
     const res = await fetch(`/api/admin/templates/${id}`);
     if (res.ok) {
       const data = await res.json();
+      // Normalize checklist items to new multi-activity format
+      data.pitstops = (data.pitstops ?? []).map((pt: any) => ({
+        ...pt,
+        checklist: (pt.checklist ?? []).map((item: any) => {
+          if (item.activities !== undefined) return item;
+          const { activityTitle, completionType, ...rest } = item;
+          return {
+            ...rest,
+            activities: activityTitle
+              ? [{ title: activityTitle, completionType: completionType ?? "Activity" }]
+              : [],
+          };
+        }),
+      }));
       setTemplate(data);
     }
     setLoading(false);

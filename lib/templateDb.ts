@@ -1,9 +1,22 @@
 // Types for DB-backed templates (GoalTemplateDef table)
 
+export interface DbActivity {
+  title: string;
+  completionType: string; // "" | "Activity" | "Voice" | "Upload"
+}
+
 export interface DbChecklistItem {
   text: string;
+  activities?: DbActivity[];
+  // Legacy single-activity fields (kept for backward compat reading)
   activityTitle?: string;
   completionType?: string;
+}
+
+export function normalizeActivities(item: DbChecklistItem): DbActivity[] {
+  if (item.activities) return item.activities;
+  if (item.activityTitle) return [{ title: item.activityTitle, completionType: item.completionType ?? "Activity" }];
+  return [];
 }
 
 export interface DbPitstop {
@@ -60,8 +73,10 @@ export function interpolatePitstops(
     notes: interpolate(pt.notes, params),
     checklist: pt.checklist.map((item) => ({
       text: interpolate(item.text, params),
-      ...(item.activityTitle ? { activityTitle: interpolate(item.activityTitle, params) } : {}),
-      ...(item.completionType ? { completionType: item.completionType } : {}),
+      activities: normalizeActivities(item).map((act) => ({
+        title: interpolate(act.title, params),
+        completionType: act.completionType,
+      })),
     })),
   }));
 }
