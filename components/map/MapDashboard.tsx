@@ -53,7 +53,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     new Set(LAYERS.filter(l => l.city === "bangalore" && l.key !== "schools").map((l) => l.key))
   );
   const [featureCounts, setFeatureCounts] = useState<Partial<Record<LayerKey, number>>>({});
-  const [geoDb, setGeoDb] = useState<{ zones: { id: string; name: string }[]; clusters: { id: string; name: string }[] }>({ zones: [], clusters: [] });
+  const [geoDb, setGeoDb] = useState<{ zones: { id: string; name: string }[]; clusters: { id: string; name: string; settlementCount?: number }[] }>({ zones: [], clusters: [] });
   // Sidebar closed by default; opens on desktop via useEffect
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeZone, setActiveZone] = useState<string | null>(null);
@@ -451,6 +451,11 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
             activeCluster
               ? (geoDb.clusters.find(c => c.name === activeCluster)?.id ?? null)
               : activeZone ?? null
+          }
+          dbSettlementCount={
+            activeCluster
+              ? (geoDb.clusters.find(c => c.name === activeCluster)?.settlementCount ?? null)
+              : null
           }
           geoData={geoData}
           clusterIndex={zoneClusterIndex.clusters}

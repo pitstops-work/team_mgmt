@@ -36,6 +36,7 @@ interface Props {
   name: string | null;
   parentZone?: string;
   dbId?: string | null;
+  dbSettlementCount?: number | null;
   geoData: GeoData | null;
   clusterIndex: Record<string, { zone: string; display?: string; settlements: string[] }>;
   zoneIndex: Record<string, string[]>;
@@ -59,7 +60,7 @@ function fmtDate(iso: string) {
 }
 
 export default function ZoneClusterSidebar({
-  type, name, parentZone, dbId, geoData, clusterIndex, zoneIndex, onClose,
+  type, name, parentZone, dbId, dbSettlementCount, geoData, clusterIndex, zoneIndex, onClose,
   currentUserId, currentUserDesignation, currentUserRole, allUsers = [],
 }: Props) {
   const [goals, setGoals] = useState<GoalWithPitstops[]>([]);
@@ -92,9 +93,10 @@ export default function ZoneClusterSidebar({
       .finally(() => setLoading(false));
   }, [type, name]);
 
-  // Settlement count
+  // Settlement count — prefer live DB count (works for all cities), fall back to static JSON
   const settlementCount = (() => {
-    if (!name || !geoData) return 0;
+    if (type === "cluster" && dbSettlementCount != null) return dbSettlementCount;
+    if (!name) return 0;
     if (type === "cluster") return clusterIndex[name]?.settlements?.length ?? 0;
     if (type === "zone") return zoneIndex[name]?.length ?? 0;
     return 0;
