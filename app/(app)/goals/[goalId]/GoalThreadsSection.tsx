@@ -21,7 +21,7 @@ function formatBody(body: string) {
   return body.replace(/@\[([^\]]+)\]\([^)]+\)/g, "@$1");
 }
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 }
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });

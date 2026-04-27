@@ -1025,7 +1025,7 @@ function DrillDownPanel({ drill, onClose }: { drill: NonNullable<DrillState>; on
                                           <div className="min-w-0">
                                             <p className="text-xs font-medium text-stone-700 truncate">{act.title}</p>
                                             <p className="text-[10px] text-stone-400">
-                                              {act.type} · {new Date(act.scheduledAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                                              {act.type} · {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                                             </p>
                                           </div>
                                         </div>

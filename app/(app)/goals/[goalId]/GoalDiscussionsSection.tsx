@@ -21,7 +21,7 @@ function formatBody(body: string) { return body.replace(/@\[([^\]]+)\]\([^)]+\)/
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
-function fmtTime(iso: string) { return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
+function fmtTime(iso: string) { return new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }); }
 
 // ── Mini composer ─────────────────────────────────────────────────────────────
 

@@ -35,9 +35,9 @@ function formatBody(body: string): string {
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+  return d.toLocaleDateString("en-IN", { month: "short", day: "numeric" }) +
     " at " +
-    d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 }
 
 export default function MessageBubble({ message, isOwn, preferredLang }: Props) {

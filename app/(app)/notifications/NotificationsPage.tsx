@@ -193,7 +193,7 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
                       {typeLabel[n.type] ?? n.type}
                     </span>
                     <span className="text-[10px] text-stone-400">
-                      {new Date(n.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      {new Date(n.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
                   <p className="text-sm font-medium text-stone-900">{n.title}</p>
