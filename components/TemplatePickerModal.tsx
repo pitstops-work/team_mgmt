@@ -38,14 +38,6 @@ interface FacilityOption {
   settlement: string;
 }
 
-const FACILITY_LAYER_LABELS: Record<string, string> = {
-  creches:          "Creche",
-  children_centres: "Children Centre",
-  youth_centres:    "Youth Resource Centre",
-  elderly_centres:  "Elderly Centre",
-  water_atms:       "Water ATM",
-};
-
 interface PreviewPitstop {
   title: string;
   type: string;
@@ -133,6 +125,7 @@ export default function TemplatePickerModal({
   const [linkedFacilityId, setLinkedFacilityId] = useState<string>("");
   const [facilities, setFacilities] = useState<FacilityOption[]>([]);
   const [facilitySearch, setFacilitySearch] = useState("");
+  const [facilityLayerLabels, setFacilityLayerLabels] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState("");
@@ -201,6 +194,18 @@ export default function TemplatePickerModal({
     setGeoVal({ cityId, zoneId, clusterId, settlementId });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geoRaw]);
+
+  // Fetch facility layer labels once
+  useEffect(() => {
+    fetch("/api/admin/facility-layers")
+      .then(r => r.json())
+      .then((rows: { layerKey: string; label: string }[]) => {
+        const map: Record<string, string> = {};
+        rows.forEach(r => { map[r.layerKey] = r.label; });
+        setFacilityLayerLabels(map);
+      })
+      .catch(() => {});
+  }, []);
 
   // Fetch facilities when the selected template has a linked facility layer
   useEffect(() => {
@@ -703,7 +708,7 @@ export default function TemplatePickerModal({
               {selected.linkedFacilityLayerKey && (
                 <div>
                   <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">
-                    Select {FACILITY_LAYER_LABELS[selected.linkedFacilityLayerKey] ?? "Facility"}
+                    Select {facilityLayerLabels[selected.linkedFacilityLayerKey] ?? selected.linkedFacilityLayerKey ?? "Facility"}
                   </p>
                   <div className="relative mb-2">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />

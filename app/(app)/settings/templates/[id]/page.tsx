@@ -21,14 +21,6 @@ const RECURRENCES = ["None", "Weekly", "Monthly", "Quarterly"];
 const PROGRESS_TAGS = ["Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring"];
 const PARAM_TYPES = ["number", "text", "choice"] as const;
 const CATEGORIES = ["Community Programs", "Programmes", "Field Programmes", "Zonal Leadership"];
-const FACILITY_LAYER_OPTIONS = [
-  { value: "",                 label: "None — no linked facility" },
-  { value: "creches",          label: "Creche" },
-  { value: "children_centres", label: "Children Centre" },
-  { value: "youth_centres",    label: "Youth Resource Centre" },
-  { value: "elderly_centres",  label: "Elderly Centre" },
-  { value: "water_atms",       label: "Water ATM" },
-];
 const COMPLETION_TYPES = [
   { value: "",         label: "Checkbox" },
   { value: "Activity", label: "Activity" },
@@ -315,6 +307,29 @@ function PitstopEditor({
             </Field>
           </div>
 
+          {/* Repeat count — only shown when recurring */}
+          {pitstop.recurrence && pitstop.recurrence !== "None" && (
+            <div className="flex items-center gap-3 px-3 py-2.5 bg-sky-50 border border-sky-200 rounded-lg">
+              <div className="flex-1">
+                <Field label={`Repeat count — how many ${pitstop.recurrence.toLowerCase()} instances to generate`}>
+                  <input
+                    type="number"
+                    min={1}
+                    max={52}
+                    className={inputCls + " w-24"}
+                    value={pitstop.repeatCount ?? 1}
+                    onChange={(e) => update({ repeatCount: Math.max(1, Number(e.target.value)) })}
+                  />
+                </Field>
+              </div>
+              <p className="text-xs text-sky-600 max-w-xs self-end pb-1">
+                {(pitstop.repeatCount ?? 1) > 1
+                  ? `Creates ${pitstop.repeatCount} separate pitstops, each shifted by 1 ${pitstop.recurrence.toLowerCase().replace("ly", "")} period, labelled "Month 1", "Month 2"…`
+                  : `Set to 2+ to generate multiple instances of this pitstop at this cadence.`}
+              </p>
+            </div>
+          )}
+
           {/* Notes */}
           <Field label="Notes (supports {paramKey} placeholders)">
             <textarea
@@ -442,11 +457,23 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
   const [errorMsg, setErrorMsg] = useState("");
   const [activeSection, setActiveSection] = useState<"info" | "params" | "pitstops">("info");
   const [needsDomains, setNeedsDomains] = useState<{ domain: string; label: string }[]>([]);
+  const [facilityLayerOptions, setFacilityLayerOptions] = useState<{ value: string; label: string }[]>([
+    { value: "", label: "None — no linked facility" },
+  ]);
 
   useEffect(() => {
     fetch("/api/needs/formulas")
       .then(r => r.json())
       .then((rows: { domain: string; label: string }[]) => setNeedsDomains(rows))
+      .catch(() => {});
+    fetch("/api/admin/facility-layers")
+      .then(r => r.json())
+      .then((rows: { layerKey: string; label: string }[]) => {
+        setFacilityLayerOptions([
+          { value: "", label: "None — no linked facility" },
+          ...rows.map(r => ({ value: r.layerKey, label: r.label })),
+        ]);
+      })
       .catch(() => {});
   }, []);
 
@@ -736,7 +763,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
               value={template.linkedFacilityLayerKey ?? ""}
               onChange={(e) => setTemplate((t) => ({ ...t, linkedFacilityLayerKey: e.target.value || null }))}
             >
-              {FACILITY_LAYER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {facilityLayerOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <p className="text-xs text-stone-400 mt-1">
               When set, the goal creation wizard shows a facility picker (from that layer) instead of asking &ldquo;Number of centres&rdquo;.

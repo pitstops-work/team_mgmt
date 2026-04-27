@@ -1461,3 +1461,14 @@ model UserLoginEvent {
 
   @@index([userId, createdAt])
 }
+
+// Admin-configurable registry of facility layer types shown in template builder + goal wizard
+model FacilityLayerConfig {
+  id        String   @id @default(cuid())
+  layerKey  String   @unique
+  label     String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

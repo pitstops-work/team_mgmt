@@ -50,6 +50,25 @@ async function resolveCityName(
   return null;
 }
 
+function getCadenceDays(recurrence: string): number {
+  if (recurrence === "Weekly")    return 7;
+  if (recurrence === "Quarterly") return 90;
+  return 30;
+}
+
+function instanceLabel(recurrence: string, idx: number): string {
+  if (recurrence === "Weekly")    return `Week ${idx + 1}`;
+  if (recurrence === "Quarterly") return `Q${idx + 1}`;
+  return `Month ${idx + 1}`;
+}
+
+type PitstopInstance = {
+  pt: DbPitstop;
+  title: string;
+  pitstopStart: Date;
+  pitstopTarget: Date;
+};
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -79,16 +98,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const goalStart = new Date(startDate);
   const goalOwnerId = ownerId ?? session.user.id;
 
+  // Expand recurring pitstops into individual instances
+  const allInstances: PitstopInstance[] = [];
+  for (const pt of pitstopTemplates) {
+    const isRecurring = pt.recurrence && pt.recurrence !== "None";
+    const repeatCount = isRecurring ? Math.max(1, pt.repeatCount ?? 1) : 1;
+    const cadence = isRecurring ? getCadenceDays(pt.recurrence!) : 0;
+
+    for (let i = 0; i < repeatCount; i++) {
+      const pitstopStart = new Date(goalStart);
+      pitstopStart.setDate(pitstopStart.getDate() + pt.startSlaDays + i * cadence);
+      const pitstopTarget = new Date(goalStart);
+      pitstopTarget.setDate(pitstopTarget.getDate() + pt.slaDays + i * cadence);
+
+      allInstances.push({
+        pt,
+        title: repeatCount > 1 ? `${pt.title} (${instanceLabel(pt.recurrence!, i)})` : pt.title,
+        pitstopStart,
+        pitstopTarget,
+      });
+    }
+  }
+
   const resolvedTargetDate = targetDate
     ? new Date(targetDate)
-    : (() => {
-        const maxSla = pitstopTemplates.length > 0
-          ? Math.max(...pitstopTemplates.map((pt) => pt.slaDays))
-          : 365;
-        const d = new Date(goalStart);
-        d.setDate(d.getDate() + maxSla);
-        return d;
-      })();
+    : allInstances.length > 0
+      ? allInstances.reduce((max, inst) => inst.pitstopTarget > max ? inst.pitstopTarget : max, allInstances[0].pitstopTarget)
+      : (() => { const d = new Date(goalStart); d.setDate(d.getDate() + 365); return d; })();
+
+  const validTypes = [
+    "Meeting", "Training", "SiteVisit", "Discussion",
+    "AppDevelopment", "Budgeting", "Proposal", "Research", "Review", "Custom",
+  ];
+  const validRecurrences = ["None", "Weekly", "Monthly", "Quarterly"];
 
   const goal = await prisma.goal.create({
     data: {
@@ -104,33 +146,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       needsCityId: needsCityId ?? null,
       linkedFacilityId: linkedFacilityId ?? null,
       pitstops: {
-        create: pitstopTemplates.map((pt, idx) => {
-          const pitstopStart = new Date(goalStart);
-          pitstopStart.setDate(pitstopStart.getDate() + pt.startSlaDays);
-          const pitstopTarget = new Date(goalStart);
-          pitstopTarget.setDate(pitstopTarget.getDate() + pt.slaDays);
-
-          const validTypes = [
-            "Meeting", "Training", "SiteVisit", "Discussion",
-            "AppDevelopment", "Budgeting", "Proposal", "Research", "Review", "Custom",
-          ];
-          const pitstopType = validTypes.includes(pt.type) ? pt.type : "Discussion";
-
-          const validRecurrences = ["None", "Weekly", "Monthly", "Quarterly"];
-          const recurrence = pt.recurrence && validRecurrences.includes(pt.recurrence) ? pt.recurrence : "None";
+        create: allInstances.map((inst, idx) => {
+          const pitstopType = validTypes.includes(inst.pt.type) ? inst.pt.type : "Discussion";
+          const recurrence = inst.pt.recurrence && validRecurrences.includes(inst.pt.recurrence)
+            ? inst.pt.recurrence
+            : "None";
 
           return {
-            title: pt.title,
+            title: inst.title,
             type: pitstopType as any,
-            notes: pt.notes,
+            notes: inst.pt.notes,
             order: idx,
             ownerId: goalOwnerId,
             ownerInherited: true,
             recurrence: recurrence as any,
-            startDate: pitstopStart,
-            targetDate: pitstopTarget,
+            startDate: inst.pitstopStart,
+            targetDate: inst.pitstopTarget,
             checklistItems: {
-              create: pt.checklist.map((item, itemIdx) => ({
+              create: inst.pt.checklist.map((item, itemIdx) => ({
                 text: item.text,
                 order: itemIdx,
               })),
@@ -153,8 +186,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   `;
 
   // Set progressTag on pitstops
-  for (let idx = 0; idx < pitstopTemplates.length; idx++) {
-    const tag = pitstopTemplates[idx]?.progressTag ?? null;
+  for (let idx = 0; idx < allInstances.length; idx++) {
+    const tag = allInstances[idx]?.pt.progressTag ?? null;
     const pitstop = pitstopsOrdered[idx];
     if (!pitstop) continue;
     await prisma.$executeRaw`
@@ -163,10 +196,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // Set completionType on checklist items based on first activity type
-  for (let piIdx = 0; piIdx < pitstopTemplates.length; piIdx++) {
+  for (let piIdx = 0; piIdx < allInstances.length; piIdx++) {
     const pitstop = pitstopsOrdered[piIdx];
     if (!pitstop) continue;
-    const pt = pitstopTemplates[piIdx];
+    const pt = allInstances[piIdx].pt;
     const ciIds = await prisma.$queryRaw<{ id: string }[]>`
       SELECT id FROM "ChecklistItem" WHERE "pitstopId" = ${pitstop.id} ORDER BY "order" ASC
     `;
@@ -205,10 +238,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const schedConfig = buildScheduleConfig(appSettings);
   const cityName = await resolveCityName(needsCityId, needsZoneId, needsClusterId, needsSettlementId);
 
-  for (let piIdx = 0; piIdx < pitstopTemplates.length; piIdx++) {
+  for (let piIdx = 0; piIdx < allInstances.length; piIdx++) {
     const pitstop = pitstopsOrdered[piIdx];
-    const pt = pitstopTemplates[piIdx];
-    if (!pitstop || !pt) continue;
+    const inst = allInstances[piIdx];
+    if (!pitstop || !inst) continue;
+
+    const pt = inst.pt;
 
     const itemsWithActivities = pt.checklist
       .map((item, idx) => ({ item, idx, activities: normalizeActivities(item) }))
@@ -217,16 +252,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const totalActivities = itemsWithActivities.reduce((sum, { activities }) => sum + activities.length, 0);
     if (totalActivities === 0) continue;
 
-    const rawStartSla = Number(pt.startSlaDays ?? 0);
-    const rawSla = Number(pt.slaDays ?? 0);
-    const effectiveSla = rawSla > rawStartSla ? rawSla : rawStartSla + (
-      pt.recurrence === "Quarterly" ? 90 : pt.recurrence === "Weekly" ? 7 : 30
-    );
-
-    const pitstopWindowStart = new Date(goalStart);
-    pitstopWindowStart.setDate(pitstopWindowStart.getDate() + rawStartSla);
-    const pitstopWindowEnd = new Date(goalStart);
-    pitstopWindowEnd.setDate(pitstopWindowEnd.getDate() + effectiveSla);
+    // Use the instance's own date window for scheduling
+    const pitstopWindowStart = inst.pitstopStart;
+    const pitstopWindowEnd = inst.pitstopTarget > inst.pitstopStart
+      ? inst.pitstopTarget
+      : (() => {
+          const isRecurring = pt.recurrence && pt.recurrence !== "None";
+          const cadenceDaysVal = isRecurring ? getCadenceDays(pt.recurrence!) : 30;
+          const d = new Date(inst.pitstopStart);
+          d.setDate(d.getDate() + cadenceDaysVal);
+          return d;
+        })();
 
     const workingDays = getWorkingDays(pitstopWindowStart, pitstopWindowEnd, cityName, schedConfig);
     const effectiveDays = workingDays.length > 0

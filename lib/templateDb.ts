@@ -26,6 +26,7 @@ export interface DbPitstop {
   slaDays: number;
   startSlaDays: number;
   recurrence?: string;
+  repeatCount?: number;  // how many instances to generate for recurring pitstops (default: 1)
   progressTag?: string;
   checklist: DbChecklistItem[];
 }
