@@ -189,9 +189,11 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
   // Update draw preview when vertices or pin change
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    ensureDrawSource(map);
-    updateDrawPreview(map, pendingPin, drawVertices);
+    if (!map || !map.isStyleLoaded()) return;
+    try {
+      ensureDrawSource(map);
+      updateDrawPreview(map, pendingPin, drawVertices);
+    } catch { /* style race - ignore */ }
   }, [pendingPin, drawVertices, mapRef]);
 
   // Map click / dblclick handlers
