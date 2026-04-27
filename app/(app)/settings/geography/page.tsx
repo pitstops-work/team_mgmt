@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronDown, ChevronRight, Check } from "lucide-react";
 import Link from "next/link";
 
+function broadcastBoundariesUpdated() {
+  try { new BroadcastChannel("pitstop:geo").postMessage("boundaries-updated"); } catch { /* unsupported */ }
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface SettlementRow {
@@ -161,6 +165,8 @@ export default function GeographyPage() {
           }),
         }))
       );
+      const data = await res.json();
+      if (data.boundariesUpdated) broadcastBoundariesUpdated();
       toast.show(!active ? "Settlement activated" : "Settlement deactivated");
     }
   };
@@ -192,6 +198,8 @@ export default function GeographyPage() {
           }),
         }));
       });
+      const data = await res.json();
+      if (data.boundariesUpdated) broadcastBoundariesUpdated();
       toast.show("Settlement moved");
     }
   };

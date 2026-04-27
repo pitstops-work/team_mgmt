@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { recomputeClusterBoundary, recomputeZoneBoundary } from "@/lib/geo";
 
 // GET /api/admin/geography?city=name
 // Returns { zones: [{ id, name, clusters: [{ id, name, settlementCount, activeCount }] }] }
@@ -96,11 +97,16 @@ export async function PATCH(req: NextRequest) {
   if (body.type === "settlement") {
     const { id, active } = body;
     if (!id || active === undefined) return Response.json({ error: "id and active required" }, { status: 400 });
-    await prisma.settlement.update({
+    const s = await prisma.settlement.findUnique({
       where: { id },
-      data: { deletedAt: active ? null : new Date() },
+      select: { clusterId: true, cluster: { select: { zoneId: true } } },
     });
-    return Response.json({ ok: true });
+    await prisma.settlement.update({ where: { id }, data: { deletedAt: active ? null : new Date() } });
+    if (s?.clusterId) {
+      await recomputeClusterBoundary(s.clusterId, prisma);
+      if (s.cluster?.zoneId) await recomputeZoneBoundary(s.cluster.zoneId, prisma);
+    }
+    return Response.json({ ok: true, boundariesUpdated: true });
   }
 
   if (body.type === "rename-zone") {
@@ -120,8 +126,19 @@ export async function PATCH(req: NextRequest) {
   if (body.type === "settlement-cluster") {
     const { id, clusterId } = body;
     if (!id || !clusterId) return Response.json({ error: "id and clusterId required" }, { status: 400 });
+    const old = await prisma.settlement.findUnique({
+      where: { id },
+      select: { clusterId: true, cluster: { select: { zoneId: true } } },
+    });
     await prisma.settlement.update({ where: { id }, data: { clusterId } });
-    return Response.json({ ok: true });
+    const newCluster = await prisma.cluster.findUnique({ where: { id: clusterId }, select: { zoneId: true } });
+    const clusterIds = [...new Set([old?.clusterId, clusterId].filter(Boolean))] as string[];
+    const zoneIds = [...new Set([old?.cluster?.zoneId, newCluster?.zoneId].filter(Boolean))] as string[];
+    await Promise.all([
+      ...clusterIds.map(cid => recomputeClusterBoundary(cid, prisma)),
+      ...zoneIds.map(zid => recomputeZoneBoundary(zid, prisma)),
+    ]);
+    return Response.json({ ok: true, boundariesUpdated: true });
   }
 
   if (body.type === "rename-settlement") {

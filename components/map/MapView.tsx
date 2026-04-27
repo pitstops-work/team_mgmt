@@ -1044,6 +1044,31 @@ export default function MapView({
     });
   }, [showClusters]);
 
+  // ── Re-fetch zone/cluster boundaries when Geography settings change ───────
+  useEffect(() => {
+    let ch: BroadcastChannel | null = null;
+    try {
+      ch = new BroadcastChannel("pitstop:geo");
+      ch.onmessage = () => {
+        const map = mapRef.current;
+        if (!map) return;
+        fetch("/api/map/geojson/zones").then(r => r.json()).then(gj => {
+          if (mapRef.current !== map) return;
+          zoneFeaturesRef.current = gj.features ?? [];
+          (map.getSource("zones-source") as maplibregl.GeoJSONSource | undefined)
+            ?.setData({ type: "FeatureCollection", features: gj.features ?? [] });
+        }).catch(() => {});
+        fetch("/api/map/geojson/clusters").then(r => r.json()).then(gj => {
+          if (mapRef.current !== map) return;
+          clusterFeaturesRef.current = gj.features ?? [];
+          (map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined)
+            ?.setData({ type: "FeatureCollection", features: gj.features ?? [] });
+        }).catch(() => {});
+      };
+    } catch { /* BroadcastChannel unsupported */ }
+    return () => { ch?.close(); };
+  }, []);
+
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />

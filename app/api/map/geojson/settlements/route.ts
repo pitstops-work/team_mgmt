@@ -41,7 +41,17 @@ export async function GET(req: NextRequest) {
     ])
   );
 
-  // ── 2. DB overrides/additions ───────────────────────────────────────────
+  // ── 2a. Suppression list — deactivated settlements suppress their GeoJSON counterpart ──
+  const deactivated = await prisma.settlement.findMany({
+    where: {
+      deletedAt: { not: null },
+      ...(partner ? { partner: { key: partner } } : {}),
+    },
+    select: { name: true },
+  });
+  const suppressedNames = new Set(deactivated.map(s => s.name.trim().toLowerCase()));
+
+  // ── 2b. DB overrides/additions ──────────────────────────────────────────
   const rows = await prisma.settlement.findMany({
     where: {
       deletedAt: null,
@@ -73,6 +83,7 @@ export async function GET(req: NextRequest) {
 
   for (const sf of staticFeatures) {
     const sName = (String(sf.properties?.name ?? "")).trim().toLowerCase();
+    if (suppressedNames.has(sName)) continue; // deactivated in DB — suppress from map
     const dbRow = dbByName.get(sName);
     if (dbRow) {
       // DB version takes precedence (user may have edited the polygon)
