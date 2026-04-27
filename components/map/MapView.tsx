@@ -508,6 +508,7 @@ export default function MapView({
       });
 
       // ── School markers source ────────────────────────────────────────────
+      if (map.getSource("schools-source")) return;
       map.addSource("schools-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({
         id: "schools-circle",
@@ -550,6 +551,7 @@ export default function MapView({
       map.on("mouseleave", "schools-circle", () => { map.getCanvas().style.cursor = ""; });
 
       // ── Health centre source ─────────────────────────────────────────────
+      if (map.getSource("health-source")) return;
       map.addSource("health-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({
         id: "health-circle",

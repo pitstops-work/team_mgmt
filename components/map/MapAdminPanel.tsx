@@ -39,42 +39,44 @@ interface Props {
 
 function ensureDrawSource(map: maplibregl.Map) {
   if (map.getSource(DRAW_SOURCE)) return;
-  map.addSource(DRAW_SOURCE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  map.addLayer({
-    id: "admin-draw-polygon",
-    type: "fill",
-    source: DRAW_SOURCE,
-    filter: ["==", "$type", "Polygon"],
-    paint: { "fill-color": "#f59e0b", "fill-opacity": 0.12 },
-  });
-  map.addLayer({
-    id: "admin-draw-polygon-line",
-    type: "line",
-    source: DRAW_SOURCE,
-    filter: ["==", "$type", "Polygon"],
-    paint: { "line-color": "#f59e0b", "line-width": 2, "line-dasharray": [6, 4] },
-  });
-  map.addLayer({
-    id: "admin-draw-line",
-    type: "line",
-    source: DRAW_SOURCE,
-    filter: ["==", "$type", "LineString"],
-    paint: { "line-color": "#f59e0b", "line-width": 2, "line-dasharray": [6, 4] },
-  });
-  map.addLayer({
-    id: "admin-draw-vertices",
-    type: "circle",
-    source: DRAW_SOURCE,
-    filter: ["all", ["==", "$type", "Point"], ["!=", ["get", "pinType"], "pin"]],
-    paint: { "circle-radius": 5, "circle-color": "#f59e0b", "circle-stroke-width": 2, "circle-stroke-color": "white" },
-  });
-  map.addLayer({
-    id: "admin-draw-pin",
-    type: "circle",
-    source: DRAW_SOURCE,
-    filter: ["all", ["==", "$type", "Point"], ["==", ["get", "pinType"], "pin"]],
-    paint: { "circle-radius": 9, "circle-color": "#6366f1", "circle-stroke-width": 2.5, "circle-stroke-color": "white" },
-  });
+  try {
+    map.addSource(DRAW_SOURCE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({
+      id: "admin-draw-polygon",
+      type: "fill",
+      source: DRAW_SOURCE,
+      filter: ["==", "$type", "Polygon"],
+      paint: { "fill-color": "#f59e0b", "fill-opacity": 0.12 },
+    });
+    map.addLayer({
+      id: "admin-draw-polygon-line",
+      type: "line",
+      source: DRAW_SOURCE,
+      filter: ["==", "$type", "Polygon"],
+      paint: { "line-color": "#f59e0b", "line-width": 2, "line-dasharray": [6, 4] },
+    });
+    map.addLayer({
+      id: "admin-draw-line",
+      type: "line",
+      source: DRAW_SOURCE,
+      filter: ["==", "$type", "LineString"],
+      paint: { "line-color": "#f59e0b", "line-width": 2, "line-dasharray": [6, 4] },
+    });
+    map.addLayer({
+      id: "admin-draw-vertices",
+      type: "circle",
+      source: DRAW_SOURCE,
+      filter: ["all", ["==", "$type", "Point"], ["!=", ["get", "pinType"], "pin"]],
+      paint: { "circle-radius": 5, "circle-color": "#f59e0b", "circle-stroke-width": 2, "circle-stroke-color": "white" },
+    });
+    map.addLayer({
+      id: "admin-draw-pin",
+      type: "circle",
+      source: DRAW_SOURCE,
+      filter: ["all", ["==", "$type", "Point"], ["==", ["get", "pinType"], "pin"]],
+      paint: { "circle-radius": 9, "circle-color": "#6366f1", "circle-stroke-width": 2.5, "circle-stroke-color": "white" },
+    });
+  } catch { /* style not ready - caller will retry on load */ }
 }
 
 function updateDrawPreview(map: maplibregl.Map, pendingPin: LngLat | null, drawVertices: LngLat[]) {
