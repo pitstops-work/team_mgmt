@@ -10,7 +10,7 @@ const HEALTH_COLORS = { red: "#ef4444", amber: "#f59e0b", green: "#10b981", grey
 
 const TILE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
   sources: {
     "carto": {
       type: "raster",
@@ -78,7 +78,11 @@ export default function RoutePlannerView({ stops }: Props) {
       zoom: 11,
     });
 
+    mapRef.current = map;
+
     map.on("load", () => {
+      if (mapRef.current !== map) return; // map was removed before style finished loading
+
       // ── All settlements: health-colored circles ──────────────────────────
       const features: GeoJSON.Feature[] = stops.map((s) => ({
         type: "Feature",
@@ -191,7 +195,6 @@ export default function RoutePlannerView({ stops }: Props) {
       map.on("mouseleave", "settlements-fill", () => popup.remove());
     });
 
-    mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
