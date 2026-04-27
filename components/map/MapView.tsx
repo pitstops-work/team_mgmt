@@ -170,7 +170,7 @@ const BASEMAP_LAYERS = { carto: "carto-layer", osm: "osm-layer", satellite: "sat
 
 const INITIAL_STYLE: maplibregl.StyleSpecification = {
   version: 8,
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
   sources: {
     "carto-source": {
       type: "raster",

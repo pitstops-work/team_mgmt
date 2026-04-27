@@ -33,15 +33,25 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 async function seedZones() {
   const gj = readGeoJSON("zones.geojson");
-  const zones = await prisma.zone.findMany();
+  const zones = await prisma.zone.findMany({ include: { city: true } });
   let updated = 0;
   for (const feature of gj.features) {
-    const name = feature.properties?.zone as string;
+    const rawName = feature.properties?.zone as string;
     const color = feature.properties?.color as string | undefined;
-    const zone = zones.find(
-      (z) => z.name.toLowerCase() === name?.toLowerCase()
-    );
-    if (!zone) { console.warn("Zone not found:", name); continue; }
+
+    // GeoJSON uses "Chennai – Zonename" prefix for Chennai zones; Bangalore zones have no prefix
+    const isChennai = rawName?.startsWith("Chennai");
+    const zoneName = isChennai
+      ? rawName.replace(/^Chennai\s*[–-]\s*/u, "").trim()
+      : rawName;
+    const cityFilter = isChennai ? "chennai" : "bangalore";
+
+    const zone = zones.find((z) => {
+      const nameMatch = z.name.toLowerCase() === zoneName?.toLowerCase();
+      const cityMatch = z.city?.name?.toLowerCase().includes(cityFilter);
+      return nameMatch && cityMatch;
+    });
+    if (!zone) { console.warn("Zone not found:", rawName); continue; }
     await prisma.$executeRaw`
       UPDATE "Zone" SET geometry = ${JSON.stringify(feature.geometry)}::jsonb, color = ${color ?? null}
       WHERE id = ${zone.id}
