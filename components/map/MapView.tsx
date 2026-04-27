@@ -853,6 +853,11 @@ export default function MapView({
           if (map.getLayer(`${layerConfig.key}-circle`)) map.setLayoutProperty(`${layerConfig.key}-circle`, "visibility", vis);
         }
       });
+      // Facility layers are not in LAYERS — handle them separately
+      facilityLayersRef.current.forEach((fl) => {
+        const vis = visibleLayers.has(fl.layerKey) ? "visible" : "none";
+        if (map.getLayer(`${fl.layerKey}-circle`)) map.setLayoutProperty(`${fl.layerKey}-circle`, "visibility", vis);
+      });
       applyFilterHighlight(map, mapFilterRef.current, visibleLayers);
     } catch (err) {
       console.error("[MapView] visibleLayers effect error:", err);

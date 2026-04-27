@@ -31,13 +31,23 @@ export async function GET() {
         ON CONFLICT ("layerKey") DO NOTHING
       `;
     }
-    rows = await prisma.$queryRaw<{ id: string; layerKey: string; label: string; color: string; needsDomain: string | null; sortOrder: number }[]>`
-      SELECT id, "layerKey", label, color, "needsDomain", "sortOrder"
-      FROM "FacilityLayerConfig"
-      WHERE "isActive" = true
-      ORDER BY "sortOrder" ASC, label ASC
-    `;
+  } else {
+    // Backfill correct colors for any records still using the generic default
+    for (const d of DEFAULTS) {
+      await prisma.$executeRaw`
+        UPDATE "FacilityLayerConfig"
+        SET color = ${d.color}, "updatedAt" = NOW()
+        WHERE "layerKey" = ${d.layerKey} AND color = '#6366f1'
+      `;
+    }
   }
+
+  rows = await prisma.$queryRaw<{ id: string; layerKey: string; label: string; color: string; needsDomain: string | null; sortOrder: number }[]>`
+    SELECT id, "layerKey", label, color, "needsDomain", "sortOrder"
+    FROM "FacilityLayerConfig"
+    WHERE "isActive" = true
+    ORDER BY "sortOrder" ASC, label ASC
+  `;
 
   return Response.json(rows);
 }
