@@ -441,6 +441,14 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [activeSection, setActiveSection] = useState<"info" | "params" | "pitstops">("info");
+  const [needsDomains, setNeedsDomains] = useState<{ domain: string; label: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/needs/formulas")
+      .then(r => r.json())
+      .then((rows: { domain: string; label: string }[]) => setNeedsDomains(rows))
+      .catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     if (isNew) return;
@@ -701,12 +709,16 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
               </select>
             </Field>
             <Field label="Needs Domain (optional)">
-              <input
-                className={inputCls}
+              <select
+                className={selectCls}
                 value={template.needsDomain ?? ""}
                 onChange={(e) => setTemplate((t) => ({ ...t, needsDomain: e.target.value || undefined }))}
-                placeholder="e.g. Creche"
-              />
+              >
+                <option value="">— none —</option>
+                {needsDomains.map(d => (
+                  <option key={d.domain} value={d.domain}>{d.label}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Sort order">
               <input
