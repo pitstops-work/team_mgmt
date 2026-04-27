@@ -728,17 +728,20 @@ export default function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !layersReadyRef.current) return;
-    LAYERS.filter((l) => l.file).forEach((layerConfig) => {
-      const vis = visibleLayers.has(layerConfig.key) ? "visible" : "none";
-      if (layerConfig.type === "polygon") {
-        if (map.getLayer(`${layerConfig.key}-fill`)) map.setLayoutProperty(`${layerConfig.key}-fill`, "visibility", vis);
-        if (map.getLayer(`${layerConfig.key}-line`)) map.setLayoutProperty(`${layerConfig.key}-line`, "visibility", vis);
-      } else {
-        if (map.getLayer(`${layerConfig.key}-circle`)) map.setLayoutProperty(`${layerConfig.key}-circle`, "visibility", vis);
-      }
-    });
-    // Re-apply filter after visibility change
-    applyFilterHighlight(map, mapFilterRef.current, visibleLayers);
+    try {
+      LAYERS.filter((l) => l.file).forEach((layerConfig) => {
+        const vis = visibleLayers.has(layerConfig.key) ? "visible" : "none";
+        if (layerConfig.type === "polygon") {
+          if (map.getLayer(`${layerConfig.key}-fill`)) map.setLayoutProperty(`${layerConfig.key}-fill`, "visibility", vis);
+          if (map.getLayer(`${layerConfig.key}-line`)) map.setLayoutProperty(`${layerConfig.key}-line`, "visibility", vis);
+        } else {
+          if (map.getLayer(`${layerConfig.key}-circle`)) map.setLayoutProperty(`${layerConfig.key}-circle`, "visibility", vis);
+        }
+      });
+      applyFilterHighlight(map, mapFilterRef.current, visibleLayers);
+    } catch (err) {
+      console.error("[MapView] visibleLayers effect error:", err);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleLayers]);
 
@@ -806,14 +809,17 @@ export default function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    CENTRE_LAYER_KEYS.forEach((key) => {
-      const geojson = centreGeoJSONRef.current[key];
-      const src = map.getSource(`${key}-source`) as maplibregl.GeoJSONSource | undefined;
-      if (!src || !geojson) return;
-      src.setData(filterCentreGeojson(geojson, mapFilter));
-    });
-    // Also apply filter highlight to settlement layers
-    applyFilterHighlight(map, mapFilter, visibleLayersRef.current);
+    try {
+      CENTRE_LAYER_KEYS.forEach((key) => {
+        const geojson = centreGeoJSONRef.current[key];
+        const src = map.getSource(`${key}-source`) as maplibregl.GeoJSONSource | undefined;
+        if (!src || !geojson) return;
+        src.setData(filterCentreGeojson(geojson, mapFilter));
+      });
+      applyFilterHighlight(map, mapFilter, visibleLayersRef.current);
+    } catch (err) {
+      console.error("[MapView] mapFilter effect error:", err);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapFilter]);
 
@@ -938,26 +944,29 @@ export default function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (activeZone && !activeCluster && ZONE_BOUNDS[activeZone]) {
-      map.fitBounds(ZONE_BOUNDS[activeZone], { duration: 800, padding: 30 });
-    } else if (!activeZone && !activeCluster) {
-      map.flyTo({ center: CITY_CENTERS[activeCity].center, zoom: CITY_CENTERS[activeCity].zoom, duration: 800 });
-    }
-    // Update zone highlight
-    const src = map.getSource("zones-source") as maplibregl.GeoJSONSource | undefined;
-    if (src && zoneFeaturesRef.current.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const enriched = zoneFeaturesRef.current.map((f: any) => ({
-        ...f, properties: { ...f.properties, active: f.properties?.zone === activeZone ? 1 : 0 },
-      }));
-      src.setData({ type: "FeatureCollection", features: enriched });
-      if (map.getLayer("zones-fill")) {
-        map.setPaintProperty("zones-fill", "fill-opacity", [
-          "case",
-          ["==", ["get", "active"], 1], 0.18,
-          activeZone ? 0.03 : ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.22, 0.07],
-        ]);
+    try {
+      if (activeZone && !activeCluster && ZONE_BOUNDS[activeZone]) {
+        map.fitBounds(ZONE_BOUNDS[activeZone], { duration: 800, padding: 30 });
+      } else if (!activeZone && !activeCluster) {
+        map.flyTo({ center: CITY_CENTERS[activeCity].center, zoom: CITY_CENTERS[activeCity].zoom, duration: 800 });
       }
+      const src = map.getSource("zones-source") as maplibregl.GeoJSONSource | undefined;
+      if (src && zoneFeaturesRef.current.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = zoneFeaturesRef.current.map((f: any) => ({
+          ...f, properties: { ...f.properties, active: f.properties?.zone === activeZone ? 1 : 0 },
+        }));
+        src.setData({ type: "FeatureCollection", features: enriched });
+        if (map.getLayer("zones-fill")) {
+          map.setPaintProperty("zones-fill", "fill-opacity", [
+            "case",
+            ["==", ["get", "active"], 1], 0.18,
+            activeZone ? 0.03 : ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.22, 0.07],
+          ]);
+        }
+      }
+    } catch (err) {
+      console.error("[MapView] activeZone effect error:", err);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeZone, activeCluster, activeCity]);
@@ -966,37 +975,39 @@ export default function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !activeCluster) return;
-
-    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-    Object.values(settlementFeaturesRef.current).forEach((features) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      features?.forEach((f: any) => {
-        if (f.properties?.cluster !== activeCluster) return;
-        getPolygonEnvelope(f).forEach(([lng, lat]) => {
-          minLng = Math.min(minLng, lng); minLat = Math.min(minLat, lat);
-          maxLng = Math.max(maxLng, lng); maxLat = Math.max(maxLat, lat);
+    try {
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+      Object.values(settlementFeaturesRef.current).forEach((features) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        features?.forEach((f: any) => {
+          if (f.properties?.cluster !== activeCluster) return;
+          getPolygonEnvelope(f).forEach(([lng, lat]) => {
+            minLng = Math.min(minLng, lng); minLat = Math.min(minLat, lat);
+            maxLng = Math.max(maxLng, lng); maxLat = Math.max(maxLat, lat);
+          });
         });
       });
-    });
-    if (isFinite(minLng)) {
-      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 800, padding: 60 });
-    }
-
-    // Update cluster highlight
-    const src = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
-    if (src && clusterFeaturesRef.current.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const enriched = clusterFeaturesRef.current.map((f: any) => ({
-        ...f, properties: { ...f.properties, active: f.properties?.cluster === activeCluster ? 1 : 0 },
-      }));
-      src.setData({ type: "FeatureCollection", features: enriched });
-      if (map.getLayer("clusters-fill")) {
-        map.setPaintProperty("clusters-fill", "fill-opacity", [
-          "case",
-          ["==", ["get", "active"], 1], 0.22,
-          activeCluster ? 0.03 : ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09],
-        ]);
+      if (isFinite(minLng)) {
+        map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 800, padding: 60 });
       }
+
+      const src = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
+      if (src && clusterFeaturesRef.current.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = clusterFeaturesRef.current.map((f: any) => ({
+          ...f, properties: { ...f.properties, active: f.properties?.cluster === activeCluster ? 1 : 0 },
+        }));
+        src.setData({ type: "FeatureCollection", features: enriched });
+        if (map.getLayer("clusters-fill")) {
+          map.setPaintProperty("clusters-fill", "fill-opacity", [
+            "case",
+            ["==", ["get", "active"], 1], 0.22,
+            activeCluster ? 0.03 : ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09],
+          ]);
+        }
+      }
+    } catch (err) {
+      console.error("[MapView] activeCluster effect error:", err);
     }
   }, [activeCluster]);
 
