@@ -94,6 +94,7 @@ export default function TemplatePickerModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [recurrence, setRecurrence] = useState<"None"|"Weekly"|"Monthly"|"Quarterly"|"Yearly">("None");
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<PreviewPitstop[]>([]);
   const [expandedPreview, setExpandedPreview] = useState<Set<number>>(new Set());
@@ -361,6 +362,7 @@ export default function TemplatePickerModal({
           needsZoneId: geoVal.zoneId || null,
           needsCityId: geoVal.cityId || null,
           linkedFacilityId: (selected.linkedFacilityLayerKey && linkedFacilityId) ? linkedFacilityId : null,
+          recurrence,
           ...(canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId
             ? { ownerId: selectedOwnerId }
             : {}),
@@ -791,26 +793,42 @@ export default function TemplatePickerModal({
                 </div>
               )}
 
-              {/* Dates */}
-              <div>
-                <label className="block text-xs font-medium text-stone-600 mb-1">
-                  Programme Start <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
-                />
-                <p className="text-xs text-stone-400 mt-1">
-                  Goal end date auto-computed from SLA:{" "}
-                  <span className="text-stone-600 font-medium">
-                    {startDate
-                      ? new Date(computedTargetDate()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-                      : "—"}
-                  </span>
-                </p>
+              {/* Dates + Recurrence */}
+              <div className="flex gap-3 items-start">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-stone-600 mb-1">
+                    Programme Start <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
+                  />
+                  <p className="text-xs text-stone-400 mt-1">
+                    End date from SLA:{" "}
+                    <span className="text-stone-600 font-medium">
+                      {startDate
+                        ? new Date(computedTargetDate()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                        : "—"}
+                    </span>
+                  </p>
+                </div>
+                <div className="w-36 flex-shrink-0">
+                  <label className="block text-xs font-medium text-stone-600 mb-1">Recurrence</label>
+                  <select
+                    value={recurrence}
+                    onChange={e => setRecurrence(e.target.value as typeof recurrence)}
+                    className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                  >
+                    <option value="None">One-off</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="Monthly">Monthly</option>
+                    <option value="Quarterly">Quarterly</option>
+                    <option value="Yearly">Yearly</option>
+                  </select>
+                </div>
               </div>
 
               {/* Pitstop preview */}
