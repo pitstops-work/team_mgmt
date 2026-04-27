@@ -516,11 +516,6 @@ export default function NeedsDashboard({
           <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
             <div className="h-full bg-sky-400 rounded-full transition-all" style={{ width: `${coveragePct}%` }} />
           </div>
-          {cityStats.saturationScore > 0 && (
-            <span className="flex-shrink-0 text-xs text-stone-500">
-              Saturation: <SaturationChip score={cityStats.saturationScore} />
-            </span>
-          )}
         </div>
         {cityStats.totalHH > 0 && (
           <p className="text-xs text-stone-400 mt-1">{cityStats.totalHH.toLocaleString()} total households across assessed settlements</p>
