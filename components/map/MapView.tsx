@@ -286,80 +286,85 @@ export default function MapView({
             const lineId = `${layerConfig.key}-line`;
             const vis = visibleLayersRef.current.has(layerConfig.key) ? "visible" : "none";
 
-            map.addSource(srcId, { type: "geojson", data: geojson });
+            try {
+              if (map.getSource(srcId)) return; // already added (double-fire guard)
+              map.addSource(srcId, { type: "geojson", data: geojson });
 
-            map.addLayer({
-              id: fillId,
-              type: "fill",
-              source: srcId,
-              paint: {
-                "fill-color": [
-                  "case",
-                  ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
-                  ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
-                  ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
-                  layerConfig.color,
-                ],
-                "fill-opacity": [
-                  "case",
-                  ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.5,
-                  ["==", ["get", "health"], "dim"], 0.1,
-                  0.25,
-                ],
-              },
-              layout: { visibility: vis },
-            });
-
-            map.addLayer({
-              id: lineId,
-              type: "line",
-              source: srcId,
-              paint: {
-                "line-color": [
-                  "case",
-                  ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
-                  ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
-                  ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
-                  layerConfig.color,
-                ],
-                "line-width": 2,
-                "line-opacity": 0.9,
-              },
-              layout: { visibility: vis },
-            });
-
-            // Click handler
-            map.on("click", fillId, (e) => {
-              if (!e.features?.length) return;
-              const props = e.features[0].properties ?? {};
-              const name = props.name || "Unnamed";
-              const centroid = polygonCentroid(e.features[0] as unknown as { geometry: { type: string; coordinates: number[][][] } });
-
-              new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
-                .setLngLat(e.lngLat)
-                .setHTML(makePolygonPopup(name, layerConfig, props.description || "", props.zone, props.cluster))
-                .addTo(map);
-
-              onSettlementClickRef.current({
-                name, layerKey: layerConfig.key,
-                layerColor: layerConfig.color, layerLabel: layerConfig.label,
-                zone: props.zone || "", cluster: props.cluster || "",
-                description: props.description || "", centroid,
+              map.addLayer({
+                id: fillId,
+                type: "fill",
+                source: srcId,
+                paint: {
+                  "fill-color": [
+                    "case",
+                    ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
+                    ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
+                    ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                    layerConfig.color,
+                  ],
+                  "fill-opacity": [
+                    "case",
+                    ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.5,
+                    ["==", ["get", "health"], "dim"], 0.1,
+                    0.25,
+                  ],
+                },
+                layout: { visibility: vis },
               });
-            });
 
-            map.on("mouseenter", fillId, () => { map.getCanvas().style.cursor = "pointer"; });
-            map.on("mouseleave", fillId, () => { map.getCanvas().style.cursor = ""; });
+              map.addLayer({
+                id: lineId,
+                type: "line",
+                source: srcId,
+                paint: {
+                  "line-color": [
+                    "case",
+                    ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
+                    ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
+                    ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                    layerConfig.color,
+                  ],
+                  "line-width": 2,
+                  "line-opacity": 0.9,
+                },
+                layout: { visibility: vis },
+              });
 
-            // Apply map filter highlighting if active
-            const mf = mapFilterRef.current;
-            if (mf && (mf.partnerKeys.size > 0 || mf.zones.size > 0 || mf.clusters.size > 0)) {
-              applyFilterHighlight(map, mf, visibleLayersRef.current);
-            }
+              // Click handler
+              map.on("click", fillId, (e) => {
+                if (!e.features?.length) return;
+                const props = e.features[0].properties ?? {};
+                const name = props.name || "Unnamed";
+                const centroid = polygonCentroid(e.features[0] as unknown as { geometry: { type: string; coordinates: number[][][] } });
 
-            // Apply progress health if active
-            if (progressHealthRef.current) {
-              enrichSourceWithHealth(map, layerConfig.key, progressHealthRef.current);
+                new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+                  .setLngLat(e.lngLat)
+                  .setHTML(makePolygonPopup(name, layerConfig, props.description || "", props.zone, props.cluster))
+                  .addTo(map);
+
+                onSettlementClickRef.current({
+                  name, layerKey: layerConfig.key,
+                  layerColor: layerConfig.color, layerLabel: layerConfig.label,
+                  zone: props.zone || "", cluster: props.cluster || "",
+                  description: props.description || "", centroid,
+                });
+              });
+
+              map.on("mouseenter", fillId, () => { map.getCanvas().style.cursor = "pointer"; });
+              map.on("mouseleave", fillId, () => { map.getCanvas().style.cursor = ""; });
+
+              // Apply map filter highlighting if active
+              const mf = mapFilterRef.current;
+              if (mf && (mf.partnerKeys.size > 0 || mf.zones.size > 0 || mf.clusters.size > 0)) {
+                applyFilterHighlight(map, mf, visibleLayersRef.current);
+              }
+
+              // Apply progress health if active
+              if (progressHealthRef.current) {
+                enrichSourceWithHealth(map, layerConfig.key, progressHealthRef.current);
+              }
+            } catch (err) {
+              console.warn("[MapView] polygon layer setup skipped:", err instanceof Error ? err.message : err);
             }
           });
       });
@@ -378,55 +383,60 @@ export default function MapView({
             const isProgramme = ["children_centres", "youth_centres", "creches"].includes(layerConfig.key);
             const vis = visibleLayersRef.current.has(layerConfig.key) ? "visible" : "none";
 
-            map.addSource(srcId, { type: "geojson", data: filtered });
-            map.addLayer({
-              id: circId,
-              type: "circle",
-              source: srcId,
-              paint: {
-                "circle-radius": isProgramme ? 9 : 8,
-                "circle-color": layerConfig.color,
-                "circle-stroke-width": isProgramme ? 3 : 2.5,
-                "circle-stroke-color": "white",
-              },
-              layout: { visibility: vis },
-            });
+            try {
+              if (map.getSource(srcId)) return; // already added (double-fire guard)
+              map.addSource(srcId, { type: "geojson", data: filtered });
+              map.addLayer({
+                id: circId,
+                type: "circle",
+                source: srcId,
+                paint: {
+                  "circle-radius": isProgramme ? 9 : 8,
+                  "circle-color": layerConfig.color,
+                  "circle-stroke-width": isProgramme ? 3 : 2.5,
+                  "circle-stroke-color": "white",
+                },
+                layout: { visibility: vis },
+              });
 
-            map.on("click", circId, (e) => {
-              if (!e.features?.length) return;
-              const props = e.features[0].properties ?? {};
-              const name = props.name || layerConfig.label;
+              map.on("click", circId, (e) => {
+                if (!e.features?.length) return;
+                const props = e.features[0].properties ?? {};
+                const name = props.name || layerConfig.label;
 
-              const html = isProgramme
-                ? makeProgrammeCentrePopup(
-                    props.centre_type || layerConfig.label, name,
-                    props.partner || "", props.zone || "", props.cluster || "",
-                    layerConfig.color, props.note || ""
-                  )
-                : makeRCPopup(name, props.description || "");
+                const html = isProgramme
+                  ? makeProgrammeCentrePopup(
+                      props.centre_type || layerConfig.label, name,
+                      props.partner || "", props.zone || "", props.cluster || "",
+                      layerConfig.color, props.note || ""
+                    )
+                  : makeRCPopup(name, props.description || "");
 
-              new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
-                .setLngLat(e.lngLat)
-                .setHTML(html)
-                .addTo(map);
+                new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+                  .setLngLat(e.lngLat)
+                  .setHTML(html)
+                  .addTo(map);
 
-              if (onCentreClickRef.current && isProgramme) {
-                const latlng: [number, number] = [e.lngLat.lat, e.lngLat.lng];
-                const centreFeature: CentreFeature = {
-                  name, centreType: props.centre_type || layerConfig.label,
-                  layerKey: layerConfig.key, layerColor: layerConfig.color,
-                  matchedSettlement: props.matched_settlement || "",
-                  zone: props.zone || "", cluster: props.cluster || "",
-                  partner: props.partner || "", latlng,
-                };
-                onCentreClickRef.current(props.partner || "", props.zone || "", props.cluster || "", centreFeature);
-              } else if (onCentreClickRef.current) {
-                onCentreClickRef.current(props.partner || "", props.zone || "", props.cluster || "");
-              }
-            });
+                if (onCentreClickRef.current && isProgramme) {
+                  const latlng: [number, number] = [e.lngLat.lat, e.lngLat.lng];
+                  const centreFeature: CentreFeature = {
+                    name, centreType: props.centre_type || layerConfig.label,
+                    layerKey: layerConfig.key, layerColor: layerConfig.color,
+                    matchedSettlement: props.matched_settlement || "",
+                    zone: props.zone || "", cluster: props.cluster || "",
+                    partner: props.partner || "", latlng,
+                  };
+                  onCentreClickRef.current(props.partner || "", props.zone || "", props.cluster || "", centreFeature);
+                } else if (onCentreClickRef.current) {
+                  onCentreClickRef.current(props.partner || "", props.zone || "", props.cluster || "");
+                }
+              });
 
-            map.on("mouseenter", circId, () => { map.getCanvas().style.cursor = "pointer"; });
-            map.on("mouseleave", circId, () => { map.getCanvas().style.cursor = ""; });
+              map.on("mouseenter", circId, () => { map.getCanvas().style.cursor = "pointer"; });
+              map.on("mouseleave", circId, () => { map.getCanvas().style.cursor = ""; });
+            } catch (err) {
+              console.warn("[MapView] point layer setup skipped:", err instanceof Error ? err.message : err);
+            }
           });
       });
 
@@ -520,61 +530,66 @@ export default function MapView({
         if (mapRef.current !== map) return; // map was cleaned up
         if (!map.isStyleLoaded()) return;
         zoneFeaturesRef.current = gj.features ?? [];
-        map.addSource("zones-source", { type: "geojson", data: gj });
-        map.addLayer({
-          id: "zones-fill",
-          type: "fill",
-          source: "zones-source",
-          paint: {
-            "fill-color": [
-              "case",
-              ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
-              ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
-              ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
-              ["get", "color"],
-            ],
-            "fill-opacity": ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.22, 0.07],
-          },
-          layout: { visibility: "none" },
-        });
-        map.addLayer({
-          id: "zones-line",
-          type: "line",
-          source: "zones-source",
-          paint: {
-            "line-color": ["get", "color"],
-            "line-width": 2.5,
-            "line-opacity": 0.85,
-            "line-dasharray": [8, 5],
-          },
-          layout: { visibility: "none" },
-        });
-        map.addLayer({
-          id: "zones-label",
-          type: "symbol",
-          source: "zones-source",
-          layout: {
-            "text-field": ["get", "zone"],
-            "text-size": 12,
-            "text-font": ["Open Sans Bold", "Arial Unicode MS Regular"],
-            "symbol-placement": "point",
-            "text-transform": "uppercase",
-            "text-letter-spacing": 0.08,
-            visibility: "none",
-          },
-          paint: {
-            "text-color": "#1e293b",
-            "text-halo-color": "rgba(255,255,255,0.9)",
-            "text-halo-width": 2,
-            "text-opacity": 0.7,
-          },
-        });
-        map.on("click", "zones-fill", (e) => {
-          if (!e.features?.length) return;
-          onZoneSelectRef.current(e.features[0].properties?.id ?? null);
-        });
-        map.on("mouseenter", "zones-fill", () => { map.getCanvas().style.cursor = "pointer"; });
-        map.on("mouseleave", "zones-fill", () => { map.getCanvas().style.cursor = ""; });
+        try {
+          if (map.getSource("zones-source")) return; // already added
+          map.addSource("zones-source", { type: "geojson", data: gj });
+          map.addLayer({
+            id: "zones-fill",
+            type: "fill",
+            source: "zones-source",
+            paint: {
+              "fill-color": [
+                "case",
+                ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
+                ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
+                ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                ["get", "color"],
+              ],
+              "fill-opacity": ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.22, 0.07],
+            },
+            layout: { visibility: "none" },
+          });
+          map.addLayer({
+            id: "zones-line",
+            type: "line",
+            source: "zones-source",
+            paint: {
+              "line-color": ["get", "color"],
+              "line-width": 2.5,
+              "line-opacity": 0.85,
+              "line-dasharray": [8, 5],
+            },
+            layout: { visibility: "none" },
+          });
+          map.addLayer({
+            id: "zones-label",
+            type: "symbol",
+            source: "zones-source",
+            layout: {
+              "text-field": ["get", "zone"],
+              "text-size": 12,
+              "text-font": ["Open Sans Bold", "Arial Unicode MS Regular"],
+              "symbol-placement": "point",
+              "text-transform": "uppercase",
+              "text-letter-spacing": 0.08,
+              visibility: "none",
+            },
+            paint: {
+              "text-color": "#1e293b",
+              "text-halo-color": "rgba(255,255,255,0.9)",
+              "text-halo-width": 2,
+              "text-opacity": 0.7,
+            },
+          });
+          map.on("click", "zones-fill", (e) => {
+            if (!e.features?.length) return;
+            onZoneSelectRef.current(e.features[0].properties?.id ?? null);
+          });
+          map.on("mouseenter", "zones-fill", () => { map.getCanvas().style.cursor = "pointer"; });
+          map.on("mouseleave", "zones-fill", () => { map.getCanvas().style.cursor = ""; });
+        } catch (err) {
+          console.warn("[MapView] zones layer setup skipped:", err instanceof Error ? err.message : err);
+        }
       });
 
       // ── Cluster boundaries ───────────────────────────────────────────────
@@ -582,61 +597,66 @@ export default function MapView({
         if (mapRef.current !== map) return; // map was cleaned up
         if (!map.isStyleLoaded()) return;
         clusterFeaturesRef.current = gj.features ?? [];
-        map.addSource("clusters-source", { type: "geojson", data: gj });
-        map.addLayer({
-          id: "clusters-fill",
-          type: "fill",
-          source: "clusters-source",
-          paint: {
-            "fill-color": [
-              "case",
-              ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
-              ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
-              ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
-              ["get", "color"],
-            ],
-            "fill-opacity": ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09],
-          },
-          layout: { visibility: "none" },
-        });
-        map.addLayer({
-          id: "clusters-line",
-          type: "line",
-          source: "clusters-source",
-          paint: {
-            "line-color": ["get", "color"],
-            "line-width": 1.8,
-            "line-opacity": 0.8,
-            "line-dasharray": [5, 4],
-          },
-          layout: { visibility: "none" },
-        });
-        map.addLayer({
-          id: "clusters-label",
-          type: "symbol",
-          source: "clusters-source",
-          layout: {
-            "text-field": ["get", "label"],
-            "text-size": 10,
-            "text-font": ["Open Sans Bold", "Arial Unicode MS Regular"],
-            "symbol-placement": "point",
-            "text-transform": "uppercase",
-            "text-letter-spacing": 0.05,
-            visibility: "none",
-          },
-          paint: {
-            "text-color": "#334155",
-            "text-halo-color": "rgba(255,255,255,0.9)",
-            "text-halo-width": 1.5,
-            "text-opacity": 0.75,
-          },
-        });
-        map.on("click", "clusters-fill", (e) => {
-          if (!e.features?.length) return;
-          onClusterSelectRef.current(e.features[0].properties?.cluster ?? null);
-        });
-        map.on("mouseenter", "clusters-fill", () => { map.getCanvas().style.cursor = "pointer"; });
-        map.on("mouseleave", "clusters-fill", () => { map.getCanvas().style.cursor = ""; });
+        try {
+          if (map.getSource("clusters-source")) return; // already added
+          map.addSource("clusters-source", { type: "geojson", data: gj });
+          map.addLayer({
+            id: "clusters-fill",
+            type: "fill",
+            source: "clusters-source",
+            paint: {
+              "fill-color": [
+                "case",
+                ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
+                ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
+                ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                ["get", "color"],
+              ],
+              "fill-opacity": ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09],
+            },
+            layout: { visibility: "none" },
+          });
+          map.addLayer({
+            id: "clusters-line",
+            type: "line",
+            source: "clusters-source",
+            paint: {
+              "line-color": ["get", "color"],
+              "line-width": 1.8,
+              "line-opacity": 0.8,
+              "line-dasharray": [5, 4],
+            },
+            layout: { visibility: "none" },
+          });
+          map.addLayer({
+            id: "clusters-label",
+            type: "symbol",
+            source: "clusters-source",
+            layout: {
+              "text-field": ["get", "label"],
+              "text-size": 10,
+              "text-font": ["Open Sans Bold", "Arial Unicode MS Regular"],
+              "symbol-placement": "point",
+              "text-transform": "uppercase",
+              "text-letter-spacing": 0.05,
+              visibility: "none",
+            },
+            paint: {
+              "text-color": "#334155",
+              "text-halo-color": "rgba(255,255,255,0.9)",
+              "text-halo-width": 1.5,
+              "text-opacity": 0.75,
+            },
+          });
+          map.on("click", "clusters-fill", (e) => {
+            if (!e.features?.length) return;
+            onClusterSelectRef.current(e.features[0].properties?.cluster ?? null);
+          });
+          map.on("mouseenter", "clusters-fill", () => { map.getCanvas().style.cursor = "pointer"; });
+          map.on("mouseleave", "clusters-fill", () => { map.getCanvas().style.cursor = ""; });
+        } catch (err) {
+          console.warn("[MapView] clusters layer setup skipped:", err instanceof Error ? err.message : err);
+        }
       });
 
       layersReadyRef.current = true;
