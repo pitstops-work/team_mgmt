@@ -266,7 +266,12 @@ export default function MapView({
       zoom: CITY_CENTERS.bangalore.zoom,
     });
 
+    mapRef.current = map;
+    if (sharedMapRef) sharedMapRef.current = map;
+
     map.on("load", () => {
+      if (mapRef.current !== map) return; // map was removed before style finished loading
+
       // ── Settlement polygon layers ────────────────────────────────────────
       LAYERS.filter((l) => l.file && l.type === "polygon").forEach((layerConfig) => {
         fetch(layerConfig.file)
@@ -675,9 +680,6 @@ export default function MapView({
           .addTo(map);
       }, 750);
     };
-
-    mapRef.current = map;
-    if (sharedMapRef) sharedMapRef.current = map;
 
     return () => {
       map.remove();
