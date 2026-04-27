@@ -272,6 +272,7 @@ export default function MapView({
         fetch(layerConfig.file)
           .then((r) => r.json())
           .then((geojson) => {
+            if (mapRef.current !== map) return; // map was cleaned up
             settlementFeaturesRef.current[layerConfig.key] = geojson.features;
 
             const srcId = `${layerConfig.key}-source`;
@@ -362,6 +363,7 @@ export default function MapView({
         fetch(layerConfig.file)
           .then((r) => r.json())
           .then((geojson) => {
+            if (mapRef.current !== map) return; // map was cleaned up
             centreGeoJSONRef.current[layerConfig.key] = geojson;
             const filtered = filterCentreGeojson(geojson, mapFilterRef.current);
             const srcId = `${layerConfig.key}-source`;
@@ -508,6 +510,7 @@ export default function MapView({
 
       // ── Zone boundaries ──────────────────────────────────────────────────
       fetch("/api/map/geojson/zones").then((r) => r.json()).then((gj) => {
+        if (mapRef.current !== map) return; // map was cleaned up
         zoneFeaturesRef.current = gj.features ?? [];
         map.addSource("zones-source", { type: "geojson", data: gj });
         map.addLayer({
@@ -568,6 +571,7 @@ export default function MapView({
 
       // ── Cluster boundaries ───────────────────────────────────────────────
       fetch("/api/map/geojson/clusters").then((r) => r.json()).then((gj) => {
+        if (mapRef.current !== map) return; // map was cleaned up
         clusterFeaturesRef.current = gj.features ?? [];
         map.addSource("clusters-source", { type: "geojson", data: gj });
         map.addLayer({
