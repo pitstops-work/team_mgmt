@@ -297,16 +297,32 @@ function GoalForm({
         </div>
       )}
 
-      <div>
-        <label className="block text-xs font-medium text-stone-600 mb-1">Title</label>
-        <input
-          autoFocus
-          type="text"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          placeholder="What are you working toward?"
-          className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
-        />
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-stone-600 mb-1">Title</label>
+          <input
+            autoFocus
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="What are you working toward?"
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+          />
+        </div>
+        <div className="w-36 flex-shrink-0">
+          <label className="block text-xs font-medium text-stone-600 mb-1">Recurrence</label>
+          <select
+            value={recurrence}
+            onChange={e => setRecurrence(e.target.value as Recurrence)}
+            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+          >
+            <option value="None">One-off</option>
+            <option value="Weekly">Weekly</option>
+            <option value="Monthly">Monthly</option>
+            <option value="Quarterly">Quarterly</option>
+            <option value="Yearly">Yearly</option>
+          </select>
+        </div>
       </div>
 
       {isOperational ? (
@@ -392,26 +408,6 @@ function GoalForm({
             <option value="Paused">Paused</option>
           </select>
         </div>
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-stone-600 mb-1">Recurrence</label>
-        <select
-          value={recurrence}
-          onChange={e => setRecurrence(e.target.value as Recurrence)}
-          className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
-        >
-          <option value="None">No recurrence</option>
-          <option value="Weekly">Weekly</option>
-          <option value="Monthly">Monthly</option>
-          <option value="Quarterly">Quarterly</option>
-          <option value="Yearly">Yearly</option>
-        </select>
-        {recurrence !== "None" && (
-          <p className="text-xs text-stone-400 mt-1">
-            When complete, you&apos;ll be offered to start the next {recurrence.toLowerCase()} cycle.
-          </p>
-        )}
       </div>
 
       {hasTemplate && (
