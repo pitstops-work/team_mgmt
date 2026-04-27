@@ -53,7 +53,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Bhadrapura, Kengeri Area",
+        "matched_settlement": "Bhadrapura",
         "cluster": "Kengeri",
         "zone": "West"
       }
@@ -72,7 +72,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Lumbini Slum, Peenya Area",
+        "matched_settlement": "Lumbini Slum",
         "cluster": "Peenya_-_West",
         "zone": "West"
       }
@@ -91,7 +91,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Muneshwaranagar, Peenya Area",
+        "matched_settlement": "Muneshwara Block",
         "cluster": "Peenya_-_West",
         "zone": "West"
       }
@@ -110,7 +110,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Lumbini Slum, Peenya Area",
+        "matched_settlement": "Lumbini Slum",
         "cluster": "Peenya_-_West",
         "zone": "West"
       }
@@ -129,7 +129,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Ashrayanagar, Peenya Area",
+        "matched_settlement": "Ashraya Nagar",
         "cluster": "Peenya_-_West",
         "zone": "West"
       }
@@ -148,7 +148,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Ashrayanagar, Peenya Area",
+        "matched_settlement": "Ashraya Nagar",
         "cluster": "Peenya_-_West",
         "zone": "West"
       }
@@ -167,8 +167,8 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Gulbarga slum, Peenya Area",
-        "cluster": "Peenya_North",
+        "matched_settlement": "Gulbarga Slum",
+        "cluster": "Peenya - West",
         "zone": "North"
       }
     },
@@ -186,7 +186,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Buddha Nagara, Peenya Area",
+        "matched_settlement": "Buddha Nagar",
         "cluster": "Peenya_-_West",
         "zone": "West"
       }
@@ -205,7 +205,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Buddha Nagar, Peenya Area",
+        "matched_settlement": "Buddha Nagar",
         "cluster": "Peenya_-_West",
         "zone": "West"
       }
@@ -224,7 +224,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Sanjaygandhinagar-42, Peenya Area",
+        "matched_settlement": "Sanjay Gandhi Nagar-42",
         "cluster": "Peenya_-_West",
         "zone": "West"
       }
@@ -243,7 +243,7 @@
         "centre_type": "Creche",
         "partner": "CFAR Creches",
         "layer_key": "creches",
-        "matched_settlement": "Buddha Nagara, Peenya Area",
+        "matched_settlement": "Buddha Nagar",
         "cluster": "Peenya_-_West",
         "zone": "West"
       }

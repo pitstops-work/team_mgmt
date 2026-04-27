@@ -17,7 +17,7 @@
         "zone": "Central",
         "partner": "ActionAid",
         "layer_key": "children_centres",
-        "matched_settlement": "Arfath Nagar"
+        "matched_settlement": "Arfath Nagar I & II"
       }
     },
     {
@@ -36,7 +36,7 @@
         "zone": "Central",
         "partner": "ActionAid",
         "layer_key": "children_centres",
-        "matched_settlement": "Vinobha Nagar"
+        "matched_settlement": "Vinoba nagar"
       }
     },
     {
@@ -70,7 +70,7 @@
       "properties": {
         "name": "Gulbarga Slum",
         "centre_type": "Children Centre",
-        "cluster": "Peenya_North",
+        "cluster": "Peenya - West",
         "zone": "North",
         "partner": "Sangama",
         "layer_key": "children_centres",
@@ -169,7 +169,7 @@
         "zone": "North",
         "partner": "Sangama",
         "layer_key": "children_centres",
-        "matched_settlement": "Maruthi Nagar"
+        "matched_settlement": "Maruthi Nagar A"
       }
     },
     {
@@ -188,7 +188,7 @@
         "zone": "North",
         "partner": "SIEDS",
         "layer_key": "children_centres",
-        "matched_settlement": "Razack Palya"
+        "matched_settlement": "Razakpalya"
       }
     },
     {
@@ -226,7 +226,7 @@
         "zone": "West",
         "partner": "Thamate",
         "layer_key": "children_centres",
-        "matched_settlement": "Munneshwara block"
+        "matched_settlement": "Muneshwara Block"
       }
     },
     {
@@ -245,7 +245,7 @@
         "zone": "South",
         "partner": "Gubbachi",
         "layer_key": "children_centres",
-        "matched_settlement": "Kariyammana Agrahara"
+        "matched_settlement": "Kariyammana agrahara Vatara KA (Kannada + Hindi)"
       }
     },
     {

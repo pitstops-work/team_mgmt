@@ -101,8 +101,14 @@ async function seedLayerFeatures() {
   const normalize = (s: string) =>
     (s ?? "").toLowerCase().replace(/[_\-\s]+/g, " ").trim();
 
-  function findSettlement(name: string) {
-    return settlements.find((s) => normalize(s.name) === normalize(name));
+  function findSettlement(name: string, clusterHint?: string) {
+    const matches = settlements.filter((s) => normalize(s.name) === normalize(name));
+    if (matches.length <= 1) return matches[0] ?? null;
+    if (clusterHint) {
+      const hit = matches.find((s) => normalize(s.cluster?.name ?? "") === normalize(clusterHint));
+      if (hit) return hit;
+    }
+    return matches[0];
   }
   function findCluster(name: string) {
     return clusters.find((c) => normalize(c.name) === normalize(name));
@@ -130,7 +136,7 @@ async function seedLayerFeatures() {
       const clusterName = props.cluster as string | undefined;
       const zoneName = props.zone as string | undefined;
 
-      const settlement = matchedSettlementName ? findSettlement(matchedSettlementName) : null;
+      const settlement = matchedSettlementName ? findSettlement(matchedSettlementName, clusterName) : null;
       const cluster = settlement?.cluster ?? (clusterName ? findCluster(clusterName) : null);
       const zone = cluster?.zone ?? (zoneName ? findZone(zoneName) : null);
 
