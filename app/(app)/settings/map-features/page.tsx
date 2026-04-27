@@ -10,9 +10,19 @@ const BUILT_IN_PARTNERS = LAYERS
   .filter(l => l.type === "polygon" && l.key !== "custom_settlements")
   .map(l => ({ id: l.key, key: l.key, label: l.label, color: l.color }));
 
+// Known centre types per layer key — used as suggestions; falls back to text input for unknown keys
+const CENTRE_TYPES: Record<string, string[]> = {
+  creches:           ["Creche"],
+  children_centres:  ["Children Centre"],
+  youth_centres:     ["Youth Centre"],
+  resource_centres:  ["Resource Centre", "Community Resource Centre"],
+};
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface GeoRef { id: string; name: string }
+
+interface LayerKey { key: string; label: string }
 
 interface LayerFeatureRow {
   id: string;
@@ -47,20 +57,6 @@ interface ClusterOption { id: string; name: string; zoneId: string }
 interface ZoneOption    { id: string; name: string }
 interface PartnerOption { id: string; key: string; label: string; color: string }
 
-const LAYER_KEYS = [
-  { key: "creches",           label: "Creches" },
-  { key: "children_centres",  label: "Children Centres" },
-  { key: "youth_centres",     label: "Youth Centres" },
-  { key: "resource_centres",  label: "Resource Centres" },
-];
-
-const CENTRE_TYPES: Record<string, string[]> = {
-  creches:           ["Creche"],
-  children_centres:  ["Children Centre"],
-  youth_centres:     ["Youth Centre"],
-  resource_centres:  ["Resource Centre", "Community Resource Centre"],
-};
-
 // ── Toast ──────────────────────────────────────────────────────────────────
 
 function useToast() {
@@ -83,8 +79,8 @@ function Toast({ msg }: { msg: { text: string; ok: boolean } | null }) {
 
 // ── Empty form factories ────────────────────────────────────────────────────
 
-function emptyLF(): Omit<LayerFeatureRow, "id" | "settlement" | "cluster" | "zone"> {
-  return { name: "", layerKey: "creches", centreType: "Creche", partner: "", lat: 0, lng: 0, settlementId: "", clusterId: "", zoneId: "", notes: "" };
+function emptyLF(layerKey = "creches"): Omit<LayerFeatureRow, "id" | "settlement" | "cluster" | "zone"> {
+  return { name: "", layerKey, centreType: CENTRE_TYPES[layerKey]?.[0] ?? "", partner: "", lat: 0, lng: 0, settlementId: "", clusterId: "", zoneId: "", notes: "" };
 }
 
 function emptySett(): Partial<SettlementRow> & { name: string; clusterId: string } {
@@ -95,6 +91,7 @@ function emptySett(): Partial<SettlementRow> & { name: string; clusterId: string
 
 function LFForm({
   initial,
+  layerKeys,
   clusters,
   zones,
   partners,
@@ -103,6 +100,7 @@ function LFForm({
   onCancel,
 }: {
   initial: Omit<LayerFeatureRow, "id" | "settlement" | "cluster" | "zone">;
+  layerKeys: LayerKey[];
   clusters: ClusterOption[];
   zones: ZoneOption[];
   partners: PartnerOption[];
@@ -119,10 +117,22 @@ function LFForm({
     ...partners.filter(d => !BUILT_IN_PARTNERS.some(b => b.key === d.key)),
   ];
 
-  // Zone → filter clusters
+  // Zone → filter clusters; cluster → infer zone
   const visibleClusters = form.zoneId
     ? clusters.filter(c => c.zoneId === form.zoneId)
     : clusters;
+
+  // Settlement → cascade: filter by cluster then zone
+  const visibleSettlements = form.clusterId
+    ? settlements.filter(s => s.clusterId === form.clusterId)
+    : form.zoneId
+      ? settlements.filter(s => {
+          const cl = clusters.find(c => c.id === s.clusterId);
+          return cl?.zoneId === form.zoneId;
+        })
+      : settlements;
+
+  const knownCentreTypes = CENTRE_TYPES[form.layerKey] ?? [];
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
@@ -136,14 +146,18 @@ function LFForm({
           const lk = e.target.value;
           setForm(f => ({ ...f, layerKey: lk, centreType: CENTRE_TYPES[lk]?.[0] ?? "" }));
         }}>
-          {LAYER_KEYS.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
+          {layerKeys.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
         </select>
       </div>
       <div>
         <label className="label">Centre type</label>
-        <select className="input" value={form.centreType ?? ""} onChange={e => set("centreType", e.target.value)}>
-          {(CENTRE_TYPES[form.layerKey] ?? []).map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        {knownCentreTypes.length > 0 ? (
+          <select className="input" value={form.centreType ?? ""} onChange={e => set("centreType", e.target.value)}>
+            {knownCentreTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        ) : (
+          <input className="input" value={form.centreType ?? ""} onChange={e => set("centreType", e.target.value)} placeholder="e.g. Community Hub" />
+        )}
       </div>
       <div>
         <label className="label">Partner</label>
@@ -160,22 +174,12 @@ function LFForm({
         <label className="label">Longitude *</label>
         <input className="input" type="number" step="any" value={form.lng} onChange={e => set("lng", e.target.value)} />
       </div>
-      <div className="sm:col-span-2">
-        <label className="label">Settlement</label>
-        <select className="input" value={form.settlementId ?? ""} onChange={e => {
-          const sid = e.target.value;
-          const s = settlements.find(s => s.id === sid);
-          const cl = s ? clusters.find(c => c.id === s.clusterId) : undefined;
-          setForm(f => ({ ...f, settlementId: sid, clusterId: s?.clusterId ?? f.clusterId, zoneId: cl?.zoneId ?? f.zoneId }));
-        }}>
-          <option value="">— None —</option>
-          {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
+
+      {/* Zone → Cluster → Settlement cascade */}
       <div>
-        <label className="label">Zone</label>
+        <label className="label">Zone (filters clusters &amp; settlements)</label>
         <select className="input" value={form.zoneId ?? ""} onChange={e => {
-          setForm(f => ({ ...f, zoneId: e.target.value, clusterId: "" }));
+          setForm(f => ({ ...f, zoneId: e.target.value, clusterId: "", settlementId: "" }));
         }}>
           <option value="">— All zones —</option>
           {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
@@ -186,11 +190,28 @@ function LFForm({
         <select className="input" value={form.clusterId ?? ""} onChange={e => {
           const cid = e.target.value;
           const cl = clusters.find(c => c.id === cid);
-          setForm(f => ({ ...f, clusterId: cid, zoneId: cl?.zoneId ?? f.zoneId }));
+          setForm(f => ({ ...f, clusterId: cid, zoneId: cl?.zoneId ?? f.zoneId, settlementId: "" }));
         }}>
           <option value="">— None —</option>
           {visibleClusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
         </select>
+      </div>
+      <div className="sm:col-span-2">
+        <label className="label">
+          Settlement{form.zoneId || form.clusterId ? " (filtered by zone/cluster above)" : ""}
+        </label>
+        <select className="input" value={form.settlementId ?? ""} onChange={e => {
+          const sid = e.target.value;
+          const s = settlements.find(s => s.id === sid);
+          const cl = s ? clusters.find(c => c.id === s.clusterId) : undefined;
+          setForm(f => ({ ...f, settlementId: sid, clusterId: s?.clusterId ?? f.clusterId, zoneId: cl?.zoneId ?? f.zoneId }));
+        }}>
+          <option value="">— None —</option>
+          {visibleSettlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        {(form.zoneId || form.clusterId) && visibleSettlements.length === 0 && (
+          <p className="text-[11px] text-slate-400 mt-0.5">No settlements in this zone/cluster yet.</p>
+        )}
       </div>
       <div className="sm:col-span-2">
         <label className="label">Notes</label>
@@ -227,7 +248,16 @@ function SettForm({
   onSave: (data: typeof initial) => void;
   onCancel: () => void;
 }) {
-  const [form, setForm] = useState({ ...initial, zoneId: "", polygonText: initial.polygon ? JSON.stringify(initial.polygon, null, 2) : "" });
+  // Pre-populate zone from existing cluster when editing
+  const initialZoneId = initial.clusterId
+    ? clusters.find(c => c.id === initial.clusterId)?.zoneId ?? ""
+    : "";
+
+  const [form, setForm] = useState({
+    ...initial,
+    zoneId: initialZoneId,
+    polygonText: initial.polygon ? JSON.stringify(initial.polygon, null, 2) : "",
+  });
   const [polyErr, setPolyErr] = useState<string | null>(null);
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -254,9 +284,11 @@ function SettForm({
     ? clusters.filter(c => c.zoneId === form.zoneId)
     : clusters;
 
-  // Infer zone from selected cluster
+  // Infer zone from selected cluster (shown read-only if zone wasn't explicitly set)
   const selectedCluster = clusters.find(c => c.id === form.clusterId);
-  const inferredZone = zones.find(z => z.id === selectedCluster?.zoneId);
+  const inferredZone = !form.zoneId && selectedCluster
+    ? zones.find(z => z.id === selectedCluster.zoneId)
+    : null;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
@@ -265,7 +297,7 @@ function SettForm({
         <input className="input" value={form.name} onChange={e => set("name", e.target.value)} placeholder="Settlement name" autoFocus />
       </div>
       <div>
-        <label className="label">Zone (to filter clusters)</label>
+        <label className="label">Zone (filters clusters below)</label>
         <select className="input" value={form.zoneId} onChange={e => setForm(f => ({ ...f, zoneId: e.target.value, clusterId: "" }))}>
           <option value="">— All zones —</option>
           {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
@@ -273,14 +305,19 @@ function SettForm({
       </div>
       <div>
         <label className="label">Cluster *</label>
-        <select className="input" value={form.clusterId} onChange={e => set("clusterId", e.target.value)}>
+        <select className="input" value={form.clusterId} onChange={e => {
+          const cid = e.target.value;
+          const cl = clusters.find(c => c.id === cid);
+          // If no zone was manually chosen, auto-set it from the cluster
+          setForm(f => ({ ...f, clusterId: cid, zoneId: f.zoneId || cl?.zoneId || "" }));
+        }}>
           <option value="">— Select cluster —</option>
           {visibleClusters.map(c => <option key={c.id} value={c.id}>{c.name.replace(/_/g, " ")}</option>)}
         </select>
       </div>
       {inferredZone && (
         <div>
-          <label className="label">Zone (inferred from cluster)</label>
+          <label className="label">Zone (from cluster)</label>
           <div className="input bg-slate-50 text-slate-500">{inferredZone.name}</div>
         </div>
       )}
@@ -329,6 +366,12 @@ function SettForm({
 
 export default function MapFeaturesSettingsPage() {
   const [tab, setTab] = useState<"points" | "settlements">("points");
+  const [layerKeys, setLayerKeys] = useState<LayerKey[]>([
+    { key: "creches", label: "Creches" },
+    { key: "children_centres", label: "Children Centres" },
+    { key: "youth_centres", label: "Youth Centres" },
+    { key: "resource_centres", label: "Resource Centres" },
+  ]);
   const [lkFilter, setLkFilter] = useState("creches");
 
   const [features, setFeatures] = useState<LayerFeatureRow[]>([]);
@@ -349,8 +392,22 @@ export default function MapFeaturesSettingsPage() {
   const [settSearch, setSettSearch] = useState("");
   const filteredSettlements = settlements
     .filter(s => !settSearch || s.name.toLowerCase().includes(settSearch.toLowerCase()))
-    .slice(0, 100)
     .map(s => ({ id: s.id, name: s.name, clusterId: s.clusterId }));
+
+  // Fetch facility layer types from DB (replaces hardcoded LAYER_KEYS)
+  useEffect(() => {
+    fetch("/api/admin/facility-layers")
+      .then(r => r.json())
+      .then((rows: { layerKey: string; label: string }[]) => {
+        if (rows.length > 0) {
+          const lks = rows.map(r => ({ key: r.layerKey, label: r.label }));
+          setLayerKeys(lks);
+          // Keep lkFilter valid; reset to first key if current filter no longer exists
+          setLkFilter(f => lks.some(l => l.key === f) ? f : (lks[0]?.key ?? f));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -448,7 +505,10 @@ export default function MapFeaturesSettingsPage() {
         </Link>
         <div>
           <h1 className="text-lg font-semibold text-slate-900">Map Features</h1>
-          <p className="text-xs text-slate-500">Manage programme centre points and settlement polygons</p>
+          <p className="text-xs text-slate-500">
+            Manage programme centre points and settlement polygons.{" "}
+            <Link href="/settings/facility-layers" className="text-indigo-500 hover:underline">Add/edit layer types →</Link>
+          </p>
         </div>
       </div>
 
@@ -471,8 +531,8 @@ export default function MapFeaturesSettingsPage() {
       {tab === "points" && (
         <div>
           <div className="flex flex-wrap items-center gap-3 mb-4">
-            <div className="flex gap-1">
-              {LAYER_KEYS.map(lk => (
+            <div className="flex gap-1 flex-wrap">
+              {layerKeys.map(lk => (
                 <button
                   key={lk.key}
                   onClick={() => { setLkFilter(lk.key); setAddingLF(false); setEditingLF(null); }}
@@ -496,7 +556,8 @@ export default function MapFeaturesSettingsPage() {
           {addingLF && (
             <div className="mb-4">
               <LFForm
-                initial={{ ...emptyLF(), layerKey: lkFilter, centreType: CENTRE_TYPES[lkFilter]?.[0] ?? "" }}
+                initial={emptyLF(lkFilter)}
+                layerKeys={layerKeys}
                 clusters={clusters}
                 zones={zones}
                 partners={partners}
@@ -518,6 +579,7 @@ export default function MapFeaturesSettingsPage() {
                   {editingLF?.id === f.id ? (
                     <LFForm
                       initial={{ name: f.name, layerKey: f.layerKey, centreType: f.centreType, partner: f.partner, lat: f.lat, lng: f.lng, settlementId: f.settlementId, clusterId: f.clusterId, zoneId: f.zoneId, notes: f.notes }}
+                      layerKeys={layerKeys}
                       clusters={clusters}
                       zones={zones}
                       partners={partners}
@@ -539,7 +601,7 @@ export default function MapFeaturesSettingsPage() {
                           {f.cluster    && <span>Cluster: <span className="text-slate-600">{f.cluster.name.replace(/_/g, " ")}</span></span>}
                           {f.zone       && <span>Zone: <span className="text-slate-600">{f.zone.name}</span></span>}
                           <span className="font-mono">{f.lat.toFixed(4)}, {f.lng.toFixed(4)}</span>
-                          {f.notes      && <span className="italic">"{f.notes}"</span>}
+                          {f.notes      && <span className="italic">&ldquo;{f.notes}&rdquo;</span>}
                         </div>
                       </div>
                       <div className="flex gap-1 flex-shrink-0">

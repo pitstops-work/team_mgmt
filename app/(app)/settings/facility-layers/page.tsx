@@ -10,6 +10,7 @@ interface FacilityLayer {
   id: string;
   layerKey: string;
   label: string;
+  needsDomain: string | null;
   sortOrder: number;
 }
 
@@ -17,10 +18,12 @@ type EditState = {
   id?: string;
   layerKey: string;
   label: string;
+  needsDomain: string;
   sortOrder: number;
 } | null;
 
 const inputCls = "px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white";
+const selectCls = inputCls;
 
 export default function FacilityLayersPage() {
   const { data: session } = useSession();
@@ -28,6 +31,7 @@ export default function FacilityLayersPage() {
   const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super-admin";
 
   const [layers, setLayers] = useState<FacilityLayer[]>([]);
+  const [needsDomains, setNeedsDomains] = useState<{ domain: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState<EditState>(null);
   const [saving, setSaving] = useState(false);
@@ -39,7 +43,13 @@ export default function FacilityLayersPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    fetch("/api/needs/formulas")
+      .then(r => r.json())
+      .then((rows: { domain: string; label: string }[]) => setNeedsDomains(rows))
+      .catch(() => {});
+  }, [load]);
 
   useEffect(() => {
     if (session && !isAdmin) router.replace("/settings");
@@ -52,16 +62,22 @@ export default function FacilityLayersPage() {
     setSaving(true);
     setError("");
     try {
+      const body = {
+        layerKey: edit.layerKey,
+        label: edit.label,
+        needsDomain: edit.needsDomain || null,
+        sortOrder: edit.sortOrder,
+      };
       const res = edit.id
         ? await fetch(`/api/admin/facility-layers/${edit.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ layerKey: edit.layerKey, label: edit.label, sortOrder: edit.sortOrder }),
+            body: JSON.stringify(body),
           })
         : await fetch("/api/admin/facility-layers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ layerKey: edit.layerKey, label: edit.label, sortOrder: edit.sortOrder }),
+            body: JSON.stringify(body),
           });
       if (res.ok) {
         setEdit(null);
@@ -83,6 +99,82 @@ export default function FacilityLayersPage() {
     load();
   };
 
+  function DomainBadge({ domain }: { domain: string | null }) {
+    if (!domain) return <span className="text-xs text-stone-300 italic">—</span>;
+    const found = needsDomains.find(d => d.domain === domain);
+    return <span className="text-xs text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full">{found?.label ?? domain}</span>;
+  }
+
+  function EditRow({ isNew = false }: { isNew?: boolean }) {
+    if (!edit) return null;
+    return (
+      <div className={`flex items-start gap-2 px-4 py-3 border rounded-xl ${isNew ? "bg-sky-50 border-sky-200" : "bg-stone-50 border-stone-200"}`}>
+        <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <div className="flex gap-2">
+            <div>
+              <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-0.5">Layer Key</label>
+              <input
+                autoFocus={isNew}
+                className={inputCls + " w-40 font-mono text-xs"}
+                value={edit.layerKey}
+                onChange={e => setEdit({ ...edit, layerKey: e.target.value.replace(/\s/g, "_").toLowerCase() })}
+                placeholder="layer_key"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-0.5">Display Label</label>
+              <input
+                autoFocus={!isNew}
+                className={inputCls + " w-full"}
+                value={edit.label}
+                onChange={e => setEdit({ ...edit, label: e.target.value })}
+                placeholder="Display label"
+              />
+            </div>
+            <div className="w-16">
+              <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-0.5">Order</label>
+              <input
+                type="number"
+                className={inputCls + " w-full text-center"}
+                value={edit.sortOrder}
+                onChange={e => setEdit({ ...edit, sortOrder: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-0.5">Needs Domain (links this facility type to a field-coverage domain)</label>
+            <select
+              className={selectCls + " w-full"}
+              value={edit.needsDomain}
+              onChange={e => setEdit({ ...edit, needsDomain: e.target.value })}
+            >
+              <option value="">— None —</option>
+              {needsDomains.map(d => (
+                <option key={d.domain} value={d.domain}>{d.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {error && <span className="text-xs text-red-500 self-center">{error}</span>}
+        <div className="flex flex-col gap-1 shrink-0 self-center">
+          <button
+            onClick={handleSave}
+            disabled={saving || !edit.layerKey || !edit.label}
+            className="p-1.5 hover:bg-emerald-50 rounded text-emerald-600 disabled:opacity-40 transition-colors"
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => { setEdit(null); setError(""); }}
+            className="p-1.5 hover:bg-stone-100 rounded text-stone-400 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <div className="flex items-center gap-3 mb-6">
@@ -93,71 +185,38 @@ export default function FacilityLayersPage() {
       </div>
 
       <p className="text-sm text-stone-500 mb-6 leading-relaxed">
-        These facility types appear in the template builder&apos;s &ldquo;Linked facility type&rdquo; dropdown
-        and in the goal creation wizard when selecting an existing facility.
-        The <strong>Layer Key</strong> must match the{" "}
-        <code className="bg-stone-100 px-1 rounded text-xs">layerKey</code> values used in{" "}
+        These facility types appear in the template builder&apos;s &ldquo;Linked facility type&rdquo; dropdown,
+        the goal creation wizard, and the{" "}
         <Link href="/settings/map-features" className="text-sky-600 hover:underline">Map Features</Link>{" "}
-        (e.g. <code className="bg-stone-100 px-1 rounded text-xs">creches</code>).
+        layer picker. Set a <strong>Needs Domain</strong> to tie a facility to a field-coverage gap
+        (e.g. Children Centre → ChildrenCentre domain) so goal counts can be reconciled with assessments.
+        The <strong>Layer Key</strong> must match the{" "}
+        <code className="bg-stone-100 px-1 rounded text-xs">layerKey</code> values in Map Features.
       </p>
-
-      <div className="mb-2 grid grid-cols-[160px_1fr_48px_88px] gap-2 px-4">
-        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Layer Key</span>
-        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Display Label</span>
-        <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">Order</span>
-        <span />
-      </div>
 
       {loading ? (
         <p className="text-sm text-stone-400 text-center py-8">Loading…</p>
       ) : (
         <div className="space-y-2 mb-4">
           {layers.map((layer) => (
-            <div key={layer.id} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-stone-200 rounded-xl">
+            <div key={layer.id}>
               {edit?.id === layer.id ? (
-                <>
-                  <input
-                    className={inputCls + " w-40 font-mono text-xs"}
-                    value={edit.layerKey}
-                    onChange={e => setEdit({ ...edit, layerKey: e.target.value.replace(/\s/g, "_").toLowerCase() })}
-                    placeholder="layer_key"
-                  />
-                  <input
-                    className={inputCls + " flex-1"}
-                    value={edit.label}
-                    onChange={e => setEdit({ ...edit, label: e.target.value })}
-                    placeholder="Display label"
-                  />
-                  <input
-                    type="number"
-                    className={inputCls + " w-12 text-center"}
-                    value={edit.sortOrder}
-                    onChange={e => setEdit({ ...edit, sortOrder: Number(e.target.value) })}
-                  />
-                  <div className="flex gap-1">
-                    <button
-                      onClick={handleSave}
-                      disabled={saving || !edit.layerKey || !edit.label}
-                      className="p-1.5 hover:bg-emerald-50 rounded text-emerald-600 disabled:opacity-40 transition-colors"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => { setEdit(null); setError(""); }}
-                      className="p-1.5 hover:bg-stone-100 rounded text-stone-400 transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </>
+                <EditRow />
               ) : (
-                <>
-                  <code className="text-xs text-stone-500 font-mono w-40 shrink-0">{layer.layerKey}</code>
+                <div className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl">
+                  <code className="text-xs text-stone-500 font-mono w-36 shrink-0">{layer.layerKey}</code>
                   <span className="text-sm font-medium text-stone-800 flex-1">{layer.label}</span>
-                  <span className="text-xs text-stone-400 w-12 text-center">{layer.sortOrder}</span>
-                  <div className="flex gap-1">
+                  <DomainBadge domain={layer.needsDomain} />
+                  <span className="text-xs text-stone-300 w-8 text-center">{layer.sortOrder}</span>
+                  <div className="flex gap-1 shrink-0">
                     <button
-                      onClick={() => setEdit({ id: layer.id, layerKey: layer.layerKey, label: layer.label, sortOrder: layer.sortOrder })}
+                      onClick={() => setEdit({
+                        id: layer.id,
+                        layerKey: layer.layerKey,
+                        label: layer.label,
+                        needsDomain: layer.needsDomain ?? "",
+                        sortOrder: layer.sortOrder,
+                      })}
                       className="p-1.5 hover:bg-stone-50 rounded text-stone-400 hover:text-stone-600 transition-colors"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -169,7 +228,7 @@ export default function FacilityLayersPage() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                </>
+                </div>
               )}
             </div>
           ))}
@@ -179,49 +238,11 @@ export default function FacilityLayersPage() {
         </div>
       )}
 
-      {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
-
       {edit && !edit.id ? (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 border border-sky-200 rounded-xl mb-4">
-          <input
-            autoFocus
-            className={inputCls + " w-40 font-mono text-xs"}
-            value={edit.layerKey}
-            onChange={e => setEdit({ ...edit, layerKey: e.target.value.replace(/\s/g, "_").toLowerCase() })}
-            placeholder="layer_key"
-          />
-          <input
-            className={inputCls + " flex-1"}
-            value={edit.label}
-            onChange={e => setEdit({ ...edit, label: e.target.value })}
-            placeholder="Display label"
-          />
-          <input
-            type="number"
-            className={inputCls + " w-12 text-center"}
-            value={edit.sortOrder}
-            onChange={e => setEdit({ ...edit, sortOrder: Number(e.target.value) })}
-            placeholder="0"
-          />
-          <div className="flex gap-1">
-            <button
-              onClick={handleSave}
-              disabled={saving || !edit.layerKey || !edit.label}
-              className="p-1.5 hover:bg-emerald-50 rounded text-emerald-600 disabled:opacity-40 transition-colors"
-            >
-              <Check className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => { setEdit(null); setError(""); }}
-              className="p-1.5 hover:bg-stone-100 rounded text-stone-400 transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+        <EditRow isNew />
       ) : (
         <button
-          onClick={() => setEdit({ layerKey: "", label: "", sortOrder: layers.length })}
+          onClick={() => setEdit({ layerKey: "", label: "", needsDomain: "", sortOrder: layers.length })}
           className="flex items-center gap-2 w-full px-4 py-3 border-2 border-dashed border-stone-200 rounded-xl text-sm text-stone-500 hover:border-stone-300 hover:text-stone-700 transition-colors"
         >
           <Plus className="w-4 h-4" /> Add facility type
