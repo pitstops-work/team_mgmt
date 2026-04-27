@@ -19,6 +19,7 @@ export type LayerKey =
   | "children_centres"
   | "youth_centres"
   | "creches"
+  | "elderly_kitchens"
   | "custom"
   | "custom_settlements"
   | "schools"
@@ -60,6 +61,7 @@ export const LAYERS: LayerConfig[] = [
   { key: "children_centres", label: "Children Centres", file: "/api/map/geojson/layer-features?layerKey=children_centres", color: "#f97316", type: "point", city: "bangalore", description: "Children programme centres" },
   { key: "youth_centres",    label: "Youth Centres",    file: "/api/map/geojson/layer-features?layerKey=youth_centres",    color: "#8b5cf6", type: "point", city: "bangalore", description: "Youth programme centres" },
   { key: "creches",          label: "Creches",          file: "/api/map/geojson/layer-features?layerKey=creches",          color: "#ec4899", type: "point", city: "bangalore", description: "Creche programme centres" },
+  { key: "elderly_kitchens", label: "Elderly Kitchens", file: "/api/map/geojson/layer-features?layerKey=elderly_kitchens", color: "#0d9488", type: "point", city: "bangalore", description: "Elderly kitchen programme centres" },
 
   { key: "custom_settlements", label: "Custom Settlements", file: "", color: "#6366f1", type: "polygon", city: "bangalore", description: "User-added settlement polygons" },
 
