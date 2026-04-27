@@ -15,7 +15,7 @@ export interface DomainConfig {
   populationField: string | null;
   denominator: number | null;
   sortOrder: number;
-  clusterScope: boolean;       // if true, viability minimum is at cluster level, not per-settlement
+  assessmentLevel: string;     // "settlement" | "cluster" | "zone" | "city"
   linkedSchemeId: string | null;
 }
 
@@ -148,19 +148,18 @@ function computeStats(
   goals: GoalRow[],
   domainConfigs: DomainConfig[],
   totalCount: number,
-  clusterScopedOverrides?: Record<string, number>, // pre-computed targets for cluster-scoped domains
+  // Pre-computed targets for non-settlement domains that must not be re-derived from this level's total pop.
+  // Pass explicit 0 for domains that are above this level (e.g. city-scoped at zone level).
+  scopedOverrides?: Record<string, number>,
 ): LevelStats {
   const totalHH = assessments.reduce((s, a) => s + (Number(a.totalHouseholds) || 0), 0);
 
-  // Initialise per-domain accumulators
   const targetSum: Record<string, number> = {};
   const existing:  Record<string, number> = {};
   for (const cfg of domainConfigs) { targetSum[cfg.domain] = 0; existing[cfg.domain] = 0; }
 
-  // Accumulate total pop (needed for cluster-scoped domains when no override provided)
   const totalPop: PopFields = { totalHouseholds: 0, children6m3yr: 0, children4to14: 0, youth15to21: 0, elderly60plus: 0 };
 
-  // Per-assessment: compute target for non-cluster-scoped + sum existing for all
   for (const a of assessments) {
     const pop: PopFields = {
       totalHouseholds: Number(a.totalHouseholds) || 0,
@@ -175,16 +174,17 @@ function computeStats(
     totalPop.youth15to21     += pop.youth15to21;
     totalPop.elderly60plus   += pop.elderly60plus;
     for (const cfg of domainConfigs) {
-      if (!cfg.clusterScope) targetSum[cfg.domain] += formulaTarget(pop, cfg);
+      if (cfg.assessmentLevel === "settlement") targetSum[cfg.domain] += formulaTarget(pop, cfg);
       const col = EXISTING_FIELD_MAP[cfg.domain];
       if (col) existing[cfg.domain] += Number(a[col]) || 0;
     }
   }
 
-  // Cluster-scoped domains: use override (zone/city) or total pop (cluster call)
-  for (const cfg of domainConfigs.filter(d => d.clusterScope)) {
-    targetSum[cfg.domain] = clusterScopedOverrides !== undefined
-      ? (clusterScopedOverrides[cfg.domain] ?? 0)
+  // Non-settlement domains: use pre-computed override if provided, else apply formula to total population
+  // (override = 0 means this level is below the domain's assessment scope — not viable here)
+  for (const cfg of domainConfigs.filter(d => d.assessmentLevel !== "settlement")) {
+    targetSum[cfg.domain] = scopedOverrides !== undefined && cfg.domain in scopedOverrides
+      ? scopedOverrides[cfg.domain]
       : formulaTarget(totalPop, cfg);
   }
 
@@ -451,20 +451,22 @@ export default async function NeedsPage() {
 
   // Build domain configs from DB rows
   const domainConfigs: DomainConfig[] = formulaRows.map(f => ({
-    domain:         f.domain,
-    label:          f.label ?? f.domain,
-    color:          f.color ?? "#6b7280",
-    domainType:     f.domainType ?? "count",
-    populationField:f.populationField ?? null,
-    denominator:    f.denominator ?? null,
-    sortOrder:      f.sortOrder ?? 0,
-    clusterScope:   f.clusterScope ?? false,
-    linkedSchemeId: f.linkedSchemeId ?? null,
+    domain:          f.domain,
+    label:           f.label ?? f.domain,
+    color:           f.color ?? "#6b7280",
+    domainType:      f.domainType ?? "count",
+    populationField: f.populationField ?? null,
+    denominator:     f.denominator ?? null,
+    sortOrder:       f.sortOrder ?? 0,
+    assessmentLevel: f.assessmentLevel ?? (f.clusterScope ? "cluster" : "settlement"),
+    linkedSchemeId:  f.linkedSchemeId ?? null,
   }));
 
   const entitlementDomains = domainConfigs.filter(d => d.domainType === "entitlement" && d.linkedSchemeId);
 
-  const clusterScopedDomains = domainConfigs.filter(d => d.clusterScope);
+  const clusterScopedDomains = domainConfigs.filter(d => d.assessmentLevel === "cluster");
+  const zoneScopedDomains    = domainConfigs.filter(d => d.assessmentLevel === "zone");
+  const cityScopedDomains    = domainConfigs.filter(d => d.assessmentLevel === "city");
 
   const assessmentBySettlement = Object.fromEntries(latestAssessments.map(a => [a.settlementId, a]));
 
@@ -575,12 +577,15 @@ export default async function NeedsPage() {
           (g.needsSettlementId && settlementToCluster[g.needsSettlementId] === cluster.id)
         );
         const clSIds = cluster.settlements.map(s => s.id);
+        // cluster-scoped: compute naturally on cluster total; zone/city-scoped: zero out (not viable at cluster)
+        const clusterZeroOverrides: Record<string, number> = {};
+        for (const cfg of [...zoneScopedDomains, ...cityScopedDomains]) clusterZeroOverrides[cfg.domain] = 0;
         clusterStatsMap[cluster.id] = {
           name: cluster.name,
           zoneName: zone.name,
           cityName: city.name,
           stats: mergeEntStats(
-            computeStats(clAssessments, clGoals, domainConfigs, cluster.settlements.length),
+            computeStats(clAssessments, clGoals, domainConfigs, cluster.settlements.length, clusterZeroOverrides),
             entOverlay(clSIds),
           ),
         };
@@ -588,19 +593,40 @@ export default async function NeedsPage() {
     }
   }
 
-  // Helper: build cluster-scoped override targets for a set of clusters
-  // (sums cluster targets — avoids applying formula to zone/city totals which is wrong)
-  function clusterScopedSum(clusterIds: string[]): Record<string, number> {
+  // Build override map: sum pre-computed targets from a lower level.
+  // Domains NOT in the provided list receive no override → computed naturally from total pop at this level.
+  // Pass explicit 0 for domains that are above the current level (their threshold hasn't been reached yet).
+  function buildOverrides(
+    clusterIds: string[],
+    zoneIds: string[],
+    includeLevels: ("cluster" | "zone")[],   // levels whose results we sum
+    zeroLevels: ("cluster" | "zone" | "city")[],  // levels we zero out (above current scope)
+  ): Record<string, number> {
     const overrides: Record<string, number> = {};
-    for (const cfg of clusterScopedDomains) {
-      overrides[cfg.domain] = clusterIds.reduce((sum, cid) => {
-        return sum + (clusterStatsMap[cid]?.stats.domains[cfg.domain]?.target ?? 0);
-      }, 0);
+    if (includeLevels.includes("cluster")) {
+      for (const cfg of clusterScopedDomains) {
+        overrides[cfg.domain] = clusterIds.reduce((s, cid) => s + (clusterStatsMap[cid]?.stats.domains[cfg.domain]?.target ?? 0), 0);
+      }
+    }
+    if (includeLevels.includes("zone")) {
+      for (const cfg of zoneScopedDomains) {
+        overrides[cfg.domain] = zoneIds.reduce((s, zid) => s + (zoneStatsMap[zid]?.stats.domains[cfg.domain]?.target ?? 0), 0);
+      }
+    }
+    if (zeroLevels.includes("cluster")) {
+      for (const cfg of clusterScopedDomains) overrides[cfg.domain] = 0;
+    }
+    if (zeroLevels.includes("zone")) {
+      for (const cfg of zoneScopedDomains)    overrides[cfg.domain] = 0;
+    }
+    if (zeroLevels.includes("city")) {
+      for (const cfg of cityScopedDomains)    overrides[cfg.domain] = 0;
     }
     return overrides;
   }
 
   // ── Per-zone stats ──
+  // cluster-scoped: sum cluster results; zone-scoped: compute naturally on zone total pop; city-scoped: 0
   const zoneStatsMap: Record<string, { name: string; cityName: string; stats: LevelStats }> = {};
   for (const city of cities) {
     for (const zone of city.zones) {
@@ -612,11 +638,13 @@ export default async function NeedsPage() {
         (g.needsSettlementId && settlementToZone[g.needsSettlementId] === zone.id)
       );
       const zSIds = zoneSettlements.map(s => s.id);
+      const clIds = zone.clusters.map(c => c.id);
       zoneStatsMap[zone.id] = {
         name: zone.name,
         cityName: city.name,
         stats: mergeEntStats(
-          computeStats(zoneAssessments, zoneGoals, domainConfigs, zoneSettlements.length, clusterScopedSum(zone.clusters.map(c => c.id))),
+          computeStats(zoneAssessments, zoneGoals, domainConfigs, zoneSettlements.length,
+            buildOverrides(clIds, [], ["cluster"], ["city"])),
           entOverlay(zSIds),
         ),
       };
@@ -624,10 +652,12 @@ export default async function NeedsPage() {
   }
 
   // ── Per-city stats (city toggle) ──
+  // cluster-scoped: sum cluster results; zone-scoped: sum zone results; city-scoped: compute naturally on city total pop
   const cityStatsMap: Record<string, { name: string; stats: LevelStats }> = {};
   for (const city of cities) {
     const cityZoneIds = new Set(city.zones.map(z => z.id));
     const cityClusterIds = city.zones.flatMap(z => z.clusters.map(c => c.id));
+    const cityZoneIdList  = city.zones.map(z => z.id);
     const citySettlements = city.zones.flatMap(z => z.clusters.flatMap(c => c.settlements));
     const cityAssessments = citySettlements.map(s => assessmentBySettlement[s.id]).filter(Boolean) as unknown as AssessmentRow[];
     const cityGoals = goals.filter(g =>
@@ -640,7 +670,8 @@ export default async function NeedsPage() {
     cityStatsMap[city.id] = {
       name: city.name,
       stats: mergeEntStats(
-        computeStats(cityAssessments, cityGoals, domainConfigs, citySettlements.length, clusterScopedSum(cityClusterIds)),
+        computeStats(cityAssessments, cityGoals, domainConfigs, citySettlements.length,
+          buildOverrides(cityClusterIds, cityZoneIdList, ["cluster", "zone"], [])),
         entOverlay(citySIds),
       ),
     };
@@ -686,9 +717,11 @@ export default async function NeedsPage() {
 
   // ── City-wide stats (all cities combined) ──
   const allClusterIds = cities.flatMap(c => c.zones.flatMap(z => z.clusters.map(cl => cl.id)));
+  const allZoneIds    = cities.flatMap(c => c.zones.map(z => z.id));
   const allSettlementIds = allSettlements.map(s => s.id);
   const cityStats = applyGeoOverrides(mergeEntStats(
-    computeStats(latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length, clusterScopedSum(allClusterIds)),
+    computeStats(latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length,
+      buildOverrides(allClusterIds, allZoneIds, ["cluster", "zone"], [])),
     entOverlay(allSettlementIds),
   ));
 
@@ -719,7 +752,9 @@ export default async function NeedsPage() {
           const sGoals = goals.filter(g => g.needsSettlementId === s.id);
           const stats = computeStats(a ? [a as unknown as AssessmentRow] : [], sGoals, domainConfigs, 1);
 
-          // Override cluster-scoped domain targets for this settlement
+          // Override non-settlement-scoped domain targets for this settlement:
+          // cluster-scoped: assign cluster target to top-pop settlement, 0 elsewhere
+          // zone/city-scoped: always 0 at settlement level (viability not assessed here)
           for (const cfg of clusterScopedDomains) {
             const clusterTarget = clusterStatsMap[cluster.id]?.stats.domains[cfg.domain]?.target ?? 0;
             const isTop = topSettlement[cfg.domain] === s.id;
@@ -730,6 +765,13 @@ export default async function NeedsPage() {
             const activeGoalCount = stats.domains[cfg.domain]?.activeGoalCount ?? 0;
             const apfTarget = Math.max(0, assignedTarget - ex);
             stats.domains[cfg.domain] = { target: assignedTarget, existing: ex, apfTarget, planned: Math.min(done + inProg, apfTarget > 0 ? apfTarget : done + inProg), done, inProgress: inProg, activeGoalCount, gap: Math.max(0, apfTarget - done) };
+          }
+          for (const cfg of [...zoneScopedDomains, ...cityScopedDomains]) {
+            const ex = stats.domains[cfg.domain]?.existing ?? 0;
+            const done = stats.domains[cfg.domain]?.done ?? 0;
+            const inProg = stats.domains[cfg.domain]?.inProgress ?? 0;
+            const activeGoalCount = stats.domains[cfg.domain]?.activeGoalCount ?? 0;
+            stats.domains[cfg.domain] = { target: 0, existing: ex, apfTarget: 0, planned: 0, done, inProgress: inProg, activeGoalCount, gap: 0 };
           }
 
           const sStat = mergeEntStats(stats, entOverlay([s.id]));

@@ -31,10 +31,11 @@ export async function PATCH(req: NextRequest) {
     color?: string;
     sortOrder?: number;
     linkedSchemeId?: string | null;
+    assessmentLevel?: string;
   }[] = await req.json();
 
   await Promise.all(
-    updates.map(({ domain, denominator, description, isActive, label, color, sortOrder, linkedSchemeId }) =>
+    updates.map(({ domain, denominator, description, isActive, label, color, sortOrder, linkedSchemeId, assessmentLevel }) =>
       prisma.needsFormulaConfig.update({
         where: { domain },
         data: {
@@ -45,6 +46,10 @@ export async function PATCH(req: NextRequest) {
           ...(color !== undefined ? { color } : {}),
           ...(sortOrder !== undefined ? { sortOrder } : {}),
           ...(linkedSchemeId !== undefined ? { linkedSchemeId: linkedSchemeId ?? null } : {}),
+          ...(assessmentLevel !== undefined ? {
+            assessmentLevel,
+            clusterScope: assessmentLevel === "cluster",
+          } : {}),
         },
       })
     )
@@ -76,7 +81,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { key, label, color, domainType, denominator, populationField, description, linkedSchemeId } = await req.json();
+  const { key, label, color, domainType, denominator, populationField, description, linkedSchemeId, assessmentLevel } = await req.json();
 
   if (!key || !label) return Response.json({ error: "key and label are required" }, { status: 400 });
 
@@ -96,6 +101,8 @@ export async function POST(req: NextRequest) {
       sortOrder,
       isActive: true,
       linkedSchemeId: domainType === "entitlement" ? (linkedSchemeId ?? null) : null,
+      assessmentLevel: assessmentLevel ?? "settlement",
+      clusterScope: assessmentLevel === "cluster",
     },
   });
 

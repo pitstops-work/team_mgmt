@@ -17,7 +17,15 @@ interface DomainConfig {
   sortOrder: number;
   isActive: boolean;
   linkedSchemeId: string | null;
+  assessmentLevel: string;  // "settlement" | "cluster" | "zone" | "city"
 }
+
+const ASSESSMENT_LEVELS = [
+  { value: "settlement", label: "Settlement", desc: "Each settlement's own population must meet the threshold" },
+  { value: "cluster",   label: "Cluster",    desc: "Cluster's total population is pooled — viability assessed across the cluster" },
+  { value: "zone",      label: "Zone",       desc: "Zone's total population is pooled — viability assessed across the zone" },
+  { value: "city",      label: "City",       desc: "City's total population is pooled — one target for the whole city" },
+];
 
 interface Scheme { id: string; name: string; parentId: string | null; sortOrder: number; isActive: boolean }
 
@@ -51,6 +59,7 @@ function FormulasSection() {
   const [newDenom, setNewDenom]           = useState("");
   const [newDesc, setNewDesc]             = useState("");
   const [newLinkedSchemeId, setNewLinkedSchemeId] = useState("");
+  const [newAssessmentLevel, setNewAssessmentLevel] = useState("settlement");
   const [adding, setAdding]               = useState(false);
   const [addError, setAddError]           = useState("");
   const [keyEdited, setKeyEdited]         = useState(false);
@@ -137,6 +146,10 @@ function FormulasSection() {
     await patchDomain([{ domain, color }]);
   };
 
+  const handleAssessmentLevelChange = async (domain: string, assessmentLevel: string) => {
+    await patchDomain([{ domain, assessmentLevel }]);
+  };
+
   const handleReorder = async (idx: number, direction: "up" | "down") => {
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= domains.length) return;
@@ -167,6 +180,7 @@ function FormulasSection() {
         denominator: (newType === "boolean" || newType === "entitlement") ? null : (newDenom ? parseFloat(newDenom) : null),
         description: newDesc.trim() || null,
         linkedSchemeId: newType === "entitlement" ? newLinkedSchemeId : null,
+        assessmentLevel: newType === "count" ? newAssessmentLevel : "settlement",
       }),
     });
     if (res.ok) {
@@ -174,7 +188,7 @@ function FormulasSection() {
       setDomains(prev => [...prev, created]);
       setEdits(prev => ({ ...prev, [created.domain]: created.denominator != null ? String(created.denominator) : "" }));
       setNewKey(""); setNewLabel(""); setNewColor("#6b7280"); setNewType("count");
-      setNewPopField("totalHouseholds"); setNewDenom(""); setNewDesc(""); setNewLinkedSchemeId("");
+      setNewPopField("totalHouseholds"); setNewDenom(""); setNewDesc(""); setNewLinkedSchemeId(""); setNewAssessmentLevel("settlement");
       setKeyEdited(false); setShowAdvanced(false);
       setShowAdd(false);
     } else {
@@ -298,29 +312,50 @@ function FormulasSection() {
 
           {/* Ratio fields */}
           {newType === "count" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Population group</label>
-                <select
-                  value={newPopField}
-                  onChange={e => setNewPopField(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
-                >
-                  {POP_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                </select>
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Population group</label>
+                  <select
+                    value={newPopField}
+                    onChange={e => setNewPopField(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                  >
+                    {POP_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">1 unit per N people</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newDenom}
+                    onChange={e => setNewDenom(e.target.value)}
+                    placeholder="e.g. 500"
+                    className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">1 unit per N people</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={newDenom}
-                  onChange={e => setNewDenom(e.target.value)}
-                  placeholder="e.g. 500"
-                  className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
-                />
+                <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Viability assessed at</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ASSESSMENT_LEVELS.map(lv => (
+                    <button
+                      key={lv.value}
+                      type="button"
+                      onClick={() => setNewAssessmentLevel(lv.value)}
+                      className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${newAssessmentLevel === lv.value ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}
+                    >
+                      <p className="text-xs font-semibold text-stone-700">{lv.label}</p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">{lv.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-sky-600 mt-1.5">
+                  Example: "1 centre per 500 children at cluster level" means a centre is only needed if the cluster has ≥500 children in total.
+                </p>
               </div>
-            </div>
+            </>
           )}
 
           {/* Presence hint */}
@@ -476,22 +511,32 @@ function FormulasSection() {
                   ? `Scheme saturation · ${allSchemes.find(s => s.id === d.linkedSchemeId)?.name ?? "no scheme linked"}`
                   : d.domainType === "boolean"
                   ? "Boolean — yes/no per settlement"
-                  : `${d.populationField ?? "?"} · 1 per ${d.denominator ?? "?"}`}
+                  : `${d.populationField ?? "?"} · 1 per ${d.denominator ?? "?"} · assessed at ${d.assessmentLevel ?? "settlement"}`}
               </p>
             </div>
 
-            {/* Denominator input for count domains only */}
+            {/* Denominator input + assessment level for count domains */}
             {d.domainType === "count" && (
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <span className="text-xs text-stone-400">1 per</span>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={edits[d.domain] ?? ""}
-                  onChange={e => setEdits(prev => ({ ...prev, [d.domain]: e.target.value }))}
-                  className="w-20 px-2 py-1 text-sm text-right border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
-                />
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-stone-400">1 per</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={edits[d.domain] ?? ""}
+                    onChange={e => setEdits(prev => ({ ...prev, [d.domain]: e.target.value }))}
+                    className="w-20 px-2 py-1 text-sm text-right border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+                  />
+                </div>
+                <select
+                  value={d.assessmentLevel ?? "settlement"}
+                  onChange={e => handleAssessmentLevelChange(d.domain, e.target.value)}
+                  className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white text-stone-600 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                  title="Viability assessed at this geographic level"
+                >
+                  {ASSESSMENT_LEVELS.map(lv => <option key={lv.value} value={lv.value}>{lv.label} level</option>)}
+                </select>
               </div>
             )}
 

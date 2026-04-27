@@ -1175,7 +1175,8 @@ model NeedsFormulaConfig {
   assessmentColumn String?                       // column name in SettlementAssessment for "existing" count, e.g. "existingCreches"
   sortOrder        Int      @default(0)
   isActive        Boolean  @default(true)
-  clusterScope    Boolean  @default(false) // if true, viability threshold is cluster-total, not per-settlement
+  clusterScope    Boolean  @default(false) // legacy — superseded by assessmentLevel
+  assessmentLevel  String   @default("settlement") // "settlement" | "cluster" | "zone" | "city"
   linkedSchemeId  String?                       // for domainType="entitlement" — links to an EntitlementScheme
   updatedAt       DateTime @updatedAt
 
