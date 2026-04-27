@@ -11,7 +11,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
-import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat, RPPitstopDetail, AdminDash, AdminGoal, AdminUser, AdminZone, OverduePitstop, AdminPersonHealth, AdminDelayedPitstop, AdminOverdueActivity, AdminEngagementStat } from "./page";
+import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat, RPPitstopDetail, AdminDash, AdminGoal, AdminUser, AdminZone, OverduePitstop, AdminPersonHealth, AdminDelayedPitstop, AdminOverdueActivity, AdminEngagementStat, AdminCityCoverage } from "./page";
 import Avatar from "@/components/Avatar";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -4159,6 +4159,36 @@ function AdminCoverageTab({ dash }: { dash: AdminDash }) {
 
   return (
     <div className="space-y-8">
+      {/* Settlement coverage by city */}
+      {dash.cities.length > 0 && (
+        <div>
+          <SectionTitle>Settlement coverage</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+            {dash.cities.map((city: AdminCityCoverage) => {
+              const pct = city.totalSettlements > 0
+                ? Math.round((city.coveredCount / city.totalSettlements) * 100)
+                : 0;
+              return (
+                <div key={city.id} className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-stone-800">{city.name}</p>
+                    <span className="text-xs text-stone-400">{pct}%</span>
+                  </div>
+                  <div className="flex items-end gap-1.5">
+                    <span className="text-2xl font-bold text-stone-900">{city.coveredCount.toLocaleString()}</span>
+                    <span className="text-sm text-stone-400 mb-0.5">/ {city.totalSettlements.toLocaleString()} settlements</span>
+                  </div>
+                  <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-sky-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="text-[10px] text-stone-400">{(city.totalSettlements - city.coveredCount).toLocaleString()} not yet covered</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Overall */}
       <div>
         <div className="flex items-center justify-between mb-2">

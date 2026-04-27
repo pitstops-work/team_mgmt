@@ -216,6 +216,13 @@ export type OverduePitstop = {
   owner: { name: string | null } | null;
 };
 
+export type AdminCityCoverage = {
+  id: string;
+  name: string;
+  totalSettlements: number;
+  coveredCount: number;
+};
+
 export type AdminDash = {
   kpis: AdminKPIs;
   pitstopByStatus: { status: string; count: number }[];
@@ -232,6 +239,7 @@ export type AdminDash = {
   delayedPitstopsAll: AdminDelayedPitstop[];
   overdueActivitiesList: AdminOverdueActivity[];
   engagement: AdminEngagementStat[];
+  cities: AdminCityCoverage[];
 };
 
 export default async function HomePage() {
@@ -970,6 +978,7 @@ export default async function HomePage() {
       openPitstopsRaw,
       allChecklistsRaw,
       allOverdueActivitiesRaw,
+      citiesRaw,
     ] = await Promise.all([
       prisma.goal.groupBy({ by: ["status"], _count: { id: true }, where: { deletedAt: null } }),
       prisma.pitstop.groupBy({ by: ["status"], _count: { id: true }, where: { deletedAt: null } }),
@@ -1074,6 +1083,15 @@ export default async function HomePage() {
         },
         orderBy: { scheduledAt: "asc" },
         take: 500,
+      }),
+      // City settlement coverage
+      prisma.city.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true, name: true, totalSettlements: true,
+          _count: { select: { settlements: { where: { deletedAt: null } } } },
+        },
+        orderBy: { name: "asc" },
       }),
     ]);
 
@@ -1358,6 +1376,12 @@ export default async function HomePage() {
       delayedPitstopsAll,
       overdueActivitiesList,
       engagement: adminEngagement,
+      cities: citiesRaw.map(c => ({
+        id: c.id,
+        name: c.name,
+        totalSettlements: c.totalSettlements,
+        coveredCount: c._count.settlements,
+      })),
     };
   }
 
