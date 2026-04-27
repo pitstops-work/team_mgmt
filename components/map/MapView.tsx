@@ -568,7 +568,7 @@ export default function MapView({
         });
         map.on("click", "zones-fill", (e) => {
           if (!e.features?.length) return;
-          onZoneSelectRef.current(e.features[0].properties?.zone ?? null);
+          onZoneSelectRef.current(e.features[0].properties?.id ?? null);
         });
         map.on("mouseenter", "zones-fill", () => { map.getCanvas().style.cursor = "pointer"; });
         map.on("mouseleave", "zones-fill", () => { map.getCanvas().style.cursor = ""; });
@@ -951,8 +951,16 @@ export default function MapView({
     const map = mapRef.current;
     if (!map) return;
     try {
-      if (activeZone && !activeCluster && ZONE_BOUNDS[activeZone]) {
-        map.fitBounds(ZONE_BOUNDS[activeZone], { duration: 800, padding: 30 });
+      if (activeZone && !activeCluster) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const zf = zoneFeaturesRef.current.find((f: any) => f.properties?.id === activeZone);
+        if (zf) {
+          const pts = getPolygonEnvelope(zf as Parameters<typeof getPolygonEnvelope>[0]);
+          if (pts.length) {
+            const lngs = pts.map(p => p[0]), lats = pts.map(p => p[1]);
+            map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { duration: 800, padding: 40 });
+          }
+        }
       } else if (!activeZone && !activeCluster) {
         map.flyTo({ center: CITY_CENTERS[activeCity].center, zoom: CITY_CENTERS[activeCity].zoom, duration: 800 });
       }
@@ -960,7 +968,7 @@ export default function MapView({
       if (src && zoneFeaturesRef.current.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const enriched = zoneFeaturesRef.current.map((f: any) => ({
-          ...f, properties: { ...f.properties, active: f.properties?.zone === activeZone ? 1 : 0 },
+          ...f, properties: { ...f.properties, active: f.properties?.id === activeZone ? 1 : 0 },
         }));
         src.setData({ type: "FeatureCollection", features: enriched });
         if (map.getLayer("zones-fill")) {

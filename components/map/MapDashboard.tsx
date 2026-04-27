@@ -202,16 +202,17 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     });
   }, []);
 
-  const handleZoneSelect = useCallback((zone: string | null) => {
-    setActiveZone(zone);
+  const handleZoneSelect = useCallback((zoneId: string | null) => {
+    setActiveZone(zoneId);
     setActiveCluster(null);
-    if (zone) {
+    if (zoneId) {
+      const zoneName = geoDb.zones.find(z => z.id === zoneId)?.name ?? zoneId;
       setTab("zones"); setSelectedSettlement(null); setSelectedCentre(null); setStatsOpen(false);
-      setMapFilter(geoData ? computeMapFilter("zone", geoData, { zone }) : null);
+      setMapFilter(geoData ? computeMapFilter("zone", geoData, { zone: zoneName }) : null);
     } else {
       setMapFilter(null);
     }
-  }, [geoData]);
+  }, [geoData, geoDb.zones]);
 
   const handleClusterSelect = useCallback((cluster: string | null) => {
     setActiveCluster(cluster);
@@ -444,14 +445,12 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
         {/* Zone / Cluster sidebar — shown when a boundary is active and no settlement is selected */}
         <ZoneClusterSidebar
           type={!selectedSettlement ? (activeCluster ? "cluster" : activeZone ? "zone" : null) : null}
-          name={!selectedSettlement ? (activeCluster ?? activeZone) : null}
+          name={!selectedSettlement ? (activeCluster ?? (activeZone ? (geoDb.zones.find(z => z.id === activeZone)?.name ?? null) : null)) : null}
           parentZone={activeCluster ? zoneClusterIndex.clusters[activeCluster]?.zone : undefined}
           dbId={
             activeCluster
               ? (geoDb.clusters.find(c => c.name === activeCluster)?.id ?? null)
-              : activeZone
-              ? (geoDb.zones.find(z => z.name === activeZone)?.id ?? null)
-              : null
+              : activeZone ?? null
           }
           geoData={geoData}
           clusterIndex={zoneClusterIndex.clusters}
