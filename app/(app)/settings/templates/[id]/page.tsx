@@ -20,6 +20,12 @@ const RECURRENCES = ["None", "Weekly", "Monthly", "Quarterly"];
 const PROGRESS_TAGS = ["Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring"];
 const PARAM_TYPES = ["number", "text", "choice"] as const;
 const CATEGORIES = ["Community Programs", "Programmes", "Field Programmes", "Zonal Leadership"];
+const COMPLETION_TYPES = [
+  { value: "",         label: "Checkbox" },
+  { value: "Activity", label: "Activity" },
+  { value: "Voice",    label: "Voice note" },
+  { value: "Upload",   label: "Upload" },
+];
 
 // ── Small helpers ────────────────────────────────────────────────────────────
 
@@ -180,14 +186,14 @@ function PitstopEditor({
   const update = (patch: Partial<DbPitstop>) => onChange({ ...pitstop, ...patch });
 
   const addChecklistItem = () =>
-    update({ checklist: [...pitstop.checklist, { text: "" }] });
+    update({ checklist: [...pitstop.checklist, { text: "", completionType: "Activity", activityTitle: "" }] });
 
   const removeChecklistItem = (i: number) =>
     update({ checklist: pitstop.checklist.filter((_, idx) => idx !== i) });
 
-  const updateChecklistItem = (i: number, text: string) =>
+  const updateChecklistItem = (i: number, patch: Partial<{ text: string; completionType: string; activityTitle: string }>) =>
     update({
-      checklist: pitstop.checklist.map((item, idx) => (idx === i ? { text } : item)),
+      checklist: pitstop.checklist.map((item, idx) => idx === i ? { ...item, ...patch } : item),
     });
 
   const moveChecklistItem = (i: number, dir: -1 | 1) =>
@@ -297,24 +303,47 @@ function PitstopEditor({
                 <Plus className="w-3 h-3" /> Add item
               </button>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {pitstop.checklist.map((item, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <button onClick={() => moveChecklistItem(i, -1)} disabled={i === 0} className="p-0.5 hover:bg-stone-100 rounded disabled:opacity-30">
-                    <ChevronUp className="w-3 h-3 text-stone-400" />
-                  </button>
-                  <button onClick={() => moveChecklistItem(i, 1)} disabled={i === pitstop.checklist.length - 1} className="p-0.5 hover:bg-stone-100 rounded disabled:opacity-30">
-                    <ChevronDown className="w-3 h-3 text-stone-400" />
-                  </button>
-                  <input
-                    className="flex-1 px-2.5 py-1 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
-                    value={item.text}
-                    onChange={(e) => updateChecklistItem(i, e.target.value)}
-                    placeholder="Checklist item text (supports {paramKey})"
-                  />
-                  <button onClick={() => removeChecklistItem(i)} className="p-1 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                <div key={i} className="border border-stone-200 rounded-lg bg-stone-50 p-2 space-y-1.5">
+                  {/* Row 1: reorder + text + delete */}
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => moveChecklistItem(i, -1)} disabled={i === 0} className="p-0.5 hover:bg-stone-200 rounded disabled:opacity-30 shrink-0">
+                      <ChevronUp className="w-3 h-3 text-stone-400" />
+                    </button>
+                    <button onClick={() => moveChecklistItem(i, 1)} disabled={i === pitstop.checklist.length - 1} className="p-0.5 hover:bg-stone-200 rounded disabled:opacity-30 shrink-0">
+                      <ChevronDown className="w-3 h-3 text-stone-400" />
+                    </button>
+                    <input
+                      className="flex-1 px-2.5 py-1 text-sm border border-stone-200 rounded-md focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white"
+                      value={item.text}
+                      onChange={(e) => updateChecklistItem(i, { text: e.target.value })}
+                      placeholder="Checklist item text (supports {paramKey})"
+                    />
+                    <button onClick={() => removeChecklistItem(i)} className="p-1 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors shrink-0">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                  {/* Row 2: completion type + activity title */}
+                  <div className="flex items-center gap-2 pl-7">
+                    <select
+                      className="px-2 py-1 text-xs border border-stone-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-stone-300 text-stone-600 shrink-0"
+                      value={item.completionType ?? ""}
+                      onChange={(e) => updateChecklistItem(i, { completionType: e.target.value || undefined })}
+                    >
+                      {COMPLETION_TYPES.map(ct => (
+                        <option key={ct.value} value={ct.value}>{ct.label}</option>
+                      ))}
+                    </select>
+                    {(item.completionType === "Activity" || item.completionType === "Voice" || item.completionType === "Upload") && (
+                      <input
+                        className="flex-1 px-2.5 py-1 text-xs border border-stone-200 rounded-md focus:outline-none focus:ring-1 focus:ring-stone-300 bg-white text-stone-700"
+                        value={item.activityTitle ?? ""}
+                        onChange={(e) => updateChecklistItem(i, { activityTitle: e.target.value })}
+                        placeholder={`Activity title for scheduling (supports {paramKey})`}
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
               {pitstop.checklist.length === 0 && (
