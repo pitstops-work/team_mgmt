@@ -76,7 +76,29 @@ export function buildExisting(
 
 // Normalise a name coming from GeoJSON: collapse unicode spaces, trim
 function normaliseName(s: string): string {
-  return s.replace(/[\u00a0\u200b\u2009\u202f]+/g, " ").replace(/\s+/g, " ").trim();
+  return s.replace(/[ ​  ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Strip trailing area labels appended by cfar GeoJSON (e.g. ", Majestic Area" or " Majestic Area")
+function stripAreaSuffix(s: string): string {
+  s = s.replace(/,\s*.+?\s+Area\s*$/i, "").trim();  // "Name, Xxx Area"
+  s = s.replace(/\s+\w+\s+Area\s*$/i, "").trim();    // "Name Xxx Area"
+  s = s.replace(/\s+Majestic\s*$/i, "").trim();       // "Name Majestic"
+  return s;
+}
+
+function normForDice(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9 &]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function diceScore(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+  const bg = (str: string) => { const set = new Set<string>(); for (let i = 0; i < str.length - 1; i++) set.add(str.slice(i, i + 2)); return set; };
+  const ba = bg(a), bb = bg(b);
+  let shared = 0;
+  for (const g of ba) if (bb.has(g)) shared++;
+  return (2 * shared) / (ba.size + bb.size);
 }
 
 // GET /api/map/settlement-needs?settlement=NAME&cluster=CLUSTER_NAME
@@ -87,7 +109,7 @@ export async function GET(request: Request) {
 
   if (!rawSettlement) return NextResponse.json({ error: "settlement required" }, { status: 400 });
 
-  const settlementName = normaliseName(rawSettlement);
+  const settlementName = stripAreaSuffix(normaliseName(rawSettlement));
   const clusterName    = rawCluster ? normaliseName(rawCluster).replace(/_/g, " ") : null;
 
   const settleInclude = { cluster: { include: { zone: true } } };
@@ -109,7 +131,7 @@ export async function GET(request: Request) {
     });
   }
 
-  // 3. Fuzzy fallback: first significant word (≥4 chars) as a contains search,
+  // 3. Fuzzy fallback: first significant word (>=4 chars) as a contains search,
   //    scoped to the same cluster when possible
   if (!settlement) {
     const firstWord = settlementName.split(/[\s,\-–(]+/).find(w => w.length >= 4) ?? "";
@@ -122,6 +144,26 @@ export async function GET(request: Request) {
         },
         include: settleInclude,
       });
+    }
+  }
+
+  // 4. Dice coefficient fallback — scan all settlements, pick best match >= 0.70
+  if (!settlement) {
+    const allSettlements = await prisma.settlement.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, cluster: { select: { id: true, name: true } } },
+    });
+    const sn = normForDice(settlementName);
+    const cn = clusterName ? normForDice(clusterName.replace(/_/g, " ")) : null;
+    let bestId: string | null = null;
+    let bestScore = 0;
+    for (const s of allSettlements) {
+      let score = diceScore(sn, normForDice(s.name));
+      if (cn && normForDice(s.cluster.name).split(" ").some(w => w.length > 3 && cn.includes(w))) score += 0.05;
+      if (score > bestScore) { bestScore = score; bestId = s.id; }
+    }
+    if (bestId && bestScore >= 0.70) {
+      settlement = await prisma.settlement.findUnique({ where: { id: bestId }, include: settleInclude });
     }
   }
 
