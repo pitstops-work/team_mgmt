@@ -819,10 +819,18 @@ export default async function NeedsPage() {
     settlementEntSummaryMap[s.id] = aggregateEnt([s.id]);
   }
 
+  const cityCoverage = cities.map(c => ({
+    id: c.id,
+    name: c.name,
+    totalSettlements: c.totalSettlements,
+    coveredCount: c.zones.flatMap(z => z.clusters.flatMap(cl => cl.settlements)).length,
+  }));
+
   return (
     <Suspense>
       <NeedsDashboard
         cities={JSON.parse(JSON.stringify(cities))}
+        cityCoverage={cityCoverage}
         currentUserId={currentUserId}
         currentUserDesignation={meRow?.designation ?? "Other"}
         currentUserRole={meRow?.role ?? session?.user?.role ?? "member"}

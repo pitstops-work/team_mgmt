@@ -425,6 +425,7 @@ export default function NeedsDashboard({
   monthlyTrend, currentMonth,
   cityEntitlements, cityEntMap, zoneEntMap, clusterEntMap, settlementEntMap,
   currentUserId, currentUserDesignation = "Other", currentUserRole, allUsers = [],
+  cityCoverage = [],
 }: {
   cities: City[];
   currentUserId: string;
@@ -432,6 +433,7 @@ export default function NeedsDashboard({
   currentUserRole?: string;
   allUsers?: { id: string; name: string | null; image: string | null; designation?: string; reportsToId?: string | null }[];
   totalSettlements: number;
+  cityCoverage?: { id: string; name: string; totalSettlements: number; coveredCount: number }[];
   domainConfigs: DomainConfig[];
   cityStats: LevelStats;
   cityStatsMap: Record<string, { name: string; stats: LevelStats }>;
@@ -522,6 +524,30 @@ export default function NeedsDashboard({
         </div>
         {cityStats.totalHH > 0 && (
           <p className="text-xs text-stone-400 mt-1">{cityStats.totalHH.toLocaleString()} total households across assessed settlements</p>
+        )}
+        {/* City-level coverage vs total settlements */}
+        {cityCoverage.filter(c => c.totalSettlements > 0).length > 0 && (
+          <div className="flex flex-wrap gap-3 mt-4">
+            {cityCoverage.filter(c => c.totalSettlements > 0).map(city => {
+              const pct = Math.round((city.coveredCount / city.totalSettlements) * 100);
+              return (
+                <div key={city.id} className="flex-1 min-w-[180px] rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-stone-700">{city.name}</span>
+                    <span className="text-[10px] text-stone-400">{pct}% in programme</span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-stone-900">{city.coveredCount.toLocaleString()}</span>
+                    <span className="text-xs text-stone-400">/ {city.totalSettlements.toLocaleString()} settlements</span>
+                  </div>
+                  <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-sky-500 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="text-[10px] text-stone-400">{(city.totalSettlements - city.coveredCount).toLocaleString()} not yet in programme</p>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
