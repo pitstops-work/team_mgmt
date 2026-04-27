@@ -46,6 +46,12 @@ function FormulasSection() {
   const [saved, setSaved] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
 
+  // Expand-to-edit per domain
+  const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
+  const [editFields, setEditFields] = useState<Partial<DomainConfig>>({});
+  const [editSaving, setEditSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
   // Inline label editing
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
@@ -148,6 +154,35 @@ function FormulasSection() {
 
   const handleAssessmentLevelChange = async (domain: string, assessmentLevel: string) => {
     await patchDomain([{ domain, assessmentLevel }]);
+  };
+
+  const openEdit = (d: DomainConfig) => {
+    setExpandedDomain(d.domain);
+    setEditFields({
+      label:           d.label,
+      color:           d.color,
+      domainType:      d.domainType,
+      populationField: d.populationField ?? undefined,
+      assessmentLevel: d.assessmentLevel,
+      description:     d.description ?? undefined,
+    });
+    setEdits(prev => ({ ...prev, [d.domain]: d.denominator != null ? String(d.denominator) : "" }));
+  };
+
+  const saveEdit = async (domain: string) => {
+    setEditSaving(true);
+    const denom = edits[domain] === "" ? null : parseFloat(edits[domain]) || null;
+    await patchDomain([{ domain, ...editFields, denominator: denom }]);
+    setExpandedDomain(null);
+    setEditSaving(false);
+  };
+
+  const handleDelete = async (domain: string) => {
+    if (!confirm(`Delete "${domains.find(d => d.domain === domain)?.label ?? domain}"? This cannot be undone.`)) return;
+    setDeleting(domain);
+    await fetch(`/api/needs/formulas?domain=${encodeURIComponent(domain)}`, { method: "DELETE" });
+    setDomains(prev => prev.filter(d => d.domain !== domain));
+    setDeleting(null);
   };
 
   const handleReorder = async (idx: number, direction: "up" | "down") => {
@@ -446,112 +481,155 @@ function FormulasSection() {
           <p className="px-4 py-6 text-xs text-stone-400 text-center">Loading…</p>
         )}
         {domains.map((d, idx) => (
-          <div
-            key={d.domain}
-            className={`flex items-center gap-3 px-4 py-3 bg-white hover:bg-stone-50 transition-colors ${!d.isActive ? "opacity-50" : ""}`}
-          >
-            {/* Reorder buttons */}
-            <div className="flex flex-col gap-0.5 flex-shrink-0">
+          <div key={d.domain} className={!d.isActive ? "opacity-50" : ""}>
+            {/* Summary row */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-stone-50 transition-colors">
+              {/* Reorder */}
+              <div className="flex flex-col gap-0.5 flex-shrink-0">
+                <button onClick={() => handleReorder(idx, "up")} disabled={idx === 0} className="text-stone-300 hover:text-stone-500 disabled:opacity-20 transition-colors" title="Move up"><ChevronUp className="w-3 h-3" /></button>
+                <button onClick={() => handleReorder(idx, "down")} disabled={idx === domains.length - 1} className="text-stone-300 hover:text-stone-500 disabled:opacity-20 transition-colors" title="Move down"><ChevronDown className="w-3 h-3" /></button>
+              </div>
+
+              {/* Color swatch */}
+              <div className="relative flex-shrink-0">
+                <input type="color" value={d.color} onChange={e => handleColorChange(d.domain, e.target.value)} onBlur={e => handleColorCommit(d.domain, e.target.value)} className="opacity-0 absolute inset-0 w-full h-full cursor-pointer" title="Change color" />
+                <span className="w-3 h-3 rounded-full block" style={{ background: d.color }} />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">{d.label}</p>
+                <p className="text-[11px] text-stone-400">
+                  {d.domainType === "entitlement"
+                    ? `Scheme saturation · ${allSchemes.find(s => s.id === d.linkedSchemeId)?.name ?? "no scheme linked"}`
+                    : d.domainType === "boolean"
+                    ? "Presence — yes/no per settlement"
+                    : `${d.populationField ?? "?"} · 1 per ${d.denominator ?? "?"} · ${d.assessmentLevel ?? "settlement"} level`}
+                </p>
+              </div>
+
+              {/* Active toggle */}
               <button
-                onClick={() => handleReorder(idx, "up")}
-                disabled={idx === 0}
-                className="text-stone-300 hover:text-stone-500 disabled:opacity-20 transition-colors"
-                title="Move up"
+                onClick={() => handleToggleActive(d.domain, d.isActive)}
+                title={d.isActive ? "Deactivate" : "Activate"}
+                className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors flex-shrink-0 ${d.isActive ? "border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100" : "border-stone-200 text-stone-400 bg-stone-50 hover:bg-stone-100"}`}
               >
-                <ChevronUp className="w-3 h-3" />
+                {d.isActive ? "Active" : "Inactive"}
               </button>
+
+              {/* Edit button */}
               <button
-                onClick={() => handleReorder(idx, "down")}
-                disabled={idx === domains.length - 1}
-                className="text-stone-300 hover:text-stone-500 disabled:opacity-20 transition-colors"
-                title="Move down"
+                onClick={() => expandedDomain === d.domain ? setExpandedDomain(null) : openEdit(d)}
+                className={`text-[10px] px-2 py-0.5 rounded border transition-colors flex-shrink-0 ${expandedDomain === d.domain ? "border-sky-300 text-sky-600 bg-sky-50" : "border-stone-200 text-stone-500 bg-white hover:bg-stone-50"}`}
               >
-                <ChevronDown className="w-3 h-3" />
+                {expandedDomain === d.domain ? "Close" : "Edit"}
+              </button>
+
+              {/* Delete button */}
+              <button
+                onClick={() => handleDelete(d.domain)}
+                disabled={deleting === d.domain}
+                className="text-stone-300 hover:text-red-400 transition-colors flex-shrink-0 disabled:opacity-40"
+                title="Delete domain"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Color swatch (clickable) */}
-            <div className="relative flex-shrink-0">
-              <input
-                type="color"
-                value={d.color}
-                onChange={e => handleColorChange(d.domain, e.target.value)}
-                onBlur={e => handleColorCommit(d.domain, e.target.value)}
-                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                title="Change color"
-              />
-              <span className="w-3 h-3 rounded-full block" style={{ background: d.color }} />
-            </div>
+            {/* Expanded edit panel */}
+            {expandedDomain === d.domain && (
+              <div className="border-t border-sky-100 bg-sky-50 px-4 py-4 space-y-3">
+                <p className="text-[10px] font-semibold text-sky-700 uppercase tracking-wide">Edit Domain</p>
 
-            <div className="flex-1 min-w-0">
-              {/* Inline label edit */}
-              {editingLabel === d.domain ? (
-                <input
-                  autoFocus
-                  value={labelDraft}
-                  onChange={e => setLabelDraft(e.target.value)}
-                  onBlur={() => handleLabelCommit(d.domain)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") handleLabelCommit(d.domain);
-                    if (e.key === "Escape") setEditingLabel(null);
-                  }}
-                  className="text-sm border border-sky-300 rounded px-1.5 py-0.5 w-full outline-none focus:ring-2 focus:ring-sky-400"
-                />
-              ) : (
-                <button
-                  onClick={() => { setEditingLabel(d.domain); setLabelDraft(d.label); }}
-                  className="text-sm font-medium text-stone-800 hover:text-sky-600 transition-colors text-left"
-                  title="Click to rename"
-                >
-                  {d.label}
-                </button>
-              )}
-              <p className="text-[11px] text-stone-400">
-                {d.domainType === "entitlement"
-                  ? `Scheme saturation · ${allSchemes.find(s => s.id === d.linkedSchemeId)?.name ?? "no scheme linked"}`
-                  : d.domainType === "boolean"
-                  ? "Boolean — yes/no per settlement"
-                  : `${d.populationField ?? "?"} · 1 per ${d.denominator ?? "?"} · assessed at ${d.assessmentLevel ?? "settlement"}`}
-              </p>
-            </div>
-
-            {/* Denominator input + assessment level for count domains */}
-            {d.domainType === "count" && (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-stone-400">1 per</span>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={edits[d.domain] ?? ""}
-                    onChange={e => setEdits(prev => ({ ...prev, [d.domain]: e.target.value }))}
-                    className="w-20 px-2 py-1 text-sm text-right border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  />
+                {/* Label */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Name</label>
+                    <input
+                      value={editFields.label ?? ""}
+                      onChange={e => setEditFields(f => ({ ...f, label: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Description</label>
+                    <input
+                      value={editFields.description ?? ""}
+                      onChange={e => setEditFields(f => ({ ...f, description: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                      placeholder="Optional"
+                    />
+                  </div>
                 </div>
-                <select
-                  value={d.assessmentLevel ?? "settlement"}
-                  onChange={e => handleAssessmentLevelChange(d.domain, e.target.value)}
-                  className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white text-stone-600 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  title="Viability assessed at this geographic level"
-                >
-                  {ASSESSMENT_LEVELS.map(lv => <option key={lv.value} value={lv.value}>{lv.label} level</option>)}
-                </select>
+
+                {/* Type */}
+                <div>
+                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">How is the target calculated?</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { v: "count", label: "Ratio", desc: "1 unit per N people" },
+                      { v: "boolean", label: "Presence", desc: "Yes/no per settlement" },
+                      { v: "entitlement", label: "Scheme Saturation", desc: "Linked to an entitlement scheme" },
+                    ].map(t => (
+                      <button key={t.v} type="button" onClick={() => setEditFields(f => ({ ...f, domainType: t.v }))}
+                        className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${editFields.domainType === t.v ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}>
+                        <p className="text-xs font-semibold text-stone-700">{t.label}</p>
+                        <p className="text-[10px] text-stone-400 mt-0.5">{t.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Count-specific: population field + denominator + assessment level */}
+                {editFields.domainType === "count" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Population group</label>
+                        <select
+                          value={editFields.populationField ?? "totalHouseholds"}
+                          onChange={e => setEditFields(f => ({ ...f, populationField: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                        >
+                          {POP_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">1 unit per N people</label>
+                        <input
+                          type="number" min={1}
+                          value={edits[d.domain] ?? ""}
+                          onChange={e => setEdits(prev => ({ ...prev, [d.domain]: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Viability assessed at</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {ASSESSMENT_LEVELS.map(lv => (
+                          <button key={lv.value} type="button" onClick={() => setEditFields(f => ({ ...f, assessmentLevel: lv.value }))}
+                            className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${editFields.assessmentLevel === lv.value ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}>
+                            <p className="text-xs font-semibold text-stone-700">{lv.label}</p>
+                            <p className="text-[10px] text-stone-400 mt-0.5">{lv.desc}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => saveEdit(d.domain)}
+                    disabled={editSaving}
+                    className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    {editSaving ? "Saving…" : "Save changes"}
+                  </button>
+                  <button onClick={() => setExpandedDomain(null)} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700">Cancel</button>
+                </div>
               </div>
             )}
-
-            {/* Active toggle pill */}
-            <button
-              onClick={() => handleToggleActive(d.domain, d.isActive)}
-              title={d.isActive ? "Deactivate (hide from Field Coverage)" : "Activate"}
-              className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors flex-shrink-0 ${
-                d.isActive
-                  ? "border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
-                  : "border-stone-200 text-stone-400 bg-stone-50 hover:bg-stone-100"
-              }`}
-            >
-              {d.isActive ? "Active" : "Inactive"}
-            </button>
           </div>
         ))}
       </div>

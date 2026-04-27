@@ -71,7 +71,7 @@ interface SearchResults {
 }
 
 type PhaseRow = {
-  id: string; goalId: string; title: string; progressTag: string | null; status: string;
+  id: string; goalId: string; goalTitle: string; title: string; progressTag: string | null; status: string;
   targetDate: string | null; startDate: string | null;
   ownerId: string | null; ownerName: string | null; ownerDesignation: string | null;
   checklistTotal: number; checklistDone: number;
@@ -927,7 +927,7 @@ function PitstopDrillCard({
   loadingChecklist: boolean;
 }) {
   const [expandedChecklist, setExpandedChecklist] = useState<string | null>(null);
-  const owner = users.find(u => u.id === row.ownerId);
+  const ownerImage = users.find(u => u.id === row.ownerId)?.image ?? null;
   const clPct = row.checklistTotal > 0 ? Math.round((row.checklistDone / row.checklistTotal) * 100) : null;
   const actPct = row.activityTotal > 0 ? Math.round((row.activityDone / row.activityTotal) * 100) : null;
   const statusCls =
@@ -947,10 +947,10 @@ function PitstopDrillCard({
             <span className="text-xs font-medium text-stone-700 line-clamp-1 flex-1">{row.title}</span>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            {owner && (
+            {row.ownerName && (
               <div className="flex items-center gap-1">
-                <Avatar name={owner.name} image={owner.image} size="xs" />
-                <span className="text-[10px] text-stone-500">{owner.name}</span>
+                <Avatar name={row.ownerName} image={ownerImage} size="xs" />
+                <span className="text-[10px] text-stone-500">{row.ownerName}</span>
                 {row.ownerDesignation && (
                   <span className="text-[9px] text-stone-400 bg-stone-100 px-1 py-0.5 rounded">{row.ownerDesignation}</span>
                 )}
@@ -1094,11 +1094,21 @@ function DrillDownPanel({
   }
   const topDelayers = [...overdueByOwner.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 3);
 
-  const availableGoalIds = new Set(tagRows.map(r => r.goalId));
-  const availableGoals   = goals.filter(g => availableGoalIds.has(g.id));
-  const availableOwnerIds = new Set(tagRows.map(r => r.ownerId).filter(Boolean) as string[]);
-  const availableUsers   = users.filter(u => availableOwnerIds.has(u.id));
-  const availableDesigs  = [...new Set(tagRows.map(r => r.ownerDesignation).filter(Boolean))] as string[];
+  // Build dropdown options from tagRows directly — they carry goalTitle/ownerName/ownerDesignation
+  // so the dropdowns are always fully populated regardless of how `goals`/`users` are scoped.
+  const goalDropdown = [...new Map(tagRows.map(r => [r.goalId, r.goalTitle])).entries()]
+    .map(([id, title]) => ({ id, title }))
+    .sort((a, b) => a.title.localeCompare(b.title));
+
+  const ownerDropdown = [...new Map(
+    tagRows
+      .filter(r => r.ownerId && r.ownerName)
+      .map(r => [r.ownerId!, { id: r.ownerId!, name: r.ownerName!, designation: r.ownerDesignation }])
+  ).values()].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+
+  const availableDesigs = [...new Set(
+    tagRows.map(r => r.ownerDesignation).filter(Boolean)
+  )] as string[];
 
   const togglePitstop = async (pitstopId: string) => {
     if (expandedPitstop === pitstopId) { setExpandedPitstop(null); return; }
@@ -1138,7 +1148,7 @@ function DrillDownPanel({
               className="text-xs border border-stone-200 rounded-md px-2 py-1 bg-white text-stone-700 max-w-[160px] truncate"
             >
               <option value="">All goals</option>
-              {availableGoals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+              {goalDropdown.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
             </select>
             <select
               value={filterUserId}
@@ -1146,7 +1156,7 @@ function DrillDownPanel({
               className="text-xs border border-stone-200 rounded-md px-2 py-1 bg-white text-stone-700"
             >
               <option value="">All people</option>
-              {availableUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              {ownerDropdown.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
             <select
               value={filterDesig}

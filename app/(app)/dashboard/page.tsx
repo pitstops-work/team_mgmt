@@ -226,13 +226,51 @@ export default async function DashboardPage({
     }),
   ]);
 
-  // Phase data — raw SQL because progressTag is a new column
-  const phaseRows = await prisma.$queryRaw<{ id: string; goalId: string; title: string; progressTag: string | null; status: string }[]>`
-    SELECT p.id, p."goalId", p.title, p."progressTag", p.status::text
+  // Phase data — extended with owner, dates, checklist + activity counts
+  const phaseRowsRaw = await prisma.$queryRaw<{
+    id: string; goalId: string; goalTitle: string; title: string; progressTag: string | null; status: string;
+    targetDate: Date | null; startDate: Date | null;
+    ownerId: string | null; ownerName: string | null; ownerDesignation: string | null;
+    checklistTotal: bigint; checklistDone: bigint;
+    activityTotal: bigint; activityDone: bigint;
+  }[]>`
+    SELECT
+      p.id, p."goalId", g.title AS "goalTitle", p.title, p."progressTag", p.status::text,
+      p."targetDate", p."startDate",
+      p."ownerId", u.name AS "ownerName", u.designation AS "ownerDesignation",
+      COALESCE(cl."checklistTotal", 0) AS "checklistTotal",
+      COALESCE(cl."checklistDone", 0) AS "checklistDone",
+      COALESCE(act."activityTotal", 0) AS "activityTotal",
+      COALESCE(act."activityDone", 0) AS "activityDone"
     FROM "Pitstop" p
     JOIN "Goal" g ON p."goalId" = g.id
+    LEFT JOIN "User" u ON p."ownerId" = u.id
+    LEFT JOIN (
+      SELECT "pitstopId",
+        COUNT(*) AS "checklistTotal",
+        COUNT(*) FILTER (WHERE status = 'Done'::"ChecklistItemStatus") AS "checklistDone"
+      FROM "ChecklistItem"
+      GROUP BY "pitstopId"
+    ) cl ON cl."pitstopId" = p.id
+    LEFT JOIN (
+      SELECT pep."pitstopId",
+        COUNT(DISTINCT pe.id) AS "activityTotal",
+        COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'Done'::"PitstopEventStatus") AS "activityDone"
+      FROM "PitstopEventPitstop" pep
+      JOIN "PitstopEvent" pe ON pe.id = pep."eventId" AND pe."deletedAt" IS NULL
+      GROUP BY pep."pitstopId"
+    ) act ON act."pitstopId" = p.id
     WHERE p."deletedAt" IS NULL AND g."deletedAt" IS NULL
   `;
+  const phaseRows = phaseRowsRaw.map(r => ({
+    ...r,
+    targetDate: r.targetDate ? r.targetDate.toISOString() : null,
+    startDate:  r.startDate  ? r.startDate.toISOString()  : null,
+    checklistTotal: Number(r.checklistTotal),
+    checklistDone:  Number(r.checklistDone),
+    activityTotal:  Number(r.activityTotal),
+    activityDone:   Number(r.activityDone),
+  }));
 
   let searchResults = null;
   if (q?.trim()) {

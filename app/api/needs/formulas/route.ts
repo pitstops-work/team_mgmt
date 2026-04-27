@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest) {
   return Response.json(rows);
 }
 
-// DELETE — soft-delete a domain by setting isActive: false
+// DELETE — permanently remove a domain config
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -68,10 +68,7 @@ export async function DELETE(req: NextRequest) {
   const domain = searchParams.get("domain");
   if (!domain) return Response.json({ error: "domain query param required" }, { status: 400 });
 
-  await prisma.needsFormulaConfig.update({
-    where: { domain },
-    data: { isActive: false },
-  });
+  await prisma.needsFormulaConfig.delete({ where: { domain } });
 
   return Response.json({ ok: true });
 }
