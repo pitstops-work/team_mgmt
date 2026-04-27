@@ -271,7 +271,6 @@ export default function MapView({
       .then(r => r.json())
       .then(geojson => {
         if (mapRef.current !== map) return;
-        if (!map.isStyleLoaded()) return;
         centreGeoJSONRef.current[fl.layerKey] = geojson;
         const filtered = filterCentreGeojson(geojson, mapFilterRef.current);
         try {
@@ -345,7 +344,6 @@ export default function MapView({
           .then((r) => r.json())
           .then((geojson) => {
             if (mapRef.current !== map) return; // map was cleaned up
-            if (!map.isStyleLoaded()) return; // style swapped while fetch was in-flight
             settlementFeaturesRef.current[layerConfig.key] = geojson.features;
 
             const srcId = `${layerConfig.key}-source`;
@@ -442,7 +440,6 @@ export default function MapView({
           .then((r) => r.json())
           .then((geojson) => {
             if (mapRef.current !== map) return; // map was cleaned up
-            if (!map.isStyleLoaded()) return; // style swapped while fetch was in-flight
             centreGeoJSONRef.current[layerConfig.key] = geojson;
             const filtered = filterCentreGeojson(geojson, mapFilterRef.current);
             const srcId = `${layerConfig.key}-source`;
@@ -607,7 +604,6 @@ export default function MapView({
       // ── Zone boundaries ──────────────────────────────────────────────────
       fetch("/api/map/geojson/zones").then((r) => r.json()).then((gj) => {
         if (mapRef.current !== map) return; // map was cleaned up
-        if (!map.isStyleLoaded()) return;
         zoneFeaturesRef.current = gj.features ?? [];
         try {
           if (map.getSource("zones-source")) return; // already added
@@ -674,7 +670,6 @@ export default function MapView({
       // ── Cluster boundaries ───────────────────────────────────────────────
       fetch("/api/map/geojson/clusters").then((r) => r.json()).then((gj) => {
         if (mapRef.current !== map) return; // map was cleaned up
-        if (!map.isStyleLoaded()) return;
         clusterFeaturesRef.current = gj.features ?? [];
         try {
           if (map.getSource("clusters-source")) return; // already added
