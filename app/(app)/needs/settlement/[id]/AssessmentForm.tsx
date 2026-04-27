@@ -585,7 +585,7 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
         setEditingId(data.id);
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
-        if (createNew) router.refresh();
+        router.refresh();
       } else {
         const err = await res.json().catch(() => ({}));
         setSaveError(err?.error ?? "Failed to save. Please try again.");
