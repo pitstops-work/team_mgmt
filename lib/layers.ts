@@ -1,3 +1,6 @@
+// Static layer keys — settlement polygons and fixed system layers.
+// Facility centre types (children_centres, youth_centres, creches, etc.) are
+// DB-driven via FacilityLayerConfig and loaded dynamically at runtime.
 export type LayerKey =
   | "sangama"
   | "gubbachi"
@@ -16,14 +19,12 @@ export type LayerKey =
   | "thozhamai"
 
   | "resource_centres"
-  | "children_centres"
-  | "youth_centres"
-  | "creches"
-  | "elderly_kitchens"
   | "custom"
   | "custom_settlements"
   | "schools"
-  | "health_centres";
+  | "health_centres"
+  // Dynamic facility layer keys from FacilityLayerConfig are plain strings at runtime.
+  | (string & {});
 
 export type MapCity = "bangalore" | "chennai";
 
@@ -56,20 +57,16 @@ export const LAYERS: LayerConfig[] = [
   { key: "dbsss",      label: "DBSSS",      file: "/api/map/geojson/settlements?partner=dbsss",      color: "#7c3aed", type: "polygon", city: "chennai", description: "DBSSS partner settlements — Chennai" },
   { key: "thozhamai",  label: "Thozhamai",  file: "/api/map/geojson/settlements?partner=thozhamai",  color: "#be123c", type: "polygon", city: "chennai", description: "Thozhamai partner settlements — Chennai" },
 
-  // ── Programme centres ─────────────────────────────────────────────────────
+  // ── Resource centres (separate from FacilityLayerConfig) ──────────────────
   { key: "resource_centres", label: "Resource Centres", file: "/api/map/geojson/layer-features?layerKey=resource_centres", color: "#1d4ed8", type: "point", city: "bangalore", description: "Programme resource centres" },
-  { key: "children_centres", label: "Children Centres", file: "/api/map/geojson/layer-features?layerKey=children_centres", color: "#f97316", type: "point", city: "bangalore", description: "Children programme centres" },
-  { key: "youth_centres",    label: "Youth Centres",    file: "/api/map/geojson/layer-features?layerKey=youth_centres",    color: "#8b5cf6", type: "point", city: "bangalore", description: "Youth programme centres" },
-  { key: "creches",          label: "Creches",          file: "/api/map/geojson/layer-features?layerKey=creches",          color: "#ec4899", type: "point", city: "bangalore", description: "Creche programme centres" },
-  { key: "elderly_kitchens", label: "Elderly Kitchens", file: "/api/map/geojson/layer-features?layerKey=elderly_kitchens", color: "#0d9488", type: "point", city: "bangalore", description: "Elderly kitchen programme centres" },
 
   { key: "custom_settlements", label: "Custom Settlements", file: "", color: "#6366f1", type: "polygon", city: "bangalore", description: "User-added settlement polygons" },
 
-  // ── Schools / Health (already DB-backed, loaded via dedicated API handlers) ──
+  // ── Schools / Health (DB-backed, loaded via dedicated API handlers) ────────
   { key: "schools",        label: "Govt Schools",   file: "", color: "#16a34a", type: "point", city: "bangalore", description: "Government schools tagged to nearby settlements" },
   { key: "health_centres", label: "Health Centres", file: "", color: "#e11d48", type: "point", city: "bangalore", description: "Health centres tagged to nearby settlements" },
 ];
 
 export const LAYER_MAP = Object.fromEntries(
   LAYERS.map((l) => [l.key, l])
-) as Record<LayerKey, LayerConfig>;
+) as Record<string, LayerConfig>;

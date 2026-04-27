@@ -1467,6 +1467,7 @@ model FacilityLayerConfig {
   id          String   @id @default(cuid())
   layerKey    String   @unique
   label       String
+  color       String   @default("#6366f1")
   needsDomain String?  // links to NeedsFormulaConfig.domain — ties this layer to a field-coverage need
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { LAYERS, type LayerConfig, type LayerKey, type MapCity } from "@/lib/layers";
+import type { FacilityLayer } from "@/components/map/MapDashboard";
 import { type MapFilter, settlementMatchesFilter, centreMatchesFilter } from "@/lib/mapFilter";
 
 export interface CentreFeature {
@@ -57,6 +58,7 @@ interface MapViewProps {
   healthTypes?: Set<string>;
   showHealthClusters?: boolean;
   healthClusterMap?: Record<string, boolean>;
+  facilityLayers?: FacilityLayer[];
 }
 
 const CITY_CENTERS: Record<MapCity, { center: [number, number]; zoom: number }> = {
@@ -77,7 +79,7 @@ const HEALTH_COLORS: Record<string, string> = {
   green: "#10b981",
 };
 
-const CENTRE_LAYER_KEYS: LayerKey[] = ["children_centres", "youth_centres", "creches", "resource_centres"];
+const STATIC_CENTRE_KEYS: LayerKey[] = ["resource_centres"];
 
 function polygonCentroid(feature: { geometry: { type: string; coordinates: number[][][] | number[][][][] } }): [number, number] {
   try {
@@ -217,6 +219,7 @@ export default function MapView({
   healthTypes,
   showHealthClusters = false,
   healthClusterMap = {},
+  facilityLayers = [],
 }: MapViewProps) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -245,6 +248,9 @@ export default function MapView({
   const showZonesRef = useRef(false);
   const showClustersRef = useRef(false);
 
+  const facilityLayersRef = useRef(facilityLayers);
+  useEffect(() => { facilityLayersRef.current = facilityLayers; }, [facilityLayers]);
+
   useEffect(() => { mapFilterRef.current = mapFilter; }, [mapFilter]);
   useEffect(() => { onCentreClickRef.current = onCentreClick; }, [onCentreClick]);
   useEffect(() => { onSettlementClickRef.current = onSettlementClick; }, [onSettlementClick]);
@@ -254,6 +260,67 @@ export default function MapView({
   useEffect(() => { progressHealthRef.current = progressHealth; }, [progressHealth]);
   useEffect(() => { showZonesRef.current = showZones; }, [showZones]);
   useEffect(() => { showClustersRef.current = showClusters; }, [showClusters]);
+
+  // ── Register a DB-driven facility layer as a circle point layer ──────────
+  function registerFacilityLayer(map: maplibregl.Map, fl: FacilityLayer) {
+    const srcId = `${fl.layerKey}-source`;
+    const circId = `${fl.layerKey}-circle`;
+    if (map.getSource(srcId)) return; // already registered
+    const vis = visibleLayersRef.current.has(fl.layerKey) ? "visible" : "none";
+    fetch(`/api/map/geojson/layer-features?layerKey=${fl.layerKey}`)
+      .then(r => r.json())
+      .then(geojson => {
+        if (mapRef.current !== map) return;
+        if (!map.isStyleLoaded()) return;
+        centreGeoJSONRef.current[fl.layerKey] = geojson;
+        const filtered = filterCentreGeojson(geojson, mapFilterRef.current);
+        try {
+          if (map.getSource(srcId)) return;
+          map.addSource(srcId, { type: "geojson", data: filtered });
+          map.addLayer({
+            id: circId,
+            type: "circle",
+            source: srcId,
+            paint: {
+              "circle-radius": 9,
+              "circle-color": fl.color,
+              "circle-stroke-width": 3,
+              "circle-stroke-color": "white",
+            },
+            layout: { visibility: vis },
+          });
+          map.on("click", circId, (e) => {
+            if (!e.features?.length) return;
+            const props = e.features[0].properties ?? {};
+            const name = props.name || fl.label;
+            new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+              .setLngLat(e.lngLat)
+              .setHTML(makeProgrammeCentrePopup(
+                props.centre_type || fl.label, name,
+                props.partner || "", props.zone || "", props.cluster || "",
+                fl.color, props.note || ""
+              ))
+              .addTo(map);
+            if (onCentreClickRef.current) {
+              const latlng: [number, number] = [e.lngLat.lat, e.lngLat.lng];
+              const centreFeature: CentreFeature = {
+                name, centreType: props.centre_type || fl.label,
+                layerKey: fl.layerKey, layerColor: fl.color,
+                matchedSettlement: props.matched_settlement || "",
+                zone: props.zone || "", cluster: props.cluster || "",
+                partner: props.partner || "", latlng,
+              };
+              onCentreClickRef.current(props.partner || "", props.zone || "", props.cluster || "", centreFeature);
+            }
+          });
+          map.on("mouseenter", circId, () => { map.getCanvas().style.cursor = "pointer"; });
+          map.on("mouseleave", circId, () => { map.getCanvas().style.cursor = ""; });
+        } catch (err) {
+          console.warn(`[MapView] facility layer ${fl.layerKey} setup skipped:`, err instanceof Error ? err.message : err);
+        }
+      })
+      .catch(() => {});
+  }
 
   // ── Map initialization ────────────────────────────────────────────────────
   useEffect(() => {
@@ -659,6 +726,9 @@ export default function MapView({
         }
       });
 
+      // ── Dynamic facility layers ──────────────────────────────────────────
+      facilityLayersRef.current.forEach((fl) => registerFacilityLayer(map, fl));
+
       layersReadyRef.current = true;
     });
 
@@ -754,6 +824,14 @@ export default function MapView({
     });
   }
 
+  // ── Register new facility layers if they arrive after map is loaded ───────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReadyRef.current) return;
+    facilityLayers.forEach(fl => registerFacilityLayer(map, fl));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facilityLayers]);
+
   // ── Layer visibility toggling ─────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
@@ -840,7 +918,11 @@ export default function MapView({
     const map = mapRef.current;
     if (!map) return;
     try {
-      CENTRE_LAYER_KEYS.forEach((key) => {
+      const allCentreKeys = [
+        ...STATIC_CENTRE_KEYS,
+        ...facilityLayersRef.current.map(fl => fl.layerKey),
+      ];
+      allCentreKeys.forEach((key) => {
         const geojson = centreGeoJSONRef.current[key];
         const src = map.getSource(`${key}-source`) as maplibregl.GeoJSONSource | undefined;
         if (!src || !geojson) return;

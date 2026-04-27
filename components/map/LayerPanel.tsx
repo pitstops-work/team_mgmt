@@ -2,6 +2,7 @@
 
 import { LAYERS, type LayerKey, type MapCity } from "@/lib/layers";
 import { type MapFilter } from "@/lib/mapFilter";
+import type { FacilityLayer } from "@/components/map/MapDashboard";
 
 interface LayerPanelProps {
   visibleLayers: Set<LayerKey>;
@@ -30,6 +31,7 @@ interface LayerPanelProps {
   healthCount: number;
   showHealthClusters: boolean;
   onShowHealthClustersChange: (v: boolean) => void;
+  facilityLayers?: FacilityLayer[];
 }
 
 const ZONE_COLORS: Record<string, string> = {
@@ -90,20 +92,20 @@ export default function LayerPanel({
   healthCount,
   showHealthClusters,
   onShowHealthClustersChange,
+  facilityLayers = [],
 }: LayerPanelProps) {
   // Filter layers by active city
   const polygonLayers = LAYERS.filter((l) => l.type === "polygon" && l.city === activeCity);
-  const pointLayers   = LAYERS.filter((l) => l.type === "point" && l.city === activeCity && l.key !== "schools" && l.key !== "health_centres");
+  // Static point layers (resource_centres) + dynamic facility layers from DB
+  const staticPointLayers = LAYERS.filter((l) => l.type === "point" && l.city === activeCity && l.key !== "schools" && l.key !== "health_centres");
 
   const totalSettlements = polygonLayers.reduce(
     (sum, l) => sum + (featureCounts[l.key] ?? 0),
     0
   );
   const totalCentres =
-    (featureCounts["children_centres"] ?? 0) +
-    (featureCounts["youth_centres"] ?? 0) +
-    (featureCounts["creches"] ?? 0) +
-    (featureCounts["resource_centres"] ?? 0);
+    facilityLayers.reduce((sum, fl) => sum + (featureCounts[fl.layerKey] ?? 0), 0) +
+    staticPointLayers.reduce((sum, l) => sum + (featureCounts[l.key] ?? 0), 0);
 
   // Group clusters by zone, filtered to active city
   const cityPrefix = activeCity === "chennai" ? "Chennai" : "";
@@ -156,21 +158,15 @@ export default function LayerPanel({
           <div className="text-xs text-indigo-400">Centres</div>
         </div>
       </div>
-      {/* Centre breakdown — Bangalore only */}
-      {activeCity === "bangalore" && (
-        <div className="px-3 py-2 border-b border-slate-100 grid grid-cols-3 gap-1 flex-shrink-0">
-          <div className="text-center">
-            <div className="text-sm font-bold text-orange-500">{featureCounts["children_centres"] ?? 0}</div>
-            <div className="text-xs text-slate-400 leading-tight">Children</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-bold text-purple-500">{featureCounts["youth_centres"] ?? 0}</div>
-            <div className="text-xs text-slate-400 leading-tight">Youth</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-bold text-pink-500">{featureCounts["creches"] ?? 0}</div>
-            <div className="text-xs text-slate-400 leading-tight">Creches</div>
-          </div>
+      {/* Centre breakdown — Bangalore only, dynamic */}
+      {activeCity === "bangalore" && facilityLayers.length > 0 && (
+        <div className={`px-3 py-2 border-b border-slate-100 grid gap-1 flex-shrink-0`} style={{ gridTemplateColumns: `repeat(${Math.min(facilityLayers.length, 3)}, 1fr)` }}>
+          {facilityLayers.map(fl => (
+            <div key={fl.layerKey} className="text-center">
+              <div className="text-sm font-bold" style={{ color: fl.color }}>{featureCounts[fl.layerKey] ?? 0}</div>
+              <div className="text-xs text-slate-400 leading-tight truncate">{fl.label.replace(/ Centre[s]?$/i, "").replace(/ Kitchen[s]?$/i, "")}</div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -275,7 +271,27 @@ export default function LayerPanel({
                 Points
               </p>
               <div className="space-y-0.5">
-                {pointLayers.map((layer) => {
+                {/* Dynamic facility layers from DB */}
+                {facilityLayers.map((fl) => {
+                  const active = visibleLayers.has(fl.layerKey);
+                  return (
+                    <button
+                      key={fl.layerKey}
+                      onClick={() => onToggle(fl.layerKey)}
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left transition-colors ${
+                        active ? "bg-slate-100 text-slate-800" : "text-slate-400 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: fl.color, opacity: active ? 1 : 0.3 }} />
+                      <span className="flex-1 text-xs font-medium">{fl.label}</span>
+                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${active ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-300"}`}>
+                        {featureCounts[fl.layerKey] ?? 0}
+                      </span>
+                    </button>
+                  );
+                })}
+                {/* Static point layers (resource centres etc.) */}
+                {staticPointLayers.map((layer) => {
                   const active = visibleLayers.has(layer.key);
                   return (
                     <button
@@ -285,10 +301,7 @@ export default function LayerPanel({
                         active ? "bg-slate-100 text-slate-800" : "text-slate-400 hover:bg-slate-50"
                       }`}
                     >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ background: layer.color, opacity: active ? 1 : 0.3 }}
-                      />
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: layer.color, opacity: active ? 1 : 0.3 }} />
                       <span className="flex-1 text-xs font-medium">{layer.label}</span>
                       <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${active ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-300"}`}>
                         {featureCounts[layer.key] ?? 0}

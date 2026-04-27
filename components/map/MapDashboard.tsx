@@ -25,10 +25,24 @@ interface ZoneClusterIndex {
   clusters: Record<string, { zone: string; display?: string; settlements: string[] }>;
 }
 
-async function loadCounts(): Promise<Partial<Record<LayerKey, number>>> {
+export interface FacilityLayer {
+  id: string;
+  layerKey: string;
+  label: string;
+  color: string;
+  needsDomain: string | null;
+  sortOrder: number;
+}
+
+async function loadCounts(facilityLayers: FacilityLayer[] = []): Promise<Partial<Record<LayerKey, number>>> {
   const counts: Partial<Record<LayerKey, number>> = {};
+  const staticLayers = LAYERS.filter((l) => l.file).map(l => ({ key: l.key, file: l.file }));
+  const dynamicLayers = facilityLayers.map(fl => ({
+    key: fl.layerKey,
+    file: `/api/map/geojson/layer-features?layerKey=${fl.layerKey}`,
+  }));
   await Promise.all(
-    LAYERS.filter((l) => l.file).map(async (l) => {
+    [...staticLayers, ...dynamicLayers].map(async (l) => {
       try {
         const r = await fetch(l.file);
         const data = await r.json();
@@ -77,6 +91,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
   const [healthTypes, setHealthTypes] = useState<Set<string>>(new Set(["CRC", "Foundation Health Centre", "Government Health Centre", "Referral Helpdesk Hospital", "Super Speciality Hospital"]));
   const [showHealthClusters, setShowHealthClusters] = useState(false);
   const [healthClusterMap, setHealthClusterMap] = useState<Record<string, boolean>>({});
+  const [facilityLayers, setFacilityLayers] = useState<FacilityLayer[]>([]);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -146,7 +161,21 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
   }, []);
 
   useEffect(() => {
-    loadCounts().then(setFeatureCounts);
+    fetch("/api/admin/facility-layers")
+      .then(r => r.json())
+      .then((layers: FacilityLayer[]) => {
+        setFacilityLayers(layers);
+        // Add facility layer keys to visibleLayers (bangalore only)
+        setVisibleLayers(prev => {
+          const next = new Set(prev);
+          layers.forEach(fl => next.add(fl.layerKey));
+          return next;
+        });
+        // Load counts including facility layers
+        loadCounts(layers).then(setFeatureCounts);
+      })
+      .catch(() => loadCounts().then(setFeatureCounts));
+
     fetch("/data/zone_cluster_index.json")
       .then((r) => r.json())
       .then(setZoneClusterIndex)
@@ -270,8 +299,18 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     setActiveCluster(null);
     setSelectedSettlement(null);
     setMapFilter(null);
-    // Show only layers for this city (schools off by default)
-    setVisibleLayers(new Set(LAYERS.filter(l => l.city === city && l.key !== "schools").map(l => l.key)));
+    setVisibleLayers(prev => {
+      const next = new Set(LAYERS.filter(l => l.city === city && l.key !== "schools").map(l => l.key));
+      // Facility layers are bangalore-only for now
+      if (city === "bangalore") {
+        const current = [...prev];
+        current.forEach(k => {
+          // Re-add facility layer keys that were visible before
+          if (!LAYERS.find(l => l.key === k)) next.add(k);
+        });
+      }
+      return next;
+    });
     flyToCityRef.current?.(city);
   }, []);
 
@@ -327,6 +366,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           healthCount={(healthFeatures.features ?? []).length}
           showHealthClusters={showHealthClusters}
           onShowHealthClustersChange={setShowHealthClusters}
+          facilityLayers={facilityLayers}
         />
       </aside>
 
@@ -417,6 +457,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           showHealthClusters={showHealthClusters}
           healthClusterMap={healthClusterMap}
           sharedMapRef={sharedMapRef}
+          facilityLayers={facilityLayers}
         />
 
         {/* Map admin panel — Edit Map button + pin/polygon modes */}

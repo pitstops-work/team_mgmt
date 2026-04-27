@@ -10,6 +10,7 @@ interface FacilityLayer {
   id: string;
   layerKey: string;
   label: string;
+  color: string;
   needsDomain: string | null;
   sortOrder: number;
 }
@@ -18,6 +19,7 @@ type EditState = {
   id?: string;
   layerKey: string;
   label: string;
+  color: string;
   needsDomain: string;
   sortOrder: number;
 } | null;
@@ -65,6 +67,7 @@ export default function FacilityLayersPage() {
       const body = {
         layerKey: edit.layerKey,
         label: edit.label,
+        color: edit.color || "#6366f1",
         needsDomain: edit.needsDomain || null,
         sortOrder: edit.sortOrder,
       };
@@ -129,6 +132,15 @@ export default function FacilityLayersPage() {
                 value={edit.label}
                 onChange={e => setEdit({ ...edit, label: e.target.value })}
                 placeholder="Display label"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-0.5">Colour</label>
+              <input
+                type="color"
+                className="h-[34px] w-10 rounded-lg border border-stone-200 cursor-pointer p-0.5 bg-white"
+                value={edit.color || "#6366f1"}
+                onChange={e => setEdit({ ...edit, color: e.target.value })}
               />
             </div>
             <div className="w-16">
@@ -204,6 +216,7 @@ export default function FacilityLayersPage() {
                 <EditRow />
               ) : (
                 <div className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl">
+                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: layer.color || "#6366f1" }} />
                   <code className="text-xs text-stone-500 font-mono w-36 shrink-0">{layer.layerKey}</code>
                   <span className="text-sm font-medium text-stone-800 flex-1">{layer.label}</span>
                   <DomainBadge domain={layer.needsDomain} />
@@ -214,6 +227,7 @@ export default function FacilityLayersPage() {
                         id: layer.id,
                         layerKey: layer.layerKey,
                         label: layer.label,
+                        color: layer.color || "#6366f1",
                         needsDomain: layer.needsDomain ?? "",
                         sortOrder: layer.sortOrder,
                       })}
@@ -242,7 +256,7 @@ export default function FacilityLayersPage() {
         <EditRow isNew />
       ) : (
         <button
-          onClick={() => setEdit({ layerKey: "", label: "", needsDomain: "", sortOrder: layers.length })}
+          onClick={() => setEdit({ layerKey: "", label: "", color: "#6366f1", needsDomain: "", sortOrder: layers.length })}
           className="flex items-center gap-2 w-full px-4 py-3 border-2 border-dashed border-stone-200 rounded-xl text-sm text-stone-500 hover:border-stone-300 hover:text-stone-700 transition-colors"
         >
           <Plus className="w-4 h-4" /> Add facility type
