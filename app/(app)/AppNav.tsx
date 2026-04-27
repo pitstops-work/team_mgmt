@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare,
   CalendarClock, MoreHorizontal, X, BookOpen, ClipboardList, MapPin,
-  CalendarRange, HelpCircle, BarChart3, MessageSquare, LayoutGrid,
+  CalendarRange, HelpCircle, BarChart3, MessageSquare, LayoutGrid, Route,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
@@ -46,6 +46,7 @@ export default function AppNav({
   const setupNavRP = [
     { href: "/dashboard", icon: <Target className="w-3.5 h-3.5" />,        label: "Goals"         },
     { href: "/map",       icon: <MapPin className="w-3.5 h-3.5" />,        label: "Programme Map" },
+    { href: "/route",     icon: <Route className="w-3.5 h-3.5" />,          label: "Route Planner" },
     { href: "/gantt",     icon: <GanttChartSquare className="w-3.5 h-3.5" />, label: "Gantt"      },
     { href: "/planner",   icon: <BookOpen className="w-3.5 h-3.5" />,      label: "Planner"       },
     { href: "/quarters",  icon: <CalendarRange className="w-3.5 h-3.5" />, label: "Quarters"      },
@@ -59,6 +60,7 @@ export default function AppNav({
     { href: "/dashboard", icon: <Target className="w-3.5 h-3.5" />,           label: "Goals"          },
     { href: "/needs",     icon: <BarChart3 className="w-3.5 h-3.5" />,        label: "Field Coverage" },
     { href: "/map",       icon: <MapPin className="w-3.5 h-3.5" />,           label: "Programme Map"  },
+    { href: "/route",     icon: <Route className="w-3.5 h-3.5" />,            label: "Route Planner"  },
     { href: "/gantt",     icon: <GanttChartSquare className="w-3.5 h-3.5" />, label: "Gantt"          },
     { href: "/planner",   icon: <BookOpen className="w-3.5 h-3.5" />,         label: "Planner"        },
     { href: "/quarters",  icon: <CalendarRange className="w-3.5 h-3.5" />,    label: "Quarters"       },
@@ -210,6 +212,9 @@ export default function AppNav({
             </MobileLink>
             <MobileLink href="/map"       label="Map"    active={pathname === "/map" || pathname.startsWith("/settlements")}>
               <MapPin className="w-5 h-5" />
+            </MobileLink>
+            <MobileLink href="/route"     label="Route"  active={pathname === "/route"}>
+              <Route className="w-5 h-5" />
             </MobileLink>
             <MobileLink href="/standup"   label="Notes"  active={pathname === "/standup"}>
               <ClipboardList className="w-5 h-5" />
