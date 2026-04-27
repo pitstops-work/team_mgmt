@@ -9,7 +9,7 @@ export async function GET() {
 
   const rows = await prisma.$queryRaw<unknown[]>`
     SELECT id, slug, name, description, category, icon, "needsDomain",
-           "sortOrder", parameters, pitstops, "isActive", "createdAt", "updatedAt"
+           "linkedFacilityLayerKey", "sortOrder", parameters, pitstops, "isActive", "createdAt", "updatedAt"
     FROM "GoalTemplateDef"
     ORDER BY "sortOrder" ASC, name ASC
   `;
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!isAdminUser(session)) return Response.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { slug, name, description, category, icon, needsDomain, sortOrder, parameters, pitstops } = body;
+  const { slug, name, description, category, icon, needsDomain, linkedFacilityLayerKey, sortOrder, parameters, pitstops } = body;
 
   if (!slug || !name || !category) {
     return Response.json({ error: "slug, name, and category are required" }, { status: 400 });
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     INSERT INTO "GoalTemplateDef"
-      (slug, name, description, category, icon, "needsDomain", "sortOrder", parameters, pitstops, "isActive", "updatedAt")
+      (slug, name, description, category, icon, "needsDomain", "linkedFacilityLayerKey", "sortOrder", parameters, pitstops, "isActive", "updatedAt")
     VALUES (
       ${slug},
       ${name},
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       ${category},
       ${icon ?? "🎯"},
       ${needsDomain ?? null},
+      ${linkedFacilityLayerKey ?? null},
       ${sortOrder ?? 99},
       ${JSON.stringify(parameters ?? [])}::jsonb,
       ${JSON.stringify(pitstops ?? [])}::jsonb,

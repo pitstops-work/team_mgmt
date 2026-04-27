@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, ChevronRight, ChevronDown, Layers, ArrowRight } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { X, ChevronRight, ChevronDown, Layers, ArrowRight, Search } from "lucide-react";
 
 // Sub-domains redirect to their parent programme
 const SUB_DOMAIN_PARENT: Record<string, { label: string; templateId: string; programmeName: string }> = {
@@ -27,8 +27,24 @@ interface Template {
   category: string;
   icon: string;
   needsDomain: string | null;
+  linkedFacilityLayerKey?: string | null;
   parameters: TemplateParameter[];
 }
+
+interface FacilityOption {
+  id: string;
+  name: string;
+  cluster: string;
+  settlement: string;
+}
+
+const FACILITY_LAYER_LABELS: Record<string, string> = {
+  creches:          "Creche",
+  children_centres: "Children Centre",
+  youth_centres:    "Youth Resource Centre",
+  elderly_centres:  "Elderly Centre",
+  water_atms:       "Water ATM",
+};
 
 interface PreviewPitstop {
   title: string;
@@ -114,6 +130,9 @@ export default function TemplatePickerModal({
   })();
 
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>(currentUserId ?? "");
+  const [linkedFacilityId, setLinkedFacilityId] = useState<string>("");
+  const [facilities, setFacilities] = useState<FacilityOption[]>([]);
+  const [facilitySearch, setFacilitySearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState("");
@@ -183,6 +202,22 @@ export default function TemplatePickerModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geoRaw]);
 
+  // Fetch facilities when the selected template has a linked facility layer
+  useEffect(() => {
+    if (!selected?.linkedFacilityLayerKey) { setFacilities([]); return; }
+    fetch(`/api/map/geojson/layer-features?layerKey=${encodeURIComponent(selected.linkedFacilityLayerKey)}`)
+      .then(r => r.json())
+      .then((geojson: { features: { properties: { id: string; name: string; cluster: string; matched_settlement: string } }[] }) => {
+        setFacilities(geojson.features.map(f => ({
+          id: f.properties.id,
+          name: f.properties.name,
+          cluster: f.properties.cluster ?? "",
+          settlement: f.properties.matched_settlement ?? "",
+        })));
+      })
+      .catch(() => {});
+  }, [selected?.linkedFacilityLayerKey]);
+
   const subDomainInfo = needsDomain ? SUB_DOMAIN_PARENT[needsDomain] : null;
 
   useEffect(() => {
@@ -233,6 +268,8 @@ export default function TemplatePickerModal({
     t.parameters.forEach((p) => { init[p.key] = ""; });
     setParamValues(init);
     setPreview([]);
+    setLinkedFacilityId("");
+    setFacilitySearch("");
     setStep("geo");
   };
 
@@ -283,6 +320,7 @@ export default function TemplatePickerModal({
     if (!title.trim() || !startDate) return false;
     if (!selected) return false;
     if (!isGeoValid()) return false;
+    if (selected.linkedFacilityLayerKey && !linkedFacilityId) return false;
     const paramsOk = selected.parameters.every((p) => {
       const v = paramValues[p.key];
       if (!v) return false;
@@ -317,6 +355,7 @@ export default function TemplatePickerModal({
           needsClusterId: geoVal.clusterId || null,
           needsZoneId: geoVal.zoneId || null,
           needsCityId: geoVal.cityId || null,
+          linkedFacilityId: (selected.linkedFacilityLayerKey && linkedFacilityId) ? linkedFacilityId : null,
           ...(canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId
             ? { ownerId: selectedOwnerId }
             : {}),
@@ -338,6 +377,15 @@ export default function TemplatePickerModal({
       return next;
     });
   };
+
+  const filteredFacilities = useMemo(() => {
+    const q = facilitySearch.toLowerCase();
+    return facilities.filter(f =>
+      f.name.toLowerCase().includes(q) ||
+      f.cluster.toLowerCase().includes(q) ||
+      f.settlement.toLowerCase().includes(q)
+    );
+  }, [facilities, facilitySearch]);
 
   // Group templates by category for the pick step
   const byCategory = templates.reduce<Record<string, Template[]>>((acc, t) => {
@@ -651,45 +699,92 @@ export default function TemplatePickerModal({
                 />
               </div>
 
-              {/* Parameters */}
-              <div>
-                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Setup Questions</p>
-                <div className="space-y-4">
-                  {selected.parameters.map((param) => (
-                    <div key={param.key}>
-                      <label className="block text-xs font-medium text-stone-600 mb-1.5">{param.label}</label>
-                      {param.type === "choice" && param.options ? (
-                        <div className="flex gap-2 flex-wrap">
-                          {param.options.map((opt) => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => setParamValues((prev) => ({ ...prev, [param.key]: opt.value }))}
-                              className={`px-4 py-2 text-sm rounded-lg border transition-all ${
-                                paramValues[param.key] === opt.value
-                                  ? "bg-sky-500 border-sky-500 text-white font-medium shadow-sm"
-                                  : "bg-white border-stone-200 text-stone-600 hover:border-sky-300 hover:bg-sky-50"
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <input
-                          type={param.type === "number" ? "number" : "text"}
-                          value={paramValues[param.key] ?? ""}
-                          onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
-                          placeholder={param.placeholder ?? ""}
-                          min={param.min}
-                          max={param.max}
-                          className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
-                        />
-                      )}
+              {/* Linked facility picker */}
+              {selected.linkedFacilityLayerKey && (
+                <div>
+                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">
+                    Select {FACILITY_LAYER_LABELS[selected.linkedFacilityLayerKey] ?? "Facility"}
+                  </p>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
+                    <input
+                      type="text"
+                      value={facilitySearch}
+                      onChange={e => setFacilitySearch(e.target.value)}
+                      placeholder="Search by name or cluster…"
+                      className="w-full pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400"
+                    />
+                  </div>
+                  {facilities.length === 0 ? (
+                    <p className="text-xs text-stone-400 text-center py-4">Loading facilities…</p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto border border-stone-200 rounded-lg divide-y divide-stone-100">
+                      {filteredFacilities.length === 0 ? (
+                        <p className="text-xs text-stone-400 text-center py-4">No matches</p>
+                      ) : filteredFacilities.map(f => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setLinkedFacilityId(f.id)}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
+                            linkedFacilityId === f.id
+                              ? "bg-sky-50 text-sky-800"
+                              : "hover:bg-stone-50 text-stone-700"
+                          }`}
+                        >
+                          <span className="font-medium truncate">{f.name}</span>
+                          <span className="text-xs text-stone-400 ml-2 shrink-0">{f.cluster || f.settlement}</span>
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  {!linkedFacilityId && (
+                    <p className="text-xs text-amber-600 mt-1">Select a facility to continue.</p>
+                  )}
                 </div>
-              </div>
+              )}
+
+              {/* Parameters */}
+              {selected.parameters.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Setup Questions</p>
+                  <div className="space-y-4">
+                    {selected.parameters.map((param) => (
+                      <div key={param.key}>
+                        <label className="block text-xs font-medium text-stone-600 mb-1.5">{param.label}</label>
+                        {param.type === "choice" && param.options ? (
+                          <div className="flex gap-2 flex-wrap">
+                            {param.options.map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setParamValues((prev) => ({ ...prev, [param.key]: opt.value }))}
+                                className={`px-4 py-2 text-sm rounded-lg border transition-all ${
+                                  paramValues[param.key] === opt.value
+                                    ? "bg-sky-500 border-sky-500 text-white font-medium shadow-sm"
+                                    : "bg-white border-stone-200 text-stone-600 hover:border-sky-300 hover:bg-sky-50"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <input
+                            type={param.type === "number" ? "number" : "text"}
+                            value={paramValues[param.key] ?? ""}
+                            onChange={(e) => setParamValues((prev) => ({ ...prev, [param.key]: e.target.value }))}
+                            placeholder={param.placeholder ?? ""}
+                            min={param.min}
+                            max={param.max}
+                            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Dates */}
               <div>

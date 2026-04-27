@@ -67,6 +67,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const {
     title, description, targetDate, startDate, params: templateParams,
     needsDomain, needsSettlementId, needsClusterId, needsZoneId, needsCityId,
+    linkedFacilityId,
     ownerId,
   } = body;
 
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       needsClusterId: needsClusterId ?? null,
       needsZoneId: needsZoneId ?? null,
       needsCityId: needsCityId ?? null,
+      linkedFacilityId: linkedFacilityId ?? null,
       pitstops: {
         create: pitstopTemplates.map((pt, idx) => {
           const pitstopStart = new Date(goalStart);

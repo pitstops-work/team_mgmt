@@ -129,6 +129,9 @@ model Goal {
   confirmedAt      DateTime?
   confirmedBy      User?         @relation("GoalConfirmer", fields: [confirmedById], references: [id])
 
+  // Linked facility (for goals managing an existing centre/facility)
+  linkedFacilityId  String?
+
   // Needs assessment linkage
   needsDomain       String?
   parameter         Float?        // planned headline number for this goal
@@ -160,6 +163,7 @@ model Goal {
   needsCluster     Cluster?         @relation("GoalNeedsCluster", fields: [needsClusterId], references: [id])
   needsZone        Zone?            @relation("GoalNeedsZone", fields: [needsZoneId], references: [id])
   needsCity        City?            @relation("GoalNeedsCity", fields: [needsCityId], references: [id])
+  linkedFacility   LayerFeature?    @relation("GoalLinkedFacility", fields: [linkedFacilityId], references: [id], onDelete: SetNull)
   // Settlement-level outcome attribution on completion
   outcomes         GoalOutcome[]
 }
@@ -822,9 +826,10 @@ model LayerFeature {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  settlement Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
-  cluster    Cluster?    @relation(fields: [clusterId], references: [id], onDelete: SetNull)
-  zone       Zone?       @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  settlement   Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+  cluster      Cluster?    @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  zone         Zone?       @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  linkedGoals  Goal[]      @relation("GoalLinkedFacility")
 }
 
 model Settlement {
@@ -1431,19 +1436,20 @@ model PasswordResetToken {
 }
 
 model GoalTemplateDef {
-  id          String   @id @default(cuid())
-  slug        String   @unique
-  name        String
-  description String   @default("")
-  category    String
-  icon        String   @default("🎯")
-  needsDomain String?
-  sortOrder   Int      @default(0)
-  parameters  Json     @default("[]")
-  pitstops    Json     @default("[]")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  slug                   String   @unique
+  name                   String
+  description            String   @default("")
+  category               String
+  icon                   String   @default("🎯")
+  needsDomain            String?
+  linkedFacilityLayerKey String?  // e.g. "creches" | "children_centres" | "youth_centres" — shows facility picker on goal creation
+  sortOrder              Int      @default(0)
+  parameters             Json     @default("[]")
+  pitstops               Json     @default("[]")
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }
 
 model UserLoginEvent {

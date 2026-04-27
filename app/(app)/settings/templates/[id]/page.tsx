@@ -21,6 +21,14 @@ const RECURRENCES = ["None", "Weekly", "Monthly", "Quarterly"];
 const PROGRESS_TAGS = ["Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring"];
 const PARAM_TYPES = ["number", "text", "choice"] as const;
 const CATEGORIES = ["Community Programs", "Programmes", "Field Programmes", "Zonal Leadership"];
+const FACILITY_LAYER_OPTIONS = [
+  { value: "",                 label: "None — no linked facility" },
+  { value: "creches",          label: "Creche" },
+  { value: "children_centres", label: "Children Centre" },
+  { value: "youth_centres",    label: "Youth Resource Centre" },
+  { value: "elderly_centres",  label: "Elderly Centre" },
+  { value: "water_atms",       label: "Water ATM" },
+];
 const COMPLETION_TYPES = [
   { value: "",         label: "Checkbox" },
   { value: "Activity", label: "Activity" },
@@ -422,6 +430,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
     category: "Community Programs",
     icon: "🎯",
     needsDomain: undefined,
+    linkedFacilityLayerKey: null,
     sortOrder: 99,
     parameters: [],
     pitstops: [],
@@ -708,6 +717,19 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
               />
             </Field>
           </div>
+
+          <Field label="Linked facility type">
+            <select
+              className={selectCls}
+              value={template.linkedFacilityLayerKey ?? ""}
+              onChange={(e) => setTemplate((t) => ({ ...t, linkedFacilityLayerKey: e.target.value || null }))}
+            >
+              {FACILITY_LAYER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <p className="text-xs text-stone-400 mt-1">
+              When set, the goal creation wizard shows a facility picker (from that layer) instead of asking &ldquo;Number of centres&rdquo;.
+            </p>
+          </Field>
 
           {isNew && (
             <Field label="Slug (URL-safe, unique ID)">

@@ -48,6 +48,7 @@ export interface DbTemplate {
   category: string;
   icon: string;
   needsDomain: string | null;
+  linkedFacilityLayerKey?: string | null;
   sortOrder: number;
   parameters: DbTemplateParam[];
   pitstops: DbPitstop[];

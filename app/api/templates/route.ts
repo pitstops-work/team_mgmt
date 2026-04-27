@@ -10,10 +10,11 @@ export async function GET() {
       category: string;
       icon: string;
       needsDomain: string | null;
+      linkedFacilityLayerKey: string | null;
       parameters: unknown;
     }[]
   >`
-    SELECT id, slug, name, description, category, icon, "needsDomain", parameters
+    SELECT id, slug, name, description, category, icon, "needsDomain", "linkedFacilityLayerKey", parameters
     FROM "GoalTemplateDef"
     WHERE "isActive" = true
     ORDER BY "sortOrder" ASC, name ASC
@@ -26,6 +27,7 @@ export async function GET() {
     category: r.category,
     icon: r.icon,
     needsDomain: r.needsDomain ?? null,
+    linkedFacilityLayerKey: r.linkedFacilityLayerKey ?? null,
     parameters: r.parameters,
   }));
 

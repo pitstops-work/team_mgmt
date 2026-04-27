@@ -14,7 +14,7 @@ export async function GET(
 
   const rows = await prisma.$queryRaw<unknown[]>`
     SELECT id, slug, name, description, category, icon, "needsDomain",
-           "sortOrder", parameters, pitstops, "isActive", "createdAt", "updatedAt"
+           "linkedFacilityLayerKey", "sortOrder", parameters, pitstops, "isActive", "createdAt", "updatedAt"
     FROM "GoalTemplateDef"
     WHERE id = ${id}
     LIMIT 1
@@ -32,7 +32,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { name, description, category, icon, needsDomain, sortOrder, parameters, pitstops, isActive } = body;
+  const { name, description, category, icon, needsDomain, linkedFacilityLayerKey, sortOrder, parameters, pitstops, isActive } = body;
 
   if (!name || !category) {
     return Response.json({ error: "name and category are required" }, { status: 400 });
@@ -45,6 +45,7 @@ export async function PUT(
       category    = ${category},
       icon        = ${icon ?? "🎯"},
       "needsDomain" = ${needsDomain ?? null},
+      "linkedFacilityLayerKey" = ${linkedFacilityLayerKey ?? null},
       "sortOrder" = ${sortOrder ?? 99},
       parameters  = ${JSON.stringify(parameters ?? [])}::jsonb,
       pitstops    = ${JSON.stringify(pitstops ?? [])}::jsonb,
