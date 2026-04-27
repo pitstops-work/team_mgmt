@@ -39,12 +39,13 @@ interface NeedsData {
   existing: Existing;
   targets: Targets;
   actuals: DomainActuals;
+  addressable?: Record<string, number>;
   entitlements?: { id: string; name: string; parentId: string | null; eligible: number; enrolled: number }[];
 }
 
 
-function NeedsRow({ label, color, existing, apfTarget, done, inProgress, onAdd }: {
-  label: string; color: string; existing: number; apfTarget: number; done: number; inProgress: number;
+function NeedsRow({ label, color, existing, addressable, apfTarget, done, inProgress, onAdd }: {
+  label: string; color: string; existing: number; addressable: number | null; apfTarget: number; done: number; inProgress: number;
   onAdd?: () => void;
 }) {
   const planned = done + inProgress;
@@ -56,6 +57,9 @@ function NeedsRow({ label, color, existing, apfTarget, done, inProgress, onAdd }
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
         <span className="text-xs text-slate-700 flex-1">{label}</span>
         <span className="text-[10px] text-slate-400">ex:{existing}</span>
+        {addressable != null && (
+          <span className="text-[10px] font-medium text-amber-600" title="Addressable need (field-verified)">addr:{addressable}</span>
+        )}
         <span className="text-[10px] font-semibold text-slate-600">plan:{planned}</span>
         <span className="text-[10px] font-bold" style={{ color: gap === 0 ? "#10b981" : "#ef4444" }}>
           {gap === 0 ? "✓" : `-${gap}`}
@@ -257,7 +261,8 @@ export default function NeedsPanel({ mode, name, cluster, zone, settlementId, on
                 <span className="w-2" />
                 <span className="flex-1">Domain</span>
                 <span>ex</span>
-                <span>→target</span>
+                <span className="text-amber-400">addr</span>
+                <span>plan</span>
                 <span>gap</span>
               </div>
               {(data.domainConfig ?? []).map(d => {
@@ -266,11 +271,13 @@ export default function NeedsPanel({ mode, name, cluster, zone, settlementId, on
                 const done       = data.actuals[d.domain]?.done ?? 0;
                 const inProgress = data.actuals[d.domain]?.inProgress ?? 0;
                 const gap        = Math.max(0, apfTarget - done);
+                const addressable = data.addressable?.[d.domain] ?? null;
                 return (
                   <NeedsRow key={d.domain}
                     label={d.label}
                     color={d.color}
                     existing={existing}
+                    addressable={addressable}
                     apfTarget={apfTarget}
                     done={done}
                     inProgress={inProgress}

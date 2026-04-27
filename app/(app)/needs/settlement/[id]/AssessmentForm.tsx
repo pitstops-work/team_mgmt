@@ -55,6 +55,13 @@ type Assessment = {
   hakkupatraEligible: number | null;
   priorityIssues: string | null;
   enumeratorNotes: string | null;
+  addressableCreches: number | null;
+  addressableToilets: number | null;
+  toiletLandAvailable: boolean | null;
+  toiletLandType: string | null;
+  addressableWaterATMs: number | null;
+  waterATMCurrentCount: number | null;
+  waterATMFeasible: boolean | null;
   roads: Record<string, string | boolean | null> | null;
   water: Record<string, string | boolean | null> | null;
   sanitation: Record<string, string | number | boolean | null> | null;
@@ -226,6 +233,15 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
       existingCommunityToilets: a.existingCommunityToilets,
       existingWaterATMs: a.existingWaterATMs,
     });
+    setAddressableNeed({
+      addressableCreches: a.addressableCreches ?? null,
+      addressableToilets: a.addressableToilets ?? null,
+      toiletLandAvailable: a.toiletLandAvailable ?? null,
+      toiletLandType: a.toiletLandType ?? "",
+      addressableWaterATMs: a.addressableWaterATMs ?? null,
+      waterATMCurrentCount: a.waterATMCurrentCount ?? null,
+      waterATMFeasible: a.waterATMFeasible ?? null,
+    });
     setProfile({
       settlementType: a.settlementType ?? "",
       composition: a.composition ?? "",
@@ -346,6 +362,17 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
     existingReferralSystems:       latest?.existingReferralSystems       ?? 0,
     existingCommunityToilets:      latest?.existingCommunityToilets      ?? 0,
     existingWaterATMs:             latest?.existingWaterATMs             ?? 0,
+  });
+
+  // Addressable need
+  const [addressableNeed, setAddressableNeed] = useState({
+    addressableCreches:   latest?.addressableCreches   ?? null as number | null,
+    addressableToilets:   latest?.addressableToilets   ?? null as number | null,
+    toiletLandAvailable:  latest?.toiletLandAvailable  ?? null as boolean | null,
+    toiletLandType:       latest?.toiletLandType        ?? "" as string,
+    addressableWaterATMs: latest?.addressableWaterATMs  ?? null as number | null,
+    waterATMCurrentCount: latest?.waterATMCurrentCount  ?? null as number | null,
+    waterATMFeasible:     latest?.waterATMFeasible      ?? null as boolean | null,
   });
 
   // Profile
@@ -561,6 +588,8 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
       drainageSewer: drainSewer,
       drainageStorm: drainStorm,
       waste, electricity, facilities, safety,
+      // Addressable need
+      ...addressableNeed,
       // Priority
       priorityIssues: JSON.stringify(priorityIssues),
       enumeratorNotes,
@@ -793,6 +822,88 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
             </Field>
             <Field label="Existing Community Toilets"><NumInput value={existing.existingCommunityToilets} onChange={v => setExisting(e => ({ ...e, existingCommunityToilets: v }))} /></Field>
             <Field label="Existing Water ATMs"><NumInput value={existing.existingWaterATMs} onChange={v => setExisting(e => ({ ...e, existingWaterATMs: v }))} /></Field>
+          </div>
+        </Section>
+
+        {/* Addressable Need */}
+        <Section title="Addressable Need" icon={<TrendingUp className="w-4 h-4" />}>
+          <p className="text-xs text-slate-400 mb-3">Field-verified, feasibility-filtered demand. Only fill where a specific need has been confirmed on the ground.</p>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Creches */}
+            <div className="col-span-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Creches</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Creches addressable this year">
+                  <NumInput
+                    value={addressableNeed.addressableCreches ?? 0}
+                    onChange={v => setAddressableNeed(n => ({ ...n, addressableCreches: v || null }))}
+                  />
+                </Field>
+              </div>
+            </div>
+            {/* Community Toilets */}
+            <div className="col-span-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Community Toilets</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Toilets addressable">
+                  <NumInput
+                    value={addressableNeed.addressableToilets ?? 0}
+                    onChange={v => setAddressableNeed(n => ({ ...n, addressableToilets: v || null }))}
+                  />
+                </Field>
+                <Field label="Land available?">
+                  <select
+                    className="input"
+                    value={addressableNeed.toiletLandAvailable == null ? "" : addressableNeed.toiletLandAvailable ? "yes" : "no"}
+                    onChange={e => setAddressableNeed(n => ({ ...n, toiletLandAvailable: e.target.value === "" ? null : e.target.value === "yes" }))}
+                  >
+                    <option value="">—</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </Field>
+                <Field label="Land type">
+                  <select
+                    className="input"
+                    value={addressableNeed.toiletLandType}
+                    onChange={e => setAddressableNeed(n => ({ ...n, toiletLandType: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    <option value="Govt">Govt</option>
+                    <option value="Private">Private</option>
+                  </select>
+                </Field>
+              </div>
+            </div>
+            {/* Water ATMs */}
+            <div className="col-span-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Water ATMs</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Currently servicing (count)">
+                  <NumInput
+                    value={addressableNeed.waterATMCurrentCount ?? 0}
+                    onChange={v => setAddressableNeed(n => ({ ...n, waterATMCurrentCount: v || null }))}
+                  />
+                </Field>
+                <Field label="Additional ATMs addressable">
+                  <NumInput
+                    value={addressableNeed.addressableWaterATMs ?? 0}
+                    onChange={v => setAddressableNeed(n => ({ ...n, addressableWaterATMs: v || null }))}
+                  />
+                </Field>
+                <Field label="Feasible? (land/borewell)">
+                  <select
+                    className="input"
+                    value={addressableNeed.waterATMFeasible == null ? "" : addressableNeed.waterATMFeasible ? "yes" : "no"}
+                    onChange={e => setAddressableNeed(n => ({ ...n, waterATMFeasible: e.target.value === "" ? null : e.target.value === "yes" }))}
+                  >
+                    <option value="">—</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </Field>
+              </div>
+            </div>
           </div>
         </Section>
 

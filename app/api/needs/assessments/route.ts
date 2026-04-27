@@ -76,6 +76,9 @@ export async function POST(req: NextRequest) {
     landOwnership, legalStatus, hakkupatraEligible,
     // Priority issues
     priorityIssues, enumeratorNotes,
+    // Addressable need
+    addressableCreches, addressableToilets, toiletLandAvailable, toiletLandType,
+    addressableWaterATMs, waterATMCurrentCount, waterATMFeasible,
     // Sections
     roads, water, sanitation, drainageSewer, drainageStorm, waste, electricity, facilities, safety,
     // Entitlements
@@ -110,6 +113,14 @@ export async function POST(req: NextRequest) {
       hakkupatraEligible: hakkupatraEligible ? Number(hakkupatraEligible) : null,
       // Notes
       priorityIssues, enumeratorNotes,
+      // Addressable need
+      addressableCreches: addressableCreches ?? null,
+      addressableToilets: addressableToilets ?? null,
+      toiletLandAvailable: toiletLandAvailable ?? null,
+      toiletLandType: toiletLandType ?? null,
+      addressableWaterATMs: addressableWaterATMs ?? null,
+      waterATMCurrentCount: waterATMCurrentCount ?? null,
+      waterATMFeasible: waterATMFeasible ?? null,
       // Sections (upsert inline via nested create)
       roads: roads ? { create: roads } : undefined,
       water: water ? { create: water } : undefined,
@@ -140,31 +151,24 @@ export async function POST(req: NextRequest) {
   });
 
   // Keep SettlementProfile in sync with the latest assessment
+  const profileData = {
+    totalHouseholds: assessment.totalHouseholds,
+    children6m3yr: assessment.children6m3yr,
+    children4to14: assessment.children4to14,
+    youth15to21: assessment.youth15to21,
+    elderly60plus: assessment.elderly60plus,
+    settlementType: assessment.settlementType ?? null,
+    priorityIssues: assessment.priorityIssues ?? null,
+    addressableCreches: assessment.addressableCreches ?? null,
+    addressableToilets: assessment.addressableToilets ?? null,
+    addressableWaterATMs: assessment.addressableWaterATMs ?? null,
+    lastAssessmentId: assessment.id,
+    lastSyncedAt: new Date(),
+  };
   await prisma.settlementProfile.upsert({
     where: { settlementId },
-    create: {
-      settlementId,
-      totalHouseholds: assessment.totalHouseholds,
-      children6m3yr: assessment.children6m3yr,
-      children4to14: assessment.children4to14,
-      youth15to21: assessment.youth15to21,
-      elderly60plus: assessment.elderly60plus,
-      settlementType: assessment.settlementType ?? null,
-      priorityIssues: assessment.priorityIssues ?? null,
-      lastAssessmentId: assessment.id,
-      lastSyncedAt: new Date(),
-    },
-    update: {
-      totalHouseholds: assessment.totalHouseholds,
-      children6m3yr: assessment.children6m3yr,
-      children4to14: assessment.children4to14,
-      youth15to21: assessment.youth15to21,
-      elderly60plus: assessment.elderly60plus,
-      settlementType: assessment.settlementType ?? null,
-      priorityIssues: assessment.priorityIssues ?? null,
-      lastAssessmentId: assessment.id,
-      lastSyncedAt: new Date(),
-    },
+    create: { settlementId, ...profileData },
+    update: profileData,
   });
 
   return Response.json(assessment, { status: 201 });

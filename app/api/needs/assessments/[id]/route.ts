@@ -61,6 +61,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     settlementType, composition, predominantGroups, languages, yearsEstablished,
     landOwnership, legalStatus, hakkupatraEligible,
     priorityIssues, enumeratorNotes,
+    addressableCreches, addressableToilets, toiletLandAvailable, toiletLandType,
+    addressableWaterATMs, waterATMCurrentCount, waterATMFeasible,
     roads, water, sanitation, drainageSewer, drainageStorm, waste, electricity, facilities, safety,
     entitlements,
   } = body;
@@ -92,6 +94,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       landOwnership, legalStatus,
       hakkupatraEligible: hakkupatraEligible ? Number(hakkupatraEligible) : undefined,
       priorityIssues, enumeratorNotes,
+      addressableCreches: addressableCreches ?? undefined,
+      addressableToilets: addressableToilets ?? undefined,
+      toiletLandAvailable: toiletLandAvailable ?? undefined,
+      toiletLandType: toiletLandType ?? undefined,
+      addressableWaterATMs: addressableWaterATMs ?? undefined,
+      waterATMCurrentCount: waterATMCurrentCount ?? undefined,
+      waterATMFeasible: waterATMFeasible ?? undefined,
     },
   });
 
@@ -145,31 +154,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     select: { id: true },
   });
   if (latestCheck?.id === id) {
+    const profileData = {
+      totalHouseholds: updated.totalHouseholds,
+      children6m3yr: updated.children6m3yr,
+      children4to14: updated.children4to14,
+      youth15to21: updated.youth15to21,
+      elderly60plus: updated.elderly60plus,
+      settlementType: updated.settlementType ?? null,
+      priorityIssues: updated.priorityIssues ?? null,
+      addressableCreches: updated.addressableCreches ?? null,
+      addressableToilets: updated.addressableToilets ?? null,
+      addressableWaterATMs: updated.addressableWaterATMs ?? null,
+      lastAssessmentId: id,
+      lastSyncedAt: new Date(),
+    };
     await prisma.settlementProfile.upsert({
       where: { settlementId: updated.settlementId },
-      create: {
-        settlementId: updated.settlementId,
-        totalHouseholds: updated.totalHouseholds,
-        children6m3yr: updated.children6m3yr,
-        children4to14: updated.children4to14,
-        youth15to21: updated.youth15to21,
-        elderly60plus: updated.elderly60plus,
-        settlementType: updated.settlementType ?? null,
-        priorityIssues: updated.priorityIssues ?? null,
-        lastAssessmentId: id,
-        lastSyncedAt: new Date(),
-      },
-      update: {
-        totalHouseholds: updated.totalHouseholds,
-        children6m3yr: updated.children6m3yr,
-        children4to14: updated.children4to14,
-        youth15to21: updated.youth15to21,
-        elderly60plus: updated.elderly60plus,
-        settlementType: updated.settlementType ?? null,
-        priorityIssues: updated.priorityIssues ?? null,
-        lastAssessmentId: id,
-        lastSyncedAt: new Date(),
-      },
+      create: { settlementId: updated.settlementId, ...profileData },
+      update: profileData,
     });
   }
 

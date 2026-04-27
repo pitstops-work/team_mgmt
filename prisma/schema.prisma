@@ -929,6 +929,10 @@ model SettlementProfile {
   elderly60plus   Int       @default(0)
   settlementType  String?
   priorityIssues  String?
+  // Addressable need snapshot (latest assessment)
+  addressableCreches   Int?
+  addressableToilets   Int?
+  addressableWaterATMs Int?
   lastAssessmentId String?
   lastSyncedAt    DateTime?
   updatedAt       DateTime  @updatedAt
@@ -1232,6 +1236,15 @@ model SettlementAssessment {
   existingReferralSystems        Int @default(0)
   existingCommunityToilets       Int @default(0)
   existingWaterATMs              Int @default(0)
+
+  // Addressable need — field-verified, feasibility-filtered demand
+  addressableCreches    Int?
+  addressableToilets    Int?
+  toiletLandAvailable   Boolean?
+  toiletLandType        String?   // "Govt" | "Private"
+  addressableWaterATMs  Int?
+  waterATMCurrentCount  Int?
+  waterATMFeasible      Boolean?
 
   // Settlement profile (Section 2)
   settlementType    String?

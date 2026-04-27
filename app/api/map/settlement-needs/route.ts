@@ -216,5 +216,13 @@ export async function GET(request: Request) {
     actuals[d].inProgress += g.parameter ?? g.metrics[0]?.current ?? 0;
   }
 
-  return NextResponse.json({ settlement, assessment: assessmentWithEnts, pop, existing, targets, actuals, domainConfig });
+  // Addressable need — hardcoded domain mapping (field-verified feasibility, not formula)
+  const addressable: Record<string, number> = {};
+  if (assessment) {
+    if (assessment.addressableCreches != null)   addressable["Creche"]          = assessment.addressableCreches;
+    if (assessment.addressableToilets != null)   addressable["CommunityToilet"] = assessment.addressableToilets;
+    if (assessment.addressableWaterATMs != null) addressable["WaterATM"]        = assessment.addressableWaterATMs;
+  }
+
+  return NextResponse.json({ settlement, assessment: assessmentWithEnts, pop, existing, targets, actuals, domainConfig, addressable });
 }
