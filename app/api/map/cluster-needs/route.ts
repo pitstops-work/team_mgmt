@@ -67,6 +67,7 @@ export async function GET(request: Request) {
       existingCreches: true, existingChildrenCentres: true, existingYouthGroups: true,
       existingElderlyKitchens: true, existingPalliativeUnits: true,
       existingCommunityToilets: true, existingWaterATMs: true,
+      addressableCreches: true, addressableToilets: true, addressableWaterATMs: true,
     },
   });
 
@@ -84,11 +85,16 @@ export async function GET(request: Request) {
 
   // Aggregate existing counts across all assessments, driven by assessmentColumn from config
   const existing: Record<string, number> = {};
+  const addressable: Record<string, number> = {};
   for (const a of assessments) {
     const row = buildExisting(a as Record<string, unknown>, formulaRows as FormulaRow[]);
     for (const [domain, val] of Object.entries(row)) {
       existing[domain] = (existing[domain] ?? 0) + val;
     }
+    const aa = a as typeof a & { addressableCreches?: number | null; addressableToilets?: number | null; addressableWaterATMs?: number | null };
+    if (aa.addressableCreches   != null) addressable["Creche"]          = (addressable["Creche"]          ?? 0) + aa.addressableCreches;
+    if (aa.addressableToilets   != null) addressable["CommunityToilet"] = (addressable["CommunityToilet"] ?? 0) + aa.addressableToilets;
+    if (aa.addressableWaterATMs != null) addressable["WaterATM"]        = (addressable["WaterATM"]        ?? 0) + aa.addressableWaterATMs;
   }
 
   // Use raw SQL for entitlements — Prisma include silently drops surveyEnrolled due to stale build cache
@@ -159,7 +165,7 @@ export async function GET(request: Request) {
     cluster: { id: cluster.id, name: cluster.name, zone: cluster.zone.name, city: cluster.zone.city?.name ?? null },
     settlementCount: cluster.settlements.length,
     assessedCount,
-    pop, existing, targets, actuals, domainConfig,
+    pop, existing, targets, actuals, domainConfig, addressable,
     entitlements: Object.entries(entitlementMap).map(([id, v]) => ({ id, ...v })),
   });
 }
