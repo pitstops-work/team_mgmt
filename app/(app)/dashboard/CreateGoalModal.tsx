@@ -235,6 +235,8 @@ function DomainStep({
 
 // ── Goal form (step 3 or prefill mode) ───────────────────────────────────────
 
+type Recurrence = "None" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
+
 function GoalForm({
   title, setTitle,
   description, setDescription,
@@ -242,6 +244,7 @@ function GoalForm({
   targetDate, setTargetDate,
   status, setStatus,
   parameter, setParameter,
+  recurrence, setRecurrence,
   contextLabel,
   contextColor,
   domainLabel,
@@ -259,6 +262,7 @@ function GoalForm({
   targetDate: string; setTargetDate: (v: string) => void;
   status: string; setStatus: (v: string) => void;
   parameter: string; setParameter: (v: string) => void;
+  recurrence: Recurrence; setRecurrence: (v: Recurrence) => void;
   contextLabel: string;
   contextColor: string;
   domainLabel: string;
@@ -390,6 +394,26 @@ function GoalForm({
         </div>
       </div>
 
+      <div>
+        <label className="block text-xs font-medium text-stone-600 mb-1">Recurrence</label>
+        <select
+          value={recurrence}
+          onChange={e => setRecurrence(e.target.value as Recurrence)}
+          className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+        >
+          <option value="None">No recurrence</option>
+          <option value="Weekly">Weekly</option>
+          <option value="Monthly">Monthly</option>
+          <option value="Quarterly">Quarterly</option>
+          <option value="Yearly">Yearly</option>
+        </select>
+        {recurrence !== "None" && (
+          <p className="text-xs text-stone-400 mt-1">
+            When complete, you&apos;ll be offered to start the next {recurrence.toLowerCase()} cycle.
+          </p>
+        )}
+      </div>
+
       {hasTemplate && (
         <p className="text-xs text-sky-600 bg-sky-50 px-3 py-2 rounded-lg">
           Pitstops, checklists, and activities will be auto-created and scheduled from today.
@@ -445,6 +469,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
   const [targetDate, setTargetDate]   = useState("");
   const [status, setStatus]           = useState("Active");
   const [parameter, setParameter]     = useState(prefill?.gap ? String(prefill.gap) : "");
+  const [recurrence, setRecurrence]   = useState<Recurrence>("None");
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
 
@@ -516,6 +541,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
             targetDate,
             params: templateParams,
             needsDomain: needsDomain || null,
+            recurrence,
             ...(resolvedNeedsSettlementId && { needsSettlementId: resolvedNeedsSettlementId }),
             ...(resolvedNeedsClusterId    && { needsClusterId: resolvedNeedsClusterId }),
             ...(resolvedNeedsZoneId       && { needsZoneId: resolvedNeedsZoneId }),
@@ -529,6 +555,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
           description: description.trim() || null,
           status,
           targetDate,
+          recurrence,
           needsDomain: isOperational ? null : (needsDomain || null),
           ...(parameter && { parameter: parseFloat(parameter) }),
           ...(resolvedNeedsSettlementId && { needsSettlementId: resolvedNeedsSettlementId }),
@@ -702,6 +729,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
               targetDate={targetDate} setTargetDate={setTargetDate}
               status={status} setStatus={setStatus}
               parameter={parameter} setParameter={setParameter}
+              recurrence={recurrence} setRecurrence={setRecurrence}
               contextLabel={geoLabel}
               contextColor={selectedDomainColor}
               domainLabel={selectedDomainLabel}

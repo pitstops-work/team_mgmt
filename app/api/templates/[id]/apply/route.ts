@@ -88,6 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     needsDomain, needsSettlementId, needsClusterId, needsZoneId, needsCityId,
     linkedFacilityId,
     ownerId,
+    recurrence,
   } = body;
 
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
@@ -132,6 +133,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   ];
   const validRecurrences = ["None", "Weekly", "Monthly", "Quarterly"];
 
+  const validGoalRecurrences = ["None", "Weekly", "Monthly", "Quarterly", "Yearly"];
   const goal = await prisma.goal.create({
     data: {
       title,
@@ -145,6 +147,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       needsZoneId: needsZoneId ?? null,
       needsCityId: needsCityId ?? null,
       linkedFacilityId: linkedFacilityId ?? null,
+      ...(recurrence && recurrence !== "None" && validGoalRecurrences.includes(recurrence) && { recurrence }),
       pitstops: {
         create: allInstances.map((inst, idx) => {
           const pitstopType = validTypes.includes(inst.pt.type) ? inst.pt.type : "Discussion";
