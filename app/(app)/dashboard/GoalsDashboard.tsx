@@ -70,7 +70,13 @@ interface SearchResults {
   pitstops: { id: string; title: string; goal: { id: string; title: string } }[];
 }
 
-type PhaseRow = { id: string; goalId: string; title: string; progressTag: string | null; status: string };
+type PhaseRow = {
+  id: string; goalId: string; title: string; progressTag: string | null; status: string;
+  targetDate: string | null; startDate: string | null;
+  ownerId: string | null; ownerName: string | null; ownerDesignation: string | null;
+  checklistTotal: number; checklistDone: number;
+  activityTotal: number; activityDone: number;
+};
 
 type ChecklistDrillItem = {
   id: string;
@@ -80,7 +86,7 @@ type ChecklistDrillItem = {
   activities: { id: string; title: string; status: string; scheduledAt: string; type: string }[];
 };
 
-type DrillState = { goalId: string; goalTitle: string; tag: PhaseTag; pitstops: PhaseRow[] } | null;
+type DrillState = { tag: PhaseTag; seedGoalId?: string } | null;
 
 const PHASE_TAGS = ["Team", "Baseline", "Permissions", "Infrastructure", "Training", "Live", "Monitoring"] as const;
 type PhaseTag = typeof PHASE_TAGS[number];
@@ -785,7 +791,7 @@ export default function GoalsDashboard({
 
       {/* ── Phase tab ── */}
       {activeTab === "phase" && (
-        <PhaseMatrix goals={filtered} phaseData={phaseData} />
+        <PhaseMatrix goals={filtered} phaseData={phaseData} users={users} />
       )}
 
       {showCreate && (
@@ -891,11 +897,6 @@ function GoalCard({ goal, onHover }: { goal: Goal; onHover: (id: string) => void
 
 // ── Phase Matrix ──────────────────────────────────────────────────────────────
 
-const PITSTOP_STATUS_COLORS: Record<string, string> = {
-  Done:       "bg-emerald-100 text-emerald-700",
-  InProgress: "bg-sky-100 text-sky-700",
-  Upcoming:   "bg-stone-100 text-stone-500",
-};
 const CHECKLIST_STATUS_COLORS: Record<string, string> = {
   Done:       "bg-emerald-100 text-emerald-700",
   InProgress: "bg-sky-100 text-sky-700",
@@ -913,27 +914,202 @@ const EVENT_STATUS_COLORS: Record<string, string> = {
   Rescheduled:"bg-violet-100 text-violet-700",
 };
 
-function DrillDownPanel({ drill, onClose }: { drill: NonNullable<DrillState>; onClose: () => void }) {
+type UserRef = { id: string; name: string | null; image: string | null; designation?: string };
+
+function PitstopDrillCard({
+  row, users, expanded, onToggle, checklistItems, loadingChecklist,
+}: {
+  row: PhaseRow;
+  users: UserRef[];
+  expanded: boolean;
+  onToggle: () => void;
+  checklistItems: ChecklistDrillItem[] | undefined;
+  loadingChecklist: boolean;
+}) {
+  const [expandedChecklist, setExpandedChecklist] = useState<string | null>(null);
+  const owner = users.find(u => u.id === row.ownerId);
+  const clPct = row.checklistTotal > 0 ? Math.round((row.checklistDone / row.checklistTotal) * 100) : null;
+  const actPct = row.activityTotal > 0 ? Math.round((row.activityDone / row.activityTotal) * 100) : null;
+  const statusCls =
+    row.status === "Done" ? "bg-emerald-50 text-emerald-700" :
+    row.status === "InProgress" ? "bg-sky-50 text-sky-700" :
+    "bg-stone-50 text-stone-500";
+
+  return (
+    <div className="rounded-lg border border-stone-100 overflow-hidden">
+      <div
+        className={`flex items-start gap-2.5 px-3 py-2.5 cursor-pointer select-none transition-colors ${expanded ? "bg-stone-50" : "bg-white hover:bg-stone-50"}`}
+        onClick={onToggle}
+      >
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${statusCls}`}>{row.status}</span>
+            <span className="text-xs font-medium text-stone-700 line-clamp-1 flex-1">{row.title}</span>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {owner && (
+              <div className="flex items-center gap-1">
+                <Avatar name={owner.name} image={owner.image} size="xs" />
+                <span className="text-[10px] text-stone-500">{owner.name}</span>
+                {row.ownerDesignation && (
+                  <span className="text-[9px] text-stone-400 bg-stone-100 px-1 py-0.5 rounded">{row.ownerDesignation}</span>
+                )}
+              </div>
+            )}
+            {row.targetDate && (
+              <span className="text-[10px] text-stone-400">
+                Due {new Date(row.targetDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+              </span>
+            )}
+          </div>
+          {(clPct !== null || actPct !== null) && (
+            <div className="flex items-center gap-3 pt-0.5">
+              {clPct !== null && (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-16 h-1 bg-stone-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
+                  </div>
+                  <span className="text-[9px] text-stone-400">{row.checklistDone}/{row.checklistTotal} tasks</span>
+                </div>
+              )}
+              {actPct !== null && (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-16 h-1 bg-stone-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-violet-400 rounded-full" style={{ width: `${actPct}%` }} />
+                  </div>
+                  <span className="text-[9px] text-stone-400">{row.activityDone}/{row.activityTotal} acts</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {expanded ? <ChevronDown className="w-3 h-3 text-stone-400 flex-shrink-0 mt-1" /> : <ChevronRight className="w-3 h-3 text-stone-300 flex-shrink-0 mt-1" />}
+      </div>
+
+      {expanded && (
+        <div className="border-t border-stone-100 bg-stone-50 px-3 py-2 space-y-1">
+          {loadingChecklist && <p className="text-xs text-stone-400 py-1">Loading…</p>}
+          {!loadingChecklist && checklistItems !== undefined && checklistItems.length === 0 && (
+            <p className="text-xs text-stone-400 py-1">No checklist items</p>
+          )}
+          {!loadingChecklist && checklistItems && checklistItems.length > 0 && checklistItems.map(item => {
+            const cColor = CHECKLIST_STATUS_COLORS[item.status] ?? "bg-stone-100 text-stone-400";
+            const isChecklistExpanded = expandedChecklist === item.id;
+            return (
+              <div key={item.id}>
+                <div
+                  className={`flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer select-none transition-colors ${isChecklistExpanded ? "bg-white" : "hover:bg-white"}`}
+                  onClick={() => setExpandedChecklist(prev => prev === item.id ? null : item.id)}
+                >
+                  <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 ${cColor}`}>
+                    {item.status === "NotStarted" ? "Not Started" : item.status}
+                  </span>
+                  <span className={`text-xs flex-1 min-w-0 ${item.checked ? "line-through text-stone-400" : "text-stone-600"}`}>
+                    {item.text}
+                  </span>
+                  {item.activities.length > 0 && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0 mt-1.5" title="Has linked activities" />
+                  )}
+                </div>
+                {isChecklistExpanded && (
+                  <div className="ml-2 mt-0.5 mb-1 px-3 py-2 bg-white rounded-lg border border-stone-100">
+                    {item.activities.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {item.activities.map((act) => (
+                          <div key={act.id} className="flex items-center gap-2">
+                            <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${EVENT_STATUS_COLORS[act.status] ?? "bg-stone-100 text-stone-400"}`}>
+                              {act.status}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-stone-700 truncate">{act.title}</p>
+                              <p className="text-[10px] text-stone-400">
+                                {act.type} · {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-stone-400">No activities linked to this item</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const DRILL_SECTIONS = [
+  { key: "Overdue" as const, label: "Overdue",           headerCls: "text-red-700 bg-red-50 border-red-100",    dotCls: "bg-red-500" },
+  { key: "AtRisk"  as const, label: "At Risk (≤14 days)", headerCls: "text-amber-700 bg-amber-50 border-amber-100", dotCls: "bg-amber-400" },
+  { key: "OnTrack" as const, label: "On Track",           headerCls: "text-sky-700 bg-sky-50 border-sky-100",    dotCls: "bg-sky-400" },
+  { key: "Done"    as const, label: "Done",               headerCls: "text-emerald-700 bg-emerald-50 border-emerald-100", dotCls: "bg-emerald-500" },
+];
+
+function DrillDownPanel({
+  drill, phaseData, goals, users, onClose,
+}: {
+  drill: NonNullable<DrillState>;
+  phaseData: PhaseRow[];
+  goals: Goal[];
+  users: UserRef[];
+  onClose: () => void;
+}) {
+  const [filterGoalId, setFilterGoalId] = useState(drill.seedGoalId ?? "");
+  const [filterUserId, setFilterUserId] = useState("");
+  const [filterDesig, setFilterDesig]   = useState("");
   const [expandedPitstop, setExpandedPitstop] = useState<string | null>(null);
   const [checklistMap, setChecklistMap] = useState<Record<string, ChecklistDrillItem[]>>({});
   const [loadingPitstop, setLoadingPitstop] = useState<string | null>(null);
-  const [expandedChecklist, setExpandedChecklist] = useState<string | null>(null);
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const atRiskCutoff = new Date(today); atRiskCutoff.setDate(today.getDate() + 14);
+
+  const tagRows = phaseData.filter(r => r.progressTag === drill.tag);
+
+  const filtered = tagRows.filter(r => {
+    if (filterGoalId && r.goalId !== filterGoalId) return false;
+    if (filterUserId && r.ownerId !== filterUserId) return false;
+    if (filterDesig && r.ownerDesignation !== filterDesig) return false;
+    return true;
+  });
+
+  const grouped = {
+    Overdue: filtered.filter(r => r.status !== "Done" && r.targetDate && new Date(r.targetDate) < today),
+    AtRisk:  filtered.filter(r => r.status !== "Done" && r.targetDate && new Date(r.targetDate) >= today && new Date(r.targetDate) <= atRiskCutoff),
+    OnTrack: filtered.filter(r => r.status !== "Done" && (!r.targetDate || new Date(r.targetDate) > atRiskCutoff)),
+    Done:    filtered.filter(r => r.status === "Done"),
+  };
+
+  const overdueByOwner = new Map<string, { name: string | null; designation: string | null; count: number }>();
+  for (const r of grouped.Overdue) {
+    if (!r.ownerId) continue;
+    const cur = overdueByOwner.get(r.ownerId) ?? { name: r.ownerName, designation: r.ownerDesignation, count: 0 };
+    cur.count++;
+    overdueByOwner.set(r.ownerId, cur);
+  }
+  const topDelayers = [...overdueByOwner.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 3);
+
+  const availableGoalIds = new Set(tagRows.map(r => r.goalId));
+  const availableGoals   = goals.filter(g => availableGoalIds.has(g.id));
+  const availableOwnerIds = new Set(tagRows.map(r => r.ownerId).filter(Boolean) as string[]);
+  const availableUsers   = users.filter(u => availableOwnerIds.has(u.id));
+  const availableDesigs  = [...new Set(tagRows.map(r => r.ownerDesignation).filter(Boolean))] as string[];
 
   const togglePitstop = async (pitstopId: string) => {
     if (expandedPitstop === pitstopId) { setExpandedPitstop(null); return; }
     setExpandedPitstop(pitstopId);
-    setExpandedChecklist(null);
     if (!checklistMap[pitstopId]) {
       setLoadingPitstop(pitstopId);
-      const res = await fetch(`/api/pitstops/${pitstopId}/checklist`);
+      const res  = await fetch(`/api/pitstops/${pitstopId}/checklist`);
       const data = await res.json();
       setChecklistMap(prev => ({ ...prev, [pitstopId]: data }));
       setLoadingPitstop(null);
     }
-  };
-
-  const toggleChecklist = (itemId: string) => {
-    setExpandedChecklist(prev => prev === itemId ? null : itemId);
   };
 
   const colors = PHASE_COLORS[drill.tag];
@@ -942,138 +1118,148 @@ function DrillDownPanel({ drill, onClose }: { drill: NonNullable<DrillState>; on
     <div className="fixed inset-0 z-40 flex justify-end" onClick={onClose}>
       <div className="fixed inset-0 bg-black/20" />
       <div
-        className="relative z-50 w-full max-w-md bg-white shadow-2xl flex flex-col h-full overflow-hidden"
+        className="relative z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={`px-5 py-4 border-b border-stone-100 flex items-start gap-3`}>
-          <div className="flex-1 min-w-0">
-            <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-semibold mb-1.5 ${colors.pill}`}>
-              {drill.tag}
-            </span>
-            <p className="text-sm font-semibold text-stone-800 leading-tight line-clamp-2">{drill.goalTitle}</p>
-            <p className="text-xs text-stone-400 mt-0.5">{drill.pitstops.length} pitstop{drill.pitstops.length !== 1 ? "s" : ""}</p>
+        <div className="px-5 py-4 border-b border-stone-100">
+          <div className="flex items-center gap-3 mb-3">
+            <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-semibold ${colors.pill}`}>{drill.tag}</span>
+            <span className="text-xs text-stone-400">{filtered.length} pitstop{filtered.length !== 1 ? "s" : ""}</span>
+            <button onClick={onClose} className="ml-auto p-1 text-stone-400 hover:text-stone-700 transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
-          <button onClick={onClose} className="flex-shrink-0 p-1 text-stone-400 hover:text-stone-700 transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+          {/* Filters */}
+          <div className="flex gap-2 flex-wrap">
+            <select
+              value={filterGoalId}
+              onChange={e => setFilterGoalId(e.target.value)}
+              className="text-xs border border-stone-200 rounded-md px-2 py-1 bg-white text-stone-700 max-w-[160px] truncate"
+            >
+              <option value="">All goals</option>
+              {availableGoals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+            </select>
+            <select
+              value={filterUserId}
+              onChange={e => setFilterUserId(e.target.value)}
+              className="text-xs border border-stone-200 rounded-md px-2 py-1 bg-white text-stone-700"
+            >
+              <option value="">All people</option>
+              {availableUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+            <select
+              value={filterDesig}
+              onChange={e => setFilterDesig(e.target.value)}
+              className="text-xs border border-stone-200 rounded-md px-2 py-1 bg-white text-stone-700"
+            >
+              <option value="">All roles</option>
+              {availableDesigs.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
         </div>
 
-        {/* Pitstop list */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5">
-          <p className="text-[10px] font-medium text-stone-400 uppercase tracking-wide mb-2">Double-click a pitstop to see checklist</p>
-          {drill.pitstops.map(p => {
-            const isExpanded = expandedPitstop === p.id;
-            const isLoading = loadingPitstop === p.id;
-            const items = checklistMap[p.id] ?? [];
-            const statusColor = PITSTOP_STATUS_COLORS[p.status] ?? "bg-stone-100 text-stone-400";
-
-            return (
-              <div key={p.id} className="rounded-lg border border-stone-100 overflow-hidden">
-                <div
-                  className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer select-none transition-colors ${isExpanded ? "bg-stone-50" : "bg-white hover:bg-stone-50"}`}
-                  onDoubleClick={() => togglePitstop(p.id)}
-                >
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${statusColor}`}>
-                    {p.status}
-                  </span>
-                  <span className="text-xs text-stone-700 font-medium flex-1 min-w-0">{p.title}</span>
-                  {isExpanded ? (
-                    <ChevronDown className="w-3 h-3 text-stone-400 flex-shrink-0" />
-                  ) : (
-                    <ChevronRight className="w-3 h-3 text-stone-300 flex-shrink-0" />
-                  )}
+        {/* Delay insight */}
+        {topDelayers.length > 0 && (
+          <div className="px-5 py-2.5 border-b border-stone-100 bg-red-50">
+            <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wide mb-1.5">Causing most delay</p>
+            <div className="flex flex-wrap gap-2">
+              {topDelayers.map(([id, info]) => (
+                <div key={id} className="flex items-center gap-1.5">
+                  <Avatar name={info.name} image={null} size="xs" />
+                  <span className="text-xs text-red-700 font-medium">{info.name}</span>
+                  {info.designation && <span className="text-[9px] text-red-500 bg-red-100 px-1 py-0.5 rounded">{info.designation}</span>}
+                  <span className="text-[10px] text-red-600 font-semibold">{info.count} overdue</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-                {isExpanded && (
-                  <div className="border-t border-stone-100 bg-stone-50 px-3 py-2 space-y-1">
-                    {isLoading && <p className="text-xs text-stone-400 py-1">Loading…</p>}
-                    {!isLoading && items.length === 0 && (
-                      <p className="text-xs text-stone-400 py-1">No checklist items</p>
-                    )}
-                    {!isLoading && items.length > 0 && (
-                      <>
-                        <p className="text-[10px] font-medium text-stone-400 uppercase tracking-wide mb-1.5">Double-click a checklist item to see activity</p>
-                        {items.map(item => {
-                          const cColor = CHECKLIST_STATUS_COLORS[item.status] ?? "bg-stone-100 text-stone-400";
-                          const isChecklistExpanded = expandedChecklist === item.id;
-                          return (
-                            <div key={item.id}>
-                              <div
-                                className={`flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer select-none transition-colors ${isChecklistExpanded ? "bg-white" : "hover:bg-white"}`}
-                                onDoubleClick={() => toggleChecklist(item.id)}
-                              >
-                                <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 ${cColor}`}>
-                                  {item.status === "NotStarted" ? "Not Started" : item.status}
-                                </span>
-                                <span className={`text-xs flex-1 min-w-0 ${item.checked ? "line-through text-stone-400" : "text-stone-600"}`}>
-                                  {item.text}
-                                </span>
-                                {item.activities.length > 0 && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0 mt-1.5" title="Has linked activities" />
-                                )}
-                              </div>
-                              {isChecklistExpanded && (
-                                <div className="ml-2 mt-0.5 mb-1 px-3 py-2 bg-white rounded-lg border border-stone-100">
-                                  {item.activities.length > 0 ? (
-                                    <div className="space-y-1.5">
-                                      {item.activities.map((act) => (
-                                        <div key={act.id} className="flex items-center gap-2">
-                                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${EVENT_STATUS_COLORS[act.status] ?? "bg-stone-100 text-stone-400"}`}>
-                                            {act.status}
-                                          </span>
-                                          <div className="min-w-0">
-                                            <p className="text-xs font-medium text-stone-700 truncate">{act.title}</p>
-                                            <p className="text-[10px] text-stone-400">
-                                              {act.type} · {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                                            </p>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs text-stone-400">No activities linked to this item</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </>
-                    )}
-                  </div>
-                )}
+        {/* SLA sections */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+          {DRILL_SECTIONS.map(({ key, label, headerCls, dotCls }) => {
+            const rows = grouped[key];
+            if (rows.length === 0) return null;
+            return (
+              <div key={key}>
+                <div className={`flex items-center gap-2 px-2 py-1 rounded-md border mb-2 ${headerCls}`}>
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotCls}`} />
+                  <span className="text-[11px] font-semibold">{label}</span>
+                  <span className="text-[10px] ml-auto opacity-70">{rows.length}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {rows.map(r => (
+                    <PitstopDrillCard
+                      key={r.id}
+                      row={r}
+                      users={users}
+                      expanded={expandedPitstop === r.id}
+                      onToggle={() => togglePitstop(r.id)}
+                      checklistItems={checklistMap[r.id]}
+                      loadingChecklist={loadingPitstop === r.id}
+                    />
+                  ))}
+                </div>
               </div>
             );
           })}
+          {filtered.length === 0 && (
+            <p className="text-sm text-stone-400 text-center py-8">No pitstops match the current filters.</p>
+          )}
         </div>
 
         <div className="px-5 py-3 border-t border-stone-100">
-          <Link
-            href={`/goals/${drill.pitstops[0]?.goalId}`}
-            className="text-xs text-sky-600 hover:text-sky-800 font-medium"
-          >
-            Open full goal →
-          </Link>
+          {filterGoalId ? (
+            <Link href={`/goals/${filterGoalId}`} className="text-xs text-sky-600 hover:text-sky-800 font-medium">
+              Open full goal →
+            </Link>
+          ) : (
+            <span className="text-xs text-stone-400">{filtered.length} pitstop{filtered.length !== 1 ? "s" : ""} across {new Set(filtered.map(r => r.goalId)).size} goal{new Set(filtered.map(r => r.goalId)).size !== 1 ? "s" : ""}</span>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function PhaseMatrix({ goals, phaseData }: { goals: Goal[]; phaseData: PhaseRow[] }) {
+function PhaseMatrix({
+  goals, phaseData, users,
+}: {
+  goals: Goal[];
+  phaseData: PhaseRow[];
+  users: UserRef[];
+}) {
   const [drill, setDrill] = useState<DrillState>(null);
 
-  // Build per-goal, per-tag counts
-  const tagMap = new Map<string, Map<PhaseTag, { total: number; done: number }>>();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const atRiskCutoff = new Date(today); atRiskCutoff.setDate(today.getDate() + 14);
+
+  type CellData = {
+    total: number; done: number;
+    checklistTotal: number; checklistDone: number;
+    activityTotal: number; activityDone: number;
+    overdueCount: number; atRiskCount: number;
+  };
+
+  const tagMap = new Map<string, Map<PhaseTag, CellData>>();
   for (const row of phaseData) {
     const tag = row.progressTag as PhaseTag | null;
     if (!tag || !PHASE_TAGS.includes(tag as PhaseTag)) continue;
     if (!tagMap.has(row.goalId)) tagMap.set(row.goalId, new Map());
     const gMap = tagMap.get(row.goalId)!;
-    const cur = gMap.get(tag) ?? { total: 0, done: 0 };
+    const cur = gMap.get(tag) ?? { total: 0, done: 0, checklistTotal: 0, checklistDone: 0, activityTotal: 0, activityDone: 0, overdueCount: 0, atRiskCount: 0 };
     cur.total += 1;
     if (row.status === "Done") cur.done += 1;
+    cur.checklistTotal += row.checklistTotal;
+    cur.checklistDone  += row.checklistDone;
+    cur.activityTotal  += row.activityTotal;
+    cur.activityDone   += row.activityDone;
+    if (row.status !== "Done" && row.targetDate) {
+      const d = new Date(row.targetDate);
+      if (d < today) cur.overdueCount++;
+      else if (d <= atRiskCutoff) cur.atRiskCount++;
+    }
     gMap.set(tag, cur);
   }
 
@@ -1088,13 +1274,36 @@ function PhaseMatrix({ goals, phaseData }: { goals: Goal[]; phaseData: PhaseRow[
     );
   }
 
+  function healthDot(cell: CellData) {
+    if (cell.overdueCount > 0) return <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="Has overdue pitstops" />;
+    if (cell.atRiskCount > 0)  return <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" title="Has at-risk pitstops" />;
+    if (cell.done === cell.total) return <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" title="All done" />;
+    return <span className="w-2 h-2 rounded-full bg-sky-400 flex-shrink-0" title="On track" />;
+  }
+
   return (
     <>
-      {drill && <DrillDownPanel drill={drill} onClose={() => setDrill(null)} />}
+      {drill && (
+        <DrillDownPanel
+          drill={drill}
+          phaseData={phaseData}
+          goals={goals}
+          users={users}
+          onClose={() => setDrill(null)}
+        />
+      )}
       <div className="space-y-3">
-        <p className="text-xs text-stone-500 mb-4">
-          Showing {visibleGoals.length} goals with phase-tagged pitstops. Each cell shows done / total. Double-click a cell to drill down.
-        </p>
+        <div className="flex items-center gap-4 mb-4">
+          <p className="text-xs text-stone-500 flex-1">
+            {visibleGoals.length} goals with phase-tagged pitstops. Click a cell to drill down.
+          </p>
+          <div className="flex items-center gap-3 text-[10px] text-stone-500">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" />Overdue</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />At risk</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-sky-400 inline-block" />On track</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Done</span>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-separate border-spacing-0">
             <thead>
@@ -1102,7 +1311,13 @@ function PhaseMatrix({ goals, phaseData }: { goals: Goal[]; phaseData: PhaseRow[
                 <th className="text-left py-2 pr-4 font-medium text-stone-500 whitespace-nowrap min-w-[180px]">Goal</th>
                 {PHASE_TAGS.map((tag) => (
                   <th key={tag} className="py-2 px-1 text-center font-medium whitespace-nowrap">
-                    <span className={`inline-block px-2 py-0.5 rounded border text-[10px] ${PHASE_COLORS[tag].pill}`}>{tag}</span>
+                    <button
+                      className={`inline-block px-2 py-0.5 rounded border text-[10px] hover:opacity-80 transition-opacity cursor-pointer ${PHASE_COLORS[tag].pill} ${drill?.tag === tag && !drill.seedGoalId ? "ring-2 ring-offset-1 ring-stone-400" : ""}`}
+                      onClick={() => setDrill(d => d?.tag === tag && !d.seedGoalId ? null : { tag })}
+                      title={`Drill all goals in ${tag} phase`}
+                    >
+                      {tag}
+                    </button>
                   </th>
                 ))}
               </tr>
@@ -1120,29 +1335,32 @@ function PhaseMatrix({ goals, phaseData }: { goals: Goal[]; phaseData: PhaseRow[
                     {PHASE_TAGS.map((tag) => {
                       const cell = gMap.get(tag);
                       if (!cell) return <td key={tag} className="py-2 px-1 text-center text-stone-200">—</td>;
-                      const pct = Math.round((cell.done / cell.total) * 100);
-                      const allDone = cell.done === cell.total;
-                      const none = cell.done === 0;
-                      const isActive = drill?.goalId === goal.id && drill?.tag === tag;
+                      const clPct  = cell.checklistTotal > 0 ? Math.round((cell.checklistDone / cell.checklistTotal) * 100) : null;
+                      const actPct = cell.activityTotal  > 0 ? Math.round((cell.activityDone  / cell.activityTotal)  * 100) : null;
+                      const isActive = drill?.tag === tag && drill.seedGoalId === goal.id;
                       return (
-                        <td key={tag} className="py-2 px-1">
+                        <td key={tag} className="py-1.5 px-1">
                           <div
-                            className={`flex flex-col items-center gap-0.5 rounded-md p-1 cursor-pointer transition-colors ${isActive ? "bg-stone-100 ring-1 ring-stone-300" : "hover:bg-stone-50"}`}
-                            onDoubleClick={() => {
-                              const pitstops = phaseData.filter(r => r.goalId === goal.id && r.progressTag === tag);
-                              setDrill({ goalId: goal.id, goalTitle: goal.title, tag, pitstops });
-                            }}
-                            title="Double-click to drill down"
+                            className={`flex flex-col gap-1 rounded-md p-1.5 cursor-pointer transition-colors min-w-[64px] ${isActive ? "bg-stone-100 ring-1 ring-stone-300" : "hover:bg-stone-50"}`}
+                            onClick={() => setDrill(d => d?.tag === tag && d.seedGoalId === goal.id ? null : { tag, seedGoalId: goal.id })}
+                            title="Click to drill down"
                           >
-                            <div className="w-12 h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${allDone ? "bg-emerald-500" : none ? "bg-stone-200" : PHASE_COLORS[tag].filled}`}
-                                style={{ width: `${pct}%` }}
-                              />
+                            <div className="flex items-center gap-1.5 justify-between">
+                              {healthDot(cell)}
+                              <span className={`text-[10px] tabular-nums ml-auto ${cell.done === cell.total ? "text-emerald-600" : "text-stone-500"}`}>
+                                {cell.done}/{cell.total}
+                              </span>
                             </div>
-                            <span className={`text-[10px] tabular-nums ${allDone ? "text-emerald-600" : "text-stone-500"}`}>
-                              {cell.done}/{cell.total}
-                            </span>
+                            {clPct !== null && (
+                              <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
+                              </div>
+                            )}
+                            {actPct !== null && (
+                              <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-violet-400 rounded-full" style={{ width: `${actPct}%` }} />
+                              </div>
+                            )}
                           </div>
                         </td>
                       );
@@ -1152,6 +1370,10 @@ function PhaseMatrix({ goals, phaseData }: { goals: Goal[]; phaseData: PhaseRow[
               })}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center gap-4 pt-1 text-[10px] text-stone-400">
+          <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-sky-400 rounded-full" />Checklist completion</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-violet-400 rounded-full" />Activity completion</span>
         </div>
       </div>
     </>
