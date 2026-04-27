@@ -139,5 +139,33 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Keep SettlementProfile in sync with the latest assessment
+  await prisma.settlementProfile.upsert({
+    where: { settlementId },
+    create: {
+      settlementId,
+      totalHouseholds: assessment.totalHouseholds,
+      children6m3yr: assessment.children6m3yr,
+      children4to14: assessment.children4to14,
+      youth15to21: assessment.youth15to21,
+      elderly60plus: assessment.elderly60plus,
+      settlementType: assessment.settlementType ?? null,
+      priorityIssues: assessment.priorityIssues ?? null,
+      lastAssessmentId: assessment.id,
+      lastSyncedAt: new Date(),
+    },
+    update: {
+      totalHouseholds: assessment.totalHouseholds,
+      children6m3yr: assessment.children6m3yr,
+      children4to14: assessment.children4to14,
+      youth15to21: assessment.youth15to21,
+      elderly60plus: assessment.elderly60plus,
+      settlementType: assessment.settlementType ?? null,
+      priorityIssues: assessment.priorityIssues ?? null,
+      lastAssessmentId: assessment.id,
+      lastSyncedAt: new Date(),
+    },
+  });
+
   return Response.json(assessment, { status: 201 });
 }

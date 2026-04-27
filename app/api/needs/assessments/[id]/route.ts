@@ -138,5 +138,40 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // Sync SettlementProfile only if this is still the latest assessment for the settlement
+  const latestCheck = await prisma.settlementAssessment.findFirst({
+    where: { settlementId: updated.settlementId },
+    orderBy: { assessedAt: "desc" },
+    select: { id: true },
+  });
+  if (latestCheck?.id === id) {
+    await prisma.settlementProfile.upsert({
+      where: { settlementId: updated.settlementId },
+      create: {
+        settlementId: updated.settlementId,
+        totalHouseholds: updated.totalHouseholds,
+        children6m3yr: updated.children6m3yr,
+        children4to14: updated.children4to14,
+        youth15to21: updated.youth15to21,
+        elderly60plus: updated.elderly60plus,
+        settlementType: updated.settlementType ?? null,
+        priorityIssues: updated.priorityIssues ?? null,
+        lastAssessmentId: id,
+        lastSyncedAt: new Date(),
+      },
+      update: {
+        totalHouseholds: updated.totalHouseholds,
+        children6m3yr: updated.children6m3yr,
+        children4to14: updated.children4to14,
+        youth15to21: updated.youth15to21,
+        elderly60plus: updated.elderly60plus,
+        settlementType: updated.settlementType ?? null,
+        priorityIssues: updated.priorityIssues ?? null,
+        lastAssessmentId: id,
+        lastSyncedAt: new Date(),
+      },
+    });
+  }
+
   return Response.json(updated);
 }

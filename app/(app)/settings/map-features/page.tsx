@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus, Pencil, Trash2, Check, X, MapPin, SquarePen } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Check, X, MapPin, SquarePen, ClipboardList } from "lucide-react";
 import { LAYERS } from "@/lib/layers";
 
 // Built-in NGO partners from LAYERS config (always show, even if MapPartner table is empty)
@@ -688,6 +688,9 @@ export default function MapFeaturesSettingsPage() {
                         </div>
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
+                        <Link href={`/needs/settlement/${s.id}`} className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors" title="Assess settlement">
+                          <ClipboardList className="w-3.5 h-3.5" />
+                        </Link>
                         <button onClick={() => { setEditingSett(s); setAddingSett(false); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Edit">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
