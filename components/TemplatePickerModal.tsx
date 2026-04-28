@@ -357,6 +357,12 @@ export default function TemplatePickerModal({
           targetDate: computedTargetDate(),
           params: buildParams(),
           needsDomain: needsDomain ?? selected.needsDomain ?? null,
+          parameter: (() => {
+            const countKey = selected.parameters.find(p => p.type === "number")?.key;
+            const raw = countKey ? paramValues[countKey] : undefined;
+            const n = raw !== undefined && raw !== "" ? parseInt(raw, 10) : NaN;
+            return isNaN(n) ? null : n;
+          })(),
           needsSettlementId: geoVal.settlementId || null,
           needsClusterId: geoVal.clusterId || null,
           needsZoneId: geoVal.zoneId || null,

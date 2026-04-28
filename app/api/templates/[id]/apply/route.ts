@@ -89,6 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     linkedFacilityId,
     ownerId,
     recurrence,
+    parameter,
   } = body;
 
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
@@ -142,6 +143,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ownerId: goalOwnerId,
       targetDate: resolvedTargetDate,
       needsDomain: needsDomain ?? null,
+      parameter: (parameter != null && !isNaN(Number(parameter))) ? Number(parameter) : null,
       needsSettlementId: needsSettlementId ?? null,
       needsClusterId: needsClusterId ?? null,
       needsZoneId: needsZoneId ?? null,
