@@ -338,28 +338,83 @@ export default function MapView({
     map.on("load", () => {
       if (mapRef.current !== map) return; // map was removed before style finished loading
 
-      // ── Settlement click + cursor — registered once, queries all fill layers at event time
-      // Uses an 8 px bounding-box so small polygons (≈1-2 px at zoom 11) remain clickable.
+      // ── Settlement click + cursor ────────────────────────────────────────────
+      // Two-stage hit detection:
+      //   1. queryRenderedFeatures (fast, accurate when zoomed in — polygon ≥ a few px wide)
+      //   2. Centroid-proximity fallback (catches settlements that are sub-pixel at zoom 11)
+      //      At zoom 11, a 200 m settlement is only ~2-3 screen pixels; QRF misses it because
+      //      no rendered pixel falls in the bounding box. Proximity search uses the stored
+      //      GeoJSON centroids instead.
       const settlementFillIds = LAYERS
         .filter(l => l.file && l.type === "polygon")
         .map(l => `${l.key}-fill`);
 
+      // Returns the nearest visible settlement feature within maxPx screen pixels of (x,y).
+      function nearestSettlement(x: number, y: number, maxPx: number): {
+        layerConfig: LayerConfig; props: Record<string, unknown>; centroid: [number, number];
+      } | null {
+        let bestDist = Infinity;
+        let best: { layerConfig: LayerConfig; props: Record<string, unknown>; centroid: [number, number] } | null = null;
+        const maxPx2 = maxPx * maxPx;
+        for (const lc of LAYERS.filter(l => l.file && l.type === "polygon")) {
+          if (!visibleLayersRef.current.has(lc.key)) continue;
+          const feats = settlementFeaturesRef.current[lc.key] ?? [];
+          for (const feat of feats) {
+            const [lat, lng] = polygonCentroid(feat as { geometry: { type: string; coordinates: number[][][] } });
+            if (lat === 0 && lng === 0) continue;
+            const pt = map.project([lng, lat]); // project needs [lng, lat]
+            const dx = pt.x - x, dy = pt.y - y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < maxPx2 && d2 < bestDist) {
+              bestDist = d2;
+              best = { layerConfig: lc, props: (feat as { properties: Record<string, unknown> }).properties ?? {}, centroid: [lat, lng] };
+            }
+          }
+        }
+        return best;
+      }
+
       map.on("click", (e) => {
         const { x, y } = e.point;
+
+        // If a point/circle layer was clicked, let its own handler run instead
+        const circleLayers = (map.getStyle()?.layers ?? [])
+          .filter(l => l.id.endsWith("-circle"))
+          .map(l => l.id);
+        if (circleLayers.length) {
+          const circleHits = map.queryRenderedFeatures(e.point, { layers: circleLayers });
+          if (circleHits.length) return;
+        }
+
+        // Stage 1: rendered-pixel hit test
         const existingIds = settlementFillIds.filter(id => !!map.getLayer(id));
-        if (!existingIds.length) return;
-        const features = map.queryRenderedFeatures(
-          [[x - 8, y - 8], [x + 8, y + 8]] as [maplibregl.PointLike, maplibregl.PointLike],
-          { layers: existingIds }
-        );
-        if (!features.length) return;
-        const hit = features[0];
-        const layerKey = (hit.layer.id as string).replace(/-fill$/, "") as LayerKey;
-        const layerConfig = LAYERS.find(l => l.key === layerKey);
+        let layerConfig: LayerConfig | undefined;
+        let props: Record<string, unknown> = {};
+        let centroid: [number, number] = [0, 0];
+
+        if (existingIds.length) {
+          const hits = map.queryRenderedFeatures(
+            [[x - 8, y - 8], [x + 8, y + 8]] as [maplibregl.PointLike, maplibregl.PointLike],
+            { layers: existingIds }
+          );
+          if (hits.length) {
+            const hit = hits[0];
+            const lk = (hit.layer.id as string).replace(/-fill$/, "") as LayerKey;
+            layerConfig = LAYERS.find(l => l.key === lk);
+            props = hit.properties ?? {};
+            centroid = polygonCentroid(hit as unknown as { geometry: { type: string; coordinates: number[][][] } });
+          }
+        }
+
+        // Stage 2: centroid-proximity fallback (works at any zoom)
+        if (!layerConfig) {
+          const near = nearestSettlement(x, y, 24);
+          if (near) { layerConfig = near.layerConfig; props = near.props; centroid = near.centroid; }
+        }
+
         if (!layerConfig) return;
-        const props = hit.properties ?? {};
+
         const name = (props.name as string) || "Unnamed";
-        const centroid = polygonCentroid(hit as unknown as { geometry: { type: string; coordinates: number[][][] } });
         new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
           .setLngLat(e.lngLat)
           .setHTML(makePolygonPopup(name, layerConfig, (props.description as string) || "", props.zone as string, props.cluster as string))
@@ -376,16 +431,19 @@ export default function MapView({
         });
       });
 
-      // Cursor: show pointer when within 5 px of any settlement polygon
+      // Cursor: pointer when near a settlement polygon (QRF first, proximity fallback)
       map.on("mousemove", (e) => {
         const { x, y } = e.point;
         const existingIds = settlementFillIds.filter(id => !!map.getLayer(id));
-        if (!existingIds.length) return;
-        const features = map.queryRenderedFeatures(
-          [[x - 5, y - 5], [x + 5, y + 5]] as [maplibregl.PointLike, maplibregl.PointLike],
-          { layers: existingIds }
-        );
-        if (features.length) map.getCanvas().style.cursor = "pointer";
+        let near = false;
+        if (existingIds.length) {
+          near = map.queryRenderedFeatures(
+            [[x - 5, y - 5], [x + 5, y + 5]] as [maplibregl.PointLike, maplibregl.PointLike],
+            { layers: existingIds }
+          ).length > 0;
+        }
+        if (!near) near = !!nearestSettlement(x, y, 20);
+        map.getCanvas().style.cursor = near ? "pointer" : "";
       });
 
       // ── Settlement polygon layers ────────────────────────────────────────
