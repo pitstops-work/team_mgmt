@@ -431,18 +431,16 @@ export default function MapView({
         });
       });
 
-      // Cursor: pointer when near a settlement polygon (QRF first, proximity fallback)
+      // Cursor: pointer only when QRF detects a rendered polygon pixel
+      // Proximity is intentionally NOT used here — it caused false positives away from boundaries.
+      // The click handler uses proximity as a fallback for sub-pixel zoom levels.
       map.on("mousemove", (e) => {
         const { x, y } = e.point;
         const existingIds = settlementFillIds.filter(id => !!map.getLayer(id));
-        let near = false;
-        if (existingIds.length) {
-          near = map.queryRenderedFeatures(
-            [[x - 5, y - 5], [x + 5, y + 5]] as [maplibregl.PointLike, maplibregl.PointLike],
-            { layers: existingIds }
-          ).length > 0;
-        }
-        if (!near) near = !!nearestSettlement(x, y, 20);
+        const near = existingIds.length > 0 && map.queryRenderedFeatures(
+          [[x - 3, y - 3], [x + 3, y + 3]] as [maplibregl.PointLike, maplibregl.PointLike],
+          { layers: existingIds }
+        ).length > 0;
         map.getCanvas().style.cursor = near ? "pointer" : "";
       });
 
@@ -503,8 +501,7 @@ export default function MapView({
                 layout: { visibility: vis },
               });
 
-              map.on("mouseenter", fillId, () => { map.getCanvas().style.cursor = "pointer"; });
-              map.on("mouseleave", fillId, () => { map.getCanvas().style.cursor = ""; });
+              // cursor is managed by the global mousemove handler above
 
               // Apply map filter highlighting if active
               const mf = mapFilterRef.current;
