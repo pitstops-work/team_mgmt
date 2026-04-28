@@ -10,7 +10,7 @@ import {
 import TemplatePickerModal from "@/components/TemplatePickerModal";
 import type { LevelStats, DomainStats, DomainConfig, ProgressSummary, MonthlyPoint, EntitlementSummary } from "./page";
 
-type DomainProgress = { target: number; existing: number; done: number; inProgress: number };
+type DomainProgress = { target: number; existing: number; addressable?: number | null; done: number; inProgress: number };
 
 type ZoneSummary = {
   id: string;
@@ -112,35 +112,38 @@ function GapChip({ d, onClick }: { d: LevelStats["domains"][string] | undefined;
 // ── Zones/Clusters tab: domain row with full existing/need/plan/done/gap stats ─
 
 function DomainProgressRow({ label, color, dp }: { label: string; color: string; dp: DomainProgress }) {
-  const need = Math.max(0, dp.target - dp.existing);
-  const gap  = Math.max(0, dp.target - dp.existing - dp.done);
-  const pct  = dp.target > 0 ? Math.min(100, Math.round(((dp.existing + dp.done) / dp.target) * 100)) : dp.done > 0 ? 100 : 0;
+  const gap = Math.max(0, dp.target - dp.existing - dp.done);
+  const pct = dp.target > 0 ? Math.min(100, Math.round(((dp.existing + dp.done) / dp.target) * 100)) : dp.done > 0 ? 100 : 0;
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-1">
         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
         <span className="text-[10px] font-medium text-stone-600 flex-1 truncate">{label}</span>
-        {gap > 0
-          ? <span className="text-[10px] font-bold text-red-500 tabular-nums">-{gap}</span>
-          : <span className="text-[10px] font-bold text-emerald-500">✓</span>
-        }
       </div>
-      <div className="grid grid-cols-4 gap-x-1 text-center mb-1 ml-3">
+      <div className="grid grid-cols-5 gap-x-1 text-center mb-1 ml-3">
         <div>
           <p className="text-[11px] font-semibold text-stone-500 tabular-nums leading-none">{dp.existing}</p>
           <p className="text-[8px] text-stone-300 mt-0.5">exist.</p>
         </div>
         <div>
-          <p className="text-[11px] font-semibold text-stone-700 tabular-nums leading-none">{need}</p>
-          <p className="text-[8px] text-stone-300 mt-0.5">need</p>
+          <p className={`text-[11px] font-semibold tabular-nums leading-none ${dp.addressable != null ? "text-amber-600" : "text-stone-300"}`}>
+            {dp.addressable != null ? dp.addressable : "—"}
+          </p>
+          <p className="text-[8px] text-stone-300 mt-0.5">addr.</p>
         </div>
         <div>
-          <p className={`text-[11px] font-semibold tabular-nums leading-none ${dp.inProgress > 0 ? "text-amber-500" : "text-stone-300"}`}>{dp.inProgress}</p>
+          <p className={`text-[11px] font-semibold tabular-nums leading-none ${dp.inProgress > 0 ? "text-sky-500" : "text-stone-300"}`}>{dp.inProgress}</p>
           <p className="text-[8px] text-stone-300 mt-0.5">plan</p>
         </div>
         <div>
           <p className={`text-[11px] font-semibold tabular-nums leading-none ${dp.done > 0 ? "text-emerald-600" : "text-stone-300"}`}>{dp.done}</p>
           <p className="text-[8px] text-stone-300 mt-0.5">done</p>
+        </div>
+        <div>
+          <p className={`text-[11px] font-bold tabular-nums leading-none ${gap > 0 ? "text-red-500" : "text-emerald-500"}`}>
+            {gap > 0 ? `-${gap}` : "✓"}
+          </p>
+          <p className="text-[8px] text-stone-300 mt-0.5">gap</p>
         </div>
       </div>
       <div className="h-1 bg-stone-100 rounded-full overflow-hidden flex ml-3">

@@ -65,6 +65,7 @@ export async function GET() {
       existingCreches: true, existingChildrenCentres: true, existingYouthGroups: true,
       existingElderlyKitchens: true, existingPalliativeUnits: true,
       existingCommunityToilets: true, existingWaterATMs: true,
+      addressableCreches: true, addressableToilets: true, addressableWaterATMs: true,
     },
   });
   const assessmentBySettlement = Object.fromEntries(assessments.map(a => [a.settlementId, a]));
@@ -133,7 +134,8 @@ export async function GET() {
 
     // Domain progress
     const targets = calcTargets(pop, formulaRows as FormulaRow[]);
-    const existing: Record<string, number> = {};
+    const existing:    Record<string, number> = {};
+    const addressable: Record<string, number> = {};
     const sids = zoneSettlementIds.get(zone.id) ?? new Set<string>();
     const cids = zoneClusterIds.get(zone.id)    ?? new Set<string>();
 
@@ -144,6 +146,10 @@ export async function GET() {
       for (const [domain, val] of Object.entries(row) as [string, number][]) {
         existing[domain] = (existing[domain] ?? 0) + val;
       }
+      const aa = a as typeof a & { addressableCreches?: number | null; addressableToilets?: number | null; addressableWaterATMs?: number | null };
+      if (aa.addressableCreches   != null) addressable["Creche"]          = (addressable["Creche"]          ?? 0) + aa.addressableCreches;
+      if (aa.addressableToilets   != null) addressable["CommunityToilet"] = (addressable["CommunityToilet"] ?? 0) + aa.addressableToilets;
+      if (aa.addressableWaterATMs != null) addressable["WaterATM"]        = (addressable["WaterATM"]        ?? 0) + aa.addressableWaterATMs;
     }
 
     const done:       Record<string, number> = {};
@@ -166,13 +172,14 @@ export async function GET() {
       inProgress[g.needsDomain] = (inProgress[g.needsDomain] ?? 0) + (g.parameter ?? 0);
     }
 
-    const domainProgress: Record<string, { target: number; existing: number; done: number; inProgress: number }> = {};
+    const domainProgress: Record<string, { target: number; existing: number; addressable: number | null; done: number; inProgress: number }> = {};
     for (const f of domainConfig) {
       domainProgress[f.domain] = {
-        target:     targets[f.domain]    ?? 0,
-        existing:   existing[f.domain]   ?? 0,
-        done:       done[f.domain]       ?? 0,
-        inProgress: inProgress[f.domain] ?? 0,
+        target:      targets[f.domain]      ?? 0,
+        existing:    existing[f.domain]     ?? 0,
+        addressable: addressable[f.domain]  ?? null,
+        done:        done[f.domain]         ?? 0,
+        inProgress:  inProgress[f.domain]   ?? 0,
       };
     }
 
