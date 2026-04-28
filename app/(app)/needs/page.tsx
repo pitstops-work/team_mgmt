@@ -651,6 +651,54 @@ export default async function NeedsPage() {
     }
   }
 
+  // ── LayerFeature overrides for cluster + zone stats ──
+  // LayerFeature is the authoritative count for facility domains (Creche, ChildrenCentre, YouthResourceCentre).
+  // The assessment-based `existing` values above reflect what was manually recorded at assessment time;
+  // we replace them with the live LayerFeature count so adding a map centre is immediately reflected.
+  const FACILITY_DOMAIN_MAP: Record<string, string> = {
+    creches: "Creche",
+    children_centres: "ChildrenCentre",
+    youth_centres: "YouthResourceCentre",
+  };
+  const allLFs = await prisma.layerFeature.findMany({
+    select: { layerKey: true, clusterId: true, zoneId: true },
+  });
+  const clusterLFCounts: Record<string, Record<string, number>> = {};
+  const zoneLFCounts:    Record<string, Record<string, number>> = {};
+  for (const lf of allLFs) {
+    const domain = FACILITY_DOMAIN_MAP[lf.layerKey];
+    if (!domain) continue;
+    if (lf.clusterId) {
+      if (!clusterLFCounts[lf.clusterId]) clusterLFCounts[lf.clusterId] = {};
+      clusterLFCounts[lf.clusterId][domain] = (clusterLFCounts[lf.clusterId][domain] ?? 0) + 1;
+    }
+    if (lf.zoneId) {
+      if (!zoneLFCounts[lf.zoneId]) zoneLFCounts[lf.zoneId] = {};
+      zoneLFCounts[lf.zoneId][domain] = (zoneLFCounts[lf.zoneId][domain] ?? 0) + 1;
+    }
+  }
+  function applyFacilityOverrides(stats: LevelStats, counts: Record<string, number>): LevelStats {
+    if (!Object.keys(counts).length) return stats;
+    const domains = { ...stats.domains };
+    for (const [domain, count] of Object.entries(counts)) {
+      if (!domains[domain]) continue;
+      const d = domains[domain];
+      const apfTarget = Math.max(0, d.target - count);
+      domains[domain] = { ...d, existing: count, apfTarget, planned: Math.min(d.done + d.inProgress, apfTarget > 0 ? apfTarget : d.done + d.inProgress), gap: Math.max(0, apfTarget - d.done) };
+    }
+    const totalTarget = Object.values(domains).reduce((s, d) => s + d.apfTarget, 0);
+    const totalDone   = Object.values(domains).reduce((s, d) => s + Math.min(d.done, d.apfTarget), 0);
+    return { ...stats, domains, saturationScore: totalTarget > 0 ? Math.round((totalDone / totalTarget) * 100) : 0 };
+  }
+  for (const [clusterId, entry] of Object.entries(clusterStatsMap)) {
+    const counts = clusterLFCounts[clusterId];
+    if (counts) clusterStatsMap[clusterId] = { ...entry, stats: applyFacilityOverrides(entry.stats, counts) };
+  }
+  for (const [zoneId, entry] of Object.entries(zoneStatsMap)) {
+    const counts = zoneLFCounts[zoneId];
+    if (counts) zoneStatsMap[zoneId] = { ...entry, stats: applyFacilityOverrides(entry.stats, counts) };
+  }
+
   // ── Per-city stats (city toggle) ──
   // cluster-scoped: sum cluster results; zone-scoped: sum zone results; city-scoped: compute naturally on city total pop
   const cityStatsMap: Record<string, { name: string; stats: LevelStats }> = {};

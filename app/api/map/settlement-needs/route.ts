@@ -58,6 +58,32 @@ export function buildDomainConfig(formulaRows: FormulaRow[]) {
     .map(f => ({ domain: f.domain, label: f.label ?? f.domain, color: f.color, domainType: f.domainType }));
 }
 
+// layerKey → needsDomain mapping — mirrors FacilityLayerConfig.needsDomain in the DB.
+// Used to override assessment-based "existing" counts with live LayerFeature counts.
+const LAYER_DOMAIN_MAP: Record<string, string> = {
+  creches:          "Creche",
+  children_centres: "ChildrenCentre",
+  youth_centres:    "YouthResourceCentre",
+};
+
+// Counts LayerFeature records for a scope and returns { [domain]: count }.
+// Overrides the assessment-based existing counts for facility domains that have map records.
+export async function layerFeatureExisting(
+  filter: { settlementId?: string; clusterId?: string; zoneId?: string },
+): Promise<Record<string, number>> {
+  const groups = await prisma.layerFeature.groupBy({
+    by: ["layerKey"],
+    where: filter,
+    _count: { id: true },
+  });
+  const result: Record<string, number> = {};
+  for (const g of groups) {
+    const domain = LAYER_DOMAIN_MAP[g.layerKey];
+    if (domain) result[domain] = g._count.id;
+  }
+  return result;
+}
+
 // Build the "existing" dict from a single assessment row using assessmentColumn from config.
 // Returns { [domain]: existingCount } — 0 for domains with no assessmentColumn or no assessment.
 export function buildExisting(
@@ -216,6 +242,8 @@ export async function GET(request: Request) {
     : { totalHouseholds: 0, children6m3yr: 0, children4to14: 0, youth15to21: 0, elderly60plus: 0 };
 
   const existing = buildExisting(assessmentWithEnts as Record<string, unknown> | null, formulaRows);
+  // Override with live LayerFeature counts — the map-side source of truth for facility domains
+  Object.assign(existing, await layerFeatureExisting({ settlementId: settlement.id }));
 
   const targets = calcTargets(pop, formulaRows);
 

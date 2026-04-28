@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calcTargets, buildDomainConfig, buildExisting, type FormulaRow } from "../settlement-needs/route";
+import { calcTargets, buildDomainConfig, buildExisting, layerFeatureExisting, type FormulaRow } from "../settlement-needs/route";
 
 // GET /api/map/cluster-needs?cluster=NAME[&zone=ZONE_NAME]
 // zone param scopes the lookup to avoid cross-city name collisions
@@ -96,6 +96,8 @@ export async function GET(request: Request) {
     if (aa.addressableToilets   != null) addressable["CommunityToilet"] = (addressable["CommunityToilet"] ?? 0) + aa.addressableToilets;
     if (aa.addressableWaterATMs != null) addressable["WaterATM"]        = (addressable["WaterATM"]        ?? 0) + aa.addressableWaterATMs;
   }
+  // Override with live LayerFeature counts — these are the authoritative count for facility domains
+  Object.assign(existing, await layerFeatureExisting({ clusterId: cluster.id }));
 
   // Use raw SQL for entitlements — Prisma include silently drops surveyEnrolled due to stale build cache
   const assessmentIds = assessments.map(a => (a as { id?: string }).id).filter(Boolean) as string[];

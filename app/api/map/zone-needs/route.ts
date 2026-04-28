@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
-import { calcTargets, buildDomainConfig, buildExisting, type FormulaRow } from "../settlement-needs/route";
+import { calcTargets, buildDomainConfig, buildExisting, layerFeatureExisting, type FormulaRow } from "../settlement-needs/route";
 
 // GET /api/map/zone-needs?zone=NAME
 export async function GET(request: Request) {
@@ -149,6 +149,9 @@ export async function GET(request: Request) {
       enrolled: Number(e.enrolledHouseholds) + Number(e.surveyEnrolled ?? 0),
     };
   }
+
+  // Override with live LayerFeature counts — these are the authoritative count for facility domains
+  Object.assign(existing, await layerFeatureExisting({ zoneId: zone.id }));
 
   const targets = calcTargets(pop, formulaRows);
 
