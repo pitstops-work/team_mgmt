@@ -1,279 +1,306 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarRange, Plus, X, Trash2 } from "lucide-react";
+import { CalendarRange, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Calendar } from "lucide-react";
 
-type PitstopHealth = { id: string; status: string };
-type GoalStub = { id: string; title: string; status: string; pitstops: PitstopHealth[] };
-type QuarterGoal = { goal: GoalStub };
-type Quarter = {
+type PitstopData = {
   id: string;
-  year: number;
-  quarter: number;
-  startDate: string;
-  endDate: string;
-  focus: string | null;
-  goals: QuarterGoal[];
+  title: string;
+  status: string;
+  targetDate: string | null;
+  startDate: string | null;
+  progressTag: string | null;
+  checklistTotal: number;
+  checklistDone: number;
+  activityCount: number;
+  activityDoneCount: number;
 };
 
-// Indian FY: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar
-// `year` = FY year (April start year)
-function currentFYQuarter(): { year: number; quarter: number } {
-  const now = new Date();
-  const m = now.getMonth(); // 0-indexed
-  if (m >= 3 && m <= 5) return { year: now.getFullYear(), quarter: 1 }; // Apr-Jun
-  if (m >= 6 && m <= 8) return { year: now.getFullYear(), quarter: 2 }; // Jul-Sep
-  if (m >= 9)           return { year: now.getFullYear(), quarter: 3 }; // Oct-Dec
-  return { year: now.getFullYear() - 1, quarter: 4 };                   // Jan-Mar → prev FY
+type GoalData = {
+  id: string;
+  title: string;
+  status: string;
+  targetDate: string | null;
+  pitstops: PitstopData[];
+};
+
+// ── Indian FY quarter helpers ─────────────────────────────────────────────────
+
+function fyQuarter(date: Date): { fyYear: number; q: number } {
+  const m = date.getMonth(); // 0-indexed
+  if (m >= 3 && m <= 5) return { fyYear: date.getFullYear(), q: 1 };
+  if (m >= 6 && m <= 8) return { fyYear: date.getFullYear(), q: 2 };
+  if (m >= 9)           return { fyYear: date.getFullYear(), q: 3 };
+  return { fyYear: date.getFullYear() - 1, q: 4 };
 }
 
-function isCurrentQuarter(q: Quarter): boolean {
-  const curr = currentFYQuarter();
-  return q.year === curr.year && q.quarter === curr.quarter;
+function quarterBounds(fyYear: number, q: number): { start: Date; end: Date } {
+  if (q === 1) return { start: new Date(fyYear, 3, 1),     end: new Date(fyYear, 5, 30, 23, 59, 59) };
+  if (q === 2) return { start: new Date(fyYear, 6, 1),     end: new Date(fyYear, 8, 30, 23, 59, 59) };
+  if (q === 3) return { start: new Date(fyYear, 9, 1),     end: new Date(fyYear, 11, 31, 23, 59, 59) };
+  return       { start: new Date(fyYear + 1, 0, 1),        end: new Date(fyYear + 1, 2, 31, 23, 59, 59) };
 }
 
-function pitstopHealth(goals: QuarterGoal[]) {
-  let done = 0, overdue = 0;
-  const now = new Date();
-  goals.forEach(({ goal }) => {
-    goal.pitstops.forEach((p) => {
-      if (p.status === "Done") done++;
-    });
-  });
-  return { done, total: goals.reduce((s, { goal }) => s + goal.pitstops.length, 0), overdue };
+const Q_LABELS = ["Apr–Jun", "Jul–Sep", "Oct–Dec", "Jan–Mar"];
+
+function qKey(fyYear: number, q: number) { return `${fyYear}-${q}`; }
+function qSortKey(fyYear: number, q: number) {
+  // Q4 of FY year actually ends in fyYear+1, so needs correct chronological sort
+  if (q === 4) return (fyYear + 1) * 10 + 0;
+  return fyYear * 10 + q;
 }
 
-export default function QuartersView({
-  initialQuarters,
-  allGoals,
-}: {
-  initialQuarters: Quarter[];
-  allGoals: GoalStub[];
-  currentUserId: string;
-}) {
-  const [quarters, setQuarters] = useState<Quarter[]>(initialQuarters);
-  const [showForm, setShowForm] = useState(false);
-  const [year, setYear] = useState(String(new Date().getFullYear()));
-  const [qNum, setQNum] = useState("1");
-  const [focus, setFocus] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [taggingGoalId, setTaggingGoalId] = useState<{ quarterId: string; goalId: string } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+const PHASE_COLORS: Record<string, string> = {
+  Planning:    "bg-sky-50 text-sky-600 border-sky-100",
+  Mobilisation:"bg-violet-50 text-violet-600 border-violet-100",
+  Setup:       "bg-amber-50 text-amber-600 border-amber-100",
+  Capacity:    "bg-orange-50 text-orange-600 border-orange-100",
+  Engagement:  "bg-emerald-50 text-emerald-600 border-emerald-100",
+  Delivery:    "bg-teal-50 text-teal-600 border-teal-100",
+  Monitoring:  "bg-stone-50 text-stone-600 border-stone-100",
+};
 
-  const handleCreate = async () => {
-    setSaving(true);
-    const res = await fetch("/api/quarters", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ year: parseInt(year), quarter: parseInt(qNum), focus: focus.trim() || null }),
-    });
-    if (res.ok) {
-      const q = await res.json();
-      setQuarters((prev) => [{ ...q, goals: [] }, ...prev]);
-      setYear(String(new Date().getFullYear())); setQNum("1"); setFocus(""); setShowForm(false);
+export default function QuartersView({ goals }: { goals: GoalData[] }) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const currentQ = fyQuarter(today);
+
+  const quarterMap = useMemo(() => {
+    const map = new Map<string, {
+      fyYear: number; q: number;
+      goalsMap: Map<string, { goal: GoalData; pitstops: PitstopData[] }>;
+    }>();
+
+    // Always include current quarter
+    const cKey = qKey(currentQ.fyYear, currentQ.q);
+    map.set(cKey, { fyYear: currentQ.fyYear, q: currentQ.q, goalsMap: new Map() });
+
+    for (const goal of goals) {
+      for (const pitstop of goal.pitstops) {
+        if (!pitstop.targetDate) continue;
+        const d = new Date(pitstop.targetDate);
+        const { fyYear, q } = fyQuarter(d);
+        const key = qKey(fyYear, q);
+        if (!map.has(key)) map.set(key, { fyYear, q, goalsMap: new Map() });
+        const qData = map.get(key)!;
+        if (!qData.goalsMap.has(goal.id)) qData.goalsMap.set(goal.id, { goal, pitstops: [] });
+        qData.goalsMap.get(goal.id)!.pitstops.push(pitstop);
+      }
     }
-    setSaving(false);
-  };
+    return map;
+  }, [goals, currentQ.fyYear, currentQ.q]);
 
-  const handleDeleteQuarter = async (id: string) => {
-    const res = await fetch("/api/quarters", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    if (res.ok) setQuarters((prev) => prev.filter((q) => q.id !== id));
-    setConfirmDelete(null);
-  };
+  // Sorted newest-first, current quarter always visible at top if applicable
+  const quarters = useMemo(() =>
+    [...quarterMap.values()].sort((a, b) => qSortKey(b.fyYear, b.q) - qSortKey(a.fyYear, a.q)),
+    [quarterMap]
+  );
 
-  const handleTagGoal = async (quarterId: string, goalId: string, tag: boolean) => {
-    const method = tag ? "POST" : "DELETE";
-    const res = await fetch(`/api/goals/${goalId}/quarters`, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quarterId }),
-    });
-    if (res.ok) {
-      const goal = allGoals.find((g) => g.id === goalId)!;
-      setQuarters((prev) => prev.map((q) =>
-        q.id === quarterId ? {
-          ...q,
-          goals: tag
-            ? [...q.goals, { goal }]
-            : q.goals.filter((qg) => qg.goal.id !== goalId),
-        } : q
-      ));
-    }
-    setTaggingGoalId(null);
-  };
+  const [openGoals, setOpenGoals] = useState<Set<string>>(new Set());
+  const toggleGoal = (key: string) =>
+    setOpenGoals(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <CalendarRange className="w-5 h-5 text-stone-400" />
-          <h1 className="text-lg font-semibold text-stone-900">Quarterly Planning</h1>
-        </div>
-        <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium rounded-lg transition-colors">
-          <Plus className="w-3.5 h-3.5" />
-          New quarter
-        </button>
+      <div className="flex items-center gap-2 mb-6">
+        <CalendarRange className="w-5 h-5 text-stone-400" />
+        <h1 className="text-lg font-semibold text-stone-900">Quarterly Planning</h1>
+        <span className="text-xs text-stone-400 ml-1">· Indian FY (Apr–Mar) · auto-computed</span>
       </div>
 
-      {showForm && (
-        <div className="mb-6 bg-stone-50 rounded-xl p-4 border border-stone-200 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-stone-700">New Quarter</p>
-            <button onClick={() => setShowForm(false)}><X className="w-4 h-4 text-stone-400" /></button>
-          </div>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs text-stone-500 mb-1">Year</label>
-              <input type="number" value={year} onChange={(e) => setYear(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs text-stone-500 mb-1">Quarter</label>
-              <select value={qNum} onChange={(e) => setQNum(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-sky-400">
-                <option value="1">Q1 (Apr–Jun)</option>
-                <option value="2">Q2 (Jul–Sep)</option>
-                <option value="3">Q3 (Oct–Dec)</option>
-                <option value="4">Q4 (Jan–Mar)</option>
-              </select>
-            </div>
-          </div>
-          <input value={focus} onChange={(e) => setFocus(e.target.value)} placeholder="Focus theme (optional)"
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400" />
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setShowForm(false)} className="px-3 py-2 text-sm text-stone-600">Cancel</button>
-            <button onClick={handleCreate} disabled={saving}
-              className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
-              {saving ? "Creating…" : "Create"}
-            </button>
-          </div>
-        </div>
-      )}
+      <div className="space-y-5">
+        {quarters.map(({ fyYear, q, goalsMap }) => {
+          const isCurrent = fyYear === currentQ.fyYear && q === currentQ.q;
+          const isPast = qSortKey(fyYear, q) < qSortKey(currentQ.fyYear, currentQ.q);
+          const { start, end } = quarterBounds(fyYear, q);
+          const goalList = [...goalsMap.values()];
 
-      {quarters.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-stone-200 rounded-xl">
-          <p className="text-stone-400 text-sm">No quarters yet.</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {quarters.map((q) => {
-            const isCurrent = isCurrentQuarter(q);
-            const health = pitstopHealth(q.goals);
-            const taggedGoalIds = new Set(q.goals.map((qg) => qg.goal.id));
-            const untaggedGoals = allGoals.filter((g) => !taggedGoalIds.has(g.id));
-            const isTagging = taggingGoalId?.quarterId === q.id;
-            return (
-              <div key={q.id} className={`rounded-xl border overflow-hidden ${isCurrent ? "border-sky-300 shadow-sm" : "border-stone-200"}`}>
-                <div className={`px-4 py-3 flex items-start justify-between ${isCurrent ? "bg-sky-50" : "bg-stone-50"}`}>
+          let totalPitstops = 0, donePitstops = 0, overduePitstops = 0, totalActivities = 0, doneActivities = 0;
+          for (const { pitstops } of goalList) {
+            for (const p of pitstops) {
+              totalPitstops++;
+              if (p.status === "Done") donePitstops++;
+              else if (p.targetDate && new Date(p.targetDate) < today) overduePitstops++;
+              totalActivities += p.activityCount;
+              doneActivities += p.activityDoneCount;
+            }
+          }
+          const donePct = totalPitstops > 0 ? Math.round((donePitstops / totalPitstops) * 100) : 0;
+
+          return (
+            <div key={qKey(fyYear, q)} className={`rounded-xl border overflow-hidden ${
+              isCurrent ? "border-sky-300 shadow-sm" : isPast ? "border-stone-100" : "border-stone-200"
+            }`}>
+              {/* ── Quarter header ── */}
+              <div className={`px-4 py-3 ${isCurrent ? "bg-sky-50" : isPast ? "bg-stone-50/60" : "bg-stone-50"}`}>
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-semibold ${isCurrent ? "text-sky-800" : "text-stone-800"}`}>
-                        Q{q.quarter} FY{q.year} <span className="font-normal text-xs text-stone-400">{["Apr–Jun","Jul–Sep","Oct–Dec","Jan–Mar"][q.quarter-1]}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-sm font-bold ${isCurrent ? "text-sky-800" : isPast ? "text-stone-400" : "text-stone-800"}`}>
+                        Q{q} FY{fyYear}–{String(fyYear + 1).slice(2)}
                       </span>
-                      {isCurrent && <span className="text-[10px] font-medium bg-sky-500 text-white px-1.5 py-0.5 rounded">Current</span>}
+                      <span className={`text-xs ${isPast ? "text-stone-300" : "text-stone-400"}`}>{Q_LABELS[q - 1]}</span>
+                      {isCurrent && (
+                        <span className="text-[10px] font-semibold bg-sky-500 text-white px-1.5 py-0.5 rounded-full">Current</span>
+                      )}
+                      {isPast && goalList.length > 0 && (
+                        <span className="text-[10px] text-stone-300">Past</span>
+                      )}
                     </div>
-                    {q.focus && <p className="text-xs text-stone-500 mt-0.5">{q.focus}</p>}
                     <p className="text-[10px] text-stone-400 mt-0.5">
-                      {health.done}/{health.total} pitstops done · {q.goals.length} goals
+                      {start.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                      {" – "}
+                      {end.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setTaggingGoalId(isTagging ? null : { quarterId: q.id, goalId: "" })}
-                      className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Tag goal
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(q.id)}
-                      className="p-1 text-stone-300 hover:text-red-400 transition-colors"
-                      title="Delete quarter"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+
+                  <div className="flex items-center gap-3 text-[10px] flex-shrink-0">
+                    <span className={isPast ? "text-stone-400" : "text-stone-600"}>
+                      {goalList.length} goal{goalList.length !== 1 ? "s" : ""}
+                    </span>
+                    {totalPitstops > 0 && (
+                      <span className={overduePitstops > 0 ? "text-red-500 font-semibold" : isPast ? "text-stone-400" : "text-stone-600"}>
+                        {overduePitstops > 0 && <AlertTriangle className="w-2.5 h-2.5 inline mr-0.5" />}
+                        {donePitstops}/{totalPitstops} pitstops
+                      </span>
+                    )}
+                    {totalActivities > 0 && (
+                      <span className={isPast ? "text-stone-400" : "text-violet-500"}>
+                        {doneActivities}/{totalActivities} act.
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {isTagging && untaggedGoals.length > 0 && (
-                  <div className="px-4 py-2 border-t border-stone-200 bg-white">
-                    <p className="text-[10px] text-stone-400 mb-1">Select goal to tag:</p>
-                    <div className="max-h-40 overflow-y-auto space-y-1">
-                      {untaggedGoals.map((g) => (
-                        <button
-                          key={g.id}
-                          onClick={() => handleTagGoal(q.id, g.id, true)}
-                          className="w-full text-left px-2.5 py-1.5 text-xs text-stone-700 hover:bg-sky-50 hover:text-sky-700 rounded-md transition-colors"
-                        >
-                          {g.title}
-                        </button>
-                      ))}
+                {totalPitstops > 0 && (
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${donePct === 100 ? "bg-emerald-400" : overduePitstops > 0 ? "bg-red-400" : "bg-sky-400"}`}
+                        style={{ width: `${donePct}%` }}
+                      />
                     </div>
-                  </div>
-                )}
-
-                {q.goals.length > 0 && (
-                  <div className="divide-y divide-stone-100">
-                    {q.goals.map(({ goal }) => {
-                      const done = goal.pitstops.filter((p) => p.status === "Done").length;
-                      const total = goal.pitstops.length;
-                      return (
-                        <div key={goal.id} className="px-4 py-2.5 flex items-center gap-3 group bg-white">
-                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                            goal.status === "Complete" ? "bg-emerald-400" : goal.status === "Active" ? "bg-sky-400" : "bg-amber-400"
-                          }`} />
-                          <Link href={`/goals/${goal.id}`} className="flex-1 text-xs text-stone-700 hover:text-sky-600 transition-colors truncate">
-                            {goal.title}
-                          </Link>
-                          {total > 0 && (
-                            <span className="text-[10px] text-stone-400 flex-shrink-0">{done}/{total}</span>
-                          )}
-                          <button
-                            onClick={() => handleTagGoal(q.id, goal.id, false)}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-stone-300 hover:text-red-400 transition-all"
-                            title="Untag from quarter"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {q.goals.length === 0 && (
-                  <div className="px-4 py-3 bg-white">
-                    <p className="text-xs text-stone-400">No goals tagged to this quarter yet.</p>
+                    <span className="text-[10px] text-stone-400 w-7 text-right">{donePct}%</span>
                   </div>
                 )}
               </div>
-            );
-          })}
-        </div>
-      )}
 
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-5 max-w-sm w-full space-y-3">
-            <p className="text-sm font-semibold text-stone-800">Delete quarter?</p>
-            <p className="text-xs text-stone-500">
-              This will remove the quarter and all goal associations. This cannot be undone.
-            </p>
-            <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setConfirmDelete(null)}
-                className="px-3 py-2 text-sm text-stone-600 hover:text-stone-800">Cancel</button>
-              <button onClick={() => handleDeleteQuarter(confirmDelete)}
-                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
-                Delete
-              </button>
+              {/* ── Goals list ── */}
+              {goalList.length === 0 ? (
+                <div className="px-4 py-4 bg-white flex items-center gap-2 text-xs text-stone-300">
+                  <Calendar className="w-3.5 h-3.5" />
+                  No pitstops scheduled this quarter.
+                </div>
+              ) : (
+                <div className="divide-y divide-stone-100 bg-white">
+                  {goalList.map(({ goal, pitstops }) => {
+                    const goalKey = `${qKey(fyYear, q)}-${goal.id}`;
+                    const isOpen = openGoals.has(goalKey);
+                    const ptDone = pitstops.filter(p => p.status === "Done").length;
+                    const ptOverdue = pitstops.filter(p => p.status !== "Done" && p.targetDate && new Date(p.targetDate) < today).length;
+
+                    return (
+                      <div key={goal.id}>
+                        <button
+                          onClick={() => toggleGoal(goalKey)}
+                          className="w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-stone-50 transition-colors text-left group"
+                        >
+                          {isOpen
+                            ? <ChevronDown className="w-3.5 h-3.5 text-stone-300 flex-shrink-0" />
+                            : <ChevronRight className="w-3.5 h-3.5 text-stone-300 flex-shrink-0" />}
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                            goal.status === "Complete" ? "bg-emerald-400" : goal.status === "Active" ? "bg-sky-400" : "bg-amber-400"
+                          }`} />
+                          <Link
+                            href={`/goals/${goal.id}`}
+                            onClick={e => e.stopPropagation()}
+                            className="flex-1 text-xs font-medium text-stone-700 hover:text-sky-600 transition-colors truncate"
+                          >
+                            {goal.title}
+                          </Link>
+                          {ptOverdue > 0 && (
+                            <span className="text-[10px] text-red-500 flex-shrink-0 flex items-center gap-0.5 font-medium">
+                              <AlertTriangle className="w-2.5 h-2.5" />{ptOverdue}
+                            </span>
+                          )}
+                          {ptDone === pitstops.length && pitstops.length > 0 && (
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                          )}
+                          <span className="text-[10px] text-stone-400 flex-shrink-0 tabular-nums">
+                            {ptDone}/{pitstops.length}
+                          </span>
+                        </button>
+
+                        {isOpen && (
+                          <div className="pl-10 pr-4 pb-3 space-y-1">
+                            {pitstops.map(p => {
+                              const isOverdue = p.status !== "Done" && p.targetDate && new Date(p.targetDate) < today;
+                              const isDone = p.status === "Done";
+                              const clPct = p.checklistTotal > 0
+                                ? Math.round((p.checklistDone / p.checklistTotal) * 100)
+                                : null;
+
+                              return (
+                                <div key={p.id} className={`rounded-lg px-2.5 py-2 border ${
+                                  isDone ? "border-emerald-100 bg-emerald-50/50" : isOverdue ? "border-red-100 bg-red-50/30" : "border-stone-100 bg-stone-50/50"
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                      isDone ? "bg-emerald-400" : isOverdue ? "bg-red-400" : "bg-stone-300"
+                                    }`} />
+                                    <span className={`flex-1 text-[11px] truncate ${isDone ? "text-stone-400 line-through" : "text-stone-700"}`}>
+                                      {p.title}
+                                    </span>
+                                    {p.progressTag && (
+                                      <span className={`text-[9px] px-1.5 py-0.5 rounded border flex-shrink-0 ${PHASE_COLORS[p.progressTag] ?? "bg-stone-50 text-stone-400 border-stone-100"}`}>
+                                        {p.progressTag}
+                                      </span>
+                                    )}
+                                    {p.targetDate && (
+                                      <span className={`text-[9px] flex-shrink-0 ${isOverdue ? "text-red-500 font-semibold" : "text-stone-400"}`}>
+                                        {new Date(p.targetDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {(clPct !== null || p.activityCount > 0) && (
+                                    <div className="flex items-center gap-2 mt-1.5 pl-3.5">
+                                      {clPct !== null && (
+                                        <>
+                                          <div className="flex-1 h-1 bg-white rounded-full overflow-hidden border border-stone-100">
+                                            <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
+                                          </div>
+                                          <span className="text-[9px] text-stone-400 tabular-nums">
+                                            {p.checklistDone}/{p.checklistTotal} checklist
+                                          </span>
+                                        </>
+                                      )}
+                                      {p.activityCount > 0 && (
+                                        <span className="text-[9px] text-violet-400 flex-shrink-0">
+                                          {p.activityDoneCount}/{p.activityCount} act.
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
+          );
+        })}
+      </div>
+
+      {quarters.length === 0 && (
+        <div className="text-center py-16 border border-dashed border-stone-200 rounded-xl">
+          <CalendarRange className="w-8 h-8 text-stone-200 mx-auto mb-2" />
+          <p className="text-sm text-stone-400">No goals with scheduled pitstops yet.</p>
         </div>
       )}
     </div>
