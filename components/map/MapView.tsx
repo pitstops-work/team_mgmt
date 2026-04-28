@@ -281,9 +281,9 @@ export default function MapView({
             type: "circle",
             source: srcId,
             paint: {
-              "circle-radius": 9,
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 13, 6, 16, 10],
               "circle-color": fl.color,
-              "circle-stroke-width": 3,
+              "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 13, 1.5, 16, 3],
               "circle-stroke-color": "white",
             },
             layout: { visibility: vis },
@@ -485,9 +485,13 @@ export default function MapView({
                 type: "circle",
                 source: srcId,
                 paint: {
-                  "circle-radius": isProgramme ? 9 : 8,
+                  "circle-radius": isProgramme
+                    ? ["interpolate", ["linear"], ["zoom"], 10, 4, 13, 6, 16, 10]
+                    : ["interpolate", ["linear"], ["zoom"], 10, 3.5, 13, 5.5, 16, 9],
                   "circle-color": layerConfig.color,
-                  "circle-stroke-width": isProgramme ? 3 : 2.5,
+                  "circle-stroke-width": isProgramme
+                    ? ["interpolate", ["linear"], ["zoom"], 10, 1, 13, 1.5, 16, 3]
+                    : ["interpolate", ["linear"], ["zoom"], 10, 1, 13, 1.5, 16, 2.5],
                   "circle-stroke-color": "white",
                 },
                 layout: { visibility: vis },
@@ -543,9 +547,9 @@ export default function MapView({
             type: "circle",
             source: "schools-source",
             paint: {
-              "circle-radius": 7,
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3, 13, 5, 16, 8],
               "circle-color": ["get", "color"],
-              "circle-stroke-width": 2,
+              "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 13, 1.5, 16, 2],
               "circle-stroke-color": "white",
             },
             layout: { visibility: visibleLayersRef.current.has("schools") ? "visible" : "none" },
@@ -591,11 +595,10 @@ export default function MapView({
             type: "circle",
             source: "health-source",
             paint: {
-              "circle-radius": 7,
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3, 13, 5, 16, 8],
               "circle-color": ["get", "color"],
-              "circle-stroke-width": 2,
+              "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 13, 1.5, 16, 2],
               "circle-stroke-color": "white",
-              "circle-translate": [0, 0],
             },
             layout: { visibility: visibleLayersRef.current.has("health_centres") ? "visible" : "none" },
           });
