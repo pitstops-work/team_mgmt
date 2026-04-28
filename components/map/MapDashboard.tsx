@@ -15,6 +15,7 @@ import { type MapFilter, computeMapFilter } from "@/lib/mapFilter";
 
 import CentreSidebar from "./CentreSidebar";
 import type { SettlementFeature, CentreFeature } from "./MapView";
+import ProgressToolbar, { type ProgressPeriod, type ProgressMode, type ProgressLevel } from "./ProgressToolbar";
 
 const MapAdminPanel = dynamic(() => import("./MapAdminPanel"), { ssr: false });
 
@@ -83,7 +84,17 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     settlements: Record<string, string>;
     clusters: Record<string, string>;
     zones: Record<string, string>;
+    checklistPct?: {
+      settlements: Record<string, number>;
+      clusters: Record<string, number>;
+      zones: Record<string, number>;
+    };
+    period?: string;
   } | null>(null);
+  const [progressPeriod, setProgressPeriod] = useState<ProgressPeriod>("all");
+  const [progressToolbarMode, setProgressToolbarMode] = useState<ProgressMode>("goals");
+  const [progressLevel, setProgressLevel] = useState<ProgressLevel>("settlement");
+  const [progressLoading, setProgressLoading] = useState(false);
   const [schoolMaxKm, setSchoolMaxKm] = useState(4);
   const [schoolTypes, setSchoolTypes] = useState<Set<string>>(new Set(["Government", "BBMP", "Karnataka Public School"]));
   const [schoolFeatures, setSchoolFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
@@ -210,16 +221,33 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
       .catch(() => {});
   }, []);
 
+  async function fetchProgressHealth(period: ProgressPeriod) {
+    setProgressLoading(true);
+    try {
+      const r = await fetch(`/api/map/progress-health?period=${period}`);
+      if (r.ok) setProgressHealth(await r.json());
+    } catch {
+      // ignore
+    } finally {
+      setProgressLoading(false);
+    }
+  }
+
   async function toggleProgress() {
     const next = !progressMode;
     setProgressMode(next);
-    if (next && !progressHealth) {
-      try {
-        const r = await fetch("/api/map/progress-health");
-        if (r.ok) setProgressHealth(await r.json());
-      } catch {}
+    if (next) {
+      await fetchProgressHealth(progressPeriod);
+    } else {
+      setProgressHealth(null);
     }
-    if (!next) setProgressHealth(null);
+  }
+
+  async function handleProgressPeriodChange(p: ProgressPeriod) {
+    setProgressPeriod(p);
+    if (progressMode) {
+      await fetchProgressHealth(p);
+    }
   }
 
   const toggleLayer = useCallback((key: LayerKey) => {
@@ -382,22 +410,20 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           {sidebarOpen ? "◀" : "▶"}
         </button>
 
-        {/* Progress mode toggle — desktop only */}
-        <button
-          onClick={toggleProgress}
-          className={`hidden sm:flex absolute top-3 right-[13rem] z-10 border shadow rounded-lg px-3 h-8 items-center gap-1.5 text-xs font-semibold transition-colors ${
-            progressMode
-              ? "bg-emerald-600 text-white border-emerald-600"
-              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-          }`}
-          title="Colour polygons by goal health"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <circle cx="12" cy="12" r="3" />
-            <path strokeLinecap="round" d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-          </svg>
-          Progress
-        </button>
+        {/* Progress mode toggle — desktop only; hidden when toolbar is open */}
+        {!progressMode && (
+          <button
+            onClick={toggleProgress}
+            className="hidden sm:flex absolute top-3 right-[13rem] z-10 border shadow rounded-lg px-3 h-8 items-center gap-1.5 text-xs font-semibold transition-colors bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+            title="Colour polygons by goal health"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="3" />
+              <path strokeLinecap="round" d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+            </svg>
+            Progress
+          </button>
+        )}
 
         {/* Fullscreen toggle — desktop only */}
         <button
@@ -449,6 +475,8 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           mapFilter={mapFilter}
           progressMode={progressMode}
           progressHealth={progressHealth}
+          progressToolbarMode={progressToolbarMode}
+          progressLevel={progressLevel}
           activeCity={activeCity}
           schoolFeatures={schoolFeatures}
           schoolTypes={schoolTypes}
@@ -459,6 +487,21 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           sharedMapRef={sharedMapRef}
           facilityLayers={facilityLayers}
         />
+
+        {/* Progress toolbar — shown when progressMode is on */}
+        {progressMode && (
+          <ProgressToolbar
+            onClose={toggleProgress}
+            period={progressPeriod}
+            onPeriodChange={handleProgressPeriodChange}
+            mode={progressToolbarMode}
+            onModeChange={setProgressToolbarMode}
+            level={progressLevel}
+            onLevelChange={setProgressLevel}
+            health={progressHealth}
+            loading={progressLoading}
+          />
+        )}
 
         {/* Map admin panel — Edit Map button + pin/polygon modes */}
         <MapAdminPanel

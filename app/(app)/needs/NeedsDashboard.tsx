@@ -476,6 +476,14 @@ export default function NeedsDashboard({
   const [openClusters, setOpenClusters] = useState<Set<string>>(initClusterId ? new Set([initClusterId]) : new Set());
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
 
+  // Progress tab: period filter + checklist data
+  type ProgressTabPeriod = "month" | "quarter" | "year" | "all";
+  const [progressTabPeriod, setProgressTabPeriod] = useState<ProgressTabPeriod>("all");
+  type ChecklistCluster = { id: string; name: string; zoneName: string; total: number; done: number; pct: number };
+  const [checklistClusters, setChecklistClusters] = useState<ChecklistCluster[] | null>(null);
+  const [checklistCityPct, setChecklistCityPct] = useState<Record<string, number>>({});
+  const [checklistLoading, setChecklistLoading] = useState(false);
+
   // Scroll the highlighted zone/cluster row into view on first render
   useEffect(() => {
     const id = initClusterId ?? initZoneId;
@@ -487,6 +495,23 @@ export default function NeedsDashboard({
 
   const toggleZone    = (id: string) => setOpenZones(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleCluster = (id: string) => setOpenClusters(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // Fetch checklist data whenever progress tab is active + period or city changes
+  useEffect(() => {
+    if (mainTab !== "progress") return;
+    setChecklistLoading(true);
+    const qs = new URLSearchParams({ period: progressTabPeriod });
+    if (selectedCityId) qs.set("city", selectedCityId);
+    fetch(`/api/needs/progress-checklist?${qs.toString()}`)
+      .then(r => r.json())
+      .then(d => {
+        setChecklistClusters(Array.isArray(d.clusters) ? d.clusters : []);
+        setChecklistCityPct(d.cityPct ?? {});
+      })
+      .catch(() => setChecklistClusters([]))
+      .finally(() => setChecklistLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainTab, progressTabPeriod, selectedCityId]);
 
   const activeCityStats    = selectedCityId ? cityStatsMap[selectedCityId]?.stats : cityStats;
   const activeCityProgress = selectedCityId ? cityProgressMap[selectedCityId] : cityProgress;
@@ -909,21 +934,77 @@ export default function NeedsDashboard({
       {/* ══════════════════════ PROGRESS TAB ══════════════════════ */}
       {mainTab === "progress" && (
         <div className="space-y-6">
-          {/* City filter */}
-          {multiCity && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <button onClick={() => setSelectedCityId(null)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === null ? "bg-stone-800 text-white border-stone-800" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
-                All cities
-              </button>
-              {cities.map(city => (
-                <button key={city.id} onClick={() => setSelectedCityId(city.id)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === city.id ? "bg-sky-600 text-white border-sky-600" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
-                  {city.name}
+          {/* Row 1: Period filter + City filter */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Period pills */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {(["month", "quarter", "year", "all"] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setProgressTabPeriod(p)}
+                  className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
+                    progressTabPeriod === p
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "text-stone-500 border-stone-200 hover:border-stone-400"
+                  }`}
+                >
+                  {p === "month" ? "This Month" : p === "quarter" ? "This Quarter" : p === "year" ? "This Year" : "All Time"}
                 </button>
               ))}
             </div>
+            {/* City filter pills */}
+            {multiCity && (
+              <div className="flex items-center gap-1 flex-wrap">
+                <button onClick={() => setSelectedCityId(null)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === null ? "bg-stone-800 text-white border-stone-800" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+                  All
+                </button>
+                {cities.map(city => (
+                  <button key={city.id} onClick={() => setSelectedCityId(city.id)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === city.id ? "bg-sky-600 text-white border-sky-600" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+                    {city.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Row 2: KPI tiles */}
+          {activeCityProgress && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Active Goals</p>
+                <p className="text-2xl font-bold text-stone-900">{activeCityProgress.onTrackGoals + activeCityProgress.atRiskGoals + activeCityProgress.overdueGoals}</p>
+              </div>
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wide mb-1">Overdue Pitstops</p>
+                <p className="text-2xl font-bold text-red-700">
+                  {activeCityProgress.overdueGoals}
+                </p>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-wide mb-1">No Goals</p>
+                <p className="text-2xl font-bold text-amber-700">
+                  {Object.values(settlementProgress).filter(sp => sp.totalGoals === 0).length}
+                </p>
+                <p className="text-[10px] text-amber-400 mt-0.5">settlements</p>
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wide mb-1">Checklist</p>
+                {checklistLoading ? (
+                  <p className="text-2xl font-bold text-emerald-700">—</p>
+                ) : (
+                  <p className="text-2xl font-bold text-emerald-700">
+                    {(() => {
+                      const pcts = Object.values(checklistCityPct);
+                      return pcts.length > 0 ? `${Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length)}%` : "—";
+                    })()}
+                  </p>
+                )}
+                <p className="text-[10px] text-emerald-400 mt-0.5">pitstops done</p>
+              </div>
+            </div>
           )}
 
-          {/* Summary: goal health + deficit */}
+          {/* Goal Health */}
           {activeCityProgress && (
             <div className="rounded-xl border border-stone-200 p-4 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
@@ -949,10 +1030,10 @@ export default function NeedsDashboard({
             )}
           </div>
 
-          {/* Zone → Cluster → Settlement drill-down */}
+          {/* Goal Health: Zone → Cluster → Settlement drill-down */}
           <div className="border border-stone-200 rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center gap-2">
-              <p className="text-xs font-semibold text-stone-600 uppercase tracking-wide">By geography</p>
+              <p className="text-xs font-semibold text-stone-600 uppercase tracking-wide">Goal Health — by geography</p>
               <span className="text-[10px] text-stone-400">— click a row to expand domain detail</span>
             </div>
             <div className="divide-y divide-stone-100">
@@ -963,6 +1044,15 @@ export default function NeedsDashboard({
                   const zz = zoneStats[zone.id];
                   const isOpen = openZones.has(`prog-${zone.id}`);
                   if (!zp) return null;
+                  // Count zone pitstops from cluster progress
+                  const zonePitstopTotal = zone.clusters.reduce((sum, cl) => {
+                    const cp = clusterProgress[cl.id];
+                    return sum + (cp ? cp.totalGoals : 0);
+                  }, 0);
+                  const zonePitstopDone = zone.clusters.reduce((sum, cl) => {
+                    const cp = clusterProgress[cl.id];
+                    return sum + (cp ? cp.doneGoals : 0);
+                  }, 0);
                   return (
                     <div key={zone.id}>
                       <button
@@ -980,6 +1070,9 @@ export default function NeedsDashboard({
                             </span>
                           )}
                         </div>
+                        {zonePitstopTotal > 0 && (
+                          <span className="text-[10px] text-stone-400 flex-shrink-0 ml-2">{zonePitstopDone}/{zonePitstopTotal} pitstops done</span>
+                        )}
                         {zp.deficit > 0
                           ? <span className="text-xs font-medium text-red-500 flex-shrink-0">-{zp.deficit} units behind</span>
                           : zp.totalGoals > 0
@@ -999,6 +1092,9 @@ export default function NeedsDashboard({
                             const cc = clusterStats[cluster.id];
                             const clIsOpen = openClusters.has(`prog-${cluster.id}`);
                             if (!cp) return null;
+                            // Pitstop counts for this cluster
+                            const clPitstopDone = cp.doneGoals;
+                            const clPitstopTotal = cp.totalGoals;
                             return (
                               <div key={cluster.id} className="border-t border-stone-50">
                                 <button
@@ -1016,6 +1112,9 @@ export default function NeedsDashboard({
                                       </span>
                                     )}
                                   </div>
+                                  {clPitstopTotal > 0 && (
+                                    <span className="text-[10px] text-stone-400 flex-shrink-0">{clPitstopDone}/{clPitstopTotal} pitstops</span>
+                                  )}
                                   {cp.deficit > 0
                                     ? <span className="text-[10px] font-medium text-red-500 flex-shrink-0">-{cp.deficit}</span>
                                     : cp.totalGoals > 0
@@ -1066,6 +1165,58 @@ export default function NeedsDashboard({
                   );
                 })}
             </div>
+          </div>
+
+          {/* Checklist Coverage — period-filtered */}
+          <div className="border border-stone-200 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-stone-600 uppercase tracking-wide">Checklist Coverage</p>
+                <span className="text-[10px] text-stone-400">— pitstops done by cluster for selected period</span>
+              </div>
+              {checklistLoading && (
+                <svg className="w-3.5 h-3.5 text-stone-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              )}
+            </div>
+            {!checklistClusters || checklistClusters.length === 0 ? (
+              <p className="text-xs text-stone-400 text-center py-8">
+                {checklistLoading ? "Loading…" : "No pitstops with target dates in this period."}
+              </p>
+            ) : (
+              <div className="divide-y divide-stone-100">
+                {/* Header row */}
+                <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-2 bg-stone-50">
+                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide">Cluster</span>
+                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">Zone</span>
+                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">Due</span>
+                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">Done</span>
+                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right w-16">%</span>
+                </div>
+                {checklistClusters.map(cl => (
+                  <div key={cl.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 items-center px-4 py-2.5 hover:bg-stone-50 transition-colors">
+                    <span className="text-xs font-medium text-stone-700 truncate">{cl.name}</span>
+                    <span className="text-[10px] text-stone-400 text-right whitespace-nowrap">{cl.zoneName}</span>
+                    <span className="text-[10px] text-stone-500 text-right">{cl.total}</span>
+                    <span className="text-[10px] text-stone-500 text-right">{cl.done}</span>
+                    <div className="w-16 flex items-center gap-1.5">
+                      <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${cl.pct}%`,
+                            background: cl.pct >= 80 ? "#10b981" : cl.pct >= 50 ? "#6ee7b7" : cl.pct >= 20 ? "#fbbf24" : "#ef4444",
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-semibold text-stone-600 w-7 text-right">{cl.pct}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

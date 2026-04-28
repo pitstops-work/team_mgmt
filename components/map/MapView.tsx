@@ -34,6 +34,12 @@ export type ProgressHealth = {
   settlements: Record<string, string>;
   clusters: Record<string, string>;
   zones: Record<string, string>;
+  checklistPct?: {
+    settlements: Record<string, number>;
+    clusters: Record<string, number>;
+    zones: Record<string, number>;
+  };
+  period?: string;
 } | null;
 
 interface MapViewProps {
@@ -51,6 +57,8 @@ interface MapViewProps {
   onCentreClick?: (partner: string, zone: string, cluster: string, centreFeature?: CentreFeature) => void;
   sharedMapRef?: React.MutableRefObject<maplibregl.Map | null>;
   progressMode?: boolean;
+  progressToolbarMode?: "goals" | "checklist" | "nogaps";
+  progressLevel?: "settlement" | "cluster" | "zone";
   progressHealth?: ProgressHealth;
   schoolFeatures?: { type: string; features: unknown[] };
   schoolTypes?: Set<string>;
@@ -212,6 +220,8 @@ export default function MapView({
   flyToRef, flyToCityRef, openPopupRef, mapFilter,
   sharedMapRef,
   progressMode = false, progressHealth = null,
+  progressToolbarMode = "goals",
+  progressLevel = "settlement",
   activeCity = "bangalore",
   schoolFeatures,
   schoolTypes,
@@ -471,15 +481,21 @@ export default function MapView({
                 paint: {
                   "fill-color": [
                     "case",
-                    ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
-                    ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
-                    ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                    ["==", ["get", "health"], "checklist"], ["coalesce", ["get", "checklistColor"], "#e2e8f0"],
+                    ["==", ["get", "health"], "nogap"],     "#ef4444",
+                    ["==", ["get", "health"], "has_goals"], "#e2e8f0",
+                    ["==", ["get", "health"], "red"],       HEALTH_COLORS.red,
+                    ["==", ["get", "health"], "amber"],     HEALTH_COLORS.amber,
+                    ["==", ["get", "health"], "green"],     HEALTH_COLORS.green,
                     layerConfig.color,
                   ],
                   "fill-opacity": [
                     "case",
+                    ["==", ["get", "health"], "checklist"],  0.65,
+                    ["==", ["get", "health"], "nogap"],      0.45,
+                    ["==", ["get", "health"], "has_goals"],  0.15,
                     ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.5,
-                    ["==", ["get", "health"], "dim"], 0.1,
+                    ["==", ["get", "health"], "dim"],        0.1,
                     0.25,
                   ],
                 },
@@ -493,9 +509,11 @@ export default function MapView({
                 paint: {
                   "line-color": [
                     "case",
-                    ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
-                    ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
-                    ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                    ["==", ["get", "health"], "checklist"], ["coalesce", ["get", "checklistColor"], "#e2e8f0"],
+                    ["==", ["get", "health"], "nogap"],     "#ef4444",
+                    ["==", ["get", "health"], "red"],       HEALTH_COLORS.red,
+                    ["==", ["get", "health"], "amber"],     HEALTH_COLORS.amber,
+                    ["==", ["get", "health"], "green"],     HEALTH_COLORS.green,
                     layerConfig.color,
                   ],
                   "line-width": 2,
@@ -905,6 +923,56 @@ export default function MapView({
     src.setData({ type: "FeatureCollection", features: enriched });
   }
 
+  // ── Helper: colour settlement source by checklist % ──────────────────────
+  function checklistPctToColor(pct: number): string {
+    if (pct >= 90) return "#10b981";
+    if (pct >= 70) return "#6ee7b7";
+    if (pct >= 40) return "#d1fae5";
+    if (pct >= 10) return "#fef3c7";
+    return "#fee2e2";
+  }
+
+  function enrichSourceWithChecklist(
+    map: maplibregl.Map, key: LayerKey,
+    ph: NonNullable<ProgressHealth>,
+    nameKey: "settlements" | "clusters" | "zones",
+    featurePropKey: string,
+  ) {
+    const src = map.getSource(`${key}-source`) as maplibregl.GeoJSONSource | undefined;
+    const rawFeatures = settlementFeaturesRef.current[key];
+    if (!src || !rawFeatures) return;
+    const pctMap = ph.checklistPct?.[nameKey] ?? {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const enriched = rawFeatures.map((f: any) => {
+      const name = (f.properties?.[featurePropKey] ?? "").toLowerCase();
+      const pct = pctMap[name];
+      const color = pct !== undefined ? checklistPctToColor(pct) : "#e2e8f0";
+      return { ...f, properties: { ...f.properties, health: "checklist", checklistColor: color } };
+    });
+    src.setData({ type: "FeatureCollection", features: enriched });
+  }
+
+  // ── Helper: colour settlement source for "no goals" mode ─────────────────
+  function enrichSourceWithNoGoals(
+    map: maplibregl.Map, key: LayerKey,
+    ph: NonNullable<ProgressHealth>,
+    nameKey: "settlements" | "clusters" | "zones",
+    featurePropKey: string,
+  ) {
+    const src = map.getSource(`${key}-source`) as maplibregl.GeoJSONSource | undefined;
+    const rawFeatures = settlementFeaturesRef.current[key];
+    if (!src || !rawFeatures) return;
+    const healthMap = ph[nameKey];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const enriched = rawFeatures.map((f: any) => {
+      const name = (f.properties?.[featurePropKey] ?? "").toLowerCase();
+      const h = healthMap[name];
+      const health = h === "none" ? "nogap" : "has_goals";
+      return { ...f, properties: { ...f.properties, health } };
+    });
+    src.setData({ type: "FeatureCollection", features: enriched });
+  }
+
   // ── Helper: apply zone/cluster filter highlighting ─────────────────────────
   function applyFilterHighlight(map: maplibregl.Map, filter: MapFilter | null, visible: Set<LayerKey>) {
     LAYERS.filter((l) => l.file && l.type === "polygon").forEach((layerConfig) => {
@@ -982,49 +1050,105 @@ export default function MapView({
     const map = mapRef.current;
     if (!map) return;
 
+    const ph = progressHealth;
+    const active = progressMode && !!ph;
+
+    // ── Settlement polygon layers ─────────────────────────────────────────
+    // Only paint at settlement level; dim otherwise
     LAYERS.filter((l) => l.file && l.type === "polygon").forEach((layerConfig) => {
       const src = map.getSource(`${layerConfig.key}-source`) as maplibregl.GeoJSONSource | undefined;
       const rawFeatures = settlementFeaturesRef.current[layerConfig.key];
       if (!src || !rawFeatures) return;
 
-      if (!progressMode || !progressHealth) {
+      if (!active) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const restored = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: undefined } }));
+        const restored = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: undefined, checklistColor: undefined } }));
         src.setData({ type: "FeatureCollection", features: restored });
+        return;
+      }
+
+      // Show settlement layer only when level === "settlement"
+      if (progressLevel !== "settlement") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const dimmed = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: "dim", checklistColor: undefined } }));
+        src.setData({ type: "FeatureCollection", features: dimmed });
+        return;
+      }
+
+      if (progressToolbarMode === "checklist") {
+        enrichSourceWithChecklist(map, layerConfig.key, ph, "settlements", "name");
+      } else if (progressToolbarMode === "nogaps") {
+        enrichSourceWithNoGoals(map, layerConfig.key, ph, "settlements", "name");
       } else {
-        enrichSourceWithHealth(map, layerConfig.key, progressHealth);
+        enrichSourceWithHealth(map, layerConfig.key, ph);
       }
     });
 
-    // Zone boundaries
+    // ── Zone boundaries ───────────────────────────────────────────────────
     const zoneSrc = map.getSource("zones-source") as maplibregl.GeoJSONSource | undefined;
     if (zoneSrc && zoneFeaturesRef.current.length > 0) {
-      if (!progressMode || !progressHealth) {
+      if (!active || progressLevel !== "zone") {
         zoneSrc.setData({ type: "FeatureCollection", features: zoneFeaturesRef.current });
+      } else if (progressToolbarMode === "checklist") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pctMap = ph.checklistPct?.zones ?? {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = zoneFeaturesRef.current.map((f: any) => {
+          const name = (f.properties?.zone ?? "").toLowerCase();
+          const pct = pctMap[name];
+          return { ...f, properties: { ...f.properties, health: "checklist", checklistColor: pct !== undefined ? checklistPctToColor(pct) : "#e2e8f0" } };
+        });
+        zoneSrc.setData({ type: "FeatureCollection", features: enriched });
+      } else if (progressToolbarMode === "nogaps") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = zoneFeaturesRef.current.map((f: any) => {
+          const name = (f.properties?.zone ?? "").toLowerCase();
+          const h = ph.zones[name];
+          return { ...f, properties: { ...f.properties, health: h === "none" ? "nogap" : "has_goals" } };
+        });
+        zoneSrc.setData({ type: "FeatureCollection", features: enriched });
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const enriched = zoneFeaturesRef.current.map((f: any) => ({
-          ...f, properties: { ...f.properties, health: progressHealth.zones[(f.properties?.zone ?? "").toLowerCase()] ?? "" },
+          ...f, properties: { ...f.properties, health: ph.zones[(f.properties?.zone ?? "").toLowerCase()] ?? "" },
         }));
         zoneSrc.setData({ type: "FeatureCollection", features: enriched });
       }
     }
 
-    // Cluster boundaries
+    // ── Cluster boundaries ────────────────────────────────────────────────
     const clusterSrc = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
     if (clusterSrc && clusterFeaturesRef.current.length > 0) {
-      if (!progressMode || !progressHealth) {
+      if (!active || progressLevel !== "cluster") {
         clusterSrc.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
+      } else if (progressToolbarMode === "checklist") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pctMap = ph.checklistPct?.clusters ?? {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = clusterFeaturesRef.current.map((f: any) => {
+          const name = (f.properties?.cluster ?? "").toLowerCase();
+          const pct = pctMap[name];
+          return { ...f, properties: { ...f.properties, health: "checklist", checklistColor: pct !== undefined ? checklistPctToColor(pct) : "#e2e8f0" } };
+        });
+        clusterSrc.setData({ type: "FeatureCollection", features: enriched });
+      } else if (progressToolbarMode === "nogaps") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = clusterFeaturesRef.current.map((f: any) => {
+          const name = (f.properties?.cluster ?? "").toLowerCase();
+          const h = ph.clusters[name];
+          return { ...f, properties: { ...f.properties, health: h === "none" ? "nogap" : "has_goals" } };
+        });
+        clusterSrc.setData({ type: "FeatureCollection", features: enriched });
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const enriched = clusterFeaturesRef.current.map((f: any) => ({
-          ...f, properties: { ...f.properties, health: progressHealth.clusters[(f.properties?.cluster ?? "").toLowerCase()] ?? "" },
+          ...f, properties: { ...f.properties, health: ph.clusters[(f.properties?.cluster ?? "").toLowerCase()] ?? "" },
         }));
         clusterSrc.setData({ type: "FeatureCollection", features: enriched });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progressMode, progressHealth]);
+  }, [progressMode, progressHealth, progressToolbarMode, progressLevel]);
 
   // ── Rebuild centre layers when map filter changes ─────────────────────────
   useEffect(() => {
@@ -1292,24 +1416,7 @@ export default function MapView({
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
 
-      {/* Progress mode legend */}
-      {progressMode && (
-        <div className="absolute bottom-28 sm:bottom-6 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-xl border border-slate-200 shadow-lg px-3 py-2.5">
-          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">Goal health</p>
-          <div className="space-y-1.5">
-            {[
-              { color: "#ef4444", label: "Overdue goals" },
-              { color: "#f59e0b", label: "At risk (due <30d)" },
-              { color: "#10b981", label: "On track / done" },
-            ].map(({ color, label }) => (
-              <div key={color} className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: color }} />
-                <span className="text-[10px] text-slate-600">{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Progress toolbar is rendered by MapDashboard, not here */}
 
       {/* Bottom-right controls */}
       <div className="absolute bottom-28 sm:bottom-6 right-3 z-10 flex flex-col gap-1.5 items-end">

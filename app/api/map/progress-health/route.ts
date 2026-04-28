@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 type Health = "red" | "amber" | "green" | "none";
+type Period = "month" | "quarter" | "year" | "all";
 
 interface GoalHealth {
   overdueGoals: number;
@@ -11,8 +12,17 @@ interface GoalHealth {
   doneGoals: number;
 }
 
+interface PitstopCount {
+  total: number;
+  done: number;
+}
+
 function emptyHealth(): GoalHealth {
   return { overdueGoals: 0, atRiskGoals: 0, onTrackGoals: 0, doneGoals: 0 };
+}
+
+function emptyPitstopCount(): PitstopCount {
+  return { total: 0, done: 0 };
 }
 
 function toHealth(h: GoalHealth): Health {
@@ -23,17 +33,53 @@ function toHealth(h: GoalHealth): Health {
   return "green";
 }
 
-// GET /api/map/progress-health
-// Returns goal health status keyed by lowercase name for settlements, clusters, zones.
-export async function GET() {
+function getPeriodBounds(period: Period): { start: Date | null; end: Date | null } {
+  if (period === "all") return { start: null, end: null };
+
+  const now = new Date();
+  if (period === "month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return { start, end };
+  }
+  if (period === "quarter") {
+    const q = Math.floor(now.getMonth() / 3);
+    const start = new Date(now.getFullYear(), q * 3, 1);
+    const end   = new Date(now.getFullYear(), q * 3 + 3, 0, 23, 59, 59, 999);
+    return { start, end };
+  }
+  // year
+  const start = new Date(now.getFullYear(), 0, 1);
+  const end   = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+  return { start, end };
+}
+
+// GET /api/map/progress-health?period=month|quarter|year|all
+// Returns goal health status and checklist % keyed by lowercase name.
+export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(req.url);
+  const rawPeriod = url.searchParams.get("period") ?? "all";
+  const period: Period = ["month", "quarter", "year", "all"].includes(rawPeriod)
+    ? (rawPeriod as Period)
+    : "all";
 
   const today = new Date();
   today.setHours(12, 0, 0, 0);
   const AT_RISK_DAYS = 30;
 
-  const [goals, geography] = await Promise.all([
+  const periodBounds = getPeriodBounds(period);
+
+  // Build pitstop targetDate filter for period
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pitstopWhere: Record<string, any> = { deletedAt: null };
+  if (periodBounds.start && periodBounds.end) {
+    pitstopWhere.targetDate = { gte: periodBounds.start, lte: periodBounds.end };
+  }
+
+  const [goals, pitstopsForPeriod, geography] = await Promise.all([
     prisma.goal.findMany({
       where: { needsDomain: { not: null }, deletedAt: null },
       select: {
@@ -43,6 +89,22 @@ export async function GET() {
         needsClusterId: true,
         needsZoneId: true,
         pitstops: { where: { deletedAt: null }, select: { status: true } },
+      },
+    }),
+    prisma.pitstop.findMany({
+      where: {
+        ...pitstopWhere,
+        goal: { needsDomain: { not: null }, deletedAt: null },
+      },
+      select: {
+        status: true,
+        goal: {
+          select: {
+            needsSettlementId: true,
+            needsClusterId: true,
+            needsZoneId: true,
+          },
+        },
       },
     }),
     prisma.city.findMany({
@@ -130,22 +192,71 @@ export async function GET() {
     if (zId) { if (!zoneHealth[zId])       zoneHealth[zId]       = emptyHealth(); bump(zoneHealth[zId]); }
   }
 
+  // Accumulate pitstop counts for checklist % (by DB id)
+  const settlementPitstops: Record<string, PitstopCount> = {};
+  const clusterPitstops: Record<string, PitstopCount> = {};
+  const zonePitstops: Record<string, PitstopCount> = {};
+
+  for (const p of pitstopsForPeriod) {
+    const g = p.goal;
+    const sId = g.needsSettlementId;
+    const cId = g.needsClusterId ?? (sId ? settlementToCluster[sId] : null);
+    const zId = g.needsZoneId ?? (cId ? clusterToZone[cId] : null) ?? (sId ? settlementToZone[sId] : null);
+
+    const isDone = p.status === "Done";
+
+    if (sId) {
+      if (!settlementPitstops[sId]) settlementPitstops[sId] = emptyPitstopCount();
+      settlementPitstops[sId].total++;
+      if (isDone) settlementPitstops[sId].done++;
+    }
+    if (cId) {
+      if (!clusterPitstops[cId]) clusterPitstops[cId] = emptyPitstopCount();
+      clusterPitstops[cId].total++;
+      if (isDone) clusterPitstops[cId].done++;
+    }
+    if (zId) {
+      if (!zonePitstops[zId]) zonePitstops[zId] = emptyPitstopCount();
+      zonePitstops[zId].total++;
+      if (isDone) zonePitstops[zId].done++;
+    }
+  }
+
   // Convert to name-keyed health maps (lowercase, matching GeoJSON property values)
   const settlements: Record<string, Health> = {};
   const clusters:    Record<string, Health> = {};
   const zones:       Record<string, Health> = {};
 
+  // checklistPct: keyed by lowercase name
+  const checklistPct = {
+    settlements: {} as Record<string, number>,
+    clusters:    {} as Record<string, number>,
+    zones:       {} as Record<string, number>,
+  };
+
   for (const city of geography) {
     for (const zone of city.zones) {
       zones[zone.name.toLowerCase()] = toHealth(zoneHealth[zone.id] ?? emptyHealth());
+      const zpc = zonePitstops[zone.id];
+      if (zpc && zpc.total > 0) {
+        checklistPct.zones[zone.name.toLowerCase()] = Math.round((zpc.done / zpc.total) * 100);
+      }
       for (const cluster of zone.clusters) {
         clusters[cluster.name.toLowerCase()] = toHealth(clusterHealth[cluster.id] ?? emptyHealth());
+        const cpc = clusterPitstops[cluster.id];
+        if (cpc && cpc.total > 0) {
+          checklistPct.clusters[cluster.name.toLowerCase()] = Math.round((cpc.done / cpc.total) * 100);
+        }
         for (const s of cluster.settlements) {
           settlements[s.name.toLowerCase()] = toHealth(settlementHealth[s.id] ?? emptyHealth());
+          const spc = settlementPitstops[s.id];
+          if (spc && spc.total > 0) {
+            checklistPct.settlements[s.name.toLowerCase()] = Math.round((spc.done / spc.total) * 100);
+          }
         }
       }
     }
   }
 
-  return NextResponse.json({ settlements, clusters, zones });
+  return NextResponse.json({ settlements, clusters, zones, checklistPct, period });
 }
