@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calcTargets, buildDomainConfig, buildExisting, type FormulaRow } from "../../map/settlement-needs/route";
+import { calcTargets, buildDomainConfig, buildExisting, layerFeatureExisting, type FormulaRow } from "../../map/settlement-needs/route";
 
 // GET /api/clusters/summary
 // Returns per-cluster aggregates with domain-level needs progress.
@@ -79,6 +79,24 @@ export async function GET() {
     },
   });
 
+  // Batch LayerFeature counts per cluster — override assessment-based existing for facility domains
+  const LAYER_DOMAIN_MAP: Record<string, string> = {
+    creches: "Creche", children_centres: "ChildrenCentre", youth_centres: "YouthResourceCentre",
+  };
+  const lfGroups = await prisma.layerFeature.groupBy({
+    by: ["clusterId", "layerKey"],
+    where: { clusterId: { in: clusters.map(c => c.id) } },
+    _count: { id: true },
+  });
+  const lfByCluster: Record<string, Record<string, number>> = {};
+  for (const g of lfGroups) {
+    if (!g.clusterId) continue;
+    const domain = LAYER_DOMAIN_MAP[g.layerKey];
+    if (!domain) continue;
+    if (!lfByCluster[g.clusterId]) lfByCluster[g.clusterId] = {};
+    lfByCluster[g.clusterId][domain] = g._count.id;
+  }
+
   const result = clusters.map((cluster) => {
     const sids = new Set(cluster.settlements.map(s => s.id));
 
@@ -108,6 +126,9 @@ export async function GET() {
         existing[domain] = (existing[domain] ?? 0) + val;
       }
     }
+
+    // Override assessment-based existing with live LayerFeature counts
+    Object.assign(existing, lfByCluster[cluster.id] ?? {});
 
     const done:       Record<string, number> = {};
     const inProgress: Record<string, number> = {};
