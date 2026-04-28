@@ -234,6 +234,7 @@ export default function MapView({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const clusterFeaturesRef = useRef<any[]>([]);
 
+  const activePopupRef = useRef<maplibregl.Popup | null>(null);
   const mapFilterRef = useRef(mapFilter);
   const onCentreClickRef = useRef(onCentreClick);
   const onSettlementClickRef = useRef(onSettlementClick);
@@ -292,7 +293,8 @@ export default function MapView({
             if (!e.features?.length) return;
             const props = e.features[0].properties ?? {};
             const name = props.name || fl.label;
-            new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+            activePopupRef.current?.remove();
+            activePopupRef.current = new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
               .setLngLat(e.lngLat)
               .setHTML(makeProgrammeCentrePopup(
                 props.centre_type || fl.label, name,
@@ -414,8 +416,10 @@ export default function MapView({
 
         if (!layerConfig) return;
 
+        // Close any open popup (settlement, zone, or centre) before showing the new one
+        activePopupRef.current?.remove();
         const name = (props.name as string) || "Unnamed";
-        new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+        activePopupRef.current = new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
           .setLngLat(e.lngLat)
           .setHTML(makePolygonPopup(name, layerConfig, (props.description as string) || "", props.zone as string, props.cluster as string))
           .addTo(map);
@@ -431,16 +435,15 @@ export default function MapView({
         });
       });
 
-      // Cursor: pointer only when QRF detects a rendered polygon pixel
-      // Proximity is intentionally NOT used here — it caused false positives away from boundaries.
-      // The click handler uses proximity as a fallback for sub-pixel zoom levels.
+      // Cursor: pointer when over any clickable polygon layer.
+      // Single mousemove handler is the sole cursor controller — no mouseenter/mouseleave on fills.
       map.on("mousemove", (e) => {
         const { x, y } = e.point;
-        const existingIds = settlementFillIds.filter(id => !!map.getLayer(id));
-        const near = existingIds.length > 0 && map.queryRenderedFeatures(
-          [[x - 3, y - 3], [x + 3, y + 3]] as [maplibregl.PointLike, maplibregl.PointLike],
-          { layers: existingIds }
-        ).length > 0;
+        const box = [[x - 3, y - 3], [x + 3, y + 3]] as [maplibregl.PointLike, maplibregl.PointLike];
+        const settlementIds = settlementFillIds.filter(id => !!map.getLayer(id));
+        const zoneCluIds = (["zones-fill", "clusters-fill"] as const).filter(id => !!map.getLayer(id));
+        const checkIds = [...settlementIds, ...zoneCluIds];
+        const near = checkIds.length > 0 && map.queryRenderedFeatures(box, { layers: checkIds }).length > 0;
         map.getCanvas().style.cursor = near ? "pointer" : "";
       });
 
@@ -565,7 +568,8 @@ export default function MapView({
                     )
                   : makeRCPopup(name, props.description || "");
 
-                new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+                activePopupRef.current?.remove();
+                activePopupRef.current = new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
                   .setLngLat(e.lngLat)
                   .setHTML(html)
                   .addTo(map);
@@ -624,7 +628,8 @@ export default function MapView({
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
               .join("");
-            new maplibregl.Popup({ maxWidth: "280px", className: "maplibre-popup-clean" })
+            activePopupRef.current?.remove();
+            activePopupRef.current = new maplibregl.Popup({ maxWidth: "280px", className: "maplibre-popup-clean" })
               .setLngLat(e.lngLat)
               .setHTML(`<div class="map-popup">
                 <span class="badge" style="background:${color}">${TYPE_LABELS[sType] ?? "School"}</span>
@@ -672,7 +677,8 @@ export default function MapView({
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
               .join("");
-            new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+            activePopupRef.current?.remove();
+            activePopupRef.current = new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
               .setLngLat(e.lngLat)
               .setHTML(`<div class="map-popup">
                 <span class="badge" style="background:${cfg.color}">${cfg.label}</span>
@@ -746,10 +752,13 @@ export default function MapView({
           });
           map.on("click", "zones-fill", (e) => {
             if (!e.features?.length) return;
+            // Skip if a settlement polygon was also hit — settlement click handler takes priority
+            const sIds = LAYERS.filter(l => l.file && l.type === "polygon").map(l => `${l.key}-fill`).filter(id => !!map.getLayer(id));
+            if (sIds.length && map.queryRenderedFeatures([[e.point.x - 8, e.point.y - 8], [e.point.x + 8, e.point.y + 8]] as [maplibregl.PointLike, maplibregl.PointLike], { layers: sIds }).length) return;
+            activePopupRef.current?.remove(); activePopupRef.current = null;
             onZoneSelectRef.current(e.features[0].properties?.id ?? null);
           });
-          map.on("mouseenter", "zones-fill", () => { map.getCanvas().style.cursor = "pointer"; });
-          map.on("mouseleave", "zones-fill", () => { map.getCanvas().style.cursor = ""; });
+          // cursor managed by the global mousemove handler
         } catch (err) {
           console.warn("[MapView] zones layer setup skipped:", err instanceof Error ? err.message : err);
         }
@@ -812,10 +821,13 @@ export default function MapView({
           });
           map.on("click", "clusters-fill", (e) => {
             if (!e.features?.length) return;
+            // Skip if a settlement polygon was also hit — settlement click handler takes priority
+            const sIds = LAYERS.filter(l => l.file && l.type === "polygon").map(l => `${l.key}-fill`).filter(id => !!map.getLayer(id));
+            if (sIds.length && map.queryRenderedFeatures([[e.point.x - 8, e.point.y - 8], [e.point.x + 8, e.point.y + 8]] as [maplibregl.PointLike, maplibregl.PointLike], { layers: sIds }).length) return;
+            activePopupRef.current?.remove(); activePopupRef.current = null;
             onClusterSelectRef.current(e.features[0].properties?.cluster ?? null);
           });
-          map.on("mouseenter", "clusters-fill", () => { map.getCanvas().style.cursor = "pointer"; });
-          map.on("mouseleave", "clusters-fill", () => { map.getCanvas().style.cursor = ""; });
+          // cursor managed by the global mousemove handler
         } catch (err) {
           console.warn("[MapView] clusters layer setup skipped:", err instanceof Error ? err.message : err);
         }
@@ -863,7 +875,8 @@ export default function MapView({
           );
 
       setTimeout(() => {
-        new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+        activePopupRef.current?.remove();
+        activePopupRef.current = new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
           .setLngLat(center)
           .setHTML(html)
           .addTo(map);
