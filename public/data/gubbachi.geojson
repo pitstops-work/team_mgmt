@@ -4488,6 +4488,43 @@
         "zone": "South",
         "cluster": "Bellandur"
       }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.67269999999999,
+              12.92455
+            ],
+            [
+              77.6755,
+              12.92455
+            ],
+            [
+              77.6755,
+              12.92725
+            ],
+            [
+              77.67269999999999,
+              12.92725
+            ],
+            [
+              77.67269999999999,
+              12.92455
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Khalikatta",
+        "description": "",
+        "layer": "gubbachi",
+        "zone": "South",
+        "cluster": "Bellandur"
+      }
     }
   ]
 }

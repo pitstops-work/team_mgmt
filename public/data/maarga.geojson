@@ -573,6 +573,302 @@
         "zone": "South",
         "cluster": "Koramangala"
       }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.6231,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93385
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Ambedkar nagar I",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.6231,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93385
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Ambedkar nagar II",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.6231,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93385
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Ambedkar nagar III",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.5854566,
+              12.9269349
+            ],
+            [
+              77.58825660000001,
+              12.9269349
+            ],
+            [
+              77.58825660000001,
+              12.9296349
+            ],
+            [
+              77.5854566,
+              12.9296349
+            ],
+            [
+              77.5854566,
+              12.9269349
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Corporation Colony",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Jayanagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.5925,
+              12.92365
+            ],
+            [
+              77.59530000000001,
+              12.92365
+            ],
+            [
+              77.59530000000001,
+              12.926350000000001
+            ],
+            [
+              77.5925,
+              12.926350000000001
+            ],
+            [
+              77.5925,
+              12.92365
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Gundappa Colony",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Jayanagar"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.6231,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93385
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Rajendra Nagar II",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.6231,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93385
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Rajendra Nagar III",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.6231,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93385
+            ],
+            [
+              77.6259,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93655
+            ],
+            [
+              77.6231,
+              12.93385
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Shastri Nagar (Koramangala)",
+        "description": "",
+        "layer": "maarga",
+        "zone": "South",
+        "cluster": "Koramangala"
+      }
     }
   ]
 }

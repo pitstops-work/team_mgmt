@@ -1971,6 +1971,117 @@
         "zone": "Central",
         "cluster": "JJR_Nagar"
       }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.5775,
+              12.96265
+            ],
+            [
+              77.58030000000001,
+              12.96265
+            ],
+            [
+              77.58030000000001,
+              12.96535
+            ],
+            [
+              77.5775,
+              12.96535
+            ],
+            [
+              77.5775,
+              12.96265
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Doraiswamy Nagar",
+        "description": "",
+        "layer": "actionaid",
+        "zone": "Central",
+        "cluster": "KR Market"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.5775,
+              12.96265
+            ],
+            [
+              77.58030000000001,
+              12.96265
+            ],
+            [
+              77.58030000000001,
+              12.96535
+            ],
+            [
+              77.5775,
+              12.96535
+            ],
+            [
+              77.5775,
+              12.96265
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Flower Garden",
+        "description": "",
+        "layer": "actionaid",
+        "zone": "Central",
+        "cluster": "KR Market"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.5486,
+              12.938649999999999
+            ],
+            [
+              77.5514,
+              12.938649999999999
+            ],
+            [
+              77.5514,
+              12.94135
+            ],
+            [
+              77.5486,
+              12.94135
+            ],
+            [
+              77.5486,
+              12.938649999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "MCT Colony",
+        "description": "",
+        "layer": "actionaid",
+        "zone": "Central",
+        "cluster": "JJR Nagar"
+      }
     }
   ]
 }

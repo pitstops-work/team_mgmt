@@ -1230,6 +1230,191 @@
         "zone": "North",
         "cluster": "Bagalur"
       }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.69359999999999,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.70865
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Bilwaradahalli",
+        "description": "",
+        "layer": "sieds",
+        "zone": "South",
+        "cluster": "Anekal"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.69359999999999,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.70865
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Pillaganahalli",
+        "description": "",
+        "layer": "sieds",
+        "zone": "South",
+        "cluster": "Anekal"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.69359999999999,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.70865
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Seepkere",
+        "description": "",
+        "layer": "sieds",
+        "zone": "South",
+        "cluster": "Anekal"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.69359999999999,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.70865
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Shilidradoddi",
+        "description": "",
+        "layer": "sieds",
+        "zone": "South",
+        "cluster": "Anekal"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.69359999999999,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.70865
+            ],
+            [
+              77.6964,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.711350000000001
+            ],
+            [
+              77.69359999999999,
+              12.70865
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Thigalara Beedi",
+        "description": "",
+        "layer": "sieds",
+        "zone": "South",
+        "cluster": "Anekal"
+      }
     }
   ]
 }

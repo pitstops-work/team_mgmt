@@ -5513,6 +5513,487 @@
         "zone": "North",
         "cluster": "Majestic"
       }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.5012,
+              12.948649999999999
+            ],
+            [
+              77.504,
+              12.948649999999999
+            ],
+            [
+              77.504,
+              12.95135
+            ],
+            [
+              77.5012,
+              12.95135
+            ],
+            [
+              77.5012,
+              12.948649999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Ahammed Nagar (CRC proposed)",
+        "description": "",
+        "layer": "cfar",
+        "zone": "Central",
+        "cluster": "Nagarbhavi"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.4801,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.915949999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Bheemana kuppe",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Kengeri"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.516511,
+              12.9568852
+            ],
+            [
+              77.519311,
+              12.9568852
+            ],
+            [
+              77.519311,
+              12.959585200000001
+            ],
+            [
+              77.516511,
+              12.959585200000001
+            ],
+            [
+              77.516511,
+              12.9568852
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Corporation Colony",
+        "description": "",
+        "layer": "cfar",
+        "zone": "Central",
+        "cluster": "Nagarbhavi"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.5081,
+              13.028649999999999
+            ],
+            [
+              77.5109,
+              13.028649999999999
+            ],
+            [
+              77.5109,
+              13.03135
+            ],
+            [
+              77.5081,
+              13.03135
+            ],
+            [
+              77.5081,
+              13.028649999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Goutham Nagar",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Peenya - West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.4801,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.915949999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Gowripura",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Kengeri"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.4801,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.915949999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Hospalya",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Kengeri"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.54939999999999,
+              13.01865
+            ],
+            [
+              77.5522,
+              13.01865
+            ],
+            [
+              77.5522,
+              13.02135
+            ],
+            [
+              77.54939999999999,
+              13.02135
+            ],
+            [
+              77.54939999999999,
+              13.01865
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Jaibheemnagar",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Yeshwantpur"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.5081,
+              13.028649999999999
+            ],
+            [
+              77.5109,
+              13.028649999999999
+            ],
+            [
+              77.5109,
+              13.03135
+            ],
+            [
+              77.5081,
+              13.03135
+            ],
+            [
+              77.5081,
+              13.028649999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Jaibhuvaneshwari Nagar",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Peenya - West"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.4801,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.915949999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Kabbalamma palya",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Kengeri"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.4801,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.915949999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Kanminke",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Kengeri"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.4801,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.915949999999999
+            ],
+            [
+              77.4829,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.91865
+            ],
+            [
+              77.4801,
+              12.915949999999999
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Subbarayanapalya",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Kengeri"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.54939999999999,
+              13.01865
+            ],
+            [
+              77.5522,
+              13.01865
+            ],
+            [
+              77.5522,
+              13.02135
+            ],
+            [
+              77.54939999999999,
+              13.02135
+            ],
+            [
+              77.54939999999999,
+              13.01865
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Sunnadgudu",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Yeshwantpur"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.54939999999999,
+              13.01865
+            ],
+            [
+              77.5522,
+              13.01865
+            ],
+            [
+              77.5522,
+              13.02135
+            ],
+            [
+              77.54939999999999,
+              13.02135
+            ],
+            [
+              77.54939999999999,
+              13.01865
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Vinayaka and Karimandi",
+        "description": "",
+        "layer": "cfar",
+        "zone": "West",
+        "cluster": "Yeshwantpur"
+      }
     }
   ]
 }
