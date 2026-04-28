@@ -1241,6 +1241,10 @@ function PhaseMatrix({
   users: UserRef[];
 }) {
   const [drill, setDrill] = useState<DrillState>(null);
+  const [filterGoalIds,    setFilterGoalIds]    = useState<string[]>([]);
+  const [filterUserIds,    setFilterUserIds]    = useState<string[]>([]);
+  const [filterZoneId,     setFilterZoneId]     = useState<string>("");
+  const [filterClusterId,  setFilterClusterId]  = useState<string>("");
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const atRiskCutoff = new Date(today); atRiskCutoff.setDate(today.getDate() + 14);
@@ -1275,6 +1279,40 @@ function PhaseMatrix({
 
   const visibleGoals = goals.filter((g) => tagMap.has(g.id));
 
+  // Derive zone/cluster options from visibleGoals (no extra API call)
+  const zoneOptions = [...new Map(
+    visibleGoals.flatMap(g => {
+      const z = g.needsZone ?? g.needsCluster?.zone;
+      return z ? [[z.id, { value: z.id, label: z.name }] as const] : [];
+    })
+  ).values()].sort((a, b) => a.label.localeCompare(b.label));
+
+  const clusterOptions = visibleGoals
+    .filter(g => !filterZoneId || g.needsCluster?.zone?.id === filterZoneId || g.needsZone?.id === filterZoneId)
+    .filter(g => g.needsCluster)
+    .map(g => ({ value: g.needsCluster!.id, label: g.needsCluster!.name }))
+    .filter((v, i, a) => a.findIndex(x => x.value === v.value) === i)
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const userOptions = [...new Map(
+    visibleGoals.map(g => [g.owner.id, { value: g.owner.id, label: g.owner.name ?? "Unknown" }] as const)
+  ).values()].sort((a, b) => a.label.localeCompare(b.label));
+
+  const goalOptions = visibleGoals.map(g => ({ value: g.id, label: g.title }));
+
+  const displayGoals = visibleGoals.filter(g => {
+    if (filterGoalIds.length    && !filterGoalIds.includes(g.id))                                                       return false;
+    if (filterUserIds.length    && !filterUserIds.includes(g.owner.id))                                                 return false;
+    if (filterClusterId         && g.needsCluster?.id !== filterClusterId)                                              return false;
+    if (filterZoneId && g.needsCluster?.zone?.id !== filterZoneId && g.needsZone?.id !== filterZoneId)                  return false;
+    return true;
+  });
+
+  const hasFilters = filterGoalIds.length > 0 || filterUserIds.length > 0 || filterZoneId || filterClusterId;
+  function clearFilters() {
+    setFilterGoalIds([]); setFilterUserIds([]); setFilterZoneId(""); setFilterClusterId("");
+  }
+
   if (visibleGoals.length === 0) {
     return (
       <div className="text-center py-16 border border-dashed border-stone-200 rounded-xl">
@@ -1303,9 +1341,51 @@ function PhaseMatrix({
         />
       )}
       <div className="space-y-3">
+        {/* Filter bar */}
+        <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-stone-100">
+          <MultiSelect
+            options={goalOptions}
+            value={filterGoalIds}
+            onChange={setFilterGoalIds}
+            placeholder="Filter goals…"
+            className="min-w-[160px]"
+          />
+          <MultiSelect
+            options={userOptions}
+            value={filterUserIds}
+            onChange={setFilterUserIds}
+            placeholder="Filter users…"
+            className="min-w-[140px]"
+          />
+          <select
+            value={filterZoneId}
+            onChange={e => { setFilterZoneId(e.target.value); setFilterClusterId(""); }}
+            className="text-xs border border-stone-200 rounded-md px-2 py-1.5 text-stone-700 bg-white min-w-[130px]"
+          >
+            <option value="">All zones</option>
+            {zoneOptions.map(z => <option key={z.value} value={z.value}>{z.label}</option>)}
+          </select>
+          <select
+            value={filterClusterId}
+            onChange={e => setFilterClusterId(e.target.value)}
+            className="text-xs border border-stone-200 rounded-md px-2 py-1.5 text-stone-700 bg-white min-w-[130px]"
+            disabled={clusterOptions.length === 0}
+          >
+            <option value="">All clusters</option>
+            {clusterOptions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-stone-500 hover:text-stone-700 underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-4 mb-4">
           <p className="text-xs text-stone-500 flex-1">
-            {visibleGoals.length} goals with phase-tagged pitstops. Click a cell to drill down.
+            {displayGoals.length}{displayGoals.length !== visibleGoals.length ? ` of ${visibleGoals.length}` : ""} goals with phase-tagged pitstops. Click a cell to drill down.
           </p>
           <div className="flex items-center gap-3 text-[10px] text-stone-500">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" />Overdue</span>
@@ -1333,7 +1413,7 @@ function PhaseMatrix({
               </tr>
             </thead>
             <tbody>
-              {visibleGoals.map((goal, i) => {
+              {displayGoals.map((goal, i) => {
                 const gMap = tagMap.get(goal.id) ?? new Map();
                 return (
                   <tr key={goal.id} className={i % 2 === 0 ? "bg-white" : "bg-stone-50"}>
