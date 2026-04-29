@@ -14,6 +14,7 @@ export default async function DashboardPage({
   const now = new Date();
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7); weekStart.setHours(0, 0, 0, 0);
 
   const currentUserId = session!.user!.id!;
   const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true, designation: true, role: true } });
@@ -154,16 +155,20 @@ export default async function DashboardPage({
         take: 30,
       }),
 
-      // Pitstop workload per user (scoped to team)
-      prisma.pitstop.groupBy({
-        by: ["ownerId", "status"],
+      // Pitstop workload detail per user — replaces groupBy, enables drill-down + stalled detection
+      prisma.pitstop.findMany({
         where: {
           deletedAt: null,
-          ownerId: (designation === "RP" || designation === "ZL") ? { in: teamIds } : { not: null },
+          ownerId: isScoped ? { in: teamIds } : { not: null },
           status: { in: ["Upcoming", "InProgress"] },
           goal: { deletedAt: null },
         },
-        _count: { id: true },
+        select: {
+          id: true, title: true, status: true, targetDate: true, ownerId: true, updatedAt: true,
+          goal: { select: { id: true, title: true } },
+          checklistItems: { select: { id: true, checked: true } },
+        },
+        orderBy: [{ status: "desc" }, { targetDate: "asc" }],
       }),
 
       // Done pitstops this month (scoped to team for RP/ZL)
@@ -212,8 +217,21 @@ export default async function DashboardPage({
           user: { select: { id: true, name: true, image: true } },
         },
       }),
-    ]).then(([overduePitstops, inProgressPitstops, workloadRaw, doneThisMonth, rawClusters, rawZones, goalGeo, recentActivity]) => {
-      // Build the same { goals: { goal: { id, pitstops } }[] } shape OrgOverview expects
+
+      // Checklist items completed this week per pitstop owner
+      prisma.checklistItem.findMany({
+        where: {
+          checked: true,
+          updatedAt: { gte: weekStart },
+          pitstop: {
+            deletedAt: null,
+            goal: { deletedAt: null },
+            ...(isScoped ? { ownerId: { in: teamIds } } : {}),
+          },
+        },
+        select: { pitstop: { select: { ownerId: true } } },
+      }),
+    ]).then(([overduePitstops, inProgressPitstops, pitstopWorkloadDetail, doneThisMonth, rawClusters, rawZones, goalGeo, recentActivity, rawClWeekly]) => {
       const clusters = rawClusters.map(c => ({
         ...c,
         goals: goalGeo.filter(g => g.needsClusterId === c.id).map(g => ({ goal: { id: g.id, pitstops: g.pitstops } })),
@@ -222,7 +240,13 @@ export default async function DashboardPage({
         ...z,
         goals: goalGeo.filter(g => g.needsZoneId === z.id).map(g => ({ goal: { id: g.id, pitstops: g.pitstops } })),
       }));
-      return { overduePitstops, inProgressPitstops, workloadRaw, doneThisMonth, clusters, zones, recentActivity };
+      const weeklyMap: Record<string, number> = {};
+      rawClWeekly.forEach(item => {
+        const uid = item.pitstop.ownerId;
+        if (uid) weeklyMap[uid] = (weeklyMap[uid] ?? 0) + 1;
+      });
+      const clCompletionsThisWeek = Object.entries(weeklyMap).map(([ownerId, count]) => ({ ownerId, count }));
+      return { overduePitstops, inProgressPitstops, pitstopWorkloadDetail, clCompletionsThisWeek, doneThisMonth, clusters, zones, recentActivity };
     }),
   ]);
 

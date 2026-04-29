@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
-import { AlertTriangle, CheckSquare, Users, MapPin, Clock } from "lucide-react";
+import { AlertTriangle, CheckSquare, Users, MapPin, Clock, ChevronDown, ChevronRight, AlertCircle } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -21,7 +22,14 @@ type InProgressPitstop = {
   checklistItems: { id: string; checked: boolean }[];
 };
 
-type WorkloadRow = { ownerId: string | null; status: string; _count: { id: number } };
+type PitstopWorkloadEntry = {
+  id: string; title: string; status: string; targetDate: string | null;
+  ownerId: string | null; updatedAt: string;
+  goal: { id: string; title: string };
+  checklistItems: { id: string; checked: boolean }[];
+};
+
+type ClWeeklyCompletion = { ownerId: string; count: number };
 
 type ClusterData = {
   id: string; name: string;
@@ -42,7 +50,8 @@ type ActivityEntry = {
 export type OverviewData = {
   overduePitstops: OverduePitstop[];
   inProgressPitstops: InProgressPitstop[];
-  workloadRaw: WorkloadRow[];
+  pitstopWorkloadDetail: PitstopWorkloadEntry[];
+  clCompletionsThisWeek: ClWeeklyCompletion[];
   doneThisMonth: number;
   clusters: ClusterData[];
   zones: ZoneData[];
@@ -57,6 +66,9 @@ type User = { id: string; name: string | null; image: string | null };
 function daysLate(dateStr: string) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
+function daysSince(iso: string) {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
@@ -65,23 +77,34 @@ function fmtDatetime(iso: string) {
 }
 
 const STATUS_LABEL: Record<string, string> = { Upcoming: "Upcoming", InProgress: "In Progress", Done: "Done" };
-const STATUS_ARROW: Record<string, string> = { Upcoming: "→ In Progress", InProgress: "→ Done", Done: "✓ Done" };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function SectionHeader({ icon, title, count }: { icon: React.ReactNode; title: string; count?: number }) {
+function SectionHeader({
+  icon, title, count, action,
+}: {
+  icon: React.ReactNode; title: string; count?: number; action?: React.ReactNode;
+}) {
   return (
     <div className="flex items-center gap-2 mb-3">
       <span className="text-stone-400">{icon}</span>
       <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500">{title}</h2>
-      {count !== undefined && count > 0 && (
-        <span className="ml-auto text-[10px] font-bold bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded-full">{count}</span>
-      )}
+      <div className="ml-auto flex items-center gap-2">
+        {count !== undefined && count > 0 && (
+          <span className="text-[10px] font-bold bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded-full">{count}</span>
+        )}
+        {action}
+      </div>
     </div>
   );
 }
 
-function StatCard({ label, value, sub, accent, href }: { label: string; value: number | string; sub?: string; accent: "red" | "sky" | "emerald" | "amber" | "stone"; href?: string }) {
+function StatCard({
+  label, value, sub, accent, href,
+}: {
+  label: string; value: number | string; sub?: string;
+  accent: "red" | "sky" | "emerald" | "amber" | "stone"; href?: string;
+}) {
   const colors = {
     red:     { border: "border-red-200",     bg: "bg-red-50",     val: "text-red-600",     sub: "text-red-400" },
     sky:     { border: "border-sky-200",     bg: "bg-sky-50",     val: "text-sky-600",     sub: "text-sky-400" },
@@ -113,8 +136,12 @@ export default function OrgOverview({
   goals: Goal[];
   users: User[];
 }) {
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [activityWeekOnly, setActivityWeekOnly] = useState(false);
+
   const {
-    overduePitstops, inProgressPitstops, workloadRaw,
+    overduePitstops, inProgressPitstops,
+    pitstopWorkloadDetail = [], clCompletionsThisWeek = [],
     doneThisMonth, clusters, zones, recentActivity,
   } = overviewData;
 
@@ -124,26 +151,62 @@ export default function OrgOverview({
   const completeGoals = goals.filter(g => g.status === "Complete").length;
 
   // Pitstop totals
-  const allPitstops = goals.flatMap(g => g.pitstops);
+  const allPitstops     = goals.flatMap(g => g.pitstops);
   const totalPitstops   = allPitstops.length;
   const upcomingCount   = allPitstops.filter(p => p.status === "Upcoming").length;
   const inProgressCount = allPitstops.filter(p => p.status === "InProgress").length;
   const doneCount       = allPitstops.filter(p => p.status === "Done").length;
 
-  // Workload per user
-  const workloadMap: Record<string, { upcoming: number; inProgress: number }> = {};
-  workloadRaw.forEach(row => {
-    if (!row.ownerId) return;
-    if (!workloadMap[row.ownerId]) workloadMap[row.ownerId] = { upcoming: 0, inProgress: 0 };
-    if (row.status === "Upcoming") workloadMap[row.ownerId].upcoming += row._count.id;
-    if (row.status === "InProgress") workloadMap[row.ownerId].inProgress += row._count.id;
+  // ── Workload derived from pitstopWorkloadDetail ───────────────────────────
+
+  const workloadDetailMap: Record<string, {
+    upcoming: number; inProgress: number;
+    pitstops: PitstopWorkloadEntry[]; clPending: number;
+  }> = {};
+  pitstopWorkloadDetail.forEach(p => {
+    if (!p.ownerId) return;
+    if (!workloadDetailMap[p.ownerId]) {
+      workloadDetailMap[p.ownerId] = { upcoming: 0, inProgress: 0, pitstops: [], clPending: 0 };
+    }
+    if (p.status === "Upcoming") workloadDetailMap[p.ownerId].upcoming++;
+    if (p.status === "InProgress") workloadDetailMap[p.ownerId].inProgress++;
+    workloadDetailMap[p.ownerId].pitstops.push(p);
+    workloadDetailMap[p.ownerId].clPending += p.checklistItems.filter(i => !i.checked).length;
   });
-  const workloadEntries = Object.entries(workloadMap)
-    .map(([uid, counts]) => ({ user: users.find(u => u.id === uid), ...counts }))
-    .filter(e => e.user)
+
+  const weeklyCompMap: Record<string, number> = {};
+  clCompletionsThisWeek.forEach(c => { weeklyCompMap[c.ownerId] = c.count; });
+
+  const workloadEntries = Object.entries(workloadDetailMap)
+    .map(([uid, counts]) => ({
+      user: users.find(u => u.id === uid),
+      ...counts,
+      clDoneThisWeek: weeklyCompMap[uid] ?? 0,
+    }))
+    .filter(e => e.user != null)
     .sort((a, b) => (b.inProgress + b.upcoming) - (a.inProgress + a.upcoming));
 
-  // Cluster performance (only clusters with linked goals)
+  // ── Stalled pitstops: InProgress, has checklist, 0 done, stale > 3 days ──
+
+  const threeDaysAgo = Date.now() - 3 * 86400000;
+  const stalledPitstops = pitstopWorkloadDetail
+    .filter(p => {
+      if (p.status !== "InProgress") return false;
+      const clTotal = p.checklistItems.length;
+      const clDone  = p.checklistItems.filter(i => i.checked).length;
+      return clTotal > 0 && clDone === 0 && new Date(p.updatedAt).getTime() < threeDaysAgo;
+    })
+    .sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+
+  // ── Activity filter ───────────────────────────────────────────────────────
+
+  const weekMs = Date.now() - 7 * 86400000;
+  const filteredActivity = activityWeekOnly
+    ? recentActivity.filter(a => new Date(a.createdAt).getTime() >= weekMs)
+    : recentActivity;
+
+  // ── Cluster/zone performance ──────────────────────────────────────────────
+
   const clusterPerf = clusters
     .map(c => {
       const pitstops = c.goals.flatMap(g => g.goal?.pitstops ?? []);
@@ -154,7 +217,6 @@ export default function OrgOverview({
     .filter((c): c is NonNullable<typeof c> => c !== null)
     .sort((a, b) => (b.done / b.total) - (a.done / a.total));
 
-  // Zone performance
   const zonePerf = zones
     .map(z => {
       const pitstops = z.goals.flatMap(g => g.goal?.pitstops ?? []);
@@ -165,15 +227,15 @@ export default function OrgOverview({
     .filter((z): z is NonNullable<typeof z> => z !== null)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  // InProgress pitstops sorted by checklist completion %
+  // ── InProgress pitstops sorted by checklist completion % ─────────────────
+
   const checklistPitstops = inProgressPitstops
     .map(p => {
       const total = p.checklistItems.length;
-      const done = p.checklistItems.filter(i => i.checked).length;
+      const done  = p.checklistItems.filter(i => i.checked).length;
       return { ...p, clTotal: total, clDone: done, clPct: total > 0 ? Math.round((done / total) * 100) : null };
     })
     .sort((a, b) => {
-      // Show ones with checklists first, ordered by % completion descending
       if (a.clTotal === 0 && b.clTotal > 0) return 1;
       if (b.clTotal === 0 && a.clTotal > 0) return -1;
       return (b.clPct ?? 0) - (a.clPct ?? 0);
@@ -229,7 +291,35 @@ export default function OrgOverview({
             )}
           </div>
 
-          {/* Checklist progress */}
+          {/* Stalled pitstops */}
+          {stalledPitstops.length > 0 && (
+            <div>
+              <SectionHeader icon={<AlertCircle className="w-3.5 h-3.5 text-amber-500" />} title="Stalled pitstops" count={stalledPitstops.length} />
+              <div className="bg-amber-50 border border-amber-200 rounded-xl divide-y divide-amber-100 overflow-hidden">
+                {stalledPitstops.map(p => {
+                  const owner = users.find(u => u.id === p.ownerId);
+                  const ds = daysSince(p.updatedAt);
+                  return (
+                    <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-amber-100 transition-colors group">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-stone-800 truncate group-hover:text-sky-600">{p.title}</p>
+                        <p className="text-[10px] text-stone-400 truncate">{p.goal.title}</p>
+                        <p className="text-[10px] text-amber-600 mt-0.5">{p.checklistItems.length} checks · 0 done</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {owner && <Avatar name={owner.name} image={owner.image} size="xs" />}
+                        <span className="text-[10px] font-semibold text-amber-600">{ds}d stale</span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* In-progress pitstops with checklist progress */}
           <div>
             <SectionHeader icon={<CheckSquare className="w-3.5 h-3.5" />} title="In-progress pitstops" count={checklistPitstops.length} />
             {checklistPitstops.length === 0 ? (
@@ -270,32 +360,88 @@ export default function OrgOverview({
         {/* Right column (1/3) */}
         <div className="space-y-6">
 
-          {/* Team workload */}
+          {/* Team workload — enriched with cl detail + drill-down */}
           <div>
             <SectionHeader icon={<Users className="w-3.5 h-3.5" />} title="Team workload" />
-            <div className="bg-white border border-stone-200 rounded-xl divide-y divide-stone-50 overflow-hidden">
+            <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
               {workloadEntries.length === 0 ? (
                 <p className="px-4 py-3 text-xs text-stone-400">No active assignments.</p>
               ) : workloadEntries.map(e => {
-                const total = e.inProgress + e.upcoming;
+                const total    = e.inProgress + e.upcoming;
                 const maxTotal = Math.max(...workloadEntries.map(w => w.inProgress + w.upcoming), 1);
+                const isExpanded = expandedUser === e.user!.id;
                 return (
-                  <div key={e.user!.id} className="px-4 py-2.5">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Avatar name={e.user!.name} image={e.user!.image} size="xs" />
-                      <span className="text-xs font-medium text-stone-700 truncate flex-1">{e.user!.name ?? "—"}</span>
-                      <span className="text-[10px] text-stone-500 flex-shrink-0">
-                        {e.inProgress > 0 && <span className="text-sky-600 font-semibold">{e.inProgress} active</span>}
-                        {e.inProgress > 0 && e.upcoming > 0 && <span className="text-stone-300"> · </span>}
-                        {e.upcoming > 0 && <span>{e.upcoming} upcoming</span>}
-                      </span>
-                    </div>
-                    <div className="h-1 bg-stone-100 rounded-full overflow-hidden">
-                      <div className="h-full flex">
-                        <div className="bg-sky-400 rounded-full" style={{ width: `${(e.inProgress / maxTotal) * 100}%` }} />
-                        <div className="bg-stone-200 rounded-full" style={{ width: `${(e.upcoming / maxTotal) * 100}%` }} />
+                  <div key={e.user!.id} className="border-b border-stone-50 last:border-0">
+                    <button
+                      onClick={() => setExpandedUser(isExpanded ? null : e.user!.id)}
+                      className="w-full px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Avatar name={e.user!.name} image={e.user!.image} size="xs" />
+                        <span className="text-xs font-medium text-stone-700 truncate flex-1">{e.user!.name ?? "—"}</span>
+                        <span className="text-[10px] text-stone-500 flex-shrink-0">
+                          {e.inProgress > 0 && <span className="text-sky-600 font-semibold">{e.inProgress} active</span>}
+                          {e.inProgress > 0 && e.upcoming > 0 && <span className="text-stone-300"> · </span>}
+                          {e.upcoming > 0 && <span>{e.upcoming} upcoming</span>}
+                        </span>
+                        {isExpanded
+                          ? <ChevronDown className="w-3 h-3 text-stone-400 flex-shrink-0" />
+                          : <ChevronRight className="w-3 h-3 text-stone-400 flex-shrink-0" />}
                       </div>
-                    </div>
+                      <div className="h-1 bg-stone-100 rounded-full overflow-hidden mb-1.5">
+                        <div className="h-full flex">
+                          <div className="bg-sky-400 rounded-full" style={{ width: `${(e.inProgress / maxTotal) * 100}%` }} />
+                          <div className="bg-stone-200 rounded-full" style={{ width: `${(e.upcoming / maxTotal) * 100}%` }} />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {e.clPending > 0 && (
+                          <span className="text-[10px] text-stone-400">{e.clPending} checks pending</span>
+                        )}
+                        {e.clDoneThisWeek > 0 && (
+                          <>
+                            {e.clPending > 0 && <span className="text-[10px] text-stone-300">·</span>}
+                            <span className="text-[10px] text-emerald-600 font-medium">{e.clDoneThisWeek} done this week</span>
+                          </>
+                        )}
+                        {e.clPending === 0 && e.clDoneThisWeek === 0 && (
+                          <span className="text-[10px] text-stone-300">no checklist items</span>
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Drill-down: per-user pitstop list */}
+                    {isExpanded && (
+                      <div className="bg-stone-50 border-t border-stone-100 divide-y divide-stone-100">
+                        {e.pitstops.length === 0 ? (
+                          <p className="px-4 py-2 text-[10px] text-stone-400">No active pitstops.</p>
+                        ) : e.pitstops.map(p => {
+                          const clTotal   = p.checklistItems.length;
+                          const clDone    = p.checklistItems.filter(i => i.checked).length;
+                          const isOverdue = p.targetDate && new Date(p.targetDate) < new Date();
+                          return (
+                            <Link key={p.id} href={`/goals/${p.goal.id}/pitstops/${p.id}`}
+                              className="flex items-start gap-2 px-4 py-2 hover:bg-stone-100 transition-colors group">
+                              <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${p.status === "InProgress" ? "bg-sky-400" : "bg-stone-300"}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-medium text-stone-700 truncate group-hover:text-sky-600">{p.title}</p>
+                                <p className="text-[10px] text-stone-400 truncate">{p.goal.title}</p>
+                              </div>
+                              <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                                {clTotal > 0 && (
+                                  <span className="text-[10px] text-stone-400">{clDone}/{clTotal} ☑</span>
+                                )}
+                                {p.targetDate && (
+                                  <span className={`text-[10px] ${isOverdue ? "text-red-500 font-semibold" : "text-stone-400"}`}>
+                                    {isOverdue ? `${daysLate(p.targetDate)}d late` : fmtDate(p.targetDate)}
+                                  </span>
+                                )}
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -351,13 +497,30 @@ export default function OrgOverview({
             </div>
           )}
 
-          {/* Recent activity */}
+          {/* Recent activity with week filter */}
           <div>
-            <SectionHeader icon={<Clock className="w-3.5 h-3.5" />} title="Recent activity" />
+            <SectionHeader
+              icon={<Clock className="w-3.5 h-3.5" />}
+              title="Recent activity"
+              action={
+                <div className="flex gap-0.5 bg-stone-100 rounded-md p-0.5">
+                  <button
+                    onClick={() => setActivityWeekOnly(false)}
+                    className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${!activityWeekOnly ? "bg-white text-stone-700 shadow-sm" : "text-stone-400 hover:text-stone-600"}`}
+                  >All</button>
+                  <button
+                    onClick={() => setActivityWeekOnly(true)}
+                    className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${activityWeekOnly ? "bg-white text-stone-700 shadow-sm" : "text-stone-400 hover:text-stone-600"}`}
+                  >This week</button>
+                </div>
+              }
+            />
             <div className="bg-white border border-stone-200 rounded-xl divide-y divide-stone-50 overflow-hidden">
-              {recentActivity.length === 0 ? (
-                <p className="px-4 py-3 text-xs text-stone-400">No recent status changes.</p>
-              ) : recentActivity.map(a => (
+              {filteredActivity.length === 0 ? (
+                <p className="px-4 py-3 text-xs text-stone-400">
+                  {activityWeekOnly ? "No status changes this week." : "No recent status changes."}
+                </p>
+              ) : filteredActivity.map(a => (
                 <div key={a.id} className="flex items-start gap-2.5 px-4 py-2.5">
                   <Avatar name={a.user.name} image={a.user.image} size="xs" />
                   <div className="flex-1 min-w-0">
