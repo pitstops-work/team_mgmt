@@ -1202,9 +1202,12 @@ export default function MapView({
     const hex = hm?.domain?.color ?? "#6b7280";
     const maxVal = hm?.max ?? 0;
     const thresh = needsThreshold;
+    const DIM_COLOR = "#e2e8f0"; // neutral fill for below-threshold / off-level features
+    const DIM_LINE  = "#94a3b8"; // neutral border when needs mode is active
 
     // Settlement layers
     LAYERS.filter((l) => l.file && l.type === "polygon").forEach((layerConfig) => {
+      const lineId = `${layerConfig.key}-line`;
       const src = map.getSource(`${layerConfig.key}-source`) as maplibregl.GeoJSONSource | undefined;
       const rawFeatures = settlementFeaturesRef.current[layerConfig.key];
       if (!src || !rawFeatures) return;
@@ -1213,12 +1216,30 @@ export default function MapView({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const restored = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: undefined, needsColor: undefined } }));
         src.setData({ type: "FeatureCollection", features: restored });
+        if (map.getLayer(lineId)) {
+          map.setPaintProperty(lineId, "line-color", [
+            "case",
+            ["==", ["get", "health"], "checklist"], ["coalesce", ["get", "checklistColor"], "#e2e8f0"],
+            ["==", ["get", "health"], "nogap"],     "#ef4444",
+            ["==", ["get", "health"], "red"],       HEALTH_COLORS.red,
+            ["==", ["get", "health"], "amber"],     HEALTH_COLORS.amber,
+            ["==", ["get", "health"], "green"],     HEALTH_COLORS.green,
+            layerConfig.color,
+          ]);
+          map.setPaintProperty(lineId, "line-opacity", 0.9);
+        }
         return;
+      }
+
+      // Neutralize settlement borders while needs mode is active
+      if (map.getLayer(lineId)) {
+        map.setPaintProperty(lineId, "line-color", DIM_LINE);
+        map.setPaintProperty(lineId, "line-opacity", 0.4);
       }
 
       if (needsLevel !== "settlement") {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const dimmed = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: "dim", needsColor: undefined } }));
+        const dimmed = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: "needs", needsColor: DIM_COLOR } }));
         src.setData({ type: "FeatureCollection", features: dimmed });
         return;
       }
@@ -1232,8 +1253,8 @@ export default function MapView({
           ...f,
           properties: {
             ...f.properties,
-            health: aboveThresh ? "needs" : "dim",
-            needsColor: aboveThresh ? valueToNeedsColor(value, maxVal, hex) : undefined,
+            health: "needs",
+            needsColor: aboveThresh ? valueToNeedsColor(value, maxVal, hex) : DIM_COLOR,
           },
         };
       });
@@ -1243,6 +1264,12 @@ export default function MapView({
     // Zone boundaries
     const zoneSrc = map.getSource("zones-source") as maplibregl.GeoJSONSource | undefined;
     if (zoneSrc && zoneFeaturesRef.current.length > 0) {
+      // Always neutralize zone borders when needs mode is active; restore when off
+      if (map.getLayer("zones-line")) {
+        map.setPaintProperty("zones-line", "line-color", active ? DIM_LINE : ["get", "color"]);
+        map.setPaintProperty("zones-line", "line-opacity", active ? 0.45 : 0.85);
+      }
+
       if (!active || needsLevel !== "zone") {
         zoneSrc.setData({ type: "FeatureCollection", features: zoneFeaturesRef.current });
       } else {
@@ -1255,8 +1282,8 @@ export default function MapView({
             ...f,
             properties: {
               ...f.properties,
-              health: aboveThresh ? "needs" : undefined,
-              needsColor: aboveThresh ? valueToNeedsColor(value, maxVal, hex) : undefined,
+              health: "needs",
+              needsColor: aboveThresh ? valueToNeedsColor(value, maxVal, hex) : DIM_COLOR,
             },
           };
         });
@@ -1267,6 +1294,12 @@ export default function MapView({
     // Cluster boundaries
     const clusterSrc = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
     if (clusterSrc && clusterFeaturesRef.current.length > 0) {
+      // Always neutralize cluster borders when needs mode is active; restore when off
+      if (map.getLayer("clusters-line")) {
+        map.setPaintProperty("clusters-line", "line-color", active ? DIM_LINE : ["get", "color"]);
+        map.setPaintProperty("clusters-line", "line-opacity", active ? 0.45 : 0.8);
+      }
+
       if (!active || needsLevel !== "cluster") {
         clusterSrc.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
       } else {
@@ -1279,8 +1312,8 @@ export default function MapView({
             ...f,
             properties: {
               ...f.properties,
-              health: aboveThresh ? "needs" : undefined,
-              needsColor: aboveThresh ? valueToNeedsColor(value, maxVal, hex) : undefined,
+              health: "needs",
+              needsColor: aboveThresh ? valueToNeedsColor(value, maxVal, hex) : DIM_COLOR,
             },
           };
         });
