@@ -6,6 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { LAYERS, type LayerConfig, type LayerKey, type MapCity } from "@/lib/layers";
 import type { FacilityLayer } from "@/components/map/MapDashboard";
 import { type MapFilter, settlementMatchesFilter, centreMatchesFilter } from "@/lib/mapFilter";
+import type { NeedsHeatmapData, NeedsLevel } from "./NeedsToolbar";
 
 export interface CentreFeature {
   name: string;
@@ -67,6 +68,10 @@ interface MapViewProps {
   showHealthClusters?: boolean;
   healthClusterMap?: Record<string, boolean>;
   facilityLayers?: FacilityLayer[];
+  needsMode?: boolean;
+  needsHeatmap?: NeedsHeatmapData | null;
+  needsLevel?: NeedsLevel;
+  needsThreshold?: number;
 }
 
 const CITY_CENTERS: Record<MapCity, { center: [number, number]; zoom: number }> = {
@@ -230,6 +235,10 @@ export default function MapView({
   showHealthClusters = false,
   healthClusterMap = {},
   facilityLayers = [],
+  needsMode = false,
+  needsHeatmap = null,
+  needsLevel = "settlement",
+  needsThreshold = 0,
 }: MapViewProps) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -261,6 +270,15 @@ export default function MapView({
 
   const facilityLayersRef = useRef(facilityLayers);
   useEffect(() => { facilityLayersRef.current = facilityLayers; }, [facilityLayers]);
+
+  const needsHeatmapRef = useRef(needsHeatmap);
+  const needsModeRef = useRef(needsMode);
+  const needsLevelRef = useRef(needsLevel);
+  const needsThresholdRef = useRef(needsThreshold);
+  useEffect(() => { needsHeatmapRef.current = needsHeatmap; }, [needsHeatmap]);
+  useEffect(() => { needsModeRef.current = needsMode; }, [needsMode]);
+  useEffect(() => { needsLevelRef.current = needsLevel; }, [needsLevel]);
+  useEffect(() => { needsThresholdRef.current = needsThreshold; }, [needsThreshold]);
 
   useEffect(() => { mapFilterRef.current = mapFilter; }, [mapFilter]);
   useEffect(() => { onCentreClickRef.current = onCentreClick; }, [onCentreClick]);
@@ -481,6 +499,7 @@ export default function MapView({
                 paint: {
                   "fill-color": [
                     "case",
+                    ["==", ["get", "health"], "needs"],     ["coalesce", ["get", "needsColor"], "#f1f5f9"],
                     ["==", ["get", "health"], "checklist"], ["coalesce", ["get", "checklistColor"], "#e2e8f0"],
                     ["==", ["get", "health"], "nogap"],     "#ef4444",
                     ["==", ["get", "health"], "has_goals"], "#e2e8f0",
@@ -491,6 +510,7 @@ export default function MapView({
                   ],
                   "fill-opacity": [
                     "case",
+                    ["==", ["get", "health"], "needs"],     0.78,
                     ["==", ["get", "health"], "checklist"],  0.65,
                     ["==", ["get", "health"], "nogap"],      0.45,
                     ["==", ["get", "health"], "has_goals"],  0.15,
@@ -727,12 +747,18 @@ export default function MapView({
             paint: {
               "fill-color": [
                 "case",
-                ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
-                ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
-                ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                ["==", ["get", "health"], "needs"],  ["coalesce", ["get", "needsColor"], "#f1f5f9"],
+                ["==", ["get", "health"], "red"],     HEALTH_COLORS.red,
+                ["==", ["get", "health"], "amber"],   HEALTH_COLORS.amber,
+                ["==", ["get", "health"], "green"],   HEALTH_COLORS.green,
                 ["get", "color"],
               ],
-              "fill-opacity": ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.22, 0.07],
+              "fill-opacity": [
+                "case",
+                ["==", ["get", "health"], "needs"], 0.72,
+                ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.22,
+                0.07,
+              ],
             },
             layout: { visibility: "none" },
           });
@@ -796,12 +822,18 @@ export default function MapView({
             paint: {
               "fill-color": [
                 "case",
-                ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
-                ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
-                ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
+                ["==", ["get", "health"], "needs"],  ["coalesce", ["get", "needsColor"], "#f1f5f9"],
+                ["==", ["get", "health"], "red"],     HEALTH_COLORS.red,
+                ["==", ["get", "health"], "amber"],   HEALTH_COLORS.amber,
+                ["==", ["get", "health"], "green"],   HEALTH_COLORS.green,
                 ["get", "color"],
               ],
-              "fill-opacity": ["case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09],
+              "fill-opacity": [
+                "case",
+                ["==", ["get", "health"], "needs"], 0.72,
+                ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18,
+                0.09,
+              ],
             },
             layout: { visibility: "none" },
           });
@@ -909,6 +941,16 @@ export default function MapView({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Helper: needs heatmap color ──────────────────────────────────────────────
+  function valueToNeedsColor(value: number, max: number, hex: string): string {
+    if (max <= 0 || value <= 0) return "#f1f5f9";
+    const t = Math.pow(Math.min(value / max, 1), 0.65);
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgb(${Math.round(255 + (r - 255) * t)},${Math.round(255 + (g - 255) * t)},${Math.round(255 + (b - 255) * t)})`;
+  }
 
   // ── Helper: enrich settlement source with health data ──────────────────────
   function enrichSourceWithHealth(map: maplibregl.Map, key: LayerKey, ph: NonNullable<ProgressHealth>) {
@@ -1149,6 +1191,104 @@ export default function MapView({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progressMode, progressHealth, progressToolbarMode, progressLevel]);
+
+  // ── Needs heatmap colouring ───────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const hm = needsHeatmap;
+    const active = needsMode && !!hm && hm.hasData;
+    const hex = hm?.domain?.color ?? "#6b7280";
+    const maxVal = hm?.max ?? 0;
+    const thresh = needsThreshold;
+
+    // Settlement layers
+    LAYERS.filter((l) => l.file && l.type === "polygon").forEach((layerConfig) => {
+      const src = map.getSource(`${layerConfig.key}-source`) as maplibregl.GeoJSONSource | undefined;
+      const rawFeatures = settlementFeaturesRef.current[layerConfig.key];
+      if (!src || !rawFeatures) return;
+
+      if (!active) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const restored = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: undefined, needsColor: undefined } }));
+        src.setData({ type: "FeatureCollection", features: restored });
+        return;
+      }
+
+      if (needsLevel !== "settlement") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const dimmed = rawFeatures.map((f: any) => ({ ...f, properties: { ...f.properties, health: "dim", needsColor: undefined } }));
+        src.setData({ type: "FeatureCollection", features: dimmed });
+        return;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const enriched = rawFeatures.map((f: any) => {
+        const name = (f.properties?.name ?? "").toLowerCase();
+        const value = hm.values[name] ?? 0;
+        const aboveThresh = value >= thresh && value > 0;
+        return {
+          ...f,
+          properties: {
+            ...f.properties,
+            health: aboveThresh ? "needs" : "dim",
+            needsColor: aboveThresh ? valueToNeedsColor(value, maxVal, hex) : undefined,
+          },
+        };
+      });
+      src.setData({ type: "FeatureCollection", features: enriched });
+    });
+
+    // Zone boundaries
+    const zoneSrc = map.getSource("zones-source") as maplibregl.GeoJSONSource | undefined;
+    if (zoneSrc && zoneFeaturesRef.current.length > 0) {
+      if (!active || needsLevel !== "zone") {
+        zoneSrc.setData({ type: "FeatureCollection", features: zoneFeaturesRef.current });
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = zoneFeaturesRef.current.map((f: any) => {
+          const name = (f.properties?.zone ?? "").toLowerCase();
+          const value = hm.values[name] ?? 0;
+          const aboveThresh = value >= thresh && value > 0;
+          return {
+            ...f,
+            properties: {
+              ...f.properties,
+              health: aboveThresh ? "needs" : undefined,
+              needsColor: aboveThresh ? valueToNeedsColor(value, maxVal, hex) : undefined,
+            },
+          };
+        });
+        zoneSrc.setData({ type: "FeatureCollection", features: enriched });
+      }
+    }
+
+    // Cluster boundaries
+    const clusterSrc = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
+    if (clusterSrc && clusterFeaturesRef.current.length > 0) {
+      if (!active || needsLevel !== "cluster") {
+        clusterSrc.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enriched = clusterFeaturesRef.current.map((f: any) => {
+          const name = (f.properties?.cluster ?? "").toLowerCase();
+          const value = hm.values[name] ?? 0;
+          const aboveThresh = value >= thresh && value > 0;
+          return {
+            ...f,
+            properties: {
+              ...f.properties,
+              health: aboveThresh ? "needs" : undefined,
+              needsColor: aboveThresh ? valueToNeedsColor(value, maxVal, hex) : undefined,
+            },
+          };
+        });
+        clusterSrc.setData({ type: "FeatureCollection", features: enriched });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsMode, needsHeatmap, needsLevel, needsThreshold]);
 
   // ── Rebuild centre layers when map filter changes ─────────────────────────
   useEffect(() => {

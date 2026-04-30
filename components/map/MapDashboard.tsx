@@ -16,6 +16,7 @@ import { type MapFilter, computeMapFilter } from "@/lib/mapFilter";
 import CentreSidebar from "./CentreSidebar";
 import type { SettlementFeature, CentreFeature } from "./MapView";
 import ProgressToolbar, { type ProgressPeriod, type ProgressMode, type ProgressLevel } from "./ProgressToolbar";
+import NeedsToolbar, { type NeedsMetric, type NeedsLevel, type NeedsHeatmapData } from "./NeedsToolbar";
 
 const MapAdminPanel = dynamic(() => import("./MapAdminPanel"), { ssr: false });
 
@@ -95,6 +96,14 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
   const [progressToolbarMode, setProgressToolbarMode] = useState<ProgressMode>("goals");
   const [progressLevel, setProgressLevel] = useState<ProgressLevel>("settlement");
   const [progressLoading, setProgressLoading] = useState(false);
+  const [needsMode, setNeedsMode] = useState(false);
+  const [needsHeatmap, setNeedsHeatmap] = useState<NeedsHeatmapData | null>(null);
+  const [needsDomain, setNeedsDomain] = useState("");
+  const [needsMetric, setNeedsMetric] = useState<NeedsMetric>("demand");
+  const [needsLevel, setNeedsLevel] = useState<NeedsLevel>("settlement");
+  const [needsThreshold, setNeedsThreshold] = useState(0);
+  const [needsLoading, setNeedsLoading] = useState(false);
+
   const [schoolMaxKm, setSchoolMaxKm] = useState(4);
   const [schoolTypes, setSchoolTypes] = useState<Set<string>>(new Set(["Government", "BBMP", "Karnataka Public School"]));
   const [schoolFeatures, setSchoolFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
@@ -233,10 +242,55 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     }
   }
 
+  async function fetchNeedsHeatmap(domain: string, metric: NeedsMetric, level: NeedsLevel) {
+    if (!domain) return;
+    setNeedsLoading(true);
+    try {
+      const r = await fetch(`/api/map/needs-heatmap?domain=${encodeURIComponent(domain)}&metric=${metric}&level=${level}`);
+      if (r.ok) setNeedsHeatmap(await r.json());
+    } catch {
+      // ignore
+    } finally {
+      setNeedsLoading(false);
+    }
+  }
+
+  async function toggleNeeds() {
+    const next = !needsMode;
+    setNeedsMode(next);
+    if (next) {
+      setProgressMode(false);
+      setProgressHealth(null);
+      // Load allDomains first, then auto-select first domain
+      setNeedsLoading(true);
+      try {
+        const r = await fetch("/api/map/needs-heatmap");
+        if (r.ok) {
+          const data: NeedsHeatmapData = await r.json();
+          const firstDomain = data.allDomains?.[0]?.domain ?? "";
+          setNeedsHeatmap({ ...data, domain: data.allDomains?.[0] ?? null });
+          if (firstDomain) {
+            setNeedsDomain(firstDomain);
+            setNeedsThreshold(0);
+            await fetchNeedsHeatmap(firstDomain, needsMetric, needsLevel);
+          }
+        }
+      } catch {
+        // ignore
+      } finally {
+        setNeedsLoading(false);
+      }
+    } else {
+      setNeedsHeatmap(null);
+    }
+  }
+
   async function toggleProgress() {
     const next = !progressMode;
     setProgressMode(next);
     if (next) {
+      setNeedsMode(false);
+      setNeedsHeatmap(null);
       await fetchProgressHealth(progressPeriod);
     } else {
       setProgressHealth(null);
@@ -410,6 +464,20 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           {sidebarOpen ? "◀" : "▶"}
         </button>
 
+        {/* Needs Lens toggle — desktop only */}
+        {!needsMode && (
+          <button
+            onClick={toggleNeeds}
+            className="hidden sm:flex absolute top-3 right-[22rem] z-10 border shadow rounded-lg px-3 h-8 items-center gap-1.5 text-xs font-semibold transition-colors bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+            title="Analytics lens: colour polygons by demand/gap/coverage"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Needs
+          </button>
+        )}
+
         {/* Progress mode toggle — desktop only; hidden when toolbar is open */}
         {!progressMode && (
           <button
@@ -477,6 +545,10 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           progressHealth={progressHealth}
           progressToolbarMode={progressToolbarMode}
           progressLevel={progressLevel}
+          needsMode={needsMode}
+          needsHeatmap={needsHeatmap}
+          needsLevel={needsLevel}
+          needsThreshold={needsThreshold}
           activeCity={activeCity}
           schoolFeatures={schoolFeatures}
           schoolTypes={schoolTypes}
@@ -500,6 +572,35 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
             onLevelChange={setProgressLevel}
             health={progressHealth}
             loading={progressLoading}
+          />
+        )}
+
+        {/* Needs Lens toolbar — shown when needsMode is on */}
+        {needsMode && (
+          <NeedsToolbar
+            onClose={toggleNeeds}
+            heatmap={needsHeatmap}
+            domain={needsDomain}
+            metric={needsMetric}
+            level={needsLevel}
+            threshold={needsThreshold}
+            loading={needsLoading}
+            onDomainChange={(d) => {
+              setNeedsDomain(d);
+              setNeedsThreshold(0);
+              fetchNeedsHeatmap(d, needsMetric, needsLevel);
+            }}
+            onMetricChange={(m) => {
+              setNeedsMetric(m);
+              setNeedsThreshold(0);
+              fetchNeedsHeatmap(needsDomain, m, needsLevel);
+            }}
+            onLevelChange={(l) => {
+              setNeedsLevel(l);
+              setNeedsThreshold(0);
+              fetchNeedsHeatmap(needsDomain, needsMetric, l);
+            }}
+            onThresholdChange={setNeedsThreshold}
           />
         )}
 
@@ -582,6 +683,17 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
               <path strokeLinecap="round" d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
             </svg>
             Progress
+          </button>
+          <button
+            onClick={toggleNeeds}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-semibold transition-colors active:bg-slate-50 border-r border-slate-100 ${
+              needsMode ? "text-teal-600" : "text-slate-700"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Needs
           </button>
           <button
             onClick={() => { setStatsOpen((o) => !o); setSelectedSettlement(null); }}
