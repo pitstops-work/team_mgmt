@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 
 export type NeedsMetric = "demand" | "addressable" | "existing" | "gap" | "done_pct" | "planned" | "deficit";
 export type NeedsLevel = "settlement" | "cluster" | "zone";
@@ -59,6 +60,7 @@ export default function NeedsToolbar({
   onClose, heatmap, domain, metric, level, threshold,
   loading, onDomainChange, onMetricChange, onLevelChange, onThresholdChange,
 }: NeedsToolbarProps) {
+  const [collapsed, setCollapsed] = useState(false);
   const allDomains = heatmap?.allDomains ?? [];
   const domainInfo = heatmap?.domain ?? allDomains.find(d => d.domain === domain) ?? null;
   const values = heatmap?.values ?? {};
@@ -71,37 +73,56 @@ export default function NeedsToolbar({
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5);
 
+  const metricLabel = METRIC_OPTIONS.find(m => m.value === metric)?.label ?? metric;
+  const levelLabel = LEVEL_OPTIONS.find(l => l.value === level)?.label ?? level;
+
   return (
     <div
       className="absolute top-14 right-3 z-10 bg-white/97 backdrop-blur-sm rounded-xl border border-slate-200 shadow-xl w-64 sm:w-72 overflow-hidden"
-      style={{ maxHeight: "min(420px,calc(100vh - 8rem))" }}
     >
-      <div className="overflow-y-auto" style={{ maxHeight: "min(420px,calc(100vh - 8rem))" }}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 bg-slate-50 sticky top-0 z-10">
-          <div className="flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
+      {/* Header — always visible; click chevron to collapse */}
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 bg-slate-50">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <svg className="w-3.5 h-3.5 text-teal-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          {collapsed && domainInfo ? (
+            <span className="text-xs font-semibold text-slate-700 truncate">
+              {domainInfo.label} · {metricLabel} · {levelLabel}
+            </span>
+          ) : (
             <span className="text-xs font-bold text-slate-700">Needs Lens</span>
-            {loading && (
-              <svg className="w-3 h-3 text-slate-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            )}
-          </div>
+          )}
+          {loading && (
+            <svg className="w-3 h-3 text-slate-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => setCollapsed(c => !c)}
+            className="text-slate-400 hover:text-slate-600 transition-colors p-0.5"
+            aria-label={collapsed ? "Expand" : "Collapse"}
+          >
+            <svg className={`w-3.5 h-3.5 transition-transform ${collapsed ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-slate-400 hover:text-slate-600 transition-colors p-0.5"
             aria-label="Close"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
+      </div>
+
+      {!collapsed && <div className="overflow-y-auto" style={{ maxHeight: "min(380px,calc(100vh - 9rem))" }}>
 
         {/* Domain pills */}
         <div className="px-3 pt-3 pb-2">
@@ -236,7 +257,7 @@ export default function NeedsToolbar({
         {!loading && heatmap && !heatmap.hasData && (
           <div className="px-3 pb-3 text-xs text-slate-400 text-center italic">No data for this selection</div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

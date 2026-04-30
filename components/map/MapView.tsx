@@ -1445,18 +1445,25 @@ export default function MapView({
         ]);
       }
     } else {
-      src.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
-      if (map?.getLayer("clusters-fill")) {
-        map?.setPaintProperty("clusters-fill", "fill-color", [
-          "case",
-          ["==", ["get", "health"], "red"],   HEALTH_COLORS.red,
-          ["==", ["get", "health"], "amber"],  HEALTH_COLORS.amber,
-          ["==", ["get", "health"], "green"],  HEALTH_COLORS.green,
-          ["get", "color"],
-        ]);
-        map?.setPaintProperty("clusters-fill", "fill-opacity", [
-          "case", ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18, 0.09,
-        ]);
+      // Don't reset data or paint when needs mode is active — needs effect owns these
+      if (!needsModeRef.current) {
+        src.setData({ type: "FeatureCollection", features: clusterFeaturesRef.current });
+        if (map?.getLayer("clusters-fill")) {
+          map?.setPaintProperty("clusters-fill", "fill-color", [
+            "case",
+            ["==", ["get", "health"], "needs"],  ["coalesce", ["get", "needsColor"], "#f1f5f9"],
+            ["==", ["get", "health"], "red"],     HEALTH_COLORS.red,
+            ["==", ["get", "health"], "amber"],   HEALTH_COLORS.amber,
+            ["==", ["get", "health"], "green"],   HEALTH_COLORS.green,
+            ["get", "color"],
+          ]);
+          map?.setPaintProperty("clusters-fill", "fill-opacity", [
+            "case",
+            ["==", ["get", "health"], "needs"],  0.72,
+            ["in", ["get", "health"], ["literal", ["red", "amber", "green"]]], 0.18,
+            0.09,
+          ]);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1481,7 +1488,7 @@ export default function MapView({
         map.flyTo({ center: CITY_CENTERS[activeCity].center, zoom: CITY_CENTERS[activeCity].zoom, duration: 800 });
       }
       const src = map.getSource("zones-source") as maplibregl.GeoJSONSource | undefined;
-      if (src && zoneFeaturesRef.current.length > 0) {
+      if (src && zoneFeaturesRef.current.length > 0 && !needsModeRef.current) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const enriched = zoneFeaturesRef.current.map((f: any) => ({
           ...f, properties: { ...f.properties, active: f.properties?.id === activeZone ? 1 : 0 },
@@ -1522,7 +1529,7 @@ export default function MapView({
       }
 
       const src = map.getSource("clusters-source") as maplibregl.GeoJSONSource | undefined;
-      if (src && clusterFeaturesRef.current.length > 0) {
+      if (src && clusterFeaturesRef.current.length > 0 && !needsModeRef.current) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const enriched = clusterFeaturesRef.current.map((f: any) => ({
           ...f, properties: { ...f.properties, active: f.properties?.cluster === activeCluster ? 1 : 0 },
