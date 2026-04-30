@@ -69,14 +69,14 @@ export default function NeedsToolbar({
   const entries = Object.entries(values)
     .filter(([, v]) => v >= threshold)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 10);
+    .slice(0, 5);
 
   return (
     <div
-      className="absolute bottom-28 sm:bottom-6 left-3 z-10 bg-white/97 backdrop-blur-sm rounded-xl border border-slate-200 shadow-xl w-72 overflow-hidden"
-      style={{ maxHeight: "min(520px,80vh)" }}
+      className="absolute top-14 right-3 z-10 bg-white/97 backdrop-blur-sm rounded-xl border border-slate-200 shadow-xl w-64 sm:w-72 overflow-hidden"
+      style={{ maxHeight: "min(420px,calc(100vh - 8rem))" }}
     >
-      <div className="overflow-y-auto" style={{ maxHeight: "min(520px,80vh)" }}>
+      <div className="overflow-y-auto" style={{ maxHeight: "min(420px,calc(100vh - 8rem))" }}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 bg-slate-50 sticky top-0 z-10">
