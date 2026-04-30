@@ -84,15 +84,36 @@ export async function GET(req: Request) {
 
   const assessmentMap = new Map(assessments.map(a => [a.settlementId, a]));
 
-  // GoalOutcome aggregation for done_pct/deficit
-  const outcomeMap = new Map<string, number>();
+  // "Done" = completed goals with parameter, distributed to settlements like plannedMap
+  const doneMap = new Map<string, number>();
   if (metric === "done_pct" || metric === "deficit") {
-    const outcomes = await prisma.goalOutcome.findMany({
-      where: { goal: { needsDomain: domain, deletedAt: null }, settlementId: { in: settlementIds } },
-      select: { settlementId: true, count: true },
+    const clusterToSettlements = new Map<string, string[]>();
+    const zoneToSettlements = new Map<string, string[]>();
+    for (const s of settlements) {
+      const cid = s.cluster.id;
+      const zid = s.cluster.zone.id;
+      if (!clusterToSettlements.has(cid)) clusterToSettlements.set(cid, []);
+      if (!zoneToSettlements.has(zid)) zoneToSettlements.set(zid, []);
+      clusterToSettlements.get(cid)!.push(s.id);
+      zoneToSettlements.get(zid)!.push(s.id);
+    }
+    const doneGoals = await prisma.goal.findMany({
+      where: { needsDomain: domain, deletedAt: null, status: "Complete" },
+      select: { parameter: true, needsSettlementId: true, needsClusterId: true, needsZoneId: true },
     });
-    for (const o of outcomes) {
-      outcomeMap.set(o.settlementId, (outcomeMap.get(o.settlementId) ?? 0) + o.count);
+    for (const g of doneGoals) {
+      const param = g.parameter ?? 0;
+      if (g.needsSettlementId) {
+        doneMap.set(g.needsSettlementId, (doneMap.get(g.needsSettlementId) ?? 0) + param);
+      } else if (g.needsClusterId) {
+        const sids = clusterToSettlements.get(g.needsClusterId) ?? [];
+        const share = sids.length > 0 ? param / sids.length : 0;
+        for (const sid of sids) doneMap.set(sid, (doneMap.get(sid) ?? 0) + share);
+      } else if (g.needsZoneId) {
+        const sids = zoneToSettlements.get(g.needsZoneId) ?? [];
+        const share = sids.length > 0 ? param / sids.length : 0;
+        for (const sid of sids) doneMap.set(sid, (doneMap.get(sid) ?? 0) + share);
+      }
     }
   }
 
@@ -164,7 +185,7 @@ export async function GET(req: Request) {
     const addressableField = ADDRESSABLE_FIELD[domain];
     const addressable = addressableField ? ((a as unknown as Record<string, number | null>)[addressableField] ?? 0) : 0;
     const gap = Math.max(0, demand - existing);
-    const done = outcomeMap.get(s.id) ?? 0;
+    const done = doneMap.get(s.id) ?? 0;
     const done_pct = demand > 0 ? Math.round((done / demand) * 100) : 0;
     const planned = Math.round(plannedMap.get(s.id) ?? 0);
     const deficit = Math.max(0, gap - planned);
@@ -202,7 +223,7 @@ export async function GET(req: Request) {
         if (a) {
           const pop = { totalHouseholds: a.totalHouseholds, children6m3yr: a.children6m3yr, children4to14: a.children4to14, youth15to21: a.youth15to21, elderly60plus: a.elderly60plus };
           entry.sumDem += (calcTargets(pop, [domainRow as FormulaRow]) as Record<string, number>)[domain] ?? 0;
-          entry.sumNum += outcomeMap.get(s.id) ?? 0;
+          entry.sumNum += doneMap.get(s.id) ?? 0;
         }
       } else {
         entry.sumNum += settlementValues.get(s.id) ?? 0;
@@ -223,7 +244,7 @@ export async function GET(req: Request) {
         if (a) {
           const pop = { totalHouseholds: a.totalHouseholds, children6m3yr: a.children6m3yr, children4to14: a.children4to14, youth15to21: a.youth15to21, elderly60plus: a.elderly60plus };
           entry.sumDem += (calcTargets(pop, [domainRow as FormulaRow]) as Record<string, number>)[domain] ?? 0;
-          entry.sumNum += outcomeMap.get(s.id) ?? 0;
+          entry.sumNum += doneMap.get(s.id) ?? 0;
         }
       } else {
         entry.sumNum += settlementValues.get(s.id) ?? 0;
