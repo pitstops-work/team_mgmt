@@ -3735,10 +3735,17 @@ function ZLTodayTab({
   );
 }
 
-// ── RP Today tab — tile overview + drill-down ─────────────────────────────────
+// ── RP Today tab — flat priority list ────────────────────────────────────────
 
 const PITSTOP_STATUS_PRIORITY: Record<string, number> = {
   InProgress: 0, Upcoming: 1, Blocked: 2,
+};
+
+const ACTIVITY_TYPE_STYLE: Record<string, string> = {
+  Visit:    "bg-violet-100 text-violet-700",
+  Meeting:  "bg-sky-100 text-sky-700",
+  Training: "bg-emerald-100 text-emerald-700",
+  Event:    "bg-amber-100 text-amber-700",
 };
 
 function RPTodayTab({
@@ -3754,18 +3761,16 @@ function RPTodayTab({
   weekChecklists: ChecklistItem[];
   doneActivities: Activity[];
 }) {
-  type Bucket = "overdue" | "today" | "week" | "checklists" | "done";
-  const [bucket, setBucket] = useState<Bucket | null>(null);
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
-  const [expandedSlaGroups, setExpandedSlaGroups] = useState<Set<string>>(new Set());
-  const [checklistGoalFilter, setChecklistGoalFilter] = useState<string>("all");
+  const [weekExpanded, setWeekExpanded] = useState(false);
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  const todayMs = new Date(now.toDateString()).getTime();
 
-  // Bucket: overdue — past + past-due-today, still Scheduled
+  // Overdue: past activities + past-due-today, still Scheduled, oldest first
   const pastDueToday = todayActivities.filter(
     a => new Date(a.scheduledAt) < now && a.status === "Scheduled" && !doneIds.has(a.id)
   );
@@ -3774,39 +3779,27 @@ function RPTodayTab({
     ...pastDueToday,
   ].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
-  // Bucket: today — scheduled for today, not yet past due
+  // Today: upcoming (not yet past), still Scheduled
   const todayItems = todayActivities.filter(
     a => new Date(a.scheduledAt) >= now && a.status === "Scheduled" && !doneIds.has(a.id)
   );
 
-  // Bucket: rest of week — after today, still Scheduled
+  // Rest of week
   const weekItems = weekActivities.filter(
     a => new Date(a.scheduledAt) > todayEnd && a.status === "Scheduled"
   );
 
-  // Bucket: checklists — open items
-  const openChecklists = weekChecklists.filter(ci => !completedItemIds.has(ci.id));
-  const checklistGoals = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const ci of openChecklists) seen.set(ci.pitstop.goal.id, ci.pitstop.goal.title);
-    return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [openChecklists]);
-  const checklistBySlaDate = useMemo(() => {
-    const filtered = checklistGoalFilter === "all"
-      ? openChecklists
-      : openChecklists.filter(ci => ci.pitstop.goal.id === checklistGoalFilter);
-    const map: Record<string, ChecklistItem[]> = {};
-    for (const ci of filtered) {
-      const key = ci.pitstop.targetDate ? ci.pitstop.targetDate.slice(0, 10) : "no-date";
-      if (!map[key]) map[key] = [];
-      map[key].push(ci);
-    }
-    return Object.entries(map).sort(([a], [b]) => {
-      if (a === "no-date") return 1;
-      if (b === "no-date") return -1;
-      return new Date(a).getTime() - new Date(b).getTime();
-    });
-  }, [openChecklists, checklistGoalFilter]);
+  // Checklists sorted overdue-first, then by pitstop targetDate
+  const openChecklists = useMemo(() =>
+    weekChecklists
+      .filter(ci => !completedItemIds.has(ci.id))
+      .sort((a, b) => {
+        const aMs = a.pitstop.targetDate ? new Date(a.pitstop.targetDate).getTime() : Infinity;
+        const bMs = b.pitstop.targetDate ? new Date(b.pitstop.targetDate).getTime() : Infinity;
+        return aMs - bMs;
+      }),
+    [weekChecklists, completedItemIds]
+  );
 
   async function handleDone(eventId: string) {
     setLoadingDoneId(eventId);
@@ -3822,278 +3815,133 @@ function RPTodayTab({
     }
   }
 
-  function toggleSlaGroup(key: string) {
-    setExpandedSlaGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
+  function ActivityRow({ a, isOverdue }: { a: Activity; isOverdue: boolean }) {
+    const done = doneIds.has(a.id);
+    return (
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+        done ? "border-emerald-200 bg-emerald-50 opacity-60"
+        : isOverdue ? "border-amber-200 bg-amber-50"
+        : "border-stone-200 bg-white"
+      }`}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+            {a.type && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
+                {a.type}
+              </span>
+            )}
+          </div>
+          <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
+            {isOverdue
+              ? `${daysAgo(a.scheduledAt)}d ago${a.location ? ` · ${a.location}` : ""}`
+              : `${fmtTime(a.scheduledAt)}${a.location ? ` · ${a.location}` : ""}`
+            }
+          </p>
+        </div>
+        {done ? (
+          <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+        ) : (
+          <button
+            onClick={() => handleDone(a.id)}
+            disabled={loadingDoneId === a.id}
+            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0"
+          >
+            {loadingDoneId === a.id ? "…" : "Done"}
+          </button>
+        )}
+      </div>
+    );
   }
 
-  // Activity drill-down list — used by overdue, today, week buckets
-  function ActivityDrillList({
-    items,
-    showDone,
-    emptyMsg,
-  }: {
-    items: Activity[];
-    showDone: boolean;
-    emptyMsg: string;
-  }) {
-    if (items.length === 0) return <EmptyState message={emptyMsg} />;
+  const allEmpty = overdueItems.length === 0 && todayItems.length === 0 && openChecklists.length === 0;
 
-    // Group by day for week view
-    const grouped: Record<string, Activity[]> = {};
-    for (const a of items) {
-      const day = new Date(a.scheduledAt).toDateString();
-      if (!grouped[day]) grouped[day] = [];
-      grouped[day].push(a);
-    }
-    const days = Object.keys(grouped);
+  return (
+    <div className="space-y-8">
 
-    return (
-      <div className="space-y-4">
-        {days.map(day => (
-          <div key={day}>
-            {days.length > 1 && (
-              <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-2">
-                {fmtDate(grouped[day][0].scheduledAt)}
-              </p>
-            )}
+      {/* Needs your update */}
+      {overdueItems.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 mb-3">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+            <SectionTitle>Needs your update</SectionTitle>
+          </div>
+          <div className="space-y-2">
+            {overdueItems.map(a => <ActivityRow key={a.id} a={a} isOverdue />)}
+          </div>
+        </div>
+      )}
+
+      {/* Today */}
+      <div>
+        <SectionTitle>Today</SectionTitle>
+        {todayItems.length === 0
+          ? <EmptyState message={overdueItems.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
+          : <div className="space-y-2">{todayItems.map(a => <ActivityRow key={a.id} a={a} isOverdue={false} />)}</div>
+        }
+      </div>
+
+      {/* Open checklists */}
+      {openChecklists.length > 0 && (
+        <div>
+          <SectionTitle>Open checklists</SectionTitle>
+          <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100 overflow-hidden">
+            {openChecklists.map(ci => {
+              const pitstopMs = ci.pitstop.targetDate ? new Date(ci.pitstop.targetDate).getTime() : null;
+              const isOverdueChecklist = pitstopMs !== null && pitstopMs < todayMs;
+              return (
+                <div key={ci.id} className={isOverdueChecklist ? "bg-amber-50" : undefined}>
+                  <RPChecklistRow
+                    item={ci}
+                    onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* All clear */}
+      {allEmpty && (
+        <EmptyState message="You're all caught up for today." />
+      )}
+
+      {/* Coming up this week */}
+      {weekItems.length > 0 && (
+        <div>
+          <button
+            onClick={() => setWeekExpanded(e => !e)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-400 uppercase tracking-wider hover:text-stone-600 transition-colors mb-2"
+          >
+            Coming up this week ({weekItems.length})
+            {weekExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+          {weekExpanded && (
             <div className="space-y-2">
-              {grouped[day].map(a => (
-                <div
-                  key={a.id}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
-                    doneIds.has(a.id)
-                      ? "border-emerald-200 bg-emerald-50 opacity-60"
-                      : a.status === "Done"
-                      ? "border-emerald-200 bg-emerald-50"
-                      : bucket === "overdue"
-                      ? "border-amber-200 bg-amber-50"
-                      : "border-stone-200 bg-white"
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+              {weekItems.map(a => (
+                <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                    <p className={`text-xs mt-0.5 ${bucket === "overdue" ? "text-amber-700" : "text-stone-400"}`}>
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
+                      {a.type && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
+                          {a.type}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-stone-400">
                       {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}
                       {a.location ? ` · ${a.location}` : ""}
                     </p>
                   </div>
-                  {a.status === "Done" || doneIds.has(a.id) ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  ) : showDone ? (
-                    <div className="flex gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => handleDone(a.id)}
-                        disabled={loadingDoneId === a.id}
-                        className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
-                      >
-                        {loadingDoneId === a.id ? "…" : "Done"}
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
               ))}
             </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Checklist drill-down — grouped by SLA date, filterable by goal
-  function ChecklistDrillList() {
-    if (openChecklists.length === 0) return <EmptyState message="No open checklist items." />;
-    const todayMs = new Date(new Date().toDateString()).getTime();
-    return (
-      <div className="space-y-3">
-        {checklistGoals.length > 1 && (
-          <select
-            value={checklistGoalFilter}
-            onChange={e => setChecklistGoalFilter(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700"
-          >
-            <option value="all">All goals</option>
-            {checklistGoals.map(([id, title]) => (
-              <option key={id} value={id}>{title}</option>
-            ))}
-          </select>
-        )}
-        {checklistBySlaDate.length === 0 && <EmptyState message="No items for this goal." />}
-        {checklistBySlaDate.map(([dateKey, items]) => {
-          const expanded = expandedSlaGroups.has(dateKey);
-          let label: string;
-          let isOverdue = false;
-          if (dateKey === "no-date") {
-            label = "No due date";
-          } else {
-            const dMs = new Date(dateKey).getTime();
-            if (dMs === todayMs) {
-              label = "Due today";
-            } else if (dMs < todayMs) {
-              isOverdue = true;
-              label = `Overdue · ${fmtDate(dateKey)}`;
-            } else {
-              label = `Due ${fmtDate(dateKey)}`;
-            }
-          }
-          return (
-            <div key={dateKey} className={`rounded-xl border overflow-hidden ${isOverdue ? "border-amber-200" : "border-stone-200"}`}>
-              <button
-                onClick={() => toggleSlaGroup(dateKey)}
-                className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${isOverdue ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${isOverdue ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
-                  <p className="text-xs text-stone-400">{items.length} item{items.length !== 1 ? "s" : ""}</p>
-                </div>
-                {expanded
-                  ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
-                  : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
-                }
-              </button>
-              {expanded && (
-                <div className="divide-y divide-stone-100">
-                  {items.map(ci => (
-                    <RPChecklistRow
-                      key={ci.id}
-                      item={ci}
-                      onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  // Tile grid
-  const tiles: {
-    key: Bucket; label: string; sub: string; count: number;
-    bg: string; border: string; numColor: string; icon: React.ReactNode;
-  }[] = [
-    {
-      key: "overdue",
-      label: "Needs action",
-      sub: "Past activities without update",
-      count: overdueItems.length,
-      bg: "bg-amber-50", border: "border-amber-200", numColor: "text-amber-600",
-      icon: <AlertTriangle className="w-5 h-5 text-amber-500" />,
-    },
-    {
-      key: "today",
-      label: "Today",
-      sub: "Activities scheduled for today",
-      count: todayItems.length,
-      bg: "bg-sky-50", border: "border-sky-200", numColor: "text-sky-600",
-      icon: <CalendarClock className="w-5 h-5 text-sky-500" />,
-    },
-    {
-      key: "week",
-      label: "Rest of week",
-      sub: "Activities scheduled this week",
-      count: weekItems.length,
-      bg: "bg-indigo-50", border: "border-indigo-200", numColor: "text-indigo-600",
-      icon: <Clock className="w-5 h-5 text-indigo-500" />,
-    },
-    {
-      key: "checklists",
-      label: "Open checklists",
-      sub: "Checklist items not yet done",
-      count: openChecklists.length,
-      bg: "bg-violet-50", border: "border-violet-200", numColor: "text-violet-600",
-      icon: <CheckSquare className="w-5 h-5 text-violet-500" />,
-    },
-    {
-      key: "done",
-      label: "Past updated",
-      sub: "Activities already marked done",
-      count: doneActivities.length,
-      bg: "bg-emerald-50", border: "border-emerald-200", numColor: "text-emerald-600",
-      icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
-    },
-  ];
-
-  // Drill-down view
-  if (bucket !== null) {
-    const tile = tiles.find(t => t.key === bucket)!;
-    return (
-      <div>
-        <button
-          onClick={() => setBucket(null)}
-          className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 mb-5 transition-colors"
-        >
-          <ChevronDown className="w-4 h-4 rotate-90" />
-          Back to overview
-        </button>
-        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${tile.border} ${tile.bg} mb-5`}>
-          {tile.icon}
-          <div>
-            <p className="text-sm font-semibold text-stone-800">{tile.label}</p>
-            <p className="text-xs text-stone-500">{tile.sub}</p>
-          </div>
-          <span className={`ml-auto text-2xl font-bold ${tile.numColor}`}>{tile.count}</span>
-        </div>
-
-        {bucket === "overdue" && (
-          <ActivityDrillList items={overdueItems} showDone emptyMsg="No overdue activities." />
-        )}
-        {bucket === "today" && (
-          <ActivityDrillList items={todayItems} showDone emptyMsg="No activities remaining today." />
-        )}
-        {bucket === "week" && (
-          <ActivityDrillList items={weekItems} showDone={false} emptyMsg="No activities scheduled for the rest of this week." />
-        )}
-        {bucket === "checklists" && <ChecklistDrillList />}
-        {bucket === "done" && (
-          <ActivityDrillList items={doneActivities} showDone={false} emptyMsg="No past activities marked done yet." />
-        )}
-      </div>
-    );
-  }
-
-  // Tile overview
-  return (
-    <div>
-      <div className="grid grid-cols-2 gap-3">
-        {tiles.map((t, idx) => (
-          <button
-            key={t.key}
-            onClick={() => setBucket(t.key)}
-            className={`text-left px-4 py-4 rounded-xl border ${t.border} ${t.bg} hover:shadow-sm transition-all ${
-              idx === tiles.length - 1 && tiles.length % 2 !== 0 ? "col-span-2" : ""
-            }`}
-          >
-            <div className="flex items-start justify-between gap-2 mb-2">
-              {t.icon}
-              <span className={`text-3xl font-bold leading-none ${t.numColor}`}>{t.count}</span>
-            </div>
-            <p className="text-sm font-semibold text-stone-800">{t.label}</p>
-            <p className="text-[11px] text-stone-500 mt-0.5">{t.sub}</p>
-          </button>
-        ))}
-      </div>
-
-      {overdueItems.length > 0 && (
-        <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50">
-          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-          <p className="text-sm text-amber-700 font-medium flex-1">
-            {overdueItems.length} activit{overdueItems.length === 1 ? "y" : "ies"} overdue — tap to update
-          </p>
-          <button
-            onClick={() => setBucket("overdue")}
-            className="text-xs font-semibold text-amber-700 hover:text-amber-900"
-          >
-            View →
-          </button>
+          )}
         </div>
       )}
+
     </div>
   );
 }
