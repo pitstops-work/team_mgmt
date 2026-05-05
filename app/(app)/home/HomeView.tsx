@@ -4194,8 +4194,7 @@ function AdminCoverageTab({ dash }: { dash: AdminDash }) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const RP_TABS = [
-  { key: "today",    label: "Today",          icon: CalendarClock },
-  { key: "coverage", label: "Field Coverage", icon: BarChart3 },
+  { key: "today", label: "Today", icon: CalendarClock },
 ] as const;
 
 const ZL_TABS = [
