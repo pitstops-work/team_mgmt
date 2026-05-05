@@ -29,7 +29,7 @@ type ChecklistItem = {
   pitstop: {
     id: string; title: string; targetDate: string | null; status: string; ownerId: string;
     owner: { id: string; name: string | null };
-    goal: { id: string; title: string };
+    goal: { id: string; title: string; needsDomain: string | null; needsCluster: { id: string; name: string } | null };
   };
 };
 
@@ -3748,6 +3748,200 @@ const ACTIVITY_TYPE_STYLE: Record<string, string> = {
   Event:    "bg-amber-100 text-amber-700",
 };
 
+function fmtDomain(d: string) {
+  return d.replace(/([A-Z])/g, " $1").trim();
+}
+
+// ── RP overdue card — rich card for mobile carousel ───────────────────────────
+
+function RPOverdueCard({
+  a, linkedChecklist, onDone, onCompleted, isLoadingDone,
+}: {
+  a: Activity;
+  linkedChecklist: ChecklistItem | null;
+  onDone: (eventId: string) => void;
+  onCompleted: (checklistItemId: string) => void;
+  isLoadingDone: boolean;
+}) {
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
+  const [uploading, setUploading] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const completionType = linkedChecklist?.completionType ?? "Activity";
+  const isBusy = voiceState !== "idle" || uploading || isLoadingDone;
+  const goal = linkedChecklist?.pitstop.goal;
+  const domainLabel = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
+  const clusterName = goal?.needsCluster?.name ?? null;
+
+  async function startVoiceLog() {
+    if (!linkedChecklist) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setVoiceState("processing");
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const fd = new FormData();
+        fd.append("audio", blob, "voice.webm");
+        const res = await fetch(`/api/checklist/${linkedChecklist.id}/voice`, { method: "POST", body: fd });
+        if (res.ok) onCompleted(linkedChecklist.id);
+        setVoiceState("idle");
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setVoiceState("recording");
+    } catch { setVoiceState("idle"); }
+  }
+
+  function stopVoiceLog() { mediaRecorderRef.current?.stop(); }
+
+  async function handleAttach(file: File) {
+    if (!linkedChecklist) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("checklistItemId", linkedChecklist.id);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    setUploading(false);
+    if (res.ok) onCompleted(linkedChecklist.id);
+  }
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col gap-3 shadow-sm min-h-[180px]">
+      {/* Domain + cluster badges */}
+      {(domainLabel || clusterName) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {domainLabel && (
+            <span className="text-[11px] font-semibold text-amber-700 bg-white border border-amber-200 px-2 py-0.5 rounded-full">
+              {domainLabel}
+            </span>
+          )}
+          {clusterName && (
+            <span className="text-[11px] text-stone-500 bg-white border border-stone-200 px-2 py-0.5 rounded-full">
+              {clusterName}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Title + meta */}
+      <div className="flex-1">
+        <p className="text-base font-semibold text-stone-800 leading-snug mb-2">{a.title}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {a.type && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
+              {a.type}
+            </span>
+          )}
+          <span className="text-xs font-medium text-amber-700">{daysAgo(a.scheduledAt)}d overdue</span>
+          {a.location && <span className="text-xs text-stone-400 truncate">· {a.location}</span>}
+        </div>
+      </div>
+
+      {/* Action */}
+      {completionType === "Activity" && (
+        <button onClick={() => onDone(a.id)} disabled={isBusy}
+          className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-semibold text-sm transition-colors">
+          {isLoadingDone ? "Updating…" : "Mark Done"}
+        </button>
+      )}
+      {completionType === "Voice" && (
+        voiceState === "recording"
+          ? <button onClick={stopVoiceLog} className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-sm transition-colors">Stop Recording</button>
+          : voiceState === "idle" && !isBusy
+            ? <button onClick={startVoiceLog} className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition-colors">
+                <Mic className="w-4 h-4" /> Record Voice Log
+              </button>
+            : null
+      )}
+      {completionType === "Upload" && !isBusy && (
+        <>
+          <button onClick={() => fileInputRef.current?.click()}
+            className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-semibold text-stone-600 bg-white hover:bg-stone-50 border border-stone-200 rounded-xl transition-colors">
+            <Paperclip className="w-4 h-4" /> Attach File
+          </button>
+          <input type="file" ref={fileInputRef} className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleAttach(f); e.target.value = ""; }} />
+        </>
+      )}
+      {(voiceState === "processing" || uploading) && (
+        <div className="w-full py-2.5 flex items-center justify-center gap-2 text-sm text-stone-400">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {voiceState === "processing" ? "Transcribing…" : "Uploading…"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── RP overdue carousel — horizontal scroll-snap for mobile ───────────────────
+
+function RPOverdueCarousel({
+  overdueItems, activityChecklistMap, loadingDoneId, onDone, onCompleted,
+}: {
+  overdueItems: Activity[];
+  activityChecklistMap: Map<string, ChecklistItem>;
+  loadingDoneId: string | null;
+  onDone: (eventId: string) => void;
+  onCompleted: (checklistItemId: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [currentIdx, setCurrentIdx] = useState(0);
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCurrentIdx(Math.round(el.scrollLeft / el.clientWidth));
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+          <SectionTitle>Needs your update</SectionTitle>
+        </div>
+        {overdueItems.length > 1 && (
+          <span className="text-xs text-stone-400 tabular-nums">{currentIdx + 1} of {overdueItems.length}</span>
+        )}
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {overdueItems.map(a => (
+          <div key={a.id} className="snap-start flex-shrink-0 w-full pr-[1px]">
+            <RPOverdueCard
+              a={a}
+              linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+              onDone={onDone} onCompleted={onCompleted}
+              isLoadingDone={loadingDoneId === a.id}
+            />
+          </div>
+        ))}
+      </div>
+
+      {overdueItems.length > 1 && (
+        <div className="flex justify-center gap-1.5 mt-3">
+          {overdueItems.map((_, i) => (
+            <div key={i} className={`h-1.5 rounded-full transition-all duration-200 ${
+              i === currentIdx ? "w-4 bg-amber-500" : "w-1.5 bg-stone-200"
+            }`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RPActivityRow({
   a, isOverdue, linkedChecklist, onDone, onCompleted, isLoadingDone,
 }: {
@@ -3966,21 +4160,34 @@ function RPTodayTab({
 
       {/* Needs your update */}
       {overdueItems.length > 0 && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-3">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-            <SectionTitle>Needs your update</SectionTitle>
+        <>
+          {/* Mobile: swipeable card carousel */}
+          <div className="sm:hidden">
+            <RPOverdueCarousel
+              overdueItems={overdueItems}
+              activityChecklistMap={activityChecklistMap}
+              loadingDoneId={loadingDoneId}
+              onDone={handleDone}
+              onCompleted={handleCompleted}
+            />
           </div>
-          <div className="space-y-2">
-            {overdueItems.map(a => (
-              <RPActivityRow key={a.id} a={a} isOverdue
-                linkedChecklist={activityChecklistMap.get(a.id) ?? null}
-                onDone={handleDone} onCompleted={handleCompleted}
-                isLoadingDone={loadingDoneId === a.id}
-              />
-            ))}
+          {/* Desktop: vertical list */}
+          <div className="hidden sm:block">
+            <div className="flex items-center gap-1.5 mb-3">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+              <SectionTitle>Needs your update</SectionTitle>
+            </div>
+            <div className="space-y-2">
+              {overdueItems.map(a => (
+                <RPActivityRow key={a.id} a={a} isOverdue
+                  linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                  onDone={handleDone} onCompleted={handleCompleted}
+                  isLoadingDone={loadingDoneId === a.id}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Today */}

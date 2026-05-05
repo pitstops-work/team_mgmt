@@ -358,7 +358,7 @@ export default async function HomePage() {
             id: true, title: true, targetDate: true, status: true,
             ownerId: true,
             owner: { select: { id: true, name: true } },
-            goal: { select: { id: true, title: true } },
+            goal: { select: { id: true, title: true, needsDomain: true, needsCluster: { select: { id: true, name: true } } } },
           },
         },
       },
