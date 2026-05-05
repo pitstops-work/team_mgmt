@@ -599,11 +599,16 @@ function NeedsActionPanel({ events, currentUserId, onUpdated }: {
   onUpdated: (id: string, patch: Partial<PitstopEvent>) => void;
 }) {
   const todayYMD = toYMD(new Date());
-  const actionable = events.filter(ev =>
-    ev.status === "Scheduled" &&
-    ev.scheduledAt.slice(0, 10) <= todayYMD &&
-    ev.attendees.some(a => a.userId === currentUserId)
-  ).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+  const actionable = events.filter(ev => {
+    if (ev.status !== "Scheduled") return false;
+    if (ev.scheduledAt.slice(0, 10) > todayYMD) return false;
+    // For pitstop-linked events: only the pitstop owner needs to log the activity
+    if (ev.pitstops.length > 0) {
+      return ev.pitstops.some(p => p.pitstop.owner.id === currentUserId);
+    }
+    // For standalone events: any attendee needs to act
+    return ev.attendees.some(a => a.userId === currentUserId);
+  }).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
 
   const [active, setActive] = useState<{ id: string; action: ActionType }>({ id: "", action: null });
   const [reason, setReason] = useState("");
