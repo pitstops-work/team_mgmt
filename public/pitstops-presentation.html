@@ -93,6 +93,22 @@ p.body{font-size:16px;line-height:1.7;color:#cbd5e1}
 .dom-youth{color:#34d399}
 .dom-elderly{color:#fb923c}
 .dom-water{color:#22d3ee}
+
+/* ── Mobile ───────────────────────────────────────── */
+@media (max-width:640px){
+  .slide{padding:24px 16px 88px;overflow-y:auto}
+  h1.hero{font-size:32px;letter-spacing:-0.5px}
+  h2.title{font-size:22px;letter-spacing:-0.2px}
+  h3.sub{font-size:14px;margin-bottom:16px}
+  .stat .num{font-size:26px}
+  .stat{padding:12px 10px}
+  p.body{font-size:14px}
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  .flex,.flex-center{flex-wrap:wrap}
+  .mock-screen{display:none!important}
+  #nav{padding:8px 16px;bottom:16px}
+  .icon-circle{width:38px;height:38px;font-size:18px}
+}
 </style>
 </head>
 <body>
@@ -1370,10 +1386,28 @@ const slides = document.querySelectorAll('.slide');
 const total = slides.length;
 let cur = 0;
 
+// On mobile: convert inline horizontal flex panels to column layout
+function applyMobileLayout() {
+  if (window.innerWidth > 640) return;
+  document.querySelectorAll('.slide div').forEach(el => {
+    if (el.style.display === 'flex' && el.style.flexDirection !== 'column') {
+      const hasFlexCol = Array.from(el.children).some(c => c.style && c.style.flex && c.style.flex.startsWith('1'));
+      if (hasFlexCol) {
+        el.style.flexDirection = 'column';
+        el.style.alignItems = '';
+        el.style.gap = '16px';
+      } else {
+        el.style.flexWrap = 'wrap';
+      }
+    }
+  });
+}
+
 function render() {
   slides.forEach((s,i) => {
     s.style.display = i === cur ? 'flex' : 'none';
     s.style.opacity = i === cur ? '1' : '0';
+    if (i === cur) s.scrollTop = 0;
   });
   document.getElementById('slide-counter').textContent = `${cur+1} / ${total}`;
   document.getElementById('progress').style.width = `${((cur+1)/total)*100}%`;
@@ -1389,14 +1423,16 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') go(-1);
 });
 
-// Touch/swipe support
-let tx = 0;
-document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+// Swipe: only trigger on predominantly horizontal gestures (not vertical scroll)
+let tx = 0, ty = 0;
+document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; });
 document.addEventListener('touchend', e => {
   const dx = tx - e.changedTouches[0].clientX;
-  if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1);
+  const dy = ty - e.changedTouches[0].clientY;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) go(dx > 0 ? 1 : -1);
 });
 
+applyMobileLayout();
 render();
 </script>
 </body>
