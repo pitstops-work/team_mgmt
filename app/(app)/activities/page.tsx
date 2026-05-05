@@ -61,6 +61,7 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
         },
         createdBy: { select: { id: true, name: true, image: true } },
         attendees: { select: { id: true, userId: true, status: true, user: { select: { id: true, name: true, image: true } } } },
+        checklistItem: { select: { id: true, completionType: true, text: true } },
       },
       orderBy: { scheduledAt: "asc" },
     }),

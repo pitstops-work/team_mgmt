@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, MessageSquare, Send, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, MessageSquare, Send, AlertCircle, Mic, Paperclip, Loader2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 
@@ -14,6 +14,7 @@ type PitstopRef = {
   goal: { id: string; title: string };
 };
 type Attendee = { id: string; userId: string; status: string; user: User };
+type ChecklistItemRef = { id: string; completionType: string; text: string };
 type PitstopEvent = {
   id: string;
   title: string;
@@ -26,6 +27,7 @@ type PitstopEvent = {
   pitstops: { pitstop: PitstopRef }[];
   createdBy: User;
   attendees: Attendee[];
+  checklistItem?: ChecklistItemRef | null;
 };
 type ViewMode = "day" | "week" | "month";
 type ExternalCalEvent = {
@@ -589,7 +591,7 @@ function ExternalEventCard({ ev }: { ev: ExternalCalEvent }) {
 
 // ── Needs Action panel ────────────────────────────────────────────────────────
 
-type ActionType = "complete" | "reschedule" | "cancel" | null;
+type ActionType = "complete" | "reschedule" | "cancel" | "voice" | "upload" | null;
 
 function NeedsActionPanel({ events, currentUserId, onUpdated }: {
   events: PitstopEvent[];
@@ -607,10 +609,37 @@ function NeedsActionPanel({ events, currentUserId, onUpdated }: {
   const [reason, setReason] = useState("");
   const [newDate, setNewDate] = useState("");
   const [busy, setBusy] = useState(false);
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
+  const [uploading, setUploading] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (actionable.length === 0) return null;
 
-  const dismiss = () => { setActive({ id: "", action: null }); setReason(""); setNewDate(""); };
+  const dismiss = () => {
+    mediaRecorderRef.current?.stop();
+    setActive({ id: "", action: null });
+    setReason(""); setNewDate("");
+    setVoiceState("idle");
+  };
+
+  function onDoneClick(ev: PitstopEvent) {
+    const ctype = ev.checklistItem?.completionType;
+    if (ctype === "Voice") setActive({ id: ev.id, action: "voice" });
+    else if (ctype === "Upload") setActive({ id: ev.id, action: "upload" });
+    else setActive({ id: ev.id, action: "complete" });
+    setReason(""); setNewDate("");
+  }
+
+  async function markEventDone(eventId: string) {
+    const res = await fetch(`/api/pitstop-events/${eventId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Done" }),
+    });
+    if (res.ok) { onUpdated(eventId, await res.json()); dismiss(); }
+  }
 
   const handleAction = async (eventId: string, action: Exclude<ActionType, null>) => {
     setBusy(true);
@@ -618,19 +647,46 @@ function NeedsActionPanel({ events, currentUserId, onUpdated }: {
     if (action === "complete") body.status = "Done";
     else if (action === "cancel") { body.status = "Cancelled"; body.cancellationReason = reason.trim() || null; }
     else if (action === "reschedule") { body.reschedule = true; body.scheduledAt = `${newDate}T09:00:00`; body.rescheduleReason = reason.trim() || null; }
-
     const res = await fetch(`/api/pitstop-events/${eventId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     setBusy(false);
-    if (res.ok) {
-      const updated = await res.json();
-      onUpdated(eventId, updated);
-      dismiss();
-    }
+    if (res.ok) { onUpdated(eventId, await res.json()); dismiss(); }
   };
+
+  async function startVoice(eventId: string, checklistItemId: string) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setVoiceState("processing");
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const fd = new FormData();
+        fd.append("audio", blob, "voice.webm");
+        const res = await fetch(`/api/checklist/${checklistItemId}/voice`, { method: "POST", body: fd });
+        if (res.ok) await markEventDone(eventId);
+        setVoiceState("idle");
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setVoiceState("recording");
+    } catch { setVoiceState("idle"); }
+  }
+
+  async function handleUpload(eventId: string, checklistItemId: string, file: File) {
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("checklistItemId", checklistItemId);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    setUploading(false);
+    if (res.ok) await markEventDone(eventId);
+  }
 
   return (
     <div className="px-4 sm:px-6 py-3 border-b border-amber-100 bg-amber-50">
@@ -658,7 +714,7 @@ function NeedsActionPanel({ events, currentUserId, onUpdated }: {
                 </div>
                 {!isExpanded && (
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={() => { setActive({ id: ev.id, action: "complete" }); setReason(""); setNewDate(""); }}
+                    <button onClick={() => onDoneClick(ev)}
                       className="px-2 py-1 text-[10px] font-medium bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-md transition-colors">
                       Done
                     </button>
@@ -680,9 +736,58 @@ function NeedsActionPanel({ events, currentUserId, onUpdated }: {
               </div>
               {isExpanded && active.action && (
                 <div className="border-t border-amber-100 bg-stone-50 px-3 py-2 space-y-2">
+                  {/* Activity (standard confirm) */}
                   {active.action === "complete" && (
                     <p className="text-xs text-stone-600">Mark this activity as <span className="font-semibold text-emerald-700">Done</span>. This will also update the linked checklist item.</p>
                   )}
+                  {/* Voice log */}
+                  {active.action === "voice" && (
+                    <div className="space-y-1.5">
+                      {ev.checklistItem && (
+                        <p className="text-[10px] text-stone-500 leading-relaxed">{ev.checklistItem.text}</p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        {voiceState === "idle" && (
+                          <button onClick={() => ev.checklistItem && startVoice(ev.id, ev.checklistItem.id)}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 rounded-md font-medium transition-colors">
+                            <Mic className="w-3 h-3" /> Record voice log
+                          </button>
+                        )}
+                        {voiceState === "recording" && (
+                          <button onClick={() => mediaRecorderRef.current?.stop()}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md font-medium transition-colors animate-pulse">
+                            <span className="w-2 h-2 rounded-full bg-white inline-block flex-shrink-0" /> Stop recording
+                          </button>
+                        )}
+                        {voiceState === "processing" && (
+                          <span className="flex items-center gap-1.5 text-xs text-sky-600">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Transcribing…
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {/* File upload */}
+                  {active.action === "upload" && (
+                    <div className="space-y-1.5">
+                      {ev.checklistItem && (
+                        <p className="text-[10px] text-stone-500 leading-relaxed">{ev.checklistItem.text}</p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        {uploading ? (
+                          <span className="flex items-center gap-1.5 text-xs text-stone-500">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Uploading…
+                          </span>
+                        ) : (
+                          <button onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 rounded-md font-medium transition-colors">
+                            <Paperclip className="w-3 h-3" /> Attach file
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {/* Reschedule date */}
                   {active.action === "reschedule" && (
                     <div>
                       <label className="block text-[10px] font-medium text-stone-500 mb-1">New date <span className="text-red-400">*</span></label>
@@ -691,6 +796,7 @@ function NeedsActionPanel({ events, currentUserId, onUpdated }: {
                         className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white" />
                     </div>
                   )}
+                  {/* Reason field for reschedule / cancel */}
                   {(active.action === "reschedule" || active.action === "cancel") && (
                     <div>
                       <label className="block text-[10px] font-medium text-stone-500 mb-1">
@@ -701,29 +807,50 @@ function NeedsActionPanel({ events, currentUserId, onUpdated }: {
                         className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white" />
                     </div>
                   )}
-                  <div className="flex justify-end gap-1.5">
-                    <button type="button" onClick={dismiss} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700 transition-colors">
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || (active.action === "reschedule" && !newDate)}
-                      onClick={() => handleAction(ev.id, active.action!)}
-                      className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg disabled:opacity-50 transition-colors ${
-                        active.action === "complete" ? "bg-emerald-500 hover:bg-emerald-600" :
-                        active.action === "reschedule" ? "bg-sky-500 hover:bg-sky-600" :
-                        "bg-stone-500 hover:bg-stone-600"
-                      }`}
-                    >
-                      {busy ? "Saving…" : active.action === "complete" ? "Mark Done" : active.action === "reschedule" ? "Reschedule" : "Cancel Activity"}
-                    </button>
-                  </div>
+                  {/* Footer buttons */}
+                  {(active.action === "complete" || active.action === "reschedule" || active.action === "cancel") && (
+                    <div className="flex justify-end gap-1.5">
+                      <button type="button" onClick={dismiss} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700 transition-colors">
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy || (active.action === "reschedule" && !newDate)}
+                        onClick={() => handleAction(ev.id, active.action!)}
+                        className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg disabled:opacity-50 transition-colors ${
+                          active.action === "complete" ? "bg-emerald-500 hover:bg-emerald-600" :
+                          active.action === "reschedule" ? "bg-sky-500 hover:bg-sky-600" :
+                          "bg-stone-500 hover:bg-stone-600"
+                        }`}
+                      >
+                        {busy ? "Saving…" : active.action === "complete" ? "Mark Done" : active.action === "reschedule" ? "Reschedule" : "Cancel Activity"}
+                      </button>
+                    </div>
+                  )}
+                  {(active.action === "voice" || active.action === "upload") && voiceState === "idle" && !uploading && (
+                    <div className="flex justify-end">
+                      <button type="button" onClick={dismiss} className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-700 transition-colors">
+                        Back
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           );
         })}
       </div>
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0];
+          const ev = actionable.find(e => e.id === active.id);
+          if (f && ev?.checklistItem) handleUpload(ev.id, ev.checklistItem.id, f);
+          e.target.value = "";
+        }}
+      />
     </div>
   );
 }

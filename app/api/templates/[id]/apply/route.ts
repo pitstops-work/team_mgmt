@@ -168,13 +168,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             startDate: inst.pitstopStart,
             targetDate: inst.pitstopTarget,
             checklistItems: {
-              create: inst.pt.checklist.map((item, itemIdx) => ({
-                text: item.text,
-                order: itemIdx,
-                ...(item.completionType && item.completionType !== "Activity"
-                  ? { completionType: item.completionType as "Voice" | "Upload" }
-                  : {}),
-              })),
+              create: inst.pt.checklist.map((item, itemIdx) => {
+                const itemActivities = item.activities ?? [];
+                const derivedType = item.completionType ?? itemActivities[0]?.completionType;
+                return {
+                  text: item.text,
+                  order: itemIdx,
+                  ...(derivedType && derivedType !== "Activity"
+                    ? { completionType: derivedType as "Voice" | "Upload" }
+                    : {}),
+                };
+              }),
             },
           };
         }),
