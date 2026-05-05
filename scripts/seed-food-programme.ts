@@ -110,12 +110,12 @@ async function main() {
         slaDays: 21,
         progressTag: "Infrastructure",
         checklist: [
-          { text: "Insulated food containers procured — capacity 50–300 units, stainless steel inner lining" },
-          { text: "Foldable tables procured — 180×60 cm, one per DP" },
-          { text: "20L water cans procured — 2 per DP" },
-          { text: "Serving equipment procured — 400g bowls, spoons, paper plates, gloves, headcaps, cups" },
-          { text: "Branded umbrellas / standees procured — one per DP" },
-          { text: "Dustbin covers procured — 2 per DP" },
+          { text: "Insulated food containers procured — capacity 50–300 units, stainless steel inner lining", completionType: "Upload" },
+          { text: "Foldable tables procured — 180×60 cm, one per DP", completionType: "Upload" },
+          { text: "20L water cans procured — 2 per DP", completionType: "Upload" },
+          { text: "Serving equipment procured — 400g bowls, spoons, paper plates, gloves, headcaps, cups", completionType: "Upload" },
+          { text: "Branded umbrellas / standees procured — one per DP", completionType: "Upload" },
+          { text: "Dustbin covers procured — 2 per DP", completionType: "Upload" },
           { text: "All kit items numbered and catalogued in master inventory sheet", completionType: "Upload" },
           { text: "QR codes printed and affixed to all containers and kit bags", completionType: "Upload" },
           { text: "Vehicle bay loading plan tested — both bays fully mapped", activityTitle: "Trial Vehicle Loading Test", completionType: "Activity" },
@@ -129,11 +129,11 @@ async function main() {
         slaDays: 28,
         progressTag: "Team",
         checklist: [
-          { text: "DP 1 personnel identified via Sampark/APSA network" },
-          { text: "DP 2 personnel identified" },
-          { text: "DP 3 personnel identified" },
-          { text: "DP 4 personnel identified" },
-          { text: "DP 5 (shelter) — driver serves directly, no separate DP personnel needed" },
+          { text: "DP 1 personnel identified via Sampark/APSA network", completionType: "Voice" },
+          { text: "DP 2 personnel identified", completionType: "Voice" },
+          { text: "DP 3 personnel identified", completionType: "Voice" },
+          { text: "DP 4 personnel identified", completionType: "Voice" },
+          { text: "DP 5 (shelter) — driver serves directly, no separate DP personnel needed", completionType: "Voice" },
           { text: "All DP personnel agreements signed", completionType: "Upload" },
           { text: "WhatsApp group set up with all DP personnel and driver", activityTitle: "DP Personnel Identification Meeting with Sampark", completionType: "Activity" },
         ],
@@ -161,9 +161,9 @@ async function main() {
         progressTag: "Training",
         checklist: [
           { text: "Queue management protocol trained — fixed unit cap, queue lines communicated", activityTitle: "DP Personnel Training Session", completionType: "Activity" },
-          { text: "Hygiene protocol trained — gloves, headcaps, serving discipline" },
-          { text: "Kit setup and teardown trained — table, umbrella, containers, water cans" },
-          { text: "45–60 minute service window protocol drilled" },
+          { text: "Hygiene protocol trained — gloves, headcaps, serving discipline", completionType: "Voice" },
+          { text: "Kit setup and teardown trained — table, umbrella, containers, water cans", completionType: "Voice" },
+          { text: "45–60 minute service window protocol drilled", completionType: "Voice" },
           { text: "Daily reporting trained — how to log losses, damage, crowd incidents", completionType: "Voice" },
           { text: "Mock setup done at each hotspot location", activityTitle: "Mock Setup Visits at Hotspots", completionType: "Activity" },
         ],
@@ -177,13 +177,13 @@ async function main() {
         progressTag: "Live",
         checklist: [
           { text: "Full dry run completed — kitchen to all 5 DPs and back", activityTitle: "Full Dry Run", completionType: "Activity" },
-          { text: "DP 1 reached by 05:30 AM ✓" },
-          { text: "DP 5 (shelter) reached by 06:30 AM ✓" },
-          { text: "Return route completed by 10:00 AM ✓" },
-          { text: "Kitchen return and unload done by 10:15 AM ✓" },
-          { text: "QR tracking tested end-to-end — all kits scanned in and out" },
+          { text: "DP 1 reached by 05:30 AM ✓", completionType: "Voice" },
+          { text: "DP 5 (shelter) reached by 06:30 AM ✓", completionType: "Voice" },
+          { text: "Return route completed by 10:00 AM ✓", completionType: "Voice" },
+          { text: "Kitchen return and unload done by 10:15 AM ✓", completionType: "Voice" },
+          { text: "QR tracking tested end-to-end — all kits scanned in and out", completionType: "Voice" },
           { text: "Issues from dry run logged and resolved", activityTitle: "Post Dry-Run Debrief", completionType: "Activity" },
-          { text: "Foundation leadership informed of confirmed launch date" },
+          { text: "Foundation leadership informed of confirmed launch date", completionType: "Voice" },
           { text: "Day 1 — first live distribution completed", activityTitle: "Day 1 — First Live Distribution", completionType: "Activity" },
         ],
       },
@@ -210,8 +210,8 @@ async function main() {
         checklist: [
           { text: "Units distributed per DP collected for the month", activityTitle: "Monthly DP Data Collection", completionType: "Activity" },
           { text: "Under-served DPs identified and reason documented", completionType: "Voice" },
-          { text: "Wastage/leftover data reviewed per DP" },
-          { text: "Month-on-month trend noted and shared with team" },
+          { text: "Wastage/leftover data reviewed per DP", completionType: "Voice" },
+          { text: "Month-on-month trend noted and shared with team", completionType: "Upload" },
         ],
       },
       {
@@ -225,10 +225,10 @@ async function main() {
         progressTag: "Monitoring",
         checklist: [
           { text: "Production volume confirmed against daily units target", activityTitle: "Monthly Review Meeting with Ramani Food", completionType: "Activity" },
-          { text: "Late departures logged — any day kitchen not ready by 04:30 AM" },
-          { text: "Food quality complaints reviewed" },
-          { text: "SLA compliance assessed — escalation raised if breach" },
-          { text: "Next month's volume confirmed with Ramani" },
+          { text: "Late departures logged — any day kitchen not ready by 04:30 AM", completionType: "Voice" },
+          { text: "Food quality complaints reviewed", completionType: "Voice" },
+          { text: "SLA compliance assessed — escalation raised if breach", completionType: "Voice" },
+          { text: "Next month's volume confirmed with Ramani", completionType: "Voice" },
         ],
       },
       {
@@ -260,8 +260,8 @@ async function main() {
         checklist: [
           { text: "All DP personnel contacted and confirmed active", activityTitle: "Monthly DP Personnel Check-In", completionType: "Activity" },
           { text: "Replacements needed — identified and training scheduled", completionType: "Voice" },
-          { text: "DP personnel feedback collected — crowd, kit, timing issues" },
-          { text: "Sampark coordination reviewed — community issues flagged" },
+          { text: "DP personnel feedback collected — crowd, kit, timing issues", completionType: "Voice" },
+          { text: "Sampark coordination reviewed — community issues flagged", completionType: "Voice" },
         ],
       },
       {
@@ -275,8 +275,8 @@ async function main() {
         progressTag: "Monitoring",
         checklist: [
           { text: "Monthly MIS compiled — units served, DPs operational, kit status, cost per unit", activityTitle: "Monthly Reporting Session", completionType: "Activity" },
-          { text: "Grant utilisation updated" },
-          { text: "Report shared with Foundation" },
+          { text: "Grant utilisation updated", completionType: "Upload" },
+          { text: "Report shared with Foundation", completionType: "Upload" },
         ],
       },
     ],
@@ -299,11 +299,11 @@ async function main() {
         progressTag: "Baseline",
         checklist: [
           { text: "Location visited — beneficiary population estimated", activityTitle: "Hotspot Field Visit", completionType: "Activity" },
-          { text: "Hotspot type confirmed — bus stand / railway / naka / shelter / hospital / other" },
-          { text: "TATA Ace access and parking confirmed — route driveable from existing stops" },
-          { text: "Optimal serving time window assessed for this location" },
-          { text: "Overlap with existing DPs checked — no cannibalisation" },
-          { text: "Community / local authority informed of plans" },
+          { text: "Hotspot type confirmed — bus stand / railway / naka / shelter / hospital / other", completionType: "Voice" },
+          { text: "TATA Ace access and parking confirmed — route driveable from existing stops", completionType: "Voice" },
+          { text: "Optimal serving time window assessed for this location", completionType: "Voice" },
+          { text: "Overlap with existing DPs checked — no cannibalisation", completionType: "Voice" },
+          { text: "Community / local authority informed of plans", completionType: "Voice" },
         ],
       },
       {
@@ -314,10 +314,10 @@ async function main() {
         slaDays: 21,
         progressTag: "Team",
         checklist: [
-          { text: "DP personnel candidate identified via Sampark/APSA network" },
+          { text: "DP personnel candidate identified via Sampark/APSA network", completionType: "Voice" },
           { text: "Candidate briefed on role — timing, kit, hygiene, reporting", activityTitle: "DP Personnel Briefing Meeting", completionType: "Activity" },
           { text: "Agreement signed", completionType: "Upload" },
-          { text: "Emergency contact and backup person identified" },
+          { text: "Emergency contact and backup person identified", completionType: "Voice" },
         ],
       },
       {
@@ -329,7 +329,7 @@ async function main() {
         progressTag: "Training",
         checklist: [
           { text: "Queue management protocol trained", activityTitle: "DP Training Session at Hotspot", completionType: "Activity" },
-          { text: "Hygiene protocol trained" },
+          { text: "Hygiene protocol trained", completionType: "Voice" },
           { text: "Kit setup and teardown trained — full mock with actual kit", activityTitle: "Mock Setup at Hotspot", completionType: "Activity" },
           { text: "Daily reporting and loss documentation trained", completionType: "Voice" },
         ],
@@ -358,14 +358,82 @@ async function main() {
         progressTag: "Live",
         checklist: [
           { text: "First distribution day completed", activityTitle: "Day 1 Observation at New DP", completionType: "Activity" },
-          { text: "Units served on Day 1 recorded" },
+          { text: "Units served on Day 1 recorded", completionType: "Upload" },
           { text: "Issues on Day 1 logged and resolved", completionType: "Voice" },
           { text: "DP personnel debrief done", activityTitle: "Post Day-1 Debrief with DP Person", completionType: "Activity" },
-          { text: "DP marked active in programme tracker" },
+          { text: "DP marked active in programme tracker", completionType: "Upload" },
         ],
       },
     ],
   );
+
+  // ── 6. Fix completionType on already-created checklist items ──────────────
+  // Update items inside existing FoodDistribution goals that still have default Activity type
+  // but should be Voice or Upload. Keyed on exact text match within food domain goals.
+
+  type FixRule = { text: string; type: "Upload" | "Voice" };
+  const uploadFixes: FixRule[] = [
+    { text: "Insulated food containers procured — capacity 50–300 units, stainless steel inner lining", type: "Upload" },
+    { text: "Foldable tables procured — 180×60 cm, one per DP", type: "Upload" },
+    { text: "20L water cans procured — 2 per DP", type: "Upload" },
+    { text: "Serving equipment procured — 400g bowls, spoons, paper plates, gloves, headcaps, cups", type: "Upload" },
+    { text: "Branded umbrellas / standees procured — one per DP", type: "Upload" },
+    { text: "Dustbin covers procured — 2 per DP", type: "Upload" },
+    { text: "Month-on-month trend noted and shared with team", type: "Upload" },
+    { text: "Grant utilisation updated", type: "Upload" },
+    { text: "Report shared with Foundation", type: "Upload" },
+    { text: "Units served on Day 1 recorded", type: "Upload" },
+    { text: "DP marked active in programme tracker", type: "Upload" },
+  ];
+  const voiceFixes: FixRule[] = [
+    { text: "Hygiene protocol trained — gloves, headcaps, serving discipline", type: "Voice" },
+    { text: "Kit setup and teardown trained — table, umbrella, containers, water cans", type: "Voice" },
+    { text: "45–60 minute service window protocol drilled", type: "Voice" },
+    { text: "DP 1 reached by 05:30 AM ✓", type: "Voice" },
+    { text: "DP 5 (shelter) reached by 06:30 AM ✓", type: "Voice" },
+    { text: "Return route completed by 10:00 AM ✓", type: "Voice" },
+    { text: "Kitchen return and unload done by 10:15 AM ✓", type: "Voice" },
+    { text: "QR tracking tested end-to-end — all kits scanned in and out", type: "Voice" },
+    { text: "Hygiene protocol trained", type: "Voice" },
+    { text: "DP 1 personnel identified via Sampark/APSA network", type: "Voice" },
+    { text: "DP 2 personnel identified", type: "Voice" },
+    { text: "DP 3 personnel identified", type: "Voice" },
+    { text: "DP 4 personnel identified", type: "Voice" },
+    { text: "DP 5 (shelter) — driver serves directly, no separate DP personnel needed", type: "Voice" },
+    { text: "Foundation leadership informed of confirmed launch date", type: "Voice" },
+    { text: "Wastage/leftover data reviewed per DP", type: "Voice" },
+    { text: "Late departures logged — any day kitchen not ready by 04:30 AM", type: "Voice" },
+    { text: "Food quality complaints reviewed", type: "Voice" },
+    { text: "SLA compliance assessed — escalation raised if breach", type: "Voice" },
+    { text: "Next month's volume confirmed with Ramani", type: "Voice" },
+    { text: "DP personnel feedback collected — crowd, kit, timing issues", type: "Voice" },
+    { text: "Sampark coordination reviewed — community issues flagged", type: "Voice" },
+    { text: "Hotspot type confirmed — bus stand / railway / naka / shelter / hospital / other", type: "Voice" },
+    { text: "TATA Ace access and parking confirmed — route driveable from existing stops", type: "Voice" },
+    { text: "Optimal serving time window assessed for this location", type: "Voice" },
+    { text: "Overlap with existing DPs checked — no cannibalisation", type: "Voice" },
+    { text: "Community / local authority informed of plans", type: "Voice" },
+    { text: "DP personnel candidate identified via Sampark/APSA network", type: "Voice" },
+    { text: "Emergency contact and backup person identified", type: "Voice" },
+  ];
+
+  let fixCount = 0;
+  for (const fix of [...uploadFixes, ...voiceFixes]) {
+    const result = await prisma.$executeRaw`
+      UPDATE "ChecklistItem" ci
+      SET "completionType" = ${fix.type}::"ChecklistCompletionType"
+      FROM "Pitstop" p
+      JOIN "Goal" g ON g.id = p."goalId"
+      WHERE ci."pitstopId" = p.id
+        AND g."needsDomain" = 'FoodDistribution'
+        AND g."deletedAt" IS NULL
+        AND p."deletedAt" IS NULL
+        AND ci.text = ${fix.text}
+        AND ci."completionType" = 'Activity'::"ChecklistCompletionType"
+    `;
+    fixCount += Number(result);
+  }
+  console.log(`✓ Fixed completionType on ${fixCount} existing checklist items`);
 
   console.log("\n✅ All done.");
   await prisma.$disconnect();

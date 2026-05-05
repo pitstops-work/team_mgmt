@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages, LayoutTemplate, Layers } from "lucide-react";
+import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages, LayoutTemplate, Layers, Bell, BellOff, BellRing } from "lucide-react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import { useSession } from "next-auth/react";
@@ -33,6 +33,11 @@ export default function SettingsPage() {
   const [langSaving, setLangSaving] = useState(false);
   const [langSuccess, setLangSuccess] = useState(false);
 
+  type NotifState = "unsupported" | "denied" | "granted" | "default";
+  const [notifPermission, setNotifPermission] = useState<NotifState>("default");
+  const [notifBusy, setNotifBusy] = useState(false);
+  const [notifMsg, setNotifMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const LANGS = [
     { code: "en", label: "English",   native: "English"   },
     { code: "ta", label: "Tamil",     native: "தமிழ்"    },
@@ -41,6 +46,48 @@ export default function SettingsPage() {
     { code: "hi", label: "Hindi",     native: "हिन्दी"   },
     { code: "bn", label: "Bengali",   native: "বাংলা"    },
   ];
+
+  useEffect(() => {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+      setNotifPermission("unsupported");
+    } else {
+      setNotifPermission(Notification.permission as NotifState);
+    }
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    setNotifBusy(true);
+    setNotifMsg(null);
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      const permission = Notification.permission === "granted"
+        ? "granted"
+        : await Notification.requestPermission();
+      setNotifPermission(permission as NotifState);
+      if (permission !== "granted") {
+        setNotifMsg({ ok: false, text: "Permission not granted." });
+        return;
+      }
+      const { publicKey } = await fetch("/api/push").then((r) => r.json());
+      if (!publicKey) { setNotifMsg({ ok: false, text: "Push not configured on server." }); return; }
+      const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+      const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const applicationServerKey = Uint8Array.from([...atob(base64)].map((c) => c.charCodeAt(0)));
+      const existing = await reg.pushManager.getSubscription();
+      const sub = existing ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+      const json = sub.toJSON();
+      await fetch("/api/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+      });
+      setNotifMsg({ ok: true, text: "Notifications enabled." });
+    } catch (err) {
+      setNotifMsg({ ok: false, text: String(err) });
+    } finally {
+      setNotifBusy(false);
+    }
+  };
 
   useEffect(() => {
     const fetches: Promise<void>[] = [
@@ -223,6 +270,50 @@ export default function SettingsPage() {
         </div>
         {langSuccess && <p className="text-xs text-emerald-600 mt-3">Language preference saved.</p>}
       </section>
+
+      {/* Push Notifications */}
+      {notifPermission !== "unsupported" && (
+        <section className="mb-10">
+          <div className="flex items-center gap-2 mb-1">
+            <Bell className="w-4 h-4 text-stone-400" />
+            <h2 className="text-sm font-semibold text-stone-700">Push Notifications</h2>
+          </div>
+          <p className="text-xs text-stone-500 mb-4">
+            Get notified on this device for pitstop updates, mentions, and goal changes.
+          </p>
+          {notifPermission === "denied" ? (
+            <div className="flex items-center gap-2 text-xs text-amber-600">
+              <BellOff className="w-4 h-4 shrink-0" />
+              <span>Notifications are blocked. Enable them in your browser or phone settings for this site, then come back here.</span>
+            </div>
+          ) : notifPermission === "granted" && notifMsg?.ok ? (
+            <div className="flex items-center gap-2 text-xs text-emerald-600">
+              <BellRing className="w-4 h-4 shrink-0" />
+              <span>Notifications enabled on this device.</span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {notifPermission === "granted" && (
+                <div className="flex items-center gap-2 text-xs text-emerald-600 mb-1">
+                  <BellRing className="w-4 h-4 shrink-0" />
+                  <span>Permission granted — tap below to re-register this device.</span>
+                </div>
+              )}
+              <button
+                onClick={handleEnableNotifications}
+                disabled={notifBusy}
+                className="flex items-center gap-2 self-start px-4 py-2 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+              >
+                <Bell className="w-4 h-4" />
+                {notifBusy ? "Setting up…" : notifPermission === "granted" ? "Re-register this device" : "Enable notifications"}
+              </button>
+              {notifMsg && !notifMsg.ok && (
+                <p className="text-xs text-red-500">{notifMsg.text}</p>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Admin-only sections */}
       {isAdmin && <>

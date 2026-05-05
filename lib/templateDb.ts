@@ -75,6 +75,7 @@ export function interpolatePitstops(
     notes: interpolate(pt.notes, params),
     checklist: pt.checklist.map((item) => ({
       text: interpolate(item.text, params),
+      completionType: item.completionType,
       activities: normalizeActivities(item).map((act) => ({
         title: interpolate(act.title, params),
         completionType: act.completionType,

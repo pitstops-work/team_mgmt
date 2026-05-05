@@ -171,6 +171,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               create: inst.pt.checklist.map((item, itemIdx) => ({
                 text: item.text,
                 order: itemIdx,
+                ...(item.completionType && item.completionType !== "Activity"
+                  ? { completionType: item.completionType as "Voice" | "Upload" }
+                  : {}),
               })),
             },
           };
@@ -198,28 +201,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await prisma.$executeRaw`
       UPDATE "Pitstop" SET "progressTag" = ${tag} WHERE id = ${pitstop.id}
     `;
-  }
-
-  // Set completionType on checklist items based on first activity type
-  for (let piIdx = 0; piIdx < allInstances.length; piIdx++) {
-    const pitstop = pitstopsOrdered[piIdx];
-    if (!pitstop) continue;
-    const pt = allInstances[piIdx].pt;
-    const ciIds = await prisma.$queryRaw<{ id: string }[]>`
-      SELECT id FROM "ChecklistItem" WHERE "pitstopId" = ${pitstop.id} ORDER BY "order" ASC
-    `;
-    for (let ciIdx = 0; ciIdx < pt.checklist.length; ciIdx++) {
-      const item = pt.checklist[ciIdx];
-      const dbId = ciIds[ciIdx]?.id;
-      const activities = normalizeActivities(item);
-      const firstType = activities[0]?.completionType ?? "";
-      if (!dbId || !firstType || firstType === "Activity") continue;
-      await prisma.$executeRaw`
-        UPDATE "ChecklistItem"
-        SET "completionType" = ${firstType}::"ChecklistCompletionType"
-        WHERE id = ${dbId}
-      `;
-    }
   }
 
   // Auto-follow: goal owner always follows; creator also follows if creating on behalf of someone else

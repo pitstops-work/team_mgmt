@@ -18,17 +18,27 @@ export default async function DashboardPage({
 
   const currentUserId = session!.user!.id!;
   const me = await prisma.user.findUnique({ where: { id: currentUserId }, select: { cityId: true, designation: true, role: true } });
-  const cityFilter = goalCityFilter(me?.cityId);
   const designation = me?.designation ?? "Other";
+  const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
 
-  // Build team ID scope for RP/ZL
+  // Build team ID scope for RP/ZL/PM
   let teamIds: string[] = [currentUserId];
   if (designation === "ZL") {
     const team = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
     teamIds = [currentUserId, ...team.map(m => m.id)];
+  } else if (designation === "PM") {
+    const zls = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
+    const zlIds = zls.map(m => m.id);
+    const rps = zlIds.length > 0
+      ? await prisma.user.findMany({ where: { reportsToId: { in: zlIds } }, select: { id: true } })
+      : [];
+    teamIds = [currentUserId, ...zlIds, ...rps.map(m => m.id)];
   }
-  const isScoped = designation === "RP" || designation === "ZL";
+  const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
+  // Super admin: no filters. Scoped roles: owner filter only (cityFilter is redundant when scoped by owner).
+  // Leader/Other: city filter only.
   const ownerFilter = isScoped ? { ownerId: { in: teamIds } } : {};
+  const cityFilter = (isSuperAdmin || isScoped) ? {} : goalCityFilter(me?.cityId);
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
     prisma.goal.findMany({
@@ -44,7 +54,7 @@ export default async function DashboardPage({
       orderBy: { updatedAt: "desc" },
     }),
     prisma.user.findMany({
-      where: (designation === "RP" || designation === "ZL") ? { id: { in: teamIds } } : {},
+      where: isScoped ? { id: { in: teamIds } } : {},
       select: { id: true, name: true, image: true, designation: true, reportsToId: true },
       orderBy: { name: "asc" },
     }),
@@ -250,7 +260,8 @@ export default async function DashboardPage({
     }),
   ]);
 
-  // Phase data — extended with owner, dates, checklist + activity counts
+  // Phase data — scoped to match the goals query above so counts stay consistent
+  const goalIdSet = new Set(goals.map(g => g.id));
   const phaseRowsRaw = await prisma.$queryRaw<{
     id: string; goalId: string; goalTitle: string; title: string; progressTag: string | null; status: string;
     targetDate: Date | null; startDate: Date | null;
@@ -286,15 +297,17 @@ export default async function DashboardPage({
     ) act ON act."pitstopId" = p.id
     WHERE p."deletedAt" IS NULL AND g."deletedAt" IS NULL
   `;
-  const phaseRows = phaseRowsRaw.map(r => ({
-    ...r,
-    targetDate: r.targetDate ? r.targetDate.toISOString() : null,
-    startDate:  r.startDate  ? r.startDate.toISOString()  : null,
-    checklistTotal: Number(r.checklistTotal),
-    checklistDone:  Number(r.checklistDone),
-    activityTotal:  Number(r.activityTotal),
-    activityDone:   Number(r.activityDone),
-  }));
+  const phaseRows = phaseRowsRaw
+    .filter(r => goalIdSet.has(r.goalId))
+    .map(r => ({
+      ...r,
+      targetDate: r.targetDate ? r.targetDate.toISOString() : null,
+      startDate:  r.startDate  ? r.startDate.toISOString()  : null,
+      checklistTotal: Number(r.checklistTotal),
+      checklistDone:  Number(r.checklistDone),
+      activityTotal:  Number(r.activityTotal),
+      activityDone:   Number(r.activityDone),
+    }));
 
   let searchResults = null;
   if (q?.trim()) {

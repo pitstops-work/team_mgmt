@@ -8,9 +8,28 @@ export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { cityId: true } });
+  const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
+  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { cityId: true, designation: true } });
+  const designation = me?.designation ?? "Other";
+
+  let teamIds: string[] = [session.user.id];
+  if (designation === "ZL") {
+    const team = await prisma.user.findMany({ where: { reportsToId: session.user.id }, select: { id: true } });
+    teamIds = [session.user.id, ...team.map(m => m.id)];
+  } else if (designation === "PM") {
+    const zls = await prisma.user.findMany({ where: { reportsToId: session.user.id }, select: { id: true } });
+    const zlIds = zls.map(m => m.id);
+    const rps = zlIds.length > 0
+      ? await prisma.user.findMany({ where: { reportsToId: { in: zlIds } }, select: { id: true } })
+      : [];
+    teamIds = [session.user.id, ...zlIds, ...rps.map(m => m.id)];
+  }
+  const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
+  const ownerFilter = isScoped ? { ownerId: { in: teamIds } } : {};
+  const cityFilter = (isSuperAdmin || isScoped) ? {} : goalCityFilter(me?.cityId);
+
   const goals = await prisma.goal.findMany({
-    where: { deletedAt: null, ...goalCityFilter(me?.cityId) },
+    where: { deletedAt: null, ...cityFilter, ...ownerFilter },
     include: {
       owner: { select: { id: true, name: true, image: true } },
       pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },

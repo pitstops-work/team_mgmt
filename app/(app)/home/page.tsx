@@ -263,7 +263,7 @@ export default async function HomePage() {
   // Use session role — auth stamps super-admin by ADMIN_EMAIL, which may differ from DB value
   const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
 
-  // Team IDs: ZL includes her reports
+  // Team IDs: ZL includes her reports; PM pre-fetches ZL+RP IDs so myGoals is correctly scoped
   let teamIds: string[] = [userId];
   let teamMembers: { id: string; name: string | null; image: string | null }[] = [];
   if (designation === "ZL") {
@@ -275,6 +275,13 @@ export default async function HomePage() {
       },
     });
     teamIds = [userId, ...teamMembers.map(m => m.id)];
+  } else if (designation === "PM") {
+    const pmZLs = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
+    const zlIds = pmZLs.map(m => m.id);
+    const pmRPs = zlIds.length > 0
+      ? await prisma.user.findMany({ where: { reportsToId: { in: zlIds } }, select: { id: true } })
+      : [];
+    teamIds = [userId, ...zlIds, ...pmRPs.map(m => m.id)];
   }
 
   const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
