@@ -3748,6 +3748,116 @@ const ACTIVITY_TYPE_STYLE: Record<string, string> = {
   Event:    "bg-amber-100 text-amber-700",
 };
 
+function RPActivityRow({
+  a, isOverdue, linkedChecklist, onDone, onCompleted, isLoadingDone,
+}: {
+  a: Activity;
+  isOverdue: boolean;
+  linkedChecklist: ChecklistItem | null;
+  onDone: (eventId: string) => void;
+  onCompleted: (checklistItemId: string) => void;
+  isLoadingDone: boolean;
+}) {
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
+  const [uploading, setUploading] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const completionType = linkedChecklist?.completionType ?? "Activity";
+  const isBusy = voiceState !== "idle" || uploading || isLoadingDone;
+
+  async function startVoiceLog() {
+    if (!linkedChecklist) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setVoiceState("processing");
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const fd = new FormData();
+        fd.append("audio", blob, "voice.webm");
+        const res = await fetch(`/api/checklist/${linkedChecklist.id}/voice`, { method: "POST", body: fd });
+        if (res.ok) onCompleted(linkedChecklist.id);
+        setVoiceState("idle");
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setVoiceState("recording");
+    } catch {
+      setVoiceState("idle");
+    }
+  }
+
+  function stopVoiceLog() { mediaRecorderRef.current?.stop(); }
+
+  async function handleAttach(file: File) {
+    if (!linkedChecklist) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("checklistItemId", linkedChecklist.id);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    setUploading(false);
+    if (res.ok) onCompleted(linkedChecklist.id);
+  }
+
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+      isOverdue ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-white"
+    }`}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+          <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+          {a.type && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
+              {a.type}
+            </span>
+          )}
+        </div>
+        <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
+          {isOverdue
+            ? `${daysAgo(a.scheduledAt)}d ago${a.location ? ` · ${a.location}` : ""}`
+            : `${fmtTime(a.scheduledAt)}${a.location ? ` · ${a.location}` : ""}`
+          }
+        </p>
+      </div>
+
+      {completionType === "Activity" && (
+        <button onClick={() => onDone(a.id)} disabled={isBusy}
+          className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0">
+          {isLoadingDone ? "…" : "Done"}
+        </button>
+      )}
+      {completionType === "Voice" && (
+        voiceState === "recording"
+          ? <button onClick={stopVoiceLog} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex-shrink-0">Stop</button>
+          : voiceState === "idle" && !isBusy
+            ? <button onClick={startVoiceLog} className="flex items-center gap-1 text-xs px-2.5 py-1.5 text-stone-500 hover:text-sky-600 hover:bg-sky-50 rounded-md transition-colors flex-shrink-0">
+                <Mic className="w-3 h-3" /> Log
+              </button>
+            : null
+      )}
+      {completionType === "Upload" && !isBusy && (
+        <>
+          <button onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1 text-xs px-2.5 py-1.5 text-stone-500 hover:text-sky-600 hover:bg-sky-50 rounded-md transition-colors flex-shrink-0">
+            <Paperclip className="w-3 h-3" /> Attach
+          </button>
+          <input type="file" ref={fileInputRef} className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleAttach(f); e.target.value = ""; }} />
+        </>
+      )}
+      {(voiceState === "processing" || uploading) && (
+        <Loader2 className="w-3.5 h-3.5 text-stone-400 animate-spin flex-shrink-0" />
+      )}
+    </div>
+  );
+}
+
 function RPTodayTab({
   overdueActivities,
   todayActivities,
@@ -3770,18 +3880,42 @@ function RPTodayTab({
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
   const todayMs = new Date(now.toDateString()).getTime();
 
+  // Activities whose linked checklist was completed (any completionType) should disappear
+  const completedActivityIds = useMemo(() =>
+    new Set(
+      weekChecklists
+        .filter(ci => completedItemIds.has(ci.id))
+        .flatMap(ci => ci.activities.map(a => a.id))
+    ),
+    [weekChecklists, completedItemIds]
+  );
+
+  // Map: activityId → linked open ChecklistItem (for action button derivation)
+  const activityChecklistMap = useMemo(() => {
+    const map = new Map<string, ChecklistItem>();
+    for (const ci of weekChecklists) {
+      if (completedItemIds.has(ci.id)) continue;
+      for (const act of ci.activities) map.set(act.id, ci);
+    }
+    return map;
+  }, [weekChecklists, completedItemIds]);
+
+  function isVisible(a: Activity) {
+    return !doneIds.has(a.id) && !completedActivityIds.has(a.id);
+  }
+
   // Overdue: past activities + past-due-today, still Scheduled, oldest first
   const pastDueToday = todayActivities.filter(
-    a => new Date(a.scheduledAt) < now && a.status === "Scheduled" && !doneIds.has(a.id)
+    a => new Date(a.scheduledAt) < now && a.status === "Scheduled" && isVisible(a)
   );
   const overdueItems = [
-    ...overdueActivities.filter(a => !doneIds.has(a.id)),
+    ...overdueActivities.filter(a => isVisible(a)),
     ...pastDueToday,
   ].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
   // Today: upcoming (not yet past), still Scheduled
   const todayItems = todayActivities.filter(
-    a => new Date(a.scheduledAt) >= now && a.status === "Scheduled" && !doneIds.has(a.id)
+    a => new Date(a.scheduledAt) >= now && a.status === "Scheduled" && isVisible(a)
   );
 
   // Rest of week
@@ -3801,6 +3935,10 @@ function RPTodayTab({
     [weekChecklists, completedItemIds]
   );
 
+  function handleCompleted(checklistItemId: string) {
+    setCompletedItemIds(prev => new Set([...prev, checklistItemId]));
+  }
+
   async function handleDone(eventId: string) {
     setLoadingDoneId(eventId);
     try {
@@ -3810,48 +3948,15 @@ function RPTodayTab({
         body: JSON.stringify({ status: "Done" }),
       });
       setDoneIds(prev => new Set([...prev, eventId]));
+      // Server closes Activity-type checklist items when their linked event is marked Done.
+      // Mirror that here so "Open checklists" removes them immediately.
+      const linkedIds = weekChecklists
+        .filter(ci => ci.completionType === "Activity" && ci.activities.some(a => a.id === eventId))
+        .map(ci => ci.id);
+      if (linkedIds.length > 0) setCompletedItemIds(prev => new Set([...prev, ...linkedIds]));
     } finally {
       setLoadingDoneId(null);
     }
-  }
-
-  function ActivityRow({ a, isOverdue }: { a: Activity; isOverdue: boolean }) {
-    const done = doneIds.has(a.id);
-    return (
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
-        done ? "border-emerald-200 bg-emerald-50 opacity-60"
-        : isOverdue ? "border-amber-200 bg-amber-50"
-        : "border-stone-200 bg-white"
-      }`}>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-            {a.type && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
-                {a.type}
-              </span>
-            )}
-          </div>
-          <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
-            {isOverdue
-              ? `${daysAgo(a.scheduledAt)}d ago${a.location ? ` · ${a.location}` : ""}`
-              : `${fmtTime(a.scheduledAt)}${a.location ? ` · ${a.location}` : ""}`
-            }
-          </p>
-        </div>
-        {done ? (
-          <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-        ) : (
-          <button
-            onClick={() => handleDone(a.id)}
-            disabled={loadingDoneId === a.id}
-            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0"
-          >
-            {loadingDoneId === a.id ? "…" : "Done"}
-          </button>
-        )}
-      </div>
-    );
   }
 
   const allEmpty = overdueItems.length === 0 && todayItems.length === 0 && openChecklists.length === 0;
@@ -3867,7 +3972,13 @@ function RPTodayTab({
             <SectionTitle>Needs your update</SectionTitle>
           </div>
           <div className="space-y-2">
-            {overdueItems.map(a => <ActivityRow key={a.id} a={a} isOverdue />)}
+            {overdueItems.map(a => (
+              <RPActivityRow key={a.id} a={a} isOverdue
+                linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                onDone={handleDone} onCompleted={handleCompleted}
+                isLoadingDone={loadingDoneId === a.id}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -3877,7 +3988,15 @@ function RPTodayTab({
         <SectionTitle>Today</SectionTitle>
         {todayItems.length === 0
           ? <EmptyState message={overdueItems.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
-          : <div className="space-y-2">{todayItems.map(a => <ActivityRow key={a.id} a={a} isOverdue={false} />)}</div>
+          : <div className="space-y-2">
+              {todayItems.map(a => (
+                <RPActivityRow key={a.id} a={a} isOverdue={false}
+                  linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                  onDone={handleDone} onCompleted={handleCompleted}
+                  isLoadingDone={loadingDoneId === a.id}
+                />
+              ))}
+            </div>
         }
       </div>
 
@@ -3891,10 +4010,7 @@ function RPTodayTab({
               const isOverdueChecklist = pitstopMs !== null && pitstopMs < todayMs;
               return (
                 <div key={ci.id} className={isOverdueChecklist ? "bg-amber-50" : undefined}>
-                  <RPChecklistRow
-                    item={ci}
-                    onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))}
-                  />
+                  <RPChecklistRow item={ci} onCompleted={handleCompleted} />
                 </div>
               );
             })}
