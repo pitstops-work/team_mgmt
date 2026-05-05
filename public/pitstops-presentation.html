@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pitstops — Urban Programme Platform</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s}
+.slide.active{display:flex;opacity:1}
+.slide.fade-out{opacity:0}
+
+/* Nav */
+#nav{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:10px 20px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+
+/* Slide backgrounds */
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+
+/* Typography */
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:38px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px}
+h3.sub{font-size:20px;font-weight:400;color:#94a3b8;margin-bottom:32px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.6;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.7;color:#cbd5e1}
+
+/* Cards */
+.card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px}
+.card-sm{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:50px;font-size:12px;font-weight:600}
+
+/* Role colors */
+.rp{background:rgba(16,185,129,.2);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
+.zl{background:rgba(14,165,233,.2);color:#7dd3fc;border:1px solid rgba(14,165,233,.3)}
+.pm{background:rgba(167,139,250,.2);color:#c4b5fd;border:1px solid rgba(167,139,250,.3)}
+.lead{background:rgba(251,191,36,.2);color:#fde68a;border:1px solid rgba(251,191,36,.3)}
+
+/* Grid helpers */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px}
+.flex{display:flex;gap:16px}
+.flex-center{display:flex;align-items:center;gap:12px}
+.col{display:flex;flex-direction:column;gap:12px}
+
+/* Mock UI elements */
+.mock-screen{background:#1e293b;border:1px solid #334155;border-radius:12px;overflow:hidden}
+.mock-bar{background:#0f172a;padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #1e293b}
+.mock-dot{width:8px;height:8px;border-radius:50%}
+.mock-body{padding:16px;font-size:12px}
+
+/* Stat tiles */
+.stat{text-align:center;padding:20px 16px}
+.stat .num{font-size:42px;font-weight:800;line-height:1}
+.stat .lbl{font-size:12px;color:#94a3b8;margin-top:6px}
+
+/* Flow arrow */
+.arrow{color:#6366f1;font-size:22px;display:flex;align-items:center}
+
+/* Scrollable content */
+.scrollable{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.1) transparent}
+
+/* Icon circle */
+.icon-circle{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+
+/* Highlight box */
+.highlight{background:rgba(99,102,241,.15);border-left:3px solid #6366f1;padding:12px 16px;border-radius:0 8px 8px 0;font-size:14px;color:#c7d2fe}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.badge-green{background:rgba(16,185,129,.2);color:#6ee7b7}
+.badge-red{background:rgba(239,68,68,.2);color:#fca5a5}
+.badge-amber{background:rgba(245,158,11,.2);color:#fde68a}
+.badge-sky{background:rgba(14,165,233,.2);color:#7dd3fc}
+
+/* Domain colors */
+.dom-creche{color:#f472b6}
+.dom-children{color:#60a5fa}
+.dom-youth{color:#34d399}
+.dom-elderly{color:#fb923c}
+.dom-water{color:#22d3ee}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<div class="deck" id="deck">
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 1: TITLE -->
+<div class="slide bg-navy active" id="s1">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+    <div class="label" style="color:#818cf8">Urban Programme · Bangalore & Chennai</div>
+    <h1 class="hero" style="background:linear-gradient(135deg,#fff 30%,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:20px">
+      Pitstops
+    </h1>
+    <p style="font-size:24px;color:#94a3b8;max-width:640px;line-height:1.5">
+      One platform for need based programme implementation, programme management, team management and communication.
+    </p>
+    <div class="flex" style="margin-top:40px;gap:12px">
+      <span class="pill rp">Resource Persons</span>
+      <span class="pill zl">Zone Leaders</span>
+      <span class="pill pm">Programme Managers</span>
+      <span class="pill lead">Leadership</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:24px;margin-top:auto">
+    <div class="stat card-sm" style="min-width:130px">
+      <div class="num" style="color:#818cf8">2</div>
+      <div class="lbl">Cities</div>
+    </div>
+    <div class="stat card-sm" style="min-width:130px">
+      <div class="num" style="color:#34d399">100+</div>
+      <div class="lbl">Settlements Tracked</div>
+    </div>
+    <div class="stat card-sm" style="min-width:130px">
+      <div class="num" style="color:#f472b6">8+</div>
+      <div class="lbl">Service Domains</div>
+    </div>
+    <div class="stat card-sm" style="min-width:130px">
+      <div class="num" style="color:#fb923c">4</div>
+      <div class="lbl">Role Types</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 2: WHAT IS IT -->
+<div class="slide bg-indigo" id="s2">
+  <div class="label">Overview</div>
+  <h2 class="title">What does Pitstops do?</h2>
+  <h3 class="sub">Five pillars powering your urban programme</h3>
+  <div class="g3" style="flex:1;align-content:start;gap:20px">
+    <div class="card" style="border-color:rgba(99,102,241,.4)">
+      <div style="font-size:32px;margin-bottom:12px">🗺️</div>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Geospatial Assessment</div>
+      <p style="font-size:14px;color:#94a3b8">Map every settlement polygon in Bangalore & Chennai. See exactly where services exist vs where they're needed — by domain, by zone, by cluster.</p>
+    </div>
+    <div class="card" style="border-color:rgba(16,185,129,.4)">
+      <div style="font-size:32px;margin-bottom:12px">🎯</div>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Goal & Task Management</div>
+      <p style="font-size:14px;color:#94a3b8">Create goals tied to specific services and geographies. Break them into pitstops with checklists, activities, and due dates.</p>
+    </div>
+    <div class="card" style="border-color:rgba(14,165,233,.4)">
+      <div style="font-size:32px;margin-bottom:12px">👥</div>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Team Management</div>
+      <p style="font-size:14px;color:#94a3b8">Full hierarchy from RP to Leadership. Every manager sees their team's health — delayed pitstops, overdue activities, engagement levels.</p>
+    </div>
+    <div class="card" style="border-color:rgba(167,139,250,.4)">
+      <div style="font-size:32px;margin-bottom:12px">📅</div>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Planning & Scheduling</div>
+      <p style="font-size:14px;color:#94a3b8">Weekly planner with Gantt-style views by quarter. Schedule activities, track checklists, plan your field week.</p>
+    </div>
+    <div class="card" style="border-color:rgba(251,191,36,.4)">
+      <div style="font-size:32px;margin-bottom:12px">💬</div>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Communication</div>
+      <p style="font-size:14px;color:#94a3b8">Threads linked directly to goals, pitstops, and checklist items. Voice logs auto-transcribed and attached. No more scattered WhatsApp updates.</p>
+    </div>
+    <div class="card" style="border-color:rgba(244,114,182,.4)">
+      <div style="font-size:32px;margin-bottom:12px">📊</div>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Programme Reporting</div>
+      <p style="font-size:14px;color:#94a3b8">8-tab admin dashboard. Track engagement, team health, coverage gaps, and goal pipeline across both cities in real time.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 3: GEOGRAPHY -->
+<div class="slide bg-slate" id="s3">
+  <div class="label">How the programme is organised</div>
+  <h2 class="title">Geography Hierarchy</h2>
+  <h3 class="sub">Every settlement is placed in a cluster, zone, and city</h3>
+  <div style="flex:1;display:flex;gap:40px;align-items:center">
+    <!-- Hierarchy diagram -->
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0">
+      <!-- City -->
+      <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:16px;padding:18px 48px;text-align:center;font-weight:700;font-size:18px;box-shadow:0 0 40px rgba(99,102,241,.4)">
+        🏙️ City
+        <div style="font-size:12px;font-weight:400;opacity:.8;margin-top:4px">Bangalore · Chennai</div>
+      </div>
+      <div style="width:2px;height:32px;background:rgba(99,102,241,.5)"></div>
+      <!-- Zone -->
+      <div style="background:rgba(14,165,233,.2);border:1px solid rgba(14,165,233,.4);border-radius:16px;padding:16px 44px;text-align:center;font-weight:700;font-size:17px">
+        🏘️ Zone
+        <div style="font-size:12px;font-weight:400;color:#7dd3fc;margin-top:4px">Led by a Zone Leader (ZL)</div>
+      </div>
+      <div style="width:2px;height:32px;background:rgba(14,165,233,.3)"></div>
+      <!-- Cluster -->
+      <div style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);border-radius:16px;padding:16px 40px;text-align:center;font-weight:700;font-size:17px">
+        🌐 Cluster
+        <div style="font-size:12px;font-weight:400;color:#6ee7b7;margin-top:4px">Group of nearby settlements</div>
+      </div>
+      <div style="width:2px;height:32px;background:rgba(16,185,129,.3)"></div>
+      <!-- Settlement -->
+      <div style="background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);border-radius:16px;padding:16px 36px;text-align:center;font-weight:700;font-size:17px">
+        🏠 Settlement
+        <div style="font-size:12px;font-weight:400;color:#fde68a;margin-top:4px">Individual urban community · polygon on map</div>
+      </div>
+    </div>
+    <!-- Partner & NGO info -->
+    <div style="flex:1;display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:12px;font-size:15px">🤝 Bangalore Partners</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span class="badge badge-sky">Sangama</span><span class="badge badge-sky">Gubbachi</span><span class="badge badge-sky">CFAR</span><span class="badge badge-sky">ActionAid</span><span class="badge badge-sky">Janashayog</span><span class="badge badge-sky">Maarga</span><span class="badge badge-sky">Thamate</span><span class="badge badge-sky">SIEDS</span>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:12px;font-size:15px">🤝 Chennai Partners</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span class="badge badge-green">Arunodhaya</span><span class="badge badge-green">TNDWWT</span><span class="badge badge-green">DBAI</span><span class="badge badge-green">DBSSS</span><span class="badge badge-green">Thozhamai</span>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:12px;font-size:15px">🔬 Service Domains Tracked</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span class="pill" style="background:rgba(244,114,182,.15);color:#f9a8d4;border:1px solid rgba(244,114,182,.3);font-size:11px">Creche</span>
+          <span class="pill" style="background:rgba(96,165,250,.15);color:#93c5fd;border:1px solid rgba(96,165,250,.3);font-size:11px">Children's Centre</span>
+          <span class="pill" style="background:rgba(52,211,153,.15);color:#6ee7b7;border:1px solid rgba(52,211,153,.3);font-size:11px">Youth Resource Centre</span>
+          <span class="pill" style="background:rgba(251,146,60,.15);color:#fdba74;border:1px solid rgba(251,146,60,.3);font-size:11px">Elderly Centre</span>
+          <span class="pill" style="background:rgba(34,211,238,.15);color:#67e8f9;border:1px solid rgba(34,211,238,.3);font-size:11px">Water ATM</span>
+          <span class="pill" style="background:rgba(167,139,250,.15);color:#c4b5fd;border:1px solid rgba(167,139,250,.3);font-size:11px">Elderly Kitchen</span>
+          <span class="pill" style="background:rgba(251,191,36,.15);color:#fde68a;border:1px solid rgba(251,191,36,.3);font-size:11px">Welfare Rights</span>
+        </div>
+      </div>
+      <div class="highlight">
+        Each needs domain has a <strong>guideline-based target</strong> (need), pitched against a ground-level, need-based target (addressable need), which is then used to plan and execute programmes to address those needs. Pitstops tracks coverage against this plan.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 4: ROLES -->
+<div class="slide bg-dark" id="s4">
+  <div class="label">Who uses Pitstops</div>
+  <h2 class="title">Roles & Responsibilities</h2>
+  <h3 class="sub">Each role gets a tailored view of the same data</h3>
+  <div class="g4" style="flex:1;align-content:start">
+    <div class="card" style="border-color:rgba(16,185,129,.4)">
+      <span class="pill rp" style="margin-bottom:16px;display:inline-flex">RP</span>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Resource Person</div>
+      <div style="font-size:13px;color:#94a3b8;line-height:1.7">
+        <div>• Owns goals & pitstops</div>
+        <div>• Logs field activities</div>
+        <div>• Updates checklists</div>
+        <div>• Posts threads/voice logs</div>
+        <div>• Sees own cluster coverage</div>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(14,165,233,.4)">
+      <span class="pill zl" style="margin-bottom:16px;display:inline-flex">ZL</span>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Zone Leader</div>
+      <div style="font-size:13px;color:#94a3b8;line-height:1.7">
+        <div>• Monitors team RPs</div>
+        <div>• Zone coverage view</div>
+        <div>• Cluster-level drilldown</div>
+        <div>• Sees team pitstop health</div>
+        <div>• Manages zone activities</div>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(167,139,250,.4)">
+      <span class="pill pm" style="margin-bottom:16px;display:inline-flex">PM</span>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Programme Manager</div>
+      <div style="font-size:13px;color:#94a3b8;line-height:1.7">
+        <div>• Oversees all ZLs & RPs</div>
+        <div>• Cross-zone view</div>
+        <div>• ZL health + RP drilldown</div>
+        <div>• Coverage & goal pipeline</div>
+        <div>• Scoped to their city</div>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(251,191,36,.4)">
+      <span class="pill lead" style="margin-bottom:16px;display:inline-flex">Leadership</span>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">Super Admin</div>
+      <div style="font-size:13px;color:#94a3b8;line-height:1.7">
+        <div>• Both cities full view</div>
+        <div>• 8-tab admin dashboard</div>
+        <div>• Engagement analytics</div>
+        <div>• Org-wide team health</div>
+        <div>• Geography & partner admin</div>
+      </div>
+    </div>
+  </div>
+  <!-- Hierarchy diagram -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:0;margin-top:20px;padding:16px;background:rgba(255,255,255,.04);border-radius:12px">
+    <div style="text-align:center;padding:0 12px">
+      <div style="font-size:22px">👤</div>
+      <span class="pill lead" style="font-size:11px;margin-top:6px">Leadership</span>
+    </div>
+    <div style="color:#6366f1;font-size:20px;padding:0 8px">←</div>
+    <div style="text-align:center;padding:0 12px">
+      <div style="font-size:22px">👤</div>
+      <span class="pill pm" style="font-size:11px;margin-top:6px">PM</span>
+    </div>
+    <div style="color:#6366f1;font-size:20px;padding:0 8px">←</div>
+    <div style="text-align:center;padding:0 12px">
+      <div style="font-size:22px">👤</div>
+      <span class="pill zl" style="font-size:11px;margin-top:6px">ZL</span>
+    </div>
+    <div style="color:#6366f1;font-size:20px;padding:0 8px">←</div>
+    <div style="display:flex;gap:12px">
+      <div style="text-align:center">
+        <div style="font-size:22px">👤</div>
+        <span class="pill rp" style="font-size:11px;margin-top:6px">RP</span>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:22px">👤</div>
+        <span class="pill rp" style="font-size:11px;margin-top:6px">RP</span>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:22px">👤</div>
+        <span class="pill rp" style="font-size:11px;margin-top:6px">RP</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 5: LOGIN -->
+<div class="slide bg-slate" id="s5">
+  <div class="label">Getting Started</div>
+  <h2 class="title">How to Log In</h2>
+  <h3 class="sub">Two sign-in options — choose what works for you</h3>
+  <div class="g2" style="flex:1;align-content:start;gap:24px">
+    <div>
+      <div style="display:flex;gap:20px;flex-direction:column">
+        <div class="card" style="border-color:rgba(66,133,244,.5)">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+            <div style="font-size:28px">🔵</div>
+            <div style="font-weight:700;font-size:17px">Sign in with Google</div>
+          </div>
+          <p style="font-size:14px;color:#94a3b8">Click "Continue with Google" and use your organisation Google account. One click — no password needed.</p>
+          <div class="highlight" style="margin-top:12px;font-size:13px">Best for most users. Uses your existing org email.</div>
+        </div>
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+            <div style="font-size:28px">🔑</div>
+            <div style="font-weight:700;font-size:17px">Email & Password</div>
+          </div>
+          <p style="font-size:14px;color:#94a3b8">Enter your registered email address and your Pitstops password.</p>
+        </div>
+        <div class="card" style="border-color:rgba(251,191,36,.3)">
+          <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:#fde68a">⚡ After login</div>
+          <p style="font-size:13px;color:#94a3b8">You land on the <strong style="color:#fff">Portal</strong> — a two-card landing page. Choose your world:</p>
+          <div style="display:flex;gap:12px;margin-top:12px">
+            <div style="flex:1;background:rgba(99,102,241,.15);border-radius:10px;padding:12px;text-align:center;border:1px solid rgba(99,102,241,.3)">
+              <div style="font-size:20px">⚙️</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px">Operations</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px">Daily work: home, activities, threads</div>
+            </div>
+            <div style="flex:1;background:rgba(16,185,129,.1);border-radius:10px;padding:12px;text-align:center;border:1px solid rgba(16,185,129,.25)">
+              <div style="font-size:20px">🎯</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px">Setup</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px">Planning: goals, coverage, map</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Visual mock login screen -->
+    <div style="display:flex;align-items:center;justify-content:center">
+      <div class="mock-screen" style="width:340px;max-width:100%">
+        <div class="mock-bar">
+          <div class="mock-dot" style="background:#ff5f57"></div>
+          <div class="mock-dot" style="background:#ffbd2e"></div>
+          <div class="mock-dot" style="background:#28c840"></div>
+          <div style="flex:1;text-align:center;font-size:11px;color:#64748b">pitstops.app</div>
+        </div>
+        <div style="padding:32px 24px;text-align:center">
+          <div style="font-size:32px;margin-bottom:8px">⚡</div>
+          <div style="font-weight:800;font-size:22px;margin-bottom:4px">Pitstops</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:24px">Urban Programme Platform</div>
+          <div style="background:rgba(66,133,244,.15);border:1px solid rgba(66,133,244,.3);border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px">
+            🔵 Continue with Google
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin:16px 0">
+            <div style="flex:1;height:1px;background:#1e293b"></div>
+            <div style="font-size:11px;color:#475569">or</div>
+            <div style="flex:1;height:1px;background:#1e293b"></div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:10px 12px;font-size:12px;color:#475569;margin-bottom:8px;text-align:left">your@email.com</div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:10px 12px;font-size:12px;color:#475569;margin-bottom:16px;text-align:left">••••••••</div>
+          <div style="background:linear-gradient(135deg,#6366f1,#a855f7);border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">Sign In</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 6: HOME DASHBOARD - RP -->
+<div class="slide bg-emerald" id="s6">
+  <div class="label">For Resource Persons</div>
+  <h2 class="title">Your Home Dashboard</h2>
+  <h3 class="sub">Everything you need for your day — at a glance</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card" style="border-color:rgba(16,185,129,.4)">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">📋 Today Tab</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:2">
+          <div>✅ Today's activities due</div>
+          <div>☑️ Checklists due this week</div>
+          <div>📅 What's coming later this week</div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(16,185,129,.4)">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">🗺️ Field Coverage Tab</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:2">
+          <div>Per cluster: how many services exist vs target</div>
+          <div>Domain-by-domain breakdown</div>
+          <div>Gaps highlighted in red</div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(16,185,129,.4)">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">🎯 Goals Tab</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:2">
+          <div>My active goals</div>
+          <div>Team goals (if ZL assigned)</div>
+          <div>Status: Active / Paused / Complete</div>
+        </div>
+      </div>
+    </div>
+    <!-- Mock home screen -->
+    <div class="mock-screen">
+      <div class="mock-bar">
+        <div class="mock-dot" style="background:#ff5f57"></div>
+        <div class="mock-dot" style="background:#ffbd2e"></div>
+        <div class="mock-dot" style="background:#28c840"></div>
+        <div style="flex:1;text-align:center;font-size:11px;color:#64748b">Home · Priya (RP)</div>
+      </div>
+      <div class="mock-body">
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <div style="background:#22c55e;color:#000;border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700">Today</div>
+          <div style="background:#1e293b;border-radius:6px;padding:4px 12px;font-size:11px;color:#64748b">Coverage</div>
+          <div style="background:#1e293b;border-radius:6px;padding:4px 12px;font-size:11px;color:#64748b">Goals</div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-bottom:8px">TODAY'S ACTIVITIES</div>
+        <div style="background:#0f172a;border-radius:8px;padding:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:12px;font-weight:600">Creche visit — Kamla Nagar</div>
+            <div style="font-size:10px;color:#64748b;margin-top:2px">Goal: Creche Expansion · Pitstop: Q1 Field Visit</div>
+          </div>
+          <span class="badge badge-amber">Due</span>
+        </div>
+        <div style="background:#0f172a;border-radius:8px;padding:10px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:12px;font-weight:600">Community meeting — Cluster B</div>
+            <div style="font-size:10px;color:#64748b;margin-top:2px">Goal: Youth Centre · Pitstop: Mobilisation</div>
+          </div>
+          <span class="badge badge-green">Done</span>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-bottom:8px">CHECKLISTS THIS WEEK</div>
+        <div style="background:#0f172a;border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:12px">Submit beneficiary list</div>
+          <div style="width:40px;height:6px;background:#1e293b;border-radius:3px"><div style="width:60%;height:100%;background:#22c55e;border-radius:3px"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 7: CREATING A GOAL -->
+<div class="slide bg-indigo" id="s7">
+  <div class="label">Goal Management</div>
+  <h2 class="title">Creating a Goal</h2>
+  <h3 class="sub">Goals are the backbone of your field work plan</h3>
+  <div class="g2" style="flex:1;gap:32px">
+    <div>
+      <div style="font-size:14px;color:#94a3b8;margin-bottom:20px">Follow this flow to create any goal in Pitstops:</div>
+      <!-- Flow steps -->
+      <div style="display:flex;flex-direction:column;gap:0">
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">1</div>
+          <div style="padding-bottom:20px;border-left:2px dashed rgba(99,102,241,.3);padding-left:16px;margin-left:-1px">
+            <div style="font-weight:700;font-size:15px">Go to Setup → Goals</div>
+            <div style="font-size:13px;color:#94a3b8;margin-top:4px">Click "+ New Goal" or pick a template from the library</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">2</div>
+          <div style="padding-bottom:20px;border-left:2px dashed rgba(99,102,241,.3);padding-left:16px;margin-left:-1px">
+            <div style="font-weight:700;font-size:15px">Choose a Service Domain</div>
+            <div style="font-size:13px;color:#94a3b8;margin-top:4px">Creche, Youth Centre, Elderly Centre, Water ATM…</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">3</div>
+          <div style="padding-bottom:20px;border-left:2px dashed rgba(99,102,241,.3);padding-left:16px;margin-left:-1px">
+            <div style="font-weight:700;font-size:15px">Pin to Geography</div>
+            <div style="font-size:13px;color:#94a3b8;margin-top:4px">Zone → Cluster → Settlement (as specific as needed)</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">4</div>
+          <div style="padding-bottom:20px;border-left:2px dashed rgba(99,102,241,.3);padding-left:16px;margin-left:-1px">
+            <div style="font-weight:700;font-size:15px">Set Parameters & Owner</div>
+            <div style="font-size:13px;color:#94a3b8;margin-top:4px">Target units, planned count, assign to a team member</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">✓</div>
+          <div style="padding-left:16px;margin-left:-1px">
+            <div style="font-weight:700;font-size:15px;color:#6ee7b7">Goal Created — add Pitstops</div>
+            <div style="font-size:13px;color:#94a3b8;margin-top:4px">Break the goal into pitstops (tasks) with checklists and activities</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card" style="border-color:rgba(251,191,36,.35)">
+        <div style="font-weight:700;font-size:14px;color:#fde68a;margin-bottom:12px">📚 Goal Templates Available</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#94a3b8">
+          <div><span class="badge badge-sky" style="margin-right:6px">Community</span>Creche · Welfare Rights · Children's Centre · Youth Centre · Water ATM · Elderly Kitchen · Elderly Centre</div>
+          <div><span class="badge badge-green" style="margin-right:6px">Field</span>RP Typical Cluster · RP Base Cluster · RP Full Coverage</div>
+          <div><span class="badge badge-amber" style="margin-right:6px">Zonal</span>Zone Review · Grant Proposal · Partner Management · Capacity Building</div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;font-size:14px;margin-bottom:12px">Goal Status Flow</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="badge badge-sky" style="padding:6px 12px">Active</span>
+          <span style="color:#94a3b8">→</span>
+          <span class="badge badge-amber" style="padding:6px 12px">Paused</span>
+          <span style="color:#94a3b8">→</span>
+          <span class="badge badge-green" style="padding:6px 12px">Complete</span>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-top:10px">Goals can be paused and resumed. Completed goals count toward your domain coverage score.</div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px">Inside a Goal: Pitstops</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.8">
+          Each goal contains <strong style="color:#fff">Pitstops</strong> — focused tasks with:<br/>
+          📋 Checklist items &nbsp;|&nbsp; 📅 Activities &nbsp;|&nbsp; 💬 Threads<br/>
+          Progress tags &nbsp;|&nbsp; Start &amp; target dates &nbsp;|&nbsp; Recurrence
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 8: ACTIVITIES & CHECKLISTS -->
+<div class="slide bg-teal" id="s8">
+  <div class="label">Day-to-Day Work</div>
+  <h2 class="title">Activities & Checklists</h2>
+  <h3 class="sub">How field work gets logged and verified</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card" style="border-color:rgba(20,184,166,.4)">
+        <div style="font-weight:700;font-size:16px;margin-bottom:12px">📅 Activities (Pitstop Events)</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.9">
+          <div>• Scheduled field visits, meetings, assessments</div>
+          <div>• Each activity has a date and time</div>
+          <div>• Status: <span class="badge badge-sky">Scheduled</span> → <span class="badge badge-green">Done</span> / <span class="badge badge-amber">Rescheduled</span> / <span class="badge badge-red">Cancelled</span></div>
+          <div style="margin-top:8px">• Marking an activity <strong style="color:#fff">Done</strong> auto-closes its linked checklist item</div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(20,184,166,.4)">
+        <div style="font-weight:700;font-size:16px;margin-bottom:12px">☑️ Checklist Items</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.9">
+          <div>• Discrete deliverables inside a pitstop</div>
+          <div>• Assigned to specific team members</div>
+          <div>• Can have notes, attachments, voice logs</div>
+          <div style="margin-top:8px"><strong style="color:#6ee7b7">3 ways to auto-complete:</strong></div>
+          <div>🎙️ Voice log → transcribed → marked Done</div>
+          <div>📎 File upload → marked Done automatically</div>
+          <div>✅ Activity marked Done → linked item closes</div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card" style="border-color:rgba(20,184,166,.4)">
+        <div style="font-weight:700;font-size:16px;margin-bottom:12px">🗓️ Activities Calendar</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.9">
+          <div>• Full calendar view of all scheduled activities</div>
+          <div>• Scoped to your team (RP sees own, ZL sees team)</div>
+          <div>• Red panel shows overdue activities needing action</div>
+          <div>• Filter by week, reschedule by dragging</div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(251,191,36,.35)">
+        <div style="font-weight:700;font-size:14px;color:#fde68a;margin-bottom:12px">🎙️ Voice Log Feature</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.8">
+          Record a voice note in any Indian language. Pitstops automatically:<br/>
+          <strong style="color:#fff">1.</strong> Transcribes with Sarvam AI<br/>
+          <strong style="color:#fff">2.</strong> Translates to English via Google<br/>
+          <strong style="color:#fff">3.</strong> Attaches to the checklist item<br/>
+          <strong style="color:#fff">4.</strong> Marks the item as Done
+        </div>
+      </div>
+      <!-- Progress bar mock -->
+      <div class="card-sm" style="background:rgba(255,255,255,.04)">
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:8px">Pitstop completion example</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+          <span>Community outreach — Cluster A</span>
+          <span style="color:#6ee7b7">3/5 done</span>
+        </div>
+        <div style="height:8px;background:#1e293b;border-radius:4px;overflow:hidden">
+          <div style="width:60%;height:100%;background:linear-gradient(90deg,#14b8a6,#10b981);border-radius:4px"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;font-size:11px">
+          <div style="display:flex;gap:8px;align-items:center"><span style="color:#22c55e">✓</span><span>Beneficiary registration</span><span class="badge badge-green" style="margin-left:auto;font-size:10px">Voice</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="color:#22c55e">✓</span><span>Photo documentation</span><span class="badge badge-green" style="margin-left:auto;font-size:10px">File</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="color:#22c55e">✓</span><span>Field visit completed</span><span class="badge badge-green" style="margin-left:auto;font-size:10px">Activity</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="color:#f59e0b">○</span><span style="color:#64748b">Submit MIS report</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="color:#f59e0b">○</span><span style="color:#64748b">Partner sign-off</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 9: ZL VIEW -->
+<div class="slide bg-sky" id="s9">
+  <div class="label">For Zone Leaders</div>
+  <h2 class="title">Zone Leader Dashboard</h2>
+  <h3 class="sub">Monitor your zone, your clusters, and your team RPs</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card" style="border-color:rgba(14,165,233,.5)">
+        <div style="font-weight:700;font-size:16px;margin-bottom:14px">📊 Your Tabs</div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+          <div style="background:rgba(14,165,233,.1);border-radius:8px;padding:10px 12px">
+            <strong>Today</strong> — your activities + team checklists due this week
+          </div>
+          <div style="background:rgba(14,165,233,.1);border-radius:8px;padding:10px 12px">
+            <strong>Zone Coverage</strong> — domain stats across all clusters in your zone
+          </div>
+          <div style="background:rgba(14,165,233,.1);border-radius:8px;padding:10px 12px">
+            <strong>Cluster Status</strong> — health summary per cluster with activity counts
+          </div>
+          <div style="background:rgba(14,165,233,.1);border-radius:8px;padding:10px 12px">
+            <strong>Team Health</strong> — each RP's delayed pitstops + checklist completion rate
+          </div>
+          <div style="background:rgba(14,165,233,.1);border-radius:8px;padding:10px 12px">
+            <strong>Goals</strong> — your goals + goals of your team RPs
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card" style="border-color:rgba(14,165,233,.4)">
+        <div style="font-weight:700;font-size:14px;margin-bottom:12px">👁️ Team Health View — RP Cards</div>
+        <!-- Mock RP health cards -->
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:#0f172a;border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12px;font-weight:600">Priya · RP</div>
+              <div style="font-size:10px;color:#64748b;margin-top:2px">Cluster A, B</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div style="text-align:center">
+                <div style="font-size:16px;font-weight:700;color:#22c55e">87%</div>
+                <div style="font-size:9px;color:#64748b">Checklist</div>
+              </div>
+              <span class="badge badge-green">On Track</span>
+            </div>
+          </div>
+          <div style="background:#0f172a;border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12px;font-weight:600">Rahul · RP</div>
+              <div style="font-size:10px;color:#64748b;margin-top:2px">Cluster C</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div style="text-align:center">
+                <div style="font-size:16px;font-weight:700;color:#f59e0b">52%</div>
+                <div style="font-size:9px;color:#64748b">Checklist</div>
+              </div>
+              <span class="badge badge-amber">2 delayed</span>
+            </div>
+          </div>
+          <div style="background:#0f172a;border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12px;font-weight:600">Meena · RP</div>
+              <div style="font-size:10px;color:#64748b;margin-top:2px">Cluster D, E</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div style="text-align:center">
+                <div style="font-size:16px;font-weight:700;color:#22c55e">94%</div>
+                <div style="font-size:9px;color:#64748b">Checklist</div>
+              </div>
+              <span class="badge badge-green">On Track</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="highlight">
+        Click any <strong>delayed badge</strong> on an RP card to instantly expand all their delayed pitstops and pending checklist items.
+      </div>
+      <div class="card-sm">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px">Zone Coverage Summary</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:11px">
+          <div style="display:flex;justify-content:space-between"><span class="dom-creche">Creche</span><div style="display:flex;align-items:center;gap:8px"><span>12 exist</span><span style="color:#64748b">/ 18 target</span><span class="badge badge-red">6 gap</span></div></div>
+          <div style="display:flex;justify-content:space-between"><span class="dom-children">Children Centre</span><div style="display:flex;align-items:center;gap:8px"><span>8 exist</span><span style="color:#64748b">/ 10 target</span><span class="badge badge-amber">2 gap</span></div></div>
+          <div style="display:flex;justify-content:space-between"><span class="dom-youth">Youth Centre</span><div style="display:flex;align-items:center;gap:8px"><span>5 exist</span><span style="color:#64748b">/ 5 target</span><span class="badge badge-green">0 gap</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 10: PM VIEW -->
+<div class="slide bg-violet" id="s10">
+  <div class="label">For Programme Managers</div>
+  <h2 class="title">PM Cross-Zone Dashboard</h2>
+  <h3 class="sub">Oversight across all zones, ZLs, and RPs in your city</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card" style="border-color:rgba(167,139,250,.4)">
+        <div style="font-weight:700;font-size:16px;margin-bottom:14px">📊 PM Dashboard Tabs</div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+          <div style="background:rgba(167,139,250,.1);border-radius:8px;padding:10px 12px">
+            <strong>Today</strong> — your activities, your ZLs' status, your RPs (grouped by ZL)
+          </div>
+          <div style="background:rgba(167,139,250,.1);border-radius:8px;padding:10px 12px">
+            <strong>City Coverage</strong> — full domain coverage across all zones
+          </div>
+          <div style="background:rgba(167,139,250,.1);border-radius:8px;padding:10px 12px">
+            <strong>ZL Health</strong> — per-ZL delayed pitstop count, drill into their team's RPs
+          </div>
+          <div style="background:rgba(167,139,250,.1);border-radius:8px;padding:10px 12px">
+            <strong>RP Health</strong> — all RPs in your city with pitstop + checklist health
+          </div>
+          <div style="background:rgba(167,139,250,.1);border-radius:8px;padding:10px 12px">
+            <strong>Goals Pipeline</strong> — all active / paused / complete goals city-wide
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card" style="border-color:rgba(167,139,250,.4)">
+        <div style="font-weight:700;font-size:14px;margin-bottom:12px">🔍 ZL Health Drilldown</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:#0f172a;border-radius:10px;padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div style="font-size:13px;font-weight:600">Arun — Zone North</div>
+              <button style="background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">3 delayed ▾</button>
+            </div>
+            <div style="font-size:11px;color:#64748b">RPs: Priya · Rahul · Meena</div>
+            <!-- Expanded delayed pitstops mock -->
+            <div style="background:#1e293b;border-radius:6px;padding:8px;margin-top:8px;font-size:11px">
+              <div style="color:#fca5a5;margin-bottom:4px">▸ Q2 Creche Assessment — Rahul — 4 days overdue</div>
+              <div style="color:#fca5a5;margin-bottom:4px">▸ Partner meeting — Priya — 7 days overdue</div>
+              <div style="color:#fca5a5">▸ MIS submission — Rahul — 2 days overdue</div>
+            </div>
+          </div>
+          <div style="background:#0f172a;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:600">Sanjay — Zone South</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">RPs: Deepa · Kumar</div>
+            </div>
+            <span class="badge badge-green">All on track</span>
+          </div>
+        </div>
+      </div>
+      <div class="highlight">
+        PMs see <strong>two levels deep</strong> — click a ZL's delayed badge to see all their RPs' delayed pitstops in a single expanded view.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 11: FIELD COVERAGE -->
+<div class="slide bg-dark" id="s11">
+  <div class="label">Needs Assessment</div>
+  <h2 class="title">Field Coverage Dashboard</h2>
+  <h3 class="sub">Where do services exist? Where are the gaps?</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">📍 Four View Levels</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="background:rgba(99,102,241,.3);border-radius:8px;padding:6px 12px;font-weight:600;font-size:12px;min-width:80px;text-align:center">City</div>
+            <span style="color:#94a3b8">All domain cards with exist/plan/done/gap</span>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="background:rgba(14,165,233,.2);border-radius:8px;padding:6px 12px;font-weight:600;font-size:12px;min-width:80px;text-align:center">Zone</div>
+            <span style="color:#94a3b8">Per-zone table showing each domain's coverage</span>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="background:rgba(16,185,129,.2);border-radius:8px;padding:6px 12px;font-weight:600;font-size:12px;min-width:80px;text-align:center">Cluster</div>
+            <span style="color:#94a3b8">Cluster-level domain progress with saturation scores</span>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="background:rgba(251,191,36,.15);border-radius:8px;padding:6px 12px;font-weight:600;font-size:12px;min-width:80px;text-align:center">Settlement</div>
+            <span style="color:#94a3b8">Individual settlement with map link + entitlements</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">📈 What's tracked per domain</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+          <div style="background:#1e293b;border-radius:8px;padding:8px 12px">
+            <div style="font-weight:600;color:#6ee7b7">Exist</div>
+            <div style="color:#94a3b8;font-size:11px">Services already running</div>
+          </div>
+          <div style="background:#1e293b;border-radius:8px;padding:8px 12px">
+            <div style="font-weight:600;color:#7dd3fc">Planned</div>
+            <div style="color:#94a3b8;font-size:11px">Goals in progress</div>
+          </div>
+          <div style="background:#1e293b;border-radius:8px;padding:8px 12px">
+            <div style="font-weight:600;color:#818cf8">Done</div>
+            <div style="color:#94a3b8;font-size:11px">Completed this period</div>
+          </div>
+          <div style="background:#1e293b;border-radius:8px;padding:8px 12px">
+            <div style="font-weight:600;color:#fca5a5">Gap</div>
+            <div style="color:#94a3b8;font-size:11px">Need vs exist deficit</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Domain cards mockup -->
+    <div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:12px">Coverage cards — City view (Bangalore example)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:#1e293b;border-radius:10px;padding:14px;border:1px solid #334155">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-weight:700;font-size:13px" class="dom-creche">Creche</span>
+            <span class="badge badge-red">6 gap</span>
+          </div>
+          <div style="font-size:11px;color:#64748b;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between"><span>Exist</span><span style="color:#6ee7b7;font-weight:600">42</span></div>
+            <div style="display:flex;justify-content:space-between"><span>Planned</span><span style="color:#7dd3fc;font-weight:600">12</span></div>
+            <div style="display:flex;justify-content:space-between"><span>Target</span><span style="color:#94a3b8">60</span></div>
+          </div>
+          <div style="height:4px;background:#0f172a;border-radius:2px;margin-top:8px;overflow:hidden">
+            <div style="width:70%;height:100%;background:linear-gradient(90deg,#f472b6,#ec4899)"></div>
+          </div>
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:14px;border:1px solid #334155">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-weight:700;font-size:13px" class="dom-youth">Youth Centre</span>
+            <span class="badge badge-green">0 gap</span>
+          </div>
+          <div style="font-size:11px;color:#64748b;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between"><span>Exist</span><span style="color:#6ee7b7;font-weight:600">18</span></div>
+            <div style="display:flex;justify-content:space-between"><span>Planned</span><span style="color:#7dd3fc;font-weight:600">3</span></div>
+            <div style="display:flex;justify-content:space-between"><span>Target</span><span style="color:#94a3b8">18</span></div>
+          </div>
+          <div style="height:4px;background:#0f172a;border-radius:2px;margin-top:8px;overflow:hidden">
+            <div style="width:100%;height:100%;background:linear-gradient(90deg,#34d399,#10b981)"></div>
+          </div>
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:14px;border:1px solid #334155">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-weight:700;font-size:13px" class="dom-elderly">Elderly Centre</span>
+            <span class="badge badge-amber">3 gap</span>
+          </div>
+          <div style="font-size:11px;color:#64748b;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between"><span>Exist</span><span style="color:#6ee7b7;font-weight:600">27</span></div>
+            <div style="display:flex;justify-content:space-between"><span>Planned</span><span style="color:#7dd3fc;font-weight:600">5</span></div>
+            <div style="display:flex;justify-content:space-between"><span>Target</span><span style="color:#94a3b8">35</span></div>
+          </div>
+          <div style="height:4px;background:#0f172a;border-radius:2px;margin-top:8px;overflow:hidden">
+            <div style="width:77%;height:100%;background:linear-gradient(90deg,#fb923c,#f97316)"></div>
+          </div>
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:14px;border:1px solid #334155">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-weight:700;font-size:13px" class="dom-water">Water ATM</span>
+            <span class="badge badge-red">9 gap</span>
+          </div>
+          <div style="font-size:11px;color:#64748b;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between"><span>Exist</span><span style="color:#6ee7b7;font-weight:600">11</span></div>
+            <div style="display:flex;justify-content:space-between"><span>Planned</span><span style="color:#7dd3fc;font-weight:600">8</span></div>
+            <div style="display:flex;justify-content:space-between"><span>Target</span><span style="color:#94a3b8">28</span></div>
+          </div>
+          <div style="height:4px;background:#0f172a;border-radius:2px;margin-top:8px;overflow:hidden">
+            <div style="width:39%;height:100%;background:linear-gradient(90deg,#22d3ee,#06b6d4)"></div>
+          </div>
+        </div>
+      </div>
+      <div class="highlight" style="margin-top:12px">Click any domain card to drill down → create a goal directly from the gap identified.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 12: MAP -->
+<div class="slide bg-slate" id="s12">
+  <div class="label">Geospatial Intelligence</div>
+  <h2 class="title">Programme Map</h2>
+  <h3 class="sub">See your entire programme footprint across Bangalore & Chennai</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">🗺️ What you can see on the map</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#94a3b8">
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="color:#6366f1">▬</span>
+            <span><strong style="color:#fff">Partner settlement polygons</strong> — toggle each partner's settlements by colour</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="color:#f472b6">●</span>
+            <span><strong style="color:#fff">Facility centres</strong> — crèches, children's centres, youth centres as map pins</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="color:#16a34a">●</span>
+            <span><strong style="color:#fff">Govt schools & health centres</strong> — tagged to nearby settlements</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="color:#22d3ee">▬</span>
+            <span><strong style="color:#fff">Custom settlements</strong> — polygons drawn by your team</span>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(99,102,241,.4)">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">🔍 Needs Heatmap Lens</div>
+        <p style="font-size:13px;color:#94a3b8;margin-bottom:12px">Toggle the Needs Lens to overlay a heatmap showing demand vs coverage:</p>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+          <div style="display:flex;gap:8px;align-items:center"><span style="background:#ef4444;width:16px;height:16px;border-radius:3px;flex-shrink:0"></span><span>High demand, low coverage — priority areas</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="background:#f59e0b;width:16px;height:16px;border-radius:3px;flex-shrink:0"></span><span>Moderate gap — in progress</span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="background:#22c55e;width:16px;height:16px;border-radius:3px;flex-shrink:0"></span><span>Well-covered settlements</span></div>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-top:10px">Switch between domains: Creche / Children's Centre / Youth Centre / Elderly / Water ATM…</div>
+      </div>
+    </div>
+    <!-- Map screenshot -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="flex:1;border-radius:12px;overflow:hidden;border:1px solid #334155;box-shadow:0 0 40px rgba(0,0,0,.5)">
+        <img src="/map-screenshot.png" alt="Programme Map — Bangalore" style="width:100%;height:100%;object-fit:cover;object-position:top left;display:block"/>
+      </div>
+      <div class="highlight">
+        Click any settlement polygon to open a sidebar with population, domain coverage, linked goals, and nearby facilities.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 13: PLANNER -->
+<div class="slide bg-indigo" id="s13">
+  <div class="label">Planning</div>
+  <h2 class="title">Weekly Planner</h2>
+  <h3 class="sub">Quarter-by-quarter Gantt view for your goals and activities</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">📅 What the planner shows</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.9">
+          <div>• Weeks arranged by <strong style="color:#fff">financial year quarter</strong> (Q1 Apr–Jun · Q2 Jul–Sep · Q3 Oct–Dec · Q4 Jan–Mar)</div>
+          <div>• Each week row shows: <strong style="color:#fff">pitstops</strong> starting/ending that week, <strong style="color:#fff">scheduled activities</strong>, and <strong style="color:#fff">plan items</strong> you've added manually</div>
+          <div>• Add anything to a week's plan with a one-click "Add to plan" button</div>
+          <div>• Overdue items flagged in red</div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">🎯 How to use it for planning</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.9">
+          <div>1. Open Setup → Planner</div>
+          <div>2. Navigate to the current quarter</div>
+          <div>3. See all active pitstops mapped to weeks by target date</div>
+          <div>4. Add bespoke plan items for field visits, reviews, or meetings</div>
+          <div>5. Share your plan view in team standups</div>
+        </div>
+      </div>
+    </div>
+    <!-- Planner mockup -->
+    <div class="mock-screen">
+      <div class="mock-bar">
+        <div class="mock-dot" style="background:#ff5f57"></div>
+        <div class="mock-dot" style="background:#ffbd2e"></div>
+        <div class="mock-dot" style="background:#28c840"></div>
+        <div style="flex:1;text-align:center;font-size:11px;color:#64748b">Planner · Q1 2026</div>
+      </div>
+      <div class="mock-body">
+        <!-- Quarter selector -->
+        <div style="display:flex;gap:6px;margin-bottom:12px">
+          <div style="background:#6366f1;color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">Q1</div>
+          <div style="background:#1e293b;border-radius:6px;padding:4px 10px;font-size:11px;color:#64748b">Q2</div>
+          <div style="background:#1e293b;border-radius:6px;padding:4px 10px;font-size:11px;color:#64748b">Q3</div>
+          <div style="background:#1e293b;border-radius:6px;padding:4px 10px;font-size:11px;color:#64748b">Q4</div>
+        </div>
+        <!-- Week rows -->
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="background:#0f172a;border-radius:6px;padding:8px 10px">
+            <div style="font-size:10px;color:#64748b;margin-bottom:6px">Week 1 · Apr 7–13</div>
+            <div style="font-size:11px;background:rgba(99,102,241,.2);border-radius:4px;padding:4px 8px;margin-bottom:3px;color:#a5b4fc">📌 Creche Expansion — field visit</div>
+            <div style="font-size:11px;background:rgba(16,185,129,.15);border-radius:4px;padding:4px 8px;color:#6ee7b7">✅ Community meeting — done</div>
+          </div>
+          <div style="background:#0f172a;border-radius:6px;padding:8px 10px;border:1px solid rgba(99,102,241,.3)">
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:6px;font-weight:600">Week 2 · Apr 14–20 ← Current</div>
+            <div style="font-size:11px;background:rgba(239,68,68,.15);border-radius:4px;padding:4px 8px;margin-bottom:3px;color:#fca5a5">⚠️ Partner meeting — 2d overdue</div>
+            <div style="font-size:11px;background:rgba(245,158,11,.1);border-radius:4px;padding:4px 8px;color:#fde68a">📋 MIS submission due</div>
+          </div>
+          <div style="background:#0f172a;border-radius:6px;padding:8px 10px">
+            <div style="font-size:10px;color:#64748b;margin-bottom:6px">Week 3 · Apr 21–27</div>
+            <div style="font-size:11px;background:rgba(99,102,241,.15);border-radius:4px;padding:4px 8px;margin-bottom:3px;color:#c7d2fe">📌 Zone review prep</div>
+            <div style="font-size:11px;color:#475569;border:1px dashed #1e293b;border-radius:4px;padding:4px 8px;cursor:pointer">+ Add to plan</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 14: THREADS -->
+<div class="slide bg-dark" id="s14">
+  <div class="label">Communication</div>
+  <h2 class="title">Threads</h2>
+  <h3 class="sub">Contextual conversations linked directly to your goals and work</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">💬 What is a Thread?</div>
+        <p style="font-size:13px;color:#94a3b8;margin-bottom:12px">A thread is a discussion that's anchored to a specific piece of work — not floating in WhatsApp. Every thread is linked to:</p>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#94a3b8">
+          <div>📁 A <strong style="color:#fff">Goal</strong> — broad programme discussion</div>
+          <div>📌 A <strong style="color:#fff">Pitstop</strong> — task-specific conversation</div>
+          <div>☑️ A <strong style="color:#fff">Checklist item</strong> — clarification or evidence</div>
+          <div>📅 A <strong style="color:#fff">Scheduled activity</strong> — pre/post event notes</div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">📎 Attachments on Threads</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.8">
+          <div>• Upload photos, PDFs, documents</div>
+          <div>• Voice recordings auto-transcribed</div>
+          <div>• All files stored and searchable</div>
+          <div>• Uploading to a checklist item auto-closes it</div>
+        </div>
+      </div>
+      <div class="highlight">
+        ZLs and PMs see threads from their team members — no more hunting for updates across different messaging apps.
+      </div>
+    </div>
+    <!-- Thread list mockup -->
+    <div class="mock-screen">
+      <div class="mock-bar">
+        <div class="mock-dot" style="background:#ff5f57"></div>
+        <div class="mock-dot" style="background:#ffbd2e"></div>
+        <div class="mock-dot" style="background:#28c840"></div>
+        <div style="flex:1;text-align:center;font-size:11px;color:#64748b">Threads</div>
+        <div style="font-size:11px;color:#6366f1;cursor:pointer">+ New</div>
+      </div>
+      <div class="mock-body" style="display:flex;flex-direction:column;gap:8px">
+        <div style="background:#0f172a;border-radius:8px;padding:10px 12px;border-left:3px solid #6366f1">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:12px;font-weight:600">Q2 Field Assessment Update</div>
+            <div style="font-size:10px;color:#64748b">2h ago</div>
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-bottom:4px">Creche Expansion → Q2 Visit → Site survey item</div>
+          <div style="font-size:11px;color:#94a3b8">"Completed the survey at Kamla Nagar. 3 families registered..."</div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <span class="badge badge-sky" style="font-size:10px">pitstop</span>
+            <span class="badge badge-green" style="font-size:10px">checklist</span>
+            <span style="font-size:10px;color:#64748b">📎 2 files</span>
+          </div>
+        </div>
+        <div style="background:#0f172a;border-radius:8px;padding:10px 12px;border-left:3px solid #10b981">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:12px;font-weight:600">Partner coordination note</div>
+            <div style="font-size:10px;color:#64748b">Yesterday</div>
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-bottom:4px">Youth Centre Goal → Partner Mgmt pitstop</div>
+          <div style="font-size:11px;color:#94a3b8">"Sangama confirmed they can start next month..."</div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <span class="badge badge-green" style="font-size:10px">pitstop</span>
+            <span style="font-size:10px;color:#64748b">🎙️ Voice log</span>
+          </div>
+        </div>
+        <div style="background:#0f172a;border-radius:8px;padding:10px 12px;border-left:3px solid #f59e0b">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:12px;font-weight:600">MIS gap — urgent</div>
+            <div style="font-size:10px;color:#64748b">3 days ago</div>
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-bottom:4px">Zone Review Goal</div>
+          <div style="font-size:11px;color:#94a3b8">"Missing data for Cluster D settlements. Need RP input..."</div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <span class="badge" style="background:rgba(245,158,11,.15);color:#fde68a;font-size:10px">goal</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 15: LEADERSHIP DASHBOARD -->
+<div class="slide bg-amber" id="s15">
+  <div class="label">For Leadership</div>
+  <h2 class="title">Super Admin Dashboard</h2>
+  <h3 class="sub">8-tab org-wide intelligence across both cities</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card" style="border-color:rgba(251,191,36,.4)">
+        <div style="font-weight:700;font-size:15px;margin-bottom:14px">🎛️ 8 Dashboard Tabs</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="background:rgba(251,191,36,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#fde68a;min-width:100px;text-align:center">Overview</div>
+            <span style="color:#94a3b8">KPIs, org health signal, PM Pulse chips</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="background:rgba(239,68,68,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#fca5a5;min-width:100px;text-align:center">Attention</div>
+            <span style="color:#94a3b8">Delayed pitstops + overdue activities, filterable</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="background:rgba(16,185,129,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#6ee7b7;min-width:100px;text-align:center">Team Health</div>
+            <span style="color:#94a3b8">PM→ZL→RP 3-level accordion with health bars</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="background:rgba(14,165,233,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#7dd3fc;min-width:100px;text-align:center">Engagement</div>
+            <span style="color:#94a3b8">Login frequency, activity speed, pitstop freshness</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="background:rgba(99,102,241,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#a5b4fc;min-width:100px;text-align:center">Goals</div>
+            <span style="color:#94a3b8">Full goal list with domain + status filters</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="background:rgba(167,139,250,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#c4b5fd;min-width:100px;text-align:center">Field Coverage</div>
+            <span style="color:#94a3b8">Domain stats across both cities</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="background:rgba(20,184,166,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#5eead4;min-width:100px;text-align:center">Geography</div>
+            <span style="color:#94a3b8">Zone/cluster breakdown with active goals count</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="background:rgba(148,163,184,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#cbd5e1;min-width:100px;text-align:center">Team</div>
+            <span style="color:#94a3b8">All users sortable by role, goals, pitstops</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- KPI tiles mockup -->
+    <div class="col">
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:8px">Overview KPIs — live org snapshot</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="card-sm" style="text-align:center">
+          <div style="font-size:32px;font-weight:800;color:#ef4444">7</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">Overdue Activities</div>
+          <div style="font-size:10px;color:#ef4444;margin-top:2px">needs attention →</div>
+        </div>
+        <div class="card-sm" style="text-align:center">
+          <div style="font-size:32px;font-weight:800;color:#22c55e">82%</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">Pitstops On-Track</div>
+          <div style="font-size:10px;color:#22c55e;margin-top:2px">healthy</div>
+        </div>
+        <div class="card-sm" style="text-align:center">
+          <div style="font-size:32px;font-weight:800;color:#f59e0b">74%</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">Checklist Completion</div>
+          <div style="font-size:10px;color:#f59e0b;margin-top:2px">watch closely</div>
+        </div>
+        <div class="card-sm" style="text-align:center">
+          <div style="font-size:32px;font-weight:800;color:#818cf8">31</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">Active Goals</div>
+          <div style="font-size:10px;color:#64748b;margin-top:2px">of 44 total →</div>
+        </div>
+      </div>
+      <!-- PM Pulse chips -->
+      <div class="card-sm">
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:#fde68a">PM Pulse</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer">
+            <div style="font-size:12px;font-weight:700">Arun</div>
+            <div style="font-size:11px;color:#6ee7b7">PM · BLR</div>
+            <div style="font-size:20px;font-weight:800;color:#22c55e;margin-top:4px">✓</div>
+          </div>
+          <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer">
+            <div style="font-size:12px;font-weight:700">Kavya</div>
+            <div style="font-size:11px;color:#fca5a5">PM · CHN</div>
+            <div style="font-size:20px;font-weight:800;color:#ef4444;margin-top:4px">3 🔴</div>
+          </div>
+          <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer">
+            <div style="font-size:12px;font-weight:700">Rajan</div>
+            <div style="font-size:11px;color:#fde68a">PM · BLR</div>
+            <div style="font-size:20px;font-weight:800;color:#f59e0b;margin-top:4px">1 ⚠️</div>
+          </div>
+        </div>
+      </div>
+      <div class="highlight">
+        Click any PM chip to jump directly to their Team Health view with all ZL and RP drill-downs.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 16: ENGAGEMENT -->
+<div class="slide bg-rose" id="s16">
+  <div class="label">Leadership · Engagement Tab</div>
+  <h2 class="title">Engagement Tracking</h2>
+  <h3 class="sub">Who's active, who needs a nudge, and how fast is work moving?</h3>
+  <div class="g2" style="flex:1;gap:24px">
+    <div class="col">
+      <div class="card" style="border-color:rgba(244,63,94,.4)">
+        <div style="font-weight:700;font-size:15px;margin-bottom:12px">📊 Three Engagement Signals</div>
+        <div style="display:flex;flex-direction:column;gap:12px;font-size:13px">
+          <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px">
+            <div style="font-weight:700;color:#fda4af;margin-bottom:4px">🔐 Login Activity</div>
+            <div style="color:#94a3b8">Last login date · Logins in last 7 days · Logins in last 30 days</div>
+          </div>
+          <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px">
+            <div style="font-weight:700;color:#fda4af;margin-bottom:4px">⏱️ Activity Completion Speed</div>
+            <div style="color:#94a3b8">How quickly activities are marked Done after they're due</div>
+            <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+              <span style="background:#064e3b;color:#6ee7b7;padding:2px 7px;border-radius:4px;font-size:10px">Same day</span>
+              <span style="background:#1a3300;color:#a3e635;padding:2px 7px;border-radius:4px;font-size:10px">+1 day</span>
+              <span style="background:#451a03;color:#fde68a;padding:2px 7px;border-radius:4px;font-size:10px">2-3 days</span>
+              <span style="background:#431407;color:#fdba74;padding:2px 7px;border-radius:4px;font-size:10px">4-7 days</span>
+              <span style="background:#4c0519;color:#fca5a5;padding:2px 7px;border-radius:4px;font-size:10px">Week+</span>
+              <span style="background:#1c1917;color:#a8a29e;padding:2px 7px;border-radius:4px;font-size:10px">Never</span>
+            </div>
+          </div>
+          <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px">
+            <div style="font-weight:700;color:#fda4af;margin-bottom:4px">🌱 Pitstop Freshness</div>
+            <div style="color:#94a3b8">When was each person's work last touched? Stale = no update in 14 days</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:8px">Sample engagement cards — sorted worst-first</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:700;font-size:13px">Mohan · RP</div>
+            <span class="badge badge-red">Inactive</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;text-align:center">
+            <div style="background:rgba(0,0,0,.3);border-radius:6px;padding:6px">
+              <div style="color:#fca5a5;font-weight:600">18 days ago</div>
+              <div style="color:#64748b">Last login</div>
+            </div>
+            <div style="background:rgba(0,0,0,.3);border-radius:6px;padding:6px">
+              <div style="color:#fca5a5;font-weight:600">23%</div>
+              <div style="color:#64748b">Completion</div>
+            </div>
+            <div style="background:rgba(0,0,0,.3);border-radius:6px;padding:6px">
+              <div style="color:#fca5a5;font-weight:600">4 stale</div>
+              <div style="color:#64748b">Pitstops</div>
+            </div>
+          </div>
+        </div>
+        <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:700;font-size:13px">Lakshmi · ZL</div>
+            <span class="badge badge-amber">At Risk</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;text-align:center">
+            <div style="background:rgba(0,0,0,.3);border-radius:6px;padding:6px">
+              <div style="color:#fde68a;font-weight:600">5 days ago</div>
+              <div style="color:#64748b">Last login</div>
+            </div>
+            <div style="background:rgba(0,0,0,.3);border-radius:6px;padding:6px">
+              <div style="color:#fde68a;font-weight:600">61%</div>
+              <div style="color:#64748b">Completion</div>
+            </div>
+            <div style="background:rgba(0,0,0,.3);border-radius:6px;padding:6px">
+              <div style="color:#fde68a;font-weight:600">2 stale</div>
+              <div style="color:#64748b">Pitstops</div>
+            </div>
+          </div>
+        </div>
+        <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:700;font-size:13px">Priya · RP</div>
+            <span class="badge badge-green">Engaged</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;text-align:center">
+            <div style="background:rgba(0,0,0,.3);border-radius:6px;padding:6px">
+              <div style="color:#6ee7b7;font-weight:600">Today</div>
+              <div style="color:#64748b">Last login</div>
+            </div>
+            <div style="background:rgba(0,0,0,.3);border-radius:6px;padding:6px">
+              <div style="color:#6ee7b7;font-weight:600">91%</div>
+              <div style="color:#64748b">Completion</div>
+            </div>
+            <div style="background:rgba(0,0,0,.3);border-radius:6px;padding:6px">
+              <div style="color:#6ee7b7;font-weight:600">0 stale</div>
+              <div style="color:#64748b">Pitstops</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ SLIDE 17: SUMMARY -->
+<div class="slide bg-navy" id="s17">
+  <div class="label">Bringing it all together</div>
+  <h2 class="title">What Pitstops Gives Your Programme</h2>
+  <h3 class="sub">One platform. Every role. Both cities.</h3>
+  <div style="flex:1;display:flex;gap:32px;align-items:center">
+    <div style="flex:1;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;gap:16px;align-items:center">
+        <div class="icon-circle" style="background:rgba(99,102,241,.2)">🗺️</div>
+        <div>
+          <div style="font-weight:700;font-size:15px">Know where to act</div>
+          <div style="font-size:13px;color:#94a3b8">Settlement-level needs vs coverage, updated in real time</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center">
+        <div class="icon-circle" style="background:rgba(16,185,129,.2)">🎯</div>
+        <div>
+          <div style="font-weight:700;font-size:15px">Track every goal to completion</div>
+          <div style="font-size:13px;color:#94a3b8">Goals → Pitstops → Checklists → Activities, all linked</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center">
+        <div class="icon-circle" style="background:rgba(14,165,233,.2)">👥</div>
+        <div>
+          <div style="font-weight:700;font-size:15px">See your team's health</div>
+          <div style="font-size:13px;color:#94a3b8">Managers see delayed pitstops, overdue items, and engagement — one click</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center">
+        <div class="icon-circle" style="background:rgba(251,191,36,.2)">💬</div>
+        <div>
+          <div style="font-weight:700;font-size:15px">Communication in context</div>
+          <div style="font-size:13px;color:#94a3b8">Voice logs, threads, and attachments linked to the exact piece of work</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center">
+        <div class="icon-circle" style="background:rgba(244,63,94,.2)">📊</div>
+        <div>
+          <div style="font-weight:700;font-size:15px">Leadership intelligence, always on</div>
+          <div style="font-size:13px;color:#94a3b8">8-tab dashboard — from org KPIs to individual RP engagement</div>
+        </div>
+      </div>
+    </div>
+    <!-- Quick reference -->
+    <div style="flex:1">
+      <div class="card" style="border-color:rgba(99,102,241,.3)">
+        <div style="font-weight:700;font-size:15px;margin-bottom:16px">Quick Reference by Role</div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+          <div>
+            <span class="pill rp" style="margin-bottom:6px;display:inline-flex">RP</span>
+            <div style="color:#94a3b8">Home → Today → update activities & checklists · Planner for your week · Threads to log field notes</div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:10px">
+            <span class="pill zl" style="margin-bottom:6px;display:inline-flex">ZL</span>
+            <div style="color:#94a3b8">Home → Team Health tab · Zone Coverage · Monitor cluster status · Review RP pitstops weekly</div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:10px">
+            <span class="pill pm" style="margin-bottom:6px;display:inline-flex">PM</span>
+            <div style="color:#94a3b8">Home → ZL Health → drill down to RPs · Coverage tab for city-wide gaps · Goals pipeline view</div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:10px">
+            <span class="pill lead" style="margin-bottom:6px;display:inline-flex">Leadership</span>
+            <div style="color:#94a3b8">Admin dashboard → Overview KPIs → Attention tab → Engagement tab · Both cities · All teams</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:16px;text-align:center;padding:20px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(168,85,247,.15));border:1px solid rgba(99,102,241,.3);border-radius:16px">
+        <div style="font-size:28px;margin-bottom:8px">⚡</div>
+        <div style="font-weight:800;font-size:20px;background:linear-gradient(135deg,#a5b4fc,#c4b5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Pitstops</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:4px">Questions? Talk to your PM or Zone Leader.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- Navigation -->
+<div id="nav">
+  <button onclick="go(-1)" title="Previous (←)">&#8592;</button>
+  <span id="slide-counter">1 / 17</span>
+  <button onclick="go(1)" title="Next (→)">&#8594;</button>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let cur = 0;
+
+function render() {
+  slides.forEach((s,i) => {
+    s.style.display = i === cur ? 'flex' : 'none';
+    s.style.opacity = i === cur ? '1' : '0';
+  });
+  document.getElementById('slide-counter').textContent = `${cur+1} / ${total}`;
+  document.getElementById('progress').style.width = `${((cur+1)/total)*100}%`;
+}
+
+function go(dir) {
+  cur = Math.max(0, Math.min(total-1, cur+dir));
+  render();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') go(1);
+  if (e.key === 'ArrowLeft') go(-1);
+});
+
+// Touch/swipe support
+let tx = 0;
+document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = tx - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1);
+});
+
+render();
+</script>
+</body>
+</html>

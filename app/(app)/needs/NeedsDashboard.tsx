@@ -111,7 +111,7 @@ function GapChip({ d, onClick }: { d: LevelStats["domains"][string] | undefined;
 
 // ── Zones/Clusters tab: domain row with full existing/need/plan/done/gap stats ─
 
-function DomainProgressRow({ label, color, dp }: { label: string; color: string; dp: DomainProgress }) {
+function DomainProgressRow({ label, color, dp, onCreateGoal }: { label: string; color: string; dp: DomainProgress; onCreateGoal?: () => void }) {
   const gap = Math.max(0, dp.target - dp.existing - dp.done);
   const pct = dp.target > 0 ? Math.min(100, Math.round(((dp.existing + dp.done) / dp.target) * 100)) : dp.done > 0 ? 100 : 0;
   return (
@@ -119,6 +119,11 @@ function DomainProgressRow({ label, color, dp }: { label: string; color: string;
       <div className="flex items-center gap-1.5 mb-1">
         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
         <span className="text-[10px] font-medium text-stone-600 flex-1 truncate">{label}</span>
+        {onCreateGoal && (
+          <button onClick={onCreateGoal} className="flex-shrink-0 p-0.5 rounded text-stone-300 hover:text-sky-500 hover:bg-sky-50 transition-colors" title="Create goal">
+            <Plus className="w-3 h-3" />
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-5 gap-x-1 text-center mb-1 ml-3">
         <div>
@@ -1526,7 +1531,15 @@ export default function NeedsDashboard({
                             {summaryDomainConfig.map(({ domain, label, color }) => {
                               const dp = z.domainProgress?.[domain];
                               if (!dp || (dp.target === 0 && dp.done === 0 && dp.existing === 0)) return null;
-                              return <DomainProgressRow key={domain} label={label} color={color} dp={dp} />;
+                              return (
+                                <DomainProgressRow
+                                  key={domain}
+                                  label={label}
+                                  color={color}
+                                  dp={dp}
+                                  onCreateGoal={() => setWizardState({ domain, zoneId: z.id, cityId: z.city?.id, label: z.name, existingCount: dp.existing })}
+                                />
+                              );
                             })}
                           </div>
                         )}
@@ -1606,7 +1619,15 @@ export default function NeedsDashboard({
                               {summaryDomainConfig.map(({ domain, label, color }) => {
                                 const dp = cl.domainProgress?.[domain];
                                 if (!dp || (dp.target === 0 && dp.done === 0 && dp.existing === 0)) return null;
-                                return <DomainProgressRow key={domain} label={label} color={color} dp={dp} />;
+                                return (
+                                  <DomainProgressRow
+                                    key={domain}
+                                    label={label}
+                                    color={color}
+                                    dp={dp}
+                                    onCreateGoal={() => setWizardState({ domain, clusterId: cl.id, zoneId: cl.zone.id, cityId: cl.city?.id, label: cl.name, existingCount: dp.existing })}
+                                  />
+                                );
                               })}
                             </div>
                           )}
