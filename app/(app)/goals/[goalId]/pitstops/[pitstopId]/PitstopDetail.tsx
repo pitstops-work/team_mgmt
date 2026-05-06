@@ -611,6 +611,50 @@ export default function PitstopDetail({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Partner briefing
+  const [showBriefing, setShowBriefing] = useState(false);
+  const [briefingPartners, setBriefingPartners] = useState<{ id: string; label: string }[]>([]);
+  const [briefingPartnerId, setBriefingPartnerId] = useState("");
+  const [briefingSinceDate, setBriefingSinceDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 2);
+    return d.toISOString().slice(0, 10);
+  });
+  const [briefingLoading, setBriefingLoading] = useState(false);
+
+  const openBriefingModal = async () => {
+    if (briefingPartners.length === 0) {
+      const res = await fetch("/api/map/partners");
+      const data = await res.json();
+      setBriefingPartners(data);
+      if (data.length > 0) setBriefingPartnerId(data[0].id);
+    }
+    setShowBriefing(true);
+  };
+
+  const generateBriefing = async () => {
+    if (!briefingPartnerId) return;
+    setBriefingLoading(true);
+    try {
+      const res = await fetch(`/api/pitstops/${pitstop.id}/partner-briefing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerId: briefingPartnerId, sinceDate: briefingSinceDate }),
+      });
+      const { text, partnerLabel } = await res.json();
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `partner-briefing-${partnerLabel.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShowBriefing(false);
+    } finally {
+      setBriefingLoading(false);
+    }
+  };
+
   const currentThread = pitstop.threads.find((t) => t.id === activeThread);
   const checkedCount = pitstop.checklistItems.filter((i) => i.checked).length;
   const totalCount = pitstop.checklistItems.length;
@@ -1219,6 +1263,18 @@ export default function PitstopDetail({
           <GeographySection pitstopId={pitstop.id} initialZoneId={pitstop.needsZoneId} initialClusterId={pitstop.needsClusterId} initialSettlementId={pitstop.needsSettlementId} />
           <AuditSection entityType="Pitstop" entityId={pitstop.id} />
 
+          {isAdmin && (
+            <div className="px-4 py-3 border-b border-stone-100">
+              <button
+                onClick={openBriefingModal}
+                className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-sky-600 transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Partner briefing
+              </button>
+            </div>
+          )}
+
           {/* Recurrence */}
           <div className="px-4 py-3 border-b border-stone-100">
             <div className="flex items-center gap-1.5 mb-2">
@@ -1513,6 +1569,49 @@ export default function PitstopDetail({
           onClose={() => setShowEdit(false)}
           onSave={handleSaveEdit}
         />
+      )}
+
+      {/* Partner briefing modal */}
+      {showBriefing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={() => setShowBriefing(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-80 p-5 mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-stone-800">Partner briefing</h2>
+              <button onClick={() => setShowBriefing(false)} className="text-stone-400 hover:text-stone-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-stone-500 mb-1">Partner</label>
+                <select
+                  value={briefingPartnerId}
+                  onChange={(e) => setBriefingPartnerId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-400"
+                >
+                  {briefingPartners.map((p) => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-stone-500 mb-1">Since</label>
+                <input
+                  type="date"
+                  value={briefingSinceDate}
+                  onChange={(e) => setBriefingSinceDate(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-400"
+                />
+              </div>
+              <button
+                onClick={generateBriefing}
+                disabled={briefingLoading || !briefingPartnerId}
+                className="w-full py-2 text-xs font-medium bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white rounded-lg transition-colors flex items-center justify-center gap-1.5"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                {briefingLoading ? "Generating…" : "Download briefing"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
