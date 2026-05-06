@@ -96,15 +96,28 @@ function daysAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
-function WeekCard({ title, type, scheduledAt, location, goalTitle, domain, geo }: {
+
+function activityMeta(a: Activity, uid: string) {
+  const ps = a.pitstops?.[0]?.pitstop;
+  const goal = ps?.goal;
+  const isOwner = ps?.ownerId === uid;
+  const isAttendee = !isOwner && (a.attendees?.some(at => at.user.id === uid) ?? false);
+  const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
+  const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
+  return { ps, goal, isOwner, isAttendee, geo, domain };
+}
+function WeekCard({ title, type, scheduledAt, location, goalTitle, domain, geo, role }: {
   title: string; type: string; scheduledAt: string; location?: string | null;
   goalTitle?: string | null; domain?: string | null; geo?: string | null;
+  role?: "Owner" | "Attendee" | null;
 }) {
   return (
     <div className="px-4 py-3 rounded-xl border border-stone-200 bg-white">
       <div className="flex items-center gap-2 mb-0.5 flex-wrap">
         <p className="text-sm font-medium text-stone-700 truncate">{title}</p>
         {type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[type] ?? "bg-stone-100 text-stone-600"}`}>{type}</span>}
+        {role === "Owner" && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-violet-100 text-violet-700">Owner</span>}
+        {role === "Attendee" && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-sky-100 text-sky-700">Attendee</span>}
       </div>
       <p className="text-xs text-stone-400">
         {fmtTime(scheduledAt)}{location ? ` · ${location}` : ""}
@@ -384,16 +397,6 @@ function TodayTab({
   );
 
   const allEmpty = overdueItems.length === 0 && todayItems.length === 0 && myChecklists.length === 0;
-
-  function activityMeta(a: Activity, uid: string) {
-    const ps = a.pitstops?.[0]?.pitstop;
-    const goal = ps?.goal;
-    const isOwner = ps?.ownerId === uid;
-    const isAttendee = !isOwner && (a.attendees?.some(at => at.user.id === uid) ?? false);
-    const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
-    const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
-    return { ps, goal, isOwner, isAttendee, geo, domain };
-  }
 
   // Shared inline activity row (desktop)
   function ActivityRowSimple({ a, isOverdue }: { a: Activity; isOverdue: boolean }) {
@@ -2650,19 +2653,31 @@ function PMTodayTab({
                   </button>
                   {expanded && (
                     <div className="divide-y divide-stone-100 bg-white">
-                      {zl.overdueItems.map(a => (
-                        <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                          {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                            <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d ago</p>
+                      {zl.overdueItems.map(a => {
+                        const goal = a.pitstops[0]?.pitstop.goal;
+                        const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
+                        const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
+                        return (
+                          <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                                {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                              </div>
+                              <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d ago</p>
+                              {(goal?.title || domain || geo) && (
+                                <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                                  {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
+                                </p>
+                              )}
+                            </div>
+                            <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                              className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
+                              {loadingDoneId === a.id ? "…" : "Done"}
+                            </button>
                           </div>
-                          <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-                            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
-                            {loadingDoneId === a.id ? "…" : "Done"}
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2711,19 +2726,31 @@ function PMTodayTab({
                         </button>
                         {expanded && (
                           <div className="divide-y divide-stone-100 bg-white">
-                            {rp.overdueItems.map(a => (
-                              <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                                {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                                  <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d ago</p>
+                            {rp.overdueItems.map(a => {
+                              const goal = a.pitstops[0]?.pitstop.goal;
+                              const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
+                              const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
+                              return (
+                                <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                      <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                                      {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                                    </div>
+                                    <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d ago</p>
+                                    {(goal?.title || domain || geo) && (
+                                      <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                                        {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                                    className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
+                                    {loadingDoneId === a.id ? "…" : "Done"}
+                                  </button>
                                 </div>
-                                <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-                                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
-                                  {loadingDoneId === a.id ? "…" : "Done"}
-                                </button>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -2748,19 +2775,35 @@ function PMTodayTab({
               <SectionTitle>Your update needed</SectionTitle>
             </div>
             <div className="space-y-2">
-              {myOverdue.map(a => (
-                <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50">
-                  {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                    <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d overdue</p>
+              {myOverdue.map(a => {
+                const goal = a.pitstops[0]?.pitstop.goal;
+                const isOwner = a.pitstops[0]?.pitstop.ownerId === userId;
+                const isAttendee = !isOwner && a.attendees.some(at => at.user.id === userId);
+                const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
+                const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
+                return (
+                  <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                        {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                        {isOwner && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-violet-100 text-violet-700">Owner</span>}
+                        {isAttendee && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-sky-100 text-sky-700">Attendee</span>}
+                      </div>
+                      <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d overdue</p>
+                      {(goal?.title || domain || geo) && (
+                        <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                          {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                    <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                      className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
+                      {loadingDoneId === a.id ? "…" : "Done"}
+                    </button>
                   </div>
-                  <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-                    className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
-                    {loadingDoneId === a.id ? "…" : "Done"}
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </>
@@ -2780,19 +2823,35 @@ function PMTodayTab({
           <div className="hidden sm:block">
             <SectionTitle>Today</SectionTitle>
             <div className="space-y-2 mt-3">
-              {myToday.map(a => (
-                <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                  {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                    <p className="text-xs text-stone-400">{fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}</p>
+              {myToday.map(a => {
+                const goal = a.pitstops[0]?.pitstop.goal;
+                const isOwner = a.pitstops[0]?.pitstop.ownerId === userId;
+                const isAttendee = !isOwner && a.attendees.some(at => at.user.id === userId);
+                const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
+                const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
+                return (
+                  <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                        {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                        {isOwner && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-violet-100 text-violet-700">Owner</span>}
+                        {isAttendee && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-sky-100 text-sky-700">Attendee</span>}
+                      </div>
+                      <p className="text-xs text-stone-400">{fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}</p>
+                      {(goal?.title || domain || geo) && (
+                        <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                          {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                    <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                      className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
+                      {loadingDoneId === a.id ? "…" : "Done"}
+                    </button>
                   </div>
-                  <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-                    className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
-                    {loadingDoneId === a.id ? "…" : "Done"}
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </>
@@ -2905,7 +2964,10 @@ function PMTodayTab({
                       const g = ps?.goal;
                       const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
                       const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
-                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} />;
+                      const isOwner = ps?.ownerId === userId;
+                      const isAttendee = !isOwner && a.attendees.some(at => at.user.id === userId);
+                      const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
+                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} role={role} />;
                     })}
                   </div>
                 </div>
@@ -3509,7 +3571,10 @@ function ZLOverdueCard({
         </div>
       )}
       <div className="flex-1">
-        <p className="text-base font-semibold text-stone-800 leading-snug mb-2">{a.title}</p>
+        <p className="text-base font-semibold text-stone-800 leading-snug mb-1">{a.title}</p>
+        {goal?.title && (
+          <p className="text-[11px] text-stone-400 mb-1.5 truncate">{goal.title}</p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           {a.type && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
@@ -3707,7 +3772,11 @@ function ZLTodayTab({
 
   // Inline activity row for ZL's own overdue/today
   function ZLActivityRow({ a, isOverdue }: { a: ZLTeamActivity; isOverdue: boolean }) {
-    const cluster = getClusterName(a.pitstops[0]?.pitstop.goal.needsClusterId);
+    const goal = a.pitstops[0]?.pitstop.goal;
+    const isOwner = a.pitstops[0]?.pitstop.ownerId === userId;
+    const isAttendee = !isOwner && a.attendees.some(at => at.user.id === userId);
+    const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
+    const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
     return (
       <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
         isOverdue ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-white"
@@ -3716,12 +3785,18 @@ function ZLTodayTab({
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
             {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+            {isOwner && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-violet-100 text-violet-700">Owner</span>}
+            {isAttendee && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-sky-100 text-sky-700">Attendee</span>}
           </div>
           <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
             {isOverdue ? `${daysAgo(a.scheduledAt)}d ago` : fmtTime(a.scheduledAt)}
-            {cluster ? ` · ${cluster}` : ""}
             {a.location ? ` · ${a.location}` : ""}
           </p>
+          {(goal?.title || domain || geo) && (
+            <p className="text-[11px] text-stone-400 truncate mt-0.5">
+              {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
+            </p>
+          )}
         </div>
         <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
           className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0">
@@ -3767,21 +3842,31 @@ function ZLTodayTab({
                   </button>
                   {expanded && (
                     <div className="divide-y divide-stone-100 bg-white">
-                      {items.map(a => (
-                        <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                              <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                              {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                      {items.map(a => {
+                        const goal = a.pitstops[0]?.pitstop.goal;
+                        const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
+                        const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
+                        return (
+                          <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                                {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                              </div>
+                              <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d ago</p>
+                              {(goal?.title || domain || geo) && (
+                                <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                                  {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
+                                </p>
+                              )}
                             </div>
-                            <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d ago</p>
+                            <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                              className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
+                              {loadingDoneId === a.id ? "…" : "Done"}
+                            </button>
                           </div>
-                          <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-                            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
-                            {loadingDoneId === a.id ? "…" : "Done"}
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -3903,7 +3988,10 @@ function ZLTodayTab({
                       const g = ps?.goal;
                       const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
                       const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
-                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} />;
+                      const isOwner = ps?.ownerId === userId;
+                      const isAttendee = !isOwner && a.attendees.some(at => at.user.id === userId);
+                      const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
+                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} role={role} />;
                     })}
                   </div>
                 </div>
@@ -4020,7 +4108,10 @@ function RPOverdueCard({
 
       {/* Title + meta */}
       <div className="flex-1">
-        <p className="text-base font-semibold text-stone-800 leading-snug mb-2">{a.title}</p>
+        <p className="text-base font-semibold text-stone-800 leading-snug mb-1">{a.title}</p>
+        {actGoal?.title && (
+          <p className="text-[11px] text-stone-400 mb-1.5 truncate">{actGoal.title}</p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           {a.type && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
@@ -4185,9 +4276,10 @@ function RPTodayCarousel({
 }
 
 function RPActivityRow({
-  a, isOverdue, linkedChecklist, onDone, onCompleted, isLoadingDone,
+  a, userId, isOverdue, linkedChecklist, onDone, onCompleted, isLoadingDone,
 }: {
   a: Activity;
+  userId: string;
   isOverdue: boolean;
   linkedChecklist: ChecklistItem | null;
   onDone: (eventId: string) => void;
@@ -4202,6 +4294,8 @@ function RPActivityRow({
 
   const completionType = linkedChecklist?.completionType ?? "Activity";
   const isBusy = voiceState !== "idle" || uploading || isLoadingDone;
+
+  const { goal, isOwner, isAttendee, geo, domain } = activityMeta(a, userId);
 
   async function startVoiceLog() {
     if (!linkedChecklist) return;
@@ -4253,6 +4347,8 @@ function RPActivityRow({
               {a.type}
             </span>
           )}
+          {isOwner && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-violet-100 text-violet-700">Owner</span>}
+          {isAttendee && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-sky-100 text-sky-700">Attendee</span>}
         </div>
         <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
           {isOverdue
@@ -4260,6 +4356,11 @@ function RPActivityRow({
             : `${fmtTime(a.scheduledAt)}${a.location ? ` · ${a.location}` : ""}`
           }
         </p>
+        {(goal?.title || domain || geo) && (
+          <p className="text-[11px] text-stone-400 truncate mt-0.5">
+            {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
+          </p>
+        )}
       </div>
 
       {completionType === "Activity" && (
@@ -4295,12 +4396,14 @@ function RPActivityRow({
 }
 
 function RPTodayTab({
+  userId,
   overdueActivities,
   todayActivities,
   weekActivities,
   weekChecklists,
   doneActivities,
 }: {
+  userId: string;
   overdueActivities: Activity[];
   todayActivities: Activity[];
   weekActivities: Activity[];
@@ -4421,7 +4524,7 @@ function RPTodayTab({
             </div>
             <div className="space-y-2">
               {overdueItems.map(a => (
-                <RPActivityRow key={a.id} a={a} isOverdue
+                <RPActivityRow key={a.id} a={a} userId={userId} isOverdue
                   linkedChecklist={activityChecklistMap.get(a.id) ?? null}
                   onDone={handleDone} onCompleted={handleCompleted}
                   isLoadingDone={loadingDoneId === a.id}
@@ -4452,7 +4555,7 @@ function RPTodayTab({
             <SectionTitle>Today</SectionTitle>
             <div className="space-y-2 mt-3">
               {todayItems.map(a => (
-                <RPActivityRow key={a.id} a={a} isOverdue={false}
+                <RPActivityRow key={a.id} a={a} userId={userId} isOverdue={false}
                   linkedChecklist={activityChecklistMap.get(a.id) ?? null}
                   onDone={handleDone} onCompleted={handleCompleted}
                   isLoadingDone={loadingDoneId === a.id}
@@ -4507,7 +4610,10 @@ function RPTodayTab({
                       const g = ps?.goal;
                       const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
                       const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
-                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} />;
+                      const isOwner = ps?.ownerId === userId;
+                      const isAttendee = !isOwner && (a.attendees?.some(at => at.user.id === userId) ?? false);
+                      const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
+                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} role={role} />;
                     })}
                   </div>
                 </div>
@@ -4797,6 +4903,7 @@ export default function HomeView({
         {/* RP: tile overview + drill-down today view */}
         {activeTab === "today" && designation === "RP" && (
           <RPTodayTab
+            userId={userId}
             overdueActivities={rpOverdueActivities}
             todayActivities={todayActivities}
             weekActivities={weekActivities}

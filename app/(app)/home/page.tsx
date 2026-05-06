@@ -316,6 +316,24 @@ export default async function HomePage() {
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
         attendees: { select: { user: { select: { id: true, name: true } } } },
+        pitstops: {
+          select: {
+            pitstop: {
+              select: {
+                id: true, title: true, ownerId: true,
+                goal: {
+                  select: {
+                    id: true, title: true, needsDomain: true,
+                    needsCluster:    { select: { id: true, name: true } },
+                    needsSettlement: { select: { id: true, name: true } },
+                    needsZone:       { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+          },
+          take: 1,
+        },
       },
       orderBy: { scheduledAt: "asc" },
     }),
@@ -499,7 +517,7 @@ export default async function HomePage() {
                 pitstop: {
                   select: {
                     ownerId: true, targetDate: true,
-                    goal: { select: { id: true, title: true, needsDomain: true, needsCluster: { select: { id: true, name: true } }, needsClusterId: true } },
+                    goal: { select: { id: true, title: true, needsDomain: true, needsClusterId: true, needsCluster: { select: { id: true, name: true } }, needsSettlement: { select: { id: true, name: true } }, needsZone: { select: { id: true, name: true } } } },
                   },
                 },
               },
