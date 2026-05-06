@@ -1241,6 +1241,7 @@ function PhaseMatrix({
   users: UserRef[];
 }) {
   const [drill, setDrill] = useState<DrillState>(null);
+  const [viewMode, setViewMode] = useState<"by-goal" | "by-phase">("by-goal");
   const [filterGoalIds,    setFilterGoalIds]    = useState<string[]>([]);
   const [filterUserIds,    setFilterUserIds]    = useState<string[]>([]);
   const [filterZoneId,     setFilterZoneId]     = useState<string>("");
@@ -1383,10 +1384,21 @@ function PhaseMatrix({
             </button>
           )}
         </div>
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-4 mb-4 flex-wrap">
           <p className="text-xs text-stone-500 flex-1">
-            {displayGoals.length}{displayGoals.length !== visibleGoals.length ? ` of ${visibleGoals.length}` : ""} goals with phase-tagged pitstops. Click a cell to drill down.
+            {displayGoals.length}{displayGoals.length !== visibleGoals.length ? ` of ${visibleGoals.length}` : ""} goals with phase-tagged pitstops.
           </p>
+          {/* View mode toggle */}
+          <div className="flex items-center rounded-lg border border-stone-200 overflow-hidden text-[10px] font-medium flex-shrink-0">
+            <button
+              onClick={() => setViewMode("by-goal")}
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === "by-goal" ? "bg-stone-800 text-white" : "text-stone-500 hover:bg-stone-50"}`}
+            >By goal</button>
+            <button
+              onClick={() => setViewMode("by-phase")}
+              className={`px-2.5 py-1.5 transition-colors border-l border-stone-200 ${viewMode === "by-phase" ? "bg-stone-800 text-white" : "text-stone-500 hover:bg-stone-50"}`}
+            >By phase</button>
+          </div>
           <div className="flex items-center gap-3 text-[10px] text-stone-500">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" />Overdue</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />At risk</span>
@@ -1394,136 +1406,259 @@ function PhaseMatrix({
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Done</span>
           </div>
         </div>
-        {/* Mobile carousel — one card per goal */}
-        <div className="sm:hidden -mx-4 px-4">
-          <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
-            {displayGoals.map((goal) => {
-              const gMap = tagMap.get(goal.id) ?? new Map();
-              const activePhaseTags = PHASE_TAGS.filter(tag => gMap.has(tag));
-              return (
-                <div key={goal.id} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 bg-white p-4 flex-shrink-0">
-                  <Link href={`/goals/${goal.id}`} className="text-sm font-semibold text-stone-800 hover:text-sky-600 block mb-1 line-clamp-2 leading-snug">
-                    {goal.title}
-                  </Link>
-                  <p className="text-[11px] text-stone-400 mb-3">{goal.owner.name ?? ""}</p>
-                  <div className="space-y-2.5">
-                    {activePhaseTags.map((tag) => {
-                      const cell = gMap.get(tag)!;
-                      const clPct  = cell.checklistTotal > 0 ? Math.round((cell.checklistDone / cell.checklistTotal) * 100) : null;
-                      const actPct = cell.activityTotal  > 0 ? Math.round((cell.activityDone  / cell.activityTotal)  * 100) : null;
-                      const isActive = drill?.tag === tag && drill.seedGoalId === goal.id;
-                      return (
-                        <div
-                          key={tag}
-                          className={`rounded-lg p-2 cursor-pointer transition-colors ${isActive ? "bg-stone-100 ring-1 ring-stone-300" : "bg-stone-50 active:bg-stone-100"}`}
-                          onClick={() => setDrill(d => d?.tag === tag && d.seedGoalId === goal.id ? null : { tag, seedGoalId: goal.id })}
-                        >
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${PHASE_COLORS[tag].pill}`}>{tag}</span>
-                            {healthDot(cell)}
-                            <span className={`text-[10px] tabular-nums ml-auto ${cell.done === cell.total ? "text-emerald-600 font-medium" : "text-stone-500"}`}>
-                              {cell.done}/{cell.total}
-                            </span>
-                          </div>
-                          {(clPct !== null || actPct !== null) && (
-                            <div className="space-y-1">
-                              {clPct !== null && (
-                                <div className="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                                  <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
-                                </div>
-                              )}
-                              {actPct !== null && (
-                                <div className="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                                  <div className="h-full bg-violet-400 rounded-full" style={{ width: `${actPct}%` }} />
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-4 pt-1 text-[10px] text-stone-400">
-            <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-sky-400 rounded-full" />Checklist</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-violet-400 rounded-full" />Activities</span>
-          </div>
-        </div>
-
-        {/* Desktop table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-xs border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th className="text-left py-2 pr-4 font-medium text-stone-500 whitespace-nowrap min-w-[180px]">Goal</th>
-                {PHASE_TAGS.map((tag) => (
-                  <th key={tag} className="py-2 px-1 text-center font-medium whitespace-nowrap">
-                    <button
-                      className={`inline-block px-2 py-0.5 rounded border text-[10px] hover:opacity-80 transition-opacity cursor-pointer ${PHASE_COLORS[tag].pill} ${drill?.tag === tag && !drill.seedGoalId ? "ring-2 ring-offset-1 ring-stone-400" : ""}`}
-                      onClick={() => setDrill(d => d?.tag === tag && !d.seedGoalId ? null : { tag })}
-                      title={`Drill all goals in ${tag} phase`}
-                    >
-                      {tag}
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {displayGoals.map((goal, i) => {
-                const gMap = tagMap.get(goal.id) ?? new Map();
-                return (
-                  <tr key={goal.id} className={i % 2 === 0 ? "bg-white" : "bg-stone-50"}>
-                    <td className="py-2 pr-4">
-                      <Link href={`/goals/${goal.id}`} className="font-medium text-stone-800 hover:text-sky-600 truncate block max-w-[200px]">
+        {viewMode === "by-goal" ? (
+          <>
+            {/* Mobile: one card per goal */}
+            <div className="sm:hidden -mx-4 px-4">
+              <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
+                {displayGoals.map((goal) => {
+                  const gMap = tagMap.get(goal.id) ?? new Map();
+                  const activePhaseTags = PHASE_TAGS.filter(tag => gMap.has(tag));
+                  return (
+                    <div key={goal.id} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 bg-white p-4 flex-shrink-0">
+                      <Link href={`/goals/${goal.id}`} className="text-sm font-semibold text-stone-800 hover:text-sky-600 block mb-1 line-clamp-2 leading-snug">
                         {goal.title}
                       </Link>
-                    </td>
-                    {PHASE_TAGS.map((tag) => {
-                      const cell = gMap.get(tag);
-                      if (!cell) return <td key={tag} className="py-2 px-1 text-center text-stone-200">—</td>;
-                      const clPct  = cell.checklistTotal > 0 ? Math.round((cell.checklistDone / cell.checklistTotal) * 100) : null;
-                      const actPct = cell.activityTotal  > 0 ? Math.round((cell.activityDone  / cell.activityTotal)  * 100) : null;
-                      const isActive = drill?.tag === tag && drill.seedGoalId === goal.id;
-                      return (
-                        <td key={tag} className="py-1.5 px-1">
+                      <p className="text-[11px] text-stone-400 mb-3">{goal.owner.name ?? ""}</p>
+                      <div className="space-y-2.5">
+                        {activePhaseTags.map((tag) => {
+                          const cell = gMap.get(tag)!;
+                          const clPct  = cell.checklistTotal > 0 ? Math.round((cell.checklistDone / cell.checklistTotal) * 100) : null;
+                          const actPct = cell.activityTotal  > 0 ? Math.round((cell.activityDone  / cell.activityTotal)  * 100) : null;
+                          const isActive = drill?.tag === tag && drill.seedGoalId === goal.id;
+                          return (
+                            <div
+                              key={tag}
+                              className={`rounded-lg p-2 cursor-pointer transition-colors ${isActive ? "bg-stone-100 ring-1 ring-stone-300" : "bg-stone-50 active:bg-stone-100"}`}
+                              onClick={() => setDrill(d => d?.tag === tag && d.seedGoalId === goal.id ? null : { tag, seedGoalId: goal.id })}
+                            >
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${PHASE_COLORS[tag].pill}`}>{tag}</span>
+                                {healthDot(cell)}
+                                <span className={`text-[10px] tabular-nums ml-auto ${cell.done === cell.total ? "text-emerald-600 font-medium" : "text-stone-500"}`}>
+                                  {cell.done}/{cell.total}
+                                </span>
+                              </div>
+                              {(clPct !== null || actPct !== null) && (
+                                <div className="space-y-1">
+                                  {clPct !== null && (
+                                    <div className="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                                      <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
+                                    </div>
+                                  )}
+                                  {actPct !== null && (
+                                    <div className="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                                      <div className="h-full bg-violet-400 rounded-full" style={{ width: `${actPct}%` }} />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Desktop: goal × phase table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-xs border-separate border-spacing-0">
+                <thead>
+                  <tr>
+                    <th className="text-left py-2 pr-4 font-medium text-stone-500 whitespace-nowrap min-w-[180px]">Goal</th>
+                    {PHASE_TAGS.map((tag) => (
+                      <th key={tag} className="py-2 px-1 text-center font-medium whitespace-nowrap">
+                        <button
+                          className={`inline-block px-2 py-0.5 rounded border text-[10px] hover:opacity-80 transition-opacity cursor-pointer ${PHASE_COLORS[tag].pill} ${drill?.tag === tag && !drill.seedGoalId ? "ring-2 ring-offset-1 ring-stone-400" : ""}`}
+                          onClick={() => setDrill(d => d?.tag === tag && !d.seedGoalId ? null : { tag })}
+                          title={`Drill all goals in ${tag} phase`}
+                        >
+                          {tag}
+                        </button>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayGoals.map((goal, i) => {
+                    const gMap = tagMap.get(goal.id) ?? new Map();
+                    return (
+                      <tr key={goal.id} className={i % 2 === 0 ? "bg-white" : "bg-stone-50"}>
+                        <td className="py-2 pr-4">
+                          <Link href={`/goals/${goal.id}`} className="font-medium text-stone-800 hover:text-sky-600 truncate block max-w-[200px]">
+                            {goal.title}
+                          </Link>
+                        </td>
+                        {PHASE_TAGS.map((tag) => {
+                          const cell = gMap.get(tag);
+                          if (!cell) return <td key={tag} className="py-2 px-1 text-center text-stone-200">—</td>;
+                          const clPct  = cell.checklistTotal > 0 ? Math.round((cell.checklistDone / cell.checklistTotal) * 100) : null;
+                          const actPct = cell.activityTotal  > 0 ? Math.round((cell.activityDone  / cell.activityTotal)  * 100) : null;
+                          const isActive = drill?.tag === tag && drill.seedGoalId === goal.id;
+                          return (
+                            <td key={tag} className="py-1.5 px-1">
+                              <div
+                                className={`flex flex-col gap-1 rounded-md p-1.5 cursor-pointer transition-colors min-w-[64px] ${isActive ? "bg-stone-100 ring-1 ring-stone-300" : "hover:bg-stone-50"}`}
+                                onClick={() => setDrill(d => d?.tag === tag && d.seedGoalId === goal.id ? null : { tag, seedGoalId: goal.id })}
+                                title="Click to drill down"
+                              >
+                                <div className="flex items-center gap-1.5 justify-between">
+                                  {healthDot(cell)}
+                                  <span className={`text-[10px] tabular-nums ml-auto ${cell.done === cell.total ? "text-emerald-600" : "text-stone-500"}`}>
+                                    {cell.done}/{cell.total}
+                                  </span>
+                                </div>
+                                {clPct !== null && (
+                                  <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
+                                  </div>
+                                )}
+                                {actPct !== null && (
+                                  <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-violet-400 rounded-full" style={{ width: `${actPct}%` }} />
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Mobile: one card per phase, goals listed inside */}
+            <div className="sm:hidden -mx-4 px-4">
+              <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
+                {PHASE_TAGS.filter(tag => displayGoals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
+                  const goalsInPhase = displayGoals.filter(g => tagMap.get(g.id)?.has(tag));
+                  return (
+                    <div key={tag} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 bg-white p-4 flex-shrink-0">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={`text-xs px-2 py-0.5 rounded border font-medium ${PHASE_COLORS[tag].pill}`}>{tag}</span>
+                        <span className="text-[11px] text-stone-400">{goalsInPhase.length} goal{goalsInPhase.length !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div className="space-y-3">
+                        {goalsInPhase.map((goal) => {
+                          const cell = tagMap.get(goal.id)!.get(tag)!;
+                          const clPct  = cell.checklistTotal > 0 ? Math.round((cell.checklistDone / cell.checklistTotal) * 100) : null;
+                          const actPct = cell.activityTotal  > 0 ? Math.round((cell.activityDone  / cell.activityTotal)  * 100) : null;
+                          const isActive = drill?.tag === tag && drill.seedGoalId === goal.id;
+                          return (
+                            <div
+                              key={goal.id}
+                              className={`rounded-lg p-2.5 cursor-pointer transition-colors ${isActive ? "bg-stone-100 ring-1 ring-stone-300" : "bg-stone-50 active:bg-stone-100"}`}
+                              onClick={() => setDrill(d => d?.tag === tag && d.seedGoalId === goal.id ? null : { tag, seedGoalId: goal.id })}
+                            >
+                              <div className="flex items-center gap-2 mb-1.5">
+                                {healthDot(cell)}
+                                <span className={`text-[10px] tabular-nums ml-auto flex-shrink-0 ${cell.done === cell.total ? "text-emerald-600 font-medium" : "text-stone-500"}`}>
+                                  {cell.done}/{cell.total}
+                                </span>
+                              </div>
+                              <p className="text-xs font-medium text-stone-800 line-clamp-2 mb-0.5">{goal.title}</p>
+                              <p className="text-[10px] text-stone-400">{goal.owner.name ?? ""}</p>
+                              {(clPct !== null || actPct !== null) && (
+                                <div className="space-y-1 mt-2">
+                                  {clPct !== null && (
+                                    <div className="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                                      <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
+                                    </div>
+                                  )}
+                                  {actPct !== null && (
+                                    <div className="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                                      <div className="h-full bg-violet-400 rounded-full" style={{ width: `${actPct}%` }} />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Desktop: phase sections, goals listed under each */}
+            <div className="hidden sm:block space-y-4">
+              {PHASE_TAGS.filter(tag => displayGoals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
+                const goalsInPhase = displayGoals.filter(g => tagMap.get(g.id)?.has(tag));
+                const isTagActive = drill?.tag === tag && !drill.seedGoalId;
+                return (
+                  <div key={tag}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <button
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium hover:opacity-80 transition-opacity cursor-pointer ${PHASE_COLORS[tag].pill} ${isTagActive ? "ring-2 ring-offset-1 ring-stone-400" : ""}`}
+                        onClick={() => setDrill(d => d?.tag === tag && !d.seedGoalId ? null : { tag })}
+                        title={`Drill all goals in ${tag} phase`}
+                      >
+                        {tag}
+                      </button>
+                      <span className="text-xs text-stone-400">{goalsInPhase.length} goal{goalsInPhase.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="border border-stone-100 rounded-xl overflow-hidden">
+                      {goalsInPhase.map((goal, i) => {
+                        const cell = tagMap.get(goal.id)!.get(tag)!;
+                        const clPct  = cell.checklistTotal > 0 ? Math.round((cell.checklistDone / cell.checklistTotal) * 100) : null;
+                        const actPct = cell.activityTotal  > 0 ? Math.round((cell.activityDone  / cell.activityTotal)  * 100) : null;
+                        const isActive = drill?.tag === tag && drill.seedGoalId === goal.id;
+                        return (
                           <div
-                            className={`flex flex-col gap-1 rounded-md p-1.5 cursor-pointer transition-colors min-w-[64px] ${isActive ? "bg-stone-100 ring-1 ring-stone-300" : "hover:bg-stone-50"}`}
+                            key={goal.id}
+                            className={`flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors ${i % 2 === 0 ? "bg-white" : "bg-stone-50"} ${isActive ? "ring-inset ring-1 ring-stone-300 bg-stone-100" : "hover:bg-stone-50"}`}
                             onClick={() => setDrill(d => d?.tag === tag && d.seedGoalId === goal.id ? null : { tag, seedGoalId: goal.id })}
-                            title="Click to drill down"
                           >
-                            <div className="flex items-center gap-1.5 justify-between">
-                              {healthDot(cell)}
-                              <span className={`text-[10px] tabular-nums ml-auto ${cell.done === cell.total ? "text-emerald-600" : "text-stone-500"}`}>
+                            {healthDot(cell)}
+                            <div className="flex-1 min-w-0">
+                              <Link
+                                href={`/goals/${goal.id}`}
+                                className="text-xs font-medium text-stone-800 hover:text-sky-600 truncate block"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                {goal.title}
+                              </Link>
+                              <p className="text-[10px] text-stone-400 truncate">{goal.owner.name ?? ""}</p>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <span className={`text-[10px] tabular-nums ${cell.done === cell.total ? "text-emerald-600 font-medium" : "text-stone-500"}`}>
                                 {cell.done}/{cell.total}
                               </span>
+                              <div className="w-20 space-y-0.5">
+                                {clPct !== null && (
+                                  <div className="w-full h-1 bg-stone-200 rounded-full overflow-hidden">
+                                    <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
+                                  </div>
+                                )}
+                                {actPct !== null && (
+                                  <div className="w-full h-1 bg-stone-200 rounded-full overflow-hidden">
+                                    <div className="h-full bg-violet-400 rounded-full" style={{ width: `${actPct}%` }} />
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            {clPct !== null && (
-                              <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
-                              </div>
-                            )}
-                            {actPct !== null && (
-                              <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-violet-400 rounded-full" style={{ width: `${actPct}%` }} />
-                              </div>
-                            )}
                           </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-        <div className="hidden sm:flex items-center gap-4 pt-1 text-[10px] text-stone-400">
-          <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-sky-400 rounded-full" />Checklist completion</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-violet-400 rounded-full" />Activity completion</span>
+            </div>
+          </>
+        )}
+        <div className="flex items-center gap-4 pt-1 text-[10px] text-stone-400">
+          <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-sky-400 rounded-full" />Checklist</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-violet-400 rounded-full" />Activities</span>
         </div>
       </div>
     </>
