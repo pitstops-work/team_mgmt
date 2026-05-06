@@ -470,7 +470,7 @@ export default async function HomePage() {
                 pitstop: {
                   select: {
                     ownerId: true, targetDate: true,
-                    goal: { select: { id: true, title: true, needsClusterId: true } },
+                    goal: { select: { id: true, title: true, needsDomain: true, needsCluster: { select: { id: true, name: true } }, needsClusterId: true } },
                   },
                 },
               },
@@ -500,7 +500,7 @@ export default async function HomePage() {
                 pitstop: {
                   select: {
                     ownerId: true, targetDate: true,
-                    goal: { select: { id: true, title: true, needsClusterId: true } },
+                    goal: { select: { id: true, title: true, needsDomain: true, needsCluster: { select: { id: true, name: true } }, needsClusterId: true } },
                   },
                 },
               },

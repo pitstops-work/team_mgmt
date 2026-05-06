@@ -56,7 +56,7 @@ type ZLTeamActivity = {
     pitstop: {
       ownerId: string;
       targetDate: string | null;
-      goal: { id: string; title: string; needsClusterId: string | null };
+      goal: { id: string; title: string; needsDomain: string | null; needsCluster: { id: string; name: string } | null; needsClusterId: string | null };
     };
   }[];
 };
@@ -3401,6 +3401,102 @@ function ZLTeamHealthTab({
   );
 }
 
+// ── ZL overdue card + carousel (mobile swipeable) ───────────────────────────
+
+function ZLOverdueCard({
+  a, onDone, isLoadingDone,
+}: {
+  a: ZLTeamActivity;
+  onDone: (id: string) => void;
+  isLoadingDone: boolean;
+}) {
+  const goal = a.pitstops[0]?.pitstop.goal;
+  const domainLabel = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
+  const clusterName = goal?.needsCluster?.name ?? null;
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col gap-3 shadow-sm min-h-[160px]">
+      {(domainLabel || clusterName) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {domainLabel && (
+            <span className="text-[11px] font-semibold text-amber-700 bg-white border border-amber-200 px-2 py-0.5 rounded-full">
+              {domainLabel}
+            </span>
+          )}
+          {clusterName && (
+            <span className="text-[11px] text-stone-500 bg-white border border-stone-200 px-2 py-0.5 rounded-full">
+              {clusterName}
+            </span>
+          )}
+        </div>
+      )}
+      <div className="flex-1">
+        <p className="text-base font-semibold text-stone-800 leading-snug mb-2">{a.title}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {a.type && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
+              {a.type}
+            </span>
+          )}
+          <span className="text-xs font-medium text-amber-700">{daysAgo(a.scheduledAt)}d overdue</span>
+          {a.location && <span className="text-xs text-stone-400 truncate">· {a.location}</span>}
+        </div>
+      </div>
+      <button onClick={() => onDone(a.id)} disabled={isLoadingDone}
+        className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-semibold text-sm transition-colors">
+        {isLoadingDone ? "Updating…" : "Mark Done"}
+      </button>
+    </div>
+  );
+}
+
+function ZLOverdueCarousel({
+  items, loadingDoneId, onDone,
+}: {
+  items: ZLTeamActivity[];
+  loadingDoneId: string | null;
+  onDone: (id: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [currentIdx, setCurrentIdx] = useState(0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+          <SectionTitle>Your update needed</SectionTitle>
+        </div>
+        {items.length > 1 && (
+          <span className="text-xs text-stone-400 tabular-nums">{currentIdx + 1} of {items.length}</span>
+        )}
+      </div>
+      <div
+        ref={scrollRef}
+        onScroll={e => {
+          const el = e.currentTarget;
+          setCurrentIdx(Math.round(el.scrollLeft / el.clientWidth));
+        }}
+        className="flex overflow-x-auto snap-x snap-mandatory gap-3 [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {items.map(a => (
+          <div key={a.id} className="snap-start flex-shrink-0 w-full">
+            <ZLOverdueCard a={a} onDone={onDone} isLoadingDone={loadingDoneId === a.id} />
+          </div>
+        ))}
+      </div>
+      {items.length > 1 && (
+        <div className="flex justify-center gap-1 mt-2">
+          {items.map((_, i) => (
+            <div key={i} className={`rounded-full transition-all ${i === currentIdx ? "w-4 h-1.5 bg-amber-400" : "w-1.5 h-1.5 bg-stone-300"}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ZL Today tab ─────────────────────────────────────────────────────────────
 
 function ZLTodayTab({
@@ -3573,17 +3669,24 @@ function ZLTodayTab({
         </div>
       )}
 
-      {/* ZL's own overdue */}
+      {/* ZL's own overdue — carousel on mobile, list on desktop */}
       {myOverdue.length > 0 && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-3">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-            <SectionTitle>Your update needed</SectionTitle>
+        <>
+          {/* Mobile carousel */}
+          <div className="sm:hidden">
+            <ZLOverdueCarousel items={myOverdue} loadingDoneId={loadingDoneId} onDone={handleDone} />
           </div>
-          <div className="space-y-2">
-            {myOverdue.map(a => <ZLActivityRow key={a.id} a={a} isOverdue />)}
+          {/* Desktop list */}
+          <div className="hidden sm:block">
+            <div className="flex items-center gap-1.5 mb-3">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+              <SectionTitle>Your update needed</SectionTitle>
+            </div>
+            <div className="space-y-2">
+              {myOverdue.map(a => <ZLActivityRow key={a.id} a={a} isOverdue />)}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* ZL's today */}
