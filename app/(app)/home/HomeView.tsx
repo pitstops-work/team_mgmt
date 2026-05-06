@@ -85,6 +85,16 @@ function daysAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
+function groupByDay<T>(items: T[], getDate: (item: T) => string): { label: string; items: T[] }[] {
+  const map = new Map<string, { label: string; items: T[] }>();
+  for (const item of items) {
+    const d = new Date(getDate(item));
+    const key = d.toDateString();
+    if (!map.has(key)) map.set(key, { label: fmtDate(getDate(item)), items: [] });
+    map.get(key)!.items.push(item);
+  }
+  return Array.from(map.values());
+}
 
 const STATUS_BADGE: Record<string, string> = {
   Active:   "bg-sky-50 text-sky-700 border-sky-200",
@@ -3404,22 +3414,27 @@ function ZLTeamHealthTab({
 // ── ZL overdue card + carousel (mobile swipeable) ───────────────────────────
 
 function ZLOverdueCard({
-  a, onDone, isLoadingDone,
+  a, onDone, isLoadingDone, isOverdue = true,
 }: {
   a: ZLTeamActivity;
   onDone: (id: string) => void;
   isLoadingDone: boolean;
+  isOverdue?: boolean;
 }) {
   const goal = a.pitstops[0]?.pitstop.goal;
   const domainLabel = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
   const clusterName = goal?.needsCluster?.name ?? null;
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col gap-3 shadow-sm min-h-[160px]">
+    <div className={`rounded-2xl p-5 flex flex-col gap-3 shadow-sm min-h-[160px] border ${
+      isOverdue ? "bg-amber-50 border-amber-200" : "bg-white border-stone-200"
+    }`}>
       {(domainLabel || clusterName) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {domainLabel && (
-            <span className="text-[11px] font-semibold text-amber-700 bg-white border border-amber-200 px-2 py-0.5 rounded-full">
+            <span className={`text-[11px] font-semibold bg-white px-2 py-0.5 rounded-full border ${
+              isOverdue ? "text-amber-700 border-amber-200" : "text-violet-700 border-violet-200"
+            }`}>
               {domainLabel}
             </span>
           )}
@@ -3438,7 +3453,10 @@ function ZLOverdueCard({
               {a.type}
             </span>
           )}
-          <span className="text-xs font-medium text-amber-700">{daysAgo(a.scheduledAt)}d overdue</span>
+          {isOverdue
+            ? <span className="text-xs font-medium text-amber-700">{daysAgo(a.scheduledAt)}d overdue</span>
+            : <span className="text-xs text-stone-400">{fmtTime(a.scheduledAt)}</span>
+          }
           {a.location && <span className="text-xs text-stone-400 truncate">· {a.location}</span>}
         </div>
       </div>
@@ -3490,6 +3508,47 @@ function ZLOverdueCarousel({
         <div className="flex justify-center gap-1 mt-2">
           {items.map((_, i) => (
             <div key={i} className={`rounded-full transition-all ${i === currentIdx ? "w-4 h-1.5 bg-amber-400" : "w-1.5 h-1.5 bg-stone-300"}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ZLTodayCarousel({
+  items, loadingDoneId, onDone,
+}: {
+  items: ZLTeamActivity[];
+  loadingDoneId: string | null;
+  onDone: (id: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [currentIdx, setCurrentIdx] = useState(0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <SectionTitle>Today</SectionTitle>
+        {items.length > 1 && (
+          <span className="text-xs text-stone-400 tabular-nums">{currentIdx + 1} of {items.length}</span>
+        )}
+      </div>
+      <div
+        ref={scrollRef}
+        onScroll={e => setCurrentIdx(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+        className="flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {items.map(a => (
+          <div key={a.id} className="snap-start flex-shrink-0 w-full">
+            <ZLOverdueCard a={a} onDone={onDone} isLoadingDone={loadingDoneId === a.id} isOverdue={false} />
+          </div>
+        ))}
+      </div>
+      {items.length > 1 && (
+        <div className="flex justify-center gap-1 mt-2">
+          {items.map((_, i) => (
+            <div key={i} className={`rounded-full transition-all ${i === currentIdx ? "w-4 h-1.5 bg-stone-400" : "w-1.5 h-1.5 bg-stone-300"}`} />
           ))}
         </div>
       )}
@@ -3690,13 +3749,26 @@ function ZLTodayTab({
       )}
 
       {/* ZL's today */}
-      <div>
-        <SectionTitle>Today</SectionTitle>
-        {myToday.length === 0
-          ? <EmptyState message={myOverdue.length > 0 || attentionRPs.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
-          : <div className="space-y-2">{myToday.map(a => <ZLActivityRow key={a.id} a={a} isOverdue={false} />)}</div>
-        }
-      </div>
+      {myToday.length === 0 ? (
+        <div>
+          <SectionTitle>Today</SectionTitle>
+          <EmptyState message={myOverdue.length > 0 || attentionRPs.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
+        </div>
+      ) : (
+        <>
+          {/* Mobile carousel */}
+          <div className="sm:hidden">
+            <ZLTodayCarousel items={myToday} loadingDoneId={loadingDoneId} onDone={handleDone} />
+          </div>
+          {/* Desktop list */}
+          <div className="hidden sm:block">
+            <SectionTitle>Today</SectionTitle>
+            <div className="space-y-2 mt-3">
+              {myToday.map(a => <ZLActivityRow key={a.id} a={a} isOverdue={false} />)}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Team checklists */}
       {checklistRPs.length > 0 && (
@@ -3758,24 +3830,31 @@ function ZLTodayTab({
             {weekExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
           {weekExpanded && (
-            <div className="space-y-2">
-              {myWeek.map(a => {
-                const cluster = getClusterName(a.pitstops[0]?.pitstop.goal.needsClusterId);
-                return (
-                  <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                        <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
-                        {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-                      </div>
-                      <p className="text-xs text-stone-400">
-                        {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}
-                        {cluster ? ` · ${cluster}` : ""}
-                      </p>
-                    </div>
+            <div className="space-y-5">
+              {groupByDay(myWeek, a => a.scheduledAt).map(({ label, items }) => (
+                <div key={label}>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
+                  <div className="space-y-2">
+                    {items.map(a => {
+                      const cluster = a.pitstops[0]?.pitstop.goal.needsCluster?.name
+                        ?? getClusterName(a.pitstops[0]?.pitstop.goal.needsClusterId);
+                      return (
+                        <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                              <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
+                              {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                            </div>
+                            <p className="text-xs text-stone-400">
+                              {fmtTime(a.scheduledAt)}{cluster ? ` · ${cluster}` : ""}{a.location ? ` · ${a.location}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -3805,13 +3884,14 @@ function fmtDomain(d: string) {
 // ── RP overdue card — rich card for mobile carousel ───────────────────────────
 
 function RPOverdueCard({
-  a, linkedChecklist, onDone, onCompleted, isLoadingDone,
+  a, linkedChecklist, onDone, onCompleted, isLoadingDone, isOverdue = true,
 }: {
   a: Activity;
   linkedChecklist: ChecklistItem | null;
   onDone: (eventId: string) => void;
   onCompleted: (checklistItemId: string) => void;
   isLoadingDone: boolean;
+  isOverdue?: boolean;
 }) {
   const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
   const [uploading, setUploading] = useState(false);
@@ -3864,12 +3944,16 @@ function RPOverdueCard({
   }
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col gap-3 shadow-sm min-h-[180px]">
+    <div className={`rounded-2xl p-5 flex flex-col gap-3 shadow-sm min-h-[160px] border ${
+      isOverdue ? "bg-amber-50 border-amber-200" : "bg-white border-stone-200"
+    }`}>
       {/* Domain + cluster badges */}
       {(domainLabel || clusterName) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {domainLabel && (
-            <span className="text-[11px] font-semibold text-amber-700 bg-white border border-amber-200 px-2 py-0.5 rounded-full">
+            <span className={`text-[11px] font-semibold bg-white px-2 py-0.5 rounded-full border ${
+              isOverdue ? "text-amber-700 border-amber-200" : "text-violet-700 border-violet-200"
+            }`}>
               {domainLabel}
             </span>
           )}
@@ -3890,7 +3974,10 @@ function RPOverdueCard({
               {a.type}
             </span>
           )}
-          <span className="text-xs font-medium text-amber-700">{daysAgo(a.scheduledAt)}d overdue</span>
+          {isOverdue
+            ? <span className="text-xs font-medium text-amber-700">{daysAgo(a.scheduledAt)}d overdue</span>
+            : <span className="text-xs text-stone-400">{fmtTime(a.scheduledAt)}</span>
+          }
           {a.location && <span className="text-xs text-stone-400 truncate">· {a.location}</span>}
         </div>
       </div>
@@ -3986,6 +4073,56 @@ function RPOverdueCarousel({
           {overdueItems.map((_, i) => (
             <div key={i} className={`h-1.5 rounded-full transition-all duration-200 ${
               i === currentIdx ? "w-4 bg-amber-500" : "w-1.5 bg-stone-200"
+            }`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RPTodayCarousel({
+  todayItems, activityChecklistMap, loadingDoneId, onDone, onCompleted,
+}: {
+  todayItems: Activity[];
+  activityChecklistMap: Map<string, ChecklistItem>;
+  loadingDoneId: string | null;
+  onDone: (id: string) => void;
+  onCompleted: (id: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [currentIdx, setCurrentIdx] = useState(0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <SectionTitle>Today</SectionTitle>
+        {todayItems.length > 1 && (
+          <span className="text-xs text-stone-400 tabular-nums">{currentIdx + 1} of {todayItems.length}</span>
+        )}
+      </div>
+      <div
+        ref={scrollRef}
+        onScroll={e => setCurrentIdx(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+        className="flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {todayItems.map(a => (
+          <div key={a.id} className="snap-start flex-shrink-0 w-full pr-[1px]">
+            <RPOverdueCard
+              a={a} isOverdue={false}
+              linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+              onDone={onDone} onCompleted={onCompleted}
+              isLoadingDone={loadingDoneId === a.id}
+            />
+          </div>
+        ))}
+      </div>
+      {todayItems.length > 1 && (
+        <div className="flex justify-center gap-1.5 mt-3">
+          {todayItems.map((_, i) => (
+            <div key={i} className={`h-1.5 rounded-full transition-all duration-200 ${
+              i === currentIdx ? "w-4 bg-stone-400" : "w-1.5 bg-stone-200"
             }`} />
           ))}
         </div>
@@ -4243,11 +4380,24 @@ function RPTodayTab({
       )}
 
       {/* Today */}
-      <div>
-        <SectionTitle>Today</SectionTitle>
-        {todayItems.length === 0
-          ? <EmptyState message={overdueItems.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
-          : <div className="space-y-2">
+      {todayItems.length === 0 ? (
+        <div>
+          <SectionTitle>Today</SectionTitle>
+          <EmptyState message={overdueItems.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
+        </div>
+      ) : (
+        <>
+          {/* Mobile carousel */}
+          <div className="sm:hidden">
+            <RPTodayCarousel
+              todayItems={todayItems} activityChecklistMap={activityChecklistMap}
+              loadingDoneId={loadingDoneId} onDone={handleDone} onCompleted={handleCompleted}
+            />
+          </div>
+          {/* Desktop list */}
+          <div className="hidden sm:block">
+            <SectionTitle>Today</SectionTitle>
+            <div className="space-y-2 mt-3">
               {todayItems.map(a => (
                 <RPActivityRow key={a.id} a={a} isOverdue={false}
                   linkedChecklist={activityChecklistMap.get(a.id) ?? null}
@@ -4256,8 +4406,9 @@ function RPTodayTab({
                 />
               ))}
             </div>
-        }
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Open checklists */}
       {openChecklists.length > 0 && (
@@ -4293,22 +4444,28 @@ function RPTodayTab({
             {weekExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
           {weekExpanded && (
-            <div className="space-y-2">
-              {weekItems.map(a => (
-                <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
-                      {a.type && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
-                          {a.type}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-stone-400">
-                      {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}
-                      {a.location ? ` · ${a.location}` : ""}
-                    </p>
+            <div className="space-y-5">
+              {groupByDay(weekItems, a => a.scheduledAt).map(({ label, items }) => (
+                <div key={label}>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
+                  <div className="space-y-2">
+                    {items.map(a => (
+                      <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
+                            {a.type && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
+                                {a.type}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-stone-400">
+                            {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
