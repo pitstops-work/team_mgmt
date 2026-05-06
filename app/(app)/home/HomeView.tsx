@@ -62,7 +62,12 @@ type ZLTeamActivity = {
     pitstop: {
       ownerId: string;
       targetDate: string | null;
-      goal: { id: string; title: string; needsDomain: string | null; needsCluster: { id: string; name: string } | null; needsClusterId: string | null };
+      goal: {
+        id: string; title: string; needsDomain: string | null; needsClusterId: string | null;
+        needsCluster:    { id: string; name: string } | null;
+        needsSettlement: { id: string; name: string } | null;
+        needsZone:       { id: string; name: string } | null;
+      };
     };
   }[];
 };
@@ -91,6 +96,28 @@ function daysAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
+function WeekCard({ title, type, scheduledAt, location, goalTitle, domain, geo }: {
+  title: string; type: string; scheduledAt: string; location?: string | null;
+  goalTitle?: string | null; domain?: string | null; geo?: string | null;
+}) {
+  return (
+    <div className="px-4 py-3 rounded-xl border border-stone-200 bg-white">
+      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+        <p className="text-sm font-medium text-stone-700 truncate">{title}</p>
+        {type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[type] ?? "bg-stone-100 text-stone-600"}`}>{type}</span>}
+      </div>
+      <p className="text-xs text-stone-400">
+        {fmtTime(scheduledAt)}{location ? ` · ${location}` : ""}
+      </p>
+      {(goalTitle || domain || geo) && (
+        <p className="text-[11px] text-stone-400 mt-0.5 truncate">
+          {[goalTitle, domain, geo].filter(Boolean).join(" · ")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function groupByDay<T>(items: T[], getDate: (item: T) => string): { label: string; items: T[] }[] {
   const map = new Map<string, { label: string; items: T[] }>();
   for (const item of items) {
@@ -2873,17 +2900,13 @@ function PMTodayTab({
                 <div key={label}>
                   <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
                   <div className="space-y-2">
-                    {items.map(a => (
-                      <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                            <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
-                            {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-                          </div>
-                          <p className="text-xs text-stone-400">{fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}</p>
-                        </div>
-                      </div>
-                    ))}
+                    {items.map(a => {
+                      const ps = a.pitstops[0]?.pitstop;
+                      const g = ps?.goal;
+                      const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
+                      const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
+                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} />;
+                    })}
                   </div>
                 </div>
               ))}
@@ -3876,21 +3899,11 @@ function ZLTodayTab({
                   <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
                   <div className="space-y-2">
                     {items.map(a => {
-                      const cluster = a.pitstops[0]?.pitstop.goal.needsCluster?.name
-                        ?? getClusterName(a.pitstops[0]?.pitstop.goal.needsClusterId);
-                      return (
-                        <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                              <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
-                              {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-                            </div>
-                            <p className="text-xs text-stone-400">
-                              {fmtTime(a.scheduledAt)}{cluster ? ` · ${cluster}` : ""}{a.location ? ` · ${a.location}` : ""}
-                            </p>
-                          </div>
-                        </div>
-                      );
+                      const ps = a.pitstops[0]?.pitstop;
+                      const g = ps?.goal;
+                      const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
+                      const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
+                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} />;
                     })}
                   </div>
                 </div>
@@ -4489,23 +4502,13 @@ function RPTodayTab({
                 <div key={label}>
                   <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
                   <div className="space-y-2">
-                    {items.map(a => (
-                      <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                            <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
-                            {a.type && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>
-                                {a.type}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-stone-400">
-                            {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                    {items.map(a => {
+                      const ps = a.pitstops?.[0]?.pitstop;
+                      const g = ps?.goal;
+                      const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
+                      const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
+                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} />;
+                    })}
                   </div>
                 </div>
               ))}
