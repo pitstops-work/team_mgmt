@@ -70,9 +70,8 @@ self.addEventListener("notificationclick", (event) => {
       .then((list) => {
         for (const client of list) {
           if (client.url.includes(self.location.origin) && "focus" in client) {
-            client.focus();
-            client.navigate(link);
-            return;
+            // navigate first, then focus — avoids race where focus fires before nav
+            return client.navigate(link).then((c) => (c ?? client).focus());
           }
         }
         return clients.openWindow(link);

@@ -19,48 +19,58 @@ export default function PushSubscriber() {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
     async function setup() {
-      // Register (or get existing) service worker
-      const reg = await navigator.serviceWorker.register("/sw.js");
+      try {
+        // Register the SW, then wait for it to be fully active
+        await navigator.serviceWorker.register("/sw.js");
+        const reg = await navigator.serviceWorker.ready;
 
-      // Don't ask if already denied
-      if (Notification.permission === "denied") return;
+        if (Notification.permission === "denied") return;
 
-      // If already granted, just make sure we're subscribed
-      if (Notification.permission === "granted") {
-        await subscribe(reg);
-        return;
-      }
+        if (Notification.permission === "granted") {
+          await ensureSubscribed(reg);
+          return;
+        }
 
-      // Otherwise ask — but only if we haven't subscribed before
-      const existing = await reg.pushManager.getSubscription();
-      if (existing) return; // already subscribed, no need to ask again
+        // Not yet decided — only prompt if no existing subscription
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) {
+          // Has a subscription but permission state is unclear — re-sync to server
+          await saveSubscription(existing);
+          return;
+        }
 
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
-        await subscribe(reg);
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+          await ensureSubscribed(reg);
+        }
+      } catch (err) {
+        console.warn("[PushSubscriber] setup error:", err);
       }
     }
 
-    async function subscribe(reg: ServiceWorkerRegistration) {
-      try {
-        const { publicKey } = await fetch("/api/push").then((r) => r.json());
-        if (!publicKey) return;
+    async function ensureSubscribed(reg: ServiceWorkerRegistration) {
+      const { publicKey } = await fetch("/api/push").then((r) => r.json());
+      if (!publicKey) return;
 
-        const existing = await reg.pushManager.getSubscription();
-        const sub = existing ?? await reg.pushManager.subscribe({
+      // Get existing subscription or create a fresh one
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(publicKey),
         });
-
-        const json = sub.toJSON();
-        await fetch("/api/push", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-        });
-      } catch (err) {
-        console.warn("Push subscription failed:", err);
       }
+
+      await saveSubscription(sub);
+    }
+
+    async function saveSubscription(sub: PushSubscription) {
+      const json = sub.toJSON();
+      await fetch("/api/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+      });
     }
 
     setup();
