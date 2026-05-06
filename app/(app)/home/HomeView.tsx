@@ -2347,7 +2347,6 @@ function PMTodayTab({
   pmZLOverdueActivities,
   pmZLChecklists,
   pmMyActivities,
-  pmClusterStatus,
   pmRPOverdueActivities,
   pmRPChecklists,
 }: {
@@ -2357,30 +2356,24 @@ function PMTodayTab({
   pmZLOverdueActivities: ZLTeamActivity[];
   pmZLChecklists: ChecklistItem[];
   pmMyActivities: ZLTeamActivity[];
-  pmClusterStatus: ClusterStatus[];
   pmRPOverdueActivities: ZLTeamActivity[];
   pmRPChecklists: ChecklistItem[];
 }) {
-  const [drillDown, setDrillDown] = useState<PMDrillDown>(null);
   const [completedActivityIds, setCompletedActivityIds] = useState<Set<string>>(new Set());
   const [completedChecklistIds, setCompletedChecklistIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [goalFilter, setGoalFilter] = useState("all");
-  const [myClusterFilter, setMyClusterFilter] = useState("all");
-  const [myGoalFilter, setMyGoalFilter] = useState("all");
-  const [myExpandedGroups, setMyExpandedGroups] = useState<Set<string>>(new Set());
+  const [expandedZLIds, setExpandedZLIds] = useState<Set<string>>(new Set());
+  const [expandedRPIds, setExpandedRPIds] = useState<Set<string>>(new Set());
+  const [expandedZLChecklistIds, setExpandedZLChecklistIds] = useState<Set<string>>(new Set());
+  const [expandedRPChecklistIds, setExpandedRPChecklistIds] = useState<Set<string>>(new Set());
+  const [weekExpanded, setWeekExpanded] = useState(false);
 
-  const todayMs = new Date(new Date().toDateString()).getTime();
+  const now = new Date();
+  const todayStart = new Date(now.toDateString()).getTime();
+  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
 
-  function backToTeam() {
-    setDrillDown(null);
-    setGoalFilter("all");
-    setExpandedGroups(new Set());
-  }
-
-  function toggleGroup(key: string, setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
-    setter(prev => { const s = new Set(prev); s.has(key) ? s.delete(key) : s.add(key); return s; });
+  function toggleId(id: string, setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
+    setter(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   }
 
   async function handleDone(activityId: string) {
@@ -2393,392 +2386,117 @@ function PMTodayTab({
     setLoadingDoneId(null);
   }
 
-  // Per-ZL summaries
-  const zlSummaries = zlMembers.map(zl => ({
-    ...zl,
-    overdueCount: pmZLOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === zl.id).length,
-    checklistCount: pmZLChecklists.filter(ci => !completedChecklistIds.has(ci.id) && ci.pitstop.ownerId === zl.id).length,
-  }));
+  // ── Derived data ─────────────────────────────────────────────────────────────
 
-  // Per-RP summaries (grouped under ZL)
-  const rpSummaries = rpMembers.map(rp => ({
-    ...rp,
-    overdueCount: pmRPOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === rp.id).length,
-    checklistCount: pmRPChecklists.filter(ci => !completedChecklistIds.has(ci.id) && ci.pitstop.ownerId === rp.id).length,
-  }));
+  // ZL attention: ZLs with overdue activities (excluding PM's own)
+  const zlAttention = zlMembers
+    .map(zl => ({
+      ...zl,
+      overdueItems: pmZLOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === zl.id),
+    }))
+    .filter(zl => zl.overdueItems.length > 0)
+    .sort((a, b) => b.overdueItems.length - a.overdueItems.length);
 
-  // PM's own activities: overdue (from ZL overdue scoped to userId) + upcoming
-  const myAllActivities = [
-    ...pmZLOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === userId),
-    ...pmMyActivities.filter(a => !completedActivityIds.has(a.id)),
-  ];
+  // RP attention: RPs with overdue activities, grouped by ZL
+  const rpAttentionByZL = zlMembers.map(zl => ({
+    zl,
+    rps: rpMembers
+      .filter(rp => rp.reportsToId === zl.id)
+      .map(rp => ({
+        ...rp,
+        overdueItems: pmRPOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === rp.id),
+      }))
+      .filter(rp => rp.overdueItems.length > 0)
+      .sort((a, b) => b.overdueItems.length - a.overdueItems.length),
+  })).filter(g => g.rps.length > 0);
 
-  const myClusters = Array.from(
-    new Map(myAllActivities.flatMap(a => {
-      const cId = a.pitstops[0]?.pitstop.goal.needsClusterId;
-      if (!cId) return [];
-      const name = pmClusterStatus.find(c => c.clusterId === cId)?.name ?? cId;
-      return [[cId, name]];
-    })).entries()
-  ).sort((a, b) => a[1].localeCompare(b[1]));
+  // ZL checklists
+  const zlChecklists = zlMembers
+    .map(zl => ({
+      ...zl,
+      items: pmZLChecklists.filter(ci => !completedChecklistIds.has(ci.id) && ci.pitstop.ownerId === zl.id),
+    }))
+    .filter(zl => zl.items.length > 0);
 
-  const myGoalsOptions = Array.from(
-    new Map(myAllActivities
-      .filter(a => myClusterFilter === "all" || a.pitstops[0]?.pitstop.goal.needsClusterId === myClusterFilter)
-      .map(a => { const g = a.pitstops[0]?.pitstop.goal; return g ? [g.id, g.title] as [string, string] : null; })
-      .filter((x): x is [string, string] => x !== null)
-    ).entries()
-  ).sort((a, b) => a[1].localeCompare(b[1]));
+  // RP checklists grouped by ZL
+  const rpChecklistsByZL = zlMembers.map(zl => ({
+    zl,
+    rps: rpMembers
+      .filter(rp => rp.reportsToId === zl.id)
+      .map(rp => ({
+        ...rp,
+        items: pmRPChecklists.filter(ci => !completedChecklistIds.has(ci.id) && ci.pitstop.ownerId === rp.id),
+      }))
+      .filter(rp => rp.items.length > 0),
+  })).filter(g => g.rps.length > 0);
 
-  const myFiltered = myAllActivities.filter(a => {
-    const p = a.pitstops[0]?.pitstop;
-    if (myClusterFilter !== "all" && p?.goal.needsClusterId !== myClusterFilter) return false;
-    if (myGoalFilter !== "all" && p?.goal.id !== myGoalFilter) return false;
-    return true;
-  });
-  const myByDate = groupBySla(myFiltered);
+  const hasTeamChecklists = zlChecklists.length > 0 || rpChecklistsByZL.length > 0;
 
-  // ── ZL overdue drill-down ──────────────────────────────────────────────────
-  if (drillDown?.type === "zl-overdue") {
-    const zl = zlMembers.find(m => m.id === drillDown.zlId)!;
-    const items = pmZLOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === drillDown.zlId);
-    const goals = Array.from(new Map(items.map(a => { const g = a.pitstops[0]?.pitstop.goal; return [g.id, g.title] as [string, string]; })).entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    const filtered = goalFilter === "all" ? items : items.filter(a => a.pitstops[0]?.pitstop.goal.id === goalFilter);
-    const grouped = groupBySla(filtered);
-    return (
-      <div>
-        <button onClick={backToTeam} className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 mb-5 transition-colors">
-          <ChevronDown className="w-4 h-4 rotate-90" /> Back to team
-        </button>
-        <div className="flex items-center gap-3 mb-5">
-          <Avatar name={zl.name} size="sm" />
-          <div>
-            <p className="text-sm font-semibold text-stone-800">{zl.name}</p>
-            <p className="text-xs text-stone-400">ZL · Overdue activities</p>
-          </div>
-        </div>
-        {goals.length > 1 && (
-          <select value={goalFilter} onChange={e => { setGoalFilter(e.target.value); setExpandedGroups(new Set()); }}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700 mb-3">
-            <option value="all">All goals</option>
-            {goals.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
-          </select>
-        )}
-        {grouped.length === 0
-          ? <p className="text-sm text-stone-400">No overdue activities{goalFilter !== "all" ? " for this goal" : ""}.</p>
-          : <div className="space-y-3">{grouped.map(([dateKey, acts]) => {
-              const { label, isOverdue: ov } = slaHeaderLabel(dateKey, todayMs);
-              const expanded = expandedGroups.has(dateKey);
-              return (
-                <div key={dateKey} className={`rounded-xl border overflow-hidden ${ov ? "border-amber-200" : "border-stone-200"}`}>
-                  <button onClick={() => toggleGroup(dateKey, setExpandedGroups)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${ov ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${ov ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
-                      <p className="text-xs text-stone-400">{acts.length} activit{acts.length !== 1 ? "ies" : "y"}</p>
-                    </div>
-                    {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />}
-                  </button>
-                  {expanded && (
-                    <div className="divide-y divide-stone-100">
-                      {acts.map(a => (
-                        <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                            <p className="text-xs text-amber-700">{fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}</p>
-                          </div>
-                          <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-                            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0">
-                            {loadingDoneId === a.id ? "…" : "Done"}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}</div>
-        }
-      </div>
-    );
-  }
+  // PM's own activities
+  const myOverdue = pmZLOverdueActivities.filter(
+    a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === userId
+  );
+  const myToday = pmMyActivities.filter(
+    a => !completedActivityIds.has(a.id) && new Date(a.scheduledAt) >= now && new Date(a.scheduledAt) <= todayEnd
+  );
+  const myWeek = pmMyActivities.filter(
+    a => !completedActivityIds.has(a.id) && new Date(a.scheduledAt) > todayEnd
+  );
 
-  // ── ZL checklists drill-down ───────────────────────────────────────────────
-  if (drillDown?.type === "zl-checklists") {
-    const zl = zlMembers.find(m => m.id === drillDown.zlId)!;
-    const items = pmZLChecklists.filter(ci => !completedChecklistIds.has(ci.id) && ci.pitstop.ownerId === drillDown.zlId);
-    const goals = Array.from(new Map(items.map(ci => [ci.pitstop.goal.id, ci.pitstop.goal.title] as [string, string])).entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    const filtered = goalFilter === "all" ? items : items.filter(ci => ci.pitstop.goal.id === goalFilter);
-    const grouped = Object.entries(
-      filtered.reduce<Record<string, ChecklistItem[]>>((acc, ci) => {
-        const key = ci.pitstop.targetDate?.slice(0, 10) ?? "no-date";
-        (acc[key] ??= []).push(ci); return acc;
-      }, {})
-    ).sort(([a], [b]) => { if (a === "no-date") return 1; if (b === "no-date") return -1; return new Date(a).getTime() - new Date(b).getTime(); });
+  const allClear = zlAttention.length === 0 && rpAttentionByZL.length === 0
+    && myOverdue.length === 0 && myToday.length === 0 && !hasTeamChecklists;
 
-    return (
-      <div>
-        <button onClick={backToTeam} className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 mb-5 transition-colors">
-          <ChevronDown className="w-4 h-4 rotate-90" /> Back to team
-        </button>
-        <div className="flex items-center gap-3 mb-5">
-          <Avatar name={zl.name} size="sm" />
-          <div>
-            <p className="text-sm font-semibold text-stone-800">{zl.name}</p>
-            <p className="text-xs text-stone-400">ZL · Open checklists</p>
-          </div>
-        </div>
-        {goals.length > 1 && (
-          <select value={goalFilter} onChange={e => { setGoalFilter(e.target.value); setExpandedGroups(new Set()); }}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700 mb-3">
-            <option value="all">All goals</option>
-            {goals.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
-          </select>
-        )}
-        {items.length === 0
-          ? <p className="text-sm text-stone-400">No open checklist items.</p>
-          : grouped.length === 0
-          ? <p className="text-sm text-stone-400">No items for this goal.</p>
-          : <div className="space-y-3">{grouped.map(([dateKey, cis]) => {
-              const { label, isOverdue: ov } = slaHeaderLabel(dateKey, todayMs);
-              const expanded = expandedGroups.has(dateKey);
-              return (
-                <div key={dateKey} className={`rounded-xl border overflow-hidden ${ov ? "border-amber-200" : "border-stone-200"}`}>
-                  <button onClick={() => toggleGroup(dateKey, setExpandedGroups)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${ov ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${ov ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
-                      <p className="text-xs text-stone-400">{cis.length} item{cis.length !== 1 ? "s" : ""}</p>
-                    </div>
-                    {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />}
-                  </button>
-                  {expanded && (
-                    <div className="divide-y divide-stone-100">
-                      {cis.map(ci => (
-                        <RPChecklistRow key={ci.id} item={ci} onCompleted={id => setCompletedChecklistIds(prev => new Set([...prev, id]))} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}</div>
-        }
-      </div>
-    );
-  }
-
-  // ── RP overdue drill-down ──────────────────────────────────────────────────
-  if (drillDown?.type === "rp-overdue") {
-    const rp = rpMembers.find(m => m.id === drillDown.rpId)!;
-    const zl = zlMembers.find(m => m.id === rp?.reportsToId);
-    const items = pmRPOverdueActivities.filter(a => !completedActivityIds.has(a.id) && a.pitstops[0]?.pitstop.ownerId === drillDown.rpId);
-    const goals = Array.from(new Map(items.map(a => { const g = a.pitstops[0]?.pitstop.goal; return [g.id, g.title] as [string, string]; })).entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    const filtered = goalFilter === "all" ? items : items.filter(a => a.pitstops[0]?.pitstop.goal.id === goalFilter);
-    const grouped = groupBySla(filtered);
-    return (
-      <div>
-        <button onClick={backToTeam} className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 mb-5 transition-colors">
-          <ChevronDown className="w-4 h-4 rotate-90" /> Back to team
-        </button>
-        <div className="flex items-center gap-3 mb-5">
-          <Avatar name={rp?.name} size="sm" />
-          <div>
-            <p className="text-sm font-semibold text-stone-800">{rp?.name}</p>
-            <p className="text-xs text-stone-400">RP{zl ? ` · under ${zl.name}` : ""} · Overdue activities</p>
-          </div>
-        </div>
-        {goals.length > 1 && (
-          <select value={goalFilter} onChange={e => { setGoalFilter(e.target.value); setExpandedGroups(new Set()); }}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700 mb-3">
-            <option value="all">All goals</option>
-            {goals.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
-          </select>
-        )}
-        {grouped.length === 0
-          ? <p className="text-sm text-stone-400">No overdue activities{goalFilter !== "all" ? " for this goal" : ""}.</p>
-          : <div className="space-y-3">{grouped.map(([dateKey, acts]) => {
-              const { label, isOverdue: ov } = slaHeaderLabel(dateKey, todayMs);
-              const expanded = expandedGroups.has(dateKey);
-              return (
-                <div key={dateKey} className={`rounded-xl border overflow-hidden ${ov ? "border-amber-200" : "border-stone-200"}`}>
-                  <button onClick={() => toggleGroup(dateKey, setExpandedGroups)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${ov ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${ov ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
-                      <p className="text-xs text-stone-400">{acts.length} activit{acts.length !== 1 ? "ies" : "y"}</p>
-                    </div>
-                    {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />}
-                  </button>
-                  {expanded && (
-                    <div className="divide-y divide-stone-100">
-                      {acts.map(a => (
-                        <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                            <p className="text-xs text-amber-700">{fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}</p>
-                          </div>
-                          <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-                            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0">
-                            {loadingDoneId === a.id ? "…" : "Done"}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}</div>
-        }
-      </div>
-    );
-  }
-
-  // ── RP checklists drill-down ───────────────────────────────────────────────
-  if (drillDown?.type === "rp-checklists") {
-    const rp = rpMembers.find(m => m.id === drillDown.rpId)!;
-    const zl = zlMembers.find(m => m.id === rp?.reportsToId);
-    const items = pmRPChecklists.filter(ci => !completedChecklistIds.has(ci.id) && ci.pitstop.ownerId === drillDown.rpId);
-    const goals = Array.from(new Map(items.map(ci => [ci.pitstop.goal.id, ci.pitstop.goal.title] as [string, string])).entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    const filtered = goalFilter === "all" ? items : items.filter(ci => ci.pitstop.goal.id === goalFilter);
-    const grouped = Object.entries(
-      filtered.reduce<Record<string, ChecklistItem[]>>((acc, ci) => {
-        const key = ci.pitstop.targetDate?.slice(0, 10) ?? "no-date";
-        (acc[key] ??= []).push(ci); return acc;
-      }, {})
-    ).sort(([a], [b]) => { if (a === "no-date") return 1; if (b === "no-date") return -1; return new Date(a).getTime() - new Date(b).getTime(); });
-
-    return (
-      <div>
-        <button onClick={backToTeam} className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 mb-5 transition-colors">
-          <ChevronDown className="w-4 h-4 rotate-90" /> Back to team
-        </button>
-        <div className="flex items-center gap-3 mb-5">
-          <Avatar name={rp?.name} size="sm" />
-          <div>
-            <p className="text-sm font-semibold text-stone-800">{rp?.name}</p>
-            <p className="text-xs text-stone-400">RP{zl ? ` · under ${zl.name}` : ""} · Open checklists</p>
-          </div>
-        </div>
-        {goals.length > 1 && (
-          <select value={goalFilter} onChange={e => { setGoalFilter(e.target.value); setExpandedGroups(new Set()); }}
-            className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700 mb-3">
-            <option value="all">All goals</option>
-            {goals.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
-          </select>
-        )}
-        {items.length === 0
-          ? <p className="text-sm text-stone-400">No open checklist items.</p>
-          : grouped.length === 0
-          ? <p className="text-sm text-stone-400">No items for this goal.</p>
-          : <div className="space-y-3">{grouped.map(([dateKey, cis]) => {
-              const { label, isOverdue: ov } = slaHeaderLabel(dateKey, todayMs);
-              const expanded = expandedGroups.has(dateKey);
-              return (
-                <div key={dateKey} className={`rounded-xl border overflow-hidden ${ov ? "border-amber-200" : "border-stone-200"}`}>
-                  <button onClick={() => toggleGroup(dateKey, setExpandedGroups)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${ov ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${ov ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
-                      <p className="text-xs text-stone-400">{cis.length} item{cis.length !== 1 ? "s" : ""}</p>
-                    </div>
-                    {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />}
-                  </button>
-                  {expanded && (
-                    <div className="divide-y divide-stone-100">
-                      {cis.map(ci => (
-                        <RPChecklistRow key={ci.id} item={ci} onCompleted={id => setCompletedChecklistIds(prev => new Set([...prev, id]))} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}</div>
-        }
-      </div>
-    );
-  }
-
-  // ── Summary view ──────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      {/* ZL rows */}
-      <div>
-        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Your ZLs</p>
-        {zlMembers.length === 0
-          ? <p className="text-sm text-stone-400">No ZLs assigned yet.</p>
-          : <div className="space-y-2">
-              {zlSummaries.map(zl => (
-                <div key={zl.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                  <Avatar name={zl.name} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-stone-800 truncate">{zl.name}</p>
-                    <p className="text-xs text-stone-400">Zone Leader</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {zl.overdueCount > 0
-                      ? <button onClick={() => { setDrillDown({ type: "zl-overdue", zlId: zl.id }); setGoalFilter("all"); setExpandedGroups(new Set()); }}
-                          className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
-                          {zl.overdueCount} overdue
-                        </button>
-                      : <span className="text-xs text-stone-300">0 overdue</span>
-                    }
-                    {zl.checklistCount > 0
-                      ? <button onClick={() => { setDrillDown({ type: "zl-checklists", zlId: zl.id }); setGoalFilter("all"); setExpandedGroups(new Set()); }}
-                          className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors">
-                          {zl.checklistCount} checklist
-                        </button>
-                      : <span className="text-xs text-stone-300">0 checklist</span>
-                    }
-                  </div>
-                </div>
-              ))}
-            </div>
-        }
-      </div>
+    <div className="space-y-8">
 
-      {/* RP rows grouped by ZL */}
-      {rpMembers.length > 0 && (
+      {/* ZL attention — inline expand */}
+      {zlAttention.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Your RPs</p>
-          <div className="space-y-4">
-            {zlMembers.map(zl => {
-              const zlRPs = rpSummaries.filter(r => r.reportsToId === zl.id);
-              if (zlRPs.length === 0) return null;
+          <div className="flex items-center gap-1.5 mb-3">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+            <SectionTitle>ZL attention</SectionTitle>
+          </div>
+          <div className="space-y-2">
+            {zlAttention.map(zl => {
+              const expanded = expandedZLIds.has(zl.id);
+              const oldest = Math.max(...zl.overdueItems.map(a => daysAgo(a.scheduledAt)));
               return (
-                <div key={zl.id}>
-                  <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-stone-300 inline-block" />
-                    {zl.name ?? "Unnamed ZL"}
-                  </p>
-                  <div className="space-y-2">
-                    {zlRPs.map(rp => (
-                      <div key={rp.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                        <Avatar name={rp.name} size="sm" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-stone-800 truncate">{rp.name}</p>
-                          <p className="text-xs text-stone-400">RP</p>
+                <div key={zl.id} className="rounded-xl border border-amber-200 overflow-hidden">
+                  <button
+                    onClick={() => toggleId(zl.id, setExpandedZLIds)}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 hover:bg-amber-100/70 transition-colors text-left"
+                  >
+                    <Avatar name={zl.name} size="xs" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-stone-800 truncate">{zl.name}</p>
+                      <p className="text-xs text-stone-400">Zone Leader</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs font-semibold text-amber-700">{zl.overdueItems.length} overdue</span>
+                      {oldest > 0 && (
+                        <span className="text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">oldest {oldest}d</span>
+                      )}
+                      {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                    </div>
+                  </button>
+                  {expanded && (
+                    <div className="divide-y divide-stone-100 bg-white">
+                      {zl.overdueItems.map(a => (
+                        <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                          {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                            <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d ago</p>
+                          </div>
+                          <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
+                            {loadingDoneId === a.id ? "…" : "Done"}
+                          </button>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {rp.overdueCount > 0
-                            ? <button onClick={() => { setDrillDown({ type: "rp-overdue", rpId: rp.id }); setGoalFilter("all"); setExpandedGroups(new Set()); }}
-                                className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
-                                {rp.overdueCount} overdue
-                              </button>
-                            : <span className="text-xs text-stone-300">0 overdue</span>
-                          }
-                          {rp.checklistCount > 0
-                            ? <button onClick={() => { setDrillDown({ type: "rp-checklists", rpId: rp.id }); setGoalFilter("all"); setExpandedGroups(new Set()); }}
-                                className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors">
-                                {rp.checklistCount} checklist
-                              </button>
-                            : <span className="text-xs text-stone-300">0 checklist</span>
-                          }
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -2786,72 +2504,253 @@ function PMTodayTab({
         </div>
       )}
 
-      {/* PM's own activities */}
-      <div>
-        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Your activities</p>
-          {myAllActivities.length === 0
-            ? <p className="text-sm text-stone-400">No overdue or upcoming activities this week.</p>
-            : <>
-              <div className="flex gap-2 mb-3">
-                {myClusters.length > 1 && (
-                  <select value={myClusterFilter} onChange={e => { setMyClusterFilter(e.target.value); setMyGoalFilter("all"); setMyExpandedGroups(new Set()); }}
-                    className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700">
-                    <option value="all">All clusters</option>
-                    {myClusters.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-                  </select>
-                )}
-                {myGoalsOptions.length > 1 && (
-                  <select value={myGoalFilter} onChange={e => { setMyGoalFilter(e.target.value); setMyExpandedGroups(new Set()); }}
-                    className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white text-stone-700">
-                    <option value="all">All goals</option>
-                    {myGoalsOptions.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
-                  </select>
-                )}
-              </div>
-              {myByDate.length === 0
-                ? <p className="text-sm text-stone-400">No activities for this filter.</p>
-                : <div className="space-y-3">{myByDate.map(([dateKey, acts]) => {
-                const { label, isOverdue: ov } = slaHeaderLabel(dateKey, todayMs);
-                const expanded = myExpandedGroups.has(dateKey);
-                return (
-                  <div key={dateKey} className={`rounded-xl border overflow-hidden ${ov ? "border-amber-200" : "border-stone-200"}`}>
-                    <button onClick={() => toggleGroup(dateKey, setMyExpandedGroups)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${ov ? "bg-amber-50 hover:bg-amber-100/70" : "bg-stone-50 hover:bg-stone-100/70"}`}>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold ${ov ? "text-amber-700" : "text-stone-700"}`}>{label}</p>
-                        <p className="text-xs text-stone-400">{acts.length} activit{acts.length !== 1 ? "ies" : "y"}</p>
-                      </div>
-                      {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />}
-                    </button>
-                    {expanded && (
-                      <div className="divide-y divide-stone-100">
-                        {acts.map(a => {
-                          const isOv = new Date(a.scheduledAt) < new Date(new Date().toDateString());
-                          return (
-                            <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                                <p className={`text-xs ${isOv ? "text-amber-700" : "text-stone-400"}`}>{fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}</p>
-                              </div>
-                              {isOv && (
+      {/* RP attention — grouped by ZL, inline expand */}
+      {rpAttentionByZL.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 mb-3">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+            <SectionTitle>RP attention</SectionTitle>
+          </div>
+          <div className="space-y-4">
+            {rpAttentionByZL.map(({ zl, rps }) => (
+              <div key={zl.id}>
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-stone-300 inline-block" />
+                  {zl.name ?? "Unnamed ZL"}
+                </p>
+                <div className="space-y-2">
+                  {rps.map(rp => {
+                    const expanded = expandedRPIds.has(rp.id);
+                    const oldest = Math.max(...rp.overdueItems.map(a => daysAgo(a.scheduledAt)));
+                    return (
+                      <div key={rp.id} className="rounded-xl border border-amber-200 overflow-hidden">
+                        <button
+                          onClick={() => toggleId(rp.id, setExpandedRPIds)}
+                          className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 hover:bg-amber-100/70 transition-colors text-left"
+                        >
+                          <Avatar name={rp.name} size="xs" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-stone-800 truncate">{rp.name}</p>
+                            <p className="text-xs text-stone-400">RP</p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs font-semibold text-amber-700">{rp.overdueItems.length} overdue</span>
+                            {oldest > 0 && (
+                              <span className="text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">oldest {oldest}d</span>
+                            )}
+                            {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                          </div>
+                        </button>
+                        {expanded && (
+                          <div className="divide-y divide-stone-100 bg-white">
+                            {rp.overdueItems.map(a => (
+                              <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                                {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                                  <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d ago</p>
+                                </div>
                                 <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-                                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0">
+                                  className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
                                   {loadingDoneId === a.id ? "…" : "Done"}
                                 </button>
-                              )}
-                            </div>
-                          );
-                        })}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}</div>
-              }
-            </>
-          }
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* PM's own overdue — carousel on mobile, list on desktop */}
+      {myOverdue.length > 0 && (
+        <>
+          <div className="sm:hidden">
+            <ZLOverdueCarousel items={myOverdue} loadingDoneId={loadingDoneId} onDone={handleDone} />
+          </div>
+          <div className="hidden sm:block">
+            <div className="flex items-center gap-1.5 mb-3">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+              <SectionTitle>Your update needed</SectionTitle>
+            </div>
+            <div className="space-y-2">
+              {myOverdue.map(a => (
+                <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50">
+                  {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                    <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d overdue</p>
+                  </div>
+                  <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                    className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
+                    {loadingDoneId === a.id ? "…" : "Done"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* PM's today — carousel on mobile, list on desktop */}
+      {myToday.length === 0 ? (
+        <div>
+          <SectionTitle>Today</SectionTitle>
+          <EmptyState message={myOverdue.length > 0 || zlAttention.length > 0 || rpAttentionByZL.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
+        </div>
+      ) : (
+        <>
+          <div className="sm:hidden">
+            <ZLTodayCarousel items={myToday} loadingDoneId={loadingDoneId} onDone={handleDone} />
+          </div>
+          <div className="hidden sm:block">
+            <SectionTitle>Today</SectionTitle>
+            <div className="space-y-2 mt-3">
+              {myToday.map(a => (
+                <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
+                  {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+                    <p className="text-xs text-stone-400">{fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}</p>
+                  </div>
+                  <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+                    className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
+                    {loadingDoneId === a.id ? "…" : "Done"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Team checklists — ZLs then RPs inline expand */}
+      {hasTeamChecklists && (
+        <div>
+          <SectionTitle>Team checklists</SectionTitle>
+          <div className="space-y-2 mt-3">
+            {zlChecklists.map(zl => {
+              const expanded = expandedZLChecklistIds.has(zl.id);
+              const overdueCount = zl.items.filter(ci => {
+                const ms = ci.pitstop.targetDate ? new Date(ci.pitstop.targetDate).getTime() : null;
+                return ms !== null && ms < Date.now();
+              }).length;
+              return (
+                <div key={zl.id} className="rounded-xl border border-stone-200 overflow-hidden">
+                  <button
+                    onClick={() => toggleId(zl.id, setExpandedZLChecklistIds)}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-stone-50 hover:bg-stone-100/70 transition-colors text-left"
+                  >
+                    <Avatar name={zl.name} size="xs" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-stone-800 truncate">{zl.name}</p>
+                      <p className="text-xs text-stone-400">Zone Leader</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs font-medium text-violet-700">{zl.items.length} open</span>
+                      {overdueCount > 0 && <span className="text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{overdueCount} overdue</span>}
+                      {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                    </div>
+                  </button>
+                  {expanded && (
+                    <div className="divide-y divide-stone-100 bg-white">
+                      {zl.items.map(ci => (
+                        <RPChecklistRow key={ci.id} item={ci} onCompleted={id => setCompletedChecklistIds(prev => new Set([...prev, id]))} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {rpChecklistsByZL.map(({ zl, rps }) => (
+              <div key={zl.id} className="space-y-2">
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide px-1 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-stone-300 inline-block" />
+                  {zl.name ?? "Unnamed ZL"} · RPs
+                </p>
+                {rps.map(rp => {
+                  const expanded = expandedRPChecklistIds.has(rp.id);
+                  const overdueCount = rp.items.filter(ci => {
+                    const ms = ci.pitstop.targetDate ? new Date(ci.pitstop.targetDate).getTime() : null;
+                    return ms !== null && ms < Date.now();
+                  }).length;
+                  return (
+                    <div key={rp.id} className="rounded-xl border border-stone-200 overflow-hidden">
+                      <button
+                        onClick={() => toggleId(rp.id, setExpandedRPChecklistIds)}
+                        className="w-full flex items-center gap-3 px-4 py-3 bg-stone-50 hover:bg-stone-100/70 transition-colors text-left"
+                      >
+                        <Avatar name={rp.name} size="xs" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-stone-800 truncate">{rp.name}</p>
+                          <p className="text-xs text-stone-400">RP</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-xs font-medium text-violet-700">{rp.items.length} open</span>
+                          {overdueCount > 0 && <span className="text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{overdueCount} overdue</span>}
+                          {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                        </div>
+                      </button>
+                      {expanded && (
+                        <div className="divide-y divide-stone-100 bg-white">
+                          {rp.items.map(ci => (
+                            <RPChecklistRow key={ci.id} item={ci} onCompleted={id => setCompletedChecklistIds(prev => new Set([...prev, id]))} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All clear */}
+      {allClear && <EmptyState message="All caught up — no overdue items for you or your team." />}
+
+      {/* Coming up this week */}
+      {myWeek.length > 0 && (
+        <div>
+          <button
+            onClick={() => setWeekExpanded(e => !e)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-400 uppercase tracking-wider hover:text-stone-600 transition-colors mb-2"
+          >
+            Coming up this week ({myWeek.length})
+            {weekExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+          {weekExpanded && (
+            <div className="space-y-5">
+              {groupByDay(myWeek, a => a.scheduledAt).map(({ label, items }) => (
+                <div key={label}>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
+                  <div className="space-y-2">
+                    {items.map(a => (
+                      <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
+                            {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                          </div>
+                          <p className="text-xs text-stone-400">{fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }
@@ -4787,7 +4686,6 @@ export default function HomeView({
             pmZLOverdueActivities={pmZLOverdueActivities}
             pmZLChecklists={pmZLChecklists}
             pmMyActivities={pmMyActivities}
-            pmClusterStatus={pmClusterStatus}
             pmRPOverdueActivities={pmRPOverdueActivities}
             pmRPChecklists={pmRPChecklists}
           />
