@@ -4395,6 +4395,7 @@ function RPTodayTab({
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
   const [weekExpanded, setWeekExpanded] = useState(false);
+  const [checklistsExpanded, setChecklistsExpanded] = useState(false);
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
@@ -4547,21 +4548,29 @@ function RPTodayTab({
         </>
       )}
 
-      {/* Open checklists */}
+      {/* Open checklists — collapsed by default */}
       {openChecklists.length > 0 && (
         <div>
-          <SectionTitle>Open checklists</SectionTitle>
-          <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100 overflow-hidden">
-            {openChecklists.map(ci => {
-              const pitstopMs = ci.pitstop.targetDate ? new Date(ci.pitstop.targetDate).getTime() : null;
-              const isOverdueChecklist = pitstopMs !== null && pitstopMs < todayMs;
-              return (
-                <div key={ci.id} className={isOverdueChecklist ? "bg-amber-50" : undefined}>
-                  <RPChecklistRow item={ci} onCompleted={handleCompleted} />
-                </div>
-              );
-            })}
-          </div>
+          <button
+            onClick={() => setChecklistsExpanded(e => !e)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-400 uppercase tracking-wider hover:text-stone-600 transition-colors mb-2"
+          >
+            Open checklists ({openChecklists.length})
+            {checklistsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+          {checklistsExpanded && (
+            <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100 overflow-hidden">
+              {openChecklists.map(ci => {
+                const pitstopMs = ci.pitstop.targetDate ? new Date(ci.pitstop.targetDate).getTime() : null;
+                const isOverdueChecklist = pitstopMs !== null && pitstopMs < todayMs;
+                return (
+                  <div key={ci.id} className={isOverdueChecklist ? "bg-amber-50" : undefined}>
+                    <RPChecklistRow item={ci} onCompleted={handleCompleted} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
