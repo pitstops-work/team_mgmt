@@ -523,27 +523,8 @@ function TodayTab({
                   <div className="space-y-2">
                     {items.map(a => {
                       const { goal, isOwner, isAttendee, geo, domain } = activityMeta(a, userId);
-                      return (
-                        <div key={a.id} className="px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                            <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
-                            {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-                            {(isOwner || isAttendee) && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${isOwner ? "bg-violet-50 text-violet-600" : "bg-stone-100 text-stone-500"}`}>
-                                {isOwner ? "Owner" : "Attendee"}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-stone-400">
-                            {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
-                          </p>
-                          {(goal || domain || geo) && (
-                            <p className="text-[11px] text-stone-400 mt-0.5 truncate">
-                              {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
-                            </p>
-                          )}
-                        </div>
-                      );
+                      const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
+                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={goal?.title} domain={domain} geo={geo} role={role} />;
                     })}
                   </div>
                 </div>
