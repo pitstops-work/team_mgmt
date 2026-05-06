@@ -310,78 +310,179 @@ function DomainTable({ stats }: { stats: DomainStat[] }) {
 // ── Tab: Today ────────────────────────────────────────────────────────────────
 
 function TodayTab({
-  todayActivities, weekActivities, weekChecklists, designation,
+  userId, overdueActivities, myActivities, weekChecklists,
 }: {
-  todayActivities: Activity[];
-  weekActivities: Activity[];
+  userId: string;
+  overdueActivities: Activity[];
+  myActivities: Activity[];
   weekChecklists: ChecklistItem[];
-  designation: string;
 }) {
-  const laterThisWeek = weekActivities.filter(a => !isToday(a.scheduledAt));
-  const todayIds = new Set(todayActivities.map(a => a.id));
-  const weekOnly = laterThisWeek.filter(a => !todayIds.has(a.id));
+  const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
+  const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
+  const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
+  const [weekExpanded, setWeekExpanded] = useState(false);
 
   const now = new Date();
-  const weekEnd = new Date(now);
-  weekEnd.setDate(weekEnd.getDate() + (6 - ((weekEnd.getDay() + 6) % 7)));
-  weekEnd.setHours(23, 59, 59, 999);
-  const thisWeekChecklists = weekChecklists.filter(ci => {
-    if (!ci.pitstop.targetDate) return true;
-    return new Date(ci.pitstop.targetDate) <= weekEnd;
-  });
+  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+
+  async function handleDone(eventId: string) {
+    setLoadingDoneId(eventId);
+    await fetch(`/api/pitstop-events/${eventId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Done" }),
+    });
+    setDoneIds(prev => new Set([...prev, eventId]));
+    setLoadingDoneId(null);
+  }
+
+  function isVisible(id: string) { return !doneIds.has(id); }
+
+  const overdueItems = overdueActivities.filter(a => isVisible(a.id));
+  const todayItems = myActivities.filter(
+    a => isVisible(a.id) && new Date(a.scheduledAt) >= now && new Date(a.scheduledAt) <= todayEnd
+  );
+  const weekItems = myActivities.filter(
+    a => isVisible(a.id) && new Date(a.scheduledAt) > todayEnd
+  );
+
+  // Checklists owned by this user
+  const myChecklists = weekChecklists.filter(
+    ci => !completedItemIds.has(ci.id) && ci.pitstop.ownerId === userId
+  );
+
+  const allEmpty = overdueItems.length === 0 && todayItems.length === 0 && myChecklists.length === 0;
+
+  // Shared inline activity row (desktop)
+  function ActivityRowSimple({ a, isOverdue }: { a: Activity; isOverdue: boolean }) {
+    return (
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+        isOverdue ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-white"
+      }`}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+            {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+          </div>
+          <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
+            {isOverdue ? `${daysAgo(a.scheduledAt)}d overdue` : fmtTime(a.scheduledAt)}
+            {a.location ? ` · ${a.location}` : ""}
+          </p>
+        </div>
+        <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+          className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
+          {loadingDoneId === a.id ? "…" : "Done"}
+        </button>
+      </div>
+    );
+  }
+
+  const emptyMap = new Map<string, ChecklistItem>();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <SectionTitle>Today&apos;s activities</SectionTitle>
-        {todayActivities.length === 0
-          ? <EmptyState message="No activities scheduled for today." />
-          : <div className="space-y-2">{todayActivities.map(a => <ActivityRow key={a.id} a={a} />)}</div>
-        }
-      </div>
+    <div className="space-y-8">
 
-      <div>
-        <SectionTitle>Checklists this week{designation === "ZL" ? " (team)" : ""}</SectionTitle>
-        {thisWeekChecklists.length === 0
-          ? <EmptyState message="No open checklist items." />
-          : (
-            <div className="space-y-2">
-              {thisWeekChecklists.slice(0, 20).map(ci => <ChecklistRow key={ci.id} item={ci} />)}
-              {thisWeekChecklists.length > 20 && (
-                <p className="text-xs text-stone-400 px-1">+{thisWeekChecklists.length - 20} more items</p>
-              )}
+      {/* Overdue — amber carousel mobile, list desktop */}
+      {overdueItems.length > 0 && (
+        <>
+          <div className="sm:hidden">
+            <RPOverdueCarousel
+              overdueItems={overdueItems}
+              activityChecklistMap={emptyMap}
+              loadingDoneId={loadingDoneId}
+              onDone={handleDone}
+              onCompleted={() => {}}
+            />
+          </div>
+          <div className="hidden sm:block">
+            <div className="flex items-center gap-1.5 mb-3">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+              <SectionTitle>Needs your update</SectionTitle>
             </div>
-          )
-        }
-      </div>
-
-      <div>
-        <SectionTitle>Later this week{designation === "ZL" ? " (team)" : ""}</SectionTitle>
-        {weekOnly.length === 0
-          ? <EmptyState message="Nothing else scheduled this week." />
-          : (
             <div className="space-y-2">
-              {weekOnly.map(a => (
-                <Link key={a.id} href="/activities"
-                  className="flex items-start gap-3 px-4 py-3 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                    <p className="text-xs text-stone-400 mt-0.5">
-                      {fmtDate(a.scheduledAt)} · {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
-                    </p>
-                    {a.attendees && a.attendees.length > 0 && (
-                      <p className="text-[10px] text-stone-300 mt-0.5 truncate">
-                        {a.attendees.map(att => att.user.name).filter(Boolean).join(", ")}
-                      </p>
-                    )}
+              {overdueItems.map(a => <ActivityRowSimple key={a.id} a={a} isOverdue />)}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Today — white carousel mobile, list desktop */}
+      {todayItems.length === 0 ? (
+        <div>
+          <SectionTitle>Today</SectionTitle>
+          <EmptyState message={overdueItems.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
+        </div>
+      ) : (
+        <>
+          <div className="sm:hidden">
+            <RPTodayCarousel
+              todayItems={todayItems}
+              activityChecklistMap={emptyMap}
+              loadingDoneId={loadingDoneId}
+              onDone={handleDone}
+              onCompleted={() => {}}
+            />
+          </div>
+          <div className="hidden sm:block">
+            <SectionTitle>Today</SectionTitle>
+            <div className="space-y-2 mt-3">
+              {todayItems.map(a => <ActivityRowSimple key={a.id} a={a} isOverdue={false} />)}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Open checklists (Leader-owned pitstops only) */}
+      {myChecklists.length > 0 && (
+        <div>
+          <SectionTitle>Open checklists</SectionTitle>
+          <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100 overflow-hidden mt-3">
+            {myChecklists.map(ci => (
+              <RPChecklistRow key={ci.id} item={ci} onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All clear */}
+      {allEmpty && <EmptyState message="You're all caught up for today." />}
+
+      {/* Coming up this week */}
+      {weekItems.length > 0 && (
+        <div>
+          <button
+            onClick={() => setWeekExpanded(e => !e)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-400 uppercase tracking-wider hover:text-stone-600 transition-colors mb-2"
+          >
+            Coming up this week ({weekItems.length})
+            {weekExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+          {weekExpanded && (
+            <div className="space-y-5">
+              {groupByDay(weekItems, a => a.scheduledAt).map(({ label, items }) => (
+                <div key={label}>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
+                  <div className="space-y-2">
+                    {items.map(a => (
+                      <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
+                            {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                          </div>
+                          <p className="text-xs text-stone-400">
+                            {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
-          )
-        }
-      </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }
@@ -4552,6 +4653,7 @@ export default function HomeView({
   todayActivities, weekActivities, weekChecklists, myGoals,
   rpClusterStats, rpOverdueActivities, rpDoneActivities, zlOverdueActivities, zlMyActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers, rpTeamHealth,
   pmZLMembers, pmRPMembers, pmZLHealth, pmRPHealth, pmZLOverdueActivities, pmZLChecklists, pmMyActivities, pmRPOverdueActivities, pmRPChecklists, pmZoneClusterMap, pmClusterStats, pmClusterStatus,
+  leaderOverdueActivities, leaderMyActivities,
   adminDash,
 }: {
   userId: string;
@@ -4585,6 +4687,8 @@ export default function HomeView({
   pmZoneClusterMap: { id: string; name: string; clusterIds: string[] }[];
   pmClusterStats: ClusterStat[];
   pmClusterStatus: ClusterStatus[];
+  leaderOverdueActivities: Activity[];
+  leaderMyActivities: Activity[];
   adminDash: AdminDash | null;
 }) {
   const isAdmin = !!adminDash;
@@ -4718,10 +4822,10 @@ export default function HomeView({
         {/* Non-RP/ZL/PM: shared Today tab */}
         {activeTab === "today" && designation !== "RP" && designation !== "ZL" && designation !== "PM" && (
           <TodayTab
-            todayActivities={todayActivities}
-            weekActivities={weekActivities}
+            userId={userId}
+            overdueActivities={leaderOverdueActivities}
+            myActivities={leaderMyActivities}
             weekChecklists={weekChecklists}
-            designation={designation}
           />
         )}
 

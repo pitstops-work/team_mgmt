@@ -286,6 +286,8 @@ export default async function HomePage() {
 
   const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
 
+  const isLeader = !["RP", "ZL", "PM"].includes(designation);
+
   const [
     todayActivities,
     weekActivities,
@@ -297,6 +299,8 @@ export default async function HomePage() {
     rpDoneActivities,
     zlOverdueActivities,
     zlMyActivities,
+    leaderOverdueActivities,
+    leaderMyActivities,
   ] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: {
@@ -504,6 +508,68 @@ export default async function HomePage() {
                   select: {
                     ownerId: true, targetDate: true,
                     goal: { select: { id: true, title: true, needsDomain: true, needsCluster: { select: { id: true, name: true } }, needsClusterId: true } },
+                  },
+                },
+              },
+              take: 1,
+            },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 100,
+        })
+      : Promise.resolve([]),
+
+    // Leader/Other: past overdue activities (attendee OR pitstop owner)
+    isLeader
+      ? prisma.pitstopEvent.findMany({
+          where: {
+            deletedAt: null,
+            status: "Scheduled",
+            scheduledAt: { lt: todayStart },
+            OR: [
+              { attendees: { some: { userId } } },
+              { pitstops: { some: { pitstop: { ownerId: userId, deletedAt: null } } } },
+            ],
+          },
+          select: {
+            id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            attendees: { select: { user: { select: { id: true, name: true } } } },
+            pitstops: {
+              select: {
+                pitstop: {
+                  select: {
+                    goal: { select: { needsDomain: true, needsCluster: { select: { id: true, name: true } } } },
+                  },
+                },
+              },
+              take: 1,
+            },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 20,
+        })
+      : Promise.resolve([]),
+
+    // Leader/Other: today + this week activities (attendee OR pitstop owner)
+    isLeader
+      ? prisma.pitstopEvent.findMany({
+          where: {
+            deletedAt: null,
+            status: "Scheduled",
+            scheduledAt: { gte: todayStart, lte: weekEnd },
+            OR: [
+              { attendees: { some: { userId } } },
+              { pitstops: { some: { pitstop: { ownerId: userId, deletedAt: null } } } },
+            ],
+          },
+          select: {
+            id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            attendees: { select: { user: { select: { id: true, name: true } } } },
+            pitstops: {
+              select: {
+                pitstop: {
+                  select: {
+                    goal: { select: { needsDomain: true, needsCluster: { select: { id: true, name: true } } } },
                   },
                 },
               },
@@ -1438,6 +1504,8 @@ export default async function HomePage() {
       pmZoneClusterMap={pmZoneClusterMap}
       pmClusterStats={pmClusterStats}
       pmClusterStatus={pmClusterStatus}
+      leaderOverdueActivities={JSON.parse(JSON.stringify(leaderOverdueActivities))}
+      leaderMyActivities={JSON.parse(JSON.stringify(leaderMyActivities))}
       adminDash={adminDash}
     />
   );
