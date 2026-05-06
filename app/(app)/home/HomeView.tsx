@@ -20,6 +20,7 @@ type Activity = {
   id: string; title: string; type: string; scheduledAt: string;
   location: string | null; status: string;
   attendees?: { user: { id: string; name: string | null } }[];
+  pitstops?: { pitstop: { goal: { needsDomain: string | null; needsCluster: { id: string; name: string } | null } } }[];
 };
 
 type ChecklistItem = {
@@ -3717,9 +3718,11 @@ function RPOverdueCard({
 
   const completionType = linkedChecklist?.completionType ?? "Activity";
   const isBusy = voiceState !== "idle" || uploading || isLoadingDone;
-  const goal = linkedChecklist?.pitstop.goal;
-  const domainLabel = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
-  const clusterName = goal?.needsCluster?.name ?? null;
+  const ciGoal = linkedChecklist?.pitstop.goal;
+  const actGoal = a.pitstops?.[0]?.pitstop.goal;
+  const rawDomain = ciGoal?.needsDomain ?? actGoal?.needsDomain ?? null;
+  const domainLabel = rawDomain ? fmtDomain(rawDomain) : null;
+  const clusterName = ciGoal?.needsCluster?.name ?? actGoal?.needsCluster?.name ?? null;
 
   async function startVoiceLog() {
     if (!linkedChecklist) return;
