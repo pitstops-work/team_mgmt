@@ -1394,7 +1394,67 @@ function PhaseMatrix({
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Done</span>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        {/* Mobile carousel — one card per goal */}
+        <div className="sm:hidden -mx-4 px-4">
+          <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
+            {displayGoals.map((goal) => {
+              const gMap = tagMap.get(goal.id) ?? new Map();
+              const activePhaseTags = PHASE_TAGS.filter(tag => gMap.has(tag));
+              return (
+                <div key={goal.id} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 bg-white p-4 flex-shrink-0">
+                  <Link href={`/goals/${goal.id}`} className="text-sm font-semibold text-stone-800 hover:text-sky-600 block mb-1 line-clamp-2 leading-snug">
+                    {goal.title}
+                  </Link>
+                  <p className="text-[11px] text-stone-400 mb-3">{goal.owner.name ?? ""}</p>
+                  <div className="space-y-2.5">
+                    {activePhaseTags.map((tag) => {
+                      const cell = gMap.get(tag)!;
+                      const clPct  = cell.checklistTotal > 0 ? Math.round((cell.checklistDone / cell.checklistTotal) * 100) : null;
+                      const actPct = cell.activityTotal  > 0 ? Math.round((cell.activityDone  / cell.activityTotal)  * 100) : null;
+                      const isActive = drill?.tag === tag && drill.seedGoalId === goal.id;
+                      return (
+                        <div
+                          key={tag}
+                          className={`rounded-lg p-2 cursor-pointer transition-colors ${isActive ? "bg-stone-100 ring-1 ring-stone-300" : "bg-stone-50 active:bg-stone-100"}`}
+                          onClick={() => setDrill(d => d?.tag === tag && d.seedGoalId === goal.id ? null : { tag, seedGoalId: goal.id })}
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${PHASE_COLORS[tag].pill}`}>{tag}</span>
+                            {healthDot(cell)}
+                            <span className={`text-[10px] tabular-nums ml-auto ${cell.done === cell.total ? "text-emerald-600 font-medium" : "text-stone-500"}`}>
+                              {cell.done}/{cell.total}
+                            </span>
+                          </div>
+                          {(clPct !== null || actPct !== null) && (
+                            <div className="space-y-1">
+                              {clPct !== null && (
+                                <div className="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                                  <div className="h-full bg-sky-400 rounded-full" style={{ width: `${clPct}%` }} />
+                                </div>
+                              )}
+                              {actPct !== null && (
+                                <div className="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                                  <div className="h-full bg-violet-400 rounded-full" style={{ width: `${actPct}%` }} />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-4 pt-1 text-[10px] text-stone-400">
+            <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-sky-400 rounded-full" />Checklist</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-violet-400 rounded-full" />Activities</span>
+          </div>
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-xs border-separate border-spacing-0">
             <thead>
               <tr>
@@ -1461,7 +1521,7 @@ function PhaseMatrix({
             </tbody>
           </table>
         </div>
-        <div className="flex items-center gap-4 pt-1 text-[10px] text-stone-400">
+        <div className="hidden sm:flex items-center gap-4 pt-1 text-[10px] text-stone-400">
           <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-sky-400 rounded-full" />Checklist completion</span>
           <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-violet-400 rounded-full" />Activity completion</span>
         </div>
