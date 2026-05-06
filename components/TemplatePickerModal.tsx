@@ -123,7 +123,7 @@ export default function TemplatePickerModal({
   })();
 
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>(currentUserId ?? "");
-  const [linkedFacilityId, setLinkedFacilityId] = useState<string>("");
+  const [linkedFacilityIds, setLinkedFacilityIds] = useState<Set<string>>(new Set());
   const [facilities, setFacilities] = useState<FacilityOption[]>([]);
   const [facilitySearch, setFacilitySearch] = useState("");
   const [facilityLayerLabels, setFacilityLayerLabels] = useState<Record<string, string>>({});
@@ -274,7 +274,7 @@ export default function TemplatePickerModal({
     t.parameters.forEach((p) => { init[p.key] = ""; });
     setParamValues(init);
     setPreview([]);
-    setLinkedFacilityId("");
+    setLinkedFacilityIds(new Set());
     setFacilitySearch("");
     setStep("geo");
   };
@@ -326,7 +326,7 @@ export default function TemplatePickerModal({
     if (!title.trim() || !startDate) return false;
     if (!selected) return false;
     if (!isGeoValid()) return false;
-    if (selected.linkedFacilityLayerKey && !linkedFacilityId) return false;
+    if (selected.linkedFacilityLayerKey && linkedFacilityIds.size === 0) return false;
     const paramsOk = selected.parameters.every((p) => {
       const v = paramValues[p.key];
       if (!v) return false;
@@ -347,35 +347,50 @@ export default function TemplatePickerModal({
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/templates/${selected.id}/apply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || null,
-          startDate,
-          targetDate: computedTargetDate(),
-          params: buildParams(),
-          needsDomain: needsDomain ?? selected.needsDomain ?? null,
-          parameter: (() => {
-            const countKey = selected.parameters.find(p => p.type === "number")?.key;
-            const raw = countKey ? paramValues[countKey] : undefined;
-            const n = raw !== undefined && raw !== "" ? parseInt(raw, 10) : NaN;
-            return isNaN(n) ? null : n;
-          })(),
-          needsSettlementId: geoVal.settlementId || null,
-          needsClusterId: geoVal.clusterId || null,
-          needsZoneId: geoVal.zoneId || null,
-          needsCityId: geoVal.cityId || null,
-          linkedFacilityId: (selected.linkedFacilityLayerKey && linkedFacilityId) ? linkedFacilityId : null,
-          recurrence,
-          ...(canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId
-            ? { ownerId: selectedOwnerId }
-            : {}),
+      const countKey = selected.parameters.find(p => p.type === "number")?.key;
+      const raw = countKey ? paramValues[countKey] : undefined;
+      const parameterVal = raw !== undefined && raw !== "" ? parseInt(raw, 10) : NaN;
+
+      const facilityIds = selected.linkedFacilityLayerKey && linkedFacilityIds.size > 0
+        ? Array.from(linkedFacilityIds)
+        : [null];
+
+      const basePayload = {
+        description: description.trim() || null,
+        startDate,
+        targetDate: computedTargetDate(),
+        params: buildParams(),
+        needsDomain: needsDomain ?? selected.needsDomain ?? null,
+        parameter: isNaN(parameterVal) ? null : parameterVal,
+        needsSettlementId: geoVal.settlementId || null,
+        needsClusterId: geoVal.clusterId || null,
+        needsZoneId: geoVal.zoneId || null,
+        needsCityId: geoVal.cityId || null,
+        recurrence,
+        ...(canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId
+          ? { ownerId: selectedOwnerId }
+          : {}),
+      };
+
+      const facility = (id: string | null) =>
+        selected.linkedFacilityLayerKey ? { linkedFacilityId: id } : {};
+
+      const facilityNames = new Map(facilities.map(f => [f.id, f.name]));
+
+      const results = await Promise.all(
+        facilityIds.map((fId, i) => {
+          const goalTitle = facilityIds.length > 1
+            ? `${title.trim()} — ${facilityNames.get(fId!) ?? `Facility ${i + 1}`}`
+            : title.trim();
+          return fetch(`/api/templates/${selected.id}/apply`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...basePayload, title: goalTitle, ...facility(fId) }),
+          }).then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); });
         }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      onCreated(await res.json());
+      );
+
+      onCreated(results[0]);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -712,12 +727,19 @@ export default function TemplatePickerModal({
                 />
               </div>
 
-              {/* Linked facility picker */}
+              {/* Linked facility picker — multi-select */}
               {selected.linkedFacilityLayerKey && (
                 <div>
-                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">
-                    Select {facilityLayerLabels[selected.linkedFacilityLayerKey] ?? selected.linkedFacilityLayerKey ?? "Facility"}
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
+                      Select {facilityLayerLabels[selected.linkedFacilityLayerKey] ?? selected.linkedFacilityLayerKey ?? "Facility"}
+                    </p>
+                    {linkedFacilityIds.size > 0 && (
+                      <span className="text-xs font-medium text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full">
+                        {linkedFacilityIds.size} selected
+                      </span>
+                    )}
+                  </div>
                   <div className="relative mb-2">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
                     <input
@@ -734,25 +756,39 @@ export default function TemplatePickerModal({
                     <div className="max-h-48 overflow-y-auto border border-stone-200 rounded-lg divide-y divide-stone-100">
                       {filteredFacilities.length === 0 ? (
                         <p className="text-xs text-stone-400 text-center py-4">No matches</p>
-                      ) : filteredFacilities.map(f => (
-                        <button
-                          key={f.id}
-                          type="button"
-                          onClick={() => setLinkedFacilityId(f.id)}
-                          className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
-                            linkedFacilityId === f.id
-                              ? "bg-sky-50 text-sky-800"
-                              : "hover:bg-stone-50 text-stone-700"
-                          }`}
-                        >
-                          <span className="font-medium truncate">{f.name}</span>
-                          <span className="text-xs text-stone-400 ml-2 shrink-0">{f.cluster || f.settlement}</span>
-                        </button>
-                      ))}
+                      ) : filteredFacilities.map(f => {
+                        const checked = linkedFacilityIds.has(f.id);
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => setLinkedFacilityIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(f.id)) next.delete(f.id); else next.add(f.id);
+                              return next;
+                            })}
+                            className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
+                              checked ? "bg-sky-50 text-sky-800" : "hover:bg-stone-50 text-stone-700"
+                            }`}
+                          >
+                            <span className={`w-4 h-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors ${
+                              checked ? "bg-sky-500 border-sky-500" : "border-stone-300"
+                            }`}>
+                              {checked && (
+                                <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                                  <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </span>
+                            <span className="font-medium truncate flex-1">{f.name}</span>
+                            <span className="text-xs text-stone-400 shrink-0">{f.cluster || f.settlement}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
-                  {!linkedFacilityId && (
-                    <p className="text-xs text-amber-600 mt-1">Select a facility to continue.</p>
+                  {linkedFacilityIds.size === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">Select at least one facility to continue.</p>
                   )}
                 </div>
               )}
@@ -901,7 +937,11 @@ export default function TemplatePickerModal({
               disabled={!isValid() || loading}
               className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
             >
-              {loading ? "Creating…" : "Create Goal"}
+              {loading
+                ? "Creating…"
+                : linkedFacilityIds.size > 1
+                  ? `Create ${linkedFacilityIds.size} Goals`
+                  : "Create Goal"}
             </button>
           </div>
         )}
