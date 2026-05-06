@@ -4622,6 +4622,7 @@ const ZL_TABS = [
 ] as const;
 
 const ADMIN_TABS = [
+  { key: "today",       label: "Today",         icon: CalendarClock },
   { key: "overview",    label: "Overview",      icon: LayoutDashboard },
   { key: "attention",   label: "Attention",     icon: AlertTriangle },
   { key: "team-health", label: "Team Health",   icon: Activity },
@@ -4697,7 +4698,7 @@ export default function HomeView({
     : designation === "RP" ? RP_TABS
     : designation === "PM" ? PM_TABS
     : OTHER_TABS;
-  const defaultTab: TabKey = isAdmin ? "overview" : "today";
+  const defaultTab: TabKey = "today";
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
   const [goalInitialStatus, setGoalInitialStatus] = useState<string>("All");
 
