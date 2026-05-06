@@ -365,7 +365,7 @@ function WeekRow({
               <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider mb-1.5">Scheduled Activities</p>
               <div className="space-y-1.5">
                 {activities.map(a => (
-                  <Link key={a.id} href="/activities"
+                  <Link key={a.id} href={`/activities?date=${a.scheduledAt.slice(0, 10)}`}
                     className="flex items-start gap-2 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 transition-colors">
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${ACT_TYPE_DOT[a.type] ?? "bg-stone-400"}`} />
                     <div className="flex-1 min-w-0">

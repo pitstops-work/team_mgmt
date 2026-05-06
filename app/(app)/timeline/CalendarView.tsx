@@ -404,7 +404,7 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
                         </Link>
                       </div>
                       {dayEvs.map(ev => (
-                        <Link key={ev.id} href="/activities"
+                        <Link key={ev.id} href={`/activities?date=${ev.scheduledAt.slice(0, 10)}`}
                           className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-stone-50 border border-stone-200 hover:bg-stone-100 mb-1 transition-colors">
                           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_DOT[ev.type]}`} />
                           <div className="min-w-0">
@@ -414,7 +414,7 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
                         </Link>
                       ))}
                       <Link
-                        href={`/activities`}
+                        href={`/activities?date=${selectedDate}`}
                         className="flex items-center gap-1.5 w-full px-2.5 py-2 mt-1 text-[10px] text-stone-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg border border-dashed border-stone-200 hover:border-violet-300 transition-all">
                         <CalendarDays className="w-3 h-3" />
                         Add activity on this day
@@ -463,7 +463,7 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
                         </Link>
                       ))}
                       {schEvents.map(ev => (
-                        <Link key={ev.id} href="/activities"
+                        <Link key={ev.id} href={`/activities?date=${ev.scheduledAt.slice(0, 10)}`}
                           className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-xs hover:bg-stone-50 transition-colors">
                           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${EVENT_TYPE_DOT[ev.type]}`} />
                           <div className="flex-1 min-w-0">
@@ -530,7 +530,7 @@ export default function CalendarView({ pitstops, scheduledEvents }: { pitstops: 
                     </Link>
                   </div>
                   {dayScheduledEvents.map(ev => (
-                    <Link key={ev.id} href="/activities"
+                    <Link key={ev.id} href={`/activities?date=${ev.scheduledAt.slice(0, 10)}`}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 mb-2 transition-colors">
                       <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${EVENT_TYPE_DOT[ev.type]}`} />
                       <div className="flex-1 min-w-0">

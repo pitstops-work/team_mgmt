@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, MessageSquare, Send, AlertCircle, Mic, Paperclip, Loader2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
@@ -875,9 +876,18 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   calendarToken?: string | null;
   inviteEventId?: string | null;
 }) {
+  const searchParams = useSearchParams();
   const today = new Date(); today.setHours(12, 0, 0, 0);
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
-  const [anchorDate, setAnchorDate] = useState(today);
+  const initialDate = (() => {
+    const d = searchParams.get("date");
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      const parsed = new Date(`${d}T12:00:00`);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return today;
+  })();
+  const [viewMode, setViewMode] = useState<ViewMode>("day");
+  const [anchorDate, setAnchorDate] = useState(initialDate);
   const [events, setEvents] = useState(initialEvents);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);

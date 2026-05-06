@@ -358,7 +358,7 @@ function ChecklistItemRow({
             {item.activities.map((act) => (
               <Link
                 key={act.id}
-                href="/activities"
+                href={`/activities?date=${act.scheduledAt.slice(0, 10)}`}
                 className="text-[9px] text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded flex items-center gap-1 hover:bg-sky-100 transition-colors"
                 title={act.title}
               >
