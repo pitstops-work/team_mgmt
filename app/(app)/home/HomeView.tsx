@@ -16,11 +16,17 @@ import Avatar from "@/components/Avatar";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type ActivityGoal = {
+  id: string; title: string; needsDomain: string | null;
+  needsCluster:    { id: string; name: string } | null;
+  needsSettlement: { id: string; name: string } | null;
+  needsZone:       { id: string; name: string } | null;
+};
 type Activity = {
   id: string; title: string; type: string; scheduledAt: string;
   location: string | null; status: string;
   attendees?: { user: { id: string; name: string | null } }[];
-  pitstops?: { pitstop: { goal: { needsDomain: string | null; needsCluster: { id: string; name: string } | null } } }[];
+  pitstops?: { pitstop: { id: string; title: string; ownerId: string; goal: ActivityGoal } }[];
 };
 
 type ChecklistItem = {
@@ -352,26 +358,49 @@ function TodayTab({
 
   const allEmpty = overdueItems.length === 0 && todayItems.length === 0 && myChecklists.length === 0;
 
+  function activityMeta(a: Activity, uid: string) {
+    const ps = a.pitstops?.[0]?.pitstop;
+    const goal = ps?.goal;
+    const isOwner = ps?.ownerId === uid;
+    const isAttendee = !isOwner && (a.attendees?.some(at => at.user.id === uid) ?? false);
+    const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
+    const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
+    return { ps, goal, isOwner, isAttendee, geo, domain };
+  }
+
   // Shared inline activity row (desktop)
   function ActivityRowSimple({ a, isOverdue }: { a: Activity; isOverdue: boolean }) {
+    const { goal, isOwner, isAttendee, geo, domain } = activityMeta(a, userId);
     return (
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+      <div className={`px-4 py-3 rounded-xl border transition-colors ${
         isOverdue ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-white"
       }`}>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-            {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+              <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
+              {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+              {(isOwner || isAttendee) && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${isOwner ? "bg-violet-50 text-violet-600" : "bg-stone-100 text-stone-500"}`}>
+                  {isOwner ? "Owner" : "Attendee"}
+                </span>
+              )}
+            </div>
+            <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
+              {isOverdue ? `${daysAgo(a.scheduledAt)}d overdue` : fmtTime(a.scheduledAt)}
+              {a.location ? ` · ${a.location}` : ""}
+            </p>
+            {(goal || domain || geo) && (
+              <p className="text-[11px] text-stone-400 mt-0.5 truncate">
+                {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
+              </p>
+            )}
           </div>
-          <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
-            {isOverdue ? `${daysAgo(a.scheduledAt)}d overdue` : fmtTime(a.scheduledAt)}
-            {a.location ? ` · ${a.location}` : ""}
-          </p>
+          <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
+            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors mt-0.5">
+            {loadingDoneId === a.id ? "…" : "Done"}
+          </button>
         </div>
-        <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-          className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
-          {loadingDoneId === a.id ? "…" : "Done"}
-        </button>
       </div>
     );
   }
@@ -462,19 +491,30 @@ function TodayTab({
                 <div key={label}>
                   <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
                   <div className="space-y-2">
-                    {items.map(a => (
-                      <div key={a.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 bg-white">
-                        <div className="flex-1 min-w-0">
+                    {items.map(a => {
+                      const { goal, isOwner, isAttendee, geo, domain } = activityMeta(a, userId);
+                      return (
+                        <div key={a.id} className="px-4 py-3 rounded-xl border border-stone-200 bg-white">
                           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <p className="text-sm font-medium text-stone-700 truncate">{a.title}</p>
                             {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
+                            {(isOwner || isAttendee) && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${isOwner ? "bg-violet-50 text-violet-600" : "bg-stone-100 text-stone-500"}`}>
+                                {isOwner ? "Owner" : "Attendee"}
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-stone-400">
                             {fmtTime(a.scheduledAt)}{a.location ? ` · ${a.location}` : ""}
                           </p>
+                          {(goal || domain || geo) && (
+                            <p className="text-[11px] text-stone-400 mt-0.5 truncate">
+                              {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
