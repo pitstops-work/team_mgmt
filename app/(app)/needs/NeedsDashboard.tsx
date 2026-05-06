@@ -723,7 +723,20 @@ export default function NeedsDashboard({
                       {cityStatsMap[selectedCityId].stats.totalHH.toLocaleString()} households
                     </p>
                   )}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {/* Mobile: domain carousel */}
+                  <div className="sm:hidden -mx-4 px-4">
+                    <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-2">
+                      {domainConfigs.map(({ domain, label, color, domainType }) => (
+                        <div key={domain} className="snap-start min-w-[72vw] flex-shrink-0">
+                          <DomainCard label={label} color={color} d={activeCityStats.domains[domain]} domainType={domainType}
+                            onCreateGoal={() => setWizardState({ domain, cityId: selectedCityId ?? cities[0]?.id, label, existingCount: activeCityStats.domains[domain]?.existing ?? 0 })}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Desktop: grid */}
+                  <div className="hidden sm:grid grid-cols-3 lg:grid-cols-4 gap-3">
                     {domainConfigs.map(({ domain, label, color, domainType }) => (
                       <DomainCard
                         key={domain} label={label} color={color} d={activeCityStats.domains[domain]} domainType={domainType}
@@ -748,154 +761,310 @@ export default function NeedsDashboard({
 
           {/* Zone view */}
           {view === "zone" && (
-            <div className="border border-stone-200 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <div style={{ minWidth: `${480 + domainConfigs.length * 32}px` }}>
-                  <DomainHeaderRow domainConfigs={domainConfigs} />
-                  <div className="divide-y divide-stone-100">
-                    {cities.flatMap(city => city.zones).map(zone => {
-                      const z = zoneStats[zone.id];
-                      if (!z) return null;
-                      const isOpen = openZones.has(zone.id);
-                      return (
-                        <div key={zone.id} id={`geo-row-${zone.id}`}>
-                          <div role="button" tabIndex={0} onClick={() => toggleZone(zone.id)} onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleZone(zone.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors cursor-pointer ${initZoneId === zone.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
-                            {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
-                            <Layers className="w-3.5 h-3.5 text-violet-400" />
-                            <div className="min-w-0">
-                              <span className="text-sm font-semibold text-stone-700 truncate block">{z.name}</span>
-                              <span className="text-[10px] text-stone-400">{z.cityName}</span>
-                            </div>
-                            <span className="text-right text-xs text-stone-500 tabular-nums">{z.stats.assessedCount}/{z.stats.totalCount}</span>
-                            <span className="text-right text-xs text-stone-500 tabular-nums">{z.stats.totalHH > 0 ? z.stats.totalHH.toLocaleString() : "—"}</span>
-                            <div className="flex justify-center"><SaturationChip score={z.stats.saturationScore} /></div>
-                            {domainConfigs.map(({ domain }) => (
-                              <div key={domain} className="flex justify-center">
-                                <GapChip d={z.stats.domains[domain]} onClick={z.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, zoneId: zone.id, label: z.name, existingCount: z.stats.domains[domain]?.existing ?? 0 }) : undefined} />
-                              </div>
-                            ))}
+            <>
+              {/* Mobile: one card per zone */}
+              <div className="sm:hidden -mx-4 px-4">
+                <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
+                  {cities.flatMap(city => city.zones).map(zone => {
+                    const z = zoneStats[zone.id];
+                    if (!z) return null;
+                    return (
+                      <div key={zone.id} className={`snap-start min-w-[82vw] rounded-xl border p-4 flex-shrink-0 bg-white ${initZoneId === zone.id ? "border-emerald-300 ring-1 ring-emerald-200" : "border-stone-200"}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Layers className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-stone-800 truncate">{z.name}</p>
+                            <p className="text-[10px] text-stone-400">{z.cityName}</p>
                           </div>
-                          {isOpen && z.stats.assessedCount > 0 && (
-                            <div className="px-4 py-4 border-t border-stone-100 bg-white">
-                              <DomainTable domains={z.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain, existingCount) => setWizardState({ domain, zoneId: zone.id, label: z.name, existingCount })} />
-                            </div>
-                          )}
-                          {isOpen && z.stats.assessedCount === 0 && (
-                            <div className="px-4 py-3 border-t border-stone-100 text-xs text-stone-400">No assessments in this zone yet.</div>
-                          )}
                         </div>
-                      );
-                    })}
+                        <div className="flex gap-2 mb-3">
+                          <div className="flex-1 bg-stone-50 rounded-lg py-1.5 text-center">
+                            <p className="text-sm font-bold text-stone-800">{z.stats.assessedCount}/{z.stats.totalCount}</p>
+                            <p className="text-[9px] text-stone-400">Assessed</p>
+                          </div>
+                          <div className="flex-1 bg-stone-50 rounded-lg py-1.5 text-center">
+                            <p className="text-sm font-bold text-stone-800">{z.stats.totalHH > 0 ? z.stats.totalHH.toLocaleString() : "—"}</p>
+                            <p className="text-[9px] text-stone-400">Households</p>
+                          </div>
+                          <div className="flex-1 bg-stone-50 rounded-lg py-1.5 text-center">
+                            <SaturationChip score={z.stats.saturationScore} />
+                            <p className="text-[9px] text-stone-400">Sat.</p>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          {domainConfigs.map(({ domain, label, color }) => {
+                            const d = z.stats.domains[domain];
+                            if (!d || (d.apfTarget === 0 && d.done === 0)) return null;
+                            return (
+                              <div key={domain} className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                                <span className="text-[10px] text-stone-600 flex-1 truncate">{label}</span>
+                                <GapChip d={d} onClick={d.gap > 0 ? () => setWizardState({ domain, zoneId: zone.id, label: z.name, existingCount: d.existing }) : undefined} />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Desktop: wide table */}
+              <div className="hidden sm:block border border-stone-200 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <div style={{ minWidth: `${480 + domainConfigs.length * 32}px` }}>
+                    <DomainHeaderRow domainConfigs={domainConfigs} />
+                    <div className="divide-y divide-stone-100">
+                      {cities.flatMap(city => city.zones).map(zone => {
+                        const z = zoneStats[zone.id];
+                        if (!z) return null;
+                        const isOpen = openZones.has(zone.id);
+                        return (
+                          <div key={zone.id} id={`geo-row-${zone.id}`}>
+                            <div role="button" tabIndex={0} onClick={() => toggleZone(zone.id)} onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleZone(zone.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors cursor-pointer ${initZoneId === zone.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
+                              {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
+                              <Layers className="w-3.5 h-3.5 text-violet-400" />
+                              <div className="min-w-0">
+                                <span className="text-sm font-semibold text-stone-700 truncate block">{z.name}</span>
+                                <span className="text-[10px] text-stone-400">{z.cityName}</span>
+                              </div>
+                              <span className="text-right text-xs text-stone-500 tabular-nums">{z.stats.assessedCount}/{z.stats.totalCount}</span>
+                              <span className="text-right text-xs text-stone-500 tabular-nums">{z.stats.totalHH > 0 ? z.stats.totalHH.toLocaleString() : "—"}</span>
+                              <div className="flex justify-center"><SaturationChip score={z.stats.saturationScore} /></div>
+                              {domainConfigs.map(({ domain }) => (
+                                <div key={domain} className="flex justify-center">
+                                  <GapChip d={z.stats.domains[domain]} onClick={z.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, zoneId: zone.id, label: z.name, existingCount: z.stats.domains[domain]?.existing ?? 0 }) : undefined} />
+                                </div>
+                              ))}
+                            </div>
+                            {isOpen && z.stats.assessedCount > 0 && (
+                              <div className="px-4 py-4 border-t border-stone-100 bg-white">
+                                <DomainTable domains={z.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain, existingCount) => setWizardState({ domain, zoneId: zone.id, label: z.name, existingCount })} />
+                              </div>
+                            )}
+                            {isOpen && z.stats.assessedCount === 0 && (
+                              <div className="px-4 py-3 border-t border-stone-100 text-xs text-stone-400">No assessments in this zone yet.</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* Cluster view */}
           {view === "cluster" && (
-            <div className="border border-stone-200 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <div style={{ minWidth: `${480 + domainConfigs.length * 32}px` }}>
-                  <DomainHeaderRow domainConfigs={domainConfigs} />
-                  <div className="divide-y divide-stone-100">
-                    {cities.flatMap(city => city.zones.flatMap(zone => zone.clusters)).map(cluster => {
-                      const cl = clusterStats[cluster.id];
-                      if (!cl) return null;
-                      const isOpen = openClusters.has(cluster.id);
-                      return (
-                        <div key={cluster.id} id={`geo-row-${cluster.id}`}>
-                          <div role="button" tabIndex={0} onClick={() => toggleCluster(cluster.id)} onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleCluster(cluster.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors cursor-pointer ${initClusterId === cluster.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
-                            {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
-                            <Building2 className="w-3.5 h-3.5 text-emerald-500" />
-                            <div className="min-w-0">
-                              <span className="text-sm font-semibold text-stone-700 truncate block">{cl.name}</span>
-                              <span className="text-[10px] text-stone-400">{cl.zoneName} · {cl.cityName}</span>
-                            </div>
-                            <span className="text-right text-xs text-stone-500 tabular-nums">{cl.stats.assessedCount}/{cl.stats.totalCount}</span>
-                            <span className="text-right text-xs text-stone-500 tabular-nums">{cl.stats.totalHH > 0 ? cl.stats.totalHH.toLocaleString() : "—"}</span>
-                            <div className="flex justify-center"><SaturationChip score={cl.stats.saturationScore} /></div>
-                            {domainConfigs.map(({ domain }) => (
-                              <div key={domain} className="flex justify-center">
-                                <GapChip d={cl.stats.domains[domain]} onClick={cl.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, clusterId: cluster.id, label: cl.name, existingCount: cl.stats.domains[domain]?.existing ?? 0 }) : undefined} />
-                              </div>
-                            ))}
+            <>
+              {/* Mobile: one card per cluster */}
+              <div className="sm:hidden -mx-4 px-4">
+                <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
+                  {cities.flatMap(city => city.zones.flatMap(zone => zone.clusters)).map(cluster => {
+                    const cl = clusterStats[cluster.id];
+                    if (!cl) return null;
+                    return (
+                      <div key={cluster.id} className={`snap-start min-w-[82vw] rounded-xl border p-4 flex-shrink-0 bg-white ${initClusterId === cluster.id ? "border-emerald-300 ring-1 ring-emerald-200" : "border-stone-200"}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Building2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-stone-800 truncate">{cl.name}</p>
+                            <p className="text-[10px] text-stone-400">{cl.zoneName} · {cl.cityName}</p>
                           </div>
-                          {isOpen && cl.stats.assessedCount > 0 && (
-                            <div className="px-4 py-4 border-t border-stone-100 bg-white">
-                              <DomainTable domains={cl.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain, existingCount) => setWizardState({ domain, clusterId: cluster.id, label: cl.name, existingCount })} />
-                            </div>
-                          )}
-                          {isOpen && cl.stats.assessedCount === 0 && (
-                            <div className="px-4 py-3 border-t border-stone-100 text-xs text-stone-400">No assessments in this cluster yet.</div>
-                          )}
                         </div>
-                      );
-                    })}
+                        <div className="flex gap-2 mb-3">
+                          <div className="flex-1 bg-stone-50 rounded-lg py-1.5 text-center">
+                            <p className="text-sm font-bold text-stone-800">{cl.stats.assessedCount}/{cl.stats.totalCount}</p>
+                            <p className="text-[9px] text-stone-400">Assessed</p>
+                          </div>
+                          <div className="flex-1 bg-stone-50 rounded-lg py-1.5 text-center">
+                            <p className="text-sm font-bold text-stone-800">{cl.stats.totalHH > 0 ? cl.stats.totalHH.toLocaleString() : "—"}</p>
+                            <p className="text-[9px] text-stone-400">Households</p>
+                          </div>
+                          <div className="flex-1 bg-stone-50 rounded-lg py-1.5 text-center">
+                            <SaturationChip score={cl.stats.saturationScore} />
+                            <p className="text-[9px] text-stone-400">Sat.</p>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          {domainConfigs.map(({ domain, label, color }) => {
+                            const d = cl.stats.domains[domain];
+                            if (!d || (d.apfTarget === 0 && d.done === 0)) return null;
+                            return (
+                              <div key={domain} className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                                <span className="text-[10px] text-stone-600 flex-1 truncate">{label}</span>
+                                <GapChip d={d} onClick={d.gap > 0 ? () => setWizardState({ domain, clusterId: cluster.id, label: cl.name, existingCount: d.existing }) : undefined} />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Desktop: wide table */}
+              <div className="hidden sm:block border border-stone-200 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <div style={{ minWidth: `${480 + domainConfigs.length * 32}px` }}>
+                    <DomainHeaderRow domainConfigs={domainConfigs} />
+                    <div className="divide-y divide-stone-100">
+                      {cities.flatMap(city => city.zones.flatMap(zone => zone.clusters)).map(cluster => {
+                        const cl = clusterStats[cluster.id];
+                        if (!cl) return null;
+                        const isOpen = openClusters.has(cluster.id);
+                        return (
+                          <div key={cluster.id} id={`geo-row-${cluster.id}`}>
+                            <div role="button" tabIndex={0} onClick={() => toggleCluster(cluster.id)} onKeyDown={e => (e.key === "Enter" || e.key === " ") && toggleCluster(cluster.id)} className={`w-full grid items-center gap-x-2 px-3 py-3 hover:bg-stone-100 transition-colors cursor-pointer ${initClusterId === cluster.id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : "bg-stone-50"}`} style={{ gridTemplateColumns: rowCols(domainConfigs.length) }}>
+                              {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-stone-400" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-400" />}
+                              <Building2 className="w-3.5 h-3.5 text-emerald-500" />
+                              <div className="min-w-0">
+                                <span className="text-sm font-semibold text-stone-700 truncate block">{cl.name}</span>
+                                <span className="text-[10px] text-stone-400">{cl.zoneName} · {cl.cityName}</span>
+                              </div>
+                              <span className="text-right text-xs text-stone-500 tabular-nums">{cl.stats.assessedCount}/{cl.stats.totalCount}</span>
+                              <span className="text-right text-xs text-stone-500 tabular-nums">{cl.stats.totalHH > 0 ? cl.stats.totalHH.toLocaleString() : "—"}</span>
+                              <div className="flex justify-center"><SaturationChip score={cl.stats.saturationScore} /></div>
+                              {domainConfigs.map(({ domain }) => (
+                                <div key={domain} className="flex justify-center">
+                                  <GapChip d={cl.stats.domains[domain]} onClick={cl.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, clusterId: cluster.id, label: cl.name, existingCount: cl.stats.domains[domain]?.existing ?? 0 }) : undefined} />
+                                </div>
+                              ))}
+                            </div>
+                            {isOpen && cl.stats.assessedCount > 0 && (
+                              <div className="px-4 py-4 border-t border-stone-100 bg-white">
+                                <DomainTable domains={cl.stats.domains} domainConfigs={domainConfigs} onCreateGoal={(domain, existingCount) => setWizardState({ domain, clusterId: cluster.id, label: cl.name, existingCount })} />
+                              </div>
+                            )}
+                            {isOpen && cl.stats.assessedCount === 0 && (
+                              <div className="px-4 py-3 border-t border-stone-100 text-xs text-stone-400">No assessments in this cluster yet.</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* Settlement view */}
           {view === "settlement" && (
-            <div className="border border-stone-200 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <div style={{ minWidth: `${380 + domainConfigs.length * 32}px` }}>
-                  <div className="grid items-center gap-x-2 px-3 py-1.5 bg-white border-b border-stone-200 text-[9px] font-semibold text-stone-400 uppercase tracking-wide" style={{ gridTemplateColumns: `1fr 80px 40px repeat(${domainConfigs.length}, 30px)` }}>
-                    <span>Settlement</span>
-                    <span className="text-right">HH</span>
-                    <span className="text-center" title="Saturation">Sat</span>
-                    {domainConfigs.map(d => (
-                      <span key={d.domain} className="text-center leading-tight" style={{ color: d.color }} title={d.label}>
-                        {d.label.replace(/([A-Z])/g, ' $1').trim().split(' ').map((w: string) => w[0]).join('').slice(0, 3)}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="divide-y divide-stone-100">
-                    {cities.flatMap(city => city.zones.flatMap(zone => zone.clusters.flatMap(cluster => cluster.settlements.map(s => {
-                      const ss = settlementStats[s.id];
-                      const isAssessed = s.assessments.length > 0;
-                      return (
-                        <div key={s.id} className="grid items-center gap-x-2 px-3 py-2.5 hover:bg-sky-50 transition-colors group" style={{ gridTemplateColumns: `1fr 80px 40px repeat(${domainConfigs.length}, 30px)` }}>
-                          <div className="min-w-0 flex items-start gap-1">
-                            <Link href={`/needs/settlement/${s.id}`} className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <Home className="w-3 h-3 text-stone-300 flex-shrink-0" />
-                                <span className="text-xs font-medium text-stone-700 group-hover:text-sky-700 truncate">{s.name}</span>
-                              </div>
-                              <span className="text-[10px] text-stone-400 ml-4">{cluster.name} · {zone.name}</span>
-                            </Link>
-                            <Link href="/map" title="View on Programme Map" className="flex-shrink-0 p-0.5 mt-0.5 text-stone-300 hover:text-indigo-500 transition-colors">
-                              <Map className="w-3 h-3" />
-                            </Link>
-                          </div>
-                          <div className="flex justify-end items-center gap-1">
-                            {isAssessed ? (
-                              <><CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" /><span className="text-[10px] text-stone-500 tabular-nums">{ss?.stats.totalHH.toLocaleString()}</span></>
-                            ) : (
-                              <Clock className="w-3 h-3 text-amber-400" />
-                            )}
-                          </div>
-                          <div className="flex justify-center">
-                            {isAssessed && ss ? <SaturationChip score={ss.stats.saturationScore} /> : <span className="text-[10px] text-stone-200">·</span>}
-                          </div>
-                          {domainConfigs.map(({ domain }) => (
-                            <div key={domain} className="flex justify-center">
-                              {isAssessed && ss
-                                ? <GapChip d={ss.stats.domains[domain]} onClick={ss.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, settlementId: s.id, label: s.name, existingCount: ss.stats.domains[domain]?.existing ?? 0 }) : undefined} />
-                                : <span className="text-[10px] text-stone-200">·</span>
-                              }
-                            </div>
-                          ))}
+            <>
+              {/* Mobile: one card per settlement */}
+              <div className="sm:hidden -mx-4 px-4">
+                <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
+                  {cities.flatMap(city => city.zones.flatMap(zone => zone.clusters.flatMap(cluster => cluster.settlements.map(s => {
+                    const ss = settlementStats[s.id];
+                    const isAssessed = s.assessments.length > 0;
+                    return (
+                      <div key={s.id} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 p-4 flex-shrink-0 bg-white">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Home className="w-3.5 h-3.5 text-stone-300 flex-shrink-0" />
+                          <Link href={`/needs/settlement/${s.id}`} className="text-sm font-semibold text-stone-800 hover:text-sky-600 truncate flex-1">{s.name}</Link>
+                          <Link href="/map" title="View on map" className="flex-shrink-0 text-stone-300 hover:text-indigo-500">
+                            <Map className="w-3.5 h-3.5" />
+                          </Link>
                         </div>
-                      );
-                    }))))}
+                        <p className="text-[10px] text-stone-400 mb-3">{cluster.name} · {zone.name}</p>
+                        {isAssessed && ss ? (
+                          <>
+                            <div className="flex gap-2 mb-3">
+                              <div className="flex-1 bg-stone-50 rounded-lg py-1.5 text-center">
+                                <p className="text-sm font-bold text-stone-800">{ss.stats.totalHH.toLocaleString()}</p>
+                                <p className="text-[9px] text-stone-400">Households</p>
+                              </div>
+                              <div className="flex-1 bg-stone-50 rounded-lg py-1.5 text-center">
+                                <SaturationChip score={ss.stats.saturationScore} />
+                                <p className="text-[9px] text-stone-400">Sat.</p>
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              {domainConfigs.map(({ domain, label, color }) => {
+                                const d = ss.stats.domains[domain];
+                                if (!d || (d.apfTarget === 0 && d.done === 0)) return null;
+                                return (
+                                  <div key={domain} className="flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                                    <span className="text-[10px] text-stone-600 flex-1 truncate">{label}</span>
+                                    <GapChip d={d} onClick={d.gap > 0 ? () => setWizardState({ domain, settlementId: s.id, label: s.name, existingCount: d.existing }) : undefined} />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-xs text-amber-500">
+                            <Clock className="w-3.5 h-3.5" />
+                            Not assessed
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }))))}
+                </div>
+              </div>
+              {/* Desktop: wide table */}
+              <div className="hidden sm:block border border-stone-200 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <div style={{ minWidth: `${380 + domainConfigs.length * 32}px` }}>
+                    <div className="grid items-center gap-x-2 px-3 py-1.5 bg-white border-b border-stone-200 text-[9px] font-semibold text-stone-400 uppercase tracking-wide" style={{ gridTemplateColumns: `1fr 80px 40px repeat(${domainConfigs.length}, 30px)` }}>
+                      <span>Settlement</span>
+                      <span className="text-right">HH</span>
+                      <span className="text-center" title="Saturation">Sat</span>
+                      {domainConfigs.map(d => (
+                        <span key={d.domain} className="text-center leading-tight" style={{ color: d.color }} title={d.label}>
+                          {d.label.replace(/([A-Z])/g, ' $1').trim().split(' ').map((w: string) => w[0]).join('').slice(0, 3)}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="divide-y divide-stone-100">
+                      {cities.flatMap(city => city.zones.flatMap(zone => zone.clusters.flatMap(cluster => cluster.settlements.map(s => {
+                        const ss = settlementStats[s.id];
+                        const isAssessed = s.assessments.length > 0;
+                        return (
+                          <div key={s.id} className="grid items-center gap-x-2 px-3 py-2.5 hover:bg-sky-50 transition-colors group" style={{ gridTemplateColumns: `1fr 80px 40px repeat(${domainConfigs.length}, 30px)` }}>
+                            <div className="min-w-0 flex items-start gap-1">
+                              <Link href={`/needs/settlement/${s.id}`} className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <Home className="w-3 h-3 text-stone-300 flex-shrink-0" />
+                                  <span className="text-xs font-medium text-stone-700 group-hover:text-sky-700 truncate">{s.name}</span>
+                                </div>
+                                <span className="text-[10px] text-stone-400 ml-4">{cluster.name} · {zone.name}</span>
+                              </Link>
+                              <Link href="/map" title="View on Programme Map" className="flex-shrink-0 p-0.5 mt-0.5 text-stone-300 hover:text-indigo-500 transition-colors">
+                                <Map className="w-3 h-3" />
+                              </Link>
+                            </div>
+                            <div className="flex justify-end items-center gap-1">
+                              {isAssessed ? (
+                                <><CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" /><span className="text-[10px] text-stone-500 tabular-nums">{ss?.stats.totalHH.toLocaleString()}</span></>
+                              ) : (
+                                <Clock className="w-3 h-3 text-amber-400" />
+                              )}
+                            </div>
+                            <div className="flex justify-center">
+                              {isAssessed && ss ? <SaturationChip score={ss.stats.saturationScore} /> : <span className="text-[10px] text-stone-200">·</span>}
+                            </div>
+                            {domainConfigs.map(({ domain }) => (
+                              <div key={domain} className="flex justify-center">
+                                {isAssessed && ss
+                                  ? <GapChip d={ss.stats.domains[domain]} onClick={ss.stats.domains[domain]?.gap > 0 ? () => setWizardState({ domain, settlementId: s.id, label: s.name, existingCount: ss.stats.domains[domain]?.existing ?? 0 }) : undefined} />
+                                  : <span className="text-[10px] text-stone-200">·</span>
+                                }
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }))))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* Browse hierarchy */}
@@ -1229,7 +1398,7 @@ export default function NeedsDashboard({
             <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <p className="text-xs font-semibold text-stone-600 uppercase tracking-wide">Checklist Coverage</p>
-                <span className="text-[10px] text-stone-400">— pitstops done by cluster for selected period</span>
+                <span className="text-[10px] text-stone-400 hidden sm:inline">— pitstops done by cluster for selected period</span>
               </div>
               {checklistLoading && (
                 <svg className="w-3.5 h-3.5 text-stone-400 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1243,36 +1412,50 @@ export default function NeedsDashboard({
                 {checklistLoading ? "Loading…" : "No pitstops with target dates in this period."}
               </p>
             ) : (
-              <div className="divide-y divide-stone-100">
-                {/* Header row */}
-                <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-2 bg-stone-50">
-                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide">Cluster</span>
-                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">Zone</span>
-                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">Due</span>
-                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">Done</span>
-                  <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right w-16">%</span>
-                </div>
-                {checklistClusters.map(cl => (
-                  <div key={cl.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 items-center px-4 py-2.5 hover:bg-stone-50 transition-colors">
-                    <span className="text-xs font-medium text-stone-700 truncate">{cl.name}</span>
-                    <span className="text-[10px] text-stone-400 text-right whitespace-nowrap">{cl.zoneName}</span>
-                    <span className="text-[10px] text-stone-500 text-right">{cl.total}</span>
-                    <span className="text-[10px] text-stone-500 text-right">{cl.done}</span>
-                    <div className="w-16 flex items-center gap-1.5">
-                      <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${cl.pct}%`,
-                            background: cl.pct >= 80 ? "#10b981" : cl.pct >= 50 ? "#6ee7b7" : cl.pct >= 20 ? "#fbbf24" : "#ef4444",
-                          }}
-                        />
+              <>
+                {/* Mobile: carousel */}
+                <div className="sm:hidden px-4 py-3">
+                  <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-2">
+                    {checklistClusters.map(cl => (
+                      <div key={cl.id} className="snap-start min-w-[60vw] rounded-xl border border-stone-200 p-3 flex-shrink-0 bg-white space-y-2">
+                        <p className="text-xs font-semibold text-stone-800 truncate">{cl.name}</p>
+                        <p className="text-[10px] text-stone-400">{cl.zoneName}</p>
+                        <div className="flex items-center gap-3 text-[10px] text-stone-500">
+                          <span>{cl.done}/{cl.total} done</span>
+                          <span className={`ml-auto font-bold ${cl.pct >= 80 ? "text-emerald-600" : cl.pct >= 50 ? "text-amber-600" : "text-red-500"}`}>{cl.pct}%</span>
+                        </div>
+                        <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${cl.pct}%`, background: cl.pct >= 80 ? "#10b981" : cl.pct >= 50 ? "#6ee7b7" : cl.pct >= 20 ? "#fbbf24" : "#ef4444" }} />
+                        </div>
                       </div>
-                      <span className="text-[10px] font-semibold text-stone-600 w-7 text-right">{cl.pct}%</span>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+                {/* Desktop: table */}
+                <div className="hidden sm:block divide-y divide-stone-100">
+                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-2 bg-stone-50">
+                    <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide">Cluster</span>
+                    <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">Zone</span>
+                    <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">Due</span>
+                    <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">Done</span>
+                    <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right w-16">%</span>
+                  </div>
+                  {checklistClusters.map(cl => (
+                    <div key={cl.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 items-center px-4 py-2.5 hover:bg-stone-50 transition-colors">
+                      <span className="text-xs font-medium text-stone-700 truncate">{cl.name}</span>
+                      <span className="text-[10px] text-stone-400 text-right whitespace-nowrap">{cl.zoneName}</span>
+                      <span className="text-[10px] text-stone-500 text-right">{cl.total}</span>
+                      <span className="text-[10px] text-stone-500 text-right">{cl.done}</span>
+                      <div className="w-16 flex items-center gap-1.5">
+                        <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${cl.pct}%`, background: cl.pct >= 80 ? "#10b981" : cl.pct >= 50 ? "#6ee7b7" : cl.pct >= 20 ? "#fbbf24" : "#ef4444" }} />
+                        </div>
+                        <span className="text-[10px] font-semibold text-stone-600 w-7 text-right">{cl.pct}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -1343,108 +1526,184 @@ export default function NeedsDashboard({
 
           {/* Zone view: table with key scheme columns per zone */}
           {view === "zone" && (
-            <div className="overflow-x-auto rounded-xl border border-stone-200">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-stone-50 border-b border-stone-200">
-                    <th className="text-left py-2 px-3 font-medium text-stone-500 text-[10px] uppercase">Zone</th>
-                    <th className="text-right py-2 px-2 font-medium text-stone-500 text-[10px]">Eligible HH</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Ration Card</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Aadhaar</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Old Age Pension</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">BoCW</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-50">
+            <>
+              {/* Mobile: one card per zone */}
+              <div className="sm:hidden -mx-4 px-4">
+                <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
                   {cities.filter(c => !selectedCityId || c.id === selectedCityId).flatMap(c => c.zones).map(zone => {
                     const ents = zoneEntMap[zone.id] ?? [];
                     const eligible = ents.find(e => e.id === "ration-card")?.eligible ?? ents[0]?.eligible ?? 0;
+                    const keyEnts = KEY_SCHEME_IDS.map(sid => ents.find(e => e.id === sid)).filter(Boolean) as typeof ents;
                     return (
-                      <tr key={zone.id} className="hover:bg-stone-50">
-                        <td className="py-2 px-3 font-medium text-stone-700">{zoneStats[zone.id]?.name ?? zone.id}</td>
-                        <td className="py-2 px-2 text-right text-stone-500">{eligible.toLocaleString()}</td>
-                        {KEY_SCHEME_IDS.map(sid => (
-                          <td key={sid} className="py-2 px-2 text-center"><EntSchemeCell ents={ents} schemeId={sid} /></td>
-                        ))}
-                      </tr>
+                      <div key={zone.id} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 p-4 flex-shrink-0 bg-white">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Layers className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />
+                          <p className="text-sm font-semibold text-stone-800 truncate">{zoneStats[zone.id]?.name ?? zone.id}</p>
+                        </div>
+                        <p className="text-[10px] text-stone-400 mb-3">{eligible.toLocaleString()} eligible households</p>
+                        <div className="space-y-0.5">
+                          {keyEnts.map(scheme => <EntitlementBar key={scheme.id} scheme={scheme} />)}
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden sm:block overflow-x-auto rounded-xl border border-stone-200">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-stone-50 border-b border-stone-200">
+                      <th className="text-left py-2 px-3 font-medium text-stone-500 text-[10px] uppercase">Zone</th>
+                      <th className="text-right py-2 px-2 font-medium text-stone-500 text-[10px]">Eligible HH</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Ration Card</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Aadhaar</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Old Age Pension</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">BoCW</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-50">
+                    {cities.filter(c => !selectedCityId || c.id === selectedCityId).flatMap(c => c.zones).map(zone => {
+                      const ents = zoneEntMap[zone.id] ?? [];
+                      const eligible = ents.find(e => e.id === "ration-card")?.eligible ?? ents[0]?.eligible ?? 0;
+                      return (
+                        <tr key={zone.id} className="hover:bg-stone-50">
+                          <td className="py-2 px-3 font-medium text-stone-700">{zoneStats[zone.id]?.name ?? zone.id}</td>
+                          <td className="py-2 px-2 text-right text-stone-500">{eligible.toLocaleString()}</td>
+                          {KEY_SCHEME_IDS.map(sid => (
+                            <td key={sid} className="py-2 px-2 text-center"><EntSchemeCell ents={ents} schemeId={sid} /></td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {/* Cluster view */}
           {view === "cluster" && (
-            <div className="overflow-x-auto rounded-xl border border-stone-200">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-stone-50 border-b border-stone-200">
-                    <th className="text-left py-2 px-3 font-medium text-stone-500 text-[10px] uppercase">Cluster</th>
-                    <th className="text-left py-2 px-2 font-medium text-stone-400 text-[10px]">Zone</th>
-                    <th className="text-right py-2 px-2 font-medium text-stone-500 text-[10px]">Eligible HH</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Ration Card</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Aadhaar</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Old Age Pension</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">BoCW</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-50">
+            <>
+              {/* Mobile: one card per cluster */}
+              <div className="sm:hidden -mx-4 px-4">
+                <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
                   {cities.filter(c => !selectedCityId || c.id === selectedCityId).flatMap(c => c.zones.flatMap(z => z.clusters.map(cl => ({ cl, zoneName: zoneStats[z.id]?.name ?? z.id })))).map(({ cl, zoneName }) => {
                     const ents = clusterEntMap[cl.id] ?? [];
                     const eligible = ents.find(e => e.id === "ration-card")?.eligible ?? ents[0]?.eligible ?? 0;
+                    const keyEnts = KEY_SCHEME_IDS.map(sid => ents.find(e => e.id === sid)).filter(Boolean) as typeof ents;
                     return (
-                      <tr key={cl.id} className="hover:bg-stone-50">
-                        <td className="py-2 px-3 font-medium text-stone-700">{clusterStats[cl.id]?.name ?? cl.id}</td>
-                        <td className="py-2 px-2 text-stone-400">{zoneName}</td>
-                        <td className="py-2 px-2 text-right text-stone-500">{eligible.toLocaleString()}</td>
-                        {KEY_SCHEME_IDS.map(sid => (
-                          <td key={sid} className="py-2 px-2 text-center"><EntSchemeCell ents={ents} schemeId={sid} /></td>
-                        ))}
-                      </tr>
+                      <div key={cl.id} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 p-4 flex-shrink-0 bg-white">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Building2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                          <p className="text-sm font-semibold text-stone-800 truncate">{clusterStats[cl.id]?.name ?? cl.id}</p>
+                        </div>
+                        <p className="text-[10px] text-stone-400 mb-3">{zoneName} · {eligible.toLocaleString()} eligible HH</p>
+                        <div className="space-y-0.5">
+                          {keyEnts.map(scheme => <EntitlementBar key={scheme.id} scheme={scheme} />)}
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden sm:block overflow-x-auto rounded-xl border border-stone-200">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-stone-50 border-b border-stone-200">
+                      <th className="text-left py-2 px-3 font-medium text-stone-500 text-[10px] uppercase">Cluster</th>
+                      <th className="text-left py-2 px-2 font-medium text-stone-400 text-[10px]">Zone</th>
+                      <th className="text-right py-2 px-2 font-medium text-stone-500 text-[10px]">Eligible HH</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Ration Card</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Aadhaar</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Old Age Pension</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">BoCW</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-50">
+                    {cities.filter(c => !selectedCityId || c.id === selectedCityId).flatMap(c => c.zones.flatMap(z => z.clusters.map(cl => ({ cl, zoneName: zoneStats[z.id]?.name ?? z.id })))).map(({ cl, zoneName }) => {
+                      const ents = clusterEntMap[cl.id] ?? [];
+                      const eligible = ents.find(e => e.id === "ration-card")?.eligible ?? ents[0]?.eligible ?? 0;
+                      return (
+                        <tr key={cl.id} className="hover:bg-stone-50">
+                          <td className="py-2 px-3 font-medium text-stone-700">{clusterStats[cl.id]?.name ?? cl.id}</td>
+                          <td className="py-2 px-2 text-stone-400">{zoneName}</td>
+                          <td className="py-2 px-2 text-right text-stone-500">{eligible.toLocaleString()}</td>
+                          {KEY_SCHEME_IDS.map(sid => (
+                            <td key={sid} className="py-2 px-2 text-center"><EntSchemeCell ents={ents} schemeId={sid} /></td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {/* Settlement view */}
           {view === "settlement" && (
-            <div className="overflow-x-auto rounded-xl border border-stone-200">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-stone-50 border-b border-stone-200">
-                    <th className="text-left py-2 px-3 font-medium text-stone-500 text-[10px] uppercase">Settlement</th>
-                    <th className="text-left py-2 px-2 font-medium text-stone-400 text-[10px]">Cluster</th>
-                    <th className="text-right py-2 px-2 font-medium text-stone-500 text-[10px]">Eligible HH</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Ration Card</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Aadhaar</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Old Age Pension</th>
-                    <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">BoCW</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-50">
+            <>
+              {/* Mobile: one card per settlement */}
+              <div className="sm:hidden -mx-4 px-4">
+                <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
                   {cities.filter(c => !selectedCityId || c.id === selectedCityId).flatMap(c => c.zones.flatMap(z => z.clusters.flatMap(cl => cl.settlements.map(s => ({ s, clusterName: clusterStats[cl.id]?.name ?? cl.id }))))).map(({ s, clusterName }) => {
                     const ents = settlementEntMap[s.id] ?? [];
                     const eligible = ents.find(e => e.id === "ration-card")?.eligible ?? ents[0]?.eligible ?? 0;
                     if (ents.length === 0) return null;
+                    const keyEnts = KEY_SCHEME_IDS.map(sid => ents.find(e => e.id === sid)).filter(Boolean) as typeof ents;
                     return (
-                      <tr key={s.id} className="hover:bg-stone-50">
-                        <td className="py-2 px-3">
-                          <Link href={`/needs/settlement/${s.id}`} className="font-medium text-stone-700 hover:text-sky-600">{settlementStats[s.id]?.name ?? s.id}</Link>
-                        </td>
-                        <td className="py-2 px-2 text-stone-400">{clusterName}</td>
-                        <td className="py-2 px-2 text-right text-stone-500">{eligible.toLocaleString()}</td>
-                        {KEY_SCHEME_IDS.map(sid => (
-                          <td key={sid} className="py-2 px-2 text-center"><EntSchemeCell ents={ents} schemeId={sid} /></td>
-                        ))}
-                      </tr>
+                      <div key={s.id} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 p-4 flex-shrink-0 bg-white">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Home className="w-3.5 h-3.5 text-stone-300 flex-shrink-0" />
+                          <Link href={`/needs/settlement/${s.id}`} className="text-sm font-semibold text-stone-800 hover:text-sky-600 truncate flex-1">{settlementStats[s.id]?.name ?? s.id}</Link>
+                        </div>
+                        <p className="text-[10px] text-stone-400 mb-3">{clusterName} · {eligible.toLocaleString()} eligible HH</p>
+                        <div className="space-y-0.5">
+                          {keyEnts.map(scheme => <EntitlementBar key={scheme.id} scheme={scheme} />)}
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden sm:block overflow-x-auto rounded-xl border border-stone-200">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-stone-50 border-b border-stone-200">
+                      <th className="text-left py-2 px-3 font-medium text-stone-500 text-[10px] uppercase">Settlement</th>
+                      <th className="text-left py-2 px-2 font-medium text-stone-400 text-[10px]">Cluster</th>
+                      <th className="text-right py-2 px-2 font-medium text-stone-500 text-[10px]">Eligible HH</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Ration Card</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Aadhaar</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">Old Age Pension</th>
+                      <th className="text-center py-2 px-2 font-medium text-stone-500 text-[10px]">BoCW</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-50">
+                    {cities.filter(c => !selectedCityId || c.id === selectedCityId).flatMap(c => c.zones.flatMap(z => z.clusters.flatMap(cl => cl.settlements.map(s => ({ s, clusterName: clusterStats[cl.id]?.name ?? cl.id }))))).map(({ s, clusterName }) => {
+                      const ents = settlementEntMap[s.id] ?? [];
+                      const eligible = ents.find(e => e.id === "ration-card")?.eligible ?? ents[0]?.eligible ?? 0;
+                      if (ents.length === 0) return null;
+                      return (
+                        <tr key={s.id} className="hover:bg-stone-50">
+                          <td className="py-2 px-3">
+                            <Link href={`/needs/settlement/${s.id}`} className="font-medium text-stone-700 hover:text-sky-600">{settlementStats[s.id]?.name ?? s.id}</Link>
+                          </td>
+                          <td className="py-2 px-2 text-stone-400">{clusterName}</td>
+                          <td className="py-2 px-2 text-right text-stone-500">{eligible.toLocaleString()}</td>
+                          {KEY_SCHEME_IDS.map(sid => (
+                            <td key={sid} className="py-2 px-2 text-center"><EntSchemeCell ents={ents} schemeId={sid} /></td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </>
       )}
@@ -1479,7 +1738,63 @@ export default function NeedsDashboard({
                     <span className="font-normal text-stone-400 normal-case tracking-normal">{group.zones.length} zone{group.zones.length !== 1 ? "s" : ""}</span>
                   </h2>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Mobile: carousel */}
+                <div className="sm:hidden -mx-4 px-4">
+                  <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
+                    {group.zones.map((z) => {
+                      const goalPct = z.totalSettlements > 0 ? Math.round((z.withActiveGoals / z.totalSettlements) * 100) : 0;
+                      return (
+                        <div key={z.id} className="snap-start min-w-[82vw] flex-shrink-0 rounded-xl border border-stone-100 p-4 space-y-3 bg-white">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="text-sm font-bold text-stone-800">{z.name}</h3>
+                              {cityGroups.length > 1 && z.city && <span className="text-[10px] text-stone-400">{z.city.name}</span>}
+                            </div>
+                            {z.overdueCount > 0 && (
+                              <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500 flex-shrink-0">
+                                <AlertTriangle className="w-2.5 h-2.5" />{z.overdueCount} overdue
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-center">
+                            <div className="bg-stone-50 rounded-lg px-2 py-1.5">
+                              <p className="text-base font-bold text-stone-800">{z.totalSettlements}</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide">Settlements</p>
+                            </div>
+                            <div className="bg-stone-50 rounded-lg px-2 py-1.5">
+                              <p className="text-base font-bold text-stone-800">{z.population.totalHouseholds.toLocaleString()}</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide">Households</p>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-[10px] text-stone-500 mb-1">
+                              <span>Settlements with active goals</span>
+                              <span className="font-semibold">{z.withActiveGoals} / {z.totalSettlements}</span>
+                            </div>
+                            <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${goalPct}%` }} />
+                            </div>
+                          </div>
+                          {summaryDomainConfig.length > 0 && (
+                            <div className="space-y-2.5 pt-1 border-t border-stone-100">
+                              {summaryDomainConfig.map(({ domain, label, color }) => {
+                                const dp = z.domainProgress?.[domain];
+                                if (!dp || (dp.target === 0 && dp.done === 0 && dp.existing === 0)) return null;
+                                return <DomainProgressRow key={domain} label={label} color={color} dp={dp} onCreateGoal={() => setWizardState({ domain, zoneId: z.id, cityId: z.city?.id, label: z.name, existingCount: dp.existing })} />;
+                              })}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-[10px] text-stone-500 pt-1">
+                            <span>{z.activeGoals} active goal{z.activeGoals !== 1 ? "s" : ""}</span>
+                            {z.lastSurveyed ? <span>Surveyed {new Date(z.lastSurveyed).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })}</span> : <span className="text-red-400">Not surveyed</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Desktop: grid */}
+                <div className="hidden sm:grid grid-cols-2 lg:grid-cols-3 gap-4">
                   {group.zones.map((z) => {
                     const goalPct = z.totalSettlements > 0
                       ? Math.round((z.withActiveGoals / z.totalSettlements) * 100)
@@ -1600,7 +1915,38 @@ export default function NeedsDashboard({
                       {zoneName}
                       <span className="font-normal text-stone-300">· {zoneClusters.length} cluster{zoneClusters.length !== 1 ? "s" : ""}</span>
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Mobile: cluster carousel within each zone */}
+                    <div className="sm:hidden -mx-4 px-4">
+                      <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
+                        {zoneClusters.map((cl) => (
+                          <div key={cl.id} className="snap-start min-w-[82vw] flex-shrink-0 rounded-xl border border-stone-100 p-4 space-y-3 bg-white">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <h4 className="text-sm font-bold text-stone-800">{cl.name}</h4>
+                                <span className="text-[10px] text-stone-400">{cl.assessedCount}/{cl.totalSettlements} assessed</span>
+                              </div>
+                              <span className="text-[10px] text-stone-400 flex-shrink-0 tabular-nums">
+                                {cl.population.totalHouseholds > 0 ? `${cl.population.totalHouseholds.toLocaleString()} HH` : "No data"}
+                              </span>
+                            </div>
+                            {summaryDomainConfig.length > 0 && (
+                              <div className="space-y-2.5">
+                                {summaryDomainConfig.map(({ domain, label, color }) => {
+                                  const dp = cl.domainProgress?.[domain];
+                                  if (!dp || (dp.target === 0 && dp.done === 0 && dp.existing === 0)) return null;
+                                  return <DomainProgressRow key={domain} label={label} color={color} dp={dp} onCreateGoal={() => setWizardState({ domain, clusterId: cl.id, zoneId: cl.zone.id, cityId: cl.city?.id, label: cl.name, existingCount: dp.existing })} />;
+                                })}
+                              </div>
+                            )}
+                            <div className="text-[10px] text-stone-400">
+                              {cl.lastSurveyed ? <span>Surveyed {new Date(cl.lastSurveyed).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })}</span> : <span className="text-amber-500">Not surveyed yet</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Desktop: grid */}
+                    <div className="hidden sm:grid grid-cols-2 lg:grid-cols-3 gap-4">
                       {zoneClusters.map((cl) => (
                         <div key={cl.id} className="rounded-xl border border-stone-100 p-4 space-y-3 bg-white">
                           <div className="flex items-start justify-between gap-2">
