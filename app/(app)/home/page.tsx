@@ -482,14 +482,17 @@ export default async function HomePage() {
         })
       : Promise.resolve([]),
 
-    // ZL only: own upcoming scheduled activities (today + this week) with goal/cluster context
+    // ZL only: own upcoming scheduled activities (today + this week) — attendee OR pitstop owner
     designation === "ZL"
       ? prisma.pitstopEvent.findMany({
           where: {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { gte: todayStart, lte: weekEnd },
-            pitstops: { some: { pitstop: { ownerId: userId, deletedAt: null } } },
+            OR: [
+              { attendees: { some: { userId } } },
+              { pitstops: { some: { pitstop: { ownerId: userId, deletedAt: null } } } },
+            ],
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
