@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { MessageSquare, ChevronDown, ChevronRight, Plus, Send, Paperclip, X, Bell, BellOff } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { MessageSquare, ChevronDown, ChevronRight, Plus, Paperclip, X, Bell, BellOff, Trash2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import MessageComposer from "@/app/(app)/goals/[goalId]/pitstops/[pitstopId]/MessageComposer";
 
 type User = { id: string; name: string | null; image: string | null };
 type Attachment = { id: string; name: string; url: string; type: string };
@@ -11,6 +12,8 @@ type Message = {
   author: User;
   attachments: Attachment[];
   mentions: { user: { id: string; name: string | null } }[];
+  msgType?: string;
+  audioUrl?: string | null;
 };
 type Thread = {
   id: string; name: string; createdAt: string;
@@ -25,100 +28,6 @@ function fmtTime(iso: string) {
 }
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-}
-
-// ── Mini composer ─────────────────────────────────────────────────────────────
-
-function MiniComposer({ threadId, users, onSent }: { threadId: string; users: User[]; onSent: (msg: Message) => void }) {
-  const [body, setBody] = useState("");
-  const [sending, setSending] = useState(false);
-  const [showMentions, setShowMentions] = useState(false);
-  const [mentionSearch, setMentionSearch] = useState("");
-  const [mentionStart, setMentionStart] = useState(-1);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const filteredUsers = users.filter(u => u.name?.toLowerCase().includes(mentionSearch.toLowerCase()));
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    setBody(val);
-    const cursor = e.target.selectionStart;
-    const before = val.slice(0, cursor);
-    const atIdx = before.lastIndexOf("@");
-    if (atIdx !== -1 && !before.slice(atIdx + 1).includes(" ")) {
-      setMentionStart(atIdx);
-      setMentionSearch(before.slice(atIdx + 1));
-      setShowMentions(true);
-    } else {
-      setShowMentions(false);
-      setMentionStart(-1);
-    }
-  };
-
-  const insertMention = (user: User) => {
-    if (mentionStart === -1) return;
-    const before = body.slice(0, mentionStart);
-    const after = body.slice(textareaRef.current?.selectionStart ?? 0);
-    setBody(`${before}@[${user.name}](${user.id}) ${after}`);
-    setShowMentions(false);
-    setMentionStart(-1);
-    textareaRef.current?.focus();
-  };
-
-  const handleSend = async () => {
-    if (!body.trim()) return;
-    setSending(true);
-    const res = await fetch(`/api/threads/${threadId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: body.trim(), attachmentIds: [] }),
-    });
-    setSending(false);
-    if (res.ok) {
-      const msg = await res.json();
-      onSent(msg);
-      setBody("");
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showMentions && e.key === "Escape") { setShowMentions(false); return; }
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSend(); }
-  };
-
-  return (
-    <div className="relative p-3 border-t border-stone-100">
-      {showMentions && filteredUsers.length > 0 && (
-        <div className="absolute bottom-full left-3 mb-1 w-48 bg-white border border-stone-200 rounded-lg shadow-lg overflow-hidden z-10">
-          {filteredUsers.map(u => (
-            <button key={u.id} onMouseDown={e => { e.preventDefault(); insertMention(u); }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-stone-50">
-              <Avatar name={u.name} image={u.image} size="xs" />
-              <span className="text-stone-700 truncate">{u.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="flex items-end gap-2">
-        <textarea
-          ref={textareaRef}
-          value={body}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Write a message… (⌘↵ to send, @ to mention)"
-          rows={2}
-          className="flex-1 px-3 py-2 text-sm border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-400 resize-none placeholder:text-stone-400"
-        />
-        <button
-          onClick={handleSend}
-          disabled={sending || !body.trim()}
-          className="p-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white rounded-lg transition-colors flex-shrink-0"
-        >
-          <Send className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  );
 }
 
 // ── Main section ──────────────────────────────────────────────────────────────
@@ -138,6 +47,12 @@ export default function GoalThreadsSection({
   const [newThreadName, setNewThreadName] = useState("");
   const [creating, setCreating] = useState(false);
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [threads, activeThreadId]);
 
   const toggle = async () => {
     if (!open && threads === null) {
@@ -176,10 +91,21 @@ export default function GoalThreadsSection({
     }
   };
 
-  const handleMessageSent = (threadId: string, msg: Message) => {
+  const handleDelete = async (threadId: string) => {
+    await fetch(`/api/threads/${threadId}`, { method: "DELETE" });
+    setThreads(prev => {
+      const next = (prev ?? []).filter(t => t.id !== threadId);
+      if (activeThreadId === threadId) setActiveThreadId(next[0]?.id ?? null);
+      return next;
+    });
+    setConfirmDeleteId(null);
+  };
+
+  const handleMessageSent = (threadId: string, msg: unknown) => {
     setThreads(prev => prev?.map(t =>
-      t.id === threadId ? { ...t, messages: [...t.messages, msg] } : t
+      t.id === threadId ? { ...t, messages: [...t.messages, msg as Message] } : t
     ) ?? null);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   };
 
   const toggleSubscribe = async (threadId: string) => {
@@ -187,8 +113,7 @@ export default function GoalThreadsSection({
     const next = new Set(subscribedIds);
     isSub ? next.delete(threadId) : next.add(threadId);
     setSubscribedIds(next);
-    const method = isSub ? "DELETE" : "POST";
-    await fetch(`/api/threads/${threadId}/subscribe`, { method });
+    await fetch(`/api/threads/${threadId}/subscribe`, { method: isSub ? "DELETE" : "POST" });
   };
 
   const activeThread = threads?.find(t => t.id === activeThreadId) ?? null;
@@ -284,15 +209,41 @@ export default function GoalThreadsSection({
                     {/* Thread header */}
                     <div className="flex items-center justify-between px-3 py-2 border-b border-stone-100">
                       <span className="text-xs font-semibold text-stone-700 truncate">{activeThread.name}</span>
-                      <button
-                        onClick={() => toggleSubscribe(activeThread.id)}
-                        title={subscribedIds.has(activeThread.id) ? "Unsubscribe" : "Subscribe"}
-                        className="p-1 text-stone-300 hover:text-stone-600 transition-colors flex-shrink-0"
-                      >
-                        {subscribedIds.has(activeThread.id)
-                          ? <Bell className="w-3.5 h-3.5 text-sky-500" />
-                          : <BellOff className="w-3.5 h-3.5" />}
-                      </button>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => toggleSubscribe(activeThread.id)}
+                          title={subscribedIds.has(activeThread.id) ? "Unsubscribe" : "Subscribe"}
+                          className="p-1 text-stone-300 hover:text-stone-600 transition-colors"
+                        >
+                          {subscribedIds.has(activeThread.id)
+                            ? <Bell className="w-3.5 h-3.5 text-sky-500" />
+                            : <BellOff className="w-3.5 h-3.5" />}
+                        </button>
+                        {confirmDeleteId === activeThread.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleDelete(activeThread.id)}
+                              className="px-2 py-0.5 text-[11px] bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="px-2 py-0.5 text-[11px] text-stone-500 hover:text-stone-700"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteId(activeThread.id)}
+                            title="Delete thread"
+                            className="p-1 text-stone-300 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Messages */}
@@ -310,13 +261,17 @@ export default function GoalThreadsSection({
                                   <span className="text-[10px] font-medium text-stone-600">{msg.author.name}</span>
                                   <span className="text-[10px] text-stone-400">{fmtDate(msg.createdAt)} {fmtTime(msg.createdAt)}</span>
                                 </div>
-                                <div className={`px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap break-words ${
-                                  isOwn
-                                    ? "bg-sky-500 text-white rounded-tr-sm"
-                                    : "bg-stone-100 text-stone-800 rounded-tl-sm"
-                                }`}>
-                                  {formatBody(msg.body)}
-                                </div>
+                                {msg.msgType === "voice" ? (
+                                  <div className={`px-3 py-2 rounded-xl text-xs ${isOwn ? "bg-sky-500 text-white rounded-tr-sm" : "bg-stone-100 text-stone-800 rounded-tl-sm"}`}>
+                                    🎙 {formatBody(msg.body)}
+                                  </div>
+                                ) : (
+                                  <div className={`px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap break-words ${
+                                    isOwn ? "bg-sky-500 text-white rounded-tr-sm" : "bg-stone-100 text-stone-800 rounded-tl-sm"
+                                  }`}>
+                                    {formatBody(msg.body)}
+                                  </div>
+                                )}
                                 {msg.attachments.length > 0 && (
                                   <div className="flex flex-wrap gap-1">
                                     {msg.attachments.map(a => (
@@ -332,14 +287,17 @@ export default function GoalThreadsSection({
                           );
                         })
                       )}
+                      <div ref={messagesEndRef} />
                     </div>
 
                     {/* Composer */}
-                    <MiniComposer
-                      threadId={activeThread.id}
-                      users={users}
-                      onSent={msg => handleMessageSent(activeThread.id, msg as Message)}
-                    />
+                    <div className="px-3 py-3 border-t border-stone-100">
+                      <MessageComposer
+                        threadId={activeThread.id}
+                        users={users}
+                        onSent={msg => handleMessageSent(activeThread.id, msg)}
+                      />
+                    </div>
                   </>
                 )}
               </div>
