@@ -17,26 +17,41 @@ type Banner = PushPayload & { id: number };
 export default function PushSubscriber() {
   const attempted = useRef(false);
   const [banner, setBanner] = useState<Banner | null>(null);
+  const queueRef = useRef<PushPayload[]>([]);
+  const showingRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
 
-  const showBanner = useCallback((payload: PushPayload) => {
+  // Show banners from the queue one at a time, 600ms apart
+  const drainQueue = useCallback(() => {
+    if (showingRef.current || queueRef.current.length === 0) return;
+    showingRef.current = true;
+    const next = queueRef.current.shift()!;
+    setBanner({ ...next, id: Date.now() });
     if (timerRef.current) clearTimeout(timerRef.current);
-    setBanner({ ...payload, id: Date.now() });
-    timerRef.current = setTimeout(() => setBanner(null), 5000);
+    timerRef.current = setTimeout(() => {
+      setBanner(null);
+      showingRef.current = false;
+      setTimeout(drainQueue, 600);
+    }, 5000);
   }, []);
 
-  // Listen for in-app push messages from the service worker
+  const enqueue = useCallback((payload: PushPayload) => {
+    queueRef.current.push(payload);
+    drainQueue();
+  }, [drainQueue]);
+
+  // Real-time: SW posts a message when a push arrives while the app is open
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     const handler = (event: MessageEvent) => {
       if (event.data?.type === "push-notification") {
-        showBanner(event.data.payload as PushPayload);
+        enqueue(event.data.payload as PushPayload);
       }
     };
     navigator.serviceWorker.addEventListener("message", handler);
     return () => navigator.serviceWorker.removeEventListener("message", handler);
-  }, [showBanner]);
+  }, [enqueue]);
 
   useEffect(() => {
     if (attempted.current) return;
@@ -46,6 +61,7 @@ export default function PushSubscriber() {
 
     async function setup() {
       try {
+        // Register SW and set up push subscription
         await navigator.serviceWorker.register("/sw.js");
         const reg = await navigator.serviceWorker.ready;
 
@@ -53,20 +69,19 @@ export default function PushSubscriber() {
 
         if (Notification.permission === "granted") {
           await ensureSubscribed(reg);
-          return;
+        } else {
+          const existing = await reg.pushManager.getSubscription();
+          if (existing) {
+            await saveSubscription(existing);
+          } else {
+            const permission = await Notification.requestPermission();
+            if (permission === "granted") await ensureSubscribed(reg);
+          }
         }
 
-        // Not yet decided — only prompt if no existing subscription
-        const existing = await reg.pushManager.getSubscription();
-        if (existing) {
-          await saveSubscription(existing);
-          return;
-        }
-
-        const permission = await Notification.requestPermission();
-        if (permission === "granted") {
-          await ensureSubscribed(reg);
-        }
+        // Fetch and display any unread notifications missed while app was closed.
+        // This is the reliable fallback for iOS where background push is unreliable.
+        await catchUpMissedNotifications();
       } catch (err) {
         console.warn("[PushSubscriber] setup error:", err);
       }
@@ -75,10 +90,6 @@ export default function PushSubscriber() {
     async function ensureSubscribed(reg: ServiceWorkerRegistration) {
       const { publicKey } = await fetch("/api/push").then((r) => r.json());
       if (!publicKey) return;
-
-      // Use the existing subscription if one exists — rotating it unnecessarily
-      // causes APNs token propagation delays that break background delivery.
-      // pushsubscriptionchange in sw.js handles genuine iOS endpoint rotation.
       let sub = await reg.pushManager.getSubscription();
       if (!sub) {
         sub = await reg.pushManager.subscribe({
@@ -86,8 +97,6 @@ export default function PushSubscriber() {
           applicationServerKey: urlBase64ToUint8Array(publicKey),
         });
       }
-
-      // Always re-sync to server in case the endpoint was lost from the DB.
       await saveSubscription(sub);
     }
 
@@ -100,8 +109,33 @@ export default function PushSubscriber() {
       });
     }
 
+    async function catchUpMissedNotifications() {
+      try {
+        const notifications: Array<{ id: string; title: string; body: string | null; link: string | null; createdAt: string }> =
+          await fetch("/api/notifications?unread=1").then((r) => r.json());
+
+        if (!Array.isArray(notifications) || notifications.length === 0) return;
+
+        // Only show notifications from the last 24 hours to avoid surfacing old ones
+        const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+        const recent = notifications.filter((n) => new Date(n.createdAt).getTime() > cutoff);
+
+        // Mark all as read immediately so they don't re-appear next open
+        if (notifications.length > 0) {
+          fetch("/api/notifications/read-all", { method: "POST" }).catch(() => {});
+        }
+
+        // Queue banners for each missed notification (most recent first, max 3)
+        recent.slice(0, 3).reverse().forEach((n) => {
+          enqueue({ title: n.title, body: n.body ?? "", link: n.link ?? "/" });
+        });
+      } catch {
+        // Non-critical — silently ignore
+      }
+    }
+
     setup();
-  }, []);
+  }, [enqueue]);
 
   if (!banner) return null;
 
@@ -111,6 +145,7 @@ export default function PushSubscriber() {
       style={{ animation: "slideDown 0.25s ease-out" }}
       onClick={() => {
         setBanner(null);
+        showingRef.current = false;
         router.push(banner.link);
       }}
     >
@@ -121,7 +156,7 @@ export default function PushSubscriber() {
         <p className="text-xs text-stone-300 mt-0.5 line-clamp-2 leading-snug">{banner.body}</p>
       </div>
       <button
-        onClick={(e) => { e.stopPropagation(); setBanner(null); }}
+        onClick={(e) => { e.stopPropagation(); setBanner(null); showingRef.current = false; setTimeout(drainQueue, 600); }}
         className="flex-shrink-0 p-1 text-stone-400 hover:text-white -mr-1 mt-0.5"
         aria-label="Dismiss"
       >
