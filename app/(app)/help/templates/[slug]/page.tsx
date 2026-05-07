@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import prisma from "@/lib/prisma";
 import type { DbPitstop, DbTemplateParam } from "@/lib/templateDb";
+import { normalizeActivities } from "@/lib/templateDb";
 
 const TAG_COLORS: Record<string, string> = {
   Team:           "bg-violet-50 text-violet-600 border-violet-200",
@@ -151,13 +152,37 @@ export default async function PlaybookDetailPage({ params }: { params: Promise<{
                             <p className="text-xs text-stone-600 leading-relaxed mt-3 mb-3">{ps.notes}</p>
                           )}
                           {ps.checklist.length > 0 && (
-                            <ul className="space-y-1.5">
-                              {ps.checklist.map((ci, ci_idx) => (
-                                <li key={ci_idx} className="flex items-start gap-2 text-xs text-stone-500">
-                                  <span className="mt-0.5 w-3 h-3 border border-stone-300 rounded-sm flex-shrink-0" />
-                                  {ci.text}
-                                </li>
-                              ))}
+                            <ul className="space-y-3">
+                              {ps.checklist.map((ci, ci_idx) => {
+                                const activities = normalizeActivities(ci);
+                                return (
+                                  <li key={ci_idx} className="flex flex-col gap-1">
+                                    <div className="flex items-start gap-2 text-xs text-stone-600">
+                                      <span className="mt-0.5 w-3 h-3 border border-stone-300 rounded-sm flex-shrink-0" />
+                                      <span>{ci.text}</span>
+                                    </div>
+                                    {activities.length > 0 && (
+                                      <ul className="ml-5 space-y-1">
+                                        {activities.map((act, ai) => {
+                                          const ct = act.completionType || "Activity";
+                                          const { label, cls } = ct === "Voice"
+                                            ? { label: "Voice", cls: "bg-violet-50 text-violet-600 border-violet-200" }
+                                            : ct === "Upload"
+                                            ? { label: "Upload", cls: "bg-amber-50 text-amber-600 border-amber-200" }
+                                            : { label: "Activity", cls: "bg-sky-50 text-sky-600 border-sky-200" };
+                                          return (
+                                            <li key={ai} className="flex items-center gap-1.5 text-[11px] text-stone-500">
+                                              <span className="text-stone-300">↳</span>
+                                              <span>{act.title}</span>
+                                              <span className={`px-1.5 py-0.5 rounded border text-[10px] font-medium ${cls}`}>{label}</span>
+                                            </li>
+                                          );
+                                        })}
+                                      </ul>
+                                    )}
+                                  </li>
+                                );
+                              })}
                             </ul>
                           )}
                         </div>
