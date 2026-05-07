@@ -1,12 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "REPLACE_WITH_PACKAGE_NAME",
-      "sha256_cert_fingerprints": [
-        "REPLACE_WITH_SHA256_FINGERPRINT"
-      ]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.pitstop.app",
+        "sha256_cert_fingerprints": ["26:E8:1D:C9:2E:8C:86:83:3E:49:9D:B2:BE:BC:2A:1B:F6:AD:C9:C2:F5:49:B8:74:67:7F:89:74:DF:F4:0B:C9"]
+      }
+    }]
