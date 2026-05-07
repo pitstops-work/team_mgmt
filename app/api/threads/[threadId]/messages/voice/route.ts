@@ -85,17 +85,14 @@ export async function POST(
   const authorName = message.author.name ?? "Someone";
   const threadName = message.thread.name;
 
-  let link = "/threads";
+  const link = `/threads?thread=${threadId}`;
   let contextLabel = threadName;
   const pitstop = message.thread.pitstop;
   if (pitstop) {
-    link = `/goals/${pitstop.goal.id}/pitstops/${pitstop.id}?thread=${threadId}`;
     contextLabel = pitstop.title;
   } else if (message.thread.goal) {
-    link = `/goals/${message.thread.goal.id}`;
     contextLabel = message.thread.goal.title;
   } else if (message.thread.event) {
-    link = `/activities`;
     contextLabel = message.thread.event.title;
   }
 

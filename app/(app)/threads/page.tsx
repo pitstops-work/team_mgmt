@@ -3,7 +3,8 @@ import prisma from "@/lib/prisma";
 import { isAdminUser } from "@/lib/roleGuard";
 import ThreadsList from "./ThreadsList";
 
-export default async function ThreadsPage() {
+export default async function ThreadsPage({ searchParams }: { searchParams: Promise<{ thread?: string }> }) {
+  const { thread: threadParam } = await searchParams;
   const session = await auth();
   const userId = session!.user!.id!;
   const userRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
@@ -181,6 +182,7 @@ export default async function ThreadsPage() {
       currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
       currentUserRole={userRole}
       preferredLang={preferredLang}
+      initialThreadId={threadParam ?? null}
     />
   );
 }

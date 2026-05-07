@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Layers } from "lucide-react";
 
 const SECTIONS = [
   {
@@ -240,6 +240,20 @@ export default function HelpPage() {
           <p className="text-xs text-stone-400">How to use Pitstop</p>
         </div>
       </div>
+
+      <Link
+        href="/help/templates"
+        className="flex items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-sky-300 hover:bg-sky-50 transition-colors mb-8 group"
+      >
+        <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
+          <Layers className="w-4 h-4 text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-stone-800 group-hover:text-sky-700">Programme Playbooks</p>
+          <p className="text-xs text-stone-400 mt-0.5">Goal templates — what they create, their checklists, and when to use them</p>
+        </div>
+        <BookOpen className="w-4 h-4 text-stone-300 group-hover:text-sky-400 flex-shrink-0" />
+      </Link>
 
       <div className="space-y-8">
         {SECTIONS.map(({ title, content }) => (

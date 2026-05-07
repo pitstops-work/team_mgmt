@@ -293,16 +293,20 @@ interface Props {
   currentUserName: string;
   currentUserRole?: string;
   preferredLang: string;
+  initialThreadId?: string | null;
 }
 
 export default function ThreadsList({
   threads: initialThreads,
   goals, pitstops, checklistItems, events,
   users, currentUserId, preferredLang,
+  initialThreadId,
 }: Props) {
   const [threads, setThreads] = useState<Thread[]>(initialThreads);
   const [query, setQuery] = useState("");
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(initialThreads[0]?.id ?? null);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(
+    initialThreadId ?? initialThreads[0]?.id ?? null
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showNewThread, setShowNewThread] = useState(false);

@@ -87,18 +87,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
   const threadName = message.thread.name;
 
   // Build link and context label depending on thread parent type
-  let link = "/threads";
+  const link = `/threads?thread=${threadId}`;
   let contextLabel = threadName;
   const pitstop = message.thread.pitstop;
   if (pitstop) {
-    const goal = pitstop.goal;
-    link = `/goals/${goal.id}/pitstops/${pitstop.id}?thread=${threadId}`;
     contextLabel = pitstop.title;
   } else if (message.thread.goal) {
-    link = `/goals/${message.thread.goal.id}`;
     contextLabel = message.thread.goal.title;
   } else if (message.thread.event) {
-    link = `/activities`;
     contextLabel = message.thread.event.title;
   }
 
