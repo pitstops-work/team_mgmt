@@ -90,7 +90,7 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
   const [labelW, setLabelW] = useState(220);
   const [isMobile, setIsMobile] = useState(false);
   const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
-  const [zoom, setZoom] = useState<Zoom>("month");
+  const [zoom, setZoom] = useState<Zoom>("week");
   const [timelineW, setTimelineW] = useState(800);
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -99,6 +99,7 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
       const mobile = window.innerWidth < 640;
       setIsMobile(mobile);
       setLabelW(mobile ? 130 : 220);
+      if (mobile) setZoom((z) => (z === "quarter" || z === "year" ? "month" : z));
     };
     update();
     window.addEventListener("resize", update);
@@ -211,7 +212,7 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
 
   const { rangeStart, rangeEnd } = zoomWindow(zoom);
   const totalDays = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86400000) + 1;
-  const DAY_PX = Math.max(4, timelineW / totalDays);
+  const DAY_PX = timelineW / totalDays;
 
   function dayOffset(date: Date | string) {
     const d = startOfDay(new Date(date));
@@ -249,15 +250,17 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex rounded-lg border border-stone-200 overflow-hidden text-xs font-medium">
-            {(["week", "month", "quarter", "year"] as Zoom[]).map((z) => (
-              <button
-                key={z}
-                onClick={() => setZoom(z)}
-                className={`px-3 py-1.5 ${zoom === z ? "bg-stone-900 text-white" : "bg-white text-stone-500 hover:bg-stone-50"}`}
-              >
-                {ZOOM_LABELS[z]}
-              </button>
-            ))}
+            {(["week", "month", "quarter", "year"] as Zoom[])
+              .filter((z) => !isMobile || z === "week" || z === "month")
+              .map((z) => (
+                <button
+                  key={z}
+                  onClick={() => setZoom(z)}
+                  className={`px-3 py-1.5 ${zoom === z ? "bg-stone-900 text-white" : "bg-white text-stone-500 hover:bg-stone-50"}`}
+                >
+                  {ZOOM_LABELS[z]}
+                </button>
+              ))}
           </div>
           <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
           {!hasAnyDates && (
