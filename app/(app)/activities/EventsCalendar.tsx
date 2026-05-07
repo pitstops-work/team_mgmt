@@ -495,19 +495,80 @@ function EventThreadPanel({ eventId, currentUserId, users }: { eventId: string; 
   );
 }
 
-function EventCard({ ev, onEdit, onDelete, currentUserId, users }: {
+function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users }: {
   ev: PitstopEvent; onEdit: () => void; onDelete: () => void;
+  onUpdated: (id: string, patch: Partial<PitstopEvent>) => void;
   currentUserId: string; users: User[];
 }) {
   const [showThreads, setShowThreads] = useState(false);
+  const [showAction, setShowAction] = useState(false);
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
+  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const isCancelled = ev.status === "Cancelled";
   const isDone = ev.status === "Done";
   const isFlagged = ev.status === "Flagged";
+
+  const isOwner = ev.pitstops.length > 0
+    ? ev.pitstops.some(p => p.pitstop.owner.id === currentUserId)
+    : ev.attendees.some(a => a.userId === currentUserId);
+  const canComplete = ev.status === "Scheduled" && isOwner;
+  const ctype = ev.checklistItem?.completionType ?? "Activity";
+
+  async function markDone() {
+    setBusy(true);
+    const res = await fetch(`/api/pitstop-events/${ev.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Done" }),
+    });
+    setBusy(false);
+    if (res.ok) { onUpdated(ev.id, await res.json()); setShowAction(false); }
+  }
+
+  async function startVoice() {
+    if (!ev.checklistItem) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setVoiceState("processing");
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const fd = new FormData();
+        fd.append("audio", blob, "voice.webm");
+        const res = await fetch(`/api/checklist/${ev.checklistItem!.id}/voice`, { method: "POST", body: fd });
+        if (res.ok) await markDone();
+        setVoiceState("idle");
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setVoiceState("recording");
+    } catch { setVoiceState("idle"); }
+  }
+
+  async function handleUpload(file: File) {
+    if (!ev.checklistItem) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("checklistItemId", ev.checklistItem.id);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    setUploading(false);
+    if (res.ok) await markDone();
+  }
+
   return (
     <div className={`px-3 py-2.5 rounded-xl border ${isCancelled ? "bg-stone-50 border-stone-200 opacity-60" : TYPE_COLORS[ev.type]}`}>
       <div className="flex items-start justify-between gap-1">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <p className={`text-sm font-semibold leading-snug ${isCancelled ? "line-through text-stone-400" : ""}`}>{ev.title}</p>
             {isDone && <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Done</span>}
             {isFlagged && <span className="text-[10px] font-medium text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">Flagged</span>}
@@ -535,6 +596,9 @@ function EventCard({ ev, onEdit, onDelete, currentUserId, users }: {
               ))}
             </div>
           )}
+          {ev.checklistItem && (
+            <p className="text-[11px] opacity-60 mt-0.5 italic truncate">↳ {ev.checklistItem.text}</p>
+          )}
           {ev.attendees.length > 0 && (
             <div className="flex items-center gap-1 mt-1.5 flex-wrap">
               {ev.attendees.slice(0, 5).map(a => (
@@ -545,6 +609,15 @@ function EventCard({ ev, onEdit, onDelete, currentUserId, users }: {
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {canComplete && (
+            <button
+              onClick={() => setShowAction(v => !v)}
+              title="Log completion"
+              className={`p-1 transition-all rounded ${showAction ? "bg-emerald-100 text-emerald-600" : "opacity-50 hover:opacity-100 hover:text-emerald-600"}`}
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button onClick={() => setShowThreads(v => !v)}
             title="Threads"
             className={`p-1 transition-opacity ${showThreads ? "opacity-100 text-stone-700" : "opacity-60"}`}>
@@ -558,6 +631,50 @@ function EventCard({ ev, onEdit, onDelete, currentUserId, users }: {
           </button>
         </div>
       </div>
+
+      {/* Inline completion panel */}
+      {canComplete && showAction && (
+        <div className="mt-2.5 pt-2.5 border-t border-black/10">
+          {ctype === "Voice" ? (
+            <div className="space-y-1.5">
+              {voiceState === "idle" && (
+                <button onClick={startVoice}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 hover:bg-violet-600 text-white text-xs font-medium rounded-lg transition-colors">
+                  <Mic className="w-3.5 h-3.5" /> Record voice log
+                </button>
+              )}
+              {voiceState === "recording" && (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-xs text-red-600 font-medium">Recording…</span>
+                  <button onClick={() => mediaRecorderRef.current?.stop()}
+                    className="px-2 py-1 bg-red-500 text-white text-xs rounded-md">Stop</button>
+                </div>
+              )}
+              {voiceState === "processing" && (
+                <div className="flex items-center gap-2 text-xs text-stone-500">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Transcribing…
+                </div>
+              )}
+            </div>
+          ) : ctype === "Upload" ? (
+            <div>
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors">
+                <Paperclip className="w-3.5 h-3.5" /> {uploading ? "Uploading…" : "Upload proof"}
+              </button>
+            </div>
+          ) : (
+            <button onClick={markDone} disabled={busy}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors">
+              <Check className="w-3.5 h-3.5" /> {busy ? "Saving…" : "Mark Done"}
+            </button>
+          )}
+          <input ref={fileInputRef} type="file" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ""; }} />
+        </div>
+      )}
+
       {showThreads && (
         <EventThreadPanel eventId={ev.id} currentUserId={currentUserId} users={users} />
       )}
@@ -1367,7 +1484,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                   <p className="text-xs text-stone-400 text-center py-8">No activities. Tap Add to schedule one.</p>
                 ) : null}
                 {selectedDayEvents.map(ev => (
-                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} currentUserId={currentUserId} users={users} />
+                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} />
                 ))}
                 {(extEventMap.get(selectedDate) ?? []).map(ev => (
                   <ExternalEventCard key={ev.uid} ev={ev} />
@@ -1403,7 +1520,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                   {(dayEvs.length > 0 || extEvs.length > 0) && (
                     <div className="space-y-2">
                       {dayEvs.map(ev => (
-                        <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} currentUserId={currentUserId} users={users} />
+                        <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} />
                       ))}
                       {extEvs.map(ev => (
                         <ExternalEventCard key={ev.uid} ev={ev} />
@@ -1437,7 +1554,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
             ) : (
               <div className="space-y-3">
                 {dayEvents.map(ev => (
-                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} currentUserId={currentUserId} users={users} />
+                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} />
                 ))}
               </div>
             )}
