@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { GoalStatusBadge } from "@/components/StatusBadge";
 import { ChevronDown, ChevronRight, AlertCircle, X, CheckSquare, ExternalLink } from "lucide-react";
@@ -76,7 +76,10 @@ function eachMonthStart(start: Date, end: Date): Date[] {
   return months;
 }
 
-const DAY_PX = 24;
+type Zoom = "week" | "month" | "quarter" | "year";
+
+const ZOOM_DAYS: Record<Zoom, number> = { week: 7, month: 30, quarter: 91, year: 365 };
+const ZOOM_LABELS: Record<Zoom, string> = { week: "Week", month: "Month", quarter: "Quarter", year: "Year" };
 const ROW_H = 36;
 
 export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
@@ -87,6 +90,9 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
   const [labelW, setLabelW] = useState(220);
   const [isMobile, setIsMobile] = useState(false);
   const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
+  const [zoom, setZoom] = useState<Zoom>("month");
+  const [timelineW, setTimelineW] = useState(800);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const update = () => {
@@ -97,6 +103,13 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    if (!timelineRef.current) return;
+    const ro = new ResizeObserver(([entry]) => setTimelineW(entry.contentRect.width));
+    ro.observe(timelineRef.current);
+    return () => ro.disconnect();
   }, []);
 
   const toggle = (id: string) =>
@@ -168,26 +181,37 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
     return true;
   });
 
-  // Determine date range
-  const allDates: Date[] = [];
-  for (const g of filteredGoals) {
-    if (g.targetDate) allDates.push(new Date(g.targetDate));
-    for (const p of g.pitstops) {
-      if (p.startDate) allDates.push(new Date(p.startDate));
-      if (p.targetDate) allDates.push(new Date(p.targetDate));
+  const today = startOfDay(new Date());
+
+  // Fixed window based on zoom — always fits on screen, no horizontal scroll
+  function zoomWindow(z: Zoom): { rangeStart: Date; rangeEnd: Date } {
+    const t = today;
+    if (z === "week") {
+      const mon = new Date(t);
+      mon.setDate(t.getDate() - ((t.getDay() + 6) % 7));
+      return { rangeStart: mon, rangeEnd: addDays(mon, 6) };
     }
+    if (z === "month") {
+      const first = new Date(t.getFullYear(), t.getMonth(), 1);
+      const last = new Date(t.getFullYear(), t.getMonth() + 1, 0);
+      return { rangeStart: first, rangeEnd: last };
+    }
+    if (z === "quarter") {
+      const q = Math.floor(t.getMonth() / 3);
+      const first = new Date(t.getFullYear(), q * 3, 1);
+      const last = new Date(t.getFullYear(), q * 3 + 3, 0);
+      return { rangeStart: first, rangeEnd: last };
+    }
+    // year
+    return {
+      rangeStart: new Date(t.getFullYear(), 0, 1),
+      rangeEnd: new Date(t.getFullYear(), 11, 31),
+    };
   }
 
-  const today = startOfDay(new Date());
-  allDates.push(today);
-
-  const minDate = startOfDay(allDates.length ? new Date(Math.min(...allDates.map((d) => d.getTime()))) : today);
-  const maxDate = startOfDay(allDates.length ? new Date(Math.max(...allDates.map((d) => d.getTime()))) : addDays(today, 60));
-
-  const rangeStart = addDays(minDate, -7);
-  const rangeEnd = addDays(maxDate, 14);
+  const { rangeStart, rangeEnd } = zoomWindow(zoom);
   const totalDays = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86400000) + 1;
-  const totalWidth = totalDays * DAY_PX;
+  const DAY_PX = Math.max(4, timelineW / totalDays);
 
   function dayOffset(date: Date | string) {
     const d = startOfDay(new Date(date));
@@ -224,6 +248,17 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
           <p className="text-sm text-stone-500">Goals and pitstops on a timeline</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex rounded-lg border border-stone-200 overflow-hidden text-xs font-medium">
+            {(["week", "month", "quarter", "year"] as Zoom[]).map((z) => (
+              <button
+                key={z}
+                onClick={() => setZoom(z)}
+                className={`px-3 py-1.5 ${zoom === z ? "bg-stone-900 text-white" : "bg-white text-stone-500 hover:bg-stone-50"}`}
+              >
+                {ZOOM_LABELS[z]}
+              </button>
+            ))}
+          </div>
           <GeoFilter value={geoFilter} onChange={setGeoFilter} compact />
           {!hasAnyDates && (
             <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -241,8 +276,8 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
       ) : (
         <div className="flex-1 overflow-hidden flex">
           {/* Main chart area */}
-          <div className="flex-1 overflow-auto flex flex-col">
-            <div className="flex" style={{ minWidth: labelW + totalWidth }}>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col">
+            <div className="flex" style={{ width: "100%" }}>
               {/* Label column */}
               <div className="flex-shrink-0 sticky left-0 z-20 bg-white border-r border-stone-200" style={{ width: labelW }}>
                 <div className="border-b border-stone-200" style={{ height: 48 }} />
@@ -290,42 +325,56 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
               </div>
 
               {/* Timeline column */}
-              <div className="flex-1 overflow-x-visible relative" style={{ width: totalWidth }}>
-                {/* Month headers */}
+              <div ref={timelineRef} className="flex-1 relative" style={{ minWidth: 0 }}>
+                {/* Headers — content depends on zoom */}
                 <div className="sticky top-0 z-10 bg-white border-b border-stone-200" style={{ height: 48 }}>
-                  <div className="relative" style={{ height: 24 }}>
-                    {months.map((m, i) => {
-                      const left = dayOffset(m) * DAY_PX;
+                  {/* Top row */}
+                  <div className="relative border-b border-stone-100" style={{ height: 24 }}>
+                    {zoom === "week" && weeks.map((w, i) => (
+                      <div key={i} className="absolute top-0 bottom-0 flex items-center px-2 text-[11px] font-semibold text-stone-500 border-r border-stone-100" style={{ left: dayOffset(w) * DAY_PX }}>
+                        {w.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                      </div>
+                    ))}
+                    {(zoom === "month" || zoom === "quarter") && months.map((m, i) => (
+                      <div key={i} className="absolute top-0 bottom-0 flex items-center px-2 text-[11px] font-semibold text-stone-500 border-r border-stone-100" style={{ left: dayOffset(m) * DAY_PX }}>
+                        {m.toLocaleDateString("en-US", { month: "short", year: zoom === "quarter" ? "numeric" : "2-digit" })}
+                      </div>
+                    ))}
+                    {zoom === "year" && [0, 3, 6, 9].map((mo) => {
+                      const d = new Date(today.getFullYear(), mo, 1);
                       return (
-                        <div
-                          key={i}
-                          className="absolute top-0 bottom-0 flex items-center px-2 text-[11px] font-semibold text-stone-500 border-r border-stone-100"
-                          style={{ left }}
-                        >
-                          {m.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
+                        <div key={mo} className="absolute top-0 bottom-0 flex items-center px-2 text-[11px] font-semibold text-stone-500 border-r border-stone-100" style={{ left: dayOffset(d) * DAY_PX }}>
+                          Q{mo / 3 + 1} {today.getFullYear()}
                         </div>
                       );
                     })}
                   </div>
+                  {/* Bottom row */}
                   <div className="relative" style={{ height: 24 }}>
-                    {weeks.map((w, i) => {
-                      const left = dayOffset(w) * DAY_PX;
-                      return (
-                        <div
-                          key={i}
-                          className="absolute top-0 bottom-0 flex items-center px-1 text-[10px] text-stone-400 border-r border-stone-100"
-                          style={{ left }}
-                        >
-                          {w.toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}
-                        </div>
-                      );
-                    })}
+                    {zoom === "week" && Array.from({ length: 7 }, (_, i) => addDays(rangeStart, i)).map((d, i) => (
+                      <div key={i} className="absolute top-0 bottom-0 flex items-center justify-center text-[10px] text-stone-400 border-r border-stone-100" style={{ left: i * DAY_PX, width: DAY_PX }}>
+                        {d.toLocaleDateString("en-US", { weekday: "short" })[0]}{d.getDate()}
+                      </div>
+                    ))}
+                    {(zoom === "month" || zoom === "quarter") && weeks.map((w, i) => (
+                      <div key={i} className="absolute top-0 bottom-0 flex items-center px-1 text-[10px] text-stone-400 border-r border-stone-100" style={{ left: dayOffset(w) * DAY_PX }}>
+                        {w.toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}
+                      </div>
+                    ))}
+                    {zoom === "year" && months.map((m, i) => (
+                      <div key={i} className="absolute top-0 bottom-0 flex items-center px-1 text-[10px] text-stone-400 border-r border-stone-100" style={{ left: dayOffset(m) * DAY_PX }}>
+                        {m.toLocaleDateString("en-US", { month: "short" })}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 {/* Grid + bars */}
                 <div className="relative" style={{ height: totalHeight }}>
-                  {weeks.map((w, i) => (
+                  {(zoom === "week"
+                    ? Array.from({ length: 7 }, (_, i) => addDays(rangeStart, i))
+                    : weeks
+                  ).map((w, i) => (
                     <div
                       key={i}
                       className="absolute top-0 bottom-0 border-l border-stone-100"
