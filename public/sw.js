@@ -39,9 +39,10 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Push: if any window client is focused, post an in-app message (iOS doesn't
-// show system banners when the app is in the foreground). Always call
-// showNotification too — it fires normally when app is backgrounded.
+// Push: if the app is in the foreground, post an in-app message instead of a
+// system banner. If backgrounded, show the system notification.
+// This prevents double-banners on Android (which shows showNotification even
+// when the app is focused, unlike iOS which silently drops it).
 self.addEventListener("push", (event) => {
   if (!event.data) return;
   let payload = { title: "Pitstop", body: "", link: "/" };
@@ -50,14 +51,23 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
       const focused = windowClients.find((c) => c.focused);
+
       if (focused) {
+        // App is open — deliver in-app banner only
         focused.postMessage({ type: "push-notification", payload });
+        return;
       }
+
+      // App is backgrounded — show system notification
       return self.registration.showNotification(payload.title, {
         body: payload.body,
         icon: "/icon-192.png",
         badge: "/icon-192.png",
         data: { link: payload.link },
+        tag: payload.link,           // deduplicate: same link replaces previous
+        renotify: true,              // still vibrate/sound even if tag matches
+        vibrate: [200, 100, 200],    // Android vibration pattern
+        requireInteraction: false,
       });
     })
   );
