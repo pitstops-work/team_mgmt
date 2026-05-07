@@ -1,6 +1,7 @@
 {
   "name": "Pitstop",
   "short_name": "Pitstop",
+  "id": "/portal",
   "description": "Async threaded team workspace",
   "start_url": "/portal",
   "scope": "/",

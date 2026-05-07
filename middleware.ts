@@ -12,7 +12,10 @@ const PUBLIC_PREFIXES = [
   "/_next",
   "/favicon",
   "/manifest",
+  "/icon-",
   "/icons",
+  "/sw.js",
+  "/.well-known/",
   "/data/",
 ];
 
@@ -56,6 +59,6 @@ export default async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|data).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|icon-|icons|sw.js|\\.well-known|data).*)",
   ],
 };
