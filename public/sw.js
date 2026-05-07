@@ -73,24 +73,31 @@ self.addEventListener("push", (event) => {
   );
 });
 
-// iOS APNs silently rotates/expires subscriptions. This event fires when
-// that happens — auto-resubscribe so notifications keep working without
-// requiring the user to open the app.
+// iOS APNs can silently rotate push endpoints. When that happens, resubscribe
+// automatically so background delivery keeps working without requiring an app open.
+// We fetch the VAPID key from the server because oldSubscription.options
+// .applicationServerKey is unreliable on iOS.
 self.addEventListener("pushsubscriptionchange", (event) => {
-  const serverKey = event.oldSubscription?.options?.applicationServerKey;
-  if (!serverKey) return;
   event.waitUntil(
-    self.registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: serverKey,
-    }).then((sub) => {
-      const json = sub.toJSON();
-      return fetch("/api/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-      });
-    }).catch(() => {})
+    fetch("/api/push")
+      .then((r) => r.json())
+      .then(({ publicKey }) => {
+        if (!publicKey) return;
+        return self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: publicKey,
+        });
+      })
+      .then((sub) => {
+        if (!sub) return;
+        const json = sub.toJSON();
+        return fetch("/api/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+        });
+      })
+      .catch(() => {})
   );
 });
 

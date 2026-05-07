@@ -14,9 +14,6 @@ function urlBase64ToUint8Array(base64String: string) {
 type PushPayload = { title: string; body: string; link: string };
 type Banner = PushPayload & { id: number };
 
-const RESUB_KEY = "push_last_sub";
-const RESUB_INTERVAL_MS = 24 * 60 * 60 * 1000; // refresh subscription once per day
-
 export default function PushSubscriber() {
   const attempted = useRef(false);
   const [banner, setBanner] = useState<Banner | null>(null);
@@ -79,34 +76,19 @@ export default function PushSubscriber() {
       const { publicKey } = await fetch("/api/push").then((r) => r.json());
       if (!publicKey) return;
 
-      const lastSub = localStorage.getItem(RESUB_KEY);
-      const stale = !lastSub || Date.now() - Number(lastSub) > RESUB_INTERVAL_MS;
-      const existing = await reg.pushManager.getSubscription();
-
-      if (stale || !existing) {
-        // Force fresh subscription — iOS APNs endpoints silently expire.
-        // Delete the old endpoint from the server first so it doesn't linger.
-        if (existing) {
-          const oldEndpoint = existing.endpoint;
-          await existing.unsubscribe().catch(() => {});
-          await fetch("/api/push", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ endpoint: oldEndpoint }),
-          }).catch(() => {});
-        }
-
-        const sub = await reg.pushManager.subscribe({
+      // Use the existing subscription if one exists — rotating it unnecessarily
+      // causes APNs token propagation delays that break background delivery.
+      // pushsubscriptionchange in sw.js handles genuine iOS endpoint rotation.
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(publicKey),
         });
-        await saveSubscription(sub);
-        localStorage.setItem(RESUB_KEY, String(Date.now()));
-      } else {
-        // Subscription is fresh — just re-sync endpoint to server in case it
-        // was lost from the DB (e.g. after a DB restore or server migration).
-        await saveSubscription(existing);
       }
+
+      // Always re-sync to server in case the endpoint was lost from the DB.
+      await saveSubscription(sub);
     }
 
     async function saveSubscription(sub: PushSubscription) {
