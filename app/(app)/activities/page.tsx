@@ -39,10 +39,8 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
     ? { ownerId: { in: teamIds } }
     : {};
 
-  // Scope users shown in attendee picker
-  const userFilter = isScoped
-    ? { id: { in: teamIds } }
-    : {};
+  // All users shown in attendee picker — anyone can invite anyone
+  const userFilter = {};
 
   const [events, pitstops, users, rawZones, rawClusters, goalGeo] = await Promise.all([
     prisma.pitstopEvent.findMany({
