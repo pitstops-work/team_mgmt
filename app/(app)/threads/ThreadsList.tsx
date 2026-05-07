@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { MessageSquare, X, ArrowUpRight, Plus, ChevronRight, Target, CheckSquare, CalendarClock } from "lucide-react";
+import { MessageSquare, X, ArrowUpRight, Plus, ChevronRight, Target, CheckSquare, CalendarClock, Trash2 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import MessageBubble from "@/app/(app)/goals/[goalId]/pitstops/[pitstopId]/MessageBubble";
 import MessageComposer from "@/app/(app)/goals/[goalId]/pitstops/[pitstopId]/MessageComposer";
@@ -307,6 +307,7 @@ export default function ThreadsList({
   const [activeThreadId, setActiveThreadId] = useState<string | null>(
     initialThreadId ?? initialThreads[0]?.id ?? null
   );
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showNewThread, setShowNewThread] = useState(false);
@@ -350,6 +351,16 @@ export default function ThreadsList({
     setThreads(prev => [thread, ...prev]);
     setActiveThreadId(thread.id);
     setShowNewThread(false);
+  };
+
+  const handleDelete = async (threadId: string) => {
+    await fetch(`/api/threads/${threadId}`, { method: "DELETE" });
+    setThreads(prev => {
+      const next = prev.filter(t => t.id !== threadId);
+      if (activeThreadId === threadId) setActiveThreadId(next[0]?.id ?? null);
+      return next;
+    });
+    setConfirmDeleteId(null);
   };
 
   const filtered = threads.filter(t =>
@@ -506,14 +517,27 @@ export default function ThreadsList({
                   <p className="text-[10px] text-stone-400 truncate">{getBreadcrumb(activeThread)}</p>
                 </div>
               </div>
-              {getOpenHref(activeThread) && (
-                <a
-                  href={getOpenHref(activeThread)!}
-                  className="flex items-center gap-1 text-xs text-stone-400 hover:text-sky-600 flex-shrink-0"
-                >
-                  Open <ArrowUpRight className="w-3.5 h-3.5" />
-                </a>
-              )}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {getOpenHref(activeThread) && (
+                  <a href={getOpenHref(activeThread)!}
+                    className="flex items-center gap-1 text-xs text-stone-400 hover:text-sky-600">
+                    Open <ArrowUpRight className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                {confirmDeleteId === activeThread.id ? (
+                  <div className="flex items-center gap-1 ml-1">
+                    <button onClick={() => handleDelete(activeThread.id)}
+                      className="px-2 py-0.5 text-[11px] bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors">Delete</button>
+                    <button onClick={() => setConfirmDeleteId(null)}
+                      className="px-2 py-0.5 text-[11px] text-stone-500 hover:text-stone-700">Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmDeleteId(activeThread.id)} title="Delete thread"
+                    className="p-1 ml-1 text-stone-300 hover:text-red-500 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Messages */}
