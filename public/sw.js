@@ -51,25 +51,29 @@ self.addEventListener("push", (event) => {
   let payload = { title: "Pitstop", body: "", link: "/" };
   try { payload = { ...payload, ...event.data.json() }; } catch {}
 
-  const showNote = self.registration.showNotification(payload.title, {
-    body: payload.body,
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    data: { link: payload.link },
-    tag: payload.link,
-    renotify: true,
-    vibrate: [200, 100, 200],
-  });
+  // event.waitUntil gets ONLY showNotification — nothing else.
+  // Including matchAll() in waitUntil caused iOS to drop background
+  // notifications: if matchAll hangs (no active clients), the entire
+  // waitUntil promise hangs, iOS times out the push event, notification lost.
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { link: payload.link },
+    })
+  );
 
-  const notifyFocused = self.clients
+  // Fire-and-forget: post to a focused window for the in-app banner.
+  // Not in waitUntil — iOS may kill the SW before this resolves when
+  // backgrounded, but showNotification above is already queued.
+  self.clients
     .matchAll({ type: "window", includeUncontrolled: true })
     .then((clients) => {
       const focused = clients.find((c) => c.focused);
       if (focused) focused.postMessage({ type: "push-notification", payload });
     })
     .catch(() => {});
-
-  event.waitUntil(Promise.all([showNote, notifyFocused]));
 });
 
 // iOS APNs can silently rotate push endpoints. When that happens, resubscribe
