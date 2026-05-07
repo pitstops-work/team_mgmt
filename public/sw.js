@@ -39,38 +39,37 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Push: if the app is in the foreground, post an in-app message instead of a
-// system banner. If backgrounded, show the system notification.
-// This prevents double-banners on Android (which shows showNotification even
-// when the app is focused, unlike iOS which silently drops it).
+// Push: always call showNotification immediately — do not gate it on matchAll.
+// On iOS, gating on matchAll can cause the promise to resolve before
+// showNotification is called, silently dropping the background notification.
+// iOS naturally suppresses the system banner when the app is in the foreground,
+// so we get clean behaviour on both platforms without special-casing.
+// In parallel, post an in-app message if a window is focused so the app can
+// show its own banner (covers the iOS foreground suppression case).
 self.addEventListener("push", (event) => {
   if (!event.data) return;
   let payload = { title: "Pitstop", body: "", link: "/" };
   try { payload = { ...payload, ...event.data.json() }; } catch {}
 
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
-      const focused = windowClients.find((c) => c.focused);
+  const showNote = self.registration.showNotification(payload.title, {
+    body: payload.body,
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    data: { link: payload.link },
+    tag: payload.link,
+    renotify: true,
+    vibrate: [200, 100, 200],
+  });
 
-      if (focused) {
-        // App is open — deliver in-app banner only
-        focused.postMessage({ type: "push-notification", payload });
-        return;
-      }
-
-      // App is backgrounded — show system notification
-      return self.registration.showNotification(payload.title, {
-        body: payload.body,
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        data: { link: payload.link },
-        tag: payload.link,           // deduplicate: same link replaces previous
-        renotify: true,              // still vibrate/sound even if tag matches
-        vibrate: [200, 100, 200],    // Android vibration pattern
-        requireInteraction: false,
-      });
+  const notifyFocused = self.clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then((clients) => {
+      const focused = clients.find((c) => c.focused);
+      if (focused) focused.postMessage({ type: "push-notification", payload });
     })
-  );
+    .catch(() => {});
+
+  event.waitUntil(Promise.all([showNote, notifyFocused]));
 });
 
 // iOS APNs can silently rotate push endpoints. When that happens, resubscribe
