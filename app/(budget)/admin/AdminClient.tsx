@@ -110,82 +110,103 @@ export default function AdminClient({ costs, isSeeded }: { costs: CostRow[]; isS
       </div>
 
       {/* Cost table */}
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
-              <th className="text-left px-4 py-2.5 font-medium">Parameter</th>
-              <th className="text-left px-3 py-2.5 font-medium">Unit</th>
-              <th className="text-right px-3 py-2.5 font-medium w-28">Default</th>
-              <th className="text-right px-3 py-2.5 font-medium w-32">Current</th>
-              <th className="w-24 px-3 py-2.5"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentGroup?.costs.map(row => (
-              editing === row.itemKey ? (
-                <tr key={row.itemKey} className="border-b border-sky-100 bg-sky-50">
-                  <td className="px-4 py-2" colSpan={2}>
-                    <div className="text-sm font-medium text-stone-800">{formatKey(row.itemKey)}</div>
-                    <input
-                      value={editNotes}
-                      onChange={e => setEditNotes(e.target.value)}
-                      placeholder="Notes (optional)"
-                      className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-right text-stone-400 text-xs">
-                    {row.defaultCost.toLocaleString("en-IN")}
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      autoFocus
-                      type="number"
-                      value={editVal}
-                      onChange={e => setEditVal(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") saveEdit(row); if (e.key === "Escape") setEditing(null); }}
-                      className="w-full border border-sky-400 rounded px-2 py-1 text-right text-sm focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex gap-1">
-                      <button onClick={() => saveEdit(row)} disabled={pending} className="text-xs bg-sky-600 text-white px-2 py-1 rounded hover:bg-sky-700">Save</button>
-                      <button onClick={() => setEditing(null)} className="text-xs text-stone-400 hover:text-stone-700">×</button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={row.itemKey} className="border-b border-stone-50 hover:bg-stone-50 group">
-                  <td className="px-4 py-2.5">
-                    <div className="text-stone-800">{formatKey(row.itemKey)}</div>
-                    {row.notes && <div className="text-xs text-stone-400 mt-0.5">{row.notes}</div>}
-                  </td>
-                  <td className="px-3 py-2.5 text-stone-500 text-xs">{row.unit}</td>
-                  <td className="text-right px-3 py-2.5 text-stone-400 text-xs">
-                    {row.defaultCost.toLocaleString("en-IN")}
-                  </td>
-                  <td className="text-right px-3 py-2.5">
-                    <span className={`font-medium ${row.isEdited ? "text-amber-700" : "text-stone-800"}`}>
-                      {row.currentCost.toLocaleString("en-IN")}
-                    </span>
-                    {row.isEdited && <span className="ml-1 text-xs text-amber-500">edited</span>}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => startEdit(row)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
-                      {row.isEdited && row.id && (
-                        <button onClick={() => handleReset(row)} className="text-xs text-stone-400 hover:text-red-500">Reset</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {(() => {
+        const isCost = (row: CostRow) => row.unit.includes("₹");
+        const costRows = currentGroup?.costs.filter(isCost) ?? [];
+        const ratioRows = currentGroup?.costs.filter(r => !isCost(r)) ?? [];
 
-      <p className="mt-4 text-xs text-stone-400">All values — including programme ratios like children per CLC, snack days, meeting participants — are editable above. Changes apply to newly created budgets.</p>
+        const renderRow = (row: CostRow) => editing === row.itemKey ? (
+          <tr key={row.itemKey} className="border-b border-sky-100 bg-sky-50">
+            <td className="px-4 py-2" colSpan={2}>
+              <div className="text-sm font-medium text-stone-800">{formatKey(row.itemKey)}</div>
+              <input
+                value={editNotes}
+                onChange={e => setEditNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+            </td>
+            <td className="px-3 py-2 text-right text-stone-400 text-xs">
+              {row.defaultCost.toLocaleString("en-IN")}
+            </td>
+            <td className="px-3 py-2">
+              <input
+                autoFocus
+                type="number"
+                value={editVal}
+                onChange={e => setEditVal(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") saveEdit(row); if (e.key === "Escape") setEditing(null); }}
+                className="w-full border border-sky-400 rounded px-2 py-1 text-right text-sm focus:outline-none"
+              />
+            </td>
+            <td className="px-3 py-2">
+              <div className="flex gap-1">
+                <button onClick={() => saveEdit(row)} disabled={pending} className="text-xs bg-sky-600 text-white px-2 py-1 rounded hover:bg-sky-700">Save</button>
+                <button onClick={() => setEditing(null)} className="text-xs text-stone-400 hover:text-stone-700">×</button>
+              </div>
+            </td>
+          </tr>
+        ) : (
+          <tr key={row.itemKey} className="border-b border-stone-50 hover:bg-stone-50 group">
+            <td className="px-4 py-2.5">
+              <div className="text-stone-800">{formatKey(row.itemKey)}</div>
+              {row.notes && <div className="text-xs text-stone-400 mt-0.5">{row.notes}</div>}
+            </td>
+            <td className="px-3 py-2.5 text-stone-500 text-xs">{row.unit}</td>
+            <td className="text-right px-3 py-2.5 text-stone-400 text-xs">
+              {row.defaultCost.toLocaleString("en-IN")}
+            </td>
+            <td className="text-right px-3 py-2.5">
+              <span className={`font-medium ${row.isEdited ? "text-amber-700" : "text-stone-800"}`}>
+                {row.currentCost.toLocaleString("en-IN")}
+              </span>
+              {row.isEdited && <span className="ml-1 text-xs text-amber-500">edited</span>}
+            </td>
+            <td className="px-3 py-2.5">
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => startEdit(row)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
+                {row.isEdited && row.id && (
+                  <button onClick={() => handleReset(row)} className="text-xs text-stone-400 hover:text-red-500">Reset</button>
+                )}
+              </div>
+            </td>
+          </tr>
+        );
+
+        const colHeaders = (
+          <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
+            <th className="text-left px-4 py-2.5 font-medium">Parameter</th>
+            <th className="text-left px-3 py-2.5 font-medium">Unit</th>
+            <th className="text-right px-3 py-2.5 font-medium w-28">Default</th>
+            <th className="text-right px-3 py-2.5 font-medium w-32">Current</th>
+            <th className="w-24 px-3 py-2.5"></th>
+          </tr>
+        );
+
+        const sectionHeader = (label: string) => (
+          <tr key={label}>
+            <td colSpan={5} className="px-4 pt-4 pb-1.5 text-xs font-semibold text-stone-500 uppercase tracking-wide bg-white">
+              {label}
+            </td>
+          </tr>
+        );
+
+        return (
+          <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>{colHeaders}</thead>
+              <tbody>
+                {costRows.length > 0 && sectionHeader("Unit Costs")}
+                {costRows.map(renderRow)}
+                {ratioRows.length > 0 && sectionHeader("Programme Ratios")}
+                {ratioRows.map(renderRow)}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+
+      <p className="mt-4 text-xs text-stone-400">Changes apply to newly created budgets only.</p>
     </div>
   );
 }
