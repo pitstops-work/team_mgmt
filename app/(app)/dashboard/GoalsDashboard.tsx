@@ -384,7 +384,7 @@ export default function GoalsDashboard({
     if (filter === "Paused" && g.status !== "Paused") return false;
     if (filter === "Complete" && g.status !== "Complete") return false;
     if (selectedPrograms.length > 0 && !g.programs.some((pg) => selectedPrograms.includes(pg.program.id))) return false;
-    if (selectedUsers.length > 0 && !selectedUsers.includes(g.owner.id)) return false;
+    if (selectedUsers.length > 0 && !selectedUsers.includes(g.owner.id) && !g.coOwners?.some((co: { userId: string }) => selectedUsers.includes(co.userId))) return false;
     if (geoFilter.clusterId) return g.needsCluster?.id === geoFilter.clusterId;
     if (geoFilter.zoneId) return g.needsZone?.id === geoFilter.zoneId || g.needsCluster?.zone?.id === geoFilter.zoneId;
     if (geoFilter.cityId) return g.needsCity?.id === geoFilter.cityId || g.needsZone?.city?.id === geoFilter.cityId || g.needsCluster?.zone?.city?.id === geoFilter.cityId;

@@ -50,6 +50,7 @@ export default async function DashboardPage({
         needsCity: { select: { id: true, name: true } },
         needsZone: { select: { id: true, name: true, city: { select: { id: true, name: true } } } },
         needsCluster: { select: { id: true, name: true, zone: { select: { id: true, name: true, city: { select: { id: true, name: true } } } } } },
+        coOwners: { select: { userId: true } },
       },
       orderBy: { updatedAt: "desc" },
     }),
