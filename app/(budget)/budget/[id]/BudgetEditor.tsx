@@ -137,6 +137,10 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
           </div>
         </div>
         <div className="flex gap-2 shrink-0">
+          <a href={`/budget/${budget.id}/analysis`}
+            className="text-sm border border-stone-300 px-3 py-1.5 rounded-lg hover:bg-stone-50 text-stone-700">
+            Analysis
+          </a>
           <a href={`/budget/${budget.id}/export`} target="_blank"
             className="text-sm border border-stone-300 px-3 py-1.5 rounded-lg hover:bg-stone-50 text-stone-700">
             Export Excel

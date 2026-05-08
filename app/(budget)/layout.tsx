@@ -16,8 +16,9 @@ export default async function BudgetLayout({ children }: { children: React.React
         <span className="text-sm font-semibold text-stone-800 tracking-wide">APF Budget Builder</span>
         <span className="text-stone-300">|</span>
         <span className="text-xs text-stone-500">Bangalore · Partner Grant Proposals</span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-4">
           <a href="/budget" className="text-xs text-stone-500 hover:text-stone-800">My Budgets</a>
+          <a href="/budget/admin" className="text-xs text-stone-400 hover:text-stone-700">Cost Registry</a>
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-4 py-8">{children}</main>

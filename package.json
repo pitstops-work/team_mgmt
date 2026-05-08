@@ -33,6 +33,7 @@
     "@vercel/blob": "^2.3.3",
     "ai": "^6.0.168",
     "bcryptjs": "^3.0.3",
+    "exceljs": "^4.4.0",
     "groq-sdk": "^1.1.2",
     "ical.js": "^2.2.1",
     "leaflet": "^1.9.4",
