@@ -185,29 +185,7 @@ export default function AdminClient({ costs, isSeeded }: { costs: CostRow[]; isS
         </table>
       </div>
 
-      {/* Ratios note */}
-      <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl px-4 py-4">
-        <h3 className="text-sm font-medium text-amber-900 mb-2">Programme Ratios (Reference Only)</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-amber-800">
-          {[
-            ["Children per CLC", "100"],
-            ["Snack days/year", "180"],
-            ["Youth per YRC (focused)", "80 in Year 1"],
-            ["Elderly per day-care centre", "25–30"],
-            ["Creche children", "20"],
-            ["Cluster meeting participants", "30"],
-            ["Slum meeting participants", "20"],
-            ["Avg HH per settlement", "~150 (Bangalore)"],
-            ["COs per cluster", "set at budget creation"],
-          ].map(([label, val]) => (
-            <div key={label} className="bg-white rounded px-3 py-2 border border-amber-100">
-              <div className="text-amber-500">{label}</div>
-              <div className="font-medium">{val}</div>
-            </div>
-          ))}
-        </div>
-        <p className="text-xs text-amber-600 mt-2">Ratios are programme design decisions and require budget regeneration to take effect. Contact the dev team to change them.</p>
-      </div>
+      <p className="mt-4 text-xs text-stone-400">All values — including programme ratios like children per CLC, snack days, meeting participants — are editable above. Changes apply to newly created budgets.</p>
     </div>
   );
 }

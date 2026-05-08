@@ -30,6 +30,9 @@ export async function createBudget(payload: CreateBudgetPayload) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
+  const registryRows = await prisma.costRegistry.findMany({ where: { city: "Bangalore" } });
+  const registry: Record<string, number> = Object.fromEntries(registryRows.map(r => [r.itemKey, r.unitCost]));
+
   const lines = generateBudgetLines(payload.domains, {
     nSettlements: payload.nSettlements,
     nClusters: payload.nClusters,
@@ -44,7 +47,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
     rcRentPerMonth: payload.rcRentPerMonth,
     nCreches: payload.nCreches,
     crecheRentPerMonth: payload.crecheRentPerMonth,
-  }, payload.years);
+  }, payload.years, registry);
 
   const budget = await prisma.budget.create({
     data: {

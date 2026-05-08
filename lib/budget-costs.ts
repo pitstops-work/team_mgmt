@@ -96,6 +96,23 @@ export const DEFAULT_COSTS: CostItem[] = [
   { domain: "Creche",   itemKey: "creche.coordinator_salary_per_month",    unitCost: 35000,  unit: "₹/month" },
   { domain: "Creche",   itemKey: "creche.supervisor_per_n_creches",        unitCost: 10,     unit: "creches per supervisor" },
   { domain: "Creche",   itemKey: "creche.coordinator_per_n_creches",       unitCost: 40,     unit: "creches per coordinator" },
+  { domain: "Creche",   itemKey: "creche.supervisor_travel_per_month",     unitCost: 3750,   unit: "₹/supervisor/month" },
+  { domain: "Creche",   itemKey: "creche.coordinator_travel_per_month",    unitCost: 6000,   unit: "₹/coordinator/month" },
+
+  // ── Youth (additional) ────────────────────────────────────────────────────
+  { domain: "Youth",    itemKey: "youth.social_actions_per_yrc",           unitCost: 3000,   unit: "₹/YRC/year",          notes: "Youth-led social actions" },
+  { domain: "Youth",    itemKey: "youth.stationery_per_yrc",               unitCost: 1500,   unit: "₹/YRC/year",          notes: "Stationery, IEC, photocopy & printing" },
+
+  // ── Welfare Rights (additional) ───────────────────────────────────────────
+  { domain: "WelfareRights", itemKey: "wr.dept_interaction_per_cluster",   unitCost: 3000,   unit: "₹/cluster/year",      notes: "Travel for interaction with departments" },
+  { domain: "WelfareRights", itemKey: "wr.special_occasions_cost",         unitCost: 10000,  unit: "₹/year",              notes: "Observation of special occasions" },
+  { domain: "WelfareRights", itemKey: "wr.civic_baseline_cost",            unitCost: 50000,  unit: "₹/year",              notes: "Civic community baseline survey" },
+
+  // ── Cross-cutting ─────────────────────────────────────────────────────────
+  { domain: null,       itemKey: "cross.staff_capacity_building",          unitCost: 14480,  unit: "₹/year" },
+  { domain: null,       itemKey: "cross.team_building_offsite",            unitCost: 204600, unit: "₹/year",              notes: "3-day offsite" },
+  { domain: null,       itemKey: "cross.planning_review_meetings",         unitCost: 5400,   unit: "₹/year" },
+  { domain: null,       itemKey: "cross.crisis_intervention",              unitCost: 2500,   unit: "₹/year" },
 ];
 
 // Lookup helper — returns the unitCost for a given itemKey from the seeded/edited registry,

@@ -1,4 +1,5 @@
 import type { BudgetDomain, BudgetSection, InflationType } from "@/app/generated/prisma/client";
+import { lookupCost } from "@/lib/budget-costs";
 
 export type LineInput = {
   domain: BudgetDomain | null;
@@ -66,27 +67,44 @@ function lines(specs: LineInput[], years: number, startPos = 0): GeneratedLine[]
 
 // ─── Children ────────────────────────────────────────────────────────────────
 
-export function generateChildren(inp: BudgetGeneratorInputs, years: number): GeneratedLine[] {
+export function generateChildren(inp: BudgetGeneratorInputs, years: number, r: Record<string, number> = {}): GeneratedLine[] {
   const n = inp.nCLCs;
   const rent = inp.clcRentPerMonth;
+
+  const childrenPerCLC     = lookupCost(r, "children.children_per_clc");
+  const snackPerChild      = lookupCost(r, "children.snack_per_child_per_day");
+  const snackDays          = lookupCost(r, "children.snack_days_per_year");
+  const leisurePerChild    = lookupCost(r, "children.leisure_material_per_day");
+  const leisureDays        = lookupCost(r, "children.leisure_days_per_year");
+  const parentRefresh      = lookupCost(r, "children.parent_session_per_person");
+  const parentSessions     = lookupCost(r, "children.parent_sessions_per_year");
+  const parentsPerCentre   = lookupCost(r, "children.parents_per_centre");
+  const socialPerEvent     = lookupCost(r, "children.social_awareness_per_event");
+  const socialEvents       = lookupCost(r, "children.social_awareness_events");
+  const exposurePerChild   = lookupCost(r, "children.exposure_visit_per_child");
+  const exposureChildren   = lookupCost(r, "children.exposure_children");
+  const campCost           = lookupCost(r, "children.camp_cost");
+  const campsPerYear       = lookupCost(r, "children.camps_per_year");
+  const leadershipCost     = lookupCost(r, "children.leadership_training_cost");
+  const educationCost      = lookupCost(r, "children.education_materials_cost");
+  const profilingCost      = lookupCost(r, "children.profiling_external_training");
+  const clcSetup           = lookupCost(r, "children.clc_setup_cost");
+  const staffExposure      = lookupCost(r, "children.staff_exposure_visit_cost");
+
   const specs: LineInput[] = [
-    // Salary
-    { domain: "Children", section: "salary", description: "Children Programme Lead", costCategory: "Salary", unitType: "Month", y1Units: 12, y1UnitCost: 0, salaryHint: "₹40,000–55,000/month", notes: "1 per partner" },
-    { domain: "Children", section: "salary", description: "Community Facilitator – Children", costCategory: "Salary", unitType: "Month", y1Units: n * 12, y1UnitCost: 0, salaryHint: "₹21,000–27,000/month per CF", notes: `${n} CF(s) × 12 months` },
-    // CAPEX
-    { domain: "Children", section: "capex", description: "CLC setup / painting & civil works (one-time)", costCategory: "Nil", unitType: "Per CLC", y1Units: n, y1UnitCost: 25000 },
-    // Travel
-    { domain: "Children", section: "travel", description: "Staff exposure visits", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: n * 40600 },
-    // Programme
-    { domain: "Children", section: "programme", description: "Snacks for children (180 days × ₹12 × 100 children)", costCategory: "Other", unitType: "Per CLC", y1Units: n, y1UnitCost: 216000 },
-    { domain: "Children", section: "programme", description: "Leisure class materials (26 days × ₹12 × 100 children)", costCategory: "Other", unitType: "Per CLC", y1Units: n, y1UnitCost: 31200 },
-    { domain: "Children", section: "programme", description: "Parent interaction sessions (4 sessions × 200 parents × ₹90)", costCategory: "Other", unitType: "Per CLC", y1Units: n, y1UnitCost: 72000 },
-    { domain: "Children", section: "programme", description: "Social awareness events (6 × ₹5,000)", costCategory: "Other", unitType: "Per CLC", y1Units: n, y1UnitCost: 30000 },
-    { domain: "Children", section: "programme", description: "Exposure visit for children (₹500 × 100 children)", costCategory: "Other", unitType: "Per CLC", y1Units: n, y1UnitCost: 50000 },
-    { domain: "Children", section: "programme", description: "Summer/Dasara camps (2 camps × ₹37,500)", costCategory: "Other", unitType: "Per CLC", y1Units: n, y1UnitCost: 75000 },
-    { domain: "Children", section: "programme", description: "Leadership training", costCategory: "Other", unitType: "Per CLC", y1Units: n, y1UnitCost: 37500 },
-    { domain: "Children", section: "programme", description: "Educational materials / TLM", costCategory: "Other", unitType: "Per CLC", y1Units: n, y1UnitCost: 40000 },
-    { domain: "Children", section: "programme", description: "Child profiling & external training", costCategory: "Other", unitType: "Per CLC", y1Units: n, y1UnitCost: 25000 },
+    { domain: "Children", section: "salary",    description: "Children Programme Lead",                                                                          costCategory: "Salary", unitType: "Month",    y1Units: 12,       y1UnitCost: 0,                                             salaryHint: "₹40,000–55,000/month", notes: "1 per partner" },
+    { domain: "Children", section: "salary",    description: "Community Facilitator – Children",                                                                 costCategory: "Salary", unitType: "Month",    y1Units: n * 12,   y1UnitCost: 0,                                             salaryHint: "₹21,000–27,000/month per CF", notes: `${n} CF(s) × 12 months` },
+    { domain: "Children", section: "capex",     description: "CLC setup / painting & civil works (one-time)",                                                    costCategory: "Nil",    unitType: "Per CLC",  y1Units: n,        y1UnitCost: clcSetup },
+    { domain: "Children", section: "travel",    description: "Staff exposure visits",                                                                            costCategory: "Other",  unitType: "Annual",   y1Units: 1,        y1UnitCost: n * staffExposure },
+    { domain: "Children", section: "programme", description: `Snacks for children (${snackDays} days × ₹${snackPerChild} × ${childrenPerCLC} children)`,        costCategory: "Other",  unitType: "Per CLC",  y1Units: n,        y1UnitCost: snackPerChild * snackDays * childrenPerCLC },
+    { domain: "Children", section: "programme", description: `Leisure class materials (${leisureDays} days × ₹${leisurePerChild} × ${childrenPerCLC} children)`,costCategory: "Other",  unitType: "Per CLC",  y1Units: n,        y1UnitCost: leisurePerChild * leisureDays * childrenPerCLC },
+    { domain: "Children", section: "programme", description: `Parent interaction sessions (${parentSessions} × ${parentsPerCentre} parents × ₹${parentRefresh})`,costCategory: "Other", unitType: "Per CLC",  y1Units: n,        y1UnitCost: parentRefresh * parentSessions * parentsPerCentre },
+    { domain: "Children", section: "programme", description: `Social awareness events (${socialEvents} × ₹${socialPerEvent.toLocaleString("en-IN")})`,          costCategory: "Other",  unitType: "Per CLC",  y1Units: n,        y1UnitCost: socialPerEvent * socialEvents },
+    { domain: "Children", section: "programme", description: `Exposure visit for children (₹${exposurePerChild} × ${exposureChildren} children)`,               costCategory: "Other",  unitType: "Per CLC",  y1Units: n,        y1UnitCost: exposurePerChild * exposureChildren },
+    { domain: "Children", section: "programme", description: `Summer/Dasara camps (${campsPerYear} × ₹${campCost.toLocaleString("en-IN")})`,                    costCategory: "Other",  unitType: "Per CLC",  y1Units: n,        y1UnitCost: campCost * campsPerYear },
+    { domain: "Children", section: "programme", description: "Leadership training",                                                                              costCategory: "Other",  unitType: "Per CLC",  y1Units: n,        y1UnitCost: leadershipCost },
+    { domain: "Children", section: "programme", description: "Educational materials / TLM",                                                                      costCategory: "Other",  unitType: "Per CLC",  y1Units: n,        y1UnitCost: educationCost },
+    { domain: "Children", section: "programme", description: "Child profiling & external training",                                                              costCategory: "Other",  unitType: "Per CLC",  y1Units: n,        y1UnitCost: profilingCost },
     ...(rent > 0 ? [{ domain: "Children" as BudgetDomain, section: "programme" as BudgetSection, description: "CLC rent & maintenance", costCategory: "Other" as InflationType, unitType: "Month", y1Units: n * 12, y1UnitCost: rent }] : []),
   ];
   return lines(specs, years);
@@ -94,23 +112,39 @@ export function generateChildren(inp: BudgetGeneratorInputs, years: number): Gen
 
 // ─── Youth ───────────────────────────────────────────────────────────────────
 
-export function generateYouth(inp: BudgetGeneratorInputs, years: number): GeneratedLine[] {
+export function generateYouth(inp: BudgetGeneratorInputs, years: number, r: Record<string, number> = {}): GeneratedLine[] {
   const n = inp.nYRCs;
   const rent = inp.yrcRentPerMonth;
+
+  const staffExposure      = lookupCost(r, "youth.staff_exposure_visit_cost");
+  const smallGroupMeeting  = lookupCost(r, "youth.small_group_meeting_per_month");
+  const yuvaAddaCost       = lookupCost(r, "youth.yuva_adda_cost_per_workshop");
+  const yuvaAddaCount      = lookupCost(r, "youth.yuva_adda_workshops_per_year");
+  const leadershipCost     = lookupCost(r, "youth.leadership_training_cost");
+  const leadershipCount    = lookupCost(r, "youth.leadership_trainings_per_year");
+  const felicitationCost   = lookupCost(r, "youth.felicitation_cost");
+  const felicitationCount  = lookupCost(r, "youth.felicitations_per_year");
+  const sportsCost         = lookupCost(r, "youth.sports_event_cost");
+  const sportsCount        = lookupCost(r, "youth.sports_events_per_year");
+  const festivalCost       = lookupCost(r, "youth.youth_festival_cost");
+  const exposureCost       = lookupCost(r, "youth.community_exposure_cost");
+  const socialActions      = lookupCost(r, "youth.social_actions_per_yrc");
+  const stationery         = lookupCost(r, "youth.stationery_per_yrc");
+
   const specs: LineInput[] = [
-    { domain: "Youth", section: "salary", description: "Youth Programme Lead", costCategory: "Salary", unitType: "Month", y1Units: 12, y1UnitCost: 0, salaryHint: "₹41,000–48,000/month" },
-    { domain: "Youth", section: "salary", description: "Youth Resource Centre Coordinator", costCategory: "Salary", unitType: "Month", y1Units: n * 12, y1UnitCost: 0, salaryHint: "₹27,000–37,000/month per YRC", notes: `${n} YRC(s)` },
-    { domain: "Youth", section: "salary", description: "Community Facilitator – Youth", costCategory: "Salary", unitType: "Month", y1Units: n * 12, y1UnitCost: 0, salaryHint: "₹18,000–26,000/month per CF" },
-    { domain: "Youth", section: "travel", description: "Staff exposure visits", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: n * 36700 },
-    { domain: "Youth", section: "programme", description: "Small group meetings in area", costCategory: "Other", unitType: "Month", y1Units: n * 12, y1UnitCost: 500 },
-    { domain: "Youth", section: "programme", description: "Workshops – Yuva Adda (8/year × ₹9,000)", costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: 72000 },
-    { domain: "Youth", section: "programme", description: "Leadership development training (2/year × ₹18,000)", costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: 36000 },
-    { domain: "Youth", section: "programme", description: "Felicitation of youth (2/year × ₹20,000)", costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: 40000 },
-    { domain: "Youth", section: "programme", description: "Sports event (2/year × ₹47,500)", costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: 95000 },
-    { domain: "Youth", section: "programme", description: "Youth Festival (1/year)", costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: 40000 },
-    { domain: "Youth", section: "programme", description: "Exposure visits for community youth", costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: 75000 },
-    { domain: "Youth", section: "programme", description: "Youth-led social actions", costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: 3000 },
-    { domain: "Youth", section: "programme", description: "Stationery, IEC, photocopy & printing", costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: 1500 },
+    { domain: "Youth", section: "salary",    description: "Youth Programme Lead",                                                              costCategory: "Salary", unitType: "Month",   y1Units: 12,       y1UnitCost: 0, salaryHint: "₹41,000–48,000/month" },
+    { domain: "Youth", section: "salary",    description: "Youth Resource Centre Coordinator",                                                 costCategory: "Salary", unitType: "Month",   y1Units: n * 12,   y1UnitCost: 0, salaryHint: "₹27,000–37,000/month per YRC", notes: `${n} YRC(s)` },
+    { domain: "Youth", section: "salary",    description: "Community Facilitator – Youth",                                                     costCategory: "Salary", unitType: "Month",   y1Units: n * 12,   y1UnitCost: 0, salaryHint: "₹18,000–26,000/month per CF" },
+    { domain: "Youth", section: "travel",    description: "Staff exposure visits",                                                             costCategory: "Other",  unitType: "Annual",  y1Units: 1,        y1UnitCost: n * staffExposure },
+    { domain: "Youth", section: "programme", description: "Small group meetings in area",                                                      costCategory: "Other",  unitType: "Month",   y1Units: n * 12,   y1UnitCost: smallGroupMeeting },
+    { domain: "Youth", section: "programme", description: `Workshops – Yuva Adda (${yuvaAddaCount}/year × ₹${yuvaAddaCost.toLocaleString("en-IN")})`, costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: yuvaAddaCost * yuvaAddaCount },
+    { domain: "Youth", section: "programme", description: `Leadership development training (${leadershipCount}/year × ₹${leadershipCost.toLocaleString("en-IN")})`, costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: leadershipCost * leadershipCount },
+    { domain: "Youth", section: "programme", description: `Felicitation of youth (${felicitationCount}/year × ₹${felicitationCost.toLocaleString("en-IN")})`, costCategory: "Other", unitType: "Per YRC", y1Units: n, y1UnitCost: felicitationCost * felicitationCount },
+    { domain: "Youth", section: "programme", description: `Sports event (${sportsCount}/year × ₹${sportsCost.toLocaleString("en-IN")})`,      costCategory: "Other",  unitType: "Per YRC", y1Units: n,        y1UnitCost: sportsCost * sportsCount },
+    { domain: "Youth", section: "programme", description: "Youth Festival (1/year)",                                                           costCategory: "Other",  unitType: "Per YRC", y1Units: n,        y1UnitCost: festivalCost },
+    { domain: "Youth", section: "programme", description: "Exposure visits for community youth",                                               costCategory: "Other",  unitType: "Per YRC", y1Units: n,        y1UnitCost: exposureCost },
+    { domain: "Youth", section: "programme", description: "Youth-led social actions",                                                          costCategory: "Other",  unitType: "Per YRC", y1Units: n,        y1UnitCost: socialActions },
+    { domain: "Youth", section: "programme", description: "Stationery, IEC, photocopy & printing",                                            costCategory: "Other",  unitType: "Per YRC", y1Units: n,        y1UnitCost: stationery },
     ...(rent > 0 ? [{ domain: "Youth" as BudgetDomain, section: "programme" as BudgetSection, description: "YRC rent & maintenance", costCategory: "Other" as InflationType, unitType: "Month", y1Units: n * 12, y1UnitCost: rent }] : []),
   ];
   return lines(specs, years);
@@ -118,24 +152,41 @@ export function generateYouth(inp: BudgetGeneratorInputs, years: number): Genera
 
 // ─── Elderly + Community Kitchen ─────────────────────────────────────────────
 
-export function generateElderly(inp: BudgetGeneratorInputs, years: number): GeneratedLine[] {
+export function generateElderly(inp: BudgetGeneratorInputs, years: number, r: Record<string, number> = {}): GeneratedLine[] {
   const n = inp.nElderlyCentres;
   const elderly = inp.nElderly;
   const rent = inp.elderlyCentreRentPerMonth;
+
+  const nutritionPerDay      = lookupCost(r, "elderly.nutrition_per_person_per_day");
+  const nutritionDays        = lookupCost(r, "elderly.nutrition_days_per_month");
+  const dryRation            = lookupCost(r, "elderly.dry_ration_per_person_per_month");
+  const vegetables           = lookupCost(r, "elderly.vegetable_per_person_per_month");
+  const gasRefill            = lookupCost(r, "elderly.gas_refill_cost");
+  const gasRefills           = lookupCost(r, "elderly.gas_refills_per_year");
+  const meetingRefresh       = lookupCost(r, "elderly.meeting_refreshment_per_person");
+  const elderlyPerMeeting    = lookupCost(r, "elderly.elderly_per_meeting");
+  const annualDayCost        = lookupCost(r, "elderly.annual_day_cost");
+  const annualDays           = lookupCost(r, "elderly.annual_days_per_year");
+  const volunteerHonorarium  = lookupCost(r, "elderly.volunteer_honorarium_per_month");
+  const volunteersPerCentre  = lookupCost(r, "elderly.volunteers_per_centre");
+  const kitchenTravel        = lookupCost(r, "elderly.kitchen_incharge_travel");
+  const centreSetup          = lookupCost(r, "elderly.centre_setup_cost");
+  const miscContingency      = lookupCost(r, "elderly.misc_contingency_per_centre");
+
   const specs: LineInput[] = [
-    { domain: "Elderly", section: "salary", description: "Elderly Resource Centre In-charge", costCategory: "Salary", unitType: "Month", y1Units: n * 12, y1UnitCost: 0, salaryHint: "₹22,000–28,000/month per centre" },
-    { domain: "Elderly", section: "salary", description: "Community Organisers – Elderly", costCategory: "Salary", unitType: "Month", y1Units: n * 12, y1UnitCost: 0, salaryHint: "₹21,000–22,000/month per CO" },
-    { domain: "Elderly", section: "salary", description: "Community Kitchen In-charge", costCategory: "Salary", unitType: "Month", y1Units: n * 12, y1UnitCost: 0, salaryHint: "₹25,000/month per centre" },
-    { domain: "Elderly", section: "capex", description: "Elderly centre setup (beds, utensils, linen)", costCategory: "Nil", unitType: "Per centre", y1Units: n, y1UnitCost: 20000 },
-    { domain: "Elderly", section: "travel", description: "Kitchen in-charge local travel", costCategory: "Other", unitType: "Month", y1Units: n * 12, y1UnitCost: 3000 },
-    { domain: "Elderly", section: "programme", description: "Day care nutrition (25 days × ₹90 × N elderly × 12 months)", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: Math.round(25 * 90 * elderly * 12) },
-    { domain: "Elderly", section: "programme", description: "Dry ration (₹450/person/month)", costCategory: "Other", unitType: "Month", y1Units: elderly * 12, y1UnitCost: 450 },
-    { domain: "Elderly", section: "programme", description: "Vegetables (₹400/person/month)", costCategory: "Other", unitType: "Month", y1Units: elderly * 12, y1UnitCost: 400 },
-    { domain: "Elderly", section: "programme", description: "Gas refill (bi-monthly × ₹10,000)", costCategory: "Other", unitType: "Per centre", y1Units: n, y1UnitCost: 60000 },
-    { domain: "Elderly", section: "programme", description: "Monthly meeting with elderly (30 pax × ₹100 × 12)", costCategory: "Other", unitType: "Per centre", y1Units: n, y1UnitCost: 36000 },
-    { domain: "Elderly", section: "programme", description: "Annual day – Senior Citizen Day (2 × ₹17,000)", costCategory: "Other", unitType: "Per centre", y1Units: n, y1UnitCost: 34000 },
-    { domain: "Elderly", section: "programme", description: "Community volunteers honoraria (5 × ₹3,600/month)", costCategory: "Other", unitType: "Month", y1Units: n * 12, y1UnitCost: 18000 },
-    { domain: "Elderly", section: "programme", description: "Miscellaneous & contingency", costCategory: "Other", unitType: "Per centre", y1Units: n, y1UnitCost: 60000 },
+    { domain: "Elderly", section: "salary",    description: "Elderly Resource Centre In-charge",                                                                       costCategory: "Salary", unitType: "Month",      y1Units: n * 12,      y1UnitCost: 0, salaryHint: "₹22,000–28,000/month per centre" },
+    { domain: "Elderly", section: "salary",    description: "Community Organisers – Elderly",                                                                          costCategory: "Salary", unitType: "Month",      y1Units: n * 12,      y1UnitCost: 0, salaryHint: "₹21,000–22,000/month per CO" },
+    { domain: "Elderly", section: "salary",    description: "Community Kitchen In-charge",                                                                             costCategory: "Salary", unitType: "Month",      y1Units: n * 12,      y1UnitCost: 0, salaryHint: "₹25,000/month per centre" },
+    { domain: "Elderly", section: "capex",     description: "Elderly centre setup (beds, utensils, linen)",                                                            costCategory: "Nil",    unitType: "Per centre", y1Units: n,           y1UnitCost: centreSetup },
+    { domain: "Elderly", section: "travel",    description: "Kitchen in-charge local travel",                                                                          costCategory: "Other",  unitType: "Month",      y1Units: n * 12,      y1UnitCost: kitchenTravel },
+    { domain: "Elderly", section: "programme", description: `Day care nutrition (${nutritionDays} days × ₹${nutritionPerDay} × ${elderly} elderly × 12 months)`,      costCategory: "Other",  unitType: "Annual",     y1Units: 1,           y1UnitCost: Math.round(nutritionDays * nutritionPerDay * elderly * 12) },
+    { domain: "Elderly", section: "programme", description: "Dry ration (₹450/person/month)",                                                                          costCategory: "Other",  unitType: "Month",      y1Units: elderly * 12, y1UnitCost: dryRation },
+    { domain: "Elderly", section: "programme", description: "Vegetables (₹400/person/month)",                                                                          costCategory: "Other",  unitType: "Month",      y1Units: elderly * 12, y1UnitCost: vegetables },
+    { domain: "Elderly", section: "programme", description: `Gas refill (${gasRefills} refills/year × ₹${gasRefill.toLocaleString("en-IN")})`,                        costCategory: "Other",  unitType: "Per centre", y1Units: n,           y1UnitCost: gasRefill * gasRefills },
+    { domain: "Elderly", section: "programme", description: `Monthly meeting (${elderlyPerMeeting} pax × ₹${meetingRefresh} × 12)`,                                   costCategory: "Other",  unitType: "Per centre", y1Units: n,           y1UnitCost: meetingRefresh * elderlyPerMeeting * 12 },
+    { domain: "Elderly", section: "programme", description: `Annual day – Senior Citizen Day (${annualDays} × ₹${annualDayCost.toLocaleString("en-IN")})`,            costCategory: "Other",  unitType: "Per centre", y1Units: n,           y1UnitCost: annualDayCost * annualDays },
+    { domain: "Elderly", section: "programme", description: `Community volunteers honoraria (${volunteersPerCentre} × ₹${volunteerHonorarium.toLocaleString("en-IN")}/month)`, costCategory: "Other", unitType: "Month", y1Units: n * 12, y1UnitCost: volunteerHonorarium * volunteersPerCentre },
+    { domain: "Elderly", section: "programme", description: "Miscellaneous & contingency",                                                                             costCategory: "Other",  unitType: "Per centre", y1Units: n,           y1UnitCost: miscContingency },
     ...(rent > 0 ? [{ domain: "Elderly" as BudgetDomain, section: "programme" as BudgetSection, description: "Centre rent & maintenance", costCategory: "Other" as InflationType, unitType: "Month", y1Units: n * 12, y1UnitCost: rent }] : []),
   ];
   return lines(specs, years);
@@ -143,23 +194,39 @@ export function generateElderly(inp: BudgetGeneratorInputs, years: number): Gene
 
 // ─── Welfare Rights ───────────────────────────────────────────────────────────
 
-export function generateWelfareRights(inp: BudgetGeneratorInputs, years: number): GeneratedLine[] {
+export function generateWelfareRights(inp: BudgetGeneratorInputs, years: number, r: Record<string, number> = {}): GeneratedLine[] {
   const { nSettlements, nClusters, cosPerCluster, rcRentPerMonth } = inp;
   const totalCOs = nClusters * cosPerCluster;
+
+  const slumRefresh          = lookupCost(r, "wr.slum_meeting_refreshment");
+  const slumParticipants     = lookupCost(r, "wr.slum_meeting_participants");
+  const clusterRefresh       = lookupCost(r, "wr.cluster_meeting_refreshment");
+  const clusterParticipants  = lookupCost(r, "wr.cluster_meeting_participants");
+  const cityTraining         = lookupCost(r, "wr.city_training_cost");
+  const cityMeeting          = lookupCost(r, "wr.city_meeting_cost");
+  const exposurePerLeader    = lookupCost(r, "wr.community_exposure_per_leader");
+  const leadersPerCluster    = lookupCost(r, "wr.leaders_per_cluster");
+  const entitlementCamp      = lookupCost(r, "wr.entitlement_camp_per_settlement");
+  const consultation         = lookupCost(r, "wr.consultation_cost");
+  const governancePerCluster = lookupCost(r, "wr.governance_cost_per_cluster");
+  const deptInteraction      = lookupCost(r, "wr.dept_interaction_per_cluster");
+  const specialOccasions     = lookupCost(r, "wr.special_occasions_cost");
+  const civicBaseline        = lookupCost(r, "wr.civic_baseline_cost");
+
   const specs: LineInput[] = [
-    { domain: "WelfareRights", section: "salary", description: "Entitlement & Collectivization Lead", costCategory: "Salary", unitType: "Month", y1Units: 12, y1UnitCost: 0, salaryHint: "₹40,000–52,000/month" },
-    { domain: "WelfareRights", section: "salary", description: `Community Organisers – E&C (${totalCOs} COs at ${cosPerCluster}/cluster)`, costCategory: "Salary", unitType: "Month", y1Units: totalCOs * 12, y1UnitCost: 0, salaryHint: "₹21,000–26,000/month per CO" },
-    { domain: "WelfareRights", section: "travel", description: "Interaction with departments (travel)", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 3000 * nClusters },
-    { domain: "WelfareRights", section: "programme", description: "Slum-level monthly meeting (20 pax × ₹15 × 12 months)", costCategory: "Other", unitType: "Per settlement", y1Units: nSettlements, y1UnitCost: 3600 },
-    { domain: "WelfareRights", section: "programme", description: "Cluster-level monthly meeting (30 pax × ₹60 × 12 months)", costCategory: "Other", unitType: "Per cluster", y1Units: nClusters, y1UnitCost: 21600 },
-    { domain: "WelfareRights", section: "programme", description: "City-level training of community groups", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 19000 },
-    { domain: "WelfareRights", section: "programme", description: "City-level meetings of community groups", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 16000 },
-    { domain: "WelfareRights", section: "programme", description: "Exposure visit of community groups (50 leaders × ₹500)", costCategory: "Other", unitType: "Per cluster", y1Units: nClusters, y1UnitCost: 25000 },
-    { domain: "WelfareRights", section: "programme", description: "Improving access to entitlements / camps", costCategory: "Other", unitType: "Per settlement", y1Units: nSettlements, y1UnitCost: 240 },
-    { domain: "WelfareRights", section: "programme", description: "Consultation on issues (40 pax, venue + food)", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 20000 },
-    { domain: "WelfareRights", section: "programme", description: "Strengthening of governance / MAS / JRS engagement", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 3000 * nClusters },
-    { domain: "WelfareRights", section: "programme", description: "Observation of special occasions", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 10000 },
-    { domain: "WelfareRights", section: "programme", description: "Civic community baseline", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 50000 },
+    { domain: "WelfareRights", section: "salary",    description: "Entitlement & Collectivization Lead",                                                                              costCategory: "Salary", unitType: "Month",        y1Units: 12,          y1UnitCost: 0,                                          salaryHint: "₹40,000–52,000/month" },
+    { domain: "WelfareRights", section: "salary",    description: `Community Organisers – E&C (${totalCOs} COs at ${cosPerCluster}/cluster)`,                                        costCategory: "Salary", unitType: "Month",        y1Units: totalCOs * 12, y1UnitCost: 0,                                        salaryHint: "₹21,000–26,000/month per CO" },
+    { domain: "WelfareRights", section: "travel",    description: "Interaction with departments (travel)",                                                                            costCategory: "Other",  unitType: "Annual",       y1Units: 1,           y1UnitCost: deptInteraction * nClusters },
+    { domain: "WelfareRights", section: "programme", description: `Slum-level monthly meeting (${slumParticipants} pax × ₹${slumRefresh} × 12 months)`,                             costCategory: "Other",  unitType: "Per settlement", y1Units: nSettlements, y1UnitCost: slumRefresh * slumParticipants * 12 },
+    { domain: "WelfareRights", section: "programme", description: `Cluster-level monthly meeting (${clusterParticipants} pax × ₹${clusterRefresh} × 12 months)`,                   costCategory: "Other",  unitType: "Per cluster",  y1Units: nClusters,   y1UnitCost: clusterRefresh * clusterParticipants * 12 },
+    { domain: "WelfareRights", section: "programme", description: "City-level training of community groups",                                                                          costCategory: "Other",  unitType: "Annual",       y1Units: 1,           y1UnitCost: cityTraining },
+    { domain: "WelfareRights", section: "programme", description: "City-level meetings of community groups",                                                                          costCategory: "Other",  unitType: "Annual",       y1Units: 1,           y1UnitCost: cityMeeting },
+    { domain: "WelfareRights", section: "programme", description: `Exposure visit of community groups (${leadersPerCluster} leaders × ₹${exposurePerLeader})`,                      costCategory: "Other",  unitType: "Per cluster",  y1Units: nClusters,   y1UnitCost: exposurePerLeader * leadersPerCluster },
+    { domain: "WelfareRights", section: "programme", description: "Improving access to entitlements / camps",                                                                         costCategory: "Other",  unitType: "Per settlement", y1Units: nSettlements, y1UnitCost: entitlementCamp },
+    { domain: "WelfareRights", section: "programme", description: "Consultation on issues (40 pax, venue + food)",                                                                    costCategory: "Other",  unitType: "Annual",       y1Units: 1,           y1UnitCost: consultation },
+    { domain: "WelfareRights", section: "programme", description: "Strengthening of governance / MAS / JRS engagement",                                                               costCategory: "Other",  unitType: "Annual",       y1Units: 1,           y1UnitCost: governancePerCluster * nClusters },
+    { domain: "WelfareRights", section: "programme", description: "Observation of special occasions",                                                                                 costCategory: "Other",  unitType: "Annual",       y1Units: 1,           y1UnitCost: specialOccasions },
+    { domain: "WelfareRights", section: "programme", description: "Civic community baseline",                                                                                         costCategory: "Other",  unitType: "Annual",       y1Units: 1,           y1UnitCost: civicBaseline },
     ...(rcRentPerMonth > 0 ? [{ domain: "WelfareRights" as BudgetDomain, section: "programme" as BudgetSection, description: "Resource Centre rent & maintenance", costCategory: "Other" as InflationType, unitType: "Month", y1Units: 12, y1UnitCost: rcRentPerMonth }] : []),
   ];
   return lines(specs, years);
@@ -167,31 +234,53 @@ export function generateWelfareRights(inp: BudgetGeneratorInputs, years: number)
 
 // ─── Creche ───────────────────────────────────────────────────────────────────
 
-export function generateCreche(inp: BudgetGeneratorInputs, years: number): GeneratedLine[] {
+export function generateCreche(inp: BudgetGeneratorInputs, years: number, r: Record<string, number> = {}): GeneratedLine[] {
   const n = inp.nCreches;
   const rent = inp.crecheRentPerMonth;
-  // Supervisory staff shared ratios
-  const supervisors = Math.ceil(n / 10);
-  const coordinators = Math.ceil(n / 40);
+
+  const supervisorPerN       = lookupCost(r, "creche.supervisor_per_n_creches");
+  const coordinatorPerN      = lookupCost(r, "creche.coordinator_per_n_creches");
+  const supervisors          = Math.ceil(n / supervisorPerN);
+  const coordinators         = Math.ceil(n / coordinatorPerN);
+
+  const supervisorSalary     = lookupCost(r, "creche.supervisor_salary_per_month");
+  const coordinatorSalary    = lookupCost(r, "creche.coordinator_salary_per_month");
+  const supervisorTravel     = lookupCost(r, "creche.supervisor_travel_per_month");
+  const coordinatorTravel    = lookupCost(r, "creche.coordinator_travel_per_month");
+  const workerHonorarium     = lookupCost(r, "creche.worker_honorarium_per_month");
+  const workersPerCreche     = lookupCost(r, "creche.workers_per_creche");
+  const maternityPct         = lookupCost(r, "creche.maternity_buffer_pct");
+  const setupCost            = lookupCost(r, "creche.setup_cost");
+  const feedingCost          = lookupCost(r, "creche.feeding_cost_per_child_per_year");
+  const eggCost              = lookupCost(r, "creche.egg_cost_per_year");
+  const gasCost              = lookupCost(r, "creche.gas_cost_per_year");
+  const hygieneCost          = lookupCost(r, "creche.hygiene_cost_per_year");
+  const transportCost        = lookupCost(r, "creche.food_transport_per_year");
+  const playMaterials        = lookupCost(r, "creche.play_materials_per_year");
+  const flexiFund            = lookupCost(r, "creche.flexi_fund_per_year");
+  const trainingCost         = lookupCost(r, "creche.training_cost_per_year");
+  const caregiverFood        = lookupCost(r, "creche.caregiver_food_per_year");
+
+  const workerAnnualWithBuffer = Math.round(workerHonorarium * workersPerCreche * 12 * (1 + maternityPct / 100));
+  const capexMaintenance = Math.round(setupCost * 0.05);
 
   const specs: LineInput[] = [
-    { domain: "Creche", section: "salary", description: `Creche Supervisor (1 per 10 creches — ${supervisors} total)`, costCategory: "Salary", unitType: "Month", y1Units: supervisors * 12, y1UnitCost: 25000 },
-    { domain: "Creche", section: "salary", description: `Cluster Coordinator (1 per 40 creches — ${coordinators} total)`, costCategory: "Salary", unitType: "Month", y1Units: coordinators * 12, y1UnitCost: 35000 },
-    // CAPEX year 1
-    { domain: "Creche", section: "capex", description: "One-time creche setup (anthropometric equipment, utensils, linen, electrical, safety)", costCategory: "Nil", unitType: "Per creche", y1Units: n, y1UnitCost: 131000 },
-    { domain: "Creche", section: "capex", description: "CAPEX maintenance from year 2 (5% of setup cost)", costCategory: "Nil", unitType: "Per creche", y1Units: 0, y1UnitCost: 6550 },
-    { domain: "Creche", section: "travel", description: "Creche supervisor travel", costCategory: "Other", unitType: "Month", y1Units: supervisors * 12, y1UnitCost: 3750 },
-    { domain: "Creche", section: "travel", description: "Cluster coordinator travel", costCategory: "Other", unitType: "Month", y1Units: coordinators * 12, y1UnitCost: 6000 },
-    { domain: "Creche", section: "programme", description: "Creche worker honorarium (2 workers/creche, 10% maternity buffer)", costCategory: "Salary", unitType: "Per creche", y1Units: n, y1UnitCost: 316800 },
-    { domain: "Creche", section: "programme", description: "Feeding cost – breakfast + lunch + evening snacks (20 children)", costCategory: "Other", unitType: "Per creche", y1Units: n, y1UnitCost: 89561 },
-    { domain: "Creche", section: "programme", description: "Eggs (6/week/child × 20 children)", costCategory: "Other", unitType: "Per creche", y1Units: n, y1UnitCost: 40560 },
-    { domain: "Creche", section: "programme", description: "Gas cylinder (₹1,000/month)", costCategory: "Other", unitType: "Per creche", y1Units: n, y1UnitCost: 12000 },
-    { domain: "Creche", section: "programme", description: "Hygiene, sanitation, first aid & stationary", costCategory: "Other", unitType: "Per creche", y1Units: n, y1UnitCost: 10720 },
-    { domain: "Creche", section: "programme", description: "Food transport (₹1,000/month)", costCategory: "Other", unitType: "Per creche", y1Units: n, y1UnitCost: 12000 },
-    { domain: "Creche", section: "programme", description: "Play materials, nappies & spare clothes", costCategory: "Other", unitType: "Per creche", y1Units: n, y1UnitCost: 9500 },
-    { domain: "Creche", section: "programme", description: "Flexi fund for miscellaneous expenses", costCategory: "Other", unitType: "Per creche", y1Units: n, y1UnitCost: 5359 },
-    { domain: "Creche", section: "programme", description: "Training & review meetings of creche workers", costCategory: "Other", unitType: "Per creche", y1Units: n, y1UnitCost: 33600 },
-    { domain: "Creche", section: "programme", description: "Food for 2 caregivers (₹1,300/month)", costCategory: "Other", unitType: "Per creche", y1Units: n, y1UnitCost: 15600 },
+    { domain: "Creche", section: "salary",    description: `Creche Supervisor (1 per ${supervisorPerN} creches — ${supervisors} total)`,             costCategory: "Salary", unitType: "Month",      y1Units: supervisors * 12,  y1UnitCost: supervisorSalary },
+    { domain: "Creche", section: "salary",    description: `Cluster Coordinator (1 per ${coordinatorPerN} creches — ${coordinators} total)`,         costCategory: "Salary", unitType: "Month",      y1Units: coordinators * 12, y1UnitCost: coordinatorSalary },
+    { domain: "Creche", section: "capex",     description: "One-time creche setup (anthropometric equipment, utensils, linen, electrical, safety)",  costCategory: "Nil",    unitType: "Per creche", y1Units: n,                 y1UnitCost: setupCost },
+    { domain: "Creche", section: "capex",     description: "CAPEX maintenance from year 2 (5% of setup cost)",                                        costCategory: "Nil",    unitType: "Per creche", y1Units: 0,                 y1UnitCost: capexMaintenance },
+    { domain: "Creche", section: "travel",    description: "Creche supervisor travel",                                                                costCategory: "Other",  unitType: "Month",      y1Units: supervisors * 12,  y1UnitCost: supervisorTravel },
+    { domain: "Creche", section: "travel",    description: "Cluster coordinator travel",                                                              costCategory: "Other",  unitType: "Month",      y1Units: coordinators * 12, y1UnitCost: coordinatorTravel },
+    { domain: "Creche", section: "programme", description: `Creche worker honorarium (${workersPerCreche} workers/creche, ${maternityPct}% maternity buffer)`, costCategory: "Salary", unitType: "Per creche", y1Units: n, y1UnitCost: workerAnnualWithBuffer },
+    { domain: "Creche", section: "programme", description: "Feeding cost – breakfast + lunch + evening snacks (20 children)",                        costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: feedingCost },
+    { domain: "Creche", section: "programme", description: "Eggs (6/week/child × 20 children)",                                                       costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: eggCost },
+    { domain: "Creche", section: "programme", description: "Gas cylinder (₹1,000/month)",                                                             costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: gasCost },
+    { domain: "Creche", section: "programme", description: "Hygiene, sanitation, first aid & stationary",                                             costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: hygieneCost },
+    { domain: "Creche", section: "programme", description: "Food transport (₹1,000/month)",                                                           costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: transportCost },
+    { domain: "Creche", section: "programme", description: "Play materials, nappies & spare clothes",                                                 costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: playMaterials },
+    { domain: "Creche", section: "programme", description: "Flexi fund for miscellaneous expenses",                                                   costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: flexiFund },
+    { domain: "Creche", section: "programme", description: "Training & review meetings of creche workers",                                            costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: trainingCost },
+    { domain: "Creche", section: "programme", description: "Food for 2 caregivers (₹1,300/month)",                                                    costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: caregiverFood },
     ...(rent > 0 ? [{ domain: "Creche" as BudgetDomain, section: "programme" as BudgetSection, description: "Creche rent (₹10,000/month standard)", costCategory: "Other" as InflationType, unitType: "Month", y1Units: n * 12, y1UnitCost: rent }] : []),
   ];
   return lines(specs, years);
@@ -199,14 +288,19 @@ export function generateCreche(inp: BudgetGeneratorInputs, years: number): Gener
 
 // ─── Cross-cutting: Staff capacity building + team ────────────────────────────
 
-export function generateCrossTeam(years: number): GeneratedLine[] {
+export function generateCrossTeam(years: number, r: Record<string, number> = {}): GeneratedLine[] {
+  const staffCapacity  = lookupCost(r, "cross.staff_capacity_building");
+  const teamBuilding   = lookupCost(r, "cross.team_building_offsite");
+  const planningMtgs   = lookupCost(r, "cross.planning_review_meetings");
+  const crisisSupport  = lookupCost(r, "cross.crisis_intervention");
+
   const specs: LineInput[] = [
-    { domain: null, section: "salary", description: "MIS Coordinator", costCategory: "Salary", unitType: "Month", y1Units: 12, y1UnitCost: 0, salaryHint: "₹35,000–41,000/month" },
-    { domain: null, section: "salary", description: "Accountant", costCategory: "Salary", unitType: "Month", y1Units: 12, y1UnitCost: 0, salaryHint: "₹33,000–40,000/month" },
-    { domain: null, section: "programme", description: "Staff capacity building training", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 14480 },
-    { domain: null, section: "programme", description: "Team building (3-day offsite)", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 204600 },
-    { domain: null, section: "programme", description: "Planning & review meetings", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 5400 },
-    { domain: null, section: "programme", description: "Crisis intervention support", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 2500 },
+    { domain: null, section: "salary",    description: "MIS Coordinator",                    costCategory: "Salary", unitType: "Month",  y1Units: 12, y1UnitCost: 0, salaryHint: "₹35,000–41,000/month" },
+    { domain: null, section: "salary",    description: "Accountant",                         costCategory: "Salary", unitType: "Month",  y1Units: 12, y1UnitCost: 0, salaryHint: "₹33,000–40,000/month" },
+    { domain: null, section: "programme", description: "Staff capacity building training",   costCategory: "Other",  unitType: "Annual", y1Units: 1,  y1UnitCost: staffCapacity },
+    { domain: null, section: "programme", description: "Team building (3-day offsite)",      costCategory: "Other",  unitType: "Annual", y1Units: 1,  y1UnitCost: teamBuilding },
+    { domain: null, section: "programme", description: "Planning & review meetings",         costCategory: "Other",  unitType: "Annual", y1Units: 1,  y1UnitCost: planningMtgs },
+    { domain: null, section: "programme", description: "Crisis intervention support",        costCategory: "Other",  unitType: "Annual", y1Units: 1,  y1UnitCost: crisisSupport },
   ];
   return lines(specs, years);
 }
@@ -215,16 +309,16 @@ export function generateCrossTeam(years: number): GeneratedLine[] {
 
 export function generateAdminStubs(years: number): GeneratedLine[] {
   const salarySpecs: LineInput[] = [
-    { domain: null, section: "admin_salary", description: "Project Manager / Director", costCategory: "Salary", unitType: "Month", y1Units: 12, y1UnitCost: 0, salaryHint: "Enter actuals", isAutoGenerated: false },
-    { domain: null, section: "admin_salary", description: "Finance / Admin Officer", costCategory: "Salary", unitType: "Month", y1Units: 12, y1UnitCost: 0, salaryHint: "Enter actuals", isAutoGenerated: false },
+    { domain: null, section: "admin_salary", description: "Project Manager / Director",           costCategory: "Salary", unitType: "Month",  y1Units: 12, y1UnitCost: 0, salaryHint: "Enter actuals", isAutoGenerated: false },
+    { domain: null, section: "admin_salary", description: "Finance / Admin Officer",              costCategory: "Salary", unitType: "Month",  y1Units: 12, y1UnitCost: 0, salaryHint: "Enter actuals", isAutoGenerated: false },
   ];
   const otherSpecs: LineInput[] = [
-    { domain: null, section: "admin_other", description: "Office rent", costCategory: "Other", unitType: "Month", y1Units: 12, y1UnitCost: 0, isAutoGenerated: false },
+    { domain: null, section: "admin_other", description: "Office rent",                           costCategory: "Other",  unitType: "Month",  y1Units: 12, y1UnitCost: 0, isAutoGenerated: false },
     { domain: null, section: "admin_other", description: "Utilities (electricity, water, internet)", costCategory: "Other", unitType: "Month", y1Units: 12, y1UnitCost: 0, isAutoGenerated: false },
-    { domain: null, section: "admin_other", description: "Communication (phone, printing)", costCategory: "Other", unitType: "Month", y1Units: 12, y1UnitCost: 0, isAutoGenerated: false },
-    { domain: null, section: "admin_other", description: "Audit fees", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 0, isAutoGenerated: false },
-    { domain: null, section: "admin_other", description: "Insurance", costCategory: "Nil", unitType: "Annual", y1Units: 1, y1UnitCost: 0, isAutoGenerated: false },
-    { domain: null, section: "admin_other", description: "Staff travel (admin)", costCategory: "Other", unitType: "Annual", y1Units: 1, y1UnitCost: 0, isAutoGenerated: false },
+    { domain: null, section: "admin_other", description: "Communication (phone, printing)",       costCategory: "Other",  unitType: "Month",  y1Units: 12, y1UnitCost: 0, isAutoGenerated: false },
+    { domain: null, section: "admin_other", description: "Audit fees",                            costCategory: "Other",  unitType: "Annual", y1Units: 1,  y1UnitCost: 0, isAutoGenerated: false },
+    { domain: null, section: "admin_other", description: "Insurance",                             costCategory: "Nil",    unitType: "Annual", y1Units: 1,  y1UnitCost: 0, isAutoGenerated: false },
+    { domain: null, section: "admin_other", description: "Staff travel (admin)",                  costCategory: "Other",  unitType: "Annual", y1Units: 1,  y1UnitCost: 0, isAutoGenerated: false },
   ];
   return [...lines(salarySpecs, years), ...lines(otherSpecs, years, salarySpecs.length)];
 }
@@ -234,7 +328,8 @@ export function generateAdminStubs(years: number): GeneratedLine[] {
 export function generateBudgetLines(
   domains: BudgetDomain[],
   inp: BudgetGeneratorInputs,
-  years: number
+  years: number,
+  registry: Record<string, number> = {}
 ): GeneratedLine[] {
   const all: GeneratedLine[] = [];
   const push = (generated: GeneratedLine[]) => {
@@ -242,12 +337,12 @@ export function generateBudgetLines(
     all.push(...generated.map(l => ({ ...l, position: base + l.position })));
   };
 
-  if (domains.includes("Children"))     push(generateChildren(inp, years));
-  if (domains.includes("Youth"))         push(generateYouth(inp, years));
-  if (domains.includes("Elderly"))       push(generateElderly(inp, years));
-  if (domains.includes("WelfareRights")) push(generateWelfareRights(inp, years));
-  if (domains.includes("Creche"))        push(generateCreche(inp, years));
-  push(generateCrossTeam(years));
+  if (domains.includes("Children"))     push(generateChildren(inp, years, registry));
+  if (domains.includes("Youth"))         push(generateYouth(inp, years, registry));
+  if (domains.includes("Elderly"))       push(generateElderly(inp, years, registry));
+  if (domains.includes("WelfareRights")) push(generateWelfareRights(inp, years, registry));
+  if (domains.includes("Creche"))        push(generateCreche(inp, years, registry));
+  push(generateCrossTeam(years, registry));
   push(generateAdminStubs(years));
 
   return all;
