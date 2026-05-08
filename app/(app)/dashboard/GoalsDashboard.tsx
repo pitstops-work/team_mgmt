@@ -34,6 +34,7 @@ type Goal = {
   needsCity: CityRef | null;
   needsZone: { id: string; name: string; city: CityRef | null } | null;
   needsCluster: { id: string; name: string; zone: { id: string; name: string; city: CityRef | null } } | null;
+  coOwners?: { userId: string }[];
 };
 
 type GeoRef = { id: string; title: string; needsDomain: string | null; needsZoneId: string | null; needsClusterId: string | null };
