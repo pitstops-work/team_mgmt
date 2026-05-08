@@ -342,8 +342,7 @@ export default function MapView({
               onCentreClickRef.current(props.partner || "", props.zone || "", props.cluster || "", centreFeature);
             }
           });
-          map.on("mouseenter", circId, () => { map.getCanvas().style.cursor = "pointer"; });
-          map.on("mouseleave", circId, () => { map.getCanvas().style.cursor = ""; });
+          // cursor managed by the global mousemove handler
         } catch (err) {
           console.warn(`[MapView] facility layer ${fl.layerKey} setup skipped:`, err instanceof Error ? err.message : err);
         }
@@ -407,12 +406,16 @@ export default function MapView({
       map.on("click", (e) => {
         const { x, y } = e.point;
 
-        // If a point/circle layer was clicked, let its own handler run instead
+        // If a point/circle layer was clicked, let its own handler run instead.
+        // Use a 6px box — single-point QRF misses clicks near the circle edge.
         const circleLayers = (map.getStyle()?.layers ?? [])
           .filter(l => l.id.endsWith("-circle"))
           .map(l => l.id);
         if (circleLayers.length) {
-          const circleHits = map.queryRenderedFeatures(e.point, { layers: circleLayers });
+          const circleHits = map.queryRenderedFeatures(
+            [[x - 6, y - 6], [x + 6, y + 6]] as [maplibregl.PointLike, maplibregl.PointLike],
+            { layers: circleLayers }
+          );
           if (circleHits.length) return;
         }
 
@@ -463,14 +466,18 @@ export default function MapView({
         });
       });
 
-      // Cursor: pointer when over any clickable polygon layer.
-      // Single mousemove handler is the sole cursor controller — no mouseenter/mouseleave on fills.
+      // Cursor: pointer when over any clickable layer (polygons, zones, clusters, circles).
+      // This is the sole cursor controller — mouseenter/mouseleave on individual layers
+      // would be immediately overridden by this handler on the next mouse move.
       map.on("mousemove", (e) => {
         const { x, y } = e.point;
-        const box = [[x - 3, y - 3], [x + 3, y + 3]] as [maplibregl.PointLike, maplibregl.PointLike];
+        const box = [[x - 8, y - 8], [x + 8, y + 8]] as [maplibregl.PointLike, maplibregl.PointLike];
         const settlementIds = settlementFillIds.filter(id => !!map.getLayer(id));
         const zoneCluIds = (["zones-fill", "clusters-fill"] as const).filter(id => !!map.getLayer(id));
-        const checkIds = [...settlementIds, ...zoneCluIds];
+        const circleIds = (map.getStyle()?.layers ?? [])
+          .filter(l => l.id.endsWith("-circle") && !!map.getLayer(l.id))
+          .map(l => l.id);
+        const checkIds = [...settlementIds, ...zoneCluIds, ...circleIds];
         const near = checkIds.length > 0 && map.queryRenderedFeatures(box, { layers: checkIds }).length > 0;
         map.getCanvas().style.cursor = near ? "pointer" : "";
       });
@@ -627,8 +634,7 @@ export default function MapView({
                 }
               });
 
-              map.on("mouseenter", circId, () => { map.getCanvas().style.cursor = "pointer"; });
-              map.on("mouseleave", circId, () => { map.getCanvas().style.cursor = ""; });
+              // cursor managed by the global mousemove handler
             } catch (err) {
               console.warn("[MapView] point layer setup skipped:", err instanceof Error ? err.message : err);
             }
@@ -677,8 +683,7 @@ export default function MapView({
               </div>`)
               .addTo(map);
           });
-          map.on("mouseenter", "schools-circle", () => { map.getCanvas().style.cursor = "pointer"; });
-          map.on("mouseleave", "schools-circle", () => { map.getCanvas().style.cursor = ""; });
+          // cursor managed by the global mousemove handler
         }
       } catch (err) {
         console.warn("[MapView] schools source setup skipped:", err instanceof Error ? err.message : err);
@@ -726,8 +731,7 @@ export default function MapView({
               </div>`)
               .addTo(map);
           });
-          map.on("mouseenter", "health-circle", () => { map.getCanvas().style.cursor = "pointer"; });
-          map.on("mouseleave", "health-circle", () => { map.getCanvas().style.cursor = ""; });
+          // cursor managed by the global mousemove handler
         }
       } catch (err) {
         console.warn("[MapView] health source setup skipped:", err instanceof Error ? err.message : err);
