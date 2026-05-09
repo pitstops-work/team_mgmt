@@ -96,6 +96,13 @@ export async function seedProgrammeInputs(city: string) {
   revalidatePath("/admin");
 }
 
+export async function deleteCostItem(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  await prisma.costRegistry.delete({ where: { id } });
+  revalidatePath("/admin");
+}
+
 export async function resetCostRegistry(id: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");

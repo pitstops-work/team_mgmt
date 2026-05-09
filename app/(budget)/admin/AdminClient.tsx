@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition, Fragment } from "react";
 import {
-  seedCostRegistry, updateCostRegistry, resetCostRegistry, addCostItem,
+  seedCostRegistry, updateCostRegistry, resetCostRegistry, deleteCostItem, addCostItem,
   seedProgrammeInputs,
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
   reorderLineTemplates, seedLineTemplates,
@@ -143,6 +143,12 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
     startTransition(() => resetCostRegistry(row.id!));
   };
 
+  const handleDeleteItem = (row: CostRow) => {
+    if (!row.id) return;
+    if (!confirm(`Delete "${row.itemKey}"? This cannot be undone.`)) return;
+    startTransition(() => deleteCostItem(row.id!));
+  };
+
   const handleAddItem = () => {
     const key = newKey.trim();
     if (!key || !newCost) return;
@@ -200,7 +206,8 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
       <td className="px-3 py-2.5">
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={() => startEdit(row)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
-          {row.isEdited && row.id && <button onClick={() => handleReset(row)} className="text-xs text-stone-400 hover:text-red-500">Reset</button>}
+          {row.isEdited && row.id && <button onClick={() => handleReset(row)} className="text-xs text-stone-400 hover:text-stone-600">Reset</button>}
+          {row.id && <button onClick={() => handleDeleteItem(row)} className="text-xs text-stone-300 hover:text-red-500">Delete</button>}
         </div>
       </td>
     </tr>
