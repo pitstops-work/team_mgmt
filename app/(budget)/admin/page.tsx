@@ -1,20 +1,22 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { DEFAULT_COSTS } from "@/lib/budget-costs";
+import { getDefaultsForCity } from "@/lib/budget-costs";
 import AdminClient from "./AdminClient";
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {
   await auth(); // auth guard handled by layout
 
+  const { city = "Bangalore" } = await searchParams;
+
   const registry = await prisma.costRegistry.findMany({
-    where: { city: "Bangalore" },
+    where: { city },
     orderBy: [{ domain: "asc" }, { itemKey: "asc" }],
   });
 
   const isSeeded = registry.length > 0;
+  const defaults = getDefaultsForCity(city);
 
-  // Merge DB entries with defaults so we always show all items
-  const merged = DEFAULT_COSTS.map(def => {
+  const merged = defaults.map(def => {
     const db = registry.find(r => r.itemKey === def.itemKey);
     return {
       id: db?.id ?? null,
@@ -28,5 +30,5 @@ export default async function AdminPage() {
     };
   });
 
-  return <AdminClient costs={merged} isSeeded={isSeeded} />;
+  return <AdminClient costs={merged} isSeeded={isSeeded} city={city} />;
 }

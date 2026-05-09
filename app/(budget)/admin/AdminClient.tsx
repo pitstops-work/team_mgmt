@@ -25,7 +25,9 @@ function formatKey(key: string) {
   return key.split(".").slice(1).join(".").replace(/_/g, " ");
 }
 
-export default function AdminClient({ costs, isSeeded }: { costs: CostRow[]; isSeeded: boolean }) {
+const CITIES = ["Bangalore", "Chennai"] as const;
+
+export default function AdminClient({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded: boolean; city: string }) {
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<string | null>(null);
   const [editVal, setEditVal] = useState<string>("");
@@ -40,7 +42,7 @@ export default function AdminClient({ costs, isSeeded }: { costs: CostRow[]; isS
 
   const currentGroup = grouped.find(g => (g.domain ?? "cross") === activeDomain) ?? grouped[0];
 
-  const handleSeed = () => startTransition(() => seedCostRegistry());
+  const handleSeed = () => startTransition(() => seedCostRegistry(city));
 
   const startEdit = (row: CostRow) => {
     setEditing(row.itemKey);
@@ -89,6 +91,23 @@ export default function AdminClient({ costs, isSeeded }: { costs: CostRow[]; isS
             {costs.filter(c => c.isEdited).length} customised · {costs.length} total
           </span>
         )}
+      </div>
+
+      {/* City tabs */}
+      <div className="flex gap-1 mb-5 border-b border-stone-200 pb-3">
+        {CITIES.map(c => (
+          <a
+            key={c}
+            href={`/admin?city=${c}`}
+            className={`text-sm px-4 py-1.5 rounded-lg transition-all ${
+              city === c
+                ? "bg-stone-800 text-white"
+                : "text-stone-600 hover:bg-stone-100"
+            }`}
+          >
+            {c}
+          </a>
+        ))}
       </div>
 
       {/* Domain tabs */}

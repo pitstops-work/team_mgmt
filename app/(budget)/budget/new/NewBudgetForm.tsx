@@ -17,6 +17,7 @@ export default function NewBudgetForm() {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedDomains, setSelectedDomains] = useState<Set<Domain>>(new Set());
   const [years, setYears] = useState<1 | 3>(1);
+  const [city, setCity] = useState<"Bangalore" | "Chennai">("Bangalore");
   const [name, setName] = useState("");
   const [inputs, setInputs] = useState({
     nSettlements: 0, nClusters: 0,
@@ -43,6 +44,7 @@ export default function NewBudgetForm() {
     startTransition(async () => {
       const payload: CreateBudgetPayload = {
         name: name.trim(),
+        city,
         domains: Array.from(selectedDomains) as CreateBudgetPayload["domains"],
         years,
         ...inputs,
@@ -107,6 +109,24 @@ export default function NewBudgetForm() {
                   }`}
                 >
                   {y === 1 ? "1 Year" : "3 Years (with inflation)"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-2">City</label>
+            <div className="flex gap-3">
+              {(["Bangalore", "Chennai"] as const).map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCity(c)}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${
+                    city === c ? "border-sky-500 bg-sky-50 text-sky-700" : "border-stone-200 text-stone-700 hover:border-stone-300"
+                  }`}
+                >
+                  {c}
                 </button>
               ))}
             </div>

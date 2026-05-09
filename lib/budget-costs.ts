@@ -115,6 +115,69 @@ export const DEFAULT_COSTS: CostItem[] = [
   { domain: null,       itemKey: "cross.crisis_intervention",              unitCost: 2500,   unit: "₹/year" },
 ];
 
+// ── Chennai defaults ──────────────────────────────────────────────────────────
+// Sourced from the standardised APF Chennai R-2604/R-2510 template (Arunodhaya,
+// TNDWWT, DBAI, DBSSS, Thozhamai all use identical programme costs).
+// Only items that differ from Bangalore are listed here; lookupCost falls back
+// to DEFAULT_COSTS (Bangalore) for anything not overridden.
+export const DEFAULT_COSTS_CHENNAI: CostItem[] = [
+
+  // ── Welfare Rights ────────────────────────────────────────────────────────
+  // Chennai community meeting = ₹375 all-in per settlement per occurrence.
+  // Set participants=1 so the generator total = 375 × 1 × 12 = ₹4,500/settlement/yr.
+  { domain: "WelfareRights", itemKey: "wr.slum_meeting_refreshment",        unitCost: 375,    unit: "₹/settlement/occurrence", notes: "Community meeting — all-in per occurrence" },
+  { domain: "WelfareRights", itemKey: "wr.slum_meeting_participants",        unitCost: 1,      unit: "units",                   notes: "1 unit = one settlement occurrence" },
+  // Cluster-level awareness programme ₹21,000/cluster/year → ₹1,750/month × 1
+  { domain: "WelfareRights", itemKey: "wr.cluster_meeting_refreshment",     unitCost: 1750,   unit: "₹/cluster/month",         notes: "Awareness programme ₹21,000/yr ÷ 12" },
+  { domain: "WelfareRights", itemKey: "wr.cluster_meeting_participants",    unitCost: 1,      unit: "units" },
+  // SVG leadership training (annual)
+  { domain: "WelfareRights", itemKey: "wr.city_training_cost",              unitCost: 105000, unit: "₹/year",                  notes: "SVG leadership training" },
+  // SVG area-level event & meetings
+  { domain: "WelfareRights", itemKey: "wr.city_meeting_cost",               unitCost: 9050,   unit: "₹/year",                  notes: "SVG area-level event & meetings" },
+  // Staff exposure visit per person
+  { domain: "WelfareRights", itemKey: "wr.community_exposure_per_leader",   unitCost: 10500,  unit: "₹/staff",                 notes: "Staff exposure visit" },
+  { domain: "WelfareRights", itemKey: "wr.leaders_per_cluster",             unitCost: 1,      unit: "staff per cluster" },
+  // SVG settlement-level meeting ₹625/settlement
+  { domain: "WelfareRights", itemKey: "wr.entitlement_camp_per_settlement", unitCost: 625,    unit: "₹/settlement",            notes: "SVG settlement-level meeting" },
+  // Leaders training — 4 quarters × ₹12,750 = ₹51,000/year
+  { domain: "WelfareRights", itemKey: "wr.consultation_cost",               unitCost: 51000,  unit: "₹/year",                  notes: "Leaders training (4 × ₹12,750/quarter)" },
+  // Entitlement camp per area = ₹1,250
+  { domain: "WelfareRights", itemKey: "wr.governance_cost_per_cluster",     unitCost: 1250,   unit: "₹/area/year",             notes: "Entitlement camp" },
+  // Area coordinator travel ₹1,500/month × 12
+  { domain: "WelfareRights", itemKey: "wr.dept_interaction_per_cluster",    unitCost: 18000,  unit: "₹/area/year",             notes: "Area coordinator travel" },
+  // Training of community volunteers
+  { domain: "WelfareRights", itemKey: "wr.special_occasions_cost",          unitCost: 12000,  unit: "₹/year",                  notes: "Training of community volunteers" },
+  // Health camp per area
+  { domain: "WelfareRights", itemKey: "wr.civic_baseline_cost",             unitCost: 2750,   unit: "₹/year",                  notes: "Health camp per area" },
+
+  // ── Elderly ───────────────────────────────────────────────────────────────
+  // Chennai uses "Friend of the Elderly" (dedicated worker model, Nil inflation)
+  { domain: "Elderly",       itemKey: "elderly.volunteer_honorarium_per_month", unitCost: 19200, unit: "₹/worker/month",       notes: "Friend of the Elderly honorarium (Nil inflation)" },
+  { domain: "Elderly",       itemKey: "elderly.volunteers_per_centre",      unitCost: 3,      unit: "workers",                 notes: "EP workers per centre (1 per 500 elderly)" },
+  { domain: "Elderly",       itemKey: "elderly.kitchen_incharge_travel",    unitCost: 1000,   unit: "₹/month",                 notes: "EP Coordinator travel" },
+  { domain: "Elderly",       itemKey: "elderly.misc_contingency_per_centre",unitCost: 5000,   unit: "₹/year/centre",           notes: "Medicines & first aid" },
+
+  // ── Creche ────────────────────────────────────────────────────────────────
+  // Chennai: 3 workers per crèche, 1 supervisor per 5 crèches
+  { domain: "Creche",        itemKey: "creche.workers_per_creche",          unitCost: 3,      unit: "workers",                 notes: "3 crèche workers per crèche (Chennai model)" },
+  { domain: "Creche",        itemKey: "creche.supervisor_per_n_creches",    unitCost: 5,      unit: "creches per supervisor",  notes: "1 supervisor per 5 crèches" },
+
+  // ── Cross-cutting ─────────────────────────────────────────────────────────
+  // Staff training ₹571/staff — estimate for ~20 staff
+  { domain: null,            itemKey: "cross.staff_capacity_building",      unitCost: 11420,  unit: "₹/year",                  notes: "₹571/staff × ~20 staff" },
+  { domain: null,            itemKey: "cross.team_building_offsite",        unitCost: 150000, unit: "₹/year" },
+];
+
+// Returns the full cost list for a city, merging Chennai overrides onto the Bangalore base.
+export function getDefaultsForCity(city: string): CostItem[] {
+  if (city !== "Chennai") return DEFAULT_COSTS;
+  const overrideMap = new Map(DEFAULT_COSTS_CHENNAI.map(c => [c.itemKey, c]));
+  const base = DEFAULT_COSTS.map(c => overrideMap.get(c.itemKey) ?? c);
+  const bangaloreKeys = new Set(DEFAULT_COSTS.map(c => c.itemKey));
+  const chennaiOnly = DEFAULT_COSTS_CHENNAI.filter(c => !bangaloreKeys.has(c.itemKey));
+  return [...base, ...chennaiOnly];
+}
+
 // Lookup helper — returns the unitCost for a given itemKey from the seeded/edited registry,
 // falling back to DEFAULT_COSTS if not found.
 export function lookupCost(

@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 
 export type CreateBudgetPayload = {
   name: string;
+  city: string;
   domains: BudgetDomain[];
   years: 1 | 3;
   nSettlements: number;
@@ -30,7 +31,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
-  const registryRows = await prisma.costRegistry.findMany({ where: { city: "Bangalore" } });
+  const registryRows = await prisma.costRegistry.findMany({ where: { city: payload.city } });
   const registry: Record<string, number> = Object.fromEntries(registryRows.map(r => [r.itemKey, r.unitCost]));
 
   const lines = generateBudgetLines(payload.domains, {
@@ -52,6 +53,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
   const budget = await prisma.budget.create({
     data: {
       name: payload.name,
+      city: payload.city,
       partnerId: session.user.id,
       domains: payload.domains,
       years: payload.years,
