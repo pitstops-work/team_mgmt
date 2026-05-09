@@ -815,13 +815,30 @@ const INPUT_GROUPS: { label: string; fields: { key: keyof BudgetGeneratorInputs;
   ]},
 ];
 
+// Sections excluded from per-beneficiary cost calculations
+const EXCLUDED_FROM_PER_UNIT = new Set<BudgetSection>(["capex", "admin_salary", "admin_other"]);
+
 const fmt = (n: number) => n === 0 ? "—" : n.toLocaleString("en-IN");
 const fmtCost = (n: number) => n === 0 ? "—" : `₹${n.toLocaleString("en-IN")}`;
+
+// Parse "₹40,000–55,000/month" or "₹45,000/month" → average monthly value
+function parseIndicativeSalary(hint: string | null | undefined): number {
+  if (!hint) return 0;
+  const nums = [...hint.replace(/,/g, "").matchAll(/\d+/g)]
+    .map(m => parseInt(m[0]))
+    .filter(n => n > 999);
+  return nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
+}
 
 function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; costs: CostRow[] }) {
   const [inp, setInp] = useState<BudgetGeneratorInputs>(DEFAULT_INPUTS);
   const setField = (k: keyof BudgetGeneratorInputs, v: number) =>
     setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
+
+  // Extra denominators not in BudgetGeneratorInputs
+  const [denoms, setDenoms] = useState({ nYouth: 100, nInfants: 60, nHouseholds: 500 });
+  const setDenom = (k: keyof typeof denoms, v: number) =>
+    setDenoms(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
 
   const registry = useMemo(
     () => Object.fromEntries(costs.map(c => [c.itemKey, c.currentCost])),
@@ -833,31 +850,81 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
     [inp, registry, templates]
   );
 
+  type AnalysisLine = ReturnType<typeof generateBudgetLines>[number] & { isIndicative: boolean };
+
+  // Fill salary stubs with indicative values parsed from salaryHint
+  const indicativeLines = useMemo<AnalysisLine[]>(() =>
+    lines.map(l => {
+      const isSalaryStub = l.y1UnitCost === 0 && l.y1Units > 0 && !!l.salaryHint;
+      if (!isSalaryStub) return { ...l, isIndicative: false };
+      const mo = parseIndicativeSalary(l.salaryHint);
+      const y2uc = Math.round(mo * 1.10);
+      const y3uc = Math.round(mo * 1.21);
+      return {
+        ...l,
+        y1UnitCost: mo,       y1Total: Math.round(l.y1Units * mo),
+        y2UnitCost: y2uc,     y2Total: Math.round(l.y2Units * y2uc),
+        y3UnitCost: y3uc,     y3Total: Math.round(l.y3Units * y3uc),
+        isIndicative: true,
+      };
+    }),
+    [lines]
+  );
+
+  // Operational lines only (no capex / admin_salary / admin_other)
+  const opLines = useMemo(
+    () => indicativeLines.filter(l => !EXCLUDED_FROM_PER_UNIT.has(l.section)),
+    [indicativeLines]
+  );
+
+  // Total children derived from registry ratio
+  const totalChildren = Math.round(inp.nCLCs * (registry["children.children_per_clc"] ?? 0));
+
+  // Per-domain operational Y1 totals
+  const domainOp = useMemo(() => {
+    const sum = (d: BudgetDomain | null) =>
+      opLines.filter(l => l.domain === d).reduce((s, l) => s + l.y1Total, 0);
+    return {
+      children: sum("Children"),
+      youth:    sum("Youth"),
+      elderly:  sum("Elderly"),
+      creche:   sum("Creche"),
+      wr:       sum("WelfareRights"),
+      total:    opLines.reduce((s, l) => s + l.y1Total, 0),
+    };
+  }, [opLines]);
+
+  const perUnit = useMemo(() => ({
+    child:   totalChildren > 0       ? Math.round(domainOp.children / totalChildren) : null,
+    youth:   denoms.nYouth > 0       ? Math.round(domainOp.youth    / denoms.nYouth) : null,
+    elderly: inp.nElderly > 0        ? Math.round(domainOp.elderly  / inp.nElderly)  : null,
+    infant:  denoms.nInfants > 0     ? Math.round(domainOp.creche   / denoms.nInfants) : null,
+    hh:      denoms.nHouseholds > 0  ? Math.round(domainOp.total    / denoms.nHouseholds) : null,
+    cluster: inp.nClusters > 0       ? Math.round(domainOp.total    / inp.nClusters)  : null,
+  }), [domainOp, totalChildren, denoms, inp]);
+
   type DomainGroup = {
     domain: BudgetDomain | null;
     label: string;
-    bySection: { section: string; lines: ReturnType<typeof generateBudgetLines>; y1: number; y2: number; y3: number }[];
+    bySection: { section: string; lines: AnalysisLine[]; y1: number; y2: number; y3: number }[];
     y1: number; y2: number; y3: number;
   };
 
   const grouped = useMemo<DomainGroup[]>(() => {
     const domainOrder = [...ALL_DOMAINS, null] as (BudgetDomain | null)[];
     return domainOrder.flatMap(domain => {
-      const domLines = lines.filter(l => l.domain === domain);
+      const domLines = indicativeLines.filter(l => l.domain === domain);
       if (!domLines.length) return [];
-
       const sections = [...new Set(domLines.map(l => l.section))];
       const bySection = sections.map(s => {
         const sl = domLines.filter(l => l.section === s);
         return {
-          section: s,
-          lines: sl,
+          section: s, lines: sl,
           y1: sl.reduce((acc, l) => acc + l.y1Total, 0),
           y2: sl.reduce((acc, l) => acc + l.y2Total, 0),
           y3: sl.reduce((acc, l) => acc + l.y3Total, 0),
         };
       });
-
       return [{
         domain,
         label: domain ? DOMAIN_LABELS[domain] : "Cross-cutting + Admin",
@@ -867,18 +934,20 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
         y3: domLines.reduce((acc, l) => acc + l.y3Total, 0),
       }];
     });
-  }, [lines]);
+  }, [indicativeLines]);
 
   const grand = useMemo(() => ({
-    y1: lines.reduce((s, l) => s + l.y1Total, 0),
-    y2: lines.reduce((s, l) => s + l.y2Total, 0),
-    y3: lines.reduce((s, l) => s + l.y3Total, 0),
-  }), [lines]);
+    y1: indicativeLines.reduce((s, l) => s + l.y1Total, 0),
+    y2: indicativeLines.reduce((s, l) => s + l.y2Total, 0),
+    y3: indicativeLines.reduce((s, l) => s + l.y3Total, 0),
+  }), [indicativeLines]);
+
+  const hasIndicative = indicativeLines.some(l => l.isIndicative);
 
   return (
     <>
       {/* Programme size inputs */}
-      <div className="mb-6 p-4 bg-white border border-stone-200 rounded-xl">
+      <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl">
         <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Programme size assumptions</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {INPUT_GROUPS.map(group => (
@@ -898,6 +967,76 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
             </div>
           ))}
         </div>
+
+        {/* Beneficiary denominators */}
+        <div className="mt-4 pt-4 border-t border-stone-100">
+          <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Beneficiary counts (for per-unit costs)</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <label className="block">
+              <span className="text-xs text-stone-500">Total children</span>
+              <div className="mt-0.5 px-2 py-1 text-sm border border-stone-100 rounded bg-stone-50 text-stone-500 tabular-nums">
+                {totalChildren > 0 ? totalChildren.toLocaleString("en-IN") : <span className="italic text-stone-300">set children_per_clc in registry</span>}
+              </div>
+              <p className="text-xs text-stone-300 mt-0.5">nCLCs × children_per_clc</p>
+            </label>
+            <label className="block">
+              <span className="text-xs text-stone-500">Total youth enrolled</span>
+              <input type="number" min={0} value={denoms.nYouth}
+                onChange={e => setDenom("nYouth", parseFloat(e.target.value))}
+                className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
+            </label>
+            <label className="block">
+              <span className="text-xs text-stone-500">Elderly enrolled</span>
+              <div className="mt-0.5 px-2 py-1 text-sm border border-stone-100 rounded bg-stone-50 text-stone-500 tabular-nums">
+                {inp.nElderly.toLocaleString("en-IN")}
+              </div>
+              <p className="text-xs text-stone-300 mt-0.5">from programme inputs above</p>
+            </label>
+            <label className="block">
+              <span className="text-xs text-stone-500">Total infants (creche)</span>
+              <input type="number" min={0} value={denoms.nInfants}
+                onChange={e => setDenom("nInfants", parseFloat(e.target.value))}
+                className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
+            </label>
+            <label className="block">
+              <span className="text-xs text-stone-500">Total households</span>
+              <input type="number" min={0} value={denoms.nHouseholds}
+                onChange={e => setDenom("nHouseholds", parseFloat(e.target.value))}
+                className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Per-unit summary */}
+      <div className="mb-6 p-4 bg-sky-950 rounded-xl">
+        <p className="text-xs font-semibold text-sky-300 uppercase tracking-wide mb-3">
+          Cost per beneficiary / year — operational spend only
+          <span className="ml-2 normal-case font-normal text-sky-500">(excludes capex, admin salaries, admin other)</span>
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { label: "Per child",   value: perUnit.child,   sub: `${(totalChildren || 0).toLocaleString("en-IN")} children` },
+            { label: "Per youth",   value: perUnit.youth,   sub: `${denoms.nYouth.toLocaleString("en-IN")} youth` },
+            { label: "Per elderly", value: perUnit.elderly, sub: `${inp.nElderly.toLocaleString("en-IN")} elderly` },
+            { label: "Per infant",  value: perUnit.infant,  sub: `${denoms.nInfants.toLocaleString("en-IN")} infants` },
+            { label: "Per cluster", value: perUnit.cluster, sub: `${inp.nClusters} clusters` },
+            { label: "Per HH",      value: perUnit.hh,      sub: `${denoms.nHouseholds.toLocaleString("en-IN")} households` },
+          ].map(({ label, value, sub }) => (
+            <div key={label} className="bg-sky-900/50 rounded-lg p-3">
+              <p className="text-xs text-sky-400">{label}</p>
+              <p className="text-lg font-bold text-white mt-1">
+                {value != null ? fmtCost(value) : <span className="text-sky-600 text-sm">—</span>}
+              </p>
+              <p className="text-xs text-sky-600 mt-0.5">{sub}</p>
+            </div>
+          ))}
+        </div>
+        {hasIndicative && (
+          <p className="text-xs text-sky-600 mt-3">
+            ~ Salary lines use indicative averages from salary hints. Actual costs depend on hiring.
+          </p>
+        )}
       </div>
 
       {/* Per-domain tables */}
@@ -934,20 +1073,18 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
                         </td>
                       </tr>
                       {sLines.map((l, i) => (
-                        <tr key={i} className="border-b border-stone-50 hover:bg-stone-50">
+                        <tr key={i} className={`border-b border-stone-50 hover:bg-stone-50 ${l.isIndicative ? "bg-amber-50/30" : ""}`}>
                           <td className="px-4 py-2 text-stone-800">
                             {l.description}
-                            {l.salaryHint && <span className="ml-2 text-xs text-stone-400">{l.salaryHint}</span>}
+                            {l.isIndicative && <span className="ml-2 text-xs text-amber-500">~indicative · {l.salaryHint}</span>}
                           </td>
                           <td className="px-3 py-2">
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SECTION_BADGE[l.section] ?? "bg-stone-50 text-stone-600"}`}>
                               {l.section}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-right text-stone-600 tabular-nums">
-                            {l.y1UnitCost === 0 && l.y1Units > 0
-                              ? <span className="text-stone-300 italic text-xs">user fills</span>
-                              : fmtCost(l.y1UnitCost)}
+                          <td className={`px-3 py-2 text-right tabular-nums ${l.isIndicative ? "text-amber-600" : "text-stone-600"}`}>
+                            {l.isIndicative ? `~${fmtCost(l.y1UnitCost)}/mo` : fmtCost(l.y1UnitCost)}
                           </td>
                           <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmt(l.y1Units)}</td>
                           <td className="px-3 py-2 text-right font-medium text-stone-800 tabular-nums">{fmtCost(l.y1Total)}</td>
@@ -980,7 +1117,9 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
       <div className="mt-6 p-4 bg-stone-900 text-white rounded-xl flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">Grand Total — all domains</p>
-          <p className="text-xs text-stone-400 mt-0.5">Excludes salary stubs (user-defined) and rent lines if rent inputs are 0</p>
+          <p className="text-xs text-stone-400 mt-0.5">
+            {hasIndicative ? "Includes indicative salary estimates (marked ~)" : "Salary stubs not filled — add salary hints to templates for indicative totals"}
+          </p>
         </div>
         <div className="flex gap-8 text-right">
           <div><p className="text-xs text-stone-400">Year 1</p><p className="text-lg font-bold">{fmtCost(grand.y1)}</p></div>
