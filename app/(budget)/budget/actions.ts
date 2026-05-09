@@ -31,7 +31,10 @@ export async function createBudget(payload: CreateBudgetPayload) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
-  const registryRows = await prisma.costRegistry.findMany({ where: { city: payload.city } });
+  const [registryRows, templates] = await Promise.all([
+    prisma.costRegistry.findMany({ where: { city: payload.city } }),
+    prisma.lineTemplate.findMany({ where: { city: payload.city }, orderBy: { position: "asc" } }),
+  ]);
   const registry: Record<string, number> = Object.fromEntries(registryRows.map(r => [r.itemKey, r.unitCost]));
 
   const lines = generateBudgetLines(payload.domains, {
@@ -48,7 +51,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
     rcRentPerMonth: payload.rcRentPerMonth,
     nCreches: payload.nCreches,
     crecheRentPerMonth: payload.crecheRentPerMonth,
-  }, payload.years, registry);
+  }, payload.years, registry, templates);
 
   const budget = await prisma.budget.create({
     data: {

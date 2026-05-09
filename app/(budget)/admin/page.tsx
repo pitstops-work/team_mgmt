@@ -8,10 +8,16 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const { city = "Bangalore" } = await searchParams;
 
-  const registry = await prisma.costRegistry.findMany({
-    where: { city },
-    orderBy: [{ domain: "asc" }, { itemKey: "asc" }],
-  });
+  const [registry, templates] = await Promise.all([
+    prisma.costRegistry.findMany({
+      where: { city },
+      orderBy: [{ domain: "asc" }, { itemKey: "asc" }],
+    }),
+    prisma.lineTemplate.findMany({
+      where: { city },
+      orderBy: { position: "asc" },
+    }),
+  ]);
 
   const isSeeded = registry.length > 0;
   const defaults = getDefaultsForCity(city);
@@ -30,5 +36,5 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     };
   });
 
-  return <AdminClient costs={merged} isSeeded={isSeeded} city={city} />;
+  return <AdminClient costs={merged} isSeeded={isSeeded} city={city} templates={templates} />;
 }
