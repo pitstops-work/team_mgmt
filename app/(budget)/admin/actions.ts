@@ -96,6 +96,7 @@ export type LineTemplateFields = {
   inputVar: string;
   inputMonthly?: boolean;
   supervisorRatioKey?: string | null;
+  inputThreshold?: number | null;
   isSalaryStub?: boolean;
   userInputCost?: string | null;
   costKey?: string | null;

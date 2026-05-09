@@ -58,6 +58,7 @@ function resolveUserInput(field: string, inp: BudgetGeneratorInputs): number {
 
 function computeUnitCount(t: LineTemplate, inp: BudgetGeneratorInputs, reg: Record<string, number>): number {
   const base = resolveInputVar(t.inputVar, inp);
+  if (t.inputThreshold != null && base <= t.inputThreshold) return 0;
   if (t.supervisorRatioKey) {
     const ratio = lookupCost(reg, t.supervisorRatioKey);
     return ratio > 0 ? Math.ceil(base / ratio) * 12 : 0;

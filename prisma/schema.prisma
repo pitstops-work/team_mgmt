@@ -1637,6 +1637,7 @@ model LineTemplate {
   inputVar           String    @default("fixed_1")
   inputMonthly       Boolean   @default(false)
   supervisorRatioKey String?
+  inputThreshold     Int?      // if set: suppress line (units=0) when inputVar value <= this
 
   // unit cost
   isSalaryStub   Boolean   @default(false)

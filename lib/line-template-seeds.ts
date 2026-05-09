@@ -11,6 +11,7 @@ export type TemplateSpec = {
   inputVar?: string;
   inputMonthly?: boolean;
   supervisorRatioKey?: string;
+  inputThreshold?: number;
   isSalaryStub?: boolean;
   userInputCost?: string;
   costKey?: string;
