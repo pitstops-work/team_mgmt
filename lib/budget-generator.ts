@@ -1,22 +1,7 @@
 import type { BudgetSection, InflationType, LineTemplate } from "@/app/generated/prisma/client";
 import { lookupCost } from "@/lib/budget-costs";
 
-export type BudgetGeneratorInputs = {
-  nSettlements: number;
-  nClusters: number;
-  nCLCs: number;
-  clcRentPerMonth: number;
-  nYRCs: number;
-  yrcRentPerMonth: number;
-  nElderlyCentres: number;
-  nElderly: number;
-  elderlyCentreRentPerMonth: number;
-  cosPerCluster: number;
-  rcRentPerMonth: number;
-  nCreches: number;
-  crecheRentPerMonth: number;
-  extraInputs?: Record<string, number>; // custom programme inputs added via admin
-};
+export type BudgetGeneratorInputs = Record<string, number>;
 
 export type GeneratedLine = {
   domain: string | null;
@@ -35,26 +20,15 @@ export type GeneratedLine = {
 
 const INFLATION: Record<InflationType, number> = { Salary: 0.10, Other: 0.05, Nil: 0.00 };
 
-// Maps inputVar string → programme input value
 function resolveInputVar(v: string, inp: BudgetGeneratorInputs): number {
-  switch (v) {
-    case "fixed_1":         return 1;
-    case "fixed_12":        return 12;
-    case "nCLCs":           return inp.nCLCs;
-    case "nYRCs":           return inp.nYRCs;
-    case "nSettlements":    return inp.nSettlements;
-    case "nClusters":       return inp.nClusters;
-    case "nElderly":        return inp.nElderly;
-    case "nElderlyCentres": return inp.nElderlyCentres;
-    case "nCreches":        return inp.nCreches;
-    case "cosTotal":        return inp.nClusters * inp.cosPerCluster;
-    default:                return inp.extraInputs?.[v] ?? 1;
-  }
+  if (v === "fixed_1")  return 1;
+  if (v === "fixed_12") return 12;
+  if (v === "cosTotal") return (inp.nClusters ?? 0) * (inp.cosPerCluster ?? 0);
+  return inp[v] ?? 0;
 }
 
-// Maps userInputCost string → programme input value (for rent lines)
 function resolveUserInput(field: string, inp: BudgetGeneratorInputs): number {
-  return (inp as unknown as Record<string, number>)[field] ?? 0;
+  return inp[field] ?? 0;
 }
 
 function computeUnitCount(t: LineTemplate, inp: BudgetGeneratorInputs, reg: Record<string, number>): number {
@@ -102,7 +76,7 @@ function templateToLine(
 ): GeneratedLine {
   const fullUnits  = computeUnitCount(t, inp, reg);
   const y1Units    = t.y1UnitsZero ? 0 : fullUnits;
-  const y2y3Units  = fullUnits;                          // Y2/Y3 always use the real count
+  const y2y3Units  = fullUnits;
   const unitCost   = computeUnitCost(t, inp, reg);
   const alloc      = 1;
   const rate       = INFLATION[t.costCategory];
@@ -125,26 +99,15 @@ function templateToLine(
   };
 }
 
-// Programme inputs injected into registry so templates can use them as costKey multipliers
+// Injects all programme inputs into registry under inp.* namespace
 export function buildAugmentedRegistry(
   registry: Record<string, number>,
   inp: BudgetGeneratorInputs,
 ): Record<string, number> {
   return {
     ...registry,
-    "inp.nSettlements":    inp.nSettlements,
-    "inp.nClusters":       inp.nClusters,
-    "inp.cosPerCluster":   inp.cosPerCluster,
-    "inp.cosTotal":        inp.nClusters * inp.cosPerCluster,
-    "inp.nCLCs":           inp.nCLCs,
-    "inp.nYRCs":           inp.nYRCs,
-    "inp.nElderlyCentres": inp.nElderlyCentres,
-    "inp.nElderly":        inp.nElderly,
-    "inp.nCreches":        inp.nCreches,
-    // Inject custom inputs under inp.* namespace
-    ...Object.fromEntries(
-      Object.entries(inp.extraInputs ?? {}).map(([k, v]) => [`inp.${k}`, v])
-    ),
+    ...Object.fromEntries(Object.entries(inp).map(([k, v]) => [`inp.${k}`, v])),
+    "inp.cosTotal": (inp.nClusters ?? 0) * (inp.cosPerCluster ?? 0),
   };
 }
 

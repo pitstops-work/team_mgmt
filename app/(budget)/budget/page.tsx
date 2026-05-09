@@ -3,11 +3,6 @@ import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { deleteBudget } from "./actions";
 
-const DOMAIN_LABELS: Record<string, string> = {
-  Children: "Children", Youth: "Youth", Elderly: "Elderly + Kitchen",
-  WelfareRights: "Welfare Rights", Creche: "Creche",
-};
-
 const fmt = (n: number) => `₹${(n / 100000).toFixed(1)}L`;
 
 export default async function BudgetListPage() {
@@ -17,6 +12,11 @@ export default async function BudgetListPage() {
     include: { lines: { select: { y1Total: true, y2Total: true, y3Total: true } } },
     orderBy: { updatedAt: "desc" },
   });
+
+  const domainConfigs = await prisma.budgetDomainConfig.findMany({
+    select: { key: true, label: true },
+  });
+  const domainLabels = Object.fromEntries(domainConfigs.map(d => [d.key, d.label]));
 
   return (
     <div>
@@ -52,7 +52,9 @@ export default async function BudgetListPage() {
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {b.domains.map(d => (
-                      <span key={d} className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded">{DOMAIN_LABELS[d] ?? d}</span>
+                      <span key={d} className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded">
+                        {domainLabels[d] ?? d}
+                      </span>
                     ))}
                   </div>
                 </div>

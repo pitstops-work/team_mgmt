@@ -12,20 +12,7 @@ export type CreateBudgetPayload = {
   city: string;
   domains: string[];
   years: 1 | 3;
-  nSettlements: number;
-  nClusters: number;
-  nCLCs: number;
-  clcRentPerMonth: number;
-  nYRCs: number;
-  yrcRentPerMonth: number;
-  nElderlyCentres: number;
-  nElderly: number;
-  elderlyCentreRentPerMonth: number;
-  cosPerCluster: number;
-  rcRentPerMonth: number;
-  nCreches: number;
-  crecheRentPerMonth: number;
-  extraInputs?: Record<string, number>;
+  programmeInputs: Record<string, number>;
 };
 
 export async function createBudget(payload: CreateBudgetPayload) {
@@ -38,23 +25,9 @@ export async function createBudget(payload: CreateBudgetPayload) {
   ]);
   const registry: Record<string, number> = Object.fromEntries(registryRows.map(r => [r.itemKey, r.unitCost]));
 
-  const lines = generateBudgetLines(payload.domains, {
-    nSettlements: payload.nSettlements,
-    nClusters: payload.nClusters,
-    nCLCs: payload.nCLCs,
-    clcRentPerMonth: payload.clcRentPerMonth,
-    nYRCs: payload.nYRCs,
-    yrcRentPerMonth: payload.yrcRentPerMonth,
-    nElderlyCentres: payload.nElderlyCentres,
-    nElderly: payload.nElderly,
-    elderlyCentreRentPerMonth: payload.elderlyCentreRentPerMonth,
-    cosPerCluster: payload.cosPerCluster,
-    rcRentPerMonth: payload.rcRentPerMonth,
-    nCreches: payload.nCreches,
-    crecheRentPerMonth: payload.crecheRentPerMonth,
-    extraInputs: payload.extraInputs ?? {},
-  }, payload.years, registry, templates);
+  const lines = generateBudgetLines(payload.domains, payload.programmeInputs, payload.years, registry, templates);
 
+  const pi = payload.programmeInputs;
   const budget = await prisma.budget.create({
     data: {
       name: payload.name,
@@ -64,20 +37,21 @@ export async function createBudget(payload: CreateBudgetPayload) {
       years: payload.years,
       inputs: {
         create: {
-          nSettlements: payload.nSettlements,
-          nClusters: payload.nClusters,
-          nCLCs: payload.nCLCs,
-          clcRentPerMonth: payload.clcRentPerMonth,
-          nYRCs: payload.nYRCs,
-          yrcRentPerMonth: payload.yrcRentPerMonth,
-          nElderlyCentres: payload.nElderlyCentres,
-          nElderly: payload.nElderly,
-          elderlyCentreRentPerMonth: payload.elderlyCentreRentPerMonth,
-          cosPerCluster: payload.cosPerCluster,
-          rcRentPerMonth: payload.rcRentPerMonth,
-          nCreches: payload.nCreches,
-          crecheRentPerMonth: payload.crecheRentPerMonth,
-          extraInputs: payload.extraInputs ?? {},
+          // Keep typed fields populated for backward compat with existing queries
+          nSettlements:              Math.round(pi.nSettlements ?? 0),
+          nClusters:                 Math.round(pi.nClusters ?? 0),
+          nCLCs:                     Math.round(pi.nCLCs ?? 0),
+          clcRentPerMonth:           Math.round(pi.clcRentPerMonth ?? 0),
+          nYRCs:                     Math.round(pi.nYRCs ?? 0),
+          yrcRentPerMonth:           Math.round(pi.yrcRentPerMonth ?? 0),
+          nElderlyCentres:           Math.round(pi.nElderlyCentres ?? 0),
+          nElderly:                  Math.round(pi.nElderly ?? 0),
+          elderlyCentreRentPerMonth: Math.round(pi.elderlyCentreRentPerMonth ?? 0),
+          cosPerCluster:             Math.round(pi.cosPerCluster ?? 0),
+          rcRentPerMonth:            Math.round(pi.rcRentPerMonth ?? 0),
+          nCreches:                  Math.round(pi.nCreches ?? 0),
+          crecheRentPerMonth:        Math.round(pi.crecheRentPerMonth ?? 0),
+          extraInputs:               pi,  // full flat map — source of truth going forward
         },
       },
       lines: {

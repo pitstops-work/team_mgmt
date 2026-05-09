@@ -4,11 +4,6 @@ import { notFound } from "next/navigation";
 import type { BudgetSection } from "@/app/generated/prisma/client";
 import Link from "next/link";
 
-const DOMAIN_LABELS: Record<string, string> = {
-  Children: "Children", Youth: "Youth", Elderly: "Elderly + Kitchen",
-  WelfareRights: "Welfare Rights", Creche: "Creche",
-};
-
 const SECTION_LABELS: Record<BudgetSection, string> = {
   salary: "Salary & Honorarium", capex: "CAPEX",
   travel: "Travel", programme: "Programme",
@@ -31,20 +26,35 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
 
   const budget = await prisma.budget.findUnique({
     where: { id },
-    include: {
-      inputs: true,
-      lines: { orderBy: { position: "asc" } },
-    },
+    include: { inputs: true, lines: { orderBy: { position: "asc" } } },
   });
 
   if (!budget || budget.partnerId !== session!.user!.id!) notFound();
   if (!budget.inputs) return <div className="text-stone-400 p-8">No inputs recorded for this budget.</div>;
 
-  const inp = budget.inputs;
+  const domainConfigs = await prisma.budgetDomainConfig.findMany({
+    where: { city: budget.city },
+    select: { key: true, label: true, beneficiaryLabel: true, beneficiaryVar: true, beneficiaryMult: true },
+  });
+  const domainLabelMap = Object.fromEntries(domainConfigs.map(d => [d.key, d.label]));
+  const domainConfigMap = Object.fromEntries(domainConfigs.map(d => [d.key, d]));
+
+  // Merged inputs: typed fields (backward compat) + extraInputs (new budgets, any domain)
+  const raw = budget.inputs;
+  const inp: Record<string, number> = {
+    nSettlements: raw.nSettlements, nClusters: raw.nClusters,
+    nCLCs: raw.nCLCs, clcRentPerMonth: raw.clcRentPerMonth,
+    nYRCs: raw.nYRCs, yrcRentPerMonth: raw.yrcRentPerMonth,
+    nElderlyCentres: raw.nElderlyCentres, nElderly: raw.nElderly,
+    elderlyCentreRentPerMonth: raw.elderlyCentreRentPerMonth,
+    cosPerCluster: raw.cosPerCluster, rcRentPerMonth: raw.rcRentPerMonth,
+    nCreches: raw.nCreches, crecheRentPerMonth: raw.crecheRentPerMonth,
+    ...(raw.extraInputs as Record<string, number>),
+  };
+
   const lines = budget.lines;
   const years = budget.years;
 
-  // ── Totals by domain and section ────────────────────────────────────────────
   const domainTotal = (domain: string | null, yr: "y1" | "y2" | "y3") =>
     lines.filter(l => l.domain === domain).reduce((s, l) => s + l[`${yr}Total`], 0);
 
@@ -58,48 +68,26 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
   const gt2 = grandTotal("y2");
   const gt3 = grandTotal("y3");
 
-  // ── Beneficiary counts per domain ─────────────────────────────────────────
-  const benefUnits: (BenefUnit & { domain: string; total: number })[] = [
-    budget.domains.includes("Children") && {
-      domain: "Children",
-      label: "Children",
-      count: inp.nCLCs * 100,
-      description: `${inp.nCLCs} CLC(s) × 100 children`,
-      total: domainTotal("Children", "y1"),
-    },
-    budget.domains.includes("Youth") && {
-      domain: "Youth",
-      label: "Youth",
-      count: inp.nYRCs * 200,
-      description: `${inp.nYRCs} YRC(s) × 200 youth`,
-      total: domainTotal("Youth", "y1"),
-    },
-    budget.domains.includes("Elderly") && {
-      domain: "Elderly",
-      label: "Elderly",
-      count: inp.nElderly,
-      description: `${inp.nElderly} elderly beneficiaries`,
-      total: domainTotal("Elderly", "y1"),
-    },
-    budget.domains.includes("WelfareRights") && {
-      domain: "WelfareRights",
-      label: "Households (WR)",
-      count: inp.nSettlements * AVG_HH_PER_SETTLEMENT,
-      description: `${inp.nSettlements} settlements × ${AVG_HH_PER_SETTLEMENT} avg HH`,
-      total: domainTotal("WelfareRights", "y1"),
-    },
-    budget.domains.includes("Creche") && {
-      domain: "Creche",
-      label: "Creche children",
-      count: inp.nCreches * 20,
-      description: `${inp.nCreches} creche(s) × 20 children`,
-      total: domainTotal("Creche", "y1"),
-    },
-  ].filter(Boolean) as (BenefUnit & { domain: string; total: number })[];
+  // Dynamic beneficiary units from domain configs
+  const benefUnits = budget.domains
+    .map(domainKey => {
+      const config = domainConfigMap[domainKey];
+      if (!config?.beneficiaryVar) return null;
+      const rawCount = inp[config.beneficiaryVar] ?? 0;
+      const count = Math.round(rawCount * config.beneficiaryMult);
+      if (count === 0) return null;
+      return {
+        domain: domainKey,
+        label: config.beneficiaryLabel ?? config.label,
+        count,
+        description: `${rawCount} ${config.beneficiaryVar} × ${config.beneficiaryMult}`,
+        total: domainTotal(domainKey, "y1"),
+      };
+    })
+    .filter(Boolean) as (BenefUnit & { domain: string; total: number })[];
 
   const totalBeneficiaries = benefUnits.reduce((s, b) => s + b.count, 0);
 
-  // ── Budget head breakdown ─────────────────────────────────────────────────
   const sections: BudgetSection[] = ["salary", "capex", "travel", "programme", "admin_salary", "admin_other"];
   const headData = sections.map(s => ({
     section: s,
@@ -107,8 +95,8 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
     pct: gt1 > 0 ? sectionTotal(s, "y1") / gt1 * 100 : 0,
   })).filter(h => h.y1 > 0);
 
-  const salaryTotal = sectionTotal("salary", "y1");
-  const adminTotal = sectionTotal("admin_salary", "y1") + sectionTotal("admin_other", "y1");
+  const salaryTotal   = sectionTotal("salary", "y1");
+  const adminTotal    = sectionTotal("admin_salary", "y1") + sectionTotal("admin_other", "y1");
   const programmeTotal = gt1 - salaryTotal - adminTotal - sectionTotal("capex", "y1") - sectionTotal("travel", "y1");
 
   return (
@@ -119,7 +107,6 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
         <h1 className="text-lg font-semibold text-stone-900">{budget.name} — Cost Analysis</h1>
       </div>
 
-      {/* Grand total cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <StatCard label="Year 1 Total" value={L(gt1)} sub={`${INR(gt1 / 12)} /month`} />
         {years === 3 && <>
@@ -132,7 +119,6 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
 
       <div className="grid md:grid-cols-2 gap-6">
 
-        {/* Per-beneficiary costs */}
         <section>
           <h2 className="text-sm font-semibold text-stone-700 mb-3">Per-Beneficiary Cost (Year 1)</h2>
           <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
@@ -149,7 +135,7 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
                 {benefUnits.map(b => (
                   <tr key={b.domain} className="border-b border-stone-50">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-stone-800">{DOMAIN_LABELS[b.domain]}</div>
+                      <div className="font-medium text-stone-800">{domainLabelMap[b.domain] ?? b.domain}</div>
                       <div className="text-xs text-stone-400">{b.description}</div>
                     </td>
                     <td className="text-right px-3 py-3 text-stone-600">{b.count.toLocaleString("en-IN")}</td>
@@ -177,7 +163,6 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
           </div>
         </section>
 
-        {/* Budget head breakdown */}
         <section>
           <h2 className="text-sm font-semibold text-stone-700 mb-3">Budget Head Breakdown</h2>
           <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
@@ -220,7 +205,6 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
           </div>
         </section>
 
-        {/* Per-settlement breakdown */}
         {inp.nSettlements > 0 && (
           <section>
             <h2 className="text-sm font-semibold text-stone-700 mb-3">Per-Settlement Analysis</h2>
@@ -234,8 +218,8 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
                 </thead>
                 <tbody>
                   {[
-                    ["No. of settlements", inp.nSettlements.toString()],
-                    ["No. of clusters", inp.nClusters.toString()],
+                    ["No. of settlements", String(inp.nSettlements)],
+                    ["No. of clusters", String(inp.nClusters)],
                     ["Avg settlements per cluster", inp.nClusters > 0 ? (inp.nSettlements / inp.nClusters).toFixed(1) : "–"],
                     ["Cost per settlement / year", gt1 > 0 ? INR(gt1 / inp.nSettlements) : "–"],
                     ["Cost per household / year", gt1 > 0 ? INR(gt1 / (inp.nSettlements * AVG_HH_PER_SETTLEMENT)) : "–"],
@@ -252,7 +236,6 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
           </section>
         )}
 
-        {/* 3-year projection */}
         {years === 3 && (
           <section>
             <h2 className="text-sm font-semibold text-stone-700 mb-3">3-Year Cost Projection</h2>

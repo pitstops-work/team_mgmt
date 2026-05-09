@@ -23,11 +23,6 @@ type CostRow = {
   isEdited: boolean;
 };
 
-// Fallback until DB domains are loaded
-const DOMAIN_LABELS: Record<string, string> = {
-  Children: "Children", Youth: "Youth", Elderly: "Elderly + Community Kitchen",
-  WelfareRights: "Welfare Rights", Creche: "Creche",
-};
 const CITIES = ["Bangalore", "Chennai"] as const;
 const SECTIONS: BudgetSection[] = ["salary", "capex", "travel", "programme", "admin_salary", "admin_other", "additional"];
 const INFLATION_TYPES: InflationType[] = ["Salary", "Other", "Nil"];
@@ -81,23 +76,9 @@ function formulaSummary(t: LineTemplate): string {
 }
 
 function makeDefaultInputs(costs: { itemKey: string; currentCost: number }[]): BudgetGeneratorInputs {
-  const reg = Object.fromEntries(costs.filter(c => c.itemKey.startsWith("inp.")).map(c => [c.itemKey, c.currentCost]));
-  const g = (key: string, fallback: number) => reg[key] ?? fallback;
-  return {
-    nSettlements:              g("inp.nSettlements", 10),
-    nClusters:                 g("inp.nClusters", 3),
-    nCLCs:                     g("inp.nCLCs", 5),
-    clcRentPerMonth:           g("inp.clcRentPerMonth", 15000),
-    nYRCs:                     g("inp.nYRCs", 2),
-    yrcRentPerMonth:           g("inp.yrcRentPerMonth", 10000),
-    nElderlyCentres:           g("inp.nElderlyCentres", 2),
-    nElderly:                  g("inp.nElderly", 50),
-    elderlyCentreRentPerMonth: g("inp.elderlyCentreRentPerMonth", 8000),
-    cosPerCluster:             g("inp.cosPerCluster", 2),
-    rcRentPerMonth:            g("inp.rcRentPerMonth", 5000),
-    nCreches:                  g("inp.nCreches", 3),
-    crecheRentPerMonth:        g("inp.crecheRentPerMonth", 12000),
-  };
+  return Object.fromEntries(
+    costs.filter(c => c.itemKey.startsWith("inp.")).map(c => [c.itemKey.slice(4), c.currentCost])
+  );
 }
 
 // ─── Cost Registry tab ────────────────────────────────────────────────────────
@@ -110,7 +91,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
   const [editing, setEditing] = useState<string | null>(null);
   const [editVal, setEditVal] = useState<string>("");
   const [editNotes, setEditNotes] = useState<string>("");
-  const [activeDomain, setActiveDomain] = useState<string>("Children");
+  const [activeDomain, setActiveDomain] = useState<string>(() => domainOrder.find(d => d !== null) ?? "");
   const [addingItem, setAddingItem] = useState(false);
   const [newItemType, setNewItemType] = useState<"cost" | "ratio">("cost");
   const [newKey, setNewKey] = useState("");
@@ -678,7 +659,7 @@ function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
   domains: BudgetDomainConfig[];
 }) {
   const [pending, startTransition] = useTransition();
-  const [activeDomain, setActiveDomain] = useState<string>("Children");
+  const [activeDomain, setActiveDomain] = useState<string>(() => domains[0]?.key ?? "");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -893,43 +874,6 @@ function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
 
 // ─── Cost Analysis tab ────────────────────────────────────────────────────────
 
-const DEFAULT_INPUTS: BudgetGeneratorInputs = {
-  nSettlements: 10,
-  nClusters: 3,
-  nCLCs: 5,      clcRentPerMonth: 15000,
-  nYRCs: 2,      yrcRentPerMonth: 10000,
-  nElderlyCentres: 2, nElderly: 50, elderlyCentreRentPerMonth: 8000,
-  cosPerCluster: 2, rcRentPerMonth: 5000,
-  nCreches: 3,   crecheRentPerMonth: 12000,
-};
-
-const INPUT_GROUPS: { label: string; fields: { key: keyof BudgetGeneratorInputs; label: string }[] }[] = [
-  { label: "Geography", fields: [
-    { key: "nSettlements", label: "Settlements" },
-    { key: "nClusters",    label: "Clusters" },
-    { key: "cosPerCluster",label: "COs / cluster" },
-  ]},
-  { label: "Children", fields: [
-    { key: "nCLCs",           label: "CLCs" },
-    { key: "clcRentPerMonth", label: "CLC rent / mo (₹)" },
-  ]},
-  { label: "Youth", fields: [
-    { key: "nYRCs",           label: "YRCs" },
-    { key: "yrcRentPerMonth", label: "YRC rent / mo (₹)" },
-  ]},
-  { label: "Elderly", fields: [
-    { key: "nElderlyCentres",           label: "Elderly centres" },
-    { key: "nElderly",                  label: "Elderly enrolled" },
-    { key: "elderlyCentreRentPerMonth", label: "Centre rent / mo (₹)" },
-  ]},
-  { label: "Welfare Rights", fields: [
-    { key: "rcRentPerMonth", label: "RC rent / mo (₹)" },
-  ]},
-  { label: "Creche", fields: [
-    { key: "nCreches",           label: "Creches" },
-    { key: "crecheRentPerMonth", label: "Creche rent / mo (₹)" },
-  ]},
-];
 
 // Sections excluded from per-beneficiary cost calculations
 const EXCLUDED_FROM_PER_UNIT = new Set<BudgetSection>(["capex", "admin_salary", "admin_other"]);
@@ -949,8 +893,36 @@ function parseIndicativeSalary(hint: string | null | undefined): number {
 function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplate[]; costs: CostRow[]; domains: BudgetDomainConfig[] }) {
   const ALL_DOMAINS = domains.map(d => d.key);
   const [inp, setInp] = useState<BudgetGeneratorInputs>(() => makeDefaultInputs(costs));
-  const setField = (k: keyof BudgetGeneratorInputs, v: number) =>
+  const setField = (k: string, v: number) =>
     setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
+
+  // Compute input groups dynamically from templates + domains
+  const FIXED_VARS = new Set(["fixed_1", "fixed_12", "cosTotal", ""]);
+  const inputGroups = useMemo(() => {
+    const progCosts = costs.filter(c => c.itemKey.startsWith("inp."));
+    const keyDomains: Record<string, Set<string>> = {};
+    for (const t of templates) {
+      if (!t.domain) continue;
+      const vars = ([t.inputVar, t.userInputCost] as (string | null | undefined)[])
+        .filter((v): v is string => !!v && !FIXED_VARS.has(v));
+      for (const v of vars) {
+        if (!keyDomains[v]) keyDomains[v] = new Set();
+        keyDomains[v].add(t.domain);
+      }
+    }
+    const groups: { label: string; keys: { key: string; label: string }[] }[] = [];
+    const crossCutting = progCosts
+      .filter(c => { const d = keyDomains[c.itemKey.slice(4)]; return !d || d.size !== 1; })
+      .map(c => ({ key: c.itemKey.slice(4), label: c.notes ?? c.itemKey.slice(4) }));
+    if (crossCutting.length) groups.push({ label: "Geography / Scale", keys: crossCutting });
+    for (const d of domains) {
+      const keys = progCosts
+        .filter(c => { const s = keyDomains[c.itemKey.slice(4)]; return s?.size === 1 && s.has(d.key); })
+        .map(c => ({ key: c.itemKey.slice(4), label: c.notes ?? c.itemKey.slice(4) }));
+      if (keys.length) groups.push({ label: d.label, keys });
+    }
+    return groups;
+  }, [costs, templates, domains]);
 
   // Extra denominators not in BudgetGeneratorInputs
   const [denoms, setDenoms] = useState({ nYouth: 100, nInfants: 60, nHouseholds: 500 });
@@ -1012,8 +984,7 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
     const result: { label: string; value: number | null; sub: string }[] = [];
     for (const d of domains) {
       if (!d.beneficiaryVar || !d.beneficiaryLabel) continue;
-      const benefVar = d.beneficiaryVar as keyof BudgetGeneratorInputs;
-      const count = (inp[benefVar] as number ?? 0) * d.beneficiaryMult;
+      const count = (inp[d.beneficiaryVar] ?? 0) * d.beneficiaryMult;
       const domainTotal = domainOp[d.key] ?? 0;
       result.push({
         label: `Per ${d.beneficiaryLabel.toLowerCase()}`,
@@ -1082,15 +1053,15 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
       <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl">
         <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Programme size assumptions</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {INPUT_GROUPS.map(group => (
+          {inputGroups.map(group => (
             <div key={group.label} className="space-y-2">
               <p className="text-xs font-medium text-stone-400 uppercase tracking-wide">{group.label}</p>
-              {group.fields.map(({ key, label }) => (
+              {group.keys.map(({ key, label }) => (
                 <label key={key} className="block">
                   <span className="text-xs text-stone-500">{label}</span>
                   <input
                     type="number" min={0}
-                    value={inp[key] as number}
+                    value={inp[key] ?? 0}
                     onChange={e => setField(key, parseFloat(e.target.value))}
                     className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                   />
