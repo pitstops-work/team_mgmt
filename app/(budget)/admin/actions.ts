@@ -199,6 +199,15 @@ export type DomainConfigFields = {
   beneficiaryMult?: number;
 };
 
+async function ensureBeneficiaryVar(city: string, varName: string) {
+  const itemKey = `inp.${varName}`;
+  await prisma.costRegistry.upsert({
+    where: { city_itemKey: { city, itemKey } },
+    create: { city, itemKey, unit: "count", unitCost: 0, effectiveYear: 2025, domain: null },
+    update: {},
+  });
+}
+
 export async function addDomain(city: string, key: string, fields: DomainConfigFields) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
@@ -210,12 +219,17 @@ export async function addDomain(city: string, key: string, fields: DomainConfigF
   await prisma.budgetDomainConfig.create({
     data: { city, key, position: (maxPos._max.position ?? -1) + 1, ...fields },
   });
+  if (fields.beneficiaryVar) await ensureBeneficiaryVar(city, fields.beneficiaryVar);
   revalidatePath("/admin");
 }
 
 export async function updateDomain(id: string, fields: Partial<DomainConfigFields>) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
+  if (fields.beneficiaryVar) {
+    const domain = await prisma.budgetDomainConfig.findUnique({ where: { id }, select: { city: true } });
+    if (domain) await ensureBeneficiaryVar(domain.city, fields.beneficiaryVar);
+  }
   await prisma.budgetDomainConfig.update({ where: { id }, data: fields });
   revalidatePath("/admin");
 }

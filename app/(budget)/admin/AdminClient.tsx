@@ -1258,16 +1258,7 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
 
 // ─── Domains tab ──────────────────────────────────────────────────────────────
 
-const BENEFICIARY_VARS = [
-  { value: "nCLCs",        label: "nCLCs (Children Learning Centres)" },
-  { value: "nYRCs",        label: "nYRCs (Youth Resource Centres)" },
-  { value: "nElderly",     label: "nElderly (enrolled)" },
-  { value: "nCreches",     label: "nCreches" },
-  { value: "nSettlements", label: "nSettlements" },
-  { value: "nClusters",    label: "nClusters" },
-];
-
-function DomainsTab({ domains, city }: { domains: BudgetDomainConfig[]; city: string }) {
+function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainConfig[]; city: string; progInputKeys: string[] }) {
   const [pending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -1393,11 +1384,10 @@ function DomainsTab({ domains, city }: { domains: BudgetDomainConfig[]; city: st
                           </label>
                           <label>
                             <span className="text-xs font-medium text-stone-600">Beneficiary variable</span>
-                            <select value={editForm.beneficiaryVar ?? ""} onChange={e => setEditForm(p => ({ ...p, beneficiaryVar: e.target.value || null }))}
-                              className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none">
-                              <option value="">—</option>
-                              {BENEFICIARY_VARS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-                            </select>
+                            <input list="benef-var-list" value={editForm.beneficiaryVar ?? ""}
+                              onChange={e => setEditForm(p => ({ ...p, beneficiaryVar: e.target.value || null }))}
+                              placeholder="e.g. nHealthWorkers (new or existing)"
+                              className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500" />
                           </label>
                           <label>
                             <span className="text-xs font-medium text-stone-600">Multiplier (var × this = beneficiary count)</span>
@@ -1454,11 +1444,9 @@ function DomainsTab({ domains, city }: { domains: BudgetDomainConfig[]; city: st
               </label>
               <label>
                 <span className="text-xs font-medium text-stone-600">Beneficiary variable</span>
-                <select value={newBenefVar} onChange={e => setNewBenefVar(e.target.value)}
-                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none">
-                  <option value="">—</option>
-                  {BENEFICIARY_VARS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-                </select>
+                <input list="benef-var-list" value={newBenefVar} onChange={e => setNewBenefVar(e.target.value)}
+                  placeholder="e.g. nHealthWorkers (new or existing)"
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500" />
               </label>
               <label>
                 <span className="text-xs font-medium text-stone-600">Multiplier</span>
@@ -1484,7 +1472,15 @@ function DomainsTab({ domains, city }: { domains: BudgetDomainConfig[]; city: st
 
       <p className="mt-4 text-xs text-stone-400">
         Domain keys are stored directly in line templates and budget lines. Renaming a key requires a data migration. Add new domains freely.
+        If you enter a new beneficiary variable name, an <span className="font-mono">inp.*</span> cost registry entry is created automatically.
       </p>
+
+      <datalist id="benef-var-list">
+        {progInputKeys.map(k => {
+          const v = k.replace(/^inp\./, "");
+          return <option key={k} value={v}>{k}</option>;
+        })}
+      </datalist>
     </>
   );
 }
@@ -1550,7 +1546,7 @@ export default function AdminClient({
       {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} domainOrder={domainOrder} domainLabels={domainLabels} />}
       {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} costs={costs} domains={domains} />}
       {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} domains={domains} />}
-      {activeTab === "domains"   && <DomainsTab domains={domains} city={city} />}
+      {activeTab === "domains"   && <DomainsTab domains={domains} city={city} progInputKeys={costs.filter(c => c.itemKey.startsWith("inp.")).map(c => c.itemKey)} />}
     </div>
   );
 }
