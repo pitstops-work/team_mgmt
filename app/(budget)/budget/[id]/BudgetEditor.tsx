@@ -2,11 +2,11 @@
 
 import { useState, useTransition, useRef } from "react";
 import { updateLine, addLine, deleteLine, finalizeBudget, deleteBudget } from "../actions";
-import type { BudgetDomain, BudgetSection, InflationType } from "@/app/generated/prisma/client";
+import type { BudgetSection, InflationType } from "@/app/generated/prisma/client";
 
 type Line = {
   id: string;
-  domain: BudgetDomain | null;
+  domain: string | null;
   section: BudgetSection;
   position: number;
   description: string;
@@ -23,10 +23,11 @@ type Line = {
 type Budget = {
   id: string;
   name: string;
-  domains: BudgetDomain[];
+  domains: string[];
   years: number;
   status: "draft" | "final";
   lines: Line[];
+  domainLabels?: Record<string, string>;
 };
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -57,7 +58,8 @@ const INFLATION_RATE: Record<InflationType, number> = { Salary: 0.10, Other: 0.0
 const fmt = (n: number) => n === 0 ? "–" : `₹${n.toLocaleString("en-IN")}`;
 
 export default function BudgetEditor({ budget }: { budget: Budget }) {
-  const [activeTab, setActiveTab] = useState<"master" | BudgetDomain>("master");
+  const domainLabels: Record<string, string> = budget.domainLabels ?? DOMAIN_LABELS;
+  const [activeTab, setActiveTab] = useState<string>("master");
   const [lines, setLines] = useState<Line[]>(budget.lines);
   const [editing, setEditing] = useState<string | null>(null);
   const [editVals, setEditVals] = useState<Partial<Line>>({});
@@ -112,7 +114,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
 
   const handleAddLine = (section: BudgetSection) => {
     if (!newDesc.trim()) return;
-    const domain = activeTab === "master" ? undefined : activeTab as BudgetDomain;
+    const domain = activeTab === "master" ? undefined : activeTab;
     startTransition(async () => {
       const line = await addLine(budget.id, {
         section,
@@ -142,7 +144,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
             <span className="text-xs text-stone-400">{budget.years === 3 ? "3-year" : "1-year"}</span>
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
-            {budget.domains.map(d => <span key={d} className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded">{DOMAIN_LABELS[d]}</span>)}
+            {budget.domains.map(d => <span key={d} className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded">{domainLabels[d] ?? d}</span>)}
           </div>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -185,7 +187,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
               activeTab === tab ? "bg-sky-600 text-white" : "text-stone-600 hover:bg-stone-100"
             }`}
           >
-            {tab === "master" ? "Master Summary" : DOMAIN_LABELS[tab as BudgetDomain]}
+            {tab === "master" ? "Master Summary" : (domainLabels[tab] ?? tab)}
           </button>
         ))}
       </div>

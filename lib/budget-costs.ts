@@ -1,10 +1,8 @@
 // Canonical cost registry defaults — seeded into DB, editable via admin page.
 // itemKey format: "domain.parameter" (domain lowercase)
 
-import type { BudgetDomain } from "@/app/generated/prisma/client";
-
 export type CostItem = {
-  domain: BudgetDomain | null;
+  domain: string | null;
   itemKey: string;
   unitCost: number;
   unit: string;

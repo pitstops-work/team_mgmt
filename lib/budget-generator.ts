@@ -1,4 +1,4 @@
-import type { BudgetDomain, BudgetSection, InflationType, LineTemplate } from "@/app/generated/prisma/client";
+import type { BudgetSection, InflationType, LineTemplate } from "@/app/generated/prisma/client";
 import { lookupCost } from "@/lib/budget-costs";
 
 export type BudgetGeneratorInputs = {
@@ -19,7 +19,7 @@ export type BudgetGeneratorInputs = {
 };
 
 export type GeneratedLine = {
-  domain: BudgetDomain | null;
+  domain: string | null;
   section: BudgetSection;
   position: number;
   description: string;
@@ -110,7 +110,7 @@ function templateToLine(
   const y3UnitCost = y2UnitCost * (1 + rate);
 
   return {
-    domain:          t.domain as BudgetDomain | null,
+    domain:          t.domain,
     section:         t.section,
     position,
     description:     t.description,
@@ -149,7 +149,7 @@ export function buildAugmentedRegistry(
 }
 
 export function generateBudgetLines(
-  domains: BudgetDomain[],
+  domains: string[],
   inp: BudgetGeneratorInputs,
   years: number,
   registry: Record<string, number>,

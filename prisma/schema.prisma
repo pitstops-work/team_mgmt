@@ -1491,12 +1491,25 @@ model FacilityLayerConfig {
 
 // ─── Budget Tool ──────────────────────────────────────────────────────────────
 
-enum BudgetDomain {
-  Children
-  Youth
-  Elderly
-  WelfareRights
-  Creche
+// BudgetDomain is no longer an enum — domain keys are plain strings
+// configured via BudgetDomainConfig (admin-editable from /admin).
+
+model BudgetDomainConfig {
+  id               String   @id @default(cuid())
+  city             String   @default("Bangalore")
+  key              String   // stored in domain fields, e.g. "Children"
+  label            String   // display name, e.g. "Elderly + Community Kitchen"
+  description      String?
+  position         Int      @default(0)
+  isActive         Boolean  @default(true)
+  // For per-beneficiary cost analysis
+  beneficiaryLabel String?  // e.g. "Children", "Youth enrolled"
+  beneficiaryVar   String?  // programme input key: "nCLCs", "nElderly", "nCreches", "nSettlements"
+  beneficiaryMult  Float    @default(1) // multiply beneficiaryVar by this
+  createdAt        DateTime @default(now())
+
+  @@unique([city, key])
+  @@index([city, position])
 }
 
 enum BudgetStatus {
@@ -1525,7 +1538,7 @@ model Budget {
   name      String
   partnerId String
   partner   User          @relation("BudgetPartner", fields: [partnerId], references: [id])
-  domains   BudgetDomain[]
+  domains   String[]
   city      String        @default("Bangalore")
   years     Int           @default(1)
   status    BudgetStatus  @default(draft)
@@ -1561,7 +1574,7 @@ model BudgetLine {
   id              String        @id @default(cuid())
   budgetId        String
   budget          Budget        @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  domain          BudgetDomain?
+  domain          String?
   section         BudgetSection
   position        Int
   description     String
@@ -1589,7 +1602,7 @@ model BudgetLine {
 model CostRegistry {
   id            String        @id @default(cuid())
   city          String        @default("Bangalore")
-  domain        BudgetDomain?
+  domain        String?
   itemKey       String
   unitCost      Float
   unit          String
@@ -1622,7 +1635,7 @@ model CostRegistry {
 model LineTemplate {
   id              String        @id @default(cuid())
   city            String
-  domain          BudgetDomain?
+  domain          String?
   section         BudgetSection
   description     String
   costCategory    InflationType

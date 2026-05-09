@@ -6,14 +6,15 @@ import {
   seedProgrammeInputs,
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
   reorderLineTemplates, seedLineTemplates,
-  type LineTemplateFields,
+  addDomain, updateDomain, toggleDomain, reorderDomains, seedDomains,
+  type LineTemplateFields, type DomainConfigFields,
 } from "./actions";
-import type { BudgetDomain, BudgetSection, InflationType, LineTemplate } from "@/app/generated/prisma/client";
+import type { BudgetSection, InflationType, LineTemplate, BudgetDomainConfig } from "@/app/generated/prisma/client";
 import { generateBudgetLines, buildAugmentedRegistry, type BudgetGeneratorInputs } from "@/lib/budget-generator";
 
 type CostRow = {
   id: string | null;
-  domain: BudgetDomain | null;
+  domain: string | null;
   itemKey: string;
   unit: string;
   notes: string | null;
@@ -22,7 +23,7 @@ type CostRow = {
   isEdited: boolean;
 };
 
-const DOMAIN_ORDER: (BudgetDomain | null)[] = ["Children", "Youth", "Elderly", "WelfareRights", "Creche", null];
+// Fallback until DB domains are loaded
 const DOMAIN_LABELS: Record<string, string> = {
   Children: "Children", Youth: "Youth", Elderly: "Elderly + Community Kitchen",
   WelfareRights: "Welfare Rights", Creche: "Creche",
@@ -101,7 +102,10 @@ function makeDefaultInputs(costs: { itemKey: string; currentCost: number }[]): B
 
 // ─── Cost Registry tab ────────────────────────────────────────────────────────
 
-function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded: boolean; city: string }) {
+function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
+  costs: CostRow[]; isSeeded: boolean; city: string;
+  domainOrder: (string | null)[]; domainLabels: Record<string, string>;
+}) {
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<string | null>(null);
   const [editVal, setEditVal] = useState<string>("");
@@ -123,9 +127,9 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
   const progInputRows = costs.filter(c => c.itemKey.startsWith("inp."));
   const domainCosts   = costs.filter(c => !c.itemKey.startsWith("inp."));
 
-  const grouped = DOMAIN_ORDER.map(d => ({
+  const grouped = domainOrder.map(d => ({
     domain: d,
-    label: d ? DOMAIN_LABELS[d] : "Cross-cutting",
+    label: d ? (domainLabels[d] ?? d) : "Cross-cutting",
     costs: domainCosts.filter(c => c.domain === d),
   })).filter(g => g.costs.length > 0);
 
@@ -161,7 +165,7 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
   const handleAddItem = () => {
     const key = newKey.trim();
     if (!key || !newCost) return;
-    const domain = activeDomain === "cross" ? null : activeDomain as BudgetDomain;
+    const domain = activeDomain === "cross" ? null : activeDomain;
     startTransition(async () => {
       await addCostItem(city, { domain, itemKey: key, unit: newUnit, unitCost: parseFloat(newCost), notes: newNotes || undefined });
       setAddingItem(false); setNewKey(""); setNewCost(""); setNewNotes(""); setNewUnit("₹"); setNewItemType("cost");
@@ -434,13 +438,14 @@ const BLANK_FORM: LineTemplateFields = {
   isSalaryStub: false,
 };
 
-function TemplateForm({ initial, onSave, onCancel, pending, registryKeys, customInputVars }: {
+function TemplateForm({ initial, onSave, onCancel, pending, registryKeys, customInputVars, domains }: {
   initial: LineTemplateFields;
   onSave: (f: LineTemplateFields) => void;
   onCancel: () => void;
   pending: boolean;
   registryKeys: string[];
   customInputVars: { value: string; label: string }[];
+  domains: BudgetDomainConfig[];
 }) {
   const [f, setF] = useState<LineTemplateFields>(initial);
   const set = <K extends keyof LineTemplateFields>(k: K, v: LineTemplateFields[K]) => setF(p => ({ ...p, [k]: v }));
@@ -465,10 +470,10 @@ function TemplateForm({ initial, onSave, onCancel, pending, registryKeys, custom
 
         <label>
           <span className="text-xs font-medium text-stone-600">Domain</span>
-          <select value={f.domain ?? ""} onChange={e => set("domain", (e.target.value || null) as BudgetDomain | null)}
+          <select value={f.domain ?? ""} onChange={e => set("domain", e.target.value || null)}
             className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none">
             <option value="">Cross-cutting</option>
-            {(["Children","Youth","Elderly","WelfareRights","Creche"] as BudgetDomain[]).map(d => <option key={d} value={d}>{d}</option>)}
+            {domains.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
           </select>
         </label>
 
@@ -645,7 +650,7 @@ const SECTION_BADGE: Record<string, string> = {
 
 function buildNewGlobalOrder(
   allTemplates: LineTemplate[],
-  domainKey: BudgetDomain | null,
+  domainKey: string | null,
   newVisibleOrder: LineTemplate[],
 ): string[] {
   const sorted = [...allTemplates].sort((a, b) => a.position - b.position);
@@ -668,8 +673,9 @@ const STANDARD_INP_KEYS = new Set([
   "inp.nCreches","inp.crecheRentPerMonth","inp.rcRentPerMonth",
 ]);
 
-function LineTemplatesTab({ templates, city, registryKeys, costs }: {
+function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
   templates: LineTemplate[]; city: string; registryKeys: string[]; costs: CostRow[];
+  domains: BudgetDomainConfig[];
 }) {
   const [pending, startTransition] = useTransition();
   const [activeDomain, setActiveDomain] = useState<string>("Children");
@@ -688,7 +694,7 @@ function LineTemplatesTab({ templates, city, registryKeys, costs }: {
     [costs]
   );
 
-  const domainKey = activeDomain === "cross" ? null : activeDomain as BudgetDomain;
+  const domainKey = activeDomain === "cross" ? null : activeDomain;
   const visible = useMemo(() =>
     templates
       .filter(t => activeDomain === "cross" ? t.domain === null : t.domain === activeDomain)
@@ -708,9 +714,9 @@ function LineTemplatesTab({ templates, city, registryKeys, costs }: {
   }, [visible, draggedId, dragOverId]);
 
   const domainTabs = [
-    ...["Children","Youth","Elderly","WelfareRights","Creche"].map(d => ({
-      key: d, label: DOMAIN_LABELS[d] ?? d,
-      count: templates.filter(t => t.domain === d).length,
+    ...domains.map(d => ({
+      key: d.key, label: d.label,
+      count: templates.filter(t => t.domain === d.key).length,
     })),
     { key: "cross", label: "Cross-cutting + Admin", count: templates.filter(t => t.domain === null).length },
   ];
@@ -720,7 +726,7 @@ function LineTemplatesTab({ templates, city, registryKeys, costs }: {
 
   const handleAdd = (fields: LineTemplateFields) =>
     startTransition(async () => {
-      await addLineTemplate(city, { ...fields, domain: domainKey as BudgetDomain | null });
+      await addLineTemplate(city, { ...fields, domain: domainKey });
       setAdding(false);
     });
 
@@ -752,7 +758,7 @@ function LineTemplatesTab({ templates, city, registryKeys, costs }: {
     const reordered = [...visible];
     const [item] = reordered.splice(from, 1);
     reordered.splice(to, 0, item);
-    const globalOrder = buildNewGlobalOrder(templates, domainKey as BudgetDomain | null, reordered);
+    const globalOrder = buildNewGlobalOrder(templates, domainKey, reordered);
     setDraggedId(null); setDragOverId(null);
     startTransition(() => reorderLineTemplates(city, globalOrder));
   };
@@ -850,6 +856,7 @@ function LineTemplatesTab({ templates, city, registryKeys, costs }: {
                           pending={pending}
                           registryKeys={registryKeys}
                           customInputVars={customInputVars}
+                          domains={domains}
                         />
                       </td>
                     </tr>
@@ -865,12 +872,13 @@ function LineTemplatesTab({ templates, city, registryKeys, costs }: {
       <div className="mt-3">
         {adding ? (
           <TemplateForm
-            initial={{ ...BLANK_FORM, domain: domainKey as BudgetDomain | null }}
+            initial={{ ...BLANK_FORM, domain: domainKey }}
             onSave={handleAdd}
             onCancel={() => setAdding(false)}
             pending={pending}
             registryKeys={registryKeys}
             customInputVars={customInputVars}
+            domains={domains}
           />
         ) : (
           <button onClick={() => setAdding(true)}
@@ -884,8 +892,6 @@ function LineTemplatesTab({ templates, city, registryKeys, costs }: {
 }
 
 // ─── Cost Analysis tab ────────────────────────────────────────────────────────
-
-const ALL_DOMAINS: BudgetDomain[] = ["Children", "Youth", "Elderly", "WelfareRights", "Creche"];
 
 const DEFAULT_INPUTS: BudgetGeneratorInputs = {
   nSettlements: 10,
@@ -940,7 +946,8 @@ function parseIndicativeSalary(hint: string | null | undefined): number {
   return nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
 }
 
-function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; costs: CostRow[] }) {
+function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplate[]; costs: CostRow[]; domains: BudgetDomainConfig[] }) {
+  const ALL_DOMAINS = domains.map(d => d.key);
   const [inp, setInp] = useState<BudgetGeneratorInputs>(() => makeDefaultInputs(costs));
   const setField = (k: keyof BudgetGeneratorInputs, v: number) =>
     setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
@@ -990,38 +997,53 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
   // Total children derived from registry ratio
   const totalChildren = Math.round(inp.nCLCs * (registry["children.children_per_clc"] ?? 0));
 
-  // Per-domain operational Y1 totals
+  // Per-domain operational Y1 totals — keyed by domain key
   const domainOp = useMemo(() => {
-    const sum = (d: BudgetDomain | null) =>
-      opLines.filter(l => l.domain === d).reduce((s, l) => s + l.y1Total, 0);
-    return {
-      children: sum("Children"),
-      youth:    sum("Youth"),
-      elderly:  sum("Elderly"),
-      creche:   sum("Creche"),
-      wr:       sum("WelfareRights"),
-      total:    opLines.reduce((s, l) => s + l.y1Total, 0),
-    };
-  }, [opLines]);
+    const byDomain: Record<string, number> = {};
+    for (const d of ALL_DOMAINS) {
+      byDomain[d] = opLines.filter(l => l.domain === d).reduce((s, l) => s + l.y1Total, 0);
+    }
+    byDomain["total"] = opLines.reduce((s, l) => s + l.y1Total, 0);
+    return byDomain;
+  }, [opLines, ALL_DOMAINS]);
 
-  const perUnit = useMemo(() => ({
-    child:   totalChildren > 0       ? Math.round(domainOp.children / totalChildren) : null,
-    youth:   denoms.nYouth > 0       ? Math.round(domainOp.youth    / denoms.nYouth) : null,
-    elderly: inp.nElderly > 0        ? Math.round(domainOp.elderly  / inp.nElderly)  : null,
-    infant:  denoms.nInfants > 0     ? Math.round(domainOp.creche   / denoms.nInfants) : null,
-    hh:      denoms.nHouseholds > 0  ? Math.round(domainOp.total    / denoms.nHouseholds) : null,
-    cluster: inp.nClusters > 0       ? Math.round(domainOp.total    / inp.nClusters)  : null,
-  }), [domainOp, totalChildren, denoms, inp]);
+  // Per-unit costs computed from domain configs (beneficiaryVar + beneficiaryMult)
+  const perUnit = useMemo(() => {
+    const result: { label: string; value: number | null; sub: string }[] = [];
+    for (const d of domains) {
+      if (!d.beneficiaryVar || !d.beneficiaryLabel) continue;
+      const benefVar = d.beneficiaryVar as keyof BudgetGeneratorInputs;
+      const count = (inp[benefVar] as number ?? 0) * d.beneficiaryMult;
+      const domainTotal = domainOp[d.key] ?? 0;
+      result.push({
+        label: `Per ${d.beneficiaryLabel.toLowerCase()}`,
+        value: count > 0 ? Math.round(domainTotal / count) : null,
+        sub: `${Math.round(count).toLocaleString("en-IN")} ${d.beneficiaryLabel.toLowerCase()}`,
+      });
+    }
+    // Always add cluster and HH
+    result.push({
+      label: "Per cluster",
+      value: inp.nClusters > 0 ? Math.round((domainOp["total"] ?? 0) / inp.nClusters) : null,
+      sub: `${inp.nClusters} clusters`,
+    });
+    result.push({
+      label: "Per HH",
+      value: denoms.nHouseholds > 0 ? Math.round((domainOp["total"] ?? 0) / denoms.nHouseholds) : null,
+      sub: `${denoms.nHouseholds.toLocaleString("en-IN")} households`,
+    });
+    return result;
+  }, [domainOp, domains, inp, denoms]);
 
   type DomainGroup = {
-    domain: BudgetDomain | null;
+    domain: string | null;
     label: string;
     bySection: { section: string; lines: AnalysisLine[]; y1: number; y2: number; y3: number }[];
     y1: number; y2: number; y3: number;
   };
 
   const grouped = useMemo<DomainGroup[]>(() => {
-    const domainOrder = [...ALL_DOMAINS, null] as (BudgetDomain | null)[];
+    const domainOrder = [...ALL_DOMAINS, null] as (string | null)[];
     return domainOrder.flatMap(domain => {
       const domLines = indicativeLines.filter(l => l.domain === domain);
       if (!domLines.length) return [];
@@ -1037,7 +1059,7 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
       });
       return [{
         domain,
-        label: domain ? DOMAIN_LABELS[domain] : "Cross-cutting + Admin",
+        label: domain ? (domains.find(d => d.key === domain)?.label ?? domain) : "Cross-cutting + Admin",
         bySection,
         y1: domLines.reduce((acc, l) => acc + l.y1Total, 0),
         y2: domLines.reduce((acc, l) => acc + l.y2Total, 0),
@@ -1125,14 +1147,7 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
           <span className="ml-2 normal-case font-normal text-sky-500">(excludes capex, admin salaries, admin other)</span>
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { label: "Per child",   value: perUnit.child,   sub: `${(totalChildren || 0).toLocaleString("en-IN")} children` },
-            { label: "Per youth",   value: perUnit.youth,   sub: `${denoms.nYouth.toLocaleString("en-IN")} youth` },
-            { label: "Per elderly", value: perUnit.elderly, sub: `${inp.nElderly.toLocaleString("en-IN")} elderly` },
-            { label: "Per infant",  value: perUnit.infant,  sub: `${denoms.nInfants.toLocaleString("en-IN")} infants` },
-            { label: "Per cluster", value: perUnit.cluster, sub: `${inp.nClusters} clusters` },
-            { label: "Per HH",      value: perUnit.hh,      sub: `${denoms.nHouseholds.toLocaleString("en-IN")} households` },
-          ].map(({ label, value, sub }) => (
+          {perUnit.map(({ label, value, sub }) => (
             <div key={label} className="bg-sky-900/50 rounded-lg p-3">
               <p className="text-xs text-sky-400">{label}</p>
               <p className="text-lg font-bold text-white mt-1">
@@ -1241,24 +1256,262 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
   );
 }
 
+// ─── Domains tab ──────────────────────────────────────────────────────────────
+
+const BENEFICIARY_VARS = [
+  { value: "nCLCs",        label: "nCLCs (Children Learning Centres)" },
+  { value: "nYRCs",        label: "nYRCs (Youth Resource Centres)" },
+  { value: "nElderly",     label: "nElderly (enrolled)" },
+  { value: "nCreches",     label: "nCreches" },
+  { value: "nSettlements", label: "nSettlements" },
+  { value: "nClusters",    label: "nClusters" },
+];
+
+function DomainsTab({ domains, city }: { domains: BudgetDomainConfig[]; city: string }) {
+  const [pending, startTransition] = useTransition();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<DomainConfigFields>>({});
+  const [newKey, setNewKey] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [newBenefLabel, setNewBenefLabel] = useState("");
+  const [newBenefVar, setNewBenefVar] = useState("");
+  const [newBenefMult, setNewBenefMult] = useState("1");
+
+  const handleSeed = () => startTransition(() => seedDomains(city));
+
+  const handleToggle = (id: string, current: boolean) =>
+    startTransition(() => toggleDomain(id, !current));
+
+  const startEdit = (d: BudgetDomainConfig) => {
+    setEditingId(d.id);
+    setEditForm({
+      label: d.label,
+      description: d.description,
+      beneficiaryLabel: d.beneficiaryLabel,
+      beneficiaryVar: d.beneficiaryVar,
+      beneficiaryMult: d.beneficiaryMult,
+    });
+  };
+
+  const saveEdit = (id: string) => {
+    startTransition(async () => {
+      await updateDomain(id, editForm);
+      setEditingId(null);
+    });
+  };
+
+  const handleAdd = () => {
+    const key = newKey.trim();
+    if (!key || !newLabel.trim()) return;
+    startTransition(async () => {
+      await addDomain(city, key, {
+        label: newLabel.trim(),
+        description: newDesc || null,
+        beneficiaryLabel: newBenefLabel || null,
+        beneficiaryVar: newBenefVar || null,
+        beneficiaryMult: parseFloat(newBenefMult) || 1,
+      });
+      setAdding(false);
+      setNewKey(""); setNewLabel(""); setNewDesc(""); setNewBenefLabel(""); setNewBenefVar(""); setNewBenefMult("1");
+    });
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-stone-500">
+          Programme domains available when creating a budget. Changes apply immediately to new budgets.
+        </p>
+        {domains.length === 0 && (
+          <button onClick={handleSeed} disabled={pending}
+            className="text-sm bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 disabled:opacity-60">
+            {pending ? "Seeding…" : "Seed standard domains"}
+          </button>
+        )}
+      </div>
+
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+        {domains.length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <p className="text-sm text-stone-400">No domains configured yet.</p>
+            <p className="text-xs text-stone-300 mt-1">Click "Seed standard domains" to add Children, Youth, Elderly, Welfare Rights, Creche.</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
+                <th className="text-left px-4 py-2.5 font-medium">Key</th>
+                <th className="text-left px-3 py-2.5 font-medium">Label</th>
+                <th className="text-left px-3 py-2.5 font-medium">Description</th>
+                <th className="text-left px-3 py-2.5 font-medium">Beneficiary formula</th>
+                <th className="w-28 px-3 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {domains.map(d => (
+                <Fragment key={d.id}>
+                  <tr className={`border-b border-stone-50 group ${!d.isActive ? "opacity-40" : ""}`}>
+                    <td className="px-4 py-2.5">
+                      <span className="font-mono text-stone-600 text-xs bg-stone-100 px-1.5 py-0.5 rounded">{d.key}</span>
+                    </td>
+                    <td className="px-3 py-2.5 font-medium text-stone-800">{d.label}</td>
+                    <td className="px-3 py-2.5 text-stone-500 text-xs">{d.description ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-xs text-stone-400 font-mono">
+                      {d.beneficiaryVar ? `${d.beneficiaryVar} × ${d.beneficiaryMult}` : "—"}
+                      {d.beneficiaryLabel && <span className="ml-1 text-stone-300">({d.beneficiaryLabel})</span>}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEdit(d)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
+                        <button onClick={() => handleToggle(d.id, d.isActive)}
+                          className="text-xs text-stone-400 hover:text-stone-700">
+                          {d.isActive ? "Disable" : "Enable"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {editingId === d.id && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-3 bg-sky-50 border-b border-sky-100">
+                        <div className="grid grid-cols-2 gap-3">
+                          <label>
+                            <span className="text-xs font-medium text-stone-600">Label</span>
+                            <input value={editForm.label ?? ""} onChange={e => setEditForm(p => ({ ...p, label: e.target.value }))}
+                              className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
+                          </label>
+                          <label>
+                            <span className="text-xs font-medium text-stone-600">Description</span>
+                            <input value={editForm.description ?? ""} onChange={e => setEditForm(p => ({ ...p, description: e.target.value || null }))}
+                              className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+                          </label>
+                          <label>
+                            <span className="text-xs font-medium text-stone-600">Beneficiary label (e.g. "Children")</span>
+                            <input value={editForm.beneficiaryLabel ?? ""} onChange={e => setEditForm(p => ({ ...p, beneficiaryLabel: e.target.value || null }))}
+                              className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+                          </label>
+                          <label>
+                            <span className="text-xs font-medium text-stone-600">Beneficiary variable</span>
+                            <select value={editForm.beneficiaryVar ?? ""} onChange={e => setEditForm(p => ({ ...p, beneficiaryVar: e.target.value || null }))}
+                              className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none">
+                              <option value="">—</option>
+                              {BENEFICIARY_VARS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                            </select>
+                          </label>
+                          <label>
+                            <span className="text-xs font-medium text-stone-600">Multiplier (var × this = beneficiary count)</span>
+                            <input type="number" value={editForm.beneficiaryMult ?? 1} onChange={e => setEditForm(p => ({ ...p, beneficiaryMult: parseFloat(e.target.value) || 1 }))}
+                              className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+                          </label>
+                        </div>
+                        <div className="flex gap-2 justify-end mt-3">
+                          <button onClick={() => setEditingId(null)} className="text-sm text-stone-500 hover:text-stone-800 px-3 py-1.5">Cancel</button>
+                          <button onClick={() => saveEdit(d.id)} disabled={pending}
+                            className="text-sm bg-sky-600 text-white px-4 py-1.5 rounded-lg hover:bg-sky-700 disabled:opacity-50">
+                            {pending ? "Saving…" : "Save"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Add new domain */}
+      <div className="mt-3">
+        {adding ? (
+          <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-3">
+            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">New domain</p>
+            <div className="grid grid-cols-2 gap-3">
+              <label>
+                <span className="text-xs font-medium text-stone-600">Key (used in DB — no spaces)</span>
+                <input value={newKey} onChange={e => setNewKey(e.target.value.replace(/\s/g, ""))}
+                  placeholder="e.g. Health"
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500" />
+              </label>
+              <label>
+                <span className="text-xs font-medium text-stone-600">Display label</span>
+                <input value={newLabel} onChange={e => setNewLabel(e.target.value)}
+                  placeholder="e.g. Health & Nutrition"
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
+              </label>
+              <label className="col-span-2">
+                <span className="text-xs font-medium text-stone-600">Description (shown in budget creation form)</span>
+                <input value={newDesc} onChange={e => setNewDesc(e.target.value)}
+                  placeholder="e.g. Health camps, nutrition surveys"
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+              </label>
+              <label>
+                <span className="text-xs font-medium text-stone-600">Beneficiary label</span>
+                <input value={newBenefLabel} onChange={e => setNewBenefLabel(e.target.value)}
+                  placeholder="e.g. Beneficiaries"
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+              </label>
+              <label>
+                <span className="text-xs font-medium text-stone-600">Beneficiary variable</span>
+                <select value={newBenefVar} onChange={e => setNewBenefVar(e.target.value)}
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none">
+                  <option value="">—</option>
+                  {BENEFICIARY_VARS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                </select>
+              </label>
+              <label>
+                <span className="text-xs font-medium text-stone-600">Multiplier</span>
+                <input type="number" value={newBenefMult} onChange={e => setNewBenefMult(e.target.value)}
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+              </label>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setAdding(false)} className="text-sm text-stone-500 hover:text-stone-800 px-3 py-1.5">Cancel</button>
+              <button onClick={handleAdd} disabled={pending || !newKey.trim() || !newLabel.trim()}
+                className="text-sm bg-sky-600 text-white px-4 py-1.5 rounded-lg hover:bg-sky-700 disabled:opacity-50">
+                {pending ? "Adding…" : "Add domain"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setAdding(true)}
+            className="text-sm text-sky-600 hover:text-sky-800 border border-dashed border-sky-300 rounded-lg px-4 py-2 hover:bg-sky-50 w-full">
+            + Add domain
+          </button>
+        )}
+      </div>
+
+      <p className="mt-4 text-xs text-stone-400">
+        Domain keys are stored directly in line templates and budget lines. Renaming a key requires a data migration. Add new domains freely.
+      </p>
+    </>
+  );
+}
+
 // ─── Root client component ────────────────────────────────────────────────────
 
 export default function AdminClient({
-  costs, isSeeded, city, templates,
+  costs, isSeeded, city, templates, domains,
 }: {
   costs: CostRow[];
   isSeeded: boolean;
   city: string;
   templates: LineTemplate[];
+  domains: BudgetDomainConfig[];
 }) {
-  const [activeTab, setActiveTab] = useState<"registry" | "templates" | "analysis">("registry");
+  const [activeTab, setActiveTab] = useState<"registry" | "templates" | "analysis" | "domains">("registry");
+
+  // Build lookup maps from domain configs
+  const domainOrder: (string | null)[] = [...domains.map(d => d.key), null];
+  const domainLabels: Record<string, string> = Object.fromEntries(domains.map(d => [d.key, d.label]));
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-stone-900">Budget Configuration</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Costs, ratios, and line item templates used when generating budgets.</p>
+          <p className="text-sm text-stone-500 mt-0.5">Costs, ratios, line templates, and domains used when generating budgets.</p>
         </div>
       </div>
 
@@ -1287,11 +1540,17 @@ export default function AdminClient({
           className={`text-sm px-4 py-1.5 rounded-md transition-all ${activeTab === "analysis" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
           Cost Analysis
         </button>
+        <button onClick={() => setActiveTab("domains")}
+          className={`text-sm px-4 py-1.5 rounded-md transition-all ${activeTab === "domains" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+          Domains
+          <span className="ml-1.5 text-xs text-stone-400">{domains.length}</span>
+        </button>
       </div>
 
-      {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} />}
-      {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} costs={costs} />}
-      {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} />}
+      {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} domainOrder={domainOrder} domainLabels={domainLabels} />}
+      {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} costs={costs} domains={domains} />}
+      {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} domains={domains} />}
+      {activeTab === "domains"   && <DomainsTab domains={domains} city={city} />}
     </div>
   );
 }

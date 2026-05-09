@@ -2,21 +2,26 @@
 
 import { useState, useTransition } from "react";
 import { createBudget, type CreateBudgetPayload } from "../actions";
-import type { CustomProgrammeInput } from "./page";
+import type { CustomProgrammeInput, DomainOption } from "./page";
 
-const DOMAINS = [
-  { id: "Children",     label: "Children",              desc: "CLCs, after-school, camps" },
-  { id: "Youth",        label: "Youth",                 desc: "YRCs, Yuva Adda, sports" },
-  { id: "Elderly",      label: "Elderly + Community Kitchen", desc: "Day care, nutrition, community kitchen" },
-  { id: "WelfareRights",label: "Welfare Rights",        desc: "Entitlement & collectivization" },
-  { id: "Creche",       label: "Creche",                desc: "0–3 yr children, APF standard model" },
-] as const;
+// Fallback domains shown if none are configured in DB yet
+const FALLBACK_DOMAINS: DomainOption[] = [
+  { key: "Children",     label: "Children",                    description: "CLCs, after-school, camps",           city: "Bangalore" },
+  { key: "Youth",        label: "Youth",                       description: "YRCs, Yuva Adda, sports",             city: "Bangalore" },
+  { key: "Elderly",      label: "Elderly + Community Kitchen", description: "Day care, nutrition, community kitchen",city: "Bangalore" },
+  { key: "WelfareRights",label: "Welfare Rights",              description: "Entitlement & collectivization",       city: "Bangalore" },
+  { key: "Creche",       label: "Creche",                      description: "0–3 yr children, APF standard model", city: "Bangalore" },
+];
 
-type Domain = typeof DOMAINS[number]["id"];
-
-export default function NewBudgetForm({ customInputs = [] }: { customInputs?: CustomProgrammeInput[] }) {
+export default function NewBudgetForm({
+  customInputs = [],
+  domains: allDomains = [],
+}: {
+  customInputs?: CustomProgrammeInput[];
+  domains?: DomainOption[];
+}) {
   const [step, setStep] = useState<1 | 2>(1);
-  const [selectedDomains, setSelectedDomains] = useState<Set<Domain>>(new Set());
+  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set());
   const [years, setYears] = useState<1 | 3>(1);
   const [city, setCity] = useState<"Bangalore" | "Chennai">("Bangalore");
   const [name, setName] = useState("");
@@ -29,13 +34,18 @@ export default function NewBudgetForm({ customInputs = [] }: { customInputs?: Cu
     nCreches: 0, crecheRentPerMonth: 0,
   });
   const [extraInputs, setExtraInputs] = useState<Record<string, number>>(
-    () => Object.fromEntries(customInputs.filter(c => c.city === "Bangalore" || true).map(c => [c.key, c.defaultValue]))
+    () => Object.fromEntries(customInputs.map(c => [c.key, c.defaultValue]))
   );
   const [pending, startTransition] = useTransition();
 
-  const toggle = (d: Domain) => setSelectedDomains(prev => {
+  // Domains for the currently selected city
+  const cityDomains = allDomains.length > 0
+    ? allDomains.filter(d => d.city === city)
+    : FALLBACK_DOMAINS.filter(d => d.city === city || city === "Bangalore");
+
+  const toggle = (key: string) => setSelectedDomains(prev => {
     const next = new Set(prev);
-    next.has(d) ? next.delete(d) : next.add(d);
+    next.has(key) ? next.delete(key) : next.add(key);
     return next;
   });
 
@@ -52,7 +62,7 @@ export default function NewBudgetForm({ customInputs = [] }: { customInputs?: Cu
       const payload: CreateBudgetPayload = {
         name: name.trim(),
         city,
-        domains: Array.from(selectedDomains) as CreateBudgetPayload["domains"],
+        domains: Array.from(selectedDomains),
         years,
         ...inputs,
         extraInputs: Object.keys(extraInputs).length > 0 ? extraInputs : undefined,
@@ -60,6 +70,13 @@ export default function NewBudgetForm({ customInputs = [] }: { customInputs?: Cu
       await createBudget(payload);
     });
   };
+
+  // Standard domain-specific input sections keyed by domain key
+  const hasChildren     = selectedDomains.has("Children");
+  const hasYouth        = selectedDomains.has("Youth");
+  const hasElderly      = selectedDomains.has("Elderly");
+  const hasWelfareRights= selectedDomains.has("WelfareRights");
+  const hasCreche       = selectedDomains.has("Creche");
 
   return (
     <div className="bg-white border border-stone-200 rounded-xl p-6 space-y-6">
@@ -77,27 +94,45 @@ export default function NewBudgetForm({ customInputs = [] }: { customInputs?: Cu
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-stone-700 mb-2">City</label>
+            <div className="flex gap-3">
+              {(["Bangalore", "Chennai"] as const).map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => { setCity(c); setSelectedDomains(new Set()); }}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${
+                    city === c ? "border-sky-500 bg-sky-50 text-sky-700" : "border-stone-200 text-stone-700 hover:border-stone-300"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-stone-700 mb-2">Domains</label>
             <div className="grid grid-cols-1 gap-2">
-              {DOMAINS.map(d => (
+              {cityDomains.map(d => (
                 <button
-                  key={d.id}
+                  key={d.key}
                   type="button"
-                  onClick={() => toggle(d.id)}
+                  onClick={() => toggle(d.key)}
                   className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
-                    selectedDomains.has(d.id)
+                    selectedDomains.has(d.key)
                       ? "border-sky-500 bg-sky-50"
                       : "border-stone-200 hover:border-stone-300"
                   }`}
                 >
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${
-                    selectedDomains.has(d.id) ? "border-sky-500 bg-sky-500" : "border-stone-300"
+                    selectedDomains.has(d.key) ? "border-sky-500 bg-sky-500" : "border-stone-300"
                   }`}>
-                    {selectedDomains.has(d.id) && <span className="text-white text-xs">✓</span>}
+                    {selectedDomains.has(d.key) && <span className="text-white text-xs">✓</span>}
                   </div>
                   <div>
                     <div className="text-sm font-medium text-stone-900">{d.label}</div>
-                    <div className="text-xs text-stone-500">{d.desc}</div>
+                    {d.description && <div className="text-xs text-stone-500">{d.description}</div>}
                   </div>
                 </button>
               ))}
@@ -117,24 +152,6 @@ export default function NewBudgetForm({ customInputs = [] }: { customInputs?: Cu
                   }`}
                 >
                   {y === 1 ? "1 Year" : "3 Years (with inflation)"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-2">City</label>
-            <div className="flex gap-3">
-              {(["Bangalore", "Chennai"] as const).map(c => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCity(c)}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${
-                    city === c ? "border-sky-500 bg-sky-50 text-sky-700" : "border-stone-200 text-stone-700 hover:border-stone-300"
-                  }`}
-                >
-                  {c}
                 </button>
               ))}
             </div>
@@ -165,21 +182,21 @@ export default function NewBudgetForm({ customInputs = [] }: { customInputs?: Cu
             <Field label="No. of clusters" value={inputs.nClusters} onChange={num("nClusters")} />
           </Section>
 
-          {selectedDomains.has("Children") && (
+          {hasChildren && (
             <Section title="Children">
               <Field label="No. of CLCs (Children Learning Centres)" value={inputs.nCLCs} onChange={num("nCLCs")} />
               <Field label="CLC rent per month (₹)" value={inputs.clcRentPerMonth} onChange={num("clcRentPerMonth")} hint="Enter 0 if not paying rent" />
             </Section>
           )}
 
-          {selectedDomains.has("Youth") && (
+          {hasYouth && (
             <Section title="Youth">
               <Field label="No. of YRCs (Youth Resource Centres)" value={inputs.nYRCs} onChange={num("nYRCs")} />
               <Field label="YRC rent per month (₹)" value={inputs.yrcRentPerMonth} onChange={num("yrcRentPerMonth")} hint="Enter 0 if not paying rent" />
             </Section>
           )}
 
-          {selectedDomains.has("Elderly") && (
+          {hasElderly && (
             <Section title="Elderly + Community Kitchen">
               <Field label="No. of elderly centres / kitchens" value={inputs.nElderlyCentres} onChange={num("nElderlyCentres")} />
               <Field label="No. of elderly beneficiaries (total)" value={inputs.nElderly} onChange={num("nElderly")} hint="All centres combined" />
@@ -187,14 +204,14 @@ export default function NewBudgetForm({ customInputs = [] }: { customInputs?: Cu
             </Section>
           )}
 
-          {selectedDomains.has("WelfareRights") && (
+          {hasWelfareRights && (
             <Section title="Welfare Rights">
               <Field label="COs per cluster" value={inputs.cosPerCluster} onChange={num("cosPerCluster")} hint="2 or 3 community organisers per cluster" />
               <Field label="Resource Centre rent per month (₹)" value={inputs.rcRentPerMonth} onChange={num("rcRentPerMonth")} hint="Enter 0 if not paying rent" />
             </Section>
           )}
 
-          {selectedDomains.has("Creche") && (
+          {hasCreche && (
             <Section title="Creche">
               <Field label="No. of creches" value={inputs.nCreches} onChange={num("nCreches")} />
               <Field label="Creche rent per month (₹)" value={inputs.crecheRentPerMonth} onChange={num("crecheRentPerMonth")} hint="Standard APF rate is ₹10,000/month" />

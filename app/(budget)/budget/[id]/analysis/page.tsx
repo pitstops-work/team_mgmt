@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import type { BudgetDomain, BudgetSection } from "@/app/generated/prisma/client";
+import type { BudgetSection } from "@/app/generated/prisma/client";
 import Link from "next/link";
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -45,7 +45,7 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
   const years = budget.years;
 
   // ── Totals by domain and section ────────────────────────────────────────────
-  const domainTotal = (domain: BudgetDomain | null, yr: "y1" | "y2" | "y3") =>
+  const domainTotal = (domain: string | null, yr: "y1" | "y2" | "y3") =>
     lines.filter(l => l.domain === domain).reduce((s, l) => s + l[`${yr}Total`], 0);
 
   const sectionTotal = (section: BudgetSection, yr: "y1" | "y2" | "y3") =>
@@ -59,43 +59,43 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
   const gt3 = grandTotal("y3");
 
   // ── Beneficiary counts per domain ─────────────────────────────────────────
-  const benefUnits: (BenefUnit & { domain: BudgetDomain; total: number })[] = [
+  const benefUnits: (BenefUnit & { domain: string; total: number })[] = [
     budget.domains.includes("Children") && {
-      domain: "Children" as BudgetDomain,
+      domain: "Children",
       label: "Children",
       count: inp.nCLCs * 100,
       description: `${inp.nCLCs} CLC(s) × 100 children`,
       total: domainTotal("Children", "y1"),
     },
     budget.domains.includes("Youth") && {
-      domain: "Youth" as BudgetDomain,
+      domain: "Youth",
       label: "Youth",
       count: inp.nYRCs * 200,
       description: `${inp.nYRCs} YRC(s) × 200 youth`,
       total: domainTotal("Youth", "y1"),
     },
     budget.domains.includes("Elderly") && {
-      domain: "Elderly" as BudgetDomain,
+      domain: "Elderly",
       label: "Elderly",
       count: inp.nElderly,
       description: `${inp.nElderly} elderly beneficiaries`,
       total: domainTotal("Elderly", "y1"),
     },
     budget.domains.includes("WelfareRights") && {
-      domain: "WelfareRights" as BudgetDomain,
+      domain: "WelfareRights",
       label: "Households (WR)",
       count: inp.nSettlements * AVG_HH_PER_SETTLEMENT,
       description: `${inp.nSettlements} settlements × ${AVG_HH_PER_SETTLEMENT} avg HH`,
       total: domainTotal("WelfareRights", "y1"),
     },
     budget.domains.includes("Creche") && {
-      domain: "Creche" as BudgetDomain,
+      domain: "Creche",
       label: "Creche children",
       count: inp.nCreches * 20,
       description: `${inp.nCreches} creche(s) × 20 children`,
       total: domainTotal("Creche", "y1"),
     },
-  ].filter(Boolean) as (BenefUnit & { domain: BudgetDomain; total: number })[];
+  ].filter(Boolean) as (BenefUnit & { domain: string; total: number })[];
 
   const totalBeneficiaries = benefUnits.reduce((s, b) => s + b.count, 0);
 

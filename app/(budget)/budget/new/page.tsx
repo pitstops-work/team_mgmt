@@ -19,10 +19,23 @@ export type CustomProgrammeInput = {
   city: string;
 };
 
+export type DomainOption = {
+  key: string;
+  label: string;
+  description: string | null;
+  city: string;
+};
+
 export default async function NewBudgetPage() {
   const rows = await prisma.costRegistry.findMany({
     where: { itemKey: { startsWith: "inp." } },
     orderBy: { itemKey: "asc" },
+  });
+
+  // Fetch domains for both cities; let the form filter by selected city
+  const domainRows = await prisma.budgetDomainConfig.findMany({
+    where: { isActive: true },
+    orderBy: { position: "asc" },
   });
 
   const customInputs: CustomProgrammeInput[] = rows
@@ -35,13 +48,20 @@ export default async function NewBudgetPage() {
       city: r.city,
     }));
 
+  const domains: DomainOption[] = domainRows.map(d => ({
+    key: d.key,
+    label: d.label,
+    description: d.description,
+    city: d.city,
+  }));
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-stone-900">New Budget</h1>
         <p className="text-sm text-stone-500 mt-1">Select domains and enter programme scale to auto-generate a draft APF budget.</p>
       </div>
-      <NewBudgetForm customInputs={customInputs} />
+      <NewBudgetForm customInputs={customInputs} domains={domains} />
     </div>
   );
 }

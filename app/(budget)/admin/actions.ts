@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getDefaultsForCity } from "@/lib/budget-costs";
 import { getTemplatesForCity } from "@/lib/line-template-seeds";
-import type { BudgetDomain, BudgetSection, InflationType } from "@/app/generated/prisma/client";
+import type { BudgetSection, InflationType } from "@/app/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function seedCostRegistry(city = "Bangalore") {
@@ -35,7 +35,7 @@ export async function seedCostRegistry(city = "Bangalore") {
 
 export async function addCostItem(
   city: string,
-  data: { domain?: BudgetDomain | null; itemKey: string; unit: string; unitCost: number; notes?: string }
+  data: { domain?: string | null; itemKey: string; unit: string; unitCost: number; notes?: string }
 ) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
@@ -117,7 +117,7 @@ export async function resetCostRegistry(id: string) {
 // ─── Line template actions ────────────────────────────────────────────────────
 
 export type LineTemplateFields = {
-  domain?: BudgetDomain | null;
+  domain?: string | null;
   section: BudgetSection;
   description: string;
   costCategory: InflationType;
@@ -185,6 +185,77 @@ export async function reorderLineTemplates(city: string, orderedIds: string[]) {
   if (!session?.user?.id) throw new Error("Not authenticated");
   await prisma.$transaction(
     orderedIds.map((id, position) => prisma.lineTemplate.update({ where: { id }, data: { position } }))
+  );
+  revalidatePath("/admin");
+}
+
+// ─── Domain config actions ────────────────────────────────────────────────────
+
+export type DomainConfigFields = {
+  label: string;
+  description?: string | null;
+  beneficiaryLabel?: string | null;
+  beneficiaryVar?: string | null;
+  beneficiaryMult?: number;
+};
+
+export async function addDomain(city: string, key: string, fields: DomainConfigFields) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const maxPos = await prisma.budgetDomainConfig.aggregate({
+    where: { city },
+    _max: { position: true },
+  });
+  await prisma.budgetDomainConfig.create({
+    data: { city, key, position: (maxPos._max.position ?? -1) + 1, ...fields },
+  });
+  revalidatePath("/admin");
+}
+
+export async function updateDomain(id: string, fields: Partial<DomainConfigFields>) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  await prisma.budgetDomainConfig.update({ where: { id }, data: fields });
+  revalidatePath("/admin");
+}
+
+export async function toggleDomain(id: string, isActive: boolean) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  await prisma.budgetDomainConfig.update({ where: { id }, data: { isActive } });
+  revalidatePath("/admin");
+}
+
+export async function reorderDomains(city: string, orderedIds: string[]) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  await prisma.$transaction(
+    orderedIds.map((id, position) => prisma.budgetDomainConfig.update({ where: { id }, data: { position } }))
+  );
+  revalidatePath("/admin");
+}
+
+export async function seedDomains(city: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const defaults = [
+    { key: "Children",     label: "Children",                     description: "CLCs, after-school, camps",           position: 0, beneficiaryLabel: "Children",       beneficiaryVar: "nCLCs",        beneficiaryMult: 100 },
+    { key: "Youth",        label: "Youth",                        description: "YRCs, Yuva Adda, sports",             position: 1, beneficiaryLabel: "Youth",          beneficiaryVar: "nYRCs",        beneficiaryMult: 200 },
+    { key: "Elderly",      label: "Elderly + Community Kitchen",  description: "Day care, nutrition, community kitchen",position: 2, beneficiaryLabel: "Elderly",        beneficiaryVar: "nElderly",     beneficiaryMult: 1   },
+    { key: "WelfareRights",label: "Welfare Rights",               description: "Entitlement & collectivization",       position: 3, beneficiaryLabel: "Households",     beneficiaryVar: "nSettlements", beneficiaryMult: 150 },
+    { key: "Creche",       label: "Creche",                       description: "0–3 yr children, APF standard model", position: 4, beneficiaryLabel: "Creche children", beneficiaryVar: "nCreches",     beneficiaryMult: 20  },
+  ];
+
+  await prisma.$transaction(
+    defaults.map(d =>
+      prisma.budgetDomainConfig.upsert({
+        where: { city_key: { city, key: d.key } },
+        create: { city, isActive: true, ...d },
+        update: {},
+      })
+    )
   );
   revalidatePath("/admin");
 }

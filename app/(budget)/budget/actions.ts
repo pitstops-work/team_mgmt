@@ -3,14 +3,14 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { generateBudgetLines } from "@/lib/budget-generator";
-import type { BudgetDomain, BudgetSection, InflationType } from "@/app/generated/prisma/client";
+import type { BudgetSection, InflationType } from "@/app/generated/prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 export type CreateBudgetPayload = {
   name: string;
   city: string;
-  domains: BudgetDomain[];
+  domains: string[];
   years: 1 | 3;
   nSettlements: number;
   nClusters: number;
@@ -146,7 +146,7 @@ export async function updateLine(
 export async function addLine(
   budgetId: string,
   data: {
-    domain?: BudgetDomain;
+    domain?: string;
     section: BudgetSection;
     description: string;
     costCategory: InflationType;
