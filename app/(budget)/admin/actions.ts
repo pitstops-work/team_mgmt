@@ -64,6 +64,38 @@ export async function updateCostRegistry(id: string, unitCost: number, notes?: s
   revalidatePath("/admin");
 }
 
+export async function seedProgrammeInputs(city: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const defaults = [
+    { itemKey: "inp.nSettlements",              unit: "count",    unitCost: 10,    notes: "Typical settlements in programme area" },
+    { itemKey: "inp.nClusters",                 unit: "count",    unitCost: 3,     notes: "Typical clusters" },
+    { itemKey: "inp.cosPerCluster",             unit: "count",    unitCost: 2,     notes: "Community Organisers per cluster" },
+    { itemKey: "inp.nCLCs",                     unit: "count",    unitCost: 5,     notes: "Typical CLCs" },
+    { itemKey: "inp.clcRentPerMonth",           unit: "₹/month",  unitCost: 15000, notes: "Typical CLC rent" },
+    { itemKey: "inp.nYRCs",                     unit: "count",    unitCost: 2,     notes: "Typical YRCs" },
+    { itemKey: "inp.yrcRentPerMonth",           unit: "₹/month",  unitCost: 10000, notes: "Typical YRC rent" },
+    { itemKey: "inp.nElderlyCentres",           unit: "count",    unitCost: 2,     notes: "Typical elderly centres" },
+    { itemKey: "inp.nElderly",                  unit: "count",    unitCost: 50,    notes: "Typical elderly enrolled" },
+    { itemKey: "inp.elderlyCentreRentPerMonth", unit: "₹/month",  unitCost: 8000,  notes: "Typical elderly centre rent" },
+    { itemKey: "inp.nCreches",                  unit: "count",    unitCost: 3,     notes: "Typical creches" },
+    { itemKey: "inp.crecheRentPerMonth",        unit: "₹/month",  unitCost: 12000, notes: "Typical creche rent" },
+    { itemKey: "inp.rcRentPerMonth",            unit: "₹/month",  unitCost: 5000,  notes: "Typical RC rent" },
+  ];
+
+  await prisma.$transaction(
+    defaults.map(d =>
+      prisma.costRegistry.upsert({
+        where: { city_itemKey: { city, itemKey: d.itemKey } },
+        create: { city, domain: null, effectiveYear: 2025, ...d },
+        update: {},
+      })
+    )
+  );
+  revalidatePath("/admin");
+}
+
 export async function resetCostRegistry(id: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");

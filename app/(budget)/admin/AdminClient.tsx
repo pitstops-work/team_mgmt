@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition, Fragment } from "react";
 import {
   seedCostRegistry, updateCostRegistry, resetCostRegistry, addCostItem,
+  seedProgrammeInputs,
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
   reorderLineTemplates, seedLineTemplates,
   type LineTemplateFields,
@@ -78,6 +79,26 @@ function formulaSummary(t: LineTemplate): string {
   return `units=${unitPart}  ·  cost=${costPart}`;
 }
 
+function makeDefaultInputs(costs: { itemKey: string; currentCost: number }[]): BudgetGeneratorInputs {
+  const reg = Object.fromEntries(costs.filter(c => c.itemKey.startsWith("inp.")).map(c => [c.itemKey, c.currentCost]));
+  const g = (key: string, fallback: number) => reg[key] ?? fallback;
+  return {
+    nSettlements:              g("inp.nSettlements", 10),
+    nClusters:                 g("inp.nClusters", 3),
+    nCLCs:                     g("inp.nCLCs", 5),
+    clcRentPerMonth:           g("inp.clcRentPerMonth", 15000),
+    nYRCs:                     g("inp.nYRCs", 2),
+    yrcRentPerMonth:           g("inp.yrcRentPerMonth", 10000),
+    nElderlyCentres:           g("inp.nElderlyCentres", 2),
+    nElderly:                  g("inp.nElderly", 50),
+    elderlyCentreRentPerMonth: g("inp.elderlyCentreRentPerMonth", 8000),
+    cosPerCluster:             g("inp.cosPerCluster", 2),
+    rcRentPerMonth:            g("inp.rcRentPerMonth", 5000),
+    nCreches:                  g("inp.nCreches", 3),
+    crecheRentPerMonth:        g("inp.crecheRentPerMonth", 12000),
+  };
+}
+
 // ─── Cost Registry tab ────────────────────────────────────────────────────────
 
 function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded: boolean; city: string }) {
@@ -92,16 +113,26 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
   const [newUnit, setNewUnit] = useState("₹");
   const [newCost, setNewCost] = useState("");
   const [newNotes, setNewNotes] = useState("");
+  const [addingProgInput, setAddingProgInput] = useState(false);
+  const [newProgKey, setNewProgKey] = useState("");
+  const [newProgUnit, setNewProgUnit] = useState("count");
+  const [newProgValue, setNewProgValue] = useState("");
+  const [newProgNotes, setNewProgNotes] = useState("");
+
+  // Split programme inputs (inp.*) from regular cost items
+  const progInputRows = costs.filter(c => c.itemKey.startsWith("inp."));
+  const domainCosts   = costs.filter(c => !c.itemKey.startsWith("inp."));
 
   const grouped = DOMAIN_ORDER.map(d => ({
     domain: d,
     label: d ? DOMAIN_LABELS[d] : "Cross-cutting",
-    costs: costs.filter(c => c.domain === d),
+    costs: domainCosts.filter(c => c.domain === d),
   })).filter(g => g.costs.length > 0);
 
   const currentGroup = grouped.find(g => (g.domain ?? "cross") === activeDomain) ?? grouped[0];
 
   const handleSeed = () => startTransition(() => seedCostRegistry(city));
+  const handleSeedProgInputs = () => startTransition(() => seedProgrammeInputs(city));
 
   const startEdit = (row: CostRow) => {
     setEditing(row.itemKey);
@@ -137,6 +168,69 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
     });
   };
 
+  const handleAddProgInput = () => {
+    const suffix = newProgKey.trim();
+    if (!suffix || !newProgValue) return;
+    startTransition(async () => {
+      await addCostItem(city, { domain: null, itemKey: `inp.${suffix}`, unit: newProgUnit, unitCost: parseFloat(newProgValue), notes: newProgNotes || undefined });
+      setAddingProgInput(false); setNewProgKey(""); setNewProgValue(""); setNewProgNotes(""); setNewProgUnit("count");
+    });
+  };
+
+  // Shared row renderer used for both cost registry and programme inputs
+  const renderRow = (row: CostRow) => editing === row.itemKey ? (
+    <tr key={row.itemKey} className="border-b border-sky-100 bg-sky-50">
+      <td className="px-4 py-2" colSpan={2}>
+        <div className="text-sm font-medium text-stone-800">{formatKey(row.itemKey)}</div>
+        <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
+        <input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes (optional)"
+          className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" />
+      </td>
+      <td className="px-3 py-2 text-right text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
+      <td className="px-3 py-2">
+        <input autoFocus type="number" value={editVal} onChange={e => setEditVal(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") saveEdit(row); if (e.key === "Escape") setEditing(null); }}
+          className="w-full border border-sky-400 rounded px-2 py-1 text-right text-sm focus:outline-none" />
+      </td>
+      <td className="px-3 py-2">
+        <div className="flex gap-1">
+          <button onClick={() => saveEdit(row)} disabled={pending} className="text-xs bg-sky-600 text-white px-2 py-1 rounded hover:bg-sky-700">Save</button>
+          <button onClick={() => setEditing(null)} className="text-xs text-stone-400 hover:text-stone-700">×</button>
+        </div>
+      </td>
+    </tr>
+  ) : (
+    <tr key={row.itemKey} className="border-b border-stone-50 hover:bg-stone-50 group">
+      <td className="px-4 py-2.5">
+        <div className="text-stone-800">{formatKey(row.itemKey)}</div>
+        <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
+        {row.notes && <div className="text-xs text-stone-400 mt-0.5">{row.notes}</div>}
+      </td>
+      <td className="px-3 py-2.5 text-stone-500 text-xs">{row.unit}</td>
+      <td className="text-right px-3 py-2.5 text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
+      <td className="text-right px-3 py-2.5">
+        <span className={`font-medium ${row.isEdited ? "text-amber-700" : "text-stone-800"}`}>{row.currentCost.toLocaleString("en-IN")}</span>
+        {row.isEdited && <span className="ml-1 text-xs text-amber-500">edited</span>}
+      </td>
+      <td className="px-3 py-2.5">
+        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => startEdit(row)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
+          {row.isEdited && row.id && <button onClick={() => handleReset(row)} className="text-xs text-stone-400 hover:text-red-500">Reset</button>}
+        </div>
+      </td>
+    </tr>
+  );
+
+  const colHeaders = (
+    <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
+      <th className="text-left px-4 py-2.5 font-medium">Parameter</th>
+      <th className="text-left px-3 py-2.5 font-medium">Unit</th>
+      <th className="text-right px-3 py-2.5 font-medium w-28">Default</th>
+      <th className="text-right px-3 py-2.5 font-medium w-32">Current</th>
+      <th className="w-24 px-3 py-2.5"></th>
+    </tr>
+  );
+
   return (
     <>
       <div className="flex items-center justify-between mb-4">
@@ -148,7 +242,7 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
         )}
         {isSeeded && (
           <span className="text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
-            {costs.filter(c => c.isEdited).length} customised · {costs.length} total
+            {domainCosts.filter(c => c.isEdited).length} customised · {domainCosts.length} items
           </span>
         )}
       </div>
@@ -167,66 +261,11 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
       {/* Cost table */}
       {(() => {
         const isCost = (row: CostRow) => row.unit.includes("₹");
-        const costRows = currentGroup?.costs.filter(isCost) ?? [];
+        const costRows  = currentGroup?.costs.filter(isCost) ?? [];
         const ratioRows = currentGroup?.costs.filter(r => !isCost(r)) ?? [];
-
-        const renderRow = (row: CostRow) => editing === row.itemKey ? (
-          <tr key={row.itemKey} className="border-b border-sky-100 bg-sky-50">
-            <td className="px-4 py-2" colSpan={2}>
-              <div className="text-sm font-medium text-stone-800">{formatKey(row.itemKey)}</div>
-              <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
-              <input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes (optional)"
-                className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" />
-            </td>
-            <td className="px-3 py-2 text-right text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
-            <td className="px-3 py-2">
-              <input autoFocus type="number" value={editVal} onChange={e => setEditVal(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") saveEdit(row); if (e.key === "Escape") setEditing(null); }}
-                className="w-full border border-sky-400 rounded px-2 py-1 text-right text-sm focus:outline-none" />
-            </td>
-            <td className="px-3 py-2">
-              <div className="flex gap-1">
-                <button onClick={() => saveEdit(row)} disabled={pending} className="text-xs bg-sky-600 text-white px-2 py-1 rounded hover:bg-sky-700">Save</button>
-                <button onClick={() => setEditing(null)} className="text-xs text-stone-400 hover:text-stone-700">×</button>
-              </div>
-            </td>
-          </tr>
-        ) : (
-          <tr key={row.itemKey} className="border-b border-stone-50 hover:bg-stone-50 group">
-            <td className="px-4 py-2.5">
-              <div className="text-stone-800">{formatKey(row.itemKey)}</div>
-              <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
-              {row.notes && <div className="text-xs text-stone-400 mt-0.5">{row.notes}</div>}
-            </td>
-            <td className="px-3 py-2.5 text-stone-500 text-xs">{row.unit}</td>
-            <td className="text-right px-3 py-2.5 text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
-            <td className="text-right px-3 py-2.5">
-              <span className={`font-medium ${row.isEdited ? "text-amber-700" : "text-stone-800"}`}>{row.currentCost.toLocaleString("en-IN")}</span>
-              {row.isEdited && <span className="ml-1 text-xs text-amber-500">edited</span>}
-            </td>
-            <td className="px-3 py-2.5">
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => startEdit(row)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
-                {row.isEdited && row.id && <button onClick={() => handleReset(row)} className="text-xs text-stone-400 hover:text-red-500">Reset</button>}
-              </div>
-            </td>
-          </tr>
-        );
-
-        const colHeaders = (
-          <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
-            <th className="text-left px-4 py-2.5 font-medium">Parameter</th>
-            <th className="text-left px-3 py-2.5 font-medium">Unit</th>
-            <th className="text-right px-3 py-2.5 font-medium w-28">Default</th>
-            <th className="text-right px-3 py-2.5 font-medium w-32">Current</th>
-            <th className="w-24 px-3 py-2.5"></th>
-          </tr>
-        );
-
         const sectionHeader = (label: string) => (
           <tr key={label}><td colSpan={5} className="px-4 pt-4 pb-1.5 text-xs font-semibold text-stone-500 uppercase tracking-wide bg-white">{label}</td></tr>
         );
-
         return (
           <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
@@ -246,22 +285,16 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
       <div className="mt-3">
         {addingItem ? (
           <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-3">
-            {/* Type selector */}
             <div className="flex gap-1 bg-stone-100 rounded-lg p-1 w-fit">
               {(["cost", "ratio"] as const).map(type => (
-                <button key={type} onClick={() => {
-                  setNewItemType(type);
-                  setNewUnit(type === "cost" ? "₹" : "ratio");
-                }}
+                <button key={type} onClick={() => { setNewItemType(type); setNewUnit(type === "cost" ? "₹" : "ratio"); }}
                   className={`text-sm px-4 py-1 rounded-md transition-all ${newItemType === type ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
                   {type === "cost" ? "Unit Cost" : "Programme Ratio"}
                 </button>
               ))}
             </div>
             <p className="text-xs text-stone-400">
-              {newItemType === "cost"
-                ? "A monetary cost used directly in budget lines (e.g. accommodation cost per person)."
-                : "A programme parameter or ratio referenced in formulas (e.g. workers per creche, days per year)."}
+              {newItemType === "cost" ? "A monetary cost used directly in budget lines." : "A parameter or ratio referenced in formulas."}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <label className="col-span-2">
@@ -269,25 +302,22 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
                 <input value={newKey} onChange={e => setNewKey(e.target.value)}
                   placeholder={`e.g. ${activeDomain === "cross" ? "cross" : (activeDomain ?? "children").toLowerCase()}.${newItemType === "cost" ? "accommodation_per_person" : "days_per_year"}`}
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500" />
-                <p className="text-xs text-stone-400 mt-0.5">Dot notation: domain.descriptive_name — this is the key you'll reference in template formulas.</p>
+                <p className="text-xs text-stone-400 mt-0.5">domain.descriptive_name format</p>
               </label>
               <label>
-                <span className="text-xs font-medium text-stone-600">{newItemType === "cost" ? "Unit label" : "Unit label"}</span>
+                <span className="text-xs font-medium text-stone-600">Unit label</span>
                 <input value={newUnit} onChange={e => setNewUnit(e.target.value)}
                   placeholder={newItemType === "cost" ? "e.g. ₹ / person" : "e.g. workers per creche"}
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
-                {newItemType === "cost" && <p className="text-xs text-stone-400 mt-0.5">Must contain ₹ to appear in Unit Costs section.</p>}
               </label>
               <label>
                 <span className="text-xs font-medium text-stone-600">{newItemType === "cost" ? "Cost (₹)" : "Value"}</span>
                 <input type="number" value={newCost} onChange={e => setNewCost(e.target.value)}
-                  placeholder={newItemType === "ratio" ? "e.g. 2.2" : "0"}
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
               <label className="col-span-2">
                 <span className="text-xs font-medium text-stone-600">Notes (optional)</span>
                 <input value={newNotes} onChange={e => setNewNotes(e.target.value)}
-                  placeholder="What this represents"
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
             </div>
@@ -307,31 +337,87 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
           </button>
         )}
       </div>
-      {/* Programme inputs reference */}
-      <div className="mt-6">
-        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Programme inputs (read-only)</p>
-        <p className="text-xs text-stone-400 mb-3">
-          These are set per budget when it is created. Reference them in template formulas using the key shown (e.g. as costKey2 or costKey3 multiplier).
-        </p>
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
-                <th className="text-left px-4 py-2 font-medium">Label</th>
-                <th className="text-left px-3 py-2 font-medium font-mono">Key (use in templates)</th>
-                <th className="text-left px-3 py-2 font-medium">Unit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {PROGRAMME_INPUTS.map(p => (
-                <tr key={p.key} className="border-b border-stone-50">
-                  <td className="px-4 py-2 text-stone-700">{p.label}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-sky-700">{p.key}</td>
-                  <td className="px-3 py-2 text-xs text-stone-400">{p.unit}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+      {/* Programme inputs — editable */}
+      <div className="mt-8">
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Programme inputs</p>
+            <p className="text-xs text-stone-400 mt-0.5">
+              Typical values asked when creating a budget. Edit to set defaults for Cost Analysis; reference as <span className="font-mono">inp.*</span> keys in template formulas.
+            </p>
+          </div>
+          {progInputRows.length === 0 && (
+            <button onClick={handleSeedProgInputs} disabled={pending}
+              className="ml-4 shrink-0 text-sm bg-sky-600 text-white px-3 py-1.5 rounded-lg hover:bg-sky-700 disabled:opacity-50">
+              {pending ? "Seeding…" : "Seed standard inputs"}
+            </button>
+          )}
+        </div>
+
+        {progInputRows.length > 0 ? (
+          <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>{colHeaders}</thead>
+              <tbody>{progInputRows.map(renderRow)}</tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="border border-dashed border-stone-200 rounded-xl p-6 text-center">
+            <p className="text-sm text-stone-400">No programme inputs yet.</p>
+            <p className="text-xs text-stone-300 mt-1">Click "Seed standard inputs" to create typical defaults for CLCs, YRCs, elderly centres, rents, etc.</p>
+          </div>
+        )}
+
+        <div className="mt-2">
+          {addingProgInput ? (
+            <div className="p-3 bg-white border border-stone-200 rounded-xl">
+              <div className="grid grid-cols-3 gap-2 items-end">
+                <label>
+                  <span className="text-xs text-stone-500">Key (inp. suffix)</span>
+                  <div className="flex mt-0.5">
+                    <span className="px-2 py-1 bg-stone-50 border border-r-0 border-stone-300 rounded-l text-xs text-stone-400 font-mono">inp.</span>
+                    <input value={newProgKey} onChange={e => setNewProgKey(e.target.value)}
+                      placeholder="n_volunteers"
+                      className="w-full border border-stone-300 rounded-r px-2 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500" />
+                  </div>
+                </label>
+                <label>
+                  <span className="text-xs text-stone-500">Unit</span>
+                  <select value={newProgUnit} onChange={e => setNewProgUnit(e.target.value)}
+                    className="mt-0.5 w-full border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none">
+                    <option value="count">count</option>
+                    <option value="₹/month">₹/month</option>
+                    <option value="ratio">ratio</option>
+                    <option value="days">days</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="text-xs text-stone-500">Typical value</span>
+                  <input type="number" value={newProgValue} onChange={e => setNewProgValue(e.target.value)}
+                    className="mt-0.5 w-full border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
+                </label>
+                <label className="col-span-2">
+                  <span className="text-xs text-stone-500">Notes (optional)</span>
+                  <input value={newProgNotes} onChange={e => setNewProgNotes(e.target.value)}
+                    className="mt-0.5 w-full border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
+                </label>
+                <div className="flex gap-2">
+                  <button onClick={handleAddProgInput} disabled={pending || !newProgKey.trim() || !newProgValue}
+                    className="text-sm bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700 disabled:opacity-50">
+                    {pending ? "…" : "Add"}
+                  </button>
+                  <button onClick={() => { setAddingProgInput(false); setNewProgKey(""); setNewProgValue(""); setNewProgNotes(""); }}
+                    className="text-sm text-stone-400 hover:text-stone-700">Cancel</button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setAddingProgInput(true)}
+              className="text-sm text-sky-600 hover:text-sky-800 border border-dashed border-sky-300 rounded-lg px-4 py-2 hover:bg-sky-50 w-full">
+              + Add programme input
+            </button>
+          )}
         </div>
       </div>
 
@@ -831,7 +917,7 @@ function parseIndicativeSalary(hint: string | null | undefined): number {
 }
 
 function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; costs: CostRow[] }) {
-  const [inp, setInp] = useState<BudgetGeneratorInputs>(DEFAULT_INPUTS);
+  const [inp, setInp] = useState<BudgetGeneratorInputs>(() => makeDefaultInputs(costs));
   const setField = (k: keyof BudgetGeneratorInputs, v: number) =>
     setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
 
