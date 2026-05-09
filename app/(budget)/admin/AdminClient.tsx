@@ -204,7 +204,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
         {row.isEdited && <span className="ml-1 text-xs text-amber-500">edited</span>}
       </td>
       <td className="px-3 py-2.5">
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button onClick={() => startEdit(row)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
           {row.isEdited && row.id && <button onClick={() => handleReset(row)} className="text-xs text-stone-400 hover:text-stone-600">Reset</button>}
           {row.id && <button onClick={() => handleDeleteItem(row)} className="text-xs text-stone-300 hover:text-red-500">Delete</button>}
@@ -260,7 +260,8 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
         );
         return (
           <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
               <thead>{colHeaders}</thead>
               <tbody>
                 {costRows.length > 0 && sectionHeader("Unit Costs")}
@@ -269,6 +270,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
                 {ratioRows.map(renderRow)}
               </tbody>
             </table>
+            </div>
           </div>
         );
       })()}
@@ -288,8 +290,8 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
             <p className="text-xs text-stone-400">
               {newItemType === "cost" ? "A monetary cost used directly in budget lines." : "A parameter or ratio referenced in formulas."}
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="sm:col-span-2">
                 <span className="text-xs font-medium text-stone-600">Key name</span>
                 <input value={newKey} onChange={e => setNewKey(e.target.value)}
                   placeholder={`e.g. ${activeDomain === "cross" ? "cross" : (activeDomain ?? "children").toLowerCase()}.${newItemType === "cost" ? "accommodation_per_person" : "days_per_year"}`}
@@ -307,7 +309,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
                 <input type="number" value={newCost} onChange={e => setNewCost(e.target.value)}
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
-              <label className="col-span-2">
+              <label className="sm:col-span-2">
                 <span className="text-xs font-medium text-stone-600">Notes (optional)</span>
                 <input value={newNotes} onChange={e => setNewNotes(e.target.value)}
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
@@ -349,10 +351,12 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
 
         {progInputRows.length > 0 ? (
           <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
               <thead>{colHeaders}</thead>
               <tbody>{progInputRows.map(renderRow)}</tbody>
             </table>
+            </div>
           </div>
         ) : (
           <div className="border border-dashed border-stone-200 rounded-xl p-6 text-center">
@@ -364,7 +368,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
         <div className="mt-2">
           {addingProgInput ? (
             <div className="p-3 bg-white border border-stone-200 rounded-xl">
-              <div className="grid grid-cols-3 gap-2 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
                 <label>
                   <span className="text-xs text-stone-500">Key (inp. suffix)</span>
                   <div className="flex mt-0.5">
@@ -389,7 +393,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
                   <input type="number" value={newProgValue} onChange={e => setNewProgValue(e.target.value)}
                     className="mt-0.5 w-full border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
                 </label>
-                <label className="col-span-2">
+                <label className="sm:col-span-2">
                   <span className="text-xs text-stone-500">Notes (optional)</span>
                   <input value={newProgNotes} onChange={e => setNewProgNotes(e.target.value)}
                     className="mt-0.5 w-full border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
@@ -449,8 +453,8 @@ function TemplateForm({ initial, onSave, onCancel, pending, registryKeys, custom
         {registryKeys.map(k => <option key={k} value={k} />)}
         {PROGRAMME_INPUTS.map(p => <option key={p.key} value={p.key} label={p.label} />)}
       </datalist>
-      <div className="grid grid-cols-2 gap-3">
-        <label className="col-span-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="sm:col-span-2">
           <span className="text-xs font-medium text-stone-600">Description</span>
           <input value={f.description} onChange={e => set("description", e.target.value)}
             className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
@@ -492,7 +496,7 @@ function TemplateForm({ initial, onSave, onCancel, pending, registryKeys, custom
       {/* Unit count formula */}
       <div className="border border-stone-200 rounded-lg p-3 bg-white space-y-2">
         <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Unit count formula</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label>
             <span className="text-xs text-stone-600">Scales with</span>
             <select value={f.inputVar ?? "fixed_1"} onChange={e => set("inputVar", e.target.value)}
@@ -545,7 +549,7 @@ function TemplateForm({ initial, onSave, onCancel, pending, registryKeys, custom
                 className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
             </label>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <label>
                 <span className="text-xs text-stone-600">Cost key (primary)</span>
                 <input value={f.costKey ?? ""} onChange={str("costKey")}
@@ -779,7 +783,8 @@ function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
         {visible.length === 0 ? (
           <p className="px-4 py-6 text-sm text-stone-400 text-center">No templates for this domain yet.</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
                 <th className="w-6 px-2 py-2.5"></th>
@@ -822,15 +827,15 @@ function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
                       {formulaSummary(t)}
                     </td>
                     <td className="px-3 py-2.5">
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button onClick={() => setEditingId(editingId === t.id ? null : t.id)}
                           className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
                         <button onClick={() => handleToggle(t.id, t.isActive)}
                           className="text-xs text-stone-400 hover:text-stone-700">
-                          {t.isActive ? "Disable" : "Enable"}
+                          {t.isActive ? "Off" : "On"}
                         </button>
                         <button onClick={() => handleDelete(t.id)}
-                          className="text-xs text-stone-300 hover:text-red-500">Delete</button>
+                          className="text-xs text-stone-300 hover:text-red-500">Del</button>
                       </div>
                     </td>
                   </tr>
@@ -853,6 +858,7 @@ function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -1155,7 +1161,8 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
               </div>
             </div>
             <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
                     <th className="text-left px-4 py-2 font-medium">Description</th>
@@ -1211,20 +1218,21 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Grand total */}
-      <div className="mt-6 p-4 bg-stone-900 text-white rounded-xl flex items-center justify-between">
+      <div className="mt-6 p-4 bg-stone-900 text-white rounded-xl flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
         <div>
           <p className="text-sm font-semibold">Grand Total — all domains</p>
           <p className="text-xs text-stone-400 mt-0.5">
             {hasIndicative ? "Includes indicative salary estimates (marked ~)" : "Salary stubs not filled — add salary hints to templates for indicative totals"}
           </p>
         </div>
-        <div className="flex gap-8 text-right">
+        <div className="flex gap-6 sm:gap-8">
           <div><p className="text-xs text-stone-400">Year 1</p><p className="text-lg font-bold">{fmtCost(grand.y1)}</p></div>
           <div><p className="text-xs text-stone-400">Year 2</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y2)}</p></div>
           <div><p className="text-xs text-stone-400">Year 3</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y3)}</p></div>
@@ -1308,7 +1316,8 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
             <p className="text-xs text-stone-300 mt-1">Click "Seed standard domains" to add Children, Youth, Elderly, Welfare Rights, Creche.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
                 <th className="text-left px-4 py-2.5 font-medium">Key</th>
@@ -1332,7 +1341,7 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
                       {d.beneficiaryLabel && <span className="ml-1 text-stone-300">({d.beneficiaryLabel})</span>}
                     </td>
                     <td className="px-3 py-2.5">
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button onClick={() => startEdit(d)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
                         <button onClick={() => handleToggle(d.id, d.isActive)}
                           className="text-xs text-stone-400 hover:text-stone-700">
@@ -1344,7 +1353,7 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
                   {editingId === d.id && (
                     <tr>
                       <td colSpan={5} className="px-4 py-3 bg-sky-50 border-b border-sky-100">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <label>
                             <span className="text-xs font-medium text-stone-600">Label</span>
                             <input value={editForm.label ?? ""} onChange={e => setEditForm(p => ({ ...p, label: e.target.value }))}
@@ -1387,6 +1396,7 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -1395,7 +1405,7 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
         {adding ? (
           <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-3">
             <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">New domain</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label>
                 <span className="text-xs font-medium text-stone-600">Key (used in DB — no spaces)</span>
                 <input value={newKey} onChange={e => setNewKey(e.target.value.replace(/\s/g, ""))}
@@ -1408,7 +1418,7 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
                   placeholder="e.g. Health & Nutrition"
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
               </label>
-              <label className="col-span-2">
+              <label className="sm:col-span-2">
                 <span className="text-xs font-medium text-stone-600">Description (shown in budget creation form)</span>
                 <input value={newDesc} onChange={e => setNewDesc(e.target.value)}
                   placeholder="e.g. Health camps, nutrition surveys"
@@ -1500,25 +1510,27 @@ export default function AdminClient({
       </div>
 
       {/* Section tabs */}
-      <div className="flex gap-1 mb-6 bg-stone-100 rounded-lg p-1 w-fit">
-        <button onClick={() => setActiveTab("registry")}
-          className={`text-sm px-4 py-1.5 rounded-md transition-all ${activeTab === "registry" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
-          Cost Registry
-        </button>
-        <button onClick={() => setActiveTab("templates")}
-          className={`text-sm px-4 py-1.5 rounded-md transition-all ${activeTab === "templates" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
-          Line Templates
-          <span className="ml-1.5 text-xs text-stone-400">{templates.length}</span>
-        </button>
-        <button onClick={() => setActiveTab("analysis")}
-          className={`text-sm px-4 py-1.5 rounded-md transition-all ${activeTab === "analysis" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
-          Cost Analysis
-        </button>
-        <button onClick={() => setActiveTab("domains")}
-          className={`text-sm px-4 py-1.5 rounded-md transition-all ${activeTab === "domains" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
-          Domains
-          <span className="ml-1.5 text-xs text-stone-400">{domains.length}</span>
-        </button>
+      <div className="overflow-x-auto mb-6 pb-1">
+        <div className="flex gap-1 bg-stone-100 rounded-lg p-1 w-fit min-w-full sm:min-w-0">
+          <button onClick={() => setActiveTab("registry")}
+            className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "registry" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+            Cost Registry
+          </button>
+          <button onClick={() => setActiveTab("templates")}
+            className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "templates" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+            Line Templates
+            <span className="ml-1.5 text-xs text-stone-400">{templates.length}</span>
+          </button>
+          <button onClick={() => setActiveTab("analysis")}
+            className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "analysis" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+            Cost Analysis
+          </button>
+          <button onClick={() => setActiveTab("domains")}
+            className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "domains" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+            Domains
+            <span className="ml-1.5 text-xs text-stone-400">{domains.length}</span>
+          </button>
+        </div>
       </div>
 
       {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} domainOrder={domainOrder} domainLabels={domainLabels} />}

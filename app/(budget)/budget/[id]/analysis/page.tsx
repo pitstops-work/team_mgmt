@@ -107,7 +107,7 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
         <h1 className="text-lg font-semibold text-stone-900">{budget.name} — Cost Analysis</h1>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <StatCard label="Year 1 Total" value={L(gt1)} sub={`${INR(gt1 / 12)} /month`} />
         {years === 3 && <>
           <StatCard label="Year 2 Total" value={L(gt2)} sub={`+${((gt2/gt1 - 1) * 100).toFixed(1)}% vs Y1`} />
@@ -117,12 +117,13 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
         <StatCard label="Total beneficiaries" value={totalBeneficiaries.toLocaleString("en-IN")} sub="across all domains" />
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         <section>
           <h2 className="text-sm font-semibold text-stone-700 mb-3">Per-Beneficiary Cost (Year 1)</h2>
           <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] text-sm">
               <thead>
                 <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
                   <th className="text-left px-4 py-2.5">Domain</th>
@@ -160,6 +161,7 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </section>
 
@@ -240,7 +242,8 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
           <section>
             <h2 className="text-sm font-semibold text-stone-700 mb-3">3-Year Cost Projection</h2>
             <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[380px] text-sm">
                 <thead>
                   <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
                     <th className="text-left px-4 py-2.5">Year</th>
@@ -273,6 +276,7 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
           </section>
         )}
