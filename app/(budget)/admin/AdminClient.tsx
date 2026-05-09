@@ -74,6 +74,7 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
   const [editNotes, setEditNotes] = useState<string>("");
   const [activeDomain, setActiveDomain] = useState<string>("Children");
   const [addingItem, setAddingItem] = useState(false);
+  const [newItemType, setNewItemType] = useState<"cost" | "ratio">("cost");
   const [newKey, setNewKey] = useState("");
   const [newUnit, setNewUnit] = useState("₹");
   const [newCost, setNewCost] = useState("");
@@ -119,7 +120,7 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
     const domain = activeDomain === "cross" ? null : activeDomain as BudgetDomain;
     startTransition(async () => {
       await addCostItem(city, { domain, itemKey: key, unit: newUnit, unitCost: parseFloat(newCost), notes: newNotes || undefined });
-      setAddingItem(false); setNewKey(""); setNewCost(""); setNewNotes(""); setNewUnit("₹");
+      setAddingItem(false); setNewKey(""); setNewCost(""); setNewNotes(""); setNewUnit("₹"); setNewItemType("cost");
     });
   };
 
@@ -232,46 +233,64 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
       <div className="mt-3">
         {addingItem ? (
           <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-3">
-            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">New cost item</p>
+            {/* Type selector */}
+            <div className="flex gap-1 bg-stone-100 rounded-lg p-1 w-fit">
+              {(["cost", "ratio"] as const).map(type => (
+                <button key={type} onClick={() => {
+                  setNewItemType(type);
+                  setNewUnit(type === "cost" ? "₹" : "ratio");
+                }}
+                  className={`text-sm px-4 py-1 rounded-md transition-all ${newItemType === type ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+                  {type === "cost" ? "Unit Cost" : "Programme Ratio"}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-stone-400">
+              {newItemType === "cost"
+                ? "A monetary cost used directly in budget lines (e.g. accommodation cost per person)."
+                : "A programme parameter or ratio referenced in formulas (e.g. workers per creche, days per year)."}
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <label className="col-span-2">
                 <span className="text-xs font-medium text-stone-600">Key name</span>
                 <input value={newKey} onChange={e => setNewKey(e.target.value)}
-                  placeholder={`e.g. ${activeDomain === "cross" ? "cross" : (activeDomain ?? "children").toLowerCase()}.accommodation_per_person`}
+                  placeholder={`e.g. ${activeDomain === "cross" ? "cross" : (activeDomain ?? "children").toLowerCase()}.${newItemType === "cost" ? "accommodation_per_person" : "days_per_year"}`}
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500" />
-                <p className="text-xs text-stone-400 mt-0.5">Use dot notation: domain.descriptive_name (e.g. children.camp_cost)</p>
+                <p className="text-xs text-stone-400 mt-0.5">Dot notation: domain.descriptive_name — this is the key you'll reference in template formulas.</p>
               </label>
               <label>
-                <span className="text-xs font-medium text-stone-600">Unit label</span>
+                <span className="text-xs font-medium text-stone-600">{newItemType === "cost" ? "Unit label" : "Unit label"}</span>
                 <input value={newUnit} onChange={e => setNewUnit(e.target.value)}
-                  placeholder="e.g. ₹ / person, ratio"
+                  placeholder={newItemType === "cost" ? "e.g. ₹ / person" : "e.g. workers per creche"}
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+                {newItemType === "cost" && <p className="text-xs text-stone-400 mt-0.5">Must contain ₹ to appear in Unit Costs section.</p>}
               </label>
               <label>
-                <span className="text-xs font-medium text-stone-600">Unit cost / value</span>
+                <span className="text-xs font-medium text-stone-600">{newItemType === "cost" ? "Cost (₹)" : "Value"}</span>
                 <input type="number" value={newCost} onChange={e => setNewCost(e.target.value)}
-                  placeholder="0"
+                  placeholder={newItemType === "ratio" ? "e.g. 2.2" : "0"}
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
               <label className="col-span-2">
                 <span className="text-xs font-medium text-stone-600">Notes (optional)</span>
                 <input value={newNotes} onChange={e => setNewNotes(e.target.value)}
-                  placeholder="Description of what this cost represents"
+                  placeholder="What this represents"
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setAddingItem(false)} className="text-sm text-stone-500 hover:text-stone-800 px-3 py-1.5">Cancel</button>
+              <button onClick={() => { setAddingItem(false); setNewKey(""); setNewCost(""); setNewNotes(""); setNewUnit("₹"); setNewItemType("cost"); }}
+                className="text-sm text-stone-500 hover:text-stone-800 px-3 py-1.5">Cancel</button>
               <button onClick={handleAddItem} disabled={pending || !newKey.trim() || !newCost}
                 className="text-sm bg-sky-600 text-white px-4 py-1.5 rounded-lg hover:bg-sky-700 disabled:opacity-50">
-                {pending ? "Saving…" : "Add cost item"}
+                {pending ? "Saving…" : `Add ${newItemType === "cost" ? "cost item" : "ratio"}`}
               </button>
             </div>
           </div>
         ) : (
           <button onClick={() => setAddingItem(true)}
             className="text-sm text-sky-600 hover:text-sky-800 border border-dashed border-sky-300 rounded-lg px-4 py-2 hover:bg-sky-50 w-full">
-            + New cost item
+            + New cost item or ratio
           </button>
         )}
       </div>
