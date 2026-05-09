@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import {
   seedCostRegistry, updateCostRegistry, resetCostRegistry,
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
+  reorderLineTemplates, seedLineTemplates,
   type LineTemplateFields,
 } from "./actions";
 import type { BudgetDomain, BudgetSection, InflationType, LineTemplate } from "@/app/generated/prisma/client";
@@ -412,17 +413,47 @@ const SECTION_BADGE: Record<string, string> = {
   additional: "bg-stone-50 text-stone-700",
 };
 
+function buildNewGlobalOrder(
+  allTemplates: LineTemplate[],
+  domainKey: BudgetDomain | null,
+  newVisibleOrder: LineTemplate[],
+): string[] {
+  const sorted = [...allTemplates].sort((a, b) => a.position - b.position);
+  const result: string[] = [];
+  let vi = 0;
+  for (const t of sorted) {
+    if (t.domain === domainKey) {
+      result.push(newVisibleOrder[vi++].id);
+    } else {
+      result.push(t.id);
+    }
+  }
+  return result;
+}
+
 function LineTemplatesTab({ templates, city }: { templates: LineTemplate[]; city: string }) {
   const [pending, startTransition] = useTransition();
   const [activeDomain, setActiveDomain] = useState<string>("Children");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  const domainKey = activeDomain === "cross" ? null : activeDomain;
-  const visible = templates.filter(t => {
-    if (activeDomain === "cross") return t.domain === null;
-    return t.domain === activeDomain;
-  }).sort((a, b) => a.position - b.position);
+  const domainKey = activeDomain === "cross" ? null : activeDomain as BudgetDomain;
+  const visible = templates.filter(t =>
+    activeDomain === "cross" ? t.domain === null : t.domain === activeDomain
+  ).sort((a, b) => a.position - b.position);
+
+  const displayVisible = useMemo(() => {
+    if (!draggedId || !dragOverId || draggedId === dragOverId) return visible;
+    const from = visible.findIndex(t => t.id === draggedId);
+    const to   = visible.findIndex(t => t.id === dragOverId);
+    if (from === -1 || to === -1) return visible;
+    const result = [...visible];
+    const [item] = result.splice(from, 1);
+    result.splice(to, 0, item);
+    return result;
+  }, [visible, draggedId, dragOverId]);
 
   const domainTabs = [
     ...["Children","Youth","Elderly","WelfareRights","Creche"].map(d => ({
@@ -452,16 +483,44 @@ function LineTemplatesTab({ templates, city }: { templates: LineTemplate[]; city
     startTransition(() => deleteLineTemplate(id));
   };
 
+  const handleSeed = () => {
+    if (templates.length > 0) {
+      if (!confirm(`Re-seed templates for ${city}? This resets all formula customisations to defaults.`)) return;
+    }
+    startTransition(() => seedLineTemplates(city));
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!draggedId || !dragOverId || draggedId === dragOverId) {
+      setDraggedId(null); setDragOverId(null); return;
+    }
+    const from = visible.findIndex(t => t.id === draggedId);
+    const to   = visible.findIndex(t => t.id === dragOverId);
+    const reordered = [...visible];
+    const [item] = reordered.splice(from, 1);
+    reordered.splice(to, 0, item);
+    const globalOrder = buildNewGlobalOrder(templates, domainKey as BudgetDomain | null, reordered);
+    setDraggedId(null); setDragOverId(null);
+    startTransition(() => reorderLineTemplates(city, globalOrder));
+  };
+
   return (
     <>
-      <p className="text-sm text-stone-500 mb-4">
-        Line items generated for each new budget. Changes apply to newly created budgets only.
-      </p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-stone-500">
+          Line items generated for each new budget. Changes apply to newly created budgets only.
+        </p>
+        <button onClick={handleSeed} disabled={pending}
+          className={`text-sm px-3 py-1.5 rounded-lg whitespace-nowrap disabled:opacity-50 ${templates.length === 0 ? "bg-sky-600 text-white hover:bg-sky-700" : "border border-stone-200 text-stone-500 hover:bg-stone-50"}`}>
+          {pending ? "Seeding…" : templates.length === 0 ? "Seed templates" : "Re-seed defaults"}
+        </button>
+      </div>
 
       {/* Domain tabs */}
       <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
         {domainTabs.map(d => (
-          <button key={d.key} onClick={() => setActiveDomain(d.key)}
+          <button key={d.key} onClick={() => { setActiveDomain(d.key); setDraggedId(null); setDragOverId(null); }}
             className={`text-sm px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${activeDomain === d.key ? "bg-sky-600 text-white" : "text-stone-600 hover:bg-stone-100"}`}>
             {d.label}
             <span className={`ml-1.5 text-xs ${activeDomain === d.key ? "text-sky-200" : "text-stone-400"}`}>{d.count}</span>
@@ -477,6 +536,7 @@ function LineTemplatesTab({ templates, city }: { templates: LineTemplate[]; city
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
+                <th className="w-6 px-2 py-2.5"></th>
                 <th className="text-left px-4 py-2.5 font-medium">Description</th>
                 <th className="text-left px-3 py-2.5 font-medium w-24">Section</th>
                 <th className="text-left px-3 py-2.5 font-medium w-16">Inflation</th>
@@ -485,9 +545,23 @@ function LineTemplatesTab({ templates, city }: { templates: LineTemplate[]; city
               </tr>
             </thead>
             <tbody>
-              {visible.map(t => (
+              {displayVisible.map(t => (
                 <>
-                  <tr key={t.id} className={`border-b border-stone-50 group ${!t.isActive ? "opacity-40" : ""}`}>
+                  <tr
+                    key={t.id}
+                    draggable
+                    onDragStart={() => setDraggedId(t.id)}
+                    onDragOver={e => { e.preventDefault(); setDragOverId(t.id); }}
+                    onDrop={handleDrop}
+                    onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
+                    className={[
+                      "border-b border-stone-50 group",
+                      !t.isActive ? "opacity-40" : "",
+                      draggedId === t.id ? "opacity-30" : "",
+                      dragOverId === t.id && draggedId !== t.id ? "border-t-2 border-sky-400" : "",
+                    ].join(" ")}
+                  >
+                    <td className="px-2 py-2.5 text-stone-300 cursor-grab select-none text-center" title="Drag to reorder">⠿</td>
                     <td className="px-4 py-2.5">
                       <div className="text-stone-800 font-medium">{t.description}</div>
                       {t.salaryHint && <div className="text-xs text-stone-400 mt-0.5">{t.salaryHint}</div>}
@@ -517,7 +591,7 @@ function LineTemplatesTab({ templates, city }: { templates: LineTemplate[]; city
                   </tr>
                   {editingId === t.id && (
                     <tr key={`${t.id}-edit`}>
-                      <td colSpan={5} className="px-4 py-3 bg-sky-50 border-b border-sky-100">
+                      <td colSpan={6} className="px-4 py-3 bg-sky-50 border-b border-sky-100">
                         <TemplateForm
                           initial={{ domain: t.domain, section: t.section, description: t.description, costCategory: t.costCategory, unitType: t.unitType, notes: t.notes, salaryHint: t.salaryHint, isAutoGenerated: t.isAutoGenerated, inputVar: t.inputVar, inputMonthly: t.inputMonthly, supervisorRatioKey: t.supervisorRatioKey, isSalaryStub: t.isSalaryStub, userInputCost: t.userInputCost, costKey: t.costKey, costKey2: t.costKey2, costKey3: t.costKey3, costMonthly: t.costMonthly, workerRatioKey: t.workerRatioKey, bufferKey: t.bufferKey, costPctOf: t.costPctOf, costPct: t.costPct, y1UnitsZero: t.y1UnitsZero }}
                           onSave={fields => handleEdit(t.id, fields)}
