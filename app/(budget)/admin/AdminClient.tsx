@@ -8,6 +8,7 @@ import {
   type LineTemplateFields,
 } from "./actions";
 import type { BudgetDomain, BudgetSection, InflationType, LineTemplate } from "@/app/generated/prisma/client";
+import { generateBudgetLines, type BudgetGeneratorInputs } from "@/lib/budget-generator";
 
 type CostRow = {
   id: string | null;
@@ -731,6 +732,225 @@ function LineTemplatesTab({ templates, city, registryKeys }: { templates: LineTe
   );
 }
 
+// ─── Cost Analysis tab ────────────────────────────────────────────────────────
+
+const ALL_DOMAINS: BudgetDomain[] = ["Children", "Youth", "Elderly", "WelfareRights", "Creche"];
+
+const DEFAULT_INPUTS: BudgetGeneratorInputs = {
+  nSettlements: 10,
+  nClusters: 3,
+  nCLCs: 5,      clcRentPerMonth: 15000,
+  nYRCs: 2,      yrcRentPerMonth: 10000,
+  nElderlyCentres: 2, nElderly: 50, elderlyCentreRentPerMonth: 8000,
+  cosPerCluster: 2, rcRentPerMonth: 5000,
+  nCreches: 3,   crecheRentPerMonth: 12000,
+};
+
+const INPUT_GROUPS: { label: string; fields: { key: keyof BudgetGeneratorInputs; label: string }[] }[] = [
+  { label: "Geography", fields: [
+    { key: "nSettlements", label: "Settlements" },
+    { key: "nClusters",    label: "Clusters" },
+    { key: "cosPerCluster",label: "COs / cluster" },
+  ]},
+  { label: "Children", fields: [
+    { key: "nCLCs",           label: "CLCs" },
+    { key: "clcRentPerMonth", label: "CLC rent / mo (₹)" },
+  ]},
+  { label: "Youth", fields: [
+    { key: "nYRCs",           label: "YRCs" },
+    { key: "yrcRentPerMonth", label: "YRC rent / mo (₹)" },
+  ]},
+  { label: "Elderly", fields: [
+    { key: "nElderlyCentres",           label: "Elderly centres" },
+    { key: "nElderly",                  label: "Elderly enrolled" },
+    { key: "elderlyCentreRentPerMonth", label: "Centre rent / mo (₹)" },
+  ]},
+  { label: "Welfare Rights", fields: [
+    { key: "rcRentPerMonth", label: "RC rent / mo (₹)" },
+  ]},
+  { label: "Creche", fields: [
+    { key: "nCreches",           label: "Creches" },
+    { key: "crecheRentPerMonth", label: "Creche rent / mo (₹)" },
+  ]},
+];
+
+const fmt = (n: number) => n === 0 ? "—" : n.toLocaleString("en-IN");
+const fmtCost = (n: number) => n === 0 ? "—" : `₹${n.toLocaleString("en-IN")}`;
+
+function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; costs: CostRow[] }) {
+  const [inp, setInp] = useState<BudgetGeneratorInputs>(DEFAULT_INPUTS);
+  const setField = (k: keyof BudgetGeneratorInputs, v: number) =>
+    setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
+
+  const registry = useMemo(
+    () => Object.fromEntries(costs.map(c => [c.itemKey, c.currentCost])),
+    [costs]
+  );
+
+  const lines = useMemo(
+    () => generateBudgetLines(ALL_DOMAINS, inp, 3, registry, templates),
+    [inp, registry, templates]
+  );
+
+  type DomainGroup = {
+    domain: BudgetDomain | null;
+    label: string;
+    bySection: { section: string; lines: ReturnType<typeof generateBudgetLines>; y1: number; y2: number; y3: number }[];
+    y1: number; y2: number; y3: number;
+  };
+
+  const grouped = useMemo<DomainGroup[]>(() => {
+    const domainOrder = [...ALL_DOMAINS, null] as (BudgetDomain | null)[];
+    return domainOrder.flatMap(domain => {
+      const domLines = lines.filter(l => l.domain === domain);
+      if (!domLines.length) return [];
+
+      const sections = [...new Set(domLines.map(l => l.section))];
+      const bySection = sections.map(s => {
+        const sl = domLines.filter(l => l.section === s);
+        return {
+          section: s,
+          lines: sl,
+          y1: sl.reduce((acc, l) => acc + l.y1Total, 0),
+          y2: sl.reduce((acc, l) => acc + l.y2Total, 0),
+          y3: sl.reduce((acc, l) => acc + l.y3Total, 0),
+        };
+      });
+
+      return [{
+        domain,
+        label: domain ? DOMAIN_LABELS[domain] : "Cross-cutting + Admin",
+        bySection,
+        y1: domLines.reduce((acc, l) => acc + l.y1Total, 0),
+        y2: domLines.reduce((acc, l) => acc + l.y2Total, 0),
+        y3: domLines.reduce((acc, l) => acc + l.y3Total, 0),
+      }];
+    });
+  }, [lines]);
+
+  const grand = useMemo(() => ({
+    y1: lines.reduce((s, l) => s + l.y1Total, 0),
+    y2: lines.reduce((s, l) => s + l.y2Total, 0),
+    y3: lines.reduce((s, l) => s + l.y3Total, 0),
+  }), [lines]);
+
+  return (
+    <>
+      {/* Programme size inputs */}
+      <div className="mb-6 p-4 bg-white border border-stone-200 rounded-xl">
+        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Programme size assumptions</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {INPUT_GROUPS.map(group => (
+            <div key={group.label} className="space-y-2">
+              <p className="text-xs font-medium text-stone-400 uppercase tracking-wide">{group.label}</p>
+              {group.fields.map(({ key, label }) => (
+                <label key={key} className="block">
+                  <span className="text-xs text-stone-500">{label}</span>
+                  <input
+                    type="number" min={0}
+                    value={inp[key]}
+                    onChange={e => setField(key, parseFloat(e.target.value))}
+                    className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Per-domain tables */}
+      <div className="space-y-6">
+        {grouped.map(g => (
+          <div key={g.domain ?? "cross"}>
+            <div className="flex items-baseline justify-between mb-2">
+              <h3 className="text-sm font-semibold text-stone-700">{g.label}</h3>
+              <div className="flex gap-6 text-xs text-stone-400">
+                <span>Y1 <span className="font-medium text-stone-600">{fmtCost(g.y1)}</span></span>
+                <span>Y2 <span className="font-medium text-stone-600">{fmtCost(g.y2)}</span></span>
+                <span>Y3 <span className="font-medium text-stone-600">{fmtCost(g.y3)}</span></span>
+              </div>
+            </div>
+            <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
+                    <th className="text-left px-4 py-2 font-medium">Description</th>
+                    <th className="text-left px-3 py-2 font-medium w-24">Section</th>
+                    <th className="text-right px-3 py-2 font-medium w-28">Unit cost Y1</th>
+                    <th className="text-right px-3 py-2 font-medium w-20">Units</th>
+                    <th className="text-right px-3 py-2 font-medium w-28">Total Y1</th>
+                    <th className="text-right px-3 py-2 font-medium w-28">Total Y2</th>
+                    <th className="text-right px-3 py-2 font-medium w-28">Total Y3</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.bySection.map(({ section, lines: sLines, y1: sy1, y2: sy2, y3: sy3 }) => (
+                    <Fragment key={section}>
+                      <tr className="border-b border-stone-50">
+                        <td colSpan={7} className="px-4 pt-3 pb-1 text-xs font-semibold text-stone-400 uppercase tracking-wide bg-stone-50/50">
+                          {section}
+                        </td>
+                      </tr>
+                      {sLines.map((l, i) => (
+                        <tr key={i} className="border-b border-stone-50 hover:bg-stone-50">
+                          <td className="px-4 py-2 text-stone-800">
+                            {l.description}
+                            {l.salaryHint && <span className="ml-2 text-xs text-stone-400">{l.salaryHint}</span>}
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SECTION_BADGE[l.section] ?? "bg-stone-50 text-stone-600"}`}>
+                              {l.section}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-right text-stone-600 tabular-nums">
+                            {l.y1UnitCost === 0 && l.y1Units > 0
+                              ? <span className="text-stone-300 italic text-xs">user fills</span>
+                              : fmtCost(l.y1UnitCost)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmt(l.y1Units)}</td>
+                          <td className="px-3 py-2 text-right font-medium text-stone-800 tabular-nums">{fmtCost(l.y1Total)}</td>
+                          <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmtCost(l.y2Total)}</td>
+                          <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmtCost(l.y3Total)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-b border-stone-100 bg-stone-50/70">
+                        <td colSpan={4} className="px-4 py-1.5 text-xs text-stone-400 text-right italic">{section} subtotal</td>
+                        <td className="px-3 py-1.5 text-right text-xs font-semibold text-stone-700 tabular-nums">{fmtCost(sy1)}</td>
+                        <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy2)}</td>
+                        <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy3)}</td>
+                      </tr>
+                    </Fragment>
+                  ))}
+                  <tr className="bg-stone-100">
+                    <td colSpan={4} className="px-4 py-2 text-xs font-bold text-stone-600 text-right">{g.label} total</td>
+                    <td className="px-3 py-2 text-right text-sm font-bold text-stone-900 tabular-nums">{fmtCost(g.y1)}</td>
+                    <td className="px-3 py-2 text-right text-sm font-semibold text-stone-600 tabular-nums">{fmtCost(g.y2)}</td>
+                    <td className="px-3 py-2 text-right text-sm font-semibold text-stone-600 tabular-nums">{fmtCost(g.y3)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Grand total */}
+      <div className="mt-6 p-4 bg-stone-900 text-white rounded-xl flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold">Grand Total — all domains</p>
+          <p className="text-xs text-stone-400 mt-0.5">Excludes salary stubs (user-defined) and rent lines if rent inputs are 0</p>
+        </div>
+        <div className="flex gap-8 text-right">
+          <div><p className="text-xs text-stone-400">Year 1</p><p className="text-lg font-bold">{fmtCost(grand.y1)}</p></div>
+          <div><p className="text-xs text-stone-400">Year 2</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y2)}</p></div>
+          <div><p className="text-xs text-stone-400">Year 3</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y3)}</p></div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Root client component ────────────────────────────────────────────────────
 
 export default function AdminClient({
@@ -741,7 +961,7 @@ export default function AdminClient({
   city: string;
   templates: LineTemplate[];
 }) {
-  const [activeTab, setActiveTab] = useState<"registry" | "templates">("registry");
+  const [activeTab, setActiveTab] = useState<"registry" | "templates" | "analysis">("registry");
 
   return (
     <div>
@@ -773,10 +993,15 @@ export default function AdminClient({
           Line Templates
           <span className="ml-1.5 text-xs text-stone-400">{templates.length}</span>
         </button>
+        <button onClick={() => setActiveTab("analysis")}
+          className={`text-sm px-4 py-1.5 rounded-md transition-all ${activeTab === "analysis" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+          Cost Analysis
+        </button>
       </div>
 
-      {activeTab === "registry" && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} />}
+      {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} />}
       {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} />}
+      {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} />}
     </div>
   );
 }
