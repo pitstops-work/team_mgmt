@@ -33,6 +33,26 @@ export async function seedCostRegistry(city = "Bangalore") {
   revalidatePath("/admin");
 }
 
+export async function addCostItem(
+  city: string,
+  data: { domain?: BudgetDomain | null; itemKey: string; unit: string; unitCost: number; notes?: string }
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  await prisma.costRegistry.create({
+    data: {
+      city,
+      domain: data.domain ?? null,
+      itemKey: data.itemKey,
+      unit: data.unit,
+      unitCost: data.unitCost,
+      effectiveYear: 2025,
+      notes: data.notes ?? null,
+    },
+  });
+  revalidatePath("/admin");
+}
+
 export async function updateCostRegistry(id: string, unitCost: number, notes?: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");

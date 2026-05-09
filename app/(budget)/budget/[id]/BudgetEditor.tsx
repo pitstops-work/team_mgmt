@@ -52,6 +52,8 @@ const INFLATION_BADGE: Record<InflationType, string> = {
   Nil: "bg-stone-100 text-stone-500",
 };
 
+const INFLATION_RATE: Record<InflationType, number> = { Salary: 0.10, Other: 0.05, Nil: 0.00 };
+
 const fmt = (n: number) => n === 0 ? "–" : `₹${n.toLocaleString("en-IN")}`;
 
 export default function BudgetEditor({ budget }: { budget: Budget }) {
@@ -64,6 +66,8 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
   const [newDesc, setNewDesc] = useState("");
   const [newCostCat, setNewCostCat] = useState<InflationType>("Other");
   const [newUnitType, setNewUnitType] = useState("Annual");
+  const [newUnits, setNewUnits] = useState("");
+  const [newUnitCost, setNewUnitCost] = useState("");
 
   const visibleLines = activeTab === "master"
     ? lines
@@ -108,15 +112,20 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
 
   const handleAddLine = (section: BudgetSection) => {
     if (!newDesc.trim()) return;
+    const domain = activeTab === "master" ? undefined : activeTab as BudgetDomain;
     startTransition(async () => {
-      await addLine(budget.id, {
+      const line = await addLine(budget.id, {
         section,
         description: newDesc.trim(),
         costCategory: newCostCat,
         unitType: newUnitType,
+        domain,
+        y1Units: parseFloat(newUnits) || 0,
+        y1UnitCost: parseFloat(newUnitCost) || 0,
       });
+      setLines(prev => [...prev, line as unknown as Line]);
       setAddingSection(null);
-      setNewDesc("");
+      setNewDesc(""); setNewUnits(""); setNewUnitCost("");
     });
   };
 
@@ -230,25 +239,46 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
 
             {/* Add row button */}
             {addingSection === section ? (
-              <div className="px-4 py-3 border-t border-stone-100 flex flex-wrap gap-2 items-end">
-                <input
-                  autoFocus
-                  value={newDesc}
-                  onChange={e => setNewDesc(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleAddLine(section)}
-                  placeholder="Description"
-                  className="flex-1 min-w-48 border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-                <select value={newCostCat} onChange={e => setNewCostCat(e.target.value as InflationType)}
-                  className="border border-stone-300 rounded px-2 py-1 text-xs focus:outline-none">
-                  <option value="Salary">Salary (10%)</option>
-                  <option value="Other">Other (5%)</option>
-                  <option value="Nil">Nil (0%)</option>
-                </select>
-                <input value={newUnitType} onChange={e => setNewUnitType(e.target.value)}
-                  placeholder="Unit type" className="w-28 border border-stone-300 rounded px-2 py-1 text-xs focus:outline-none" />
-                <button onClick={() => handleAddLine(section)} className="text-xs bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700">Add</button>
-                <button onClick={() => setAddingSection(null)} className="text-xs text-stone-400 hover:text-stone-700">Cancel</button>
+              <div className="px-4 py-3 border-t border-stone-100 space-y-2">
+                <div className="flex flex-wrap gap-2 items-end">
+                  <input
+                    autoFocus
+                    value={newDesc}
+                    onChange={e => setNewDesc(e.target.value)}
+                    placeholder="Description"
+                    className="flex-1 min-w-48 border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                  <select value={newCostCat} onChange={e => setNewCostCat(e.target.value as InflationType)}
+                    className="border border-stone-300 rounded px-2 py-1 text-xs focus:outline-none">
+                    <option value="Salary">Salary inflation (10%)</option>
+                    <option value="Other">Other inflation (5%)</option>
+                    <option value="Nil">No inflation</option>
+                  </select>
+                  <input value={newUnitType} onChange={e => setNewUnitType(e.target.value)}
+                    placeholder="Unit label" className="w-28 border border-stone-300 rounded px-2 py-1 text-xs focus:outline-none" />
+                </div>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <input type="number" value={newUnits} onChange={e => setNewUnits(e.target.value)}
+                    placeholder="Units (Y1)" className="w-28 border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
+                  <input type="number" value={newUnitCost} onChange={e => setNewUnitCost(e.target.value)}
+                    placeholder="Unit cost ₹ (Y1)" className="w-36 border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
+                  {newUnits && newUnitCost && (
+                    <span className="text-xs text-stone-500">
+                      Y1: ₹{Math.round((parseFloat(newUnits)||0)*(parseFloat(newUnitCost)||0)).toLocaleString("en-IN")}
+                      {budget.years === 3 && (() => {
+                        const rate = INFLATION_RATE[newCostCat];
+                        const y2c = Math.round((parseFloat(newUnitCost)||0) * (1+rate));
+                        const y2t = Math.round((parseFloat(newUnits)||0) * y2c);
+                        return <> · Y2: ₹{y2t.toLocaleString("en-IN")}</>;
+                      })()}
+                    </span>
+                  )}
+                  <div className="flex gap-2 ml-auto">
+                    <button onClick={() => handleAddLine(section)} disabled={!newDesc.trim() || pending}
+                      className="text-xs bg-sky-600 text-white px-3 py-1.5 rounded hover:bg-sky-700 disabled:opacity-50">Add</button>
+                    <button onClick={() => setAddingSection(null)} className="text-xs text-stone-400 hover:text-stone-700">Cancel</button>
+                  </div>
+                </div>
               </div>
             ) : (
               <button
@@ -328,17 +358,25 @@ function EditRow({ line, vals, setVals, years, onSave, onCancel }: {
   line: Line; vals: Partial<Line>; setVals: (v: Partial<Line>) => void;
   years: number; onSave: () => void; onCancel: () => void;
 }) {
+  const rate = INFLATION_RATE[line.costCategory];
+
+  const setY1Units = (v: number) =>
+    setVals({ ...vals, y1Units: v, y2Units: v, y3Units: v });
+
+  const setY1UnitCost = (v: number) => {
+    const y2c = Math.round(v * (1 + rate));
+    const y3c = Math.round(y2c * (1 + rate));
+    setVals({ ...vals, y1UnitCost: v, y2UnitCost: y2c, y3UnitCost: y3c });
+  };
+
   const previewY1 = Math.round((vals.y1Units ?? 0) * (vals.y1UnitCost ?? 0) * (vals.y1AllocPct ?? 1));
   const previewY2 = Math.round((vals.y2Units ?? 0) * (vals.y2UnitCost ?? 0) * (vals.y2AllocPct ?? 1));
   const previewY3 = Math.round((vals.y3Units ?? 0) * (vals.y3UnitCost ?? 0) * (vals.y3AllocPct ?? 1));
 
-  const n = (field: keyof Line) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setVals({ ...vals, [field]: parseFloat(e.target.value) || 0 });
-
   return (
     <tr className="border-b border-sky-100 bg-sky-50">
       <td className="px-4 py-2 text-stone-400 text-xs">✏</td>
-      <td className="px-2 py-1.5" colSpan={years === 3 ? 2 : 1}>
+      <td className="px-2 py-1.5">
         <input
           value={vals.description ?? ""}
           onChange={e => setVals({ ...vals, description: e.target.value })}
@@ -347,11 +385,13 @@ function EditRow({ line, vals, setVals, years, onSave, onCancel }: {
         {line.salaryHint && <p className="text-xs text-amber-600 mt-0.5">Suggested: {line.salaryHint}</p>}
       </td>
       <td className="px-2 py-1.5">
-        <input type="number" value={vals.y1Units || ""} onChange={n("y1Units")} placeholder="Units"
+        <input type="number" value={vals.y1Units || ""} placeholder="Units"
+          onChange={e => setY1Units(parseFloat(e.target.value) || 0)}
           className="w-full border border-sky-300 rounded px-2 py-1 text-sm text-right focus:outline-none" />
       </td>
       <td className="px-2 py-1.5">
-        <input type="number" value={vals.y1UnitCost || ""} onChange={n("y1UnitCost")} placeholder="Unit cost"
+        <input type="number" value={vals.y1UnitCost || ""} placeholder="Unit cost"
+          onChange={e => setY1UnitCost(parseFloat(e.target.value) || 0)}
           className="w-full border border-sky-300 rounded px-2 py-1 text-sm text-right focus:outline-none" />
       </td>
       {years === 3 && (
@@ -363,8 +403,18 @@ function EditRow({ line, vals, setVals, years, onSave, onCancel }: {
       )}
       <td className="text-right px-2 py-1.5 font-medium text-sky-700">{fmt(previewY1)}</td>
       {years === 3 && <>
-        <td className="text-right px-2 py-1.5 text-stone-500">{fmt(previewY2)}</td>
-        <td className="text-right px-2 py-1.5 text-stone-500">{fmt(previewY3)}</td>
+        <td className="px-2 py-1.5">
+          <input type="number" value={vals.y2UnitCost || ""} placeholder="Y2 cost"
+            onChange={e => setVals({ ...vals, y2UnitCost: parseFloat(e.target.value) || 0 })}
+            className="w-full border border-sky-200 rounded px-1.5 py-0.5 text-xs text-right focus:outline-none" />
+          <div className="text-right text-xs text-sky-600 mt-0.5">{fmt(previewY2)}</div>
+        </td>
+        <td className="px-2 py-1.5">
+          <input type="number" value={vals.y3UnitCost || ""} placeholder="Y3 cost"
+            onChange={e => setVals({ ...vals, y3UnitCost: parseFloat(e.target.value) || 0 })}
+            className="w-full border border-sky-200 rounded px-1.5 py-0.5 text-xs text-right focus:outline-none" />
+          <div className="text-right text-xs text-sky-600 mt-0.5">{fmt(previewY3)}</div>
+        </td>
       </>}
       <td className="px-2 py-1.5">
         <div className="flex gap-1">

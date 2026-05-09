@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import {
-  seedCostRegistry, updateCostRegistry, resetCostRegistry,
+  seedCostRegistry, updateCostRegistry, resetCostRegistry, addCostItem,
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
   reorderLineTemplates, seedLineTemplates,
   type LineTemplateFields,
@@ -73,6 +73,11 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
   const [editVal, setEditVal] = useState<string>("");
   const [editNotes, setEditNotes] = useState<string>("");
   const [activeDomain, setActiveDomain] = useState<string>("Children");
+  const [addingItem, setAddingItem] = useState(false);
+  const [newKey, setNewKey] = useState("");
+  const [newUnit, setNewUnit] = useState("₹");
+  const [newCost, setNewCost] = useState("");
+  const [newNotes, setNewNotes] = useState("");
 
   const grouped = DOMAIN_ORDER.map(d => ({
     domain: d,
@@ -106,6 +111,16 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
   const handleReset = (row: CostRow) => {
     if (!row.id) return;
     startTransition(() => resetCostRegistry(row.id!));
+  };
+
+  const handleAddItem = () => {
+    const key = newKey.trim();
+    if (!key || !newCost) return;
+    const domain = activeDomain === "cross" ? null : activeDomain as BudgetDomain;
+    startTransition(async () => {
+      await addCostItem(city, { domain, itemKey: key, unit: newUnit, unitCost: parseFloat(newCost), notes: newNotes || undefined });
+      setAddingItem(false); setNewKey(""); setNewCost(""); setNewNotes(""); setNewUnit("₹");
+    });
   };
 
   return (
@@ -145,6 +160,7 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
           <tr key={row.itemKey} className="border-b border-sky-100 bg-sky-50">
             <td className="px-4 py-2" colSpan={2}>
               <div className="text-sm font-medium text-stone-800">{formatKey(row.itemKey)}</div>
+              <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
               <input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes (optional)"
                 className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" />
             </td>
@@ -163,7 +179,11 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
           </tr>
         ) : (
           <tr key={row.itemKey} className="border-b border-stone-50 hover:bg-stone-50 group">
-            <td className="px-4 py-2.5"><div className="text-stone-800">{formatKey(row.itemKey)}</div>{row.notes && <div className="text-xs text-stone-400 mt-0.5">{row.notes}</div>}</td>
+            <td className="px-4 py-2.5">
+              <div className="text-stone-800">{formatKey(row.itemKey)}</div>
+              <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
+              {row.notes && <div className="text-xs text-stone-400 mt-0.5">{row.notes}</div>}
+            </td>
             <td className="px-3 py-2.5 text-stone-500 text-xs">{row.unit}</td>
             <td className="text-right px-3 py-2.5 text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
             <td className="text-right px-3 py-2.5">
@@ -207,6 +227,54 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
           </div>
         );
       })()}
+
+      {/* Add new cost item */}
+      <div className="mt-3">
+        {addingItem ? (
+          <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-3">
+            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">New cost item</p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="col-span-2">
+                <span className="text-xs font-medium text-stone-600">Key name</span>
+                <input value={newKey} onChange={e => setNewKey(e.target.value)}
+                  placeholder={`e.g. ${activeDomain === "cross" ? "cross" : (activeDomain ?? "children").toLowerCase()}.accommodation_per_person`}
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500" />
+                <p className="text-xs text-stone-400 mt-0.5">Use dot notation: domain.descriptive_name (e.g. children.camp_cost)</p>
+              </label>
+              <label>
+                <span className="text-xs font-medium text-stone-600">Unit label</span>
+                <input value={newUnit} onChange={e => setNewUnit(e.target.value)}
+                  placeholder="e.g. ₹ / person, ratio"
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+              </label>
+              <label>
+                <span className="text-xs font-medium text-stone-600">Unit cost / value</span>
+                <input type="number" value={newCost} onChange={e => setNewCost(e.target.value)}
+                  placeholder="0"
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+              </label>
+              <label className="col-span-2">
+                <span className="text-xs font-medium text-stone-600">Notes (optional)</span>
+                <input value={newNotes} onChange={e => setNewNotes(e.target.value)}
+                  placeholder="Description of what this cost represents"
+                  className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
+              </label>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setAddingItem(false)} className="text-sm text-stone-500 hover:text-stone-800 px-3 py-1.5">Cancel</button>
+              <button onClick={handleAddItem} disabled={pending || !newKey.trim() || !newCost}
+                className="text-sm bg-sky-600 text-white px-4 py-1.5 rounded-lg hover:bg-sky-700 disabled:opacity-50">
+                {pending ? "Saving…" : "Add cost item"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setAddingItem(true)}
+            className="text-sm text-sky-600 hover:text-sky-800 border border-dashed border-sky-300 rounded-lg px-4 py-2 hover:bg-sky-50 w-full">
+            + New cost item
+          </button>
+        )}
+      </div>
       <p className="mt-4 text-xs text-stone-400">Changes apply to newly created budgets only.</p>
     </>
   );
@@ -220,11 +288,12 @@ const BLANK_FORM: LineTemplateFields = {
   isSalaryStub: false,
 };
 
-function TemplateForm({ initial, onSave, onCancel, pending }: {
+function TemplateForm({ initial, onSave, onCancel, pending, registryKeys }: {
   initial: LineTemplateFields;
   onSave: (f: LineTemplateFields) => void;
   onCancel: () => void;
   pending: boolean;
+  registryKeys: string[];
 }) {
   const [f, setF] = useState<LineTemplateFields>(initial);
   const set = <K extends keyof LineTemplateFields>(k: K, v: LineTemplateFields[K]) => setF(p => ({ ...p, [k]: v }));
@@ -236,6 +305,9 @@ function TemplateForm({ initial, onSave, onCancel, pending }: {
 
   return (
     <div className="space-y-3 p-4 bg-stone-50 rounded-xl border border-stone-200">
+      <datalist id="admin-ck">
+        {registryKeys.map(k => <option key={k} value={k} />)}
+      </datalist>
       <div className="grid grid-cols-2 gap-3">
         <label className="col-span-2">
           <span className="text-xs font-medium text-stone-600">Description</span>
@@ -290,7 +362,7 @@ function TemplateForm({ initial, onSave, onCancel, pending }: {
           <label>
             <span className="text-xs text-stone-600">Supervisor ratio key</span>
             <input value={f.supervisorRatioKey ?? ""} onChange={str("supervisorRatioKey")}
-              placeholder="e.g. creche.supervisor_per_n_creches"
+              list="admin-ck" placeholder="e.g. creche.supervisor_per_n_creches"
               className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
           </label>
         </div>
@@ -326,19 +398,19 @@ function TemplateForm({ initial, onSave, onCancel, pending }: {
               <label>
                 <span className="text-xs text-stone-600">Cost key (primary)</span>
                 <input value={f.costKey ?? ""} onChange={str("costKey")}
-                  placeholder="e.g. children.snack_per_child_per_day"
+                  list="admin-ck" placeholder="e.g. children.snack_per_child_per_day"
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
               <label>
                 <span className="text-xs text-stone-600">× key 2 (optional)</span>
                 <input value={f.costKey2 ?? ""} onChange={str("costKey2")}
-                  placeholder="e.g. children.snack_days_per_year"
+                  list="admin-ck" placeholder="e.g. children.snack_days_per_year"
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
               <label>
                 <span className="text-xs text-stone-600">× key 3 (optional)</span>
                 <input value={f.costKey3 ?? ""} onChange={str("costKey3")}
-                  placeholder="e.g. children.children_per_clc"
+                  list="admin-ck" placeholder="e.g. children.children_per_clc"
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
             </div>
@@ -352,13 +424,13 @@ function TemplateForm({ initial, onSave, onCancel, pending }: {
               <label>
                 <span className="text-xs text-stone-600">Worker ratio key (optional)</span>
                 <input value={f.workerRatioKey ?? ""} onChange={str("workerRatioKey")}
-                  placeholder="e.g. creche.workers_per_creche"
+                  list="admin-ck" placeholder="e.g. creche.workers_per_creche"
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
               <label>
                 <span className="text-xs text-stone-600">Buffer % key (optional)</span>
                 <input value={f.bufferKey ?? ""} onChange={str("bufferKey")}
-                  placeholder="e.g. creche.maternity_buffer_pct"
+                  list="admin-ck" placeholder="e.g. creche.maternity_buffer_pct"
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
             </div>
@@ -367,7 +439,7 @@ function TemplateForm({ initial, onSave, onCancel, pending }: {
               <label>
                 <span className="text-xs text-stone-600">% of registry key (CAPEX-style)</span>
                 <input value={f.costPctOf ?? ""} onChange={str("costPctOf")}
-                  placeholder="e.g. creche.setup_cost"
+                  list="admin-ck" placeholder="e.g. creche.setup_cost"
                   className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none" />
               </label>
               <label>
@@ -431,7 +503,7 @@ function buildNewGlobalOrder(
   return result;
 }
 
-function LineTemplatesTab({ templates, city }: { templates: LineTemplate[]; city: string }) {
+function LineTemplatesTab({ templates, city, registryKeys }: { templates: LineTemplate[]; city: string; registryKeys: string[] }) {
   const [pending, startTransition] = useTransition();
   const [activeDomain, setActiveDomain] = useState<string>("Children");
   const [adding, setAdding] = useState(false);
@@ -597,6 +669,7 @@ function LineTemplatesTab({ templates, city }: { templates: LineTemplate[]; city
                           onSave={fields => handleEdit(t.id, fields)}
                           onCancel={() => setEditingId(null)}
                           pending={pending}
+                          registryKeys={registryKeys}
                         />
                       </td>
                     </tr>
@@ -616,6 +689,7 @@ function LineTemplatesTab({ templates, city }: { templates: LineTemplate[]; city
             onSave={handleAdd}
             onCancel={() => setAdding(false)}
             pending={pending}
+            registryKeys={registryKeys}
           />
         ) : (
           <button onClick={() => setAdding(true)}
@@ -673,7 +747,7 @@ export default function AdminClient({
       </div>
 
       {activeTab === "registry" && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} />}
-      {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} />}
+      {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} />}
     </div>
   );
 }
