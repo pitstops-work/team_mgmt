@@ -8,7 +8,7 @@ import {
   type LineTemplateFields,
 } from "./actions";
 import type { BudgetDomain, BudgetSection, InflationType, LineTemplate } from "@/app/generated/prisma/client";
-import { generateBudgetLines, type BudgetGeneratorInputs } from "@/lib/budget-generator";
+import { generateBudgetLines, buildAugmentedRegistry, type BudgetGeneratorInputs } from "@/lib/budget-generator";
 
 type CostRow = {
   id: string | null;
@@ -40,6 +40,18 @@ const INPUT_VARS = [
   { value: "nElderlyCentres", label: "N Elderly Centres" },
   { value: "nCreches",        label: "N Creches" },
   { value: "cosTotal",        label: "COs total (clusters × COs/cluster)" },
+];
+
+const PROGRAMME_INPUTS: { key: string; label: string; unit: string }[] = [
+  { key: "inp.nSettlements",    label: "N Settlements",       unit: "settlements" },
+  { key: "inp.nClusters",       label: "N Clusters",          unit: "clusters" },
+  { key: "inp.cosPerCluster",   label: "COs per cluster",     unit: "COs" },
+  { key: "inp.cosTotal",        label: "Total COs",           unit: "COs" },
+  { key: "inp.nCLCs",           label: "N CLCs",              unit: "CLCs" },
+  { key: "inp.nYRCs",           label: "N YRCs",              unit: "YRCs" },
+  { key: "inp.nElderlyCentres", label: "N Elderly Centres",   unit: "centres" },
+  { key: "inp.nElderly",        label: "N Elderly enrolled",  unit: "persons" },
+  { key: "inp.nCreches",        label: "N Creches",           unit: "creches" },
 ];
 
 function formatKey(key: string) {
@@ -295,7 +307,35 @@ function CostRegistryTab({ costs, isSeeded, city }: { costs: CostRow[]; isSeeded
           </button>
         )}
       </div>
-      <p className="mt-4 text-xs text-stone-400">Changes apply to newly created budgets only.</p>
+      {/* Programme inputs reference */}
+      <div className="mt-6">
+        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Programme inputs (read-only)</p>
+        <p className="text-xs text-stone-400 mb-3">
+          These are set per budget when it is created. Reference them in template formulas using the key shown (e.g. as costKey2 or costKey3 multiplier).
+        </p>
+        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
+                <th className="text-left px-4 py-2 font-medium">Label</th>
+                <th className="text-left px-3 py-2 font-medium font-mono">Key (use in templates)</th>
+                <th className="text-left px-3 py-2 font-medium">Unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PROGRAMME_INPUTS.map(p => (
+                <tr key={p.key} className="border-b border-stone-50">
+                  <td className="px-4 py-2 text-stone-700">{p.label}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-sky-700">{p.key}</td>
+                  <td className="px-3 py-2 text-xs text-stone-400">{p.unit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p className="mt-4 text-xs text-stone-400">Cost registry changes apply to newly created budgets only.</p>
     </>
   );
 }
@@ -327,6 +367,7 @@ function TemplateForm({ initial, onSave, onCancel, pending, registryKeys }: {
     <div className="space-y-3 p-4 bg-stone-50 rounded-xl border border-stone-200">
       <datalist id="admin-ck">
         {registryKeys.map(k => <option key={k} value={k} />)}
+        {PROGRAMME_INPUTS.map(p => <option key={p.key} value={p.key} label={p.label} />)}
       </datalist>
       <div className="grid grid-cols-2 gap-3">
         <label className="col-span-2">

@@ -124,6 +124,25 @@ function templateToLine(
   };
 }
 
+// Programme inputs injected into registry so templates can use them as costKey multipliers
+export function buildAugmentedRegistry(
+  registry: Record<string, number>,
+  inp: BudgetGeneratorInputs,
+): Record<string, number> {
+  return {
+    ...registry,
+    "inp.nSettlements":    inp.nSettlements,
+    "inp.nClusters":       inp.nClusters,
+    "inp.cosPerCluster":   inp.cosPerCluster,
+    "inp.cosTotal":        inp.nClusters * inp.cosPerCluster,
+    "inp.nCLCs":           inp.nCLCs,
+    "inp.nYRCs":           inp.nYRCs,
+    "inp.nElderlyCentres": inp.nElderlyCentres,
+    "inp.nElderly":        inp.nElderly,
+    "inp.nCreches":        inp.nCreches,
+  };
+}
+
 export function generateBudgetLines(
   domains: BudgetDomain[],
   inp: BudgetGeneratorInputs,
@@ -131,11 +150,11 @@ export function generateBudgetLines(
   registry: Record<string, number>,
   templates: LineTemplate[],
 ): GeneratedLine[] {
-  // Include templates whose domain is in the selected domains list, or null (cross-cutting/admin)
+  const augmented = buildAugmentedRegistry(registry, inp);
   const active = templates
     .filter(t => t.isActive)
     .filter(t => t.domain === null || domains.includes(t.domain))
     .sort((a, b) => a.position - b.position);
 
-  return active.map((t, i) => templateToLine(t, inp, registry, i, years));
+  return active.map((t, i) => templateToLine(t, inp, augmented, i, years));
 }
