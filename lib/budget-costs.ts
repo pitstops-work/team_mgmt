@@ -117,7 +117,7 @@ export const DEFAULT_COSTS: CostItem[] = [
 ];
 
 // ── Chennai defaults ──────────────────────────────────────────────────────────
-// Sourced from the standardised APF Chennai R-2604/R-2510 template (Arunodhaya,
+// Sourced from the standardised Chennai R-2604/R-2510 template (Arunodhaya,
 // TNDWWT, DBAI, DBSSS, Thozhamai all use identical programme costs).
 // Only items that differ from Bangalore are listed here; lookupCost falls back
 // to DEFAULT_COSTS (Bangalore) for anything not overridden.

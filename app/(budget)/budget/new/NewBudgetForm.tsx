@@ -9,7 +9,7 @@ const FALLBACK_DOMAINS: DomainOption[] = [
   { key: "Youth",        label: "Youth",                       description: "YRCs, Yuva Adda, sports",              city: "Bangalore", inputs: [] },
   { key: "Elderly",      label: "Elderly + Community Kitchen", description: "Day care, nutrition, community kitchen", city: "Bangalore", inputs: [] },
   { key: "WelfareRights",label: "Welfare Rights",              description: "Entitlement & collectivization",        city: "Bangalore", inputs: [] },
-  { key: "Creche",       label: "Creche",                      description: "0–3 yr children, APF standard model",  city: "Bangalore", inputs: [] },
+  { key: "Creche",       label: "Creche",                      description: "0–3 yr children, standard model",  city: "Bangalore", inputs: [] },
 ];
 
 const FALLBACK_CROSS_CUTTING: DomainInputField[] = [

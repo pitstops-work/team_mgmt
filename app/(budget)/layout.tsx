@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Budget Builder – APF",
+  title: "Budget Builder",
   description: "Grant proposal budget generator for partners",
 };
 
@@ -13,7 +13,7 @@ export default async function BudgetLayout({ children }: { children: React.React
   return (
     <div className="min-h-screen bg-stone-50">
       <header className="border-b border-stone-200 bg-white px-6 py-3 flex items-center gap-3">
-        <span className="text-sm font-semibold text-stone-800 tracking-wide">APF Budget Builder</span>
+        <span className="text-sm font-semibold text-stone-800 tracking-wide">Budget Builder</span>
         <span className="text-stone-300">|</span>
         <span className="text-xs text-stone-500">Bangalore · Partner Grant Proposals</span>
         <div className="ml-auto flex items-center gap-4">

@@ -266,7 +266,7 @@ export async function seedDomains(city: string) {
     { key: "Youth",        label: "Youth",                        description: "YRCs, Yuva Adda, sports",             position: 1, beneficiaryLabel: "Youth",          beneficiaryVar: "nYRCs",        beneficiaryMult: 200 },
     { key: "Elderly",      label: "Elderly + Community Kitchen",  description: "Day care, nutrition, community kitchen",position: 2, beneficiaryLabel: "Elderly",        beneficiaryVar: "nElderly",     beneficiaryMult: 1   },
     { key: "WelfareRights",label: "Welfare Rights",               description: "Entitlement & collectivization",       position: 3, beneficiaryLabel: "Households",     beneficiaryVar: "nSettlements", beneficiaryMult: 150 },
-    { key: "Creche",       label: "Creche",                       description: "0–3 yr children, APF standard model", position: 4, beneficiaryLabel: "Creche children", beneficiaryVar: "nCreches",     beneficiaryMult: 20  },
+    { key: "Creche",       label: "Creche",                       description: "0–3 yr children, standard model", position: 4, beneficiaryLabel: "Creche children", beneficiaryVar: "nCreches",     beneficiaryMult: 20  },
   ];
 
   await prisma.$transaction(

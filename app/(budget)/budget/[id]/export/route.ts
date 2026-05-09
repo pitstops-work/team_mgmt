@@ -26,7 +26,7 @@ const INFLATION_LABELS: Record<string, string> = { Salary: "Salary (10%)", Other
 const C = {
   black:     "FF000000",
   white:     "FFFFFFFF",
-  olive:     "FFC2D69B",   // APF column-header green
+  olive:     "FFC2D69B",   // column-header green
   yellow:    "FFFFF2CC",   // Inflation column
   subtotal:  "FFF2F2F2",   // sub-total row
   grandtotal:"FF404040",   // grand total row bg (dark)
@@ -63,7 +63,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!budget || budget.partnerId !== session.user.id) return new NextResponse("Not found", { status: 404 });
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "APF Budget Builder";
+  wb.creator = "Budget Builder";
   wb.created = new Date();
   const years = budget.years;
 
