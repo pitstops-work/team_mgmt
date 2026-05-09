@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createBudget, type CreateBudgetPayload } from "../actions";
+import type { CustomProgrammeInput } from "./page";
 
 const DOMAINS = [
   { id: "Children",     label: "Children",              desc: "CLCs, after-school, camps" },
@@ -13,7 +14,7 @@ const DOMAINS = [
 
 type Domain = typeof DOMAINS[number]["id"];
 
-export default function NewBudgetForm() {
+export default function NewBudgetForm({ customInputs = [] }: { customInputs?: CustomProgrammeInput[] }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedDomains, setSelectedDomains] = useState<Set<Domain>>(new Set());
   const [years, setYears] = useState<1 | 3>(1);
@@ -27,6 +28,9 @@ export default function NewBudgetForm() {
     cosPerCluster: 2, rcRentPerMonth: 0,
     nCreches: 0, crecheRentPerMonth: 0,
   });
+  const [extraInputs, setExtraInputs] = useState<Record<string, number>>(
+    () => Object.fromEntries(customInputs.filter(c => c.city === "Bangalore" || true).map(c => [c.key, c.defaultValue]))
+  );
   const [pending, startTransition] = useTransition();
 
   const toggle = (d: Domain) => setSelectedDomains(prev => {
@@ -38,6 +42,9 @@ export default function NewBudgetForm() {
   const num = (field: keyof typeof inputs) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setInputs(prev => ({ ...prev, [field]: parseInt(e.target.value) || 0 }));
 
+  const numExtra = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setExtraInputs(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }));
+
   const canProceed = name.trim() && selectedDomains.size > 0;
 
   const submit = () => {
@@ -48,6 +55,7 @@ export default function NewBudgetForm() {
         domains: Array.from(selectedDomains) as CreateBudgetPayload["domains"],
         years,
         ...inputs,
+        extraInputs: Object.keys(extraInputs).length > 0 ? extraInputs : undefined,
       };
       await createBudget(payload);
     });
@@ -190,6 +198,20 @@ export default function NewBudgetForm() {
             <Section title="Creche">
               <Field label="No. of creches" value={inputs.nCreches} onChange={num("nCreches")} />
               <Field label="Creche rent per month (₹)" value={inputs.crecheRentPerMonth} onChange={num("crecheRentPerMonth")} hint="Standard APF rate is ₹10,000/month" />
+            </Section>
+          )}
+
+          {customInputs.filter(c => c.city === city).length > 0 && (
+            <Section title="Additional programme inputs">
+              {customInputs.filter(c => c.city === city).map(c => (
+                <Field
+                  key={c.key}
+                  label={c.label}
+                  value={extraInputs[c.key] ?? c.defaultValue}
+                  onChange={numExtra(c.key)}
+                  hint={c.unit !== "count" ? `Unit: ${c.unit}` : undefined}
+                />
+              ))}
             </Section>
           )}
 

@@ -434,12 +434,13 @@ const BLANK_FORM: LineTemplateFields = {
   isSalaryStub: false,
 };
 
-function TemplateForm({ initial, onSave, onCancel, pending, registryKeys }: {
+function TemplateForm({ initial, onSave, onCancel, pending, registryKeys, customInputVars }: {
   initial: LineTemplateFields;
   onSave: (f: LineTemplateFields) => void;
   onCancel: () => void;
   pending: boolean;
   registryKeys: string[];
+  customInputVars: { value: string; label: string }[];
 }) {
   const [f, setF] = useState<LineTemplateFields>(initial);
   const set = <K extends keyof LineTemplateFields>(k: K, v: LineTemplateFields[K]) => setF(p => ({ ...p, [k]: v }));
@@ -504,6 +505,8 @@ function TemplateForm({ initial, onSave, onCancel, pending, registryKeys }: {
             <select value={f.inputVar ?? "fixed_1"} onChange={e => set("inputVar", e.target.value)}
               className="mt-1 w-full border border-stone-300 rounded px-2 py-1.5 text-sm focus:outline-none">
               {INPUT_VARS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+              {customInputVars.length > 0 && <option disabled>── Custom ──</option>}
+              {customInputVars.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
             </select>
           </label>
           <label>
@@ -658,13 +661,32 @@ function buildNewGlobalOrder(
   return result;
 }
 
-function LineTemplatesTab({ templates, city, registryKeys }: { templates: LineTemplate[]; city: string; registryKeys: string[] }) {
+const STANDARD_INP_KEYS = new Set([
+  "inp.nSettlements","inp.nClusters","inp.cosPerCluster","inp.cosTotal",
+  "inp.nCLCs","inp.clcRentPerMonth","inp.nYRCs","inp.yrcRentPerMonth",
+  "inp.nElderlyCentres","inp.nElderly","inp.elderlyCentreRentPerMonth",
+  "inp.nCreches","inp.crecheRentPerMonth","inp.rcRentPerMonth",
+]);
+
+function LineTemplatesTab({ templates, city, registryKeys, costs }: {
+  templates: LineTemplate[]; city: string; registryKeys: string[]; costs: CostRow[];
+}) {
   const [pending, startTransition] = useTransition();
   const [activeDomain, setActiveDomain] = useState<string>("Children");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const customInputVars = useMemo(() =>
+    costs
+      .filter(c => c.itemKey.startsWith("inp.") && !STANDARD_INP_KEYS.has(c.itemKey))
+      .map(c => ({
+        value: c.itemKey.slice(4), // strip "inp." — matches extraInputs key
+        label: c.notes ?? c.itemKey.slice(4).replace(/_/g, " "),
+      })),
+    [costs]
+  );
 
   const domainKey = activeDomain === "cross" ? null : activeDomain as BudgetDomain;
   const visible = useMemo(() =>
@@ -827,6 +849,7 @@ function LineTemplatesTab({ templates, city, registryKeys }: { templates: LineTe
                           onCancel={() => setEditingId(null)}
                           pending={pending}
                           registryKeys={registryKeys}
+                          customInputVars={customInputVars}
                         />
                       </td>
                     </tr>
@@ -847,6 +870,7 @@ function LineTemplatesTab({ templates, city, registryKeys }: { templates: LineTe
             onCancel={() => setAdding(false)}
             pending={pending}
             registryKeys={registryKeys}
+            customInputVars={customInputVars}
           />
         ) : (
           <button onClick={() => setAdding(true)}
@@ -1044,7 +1068,7 @@ function CostAnalysisTab({ templates, costs }: { templates: LineTemplate[]; cost
                   <span className="text-xs text-stone-500">{label}</span>
                   <input
                     type="number" min={0}
-                    value={inp[key]}
+                    value={inp[key] as number}
                     onChange={e => setField(key, parseFloat(e.target.value))}
                     className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                   />
@@ -1266,7 +1290,7 @@ export default function AdminClient({
       </div>
 
       {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} />}
-      {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} />}
+      {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} costs={costs} />}
       {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} />}
     </div>
   );

@@ -1554,6 +1554,7 @@ model BudgetInputs {
   rcRentPerMonth            Int     @default(0)
   nCreches                  Int     @default(0)
   crecheRentPerMonth        Int     @default(0)
+  extraInputs               Json    @default("{}")  // custom programme inputs added via admin
 }
 
 model BudgetLine {

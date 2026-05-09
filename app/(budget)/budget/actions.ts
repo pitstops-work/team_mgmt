@@ -25,6 +25,7 @@ export type CreateBudgetPayload = {
   rcRentPerMonth: number;
   nCreches: number;
   crecheRentPerMonth: number;
+  extraInputs?: Record<string, number>;
 };
 
 export async function createBudget(payload: CreateBudgetPayload) {
@@ -51,6 +52,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
     rcRentPerMonth: payload.rcRentPerMonth,
     nCreches: payload.nCreches,
     crecheRentPerMonth: payload.crecheRentPerMonth,
+    extraInputs: payload.extraInputs ?? {},
   }, payload.years, registry, templates);
 
   const budget = await prisma.budget.create({
@@ -75,6 +77,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
           rcRentPerMonth: payload.rcRentPerMonth,
           nCreches: payload.nCreches,
           crecheRentPerMonth: payload.crecheRentPerMonth,
+          extraInputs: payload.extraInputs ?? {},
         },
       },
       lines: {

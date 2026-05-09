@@ -15,6 +15,7 @@ export type BudgetGeneratorInputs = {
   rcRentPerMonth: number;
   nCreches: number;
   crecheRentPerMonth: number;
+  extraInputs?: Record<string, number>; // custom programme inputs added via admin
 };
 
 export type GeneratedLine = {
@@ -47,7 +48,7 @@ function resolveInputVar(v: string, inp: BudgetGeneratorInputs): number {
     case "nElderlyCentres": return inp.nElderlyCentres;
     case "nCreches":        return inp.nCreches;
     case "cosTotal":        return inp.nClusters * inp.cosPerCluster;
-    default:                return 1;
+    default:                return inp.extraInputs?.[v] ?? 1;
   }
 }
 
@@ -140,6 +141,10 @@ export function buildAugmentedRegistry(
     "inp.nElderlyCentres": inp.nElderlyCentres,
     "inp.nElderly":        inp.nElderly,
     "inp.nCreches":        inp.nCreches,
+    // Inject custom inputs under inp.* namespace
+    ...Object.fromEntries(
+      Object.entries(inp.extraInputs ?? {}).map(([k, v]) => [`inp.${k}`, v])
+    ),
   };
 }
 
