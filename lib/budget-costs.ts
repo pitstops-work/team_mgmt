@@ -98,6 +98,9 @@ export const DEFAULT_COSTS: CostItem[] = [
   { domain: "Creche",   itemKey: "creche.coordinator_per_n_creches",       unitCost: 40,     unit: "creches per coordinator" },
   { domain: "Creche",   itemKey: "creche.supervisor_travel_per_month",     unitCost: 3750,   unit: "₹/supervisor/month" },
   { domain: "Creche",   itemKey: "creche.coordinator_travel_per_month",    unitCost: 6000,   unit: "₹/coordinator/month" },
+  { domain: "Creche",   itemKey: "creche.insurance_per_creche_per_year",   unitCost: 0,      unit: "₹/creche/year",       notes: "Health & accident insurance per creche" },
+  { domain: "Creche",   itemKey: "creche.accounts_manager_salary_per_month", unitCost: 0,    unit: "₹/month",             notes: "Accounts & Logistics Manager (Chennai only)" },
+  { domain: "Creche",   itemKey: "creche.accounts_manager_travel_per_month", unitCost: 0,    unit: "₹/month",             notes: "A&L Manager travel (Chennai only)" },
 
   // ── Youth (additional) ────────────────────────────────────────────────────
   { domain: "Youth",    itemKey: "youth.social_actions_per_yrc",           unitCost: 3000,   unit: "₹/YRC/year",          notes: "Youth-led social actions" },
@@ -158,9 +161,19 @@ export const DEFAULT_COSTS_CHENNAI: CostItem[] = [
   { domain: "Elderly",       itemKey: "elderly.misc_contingency_per_centre",unitCost: 5000,   unit: "₹/year/centre",           notes: "Medicines & first aid" },
 
   // ── Creche ────────────────────────────────────────────────────────────────
-  // Chennai: 3 workers per crèche, 1 supervisor per 5 crèches
-  { domain: "Creche",        itemKey: "creche.workers_per_creche",          unitCost: 3,      unit: "workers",                 notes: "3 crèche workers per crèche (Chennai model)" },
-  { domain: "Creche",        itemKey: "creche.supervisor_per_n_creches",    unitCost: 5,      unit: "creches per supervisor",  notes: "1 supervisor per 5 crèches" },
+  // All 5 Chennai partners (Arunodhaya, DBAI, DBSSS, Thozhamai, TNDWWT) use identical costs.
+  // 2.2 workers/creche = template unit count ÷ (n_creches × 12); includes maternity buffer implicitly.
+  { domain: "Creche",        itemKey: "creche.workers_per_creche",          unitCost: 2.2,    unit: "workers",                 notes: "2.2 workers/creche (incl. implicit maternity buffer)" },
+  { domain: "Creche",        itemKey: "creche.worker_honorarium_per_month", unitCost: 13500,  unit: "₹/worker/month" },
+  { domain: "Creche",        itemKey: "creche.maternity_buffer_pct",        unitCost: 0,      unit: "%",                       notes: "Buffer baked into 2.2 workers/creche ratio" },
+  { domain: "Creche",        itemKey: "creche.setup_cost",                  unitCost: 135830, unit: "₹/creche",                notes: "Anthropometric ₹34k + galvanised ₹17.27k + fittings ₹51.41k + misc ₹22.15k + safety ₹11k" },
+  { domain: "Creche",        itemKey: "creche.supervisor_salary_per_month", unitCost: 23000,  unit: "₹/month" },
+  { domain: "Creche",        itemKey: "creche.supervisor_per_n_creches",    unitCost: 10,     unit: "creches per supervisor",  notes: "1 supervisor per batch (up to ~10 creches)" },
+  { domain: "Creche",        itemKey: "creche.coordinator_salary_per_month",unitCost: 25600,  unit: "₹/month" },
+  { domain: "Creche",        itemKey: "creche.supervisor_travel_per_month", unitCost: 1500,   unit: "₹/supervisor/month" },
+  { domain: "Creche",        itemKey: "creche.insurance_per_creche_per_year", unitCost: 718,  unit: "₹/creche/year",           notes: "Health & accident insurance" },
+  { domain: "Creche",        itemKey: "creche.accounts_manager_salary_per_month", unitCost: 23000, unit: "₹/month",           notes: "Accounts & Logistics Manager" },
+  { domain: "Creche",        itemKey: "creche.accounts_manager_travel_per_month", unitCost: 3500,  unit: "₹/month" },
 
   // ── Cross-cutting ─────────────────────────────────────────────────────────
   // Staff training ₹571/staff — estimate for ~20 staff

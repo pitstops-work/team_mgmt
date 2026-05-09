@@ -247,6 +247,9 @@ export function generateCreche(inp: BudgetGeneratorInputs, years: number, r: Rec
   const coordinatorSalary    = lookupCost(r, "creche.coordinator_salary_per_month");
   const supervisorTravel     = lookupCost(r, "creche.supervisor_travel_per_month");
   const coordinatorTravel    = lookupCost(r, "creche.coordinator_travel_per_month");
+  const insurancePerCreche   = lookupCost(r, "creche.insurance_per_creche_per_year");
+  const alMgrSalary          = lookupCost(r, "creche.accounts_manager_salary_per_month");
+  const alMgrTravel          = lookupCost(r, "creche.accounts_manager_travel_per_month");
   const workerHonorarium     = lookupCost(r, "creche.worker_honorarium_per_month");
   const workersPerCreche     = lookupCost(r, "creche.workers_per_creche");
   const maternityPct         = lookupCost(r, "creche.maternity_buffer_pct");
@@ -267,21 +270,24 @@ export function generateCreche(inp: BudgetGeneratorInputs, years: number, r: Rec
   const specs: LineInput[] = [
     { domain: "Creche", section: "salary",    description: `Creche Supervisor (1 per ${supervisorPerN} creches — ${supervisors} total)`,             costCategory: "Salary", unitType: "Month",      y1Units: supervisors * 12,  y1UnitCost: supervisorSalary },
     { domain: "Creche", section: "salary",    description: `Cluster Coordinator (1 per ${coordinatorPerN} creches — ${coordinators} total)`,         costCategory: "Salary", unitType: "Month",      y1Units: coordinators * 12, y1UnitCost: coordinatorSalary },
+    ...(alMgrSalary > 0 ? [{ domain: "Creche" as BudgetDomain, section: "salary" as BudgetSection, description: "Accounts & Logistics Manager",     costCategory: "Salary" as InflationType, unitType: "Month", y1Units: 12, y1UnitCost: alMgrSalary }] : []),
     { domain: "Creche", section: "capex",     description: "One-time creche setup (anthropometric equipment, utensils, linen, electrical, safety)",  costCategory: "Nil",    unitType: "Per creche", y1Units: n,                 y1UnitCost: setupCost },
     { domain: "Creche", section: "capex",     description: "CAPEX maintenance from year 2 (5% of setup cost)",                                        costCategory: "Nil",    unitType: "Per creche", y1Units: 0,                 y1UnitCost: capexMaintenance },
     { domain: "Creche", section: "travel",    description: "Creche supervisor travel",                                                                costCategory: "Other",  unitType: "Month",      y1Units: supervisors * 12,  y1UnitCost: supervisorTravel },
     { domain: "Creche", section: "travel",    description: "Cluster coordinator travel",                                                              costCategory: "Other",  unitType: "Month",      y1Units: coordinators * 12, y1UnitCost: coordinatorTravel },
-    { domain: "Creche", section: "programme", description: `Creche worker honorarium (${workersPerCreche} workers/creche, ${maternityPct}% maternity buffer)`, costCategory: "Salary", unitType: "Per creche", y1Units: n, y1UnitCost: workerAnnualWithBuffer },
-    { domain: "Creche", section: "programme", description: "Feeding cost – breakfast + lunch + evening snacks (20 children)",                        costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: feedingCost },
-    { domain: "Creche", section: "programme", description: "Eggs (6/week/child × 20 children)",                                                       costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: eggCost },
-    { domain: "Creche", section: "programme", description: "Gas cylinder (₹1,000/month)",                                                             costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: gasCost },
+    ...(alMgrTravel > 0 ? [{ domain: "Creche" as BudgetDomain, section: "travel" as BudgetSection, description: "Accounts & Logistics Manager travel", costCategory: "Other" as InflationType, unitType: "Month", y1Units: 12, y1UnitCost: alMgrTravel }] : []),
+    { domain: "Creche", section: "programme", description: `Creche worker honorarium (${workersPerCreche} workers/creche${maternityPct > 0 ? `, ${maternityPct}% maternity buffer` : ""})`, costCategory: "Salary", unitType: "Per creche", y1Units: n, y1UnitCost: workerAnnualWithBuffer },
+    { domain: "Creche", section: "programme", description: "Feeding cost – breakfast + lunch + evening snacks",                                       costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: feedingCost },
+    { domain: "Creche", section: "programme", description: "Eggs",                                                                                    costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: eggCost },
+    { domain: "Creche", section: "programme", description: "Gas / fuel (₹1,000/month)",                                                              costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: gasCost },
     { domain: "Creche", section: "programme", description: "Hygiene, sanitation, first aid & stationary",                                             costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: hygieneCost },
     { domain: "Creche", section: "programme", description: "Food transport (₹1,000/month)",                                                           costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: transportCost },
     { domain: "Creche", section: "programme", description: "Play materials, nappies & spare clothes",                                                 costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: playMaterials },
     { domain: "Creche", section: "programme", description: "Flexi fund for miscellaneous expenses",                                                   costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: flexiFund },
     { domain: "Creche", section: "programme", description: "Training & review meetings of creche workers",                                            costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: trainingCost },
-    { domain: "Creche", section: "programme", description: "Food for 2 caregivers (₹1,300/month)",                                                    costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: caregiverFood },
-    ...(rent > 0 ? [{ domain: "Creche" as BudgetDomain, section: "programme" as BudgetSection, description: "Creche rent (₹10,000/month standard)", costCategory: "Other" as InflationType, unitType: "Month", y1Units: n * 12, y1UnitCost: rent }] : []),
+    { domain: "Creche", section: "programme", description: "Food for caregivers (₹1,300/month)",                                                      costCategory: "Other",  unitType: "Per creche", y1Units: n,                 y1UnitCost: caregiverFood },
+    ...(insurancePerCreche > 0 ? [{ domain: "Creche" as BudgetDomain, section: "programme" as BudgetSection, description: "Health & accident insurance", costCategory: "Other" as InflationType, unitType: "Per creche", y1Units: n, y1UnitCost: insurancePerCreche }] : []),
+    ...(rent > 0 ? [{ domain: "Creche" as BudgetDomain, section: "programme" as BudgetSection, description: "Creche rent", costCategory: "Other" as InflationType, unitType: "Month", y1Units: n * 12, y1UnitCost: rent }] : []),
   ];
   return lines(specs, years);
 }
