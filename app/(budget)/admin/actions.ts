@@ -67,20 +67,20 @@ export async function updateCostRegistry(id: string, unitCost: number, notes?: s
 
 // Standard inp.* display groups — used for seeding and derived defaults
 const STANDARD_PROG_INPUTS = [
-  { itemKey: "inp.nSettlements",              unit: "count",    unitCost: 10,    notes: "Typical settlements in programme area", displayGroup: "geography"  },
-  { itemKey: "inp.nClusters",                 unit: "count",    unitCost: 3,     notes: "Typical clusters",                      displayGroup: "geography"  },
-  { itemKey: "inp.cosPerCluster",             unit: "count",    unitCost: 2,     notes: "Community Organisers per cluster",       displayGroup: "geography"  },
-  { itemKey: "inp.cosTotal",                  unit: "count",    unitCost: 0,     notes: "Total COs (if entered directly)",        displayGroup: "geography"  },
-  { itemKey: "inp.nCLCs",                     unit: "count",    unitCost: 5,     notes: "Typical CLCs",                          displayGroup: "facilities" },
-  { itemKey: "inp.clcRentPerMonth",           unit: "₹/month",  unitCost: 15000, notes: "Typical CLC rent",                      displayGroup: "facilities" },
-  { itemKey: "inp.nYRCs",                     unit: "count",    unitCost: 2,     notes: "Typical YRCs",                          displayGroup: "facilities" },
-  { itemKey: "inp.yrcRentPerMonth",           unit: "₹/month",  unitCost: 10000, notes: "Typical YRC rent",                      displayGroup: "facilities" },
-  { itemKey: "inp.nElderlyCentres",           unit: "count",    unitCost: 2,     notes: "Typical elderly centres",               displayGroup: "facilities" },
-  { itemKey: "inp.elderlyCentreRentPerMonth", unit: "₹/month",  unitCost: 8000,  notes: "Typical elderly centre rent",           displayGroup: "facilities" },
-  { itemKey: "inp.nCreches",                  unit: "count",    unitCost: 3,     notes: "Typical creches",                       displayGroup: "facilities" },
-  { itemKey: "inp.crecheRentPerMonth",        unit: "₹/month",  unitCost: 12000, notes: "Typical creche rent",                   displayGroup: "facilities" },
-  { itemKey: "inp.rcRentPerMonth",            unit: "₹/month",  unitCost: 5000,  notes: "Typical RC rent",                       displayGroup: "facilities" },
-  { itemKey: "inp.nElderly",                  unit: "count",    unitCost: 50,    notes: "Typical elderly enrolled",              displayGroup: "coverage"   },
+  { itemKey: "inp.nSettlements",              unit: "count",    unitCost: 10,    notes: "No. of settlements",                    displayGroup: "geography"  },
+  { itemKey: "inp.nClusters",                 unit: "count",    unitCost: 3,     notes: "No. of clusters",                       displayGroup: "geography"  },
+  { itemKey: "inp.cosPerCluster",             unit: "count",    unitCost: 2,     notes: "COs per cluster",                       displayGroup: "geography"  },
+  { itemKey: "inp.cosTotal",                  unit: "count",    unitCost: 0,     notes: "Total COs",                             displayGroup: "geography"  },
+  { itemKey: "inp.nCLCs",                     unit: "count",    unitCost: 5,     notes: "No. of CLCs",                           displayGroup: "facilities" },
+  { itemKey: "inp.clcRentPerMonth",           unit: "₹/month",  unitCost: 15000, notes: "CLC rent / mo",                         displayGroup: "facilities" },
+  { itemKey: "inp.nYRCs",                     unit: "count",    unitCost: 2,     notes: "No. of YRCs",                           displayGroup: "facilities" },
+  { itemKey: "inp.yrcRentPerMonth",           unit: "₹/month",  unitCost: 10000, notes: "YRC rent / mo",                         displayGroup: "facilities" },
+  { itemKey: "inp.nElderlyCentres",           unit: "count",    unitCost: 2,     notes: "No. of elderly centres",                displayGroup: "facilities" },
+  { itemKey: "inp.elderlyCentreRentPerMonth", unit: "₹/month",  unitCost: 8000,  notes: "Elderly centre rent / mo",              displayGroup: "facilities" },
+  { itemKey: "inp.nCreches",                  unit: "count",    unitCost: 3,     notes: "No. of creches",                        displayGroup: "facilities" },
+  { itemKey: "inp.crecheRentPerMonth",        unit: "₹/month",  unitCost: 12000, notes: "Creche rent / mo",                      displayGroup: "facilities" },
+  { itemKey: "inp.rcRentPerMonth",            unit: "₹/month",  unitCost: 5000,  notes: "RC rent / mo",                          displayGroup: "facilities" },
+  { itemKey: "inp.nElderly",                  unit: "count",    unitCost: 50,    notes: "Elderly enrolled",                      displayGroup: "coverage"   },
 ];
 
 export async function seedProgrammeInputs(city: string) {
@@ -92,14 +92,14 @@ export async function seedProgrammeInputs(city: string) {
       prisma.costRegistry.upsert({
         where: { city_itemKey: { city, itemKey: d.itemKey } },
         create: { city, domain: null, effectiveYear: 2025, ...d },
-        update: { displayGroup: d.displayGroup },
+        update: { displayGroup: d.displayGroup, notes: d.notes },
       })
     )
   );
   revalidatePath("/admin");
 }
 
-// Back-fills displayGroup on existing items that were seeded before this field existed
+// Back-fills displayGroup AND fixes notes (removes "Typical" etc.) on existing standard items
 export async function backfillDisplayGroups(city: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
@@ -107,8 +107,8 @@ export async function backfillDisplayGroups(city: string) {
   await prisma.$transaction(
     STANDARD_PROG_INPUTS.map(d =>
       prisma.costRegistry.updateMany({
-        where: { city, itemKey: d.itemKey, displayGroup: null },
-        data: { displayGroup: d.displayGroup },
+        where: { city, itemKey: d.itemKey },
+        data: { displayGroup: d.displayGroup, notes: d.notes },
       })
     )
   );

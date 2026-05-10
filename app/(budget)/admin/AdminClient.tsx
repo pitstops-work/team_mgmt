@@ -353,7 +353,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
           <div>
             <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Programme inputs</p>
             <p className="text-xs text-stone-400 mt-0.5">
-              Typical values asked when creating a budget. Edit to set defaults for Cost Analysis; reference as <span className="font-mono">inp.*</span> keys in template formulas.
+              Default values used in Cost Analysis. Reference as <span className="font-mono">inp.*</span> keys in template formulas.
             </p>
           </div>
           <div className="flex gap-2 ml-4 shrink-0">
@@ -384,7 +384,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
         ) : (
           <div className="border border-dashed border-stone-200 rounded-xl p-6 text-center">
             <p className="text-sm text-stone-400">No programme inputs yet.</p>
-            <p className="text-xs text-stone-300 mt-1">Click "Seed standard inputs" to create typical defaults for CLCs, YRCs, elderly centres, rents, etc.</p>
+            <p className="text-xs text-stone-300 mt-1">Click "Seed standard inputs" to create defaults for CLCs, YRCs, elderly centres, rents, etc.</p>
           </div>
         )}
 
@@ -412,7 +412,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
                   </select>
                 </label>
                 <label>
-                  <span className="text-xs text-stone-500">Typical value</span>
+                  <span className="text-xs text-stone-500">Default value</span>
                   <input type="number" value={newProgValue} onChange={e => setNewProgValue(e.target.value)}
                     className="mt-0.5 w-full border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
                 </label>
