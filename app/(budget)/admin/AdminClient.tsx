@@ -1084,11 +1084,6 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
     return groups;
   }, [costs]);
 
-  // Extra denominators not in BudgetGeneratorInputs
-  const [denoms, setDenoms] = useState({ nYouth: 0, nInfants: 0 });
-  const setDenom = (k: keyof typeof denoms, v: number) =>
-    setDenoms(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
-
   // Households: editable override; falls back to nSettlements × hhPerSettlement
   const [hhOverride, setHhOverride] = useState<number | null>(null);
 
@@ -1166,19 +1161,12 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
     return byDomain;
   }, [opLines, ALL_DOMAINS]);
 
-  // Per-unit costs computed from domain configs (beneficiaryVar + beneficiaryMult)
+  // Per-unit costs computed from domain configs (beneficiaryVar × beneficiaryMult)
   const perUnit = useMemo(() => {
-    // Manual denom overrides keyed by beneficiaryLabel — take precedence over auto-computed
-    const denomOverrideByLabel: Record<string, number> = {
-      youth: denoms.nYouth,
-      "creche children": denoms.nInfants,
-    };
     const result: { label: string; value: number | null; sub: string }[] = [];
     for (const d of domains) {
       if (!d.beneficiaryVar || !d.beneficiaryLabel) continue;
-      const autoCount = Math.round((effectiveInp[d.beneficiaryVar] ?? 0) * d.beneficiaryMult);
-      const override = denomOverrideByLabel[d.beneficiaryLabel.toLowerCase()] ?? 0;
-      const count = override > 0 ? override : autoCount;
+      const count = Math.round((effectiveInp[d.beneficiaryVar] ?? 0) * d.beneficiaryMult);
       const domainTotal = domainOp[d.key] ?? 0;
       result.push({
         label: `Per ${d.beneficiaryLabel.toLowerCase()}`,
@@ -1198,7 +1186,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
       sub: `${estHH.toLocaleString("en-IN")} households`,
     });
     return result;
-  }, [domainOp, domains, effectiveInp, denoms, estHH]);
+  }, [domainOp, domains, effectiveInp, estHH]);
 
   type DomainGroup = {
     domain: string | null;
@@ -1407,12 +1395,17 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
               </div>
               <p className="text-xs text-stone-300 mt-0.5">nCLCs × children_per_clc</p>
             </div>
-            {/* Youth enrolled: manual denom */}
-            <label className="block">
-              <span className="text-xs text-stone-500">Youth enrolled</span>
-              <input type="number" min={0} value={denoms.nYouth}
-                onChange={e => setDenom("nYouth", parseFloat(e.target.value))} className={INP_CLS} />
-            </label>
+            {/* Beneficiary counts derived from domain config (beneficiaryVar × beneficiaryMult) */}
+            {domains.filter(d => d.beneficiaryVar && d.beneficiaryLabel && d.beneficiaryVar !== "nSettlements").map(d => {
+              const count = Math.round((effectiveInp[d.beneficiaryVar!] ?? 0) * d.beneficiaryMult);
+              return (
+                <div key={d.key} className="block">
+                  <span className="text-xs text-stone-500">{d.beneficiaryLabel}</span>
+                  <div className={DERIVED_CLS}>{count > 0 ? count.toLocaleString("en-IN") : "—"}</div>
+                  <p className="text-xs text-stone-300 mt-0.5">{d.beneficiaryVar} × {d.beneficiaryMult}</p>
+                </div>
+              );
+            })}
             {/* All inp.* items tagged as coverage — includes nElderly, nElderlyTotal, kitchens, etc. */}
             {progByGroup.coverage.map(({ key, label }) => (
               <label key={key} className="block">
@@ -1420,12 +1413,6 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
                 {inpField(key)}
               </label>
             ))}
-            {/* Infants: manual denom */}
-            <label className="block">
-              <span className="text-xs text-stone-500">Infants (creche)</span>
-              <input type="number" min={0} value={denoms.nInfants}
-                onChange={e => setDenom("nInfants", parseFloat(e.target.value))} className={INP_CLS} />
-            </label>
           </div>
         </div>
       </div>
