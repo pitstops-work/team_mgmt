@@ -434,9 +434,14 @@ export async function loadNeedsScenario(
     nClusters:    allClusterIds.length,
   };
 
-  // ── inp.* items that have needsDomain configured ───────────────────────────
+  // ── inp.* items that have needsDomain configured (exclude rent — never scenario-set) ──
   const inpItems = await prisma.costRegistry.findMany({
-    where: { city, itemKey: { startsWith: "inp." }, needsDomain: { not: null } },
+    where: {
+      city,
+      itemKey: { startsWith: "inp." },
+      needsDomain: { not: null },
+      NOT: { itemKey: { contains: "Rent" } },
+    },
     select: { itemKey: true, needsDomain: true },
   });
   if (inpItems.length === 0) return result;

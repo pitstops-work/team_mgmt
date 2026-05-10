@@ -1059,7 +1059,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
     nYRCs: 12, yrcRentPerMonth: 13,
     nElderlyCentres: 14, elderlyCentreRentPerMonth: 15,
     nCreches: 16, crecheRentPerMonth: 17,
-    nResourceCentres: 18, rcRentPerMonth: 19,
+    nResourceCentres: 18, nRCs: 18, rcRentPerMonth: 19,
     // Coverage — enrolled first, then totals, then kitchens/support
     nElderly: 10, nElderlyTotal: 11, nElderlyKitchens: 12,
   };
