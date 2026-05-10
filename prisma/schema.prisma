@@ -1182,7 +1182,8 @@ model NeedsFormulaConfig {
   color           String   @default("#6b7280")
   domainType      String   @default("count")   // "count" | "boolean" | "entitlement"
   populationField  String?                       // "totalHouseholds" | "children6m3yr" | "youth15to21" | "elderly60plus" etc.
-  assessmentColumn String?                       // column name in SettlementAssessment for "existing" count, e.g. "existingCreches"
+  assessmentColumn  String?                       // column name in SettlementAssessment for "existing" count, e.g. "existingCreches"
+  addressableColumn String?                       // column name in SettlementAssessment for "addressable need", e.g. "addressableCreches"
   sortOrder        Int      @default(0)
   isActive        Boolean  @default(true)
   clusterScope    Boolean  @default(false) // legacy — superseded by assessmentLevel
@@ -1609,6 +1610,7 @@ model CostRegistry {
   effectiveYear Int           @default(2025)
   notes         String?
   displayGroup  String?       // for inp.* items: "geography" | "facilities" | "coverage"; null → coverage
+  needsDomain   String?       // for inp.* items: links to NeedsFormulaConfig.domain for scenario loading
   updatedAt     DateTime      @updatedAt
 
   @@unique([city, itemKey])

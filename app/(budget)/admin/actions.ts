@@ -300,6 +300,229 @@ export async function seedDomains(city: string) {
   revalidatePath("/admin");
 }
 
+// ─── Needs scenario actions ───────────────────────────────────────────────────
+
+/** Returns child geographies for the cascading geo picker in Cost Analysis. */
+export async function getGeoChildren(
+  level: "city" | "zone" | "cluster",
+  parentId: string
+): Promise<{ id: string; name: string }[]> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  if (level === "city") {
+    const city = await prisma.city.findFirst({ where: { name: parentId }, select: { id: true } });
+    if (!city) return [];
+    return prisma.zone.findMany({
+      where: { cityId: city.id, deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }
+  if (level === "zone") {
+    return prisma.cluster.findMany({
+      where: { zoneId: parentId, deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }
+  // cluster → settlements
+  return prisma.settlement.findMany({
+    where: { clusterId: parentId, deletedAt: null },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+}
+
+type PopFields = {
+  totalHouseholds: number; children6m3yr: number; children4to14: number;
+  youth15to21: number; elderly60plus: number;
+};
+
+function _calcNeed(pop: PopFields, rows: { domain: string; denominator: number | null; populationField: string | null; domainType: string; isActive: boolean }[]): Record<string, number> {
+  const pm: Record<string, number> = {
+    totalHouseholds: pop.totalHouseholds, children6m3yr: pop.children6m3yr,
+    children4to14: pop.children4to14, youth15to21: pop.youth15to21, elderly60plus: pop.elderly60plus,
+  };
+  const r: Record<string, number> = {};
+  for (const f of rows) {
+    if (!f.isActive || f.domainType === "entitlement" || f.domainType === "boolean") continue;
+    const pv = f.populationField ? (pm[f.populationField] ?? 0) : 0;
+    r[f.domain] = f.denominator ? Math.floor(pv / f.denominator) : 0;
+  }
+  return r;
+}
+
+function _aggregatePop(assessments: PopFields[]): PopFields {
+  return assessments.reduce(
+    (acc, a) => ({
+      totalHouseholds: acc.totalHouseholds + a.totalHouseholds,
+      children6m3yr:   acc.children6m3yr   + a.children6m3yr,
+      children4to14:   acc.children4to14   + a.children4to14,
+      youth15to21:     acc.youth15to21     + a.youth15to21,
+      elderly60plus:   acc.elderly60plus   + a.elderly60plus,
+    }),
+    { totalHouseholds: 0, children6m3yr: 0, children4to14: 0, youth15to21: 0, elderly60plus: 0 }
+  );
+}
+
+/**
+ * Loads aggregated needs values for a geography scope and maps them to inp.* keys
+ * via the needsDomain field on CostRegistry. Used by Cost Analysis tab for scenarios.
+ */
+export async function loadNeedsScenario(
+  city: string,
+  level: "city" | "zone" | "cluster" | "settlement",
+  geoId: string,
+  metric: "need" | "addressable" | "existing" | "plan" | "gap"
+): Promise<Record<string, number>> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  // ── Resolve settlement + cluster IDs in scope ──────────────────────────────
+  let allSettlementIds: string[] = [];
+  let allClusterIds: string[]    = [];
+  let zoneId: string | null      = null;
+  let clusterId: string | null   = null;
+  let settlementId: string | null = null;
+  let cityRecordId: string | null = null;
+
+  if (level === "settlement") {
+    settlementId = geoId;
+    allSettlementIds = [geoId];
+    const s = await prisma.settlement.findUnique({ where: { id: geoId }, select: { clusterId: true } });
+    if (s) { allClusterIds = [s.clusterId]; clusterId = s.clusterId; }
+  } else if (level === "cluster") {
+    clusterId = geoId;
+    const c = await prisma.cluster.findUnique({
+      where: { id: geoId },
+      include: { settlements: { where: { deletedAt: null }, select: { id: true } } },
+    });
+    if (c) { allSettlementIds = c.settlements.map(s => s.id); allClusterIds = [geoId]; }
+  } else if (level === "zone") {
+    zoneId = geoId;
+    const z = await prisma.zone.findUnique({
+      where: { id: geoId },
+      include: { clusters: { where: { deletedAt: null }, include: { settlements: { where: { deletedAt: null }, select: { id: true } } } } },
+    });
+    if (z) {
+      allSettlementIds = z.clusters.flatMap(c => c.settlements.map(s => s.id));
+      allClusterIds    = z.clusters.map(c => c.id);
+    }
+  } else {
+    // city — look up by name
+    const cr = await prisma.city.findFirst({ where: { name: geoId } });
+    if (cr) {
+      cityRecordId = cr.id;
+      const zones = await prisma.zone.findMany({
+        where: { cityId: cr.id },
+        include: { clusters: { where: { deletedAt: null }, include: { settlements: { where: { deletedAt: null }, select: { id: true } } } } },
+      });
+      allSettlementIds = zones.flatMap(z => z.clusters.flatMap(c => c.settlements.map(s => s.id)));
+      allClusterIds    = zones.flatMap(z => z.clusters.map(c => c.id));
+    }
+  }
+
+  const result: Record<string, number> = {
+    nSettlements: allSettlementIds.length,
+    nClusters:    allClusterIds.length,
+  };
+
+  // ── inp.* items that have needsDomain configured ───────────────────────────
+  const inpItems = await prisma.costRegistry.findMany({
+    where: { city, itemKey: { startsWith: "inp." }, needsDomain: { not: null } },
+    select: { itemKey: true, needsDomain: true },
+  });
+  if (inpItems.length === 0) return result;
+
+  const formulaRows = await prisma.needsFormulaConfig.findMany({ where: { isActive: true } });
+
+  // ── Latest assessment per settlement ───────────────────────────────────────
+  const assessments = await prisma.settlementAssessment.findMany({
+    where: { settlementId: { in: allSettlementIds } },
+    orderBy: { assessedAt: "desc" },
+    distinct: ["settlementId"],
+  });
+
+  const pop = _aggregatePop(assessments);
+
+  const domainValues: Record<string, number> = {};
+
+  if (metric === "need") {
+    const targets = _calcNeed(pop, formulaRows);
+    for (const [d, v] of Object.entries(targets)) domainValues[d] = v;
+  } else if (metric === "existing") {
+    for (const a of assessments) {
+      for (const f of formulaRows) {
+        if (f.assessmentColumn) {
+          domainValues[f.domain] = (domainValues[f.domain] ?? 0) + Number((a as Record<string, unknown>)[f.assessmentColumn] ?? 0);
+        }
+      }
+    }
+  } else if (metric === "addressable") {
+    for (const a of assessments) {
+      for (const f of formulaRows as (typeof formulaRows[0] & { addressableColumn?: string | null })[]) {
+        if (f.addressableColumn) {
+          const val = Number((a as Record<string, unknown>)[f.addressableColumn] ?? 0);
+          if (val > 0) domainValues[f.domain] = (domainValues[f.domain] ?? 0) + val;
+        }
+      }
+    }
+  } else if (metric === "plan" || metric === "gap") {
+    const goals = await prisma.goal.findMany({
+      where: {
+        needsDomain: { not: null },
+        status: "Active",
+        deletedAt: null,
+        OR: [
+          ...(zoneId        ? [{ needsZoneId: zoneId }]             : []),
+          ...(clusterId     ? [{ needsClusterId: clusterId }]        : []),
+          ...(settlementId  ? [{ needsSettlementId: settlementId }]  : []),
+          ...(cityRecordId  ? [{ needsCityId: cityRecordId }]        : []),
+          { needsClusterId:    { in: allClusterIds } },
+          { needsSettlementId: { in: allSettlementIds } },
+        ],
+      },
+      select: { needsDomain: true, parameter: true },
+    });
+    const planByDomain: Record<string, number> = {};
+    for (const g of goals) {
+      if (!g.needsDomain) continue;
+      planByDomain[g.needsDomain] = (planByDomain[g.needsDomain] ?? 0) + (g.parameter ?? 0);
+    }
+    if (metric === "plan") {
+      for (const [d, v] of Object.entries(planByDomain)) domainValues[d] = Math.round(v);
+    } else {
+      // gap = need − existing − plan
+      const targets  = _calcNeed(pop, formulaRows);
+      const existing: Record<string, number> = {};
+      for (const a of assessments) {
+        for (const f of formulaRows) {
+          if (f.assessmentColumn) {
+            existing[f.domain] = (existing[f.domain] ?? 0) + Number((a as Record<string, unknown>)[f.assessmentColumn] ?? 0);
+          }
+        }
+      }
+      for (const f of formulaRows) {
+        if (!f.isActive || f.domainType === "entitlement") continue;
+        const need   = targets[f.domain]    ?? 0;
+        const ext    = existing[f.domain]   ?? 0;
+        const plan   = planByDomain[f.domain] ?? 0;
+        domainValues[f.domain] = Math.max(0, Math.round(need - ext - plan));
+      }
+    }
+  }
+
+  // ── Map domain values → inp keys ───────────────────────────────────────────
+  for (const item of inpItems) {
+    const key = item.itemKey.slice(4); // strip "inp."
+    const val = domainValues[item.needsDomain!];
+    if (val !== undefined) result[key] = val;
+  }
+
+  return result;
+}
+
 export async function seedLineTemplates(city: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");

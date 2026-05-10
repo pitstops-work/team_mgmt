@@ -7,6 +7,7 @@ import {
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
   reorderLineTemplates, seedLineTemplates,
   addDomain, updateDomain, toggleDomain, reorderDomains, seedDomains,
+  getGeoChildren, loadNeedsScenario,
   type LineTemplateFields, type DomainConfigFields,
 } from "./actions";
 import type { BudgetSection, InflationType, LineTemplate, BudgetDomainConfig } from "@/app/generated/prisma/client";
@@ -927,11 +928,97 @@ function parseIndicativeSalary(hint: string | null | undefined): number {
   return nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
 }
 
-function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplate[]; costs: CostRow[]; domains: BudgetDomainConfig[] }) {
+type GeoItem = { id: string; name: string };
+type GeoLevel = "city" | "zone" | "cluster" | "settlement";
+type ScenarioMetric = "need" | "addressable" | "existing" | "plan" | "gap";
+
+const METRIC_LABELS: Record<ScenarioMetric, string> = {
+  need: "Need", addressable: "Addressable", existing: "Existing", plan: "Plan", gap: "Gap",
+};
+
+function CostAnalysisTab({ templates, costs, domains, city, zones }: {
+  templates: LineTemplate[]; costs: CostRow[]; domains: BudgetDomainConfig[];
+  city: string; zones: GeoItem[];
+}) {
   const ALL_DOMAINS = domains.map(d => d.key);
   const [inp, setInp] = useState<BudgetGeneratorInputs>(() => makeDefaultInputs(costs));
   const setField = (k: string, v: number) =>
     setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
+
+  // ── Scenario picker state ──────────────────────────────────────────────────
+  const [geoLevel, setGeoLevel]             = useState<GeoLevel>("city");
+  const [geoZoneId, setGeoZoneId]           = useState("");
+  const [geoClusterId, setGeoClusterId]     = useState("");
+  const [geoSettlementId, setGeoSettlementId] = useState("");
+  const [clusterOptions, setClusterOptions]   = useState<GeoItem[]>([]);
+  const [settlementOptions, setSettlementOptions] = useState<GeoItem[]>([]);
+  const [scenarioMetric, setScenarioMetric] = useState<ScenarioMetric>("plan");
+  const [scenarioLabel, setScenarioLabel]   = useState<string | null>(null);
+  const [loadPending, startLoad]            = useTransition();
+  const [cascadePending, startCascade]      = useTransition();
+
+  const handleLevelChange = (lvl: GeoLevel) => {
+    setGeoLevel(lvl);
+    setGeoClusterId(""); setGeoSettlementId("");
+    setClusterOptions([]); setSettlementOptions([]);
+    // If zone already selected and drilling to cluster/settlement, fetch clusters
+    if (geoZoneId && (lvl === "cluster" || lvl === "settlement")) {
+      startCascade(async () => {
+        setClusterOptions(await getGeoChildren("zone", geoZoneId));
+      });
+    }
+  };
+
+  const handleZoneChange = (zoneId: string) => {
+    setGeoZoneId(zoneId); setGeoClusterId(""); setGeoSettlementId("");
+    setClusterOptions([]); setSettlementOptions([]);
+    if (zoneId && (geoLevel === "cluster" || geoLevel === "settlement")) {
+      startCascade(async () => {
+        setClusterOptions(await getGeoChildren("zone", zoneId));
+      });
+    }
+  };
+
+  const handleClusterChange = (clusterId: string) => {
+    setGeoClusterId(clusterId); setGeoSettlementId(""); setSettlementOptions([]);
+    if (clusterId && geoLevel === "settlement") {
+      startCascade(async () => {
+        setSettlementOptions(await getGeoChildren("cluster", clusterId));
+      });
+    }
+  };
+
+  const geoId =
+    geoLevel === "city"       ? city :
+    geoLevel === "zone"       ? geoZoneId :
+    geoLevel === "cluster"    ? geoClusterId :
+    geoSettlementId;
+
+  const geoName =
+    geoLevel === "city"       ? city :
+    geoLevel === "zone"       ? (zones.find(z => z.id === geoZoneId)?.name ?? "") :
+    geoLevel === "cluster"    ? (clusterOptions.find(c => c.id === geoClusterId)?.name ?? "") :
+    (settlementOptions.find(s => s.id === geoSettlementId)?.name ?? "");
+
+  const canLoad = geoLevel === "city"
+    ? true
+    : geoLevel === "zone" ? !!geoZoneId
+    : geoLevel === "cluster" ? !!geoClusterId
+    : !!geoSettlementId;
+
+  const handleLoad = () => {
+    if (!canLoad) return;
+    startLoad(async () => {
+      const vals = await loadNeedsScenario(city, geoLevel, geoId, scenarioMetric);
+      setInp(p => ({ ...p, ...vals }));
+      setScenarioLabel(`${geoName} · ${METRIC_LABELS[scenarioMetric]}`);
+    });
+  };
+
+  const handleReset = () => {
+    setInp(makeDefaultInputs(costs));
+    setScenarioLabel(null);
+  };
 
   // Logical display order within each group (lower = earlier; unknown keys get 999)
   const PROG_SORT: Record<string, number> = {
@@ -1106,7 +1193,69 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
     <>
       {/* Programme size assumptions — fully driven by displayGroup on each inp.* item */}
       <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl space-y-4">
-        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Programme size assumptions</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Programme size assumptions</p>
+          {scenarioLabel && (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-medium">{scenarioLabel}</span>
+              <button onClick={handleReset} className="text-xs text-stone-400 hover:text-stone-700">Reset</button>
+            </div>
+          )}
+        </div>
+
+        {/* Scenario picker */}
+        <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg space-y-2">
+          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">Load from geography</p>
+          {/* Level selector */}
+          <div className="flex gap-1 flex-wrap">
+            {(["city", "zone", "cluster", "settlement"] as GeoLevel[]).map(lvl => (
+              <button key={lvl} onClick={() => handleLevelChange(lvl)}
+                className={`text-xs px-2.5 py-1 rounded-md capitalize transition-colors ${geoLevel === lvl ? "bg-stone-800 text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-400"}`}>
+                {lvl}
+              </button>
+            ))}
+          </div>
+          {/* Cascading area selectors */}
+          <div className="flex flex-wrap gap-2 items-center">
+            {geoLevel !== "city" && (
+              <select value={geoZoneId} onChange={e => handleZoneChange(e.target.value)}
+                disabled={cascadePending}
+                className="text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500 bg-white">
+                <option value="">— Zone —</option>
+                {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+              </select>
+            )}
+            {(geoLevel === "cluster" || geoLevel === "settlement") && (
+              <select value={geoClusterId} onChange={e => handleClusterChange(e.target.value)}
+                disabled={cascadePending || !geoZoneId}
+                className="text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500 bg-white disabled:opacity-50">
+                <option value="">— Cluster —</option>
+                {clusterOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+            {geoLevel === "settlement" && (
+              <select value={geoSettlementId} onChange={e => setGeoSettlementId(e.target.value)}
+                disabled={cascadePending || !geoClusterId}
+                className="text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500 bg-white disabled:opacity-50">
+                <option value="">— Settlement —</option>
+                {settlementOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
+            <select value={scenarioMetric} onChange={e => setScenarioMetric(e.target.value as ScenarioMetric)}
+              className="text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500 bg-white">
+              {(Object.entries(METRIC_LABELS) as [ScenarioMetric, string][]).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+            <button onClick={handleLoad} disabled={!canLoad || loadPending}
+              className="text-xs bg-sky-600 text-white px-3 py-1 rounded-md hover:bg-sky-700 disabled:opacity-50 transition-colors">
+              {loadPending ? "Loading…" : "Load"}
+            </button>
+          </div>
+          <p className="text-[10px] text-stone-400">
+            Only inputs linked to a needs domain via Cost Registry will be populated. Geography counts (settlements, clusters) are always updated.
+          </p>
+        </div>
 
         {/* 1. Geography & Scale */}
         {progByGroup.geography.length > 0 && (
@@ -1579,13 +1728,14 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
 // ─── Root client component ────────────────────────────────────────────────────
 
 export default function AdminClient({
-  costs, isSeeded, city, templates, domains,
+  costs, isSeeded, city, templates, domains, zones,
 }: {
   costs: CostRow[];
   isSeeded: boolean;
   city: string;
   templates: LineTemplate[];
   domains: BudgetDomainConfig[];
+  zones: GeoItem[];
 }) {
   const [activeTab, setActiveTab] = useState<"registry" | "templates" | "analysis" | "domains">("registry");
 
@@ -1638,7 +1788,7 @@ export default function AdminClient({
 
       {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} domainOrder={domainOrder} domainLabels={domainLabels} />}
       {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} costs={costs} domains={domains} />}
-      {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} domains={domains} />}
+      {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} domains={domains} city={city} zones={zones} />}
       {activeTab === "domains"   && <DomainsTab domains={domains} city={city} progInputKeys={costs.filter(c => c.itemKey.startsWith("inp.")).map(c => c.itemKey)} />}
     </div>
   );
