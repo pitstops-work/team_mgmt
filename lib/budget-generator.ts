@@ -24,6 +24,9 @@ function resolveInputVar(v: string, inp: BudgetGeneratorInputs): number {
   if (v === "fixed_1")  return 1;
   if (v === "fixed_12") return 12;
   if (v === "cosTotal") return (inp.nClusters ?? 0) * (inp.cosPerCluster ?? 0);
+  // gate:VAR → 1 if VAR > 0, else 0. Use with inputMonthly + inputThreshold=0 for
+  // "1 person × 12 months, but only when VAR > 0"
+  if (v.startsWith("gate:")) return (inp[v.slice(5)] ?? 0) > 0 ? 1 : 0;
   return inp[v] ?? 0;
 }
 

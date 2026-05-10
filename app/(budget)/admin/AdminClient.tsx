@@ -40,6 +40,10 @@ const INPUT_VARS = [
   { value: "nElderlyCentres", label: "N Elderly Centres" },
   { value: "nCreches",        label: "N Creches" },
   { value: "cosTotal",        label: "COs total (clusters × COs/cluster)" },
+  { value: "gate:nCLCs",        label: "Gated by N CLCs (1 if CLCs > 0, else 0)" },
+  { value: "gate:nYRCs",        label: "Gated by N YRCs (1 if YRCs > 0, else 0)" },
+  { value: "gate:nElderlyCentres", label: "Gated by N Elderly Centres" },
+  { value: "gate:nCreches",     label: "Gated by N Creches" },
 ];
 
 const PROGRAMME_INPUTS: { key: string; label: string; unit: string }[] = [
