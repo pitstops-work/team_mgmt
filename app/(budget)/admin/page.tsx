@@ -29,13 +29,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     }),
   ]);
 
-  const zones = cityRecord
-    ? await prisma.zone.findMany({
-        where: { cityId: cityRecord.id, deletedAt: null },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      })
-    : [];
+  const zones = await prisma.zone.findMany({
+    where: cityRecord ? { cityId: cityRecord.id, deletedAt: null } : { deletedAt: null },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 
   const isSeeded = registry.length > 0;
   const defaults = getDefaultsForCity(city);
