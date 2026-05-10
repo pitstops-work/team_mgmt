@@ -694,16 +694,6 @@ function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
     [templates, activeDomain]
   );
 
-  const displayVisible = useMemo(() => {
-    if (!draggedId || !dragOverId || draggedId === dragOverId) return visible;
-    const from = visible.findIndex(t => t.id === draggedId);
-    const to   = visible.findIndex(t => t.id === dragOverId);
-    if (from === -1 || to === -1) return visible;
-    const result = [...visible];
-    const [item] = result.splice(from, 1);
-    result.splice(to, 0, item);
-    return result;
-  }, [visible, draggedId, dragOverId]);
 
   const domainTabs = [
     ...domains.map(d => ({
@@ -796,12 +786,12 @@ function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
               </tr>
             </thead>
             <tbody>
-              {displayVisible.map(t => (
+              {visible.map(t => (
                 <Fragment key={t.id}>
                   <tr
                     draggable
                     onDragStart={() => setDraggedId(t.id)}
-                    onDragOver={e => { e.preventDefault(); setDragOverId(t.id); }}
+                    onDragOver={e => { e.preventDefault(); setDragOverId(prev => prev === t.id ? prev : t.id); }}
                     onDrop={handleDrop}
                     onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
                     className={[
