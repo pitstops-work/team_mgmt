@@ -972,6 +972,13 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
   // Total children derived from registry ratio
   const totalChildren = Math.round(inp.nCLCs * (registry["children.children_per_clc"] ?? 0));
 
+  // Elderly count — derived dynamically from the Elderly domain config so it picks up beneficiaryVar changes
+  const elderlyDomain = domains.find(d => d.key === "Elderly");
+  const elderlyCount = elderlyDomain?.beneficiaryVar
+    ? Math.round((inp[elderlyDomain.beneficiaryVar] ?? 0) * elderlyDomain.beneficiaryMult)
+    : Math.round(inp.nElderly ?? 0);
+  const elderlyLabel = elderlyDomain?.beneficiaryVar ?? "nElderly";
+
   // Per-domain operational Y1 totals — keyed by domain key
   const domainOp = useMemo(() => {
     const byDomain: Record<string, number> = {};
@@ -984,15 +991,22 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
 
   // Per-unit costs computed from domain configs (beneficiaryVar + beneficiaryMult)
   const perUnit = useMemo(() => {
+    // Manual denom overrides keyed by beneficiaryLabel — take precedence over auto-computed
+    const denomOverrideByLabel: Record<string, number> = {
+      youth: denoms.nYouth,
+      "creche children": denoms.nInfants,
+    };
     const result: { label: string; value: number | null; sub: string }[] = [];
     for (const d of domains) {
       if (!d.beneficiaryVar || !d.beneficiaryLabel) continue;
-      const count = (inp[d.beneficiaryVar] ?? 0) * d.beneficiaryMult;
+      const autoCount = Math.round((inp[d.beneficiaryVar] ?? 0) * d.beneficiaryMult);
+      const override = denomOverrideByLabel[d.beneficiaryLabel.toLowerCase()] ?? 0;
+      const count = override > 0 ? override : autoCount;
       const domainTotal = domainOp[d.key] ?? 0;
       result.push({
         label: `Per ${d.beneficiaryLabel.toLowerCase()}`,
         value: count > 0 ? Math.round(domainTotal / count) : null,
-        sub: `${Math.round(count).toLocaleString("en-IN")} ${d.beneficiaryLabel.toLowerCase()}`,
+        sub: `${count.toLocaleString("en-IN")} ${d.beneficiaryLabel.toLowerCase()}`,
       });
     }
     // Always add cluster and HH
@@ -1092,9 +1106,9 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
                 className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
             </label>
             <label className="block">
-              <span className="text-xs text-stone-500">Elderly enrolled</span>
+              <span className="text-xs text-stone-500">Elderly ({elderlyLabel})</span>
               <div className="mt-0.5 px-2 py-1 text-sm border border-stone-100 rounded bg-stone-50 text-stone-500 tabular-nums">
-                {inp.nElderly.toLocaleString("en-IN")}
+                {elderlyCount.toLocaleString("en-IN")}
               </div>
               <p className="text-xs text-stone-300 mt-0.5">from programme inputs above</p>
             </label>
