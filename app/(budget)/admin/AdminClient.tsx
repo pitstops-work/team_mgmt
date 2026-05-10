@@ -883,6 +883,8 @@ const EXCLUDED_FROM_PER_UNIT = new Set<BudgetSection>(["capex", "admin_salary", 
 
 const fmt = (n: number) => n === 0 ? "—" : n.toLocaleString("en-IN");
 const fmtCost = (n: number) => n === 0 ? "—" : `₹${n.toLocaleString("en-IN")}`;
+const INP_CLS = "mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500";
+const DERIVED_CLS = "mt-0.5 px-2 py-1 text-sm border border-stone-100 rounded bg-stone-50 text-stone-500 tabular-nums";
 
 // Parse "₹40,000–55,000/month" or "₹45,000/month" → average monthly value
 function parseIndicativeSalary(hint: string | null | undefined): number {
@@ -899,33 +901,13 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
   const setField = (k: string, v: number) =>
     setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
 
-  // Compute input groups dynamically from templates + domains
-  const FIXED_VARS = new Set(["fixed_1", "fixed_12", "cosTotal", ""]);
-  const inputGroups = useMemo(() => {
-    const progCosts = costs.filter(c => c.itemKey.startsWith("inp."));
-    const keyDomains: Record<string, Set<string>> = {};
-    for (const t of templates) {
-      if (!t.domain) continue;
-      const vars = ([t.inputVar, t.userInputCost] as (string | null | undefined)[])
-        .filter((v): v is string => !!v && !FIXED_VARS.has(v));
-      for (const v of vars) {
-        if (!keyDomains[v]) keyDomains[v] = new Set();
-        keyDomains[v].add(t.domain);
-      }
-    }
-    const groups: { label: string; keys: { key: string; label: string }[] }[] = [];
-    const crossCutting = progCosts
-      .filter(c => { const d = keyDomains[c.itemKey.slice(4)]; return !d || d.size !== 1; })
-      .map(c => ({ key: c.itemKey.slice(4), label: c.notes ?? c.itemKey.slice(4) }));
-    if (crossCutting.length) groups.push({ label: "Geography / Scale", keys: crossCutting });
-    for (const d of domains) {
-      const keys = progCosts
-        .filter(c => { const s = keyDomains[c.itemKey.slice(4)]; return s?.size === 1 && s.has(d.key); })
-        .map(c => ({ key: c.itemKey.slice(4), label: c.notes ?? c.itemKey.slice(4) }));
-      if (keys.length) groups.push({ label: d.label, keys });
-    }
-    return groups;
-  }, [costs, templates, domains]);
+  // Custom prog inputs the user has added beyond the standard set
+  const customProgInputs = useMemo(
+    () => costs
+      .filter(c => c.itemKey.startsWith("inp.") && !STANDARD_INP_KEYS.has(c.itemKey))
+      .map(c => ({ key: c.itemKey.slice(4), label: c.notes ?? c.itemKey.slice(4).replace(/_/g, " ") })),
+    [costs]
+  );
 
   // Extra denominators not in BudgetGeneratorInputs
   const [denoms, setDenoms] = useState({ nYouth: 100, nInfants: 60, nHouseholds: 500 });
@@ -970,14 +952,7 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
   );
 
   // Total children derived from registry ratio
-  const totalChildren = Math.round(inp.nCLCs * (registry["children.children_per_clc"] ?? 0));
-
-  // Elderly count — derived dynamically from the Elderly domain config so it picks up beneficiaryVar changes
-  const elderlyDomain = domains.find(d => d.key === "Elderly");
-  const elderlyCount = elderlyDomain?.beneficiaryVar
-    ? Math.round((inp[elderlyDomain.beneficiaryVar] ?? 0) * elderlyDomain.beneficiaryMult)
-    : Math.round(inp.nElderly ?? 0);
-  const elderlyLabel = elderlyDomain?.beneficiaryVar ?? "nElderly";
+  const totalChildren = Math.round((inp.nCLCs ?? 0) * (registry["children.children_per_clc"] ?? 0));
 
   // Per-domain operational Y1 totals — keyed by domain key
   const domainOp = useMemo(() => {
@@ -1066,63 +1041,119 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
 
   return (
     <>
-      {/* Programme size inputs */}
-      <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl">
-        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Programme size assumptions</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {inputGroups.map(group => (
-            <div key={group.label} className="space-y-2">
-              <p className="text-xs font-medium text-stone-400 uppercase tracking-wide">{group.label}</p>
-              {group.keys.map(({ key, label }) => (
-                <label key={key} className="block">
-                  <span className="text-xs text-stone-500">{label}</span>
-                  <input
-                    type="number" min={0}
-                    value={inp[key] ?? 0}
-                    onChange={e => setField(key, parseFloat(e.target.value))}
-                    className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  />
-                </label>
-              ))}
+      {/* Programme size assumptions — hierarchical flow */}
+      <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl space-y-4">
+        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Programme size assumptions</p>
+
+        {/* 1. Geography & Scale */}
+        <div>
+          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Geography & Scale</p>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+            <label className="block">
+              <span className="text-xs text-stone-500">Clusters</span>
+              <input type="number" min={0} value={inp.nClusters ?? 0}
+                onChange={e => setField("nClusters", parseFloat(e.target.value))} className={INP_CLS} />
+            </label>
+            <label className="block">
+              <span className="text-xs text-stone-500">Settlements</span>
+              <input type="number" min={0} value={inp.nSettlements ?? 0}
+                onChange={e => setField("nSettlements", parseFloat(e.target.value))} className={INP_CLS} />
+            </label>
+            <div className="block">
+              <span className="text-xs text-stone-500">Est. households</span>
+              <div className={DERIVED_CLS}>{((inp.nSettlements ?? 0) * 150).toLocaleString("en-IN")}</div>
+              <p className="text-xs text-stone-300 mt-0.5">settlements × 150</p>
             </div>
-          ))}
+            <label className="block">
+              <span className="text-xs text-stone-500">COs per cluster</span>
+              <input type="number" min={0} value={inp.cosPerCluster ?? 0}
+                onChange={e => setField("cosPerCluster", parseFloat(e.target.value))} className={INP_CLS} />
+            </label>
+            <label className="block">
+              <span className="text-xs text-stone-500">Total COs</span>
+              <input type="number" min={0} value={inp.cosTotal ?? 0}
+                onChange={e => setField("cosTotal", parseFloat(e.target.value))} className={INP_CLS} />
+            </label>
+          </div>
         </div>
 
-        {/* Beneficiary denominators */}
-        <div className="mt-4 pt-4 border-t border-stone-100">
-          <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Beneficiary counts (for per-unit costs)</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            <label className="block">
-              <span className="text-xs text-stone-500">Total children</span>
-              <div className="mt-0.5 px-2 py-1 text-sm border border-stone-100 rounded bg-stone-50 text-stone-500 tabular-nums">
-                {totalChildren > 0 ? totalChildren.toLocaleString("en-IN") : <span className="italic text-stone-300">set children_per_clc in registry</span>}
+        <div className="border-t border-stone-100" />
+
+        {/* 2. Facilities */}
+        <div>
+          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Facilities</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {([
+              { label: "CLCs",            count: "nCLCs",          rent: "clcRentPerMonth"          },
+              { label: "YRCs",            count: "nYRCs",          rent: "yrcRentPerMonth"          },
+              { label: "Elderly centres", count: "nElderlyCentres", rent: "elderlyCentreRentPerMonth" },
+              { label: "Creches",         count: "nCreches",       rent: "crecheRentPerMonth"       },
+              { label: "Resource centre", count: null,             rent: "rcRentPerMonth"           },
+            ] as { label: string; count: string | null; rent: string }[]).map(({ label, count, rent }) => (
+              <div key={label} className="space-y-1.5">
+                <p className="text-xs font-medium text-stone-500">{label}</p>
+                {count && (
+                  <label className="block">
+                    <span className="text-[11px] text-stone-400">Count</span>
+                    <input type="number" min={0} value={inp[count] ?? 0}
+                      onChange={e => setField(count, parseFloat(e.target.value))} className={INP_CLS} />
+                  </label>
+                )}
+                <label className="block">
+                  <span className="text-[11px] text-stone-400">Rent / mo (₹)</span>
+                  <input type="number" min={0} value={inp[rent] ?? 0}
+                    onChange={e => setField(rent, parseFloat(e.target.value))} className={INP_CLS} />
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-stone-100" />
+
+        {/* 3. Coverage & Beneficiaries */}
+        <div>
+          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Coverage & Beneficiaries</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {/* Children: auto-derived */}
+            <div className="block">
+              <span className="text-xs text-stone-500">Children</span>
+              <div className={DERIVED_CLS}>
+                {totalChildren > 0 ? totalChildren.toLocaleString("en-IN") : <span className="italic text-stone-300">set children_per_clc</span>}
               </div>
               <p className="text-xs text-stone-300 mt-0.5">nCLCs × children_per_clc</p>
-            </label>
+            </div>
+            {/* Youth enrolled: manual denom */}
             <label className="block">
-              <span className="text-xs text-stone-500">Total youth enrolled</span>
+              <span className="text-xs text-stone-500">Youth enrolled</span>
               <input type="number" min={0} value={denoms.nYouth}
-                onChange={e => setDenom("nYouth", parseFloat(e.target.value))}
-                className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
+                onChange={e => setDenom("nYouth", parseFloat(e.target.value))} className={INP_CLS} />
             </label>
+            {/* All user-created custom prog inputs (nElderlyTotal, kitchens, etc.) */}
+            {customProgInputs.map(({ key, label }) => (
+              <label key={key} className="block">
+                <span className="text-xs text-stone-500">{label}</span>
+                <input type="number" min={0} value={inp[key] ?? 0}
+                  onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
+              </label>
+            ))}
+            {/* Elderly enrolled: standard prog input */}
             <label className="block">
-              <span className="text-xs text-stone-500">Elderly ({elderlyLabel})</span>
-              <div className="mt-0.5 px-2 py-1 text-sm border border-stone-100 rounded bg-stone-50 text-stone-500 tabular-nums">
-                {elderlyCount.toLocaleString("en-IN")}
-              </div>
-              <p className="text-xs text-stone-300 mt-0.5">from programme inputs above</p>
+              <span className="text-xs text-stone-500">Elderly enrolled (nElderly)</span>
+              <input type="number" min={0} value={inp.nElderly ?? 0}
+                onChange={e => setField("nElderly", parseFloat(e.target.value))} className={INP_CLS} />
             </label>
+            {/* Infants: manual denom */}
             <label className="block">
-              <span className="text-xs text-stone-500">Total infants (creche)</span>
+              <span className="text-xs text-stone-500">Infants (creche)</span>
               <input type="number" min={0} value={denoms.nInfants}
-                onChange={e => setDenom("nInfants", parseFloat(e.target.value))}
-                className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
+                onChange={e => setDenom("nInfants", parseFloat(e.target.value))} className={INP_CLS} />
             </label>
+            {/* Households: manual denom for Per HH cost */}
             <label className="block">
-              <span className="text-xs text-stone-500">Total households</span>
+              <span className="text-xs text-stone-500">Households (for Per HH)</span>
               <input type="number" min={0} value={denoms.nHouseholds}
-                onChange={e => setDenom("nHouseholds", parseFloat(e.target.value))}
-                className="mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" />
+                onChange={e => setDenom("nHouseholds", parseFloat(e.target.value))} className={INP_CLS} />
             </label>
           </div>
         </div>
