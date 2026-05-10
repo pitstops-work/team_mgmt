@@ -933,7 +933,23 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
   const setField = (k: string, v: number) =>
     setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
 
-  // All inp.* items grouped by displayGroup (geography | facilities | coverage/null)
+  // Logical display order within each group (lower = earlier; unknown keys get 999)
+  const PROG_SORT: Record<string, number> = {
+    // Geography — clusters → settlements → COs
+    nClusters: 1, nSettlements: 2, cosPerCluster: 3, cosTotal: 4,
+    // Facilities — count then rent, grouped by facility type
+    nCLCs: 10, clcRentPerMonth: 11,
+    nYRCs: 12, yrcRentPerMonth: 13,
+    nElderlyCentres: 14, elderlyCentreRentPerMonth: 15,
+    nCreches: 16, crecheRentPerMonth: 17,
+    nResourceCentres: 18, rcRentPerMonth: 19,
+    // Coverage — enrolled first, then totals, then kitchens/support
+    nElderly: 10, nElderlyTotal: 11, nElderlyKitchens: 12,
+  };
+  const sortProg = (a: { key: string }, b: { key: string }) =>
+    (PROG_SORT[a.key] ?? 999) - (PROG_SORT[b.key] ?? 999);
+
+  // All inp.* items grouped by displayGroup and sorted in logical order
   const progByGroup = useMemo(() => {
     const groups: Record<"geography" | "facilities" | "coverage", { key: string; label: string }[]> = {
       geography: [], facilities: [], coverage: [],
@@ -945,6 +961,9 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
       const g = (c.displayGroup ?? "coverage") as "geography" | "facilities" | "coverage";
       groups[g].push({ key, label });
     }
+    groups.geography.sort(sortProg);
+    groups.facilities.sort(sortProg);
+    groups.coverage.sort(sortProg);
     return groups;
   }, [costs]);
 
@@ -1095,40 +1114,71 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
             <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Geography & Scale</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
               {progByGroup.geography.map(({ key, label }) => (
-                <label key={key} className="block">
-                  <span className="text-xs text-stone-500">{label}</span>
-                  <input type="number" min={0} value={inp[key] ?? 0}
-                    onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
-                </label>
+                <Fragment key={key}>
+                  <label className="block">
+                    <span className="text-xs text-stone-500">{label}</span>
+                    <input type="number" min={0} value={inp[key] ?? 0}
+                      onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
+                  </label>
+                  {/* Est. HH appears right after settlements, reads WelfareRights beneficiaryMult */}
+                  {key === "nSettlements" && (
+                    <div className="block">
+                      <span className="text-xs text-stone-500">Est. households</span>
+                      <div className={DERIVED_CLS}>{estHH.toLocaleString("en-IN")}</div>
+                      <p className="text-xs text-stone-300 mt-0.5">× {hhPerSettlement} HH/settlement</p>
+                    </div>
+                  )}
+                </Fragment>
               ))}
-              {/* Derived: est. households — uses WelfareRights beneficiaryMult, not hardcoded */}
-              {progByGroup.geography.some(g => g.key === "nSettlements") && (
-                <div className="block">
-                  <span className="text-xs text-stone-500">Est. households</span>
-                  <div className={DERIVED_CLS}>{estHH.toLocaleString("en-IN")}</div>
-                  <p className="text-xs text-stone-300 mt-0.5">
-                    nSettlements × {hhPerSettlement}{hhDomain ? ` (${hhDomain.label})` : ""}
-                  </p>
-                </div>
-              )}
             </div>
           </div>
         )}
 
         {progByGroup.facilities.length > 0 && <div className="border-t border-stone-100" />}
 
-        {/* 2. Facilities */}
+        {/* 2. Facilities — auto-paired: sorted list has count then rent for each type */}
         {progByGroup.facilities.length > 0 && (
           <div>
             <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Facilities</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {progByGroup.facilities.map(({ key, label }) => (
-                <label key={key} className="block">
-                  <span className="text-xs text-stone-500">{label}</span>
-                  <input type="number" min={0} value={inp[key] ?? 0}
-                    onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
-                </label>
-              ))}
+              {(() => {
+                type FItem = { key: string; label: string };
+                const isRent = (k: string) => k.toLowerCase().includes("rent");
+                const strip = (s: string) =>
+                  s.replace(/^Typical\s+/i, "").replace(/^No\.?\s*of\s+/i, "").replace(/\s*rent.*$/i, "").trim();
+                const items = progByGroup.facilities;
+                const pairs: { heading: string; count?: FItem; rent?: FItem }[] = [];
+                let i = 0;
+                while (i < items.length) {
+                  const cur = items[i], nxt = items[i + 1];
+                  if (!isRent(cur.key) && nxt && isRent(nxt.key)) {
+                    pairs.push({ heading: strip(cur.label), count: cur, rent: nxt }); i += 2;
+                  } else if (isRent(cur.key)) {
+                    pairs.push({ heading: strip(cur.label), rent: cur }); i += 1;
+                  } else {
+                    pairs.push({ heading: strip(cur.label), count: cur }); i += 1;
+                  }
+                }
+                return pairs.map(({ heading, count, rent }, idx) => (
+                  <div key={idx} className="space-y-1.5">
+                    <p className="text-xs font-medium text-stone-500">{heading}</p>
+                    {count && (
+                      <label className="block">
+                        <span className="text-[11px] text-stone-400">Count</span>
+                        <input type="number" min={0} value={inp[count.key] ?? 0}
+                          onChange={e => setField(count.key, parseFloat(e.target.value))} className={INP_CLS} />
+                      </label>
+                    )}
+                    {rent && (
+                      <label className="block">
+                        <span className="text-[11px] text-stone-400">Rent / mo (₹)</span>
+                        <input type="number" min={0} value={inp[rent.key] ?? 0}
+                          onChange={e => setField(rent.key, parseFloat(e.target.value))} className={INP_CLS} />
+                      </label>
+                    )}
+                  </div>
+                ));
+              })()}
             </div>
           </div>
         )}
