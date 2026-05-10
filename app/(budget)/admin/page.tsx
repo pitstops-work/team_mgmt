@@ -8,7 +8,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const { city = "Bangalore" } = await searchParams;
 
-  const [registry, templates, domains, cityRecord, needsDomains] = await Promise.all([
+  const [registry, templates, domains, cityRecords, needsDomains] = await Promise.all([
     prisma.costRegistry.findMany({
       where: { city },
       orderBy: [{ domain: "asc" }, { itemKey: "asc" }],
@@ -21,7 +21,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       where: { city },
       orderBy: { position: "asc" },
     }),
-    prisma.city.findFirst({ where: { name: city }, select: { id: true } }),
+    prisma.city.findMany({ where: { name: city }, select: { id: true } }),
     prisma.needsFormulaConfig.findMany({
       where: { isActive: true, domainType: { not: "entitlement" } },
       select: { domain: true, label: true },
@@ -29,8 +29,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     }),
   ]);
 
+  const cityIds = cityRecords.map(c => c.id);
   const zones = await prisma.zone.findMany({
-    where: cityRecord ? { cityId: cityRecord.id, deletedAt: null } : { deletedAt: null },
+    where: cityIds.length > 0
+      ? { cityId: { in: cityIds }, deletedAt: null }
+      : { deletedAt: null },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

@@ -318,9 +318,10 @@ export async function getGeoChildren(
   if (!session?.user?.id) throw new Error("Not authenticated");
 
   if (level === "city") {
-    const city = await prisma.city.findFirst({ where: { name: parentId }, select: { id: true } });
+    const cities = await prisma.city.findMany({ where: { name: parentId }, select: { id: true } });
+    const ids = cities.map(c => c.id);
     return prisma.zone.findMany({
-      where: city ? { cityId: city.id, deletedAt: null } : { deletedAt: null },
+      where: ids.length > 0 ? { cityId: { in: ids }, deletedAt: null } : { deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
@@ -416,11 +417,12 @@ export async function loadNeedsScenario(
       allClusterIds    = z.clusters.map(c => c.id);
     }
   } else {
-    // city — look up by name, fall back to all zones if no City record exists
-    const cr = await prisma.city.findFirst({ where: { name: geoId } });
-    cityRecordId = cr?.id ?? null;
+    // city — match ALL City records with this name (duplicates exist in prod)
+    const cityRecs = await prisma.city.findMany({ where: { name: geoId }, select: { id: true } });
+    const cIds = cityRecs.map(c => c.id);
+    cityRecordId = cIds[0] ?? null;
     const allZones = await prisma.zone.findMany({
-      where: cr ? { cityId: cr.id } : { deletedAt: null },
+      where: cIds.length > 0 ? { cityId: { in: cIds } } : { deletedAt: null },
       include: { clusters: { where: { deletedAt: null }, include: { settlements: { where: { deletedAt: null }, select: { id: true } } } } },
     });
     allSettlementIds = allZones.flatMap(z => z.clusters.flatMap(c => c.settlements.map(s => s.id)));
