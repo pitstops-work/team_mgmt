@@ -1085,9 +1085,12 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
   }, [costs]);
 
   // Extra denominators not in BudgetGeneratorInputs
-  const [denoms, setDenoms] = useState({ nYouth: 100, nInfants: 60, nHouseholds: 500 });
+  const [denoms, setDenoms] = useState({ nYouth: 100, nInfants: 60 });
   const setDenom = (k: keyof typeof denoms, v: number) =>
     setDenoms(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
+
+  // Households: editable override; falls back to nSettlements × hhPerSettlement
+  const [hhOverride, setHhOverride] = useState<number | null>(null);
 
   // Returns a read-only scenario display when a scenario overrides this key, else a normal input
   const inpField = (key: string) => {
@@ -1147,10 +1150,11 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
   // Total children derived from registry ratio
   const totalChildren = Math.round((effectiveInp.nCLCs ?? 0) * (registry["children.children_per_clc"] ?? 0));
 
-  // Est. households: use whichever domain maps nSettlements as its beneficiaryVar (WelfareRights)
+  // Est. households: auto from nSettlements × beneficiaryMult, or manually overridden
   const hhDomain = domains.find(d => d.beneficiaryVar === "nSettlements");
   const hhPerSettlement = hhDomain?.beneficiaryMult ?? 150;
-  const estHH = Math.round((effectiveInp.nSettlements ?? 0) * hhPerSettlement);
+  const autoHH = Math.round((effectiveInp.nSettlements ?? 0) * hhPerSettlement);
+  const estHH = hhOverride ?? autoHH;
 
   // Per-domain operational Y1 totals — keyed by domain key
   const domainOp = useMemo(() => {
@@ -1190,11 +1194,11 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
     });
     result.push({
       label: "Per HH",
-      value: denoms.nHouseholds > 0 ? Math.round((domainOp["total"] ?? 0) / denoms.nHouseholds) : null,
-      sub: `${denoms.nHouseholds.toLocaleString("en-IN")} households`,
+      value: estHH > 0 ? Math.round((domainOp["total"] ?? 0) / estHH) : null,
+      sub: `${estHH.toLocaleString("en-IN")} households`,
     });
     return result;
-  }, [domainOp, domains, effectiveInp, denoms]);
+  }, [domainOp, domains, effectiveInp, denoms, estHH]);
 
   type DomainGroup = {
     domain: string | null;
@@ -1319,12 +1323,21 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
                     <span className="text-xs text-stone-500">{label}</span>
                     {inpField(key)}
                   </label>
-                  {/* Est. HH appears right after settlements, reads WelfareRights beneficiaryMult */}
+                  {/* Est. HH — editable override, auto-computed from nSettlements × hhPerSettlement */}
                   {key === "nSettlements" && (
                     <div className="block">
                       <span className="text-xs text-stone-500">Est. households</span>
-                      <div className={DERIVED_CLS}>{estHH.toLocaleString("en-IN")}</div>
-                      <p className="text-xs text-stone-300 mt-0.5">× {hhPerSettlement} HH/settlement</p>
+                      <div className="flex items-center gap-1">
+                        <input type="number" min={0} value={estHH}
+                          onChange={e => setHhOverride(isNaN(parseFloat(e.target.value)) ? null : parseFloat(e.target.value))}
+                          className={INP_CLS} />
+                        {hhOverride !== null && (
+                          <button onClick={() => setHhOverride(null)} className="text-stone-300 hover:text-stone-600 text-xs shrink-0" title="Reset to auto">↺</button>
+                        )}
+                      </div>
+                      <p className="text-xs text-stone-300 mt-0.5">
+                        {hhOverride !== null ? `auto: ${autoHH.toLocaleString("en-IN")}` : `× ${hhPerSettlement} HH/settlement`}
+                      </p>
                     </div>
                   )}
                 </Fragment>
@@ -1412,12 +1425,6 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
               <span className="text-xs text-stone-500">Infants (creche)</span>
               <input type="number" min={0} value={denoms.nInfants}
                 onChange={e => setDenom("nInfants", parseFloat(e.target.value))} className={INP_CLS} />
-            </label>
-            {/* Households: manual denom for Per HH cost */}
-            <label className="block">
-              <span className="text-xs text-stone-500">Households (for Per HH)</span>
-              <input type="number" min={0} value={denoms.nHouseholds}
-                onChange={e => setDenom("nHouseholds", parseFloat(e.target.value))} className={INP_CLS} />
             </label>
           </div>
         </div>
