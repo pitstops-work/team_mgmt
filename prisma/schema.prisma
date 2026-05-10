@@ -1608,6 +1608,7 @@ model CostRegistry {
   unit          String
   effectiveYear Int           @default(2025)
   notes         String?
+  displayGroup  String?       // for inp.* items: "geography" | "facilities" | "coverage"; null → coverage
   updatedAt     DateTime      @updatedAt
 
   @@unique([city, itemKey])

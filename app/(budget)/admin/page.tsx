@@ -39,6 +39,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         defaultCost: def.unitCost,
         currentCost: db?.unitCost ?? def.unitCost,
         isEdited: db ? db.unitCost !== def.unitCost : false,
+        displayGroup: db?.displayGroup ?? null,
       };
     }),
     // Custom items added via admin (not in defaults)
@@ -53,6 +54,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         defaultCost: r.unitCost,
         currentCost: r.unitCost,
         isEdited: false,
+        displayGroup: r.displayGroup ?? null,
       })),
   ];
 

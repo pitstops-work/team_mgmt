@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition, Fragment } from "react";
 import {
   seedCostRegistry, updateCostRegistry, resetCostRegistry, deleteCostItem, addCostItem,
-  seedProgrammeInputs,
+  seedProgrammeInputs, backfillDisplayGroups,
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
   reorderLineTemplates, seedLineTemplates,
   addDomain, updateDomain, toggleDomain, reorderDomains, seedDomains,
@@ -21,6 +21,7 @@ type CostRow = {
   defaultCost: number;
   currentCost: number;
   isEdited: boolean;
+  displayGroup: string | null;
 };
 
 const CITIES = ["Bangalore", "Chennai"] as const;
@@ -103,6 +104,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
   const [newProgUnit, setNewProgUnit] = useState("count");
   const [newProgValue, setNewProgValue] = useState("");
   const [newProgNotes, setNewProgNotes] = useState("");
+  const [newProgGroup, setNewProgGroup] = useState<string>("coverage");
 
   // Split programme inputs (inp.*) from regular cost items
   const progInputRows = costs.filter(c => c.itemKey.startsWith("inp."));
@@ -118,11 +120,15 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
 
   const handleSeed = () => startTransition(() => seedCostRegistry(city));
   const handleSeedProgInputs = () => startTransition(() => seedProgrammeInputs(city));
+  const handleBackfillGroups = () => startTransition(() => backfillDisplayGroups(city));
+
+  const [editDisplayGroup, setEditDisplayGroup] = useState<string | null>(null);
 
   const startEdit = (row: CostRow) => {
     setEditing(row.itemKey);
     setEditVal(String(row.currentCost));
     setEditNotes(row.notes ?? "");
+    setEditDisplayGroup(row.displayGroup);
   };
 
   const saveEdit = (row: CostRow) => {
@@ -130,7 +136,8 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
     if (isNaN(newVal)) return;
     startTransition(async () => {
       if (row.id) {
-        await updateCostRegistry(row.id, newVal, editNotes || undefined);
+        const dg = row.itemKey.startsWith("inp.") ? editDisplayGroup : undefined;
+        await updateCostRegistry(row.id, newVal, editNotes || undefined, dg);
       } else {
         await seedCostRegistry(city);
       }
@@ -163,8 +170,8 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
     const suffix = newProgKey.trim();
     if (!suffix || !newProgValue) return;
     startTransition(async () => {
-      await addCostItem(city, { domain: null, itemKey: `inp.${suffix}`, unit: newProgUnit, unitCost: parseFloat(newProgValue), notes: newProgNotes || undefined });
-      setAddingProgInput(false); setNewProgKey(""); setNewProgValue(""); setNewProgNotes(""); setNewProgUnit("count");
+      await addCostItem(city, { domain: null, itemKey: `inp.${suffix}`, unit: newProgUnit, unitCost: parseFloat(newProgValue), notes: newProgNotes || undefined, displayGroup: newProgGroup });
+      setAddingProgInput(false); setNewProgKey(""); setNewProgValue(""); setNewProgNotes(""); setNewProgUnit("count"); setNewProgGroup("coverage");
     });
   };
 
@@ -174,8 +181,16 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
       <td className="px-4 py-2" colSpan={2}>
         <div className="text-sm font-medium text-stone-800">{formatKey(row.itemKey)}</div>
         <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
-        <input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes (optional)"
+        <input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes / label"
           className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" />
+        {row.itemKey.startsWith("inp.") && (
+          <select value={editDisplayGroup ?? "coverage"} onChange={e => setEditDisplayGroup(e.target.value)}
+            className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500">
+            <option value="geography">Geography & Scale</option>
+            <option value="facilities">Facilities</option>
+            <option value="coverage">Coverage & Beneficiaries</option>
+          </select>
+        )}
       </td>
       <td className="px-3 py-2 text-right text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
       <td className="px-3 py-2">
@@ -341,12 +356,20 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
               Typical values asked when creating a budget. Edit to set defaults for Cost Analysis; reference as <span className="font-mono">inp.*</span> keys in template formulas.
             </p>
           </div>
-          {progInputRows.length === 0 && (
-            <button onClick={handleSeedProgInputs} disabled={pending}
-              className="ml-4 shrink-0 text-sm bg-sky-600 text-white px-3 py-1.5 rounded-lg hover:bg-sky-700 disabled:opacity-50">
-              {pending ? "Seeding…" : "Seed standard inputs"}
-            </button>
-          )}
+          <div className="flex gap-2 ml-4 shrink-0">
+            {progInputRows.some(r => r.itemKey.startsWith("inp.") && r.displayGroup === null) && (
+              <button onClick={handleBackfillGroups} disabled={pending}
+                className="text-sm border border-stone-300 text-stone-500 px-3 py-1.5 rounded-lg hover:bg-stone-50 disabled:opacity-50">
+                Fix sections
+              </button>
+            )}
+            {progInputRows.length === 0 && (
+              <button onClick={handleSeedProgInputs} disabled={pending}
+                className="text-sm bg-sky-600 text-white px-3 py-1.5 rounded-lg hover:bg-sky-700 disabled:opacity-50">
+                {pending ? "Seeding…" : "Seed standard inputs"}
+              </button>
+            )}
+          </div>
         </div>
 
         {progInputRows.length > 0 ? (
@@ -393,8 +416,17 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
                   <input type="number" value={newProgValue} onChange={e => setNewProgValue(e.target.value)}
                     className="mt-0.5 w-full border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
                 </label>
+                <label>
+                  <span className="text-xs text-stone-500">Section (in analysis)</span>
+                  <select value={newProgGroup} onChange={e => setNewProgGroup(e.target.value)}
+                    className="mt-0.5 w-full border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none">
+                    <option value="geography">Geography & Scale</option>
+                    <option value="facilities">Facilities</option>
+                    <option value="coverage">Coverage & Beneficiaries</option>
+                  </select>
+                </label>
                 <label className="sm:col-span-2">
-                  <span className="text-xs text-stone-500">Notes (optional)</span>
+                  <span className="text-xs text-stone-500">Notes / label</span>
                   <input value={newProgNotes} onChange={e => setNewProgNotes(e.target.value)}
                     className="mt-0.5 w-full border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
                 </label>
@@ -901,13 +933,20 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
   const setField = (k: string, v: number) =>
     setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
 
-  // Custom prog inputs the user has added beyond the standard set
-  const customProgInputs = useMemo(
-    () => costs
-      .filter(c => c.itemKey.startsWith("inp.") && !STANDARD_INP_KEYS.has(c.itemKey))
-      .map(c => ({ key: c.itemKey.slice(4), label: c.notes ?? c.itemKey.slice(4).replace(/_/g, " ") })),
-    [costs]
-  );
+  // All inp.* items grouped by displayGroup (geography | facilities | coverage/null)
+  const progByGroup = useMemo(() => {
+    const groups: Record<"geography" | "facilities" | "coverage", { key: string; label: string }[]> = {
+      geography: [], facilities: [], coverage: [],
+    };
+    for (const c of costs) {
+      if (!c.itemKey.startsWith("inp.")) continue;
+      const key = c.itemKey.slice(4);
+      const label = c.notes ?? key.replace(/_/g, " ");
+      const g = (c.displayGroup ?? "coverage") as "geography" | "facilities" | "coverage";
+      groups[g].push({ key, label });
+    }
+    return groups;
+  }, [costs]);
 
   // Extra denominators not in BudgetGeneratorInputs
   const [denoms, setDenoms] = useState({ nYouth: 100, nInfants: 60, nHouseholds: 500 });
@@ -953,6 +992,11 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
 
   // Total children derived from registry ratio
   const totalChildren = Math.round((inp.nCLCs ?? 0) * (registry["children.children_per_clc"] ?? 0));
+
+  // Est. households: use whichever domain maps nSettlements as its beneficiaryVar (WelfareRights)
+  const hhDomain = domains.find(d => d.beneficiaryVar === "nSettlements");
+  const hhPerSettlement = hhDomain?.beneficiaryMult ?? 150;
+  const estHH = Math.round((inp.nSettlements ?? 0) * hhPerSettlement);
 
   // Per-domain operational Y1 totals — keyed by domain key
   const domainOp = useMemo(() => {
@@ -1041,73 +1085,53 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
 
   return (
     <>
-      {/* Programme size assumptions — hierarchical flow */}
+      {/* Programme size assumptions — fully driven by displayGroup on each inp.* item */}
       <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl space-y-4">
         <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Programme size assumptions</p>
 
         {/* 1. Geography & Scale */}
-        <div>
-          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Geography & Scale</p>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-            <label className="block">
-              <span className="text-xs text-stone-500">Clusters</span>
-              <input type="number" min={0} value={inp.nClusters ?? 0}
-                onChange={e => setField("nClusters", parseFloat(e.target.value))} className={INP_CLS} />
-            </label>
-            <label className="block">
-              <span className="text-xs text-stone-500">Settlements</span>
-              <input type="number" min={0} value={inp.nSettlements ?? 0}
-                onChange={e => setField("nSettlements", parseFloat(e.target.value))} className={INP_CLS} />
-            </label>
-            <div className="block">
-              <span className="text-xs text-stone-500">Est. households</span>
-              <div className={DERIVED_CLS}>{((inp.nSettlements ?? 0) * 150).toLocaleString("en-IN")}</div>
-              <p className="text-xs text-stone-300 mt-0.5">settlements × 150</p>
+        {progByGroup.geography.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Geography & Scale</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+              {progByGroup.geography.map(({ key, label }) => (
+                <label key={key} className="block">
+                  <span className="text-xs text-stone-500">{label}</span>
+                  <input type="number" min={0} value={inp[key] ?? 0}
+                    onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
+                </label>
+              ))}
+              {/* Derived: est. households — uses WelfareRights beneficiaryMult, not hardcoded */}
+              {progByGroup.geography.some(g => g.key === "nSettlements") && (
+                <div className="block">
+                  <span className="text-xs text-stone-500">Est. households</span>
+                  <div className={DERIVED_CLS}>{estHH.toLocaleString("en-IN")}</div>
+                  <p className="text-xs text-stone-300 mt-0.5">
+                    nSettlements × {hhPerSettlement}{hhDomain ? ` (${hhDomain.label})` : ""}
+                  </p>
+                </div>
+              )}
             </div>
-            <label className="block">
-              <span className="text-xs text-stone-500">COs per cluster</span>
-              <input type="number" min={0} value={inp.cosPerCluster ?? 0}
-                onChange={e => setField("cosPerCluster", parseFloat(e.target.value))} className={INP_CLS} />
-            </label>
-            <label className="block">
-              <span className="text-xs text-stone-500">Total COs</span>
-              <input type="number" min={0} value={inp.cosTotal ?? 0}
-                onChange={e => setField("cosTotal", parseFloat(e.target.value))} className={INP_CLS} />
-            </label>
           </div>
-        </div>
+        )}
 
-        <div className="border-t border-stone-100" />
+        {progByGroup.facilities.length > 0 && <div className="border-t border-stone-100" />}
 
         {/* 2. Facilities */}
-        <div>
-          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Facilities</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {([
-              { label: "CLCs",            count: "nCLCs",          rent: "clcRentPerMonth"          },
-              { label: "YRCs",            count: "nYRCs",          rent: "yrcRentPerMonth"          },
-              { label: "Elderly centres", count: "nElderlyCentres", rent: "elderlyCentreRentPerMonth" },
-              { label: "Creches",         count: "nCreches",       rent: "crecheRentPerMonth"       },
-              { label: "Resource centre", count: null,             rent: "rcRentPerMonth"           },
-            ] as { label: string; count: string | null; rent: string }[]).map(({ label, count, rent }) => (
-              <div key={label} className="space-y-1.5">
-                <p className="text-xs font-medium text-stone-500">{label}</p>
-                {count && (
-                  <label className="block">
-                    <span className="text-[11px] text-stone-400">Count</span>
-                    <input type="number" min={0} value={inp[count] ?? 0}
-                      onChange={e => setField(count, parseFloat(e.target.value))} className={INP_CLS} />
-                  </label>
-                )}
-                <label className="block">
-                  <span className="text-[11px] text-stone-400">Rent / mo (₹)</span>
-                  <input type="number" min={0} value={inp[rent] ?? 0}
-                    onChange={e => setField(rent, parseFloat(e.target.value))} className={INP_CLS} />
+        {progByGroup.facilities.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Facilities</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {progByGroup.facilities.map(({ key, label }) => (
+                <label key={key} className="block">
+                  <span className="text-xs text-stone-500">{label}</span>
+                  <input type="number" min={0} value={inp[key] ?? 0}
+                    onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
                 </label>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="border-t border-stone-100" />
 
@@ -1115,7 +1139,7 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
         <div>
           <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Coverage & Beneficiaries</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {/* Children: auto-derived */}
+            {/* Children: always derived */}
             <div className="block">
               <span className="text-xs text-stone-500">Children</span>
               <div className={DERIVED_CLS}>
@@ -1129,20 +1153,14 @@ function CostAnalysisTab({ templates, costs, domains }: { templates: LineTemplat
               <input type="number" min={0} value={denoms.nYouth}
                 onChange={e => setDenom("nYouth", parseFloat(e.target.value))} className={INP_CLS} />
             </label>
-            {/* All user-created custom prog inputs (nElderlyTotal, kitchens, etc.) */}
-            {customProgInputs.map(({ key, label }) => (
+            {/* All inp.* items tagged as coverage — includes nElderly, nElderlyTotal, kitchens, etc. */}
+            {progByGroup.coverage.map(({ key, label }) => (
               <label key={key} className="block">
                 <span className="text-xs text-stone-500">{label}</span>
                 <input type="number" min={0} value={inp[key] ?? 0}
                   onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
               </label>
             ))}
-            {/* Elderly enrolled: standard prog input */}
-            <label className="block">
-              <span className="text-xs text-stone-500">Elderly enrolled (nElderly)</span>
-              <input type="number" min={0} value={inp.nElderly ?? 0}
-                onChange={e => setField("nElderly", parseFloat(e.target.value))} className={INP_CLS} />
-            </label>
             {/* Infants: manual denom */}
             <label className="block">
               <span className="text-xs text-stone-500">Infants (creche)</span>

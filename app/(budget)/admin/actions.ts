@@ -35,7 +35,7 @@ export async function seedCostRegistry(city = "Bangalore") {
 
 export async function addCostItem(
   city: string,
-  data: { domain?: string | null; itemKey: string; unit: string; unitCost: number; notes?: string }
+  data: { domain?: string | null; itemKey: string; unit: string; unitCost: number; notes?: string; displayGroup?: string | null }
 ) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
@@ -48,48 +48,67 @@ export async function addCostItem(
       unitCost: data.unitCost,
       effectiveYear: 2025,
       notes: data.notes ?? null,
+      displayGroup: data.displayGroup ?? null,
     },
   });
   revalidatePath("/admin");
 }
 
-export async function updateCostRegistry(id: string, unitCost: number, notes?: string) {
+export async function updateCostRegistry(id: string, unitCost: number, notes?: string, displayGroup?: string | null) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
   await prisma.costRegistry.update({
     where: { id },
-    data: { unitCost, notes },
+    data: { unitCost, notes, ...(displayGroup !== undefined ? { displayGroup } : {}) },
   });
   revalidatePath("/admin");
 }
+
+// Standard inp.* display groups — used for seeding and derived defaults
+const STANDARD_PROG_INPUTS = [
+  { itemKey: "inp.nSettlements",              unit: "count",    unitCost: 10,    notes: "Typical settlements in programme area", displayGroup: "geography"  },
+  { itemKey: "inp.nClusters",                 unit: "count",    unitCost: 3,     notes: "Typical clusters",                      displayGroup: "geography"  },
+  { itemKey: "inp.cosPerCluster",             unit: "count",    unitCost: 2,     notes: "Community Organisers per cluster",       displayGroup: "geography"  },
+  { itemKey: "inp.cosTotal",                  unit: "count",    unitCost: 0,     notes: "Total COs (if entered directly)",        displayGroup: "geography"  },
+  { itemKey: "inp.nCLCs",                     unit: "count",    unitCost: 5,     notes: "Typical CLCs",                          displayGroup: "facilities" },
+  { itemKey: "inp.clcRentPerMonth",           unit: "₹/month",  unitCost: 15000, notes: "Typical CLC rent",                      displayGroup: "facilities" },
+  { itemKey: "inp.nYRCs",                     unit: "count",    unitCost: 2,     notes: "Typical YRCs",                          displayGroup: "facilities" },
+  { itemKey: "inp.yrcRentPerMonth",           unit: "₹/month",  unitCost: 10000, notes: "Typical YRC rent",                      displayGroup: "facilities" },
+  { itemKey: "inp.nElderlyCentres",           unit: "count",    unitCost: 2,     notes: "Typical elderly centres",               displayGroup: "facilities" },
+  { itemKey: "inp.elderlyCentreRentPerMonth", unit: "₹/month",  unitCost: 8000,  notes: "Typical elderly centre rent",           displayGroup: "facilities" },
+  { itemKey: "inp.nCreches",                  unit: "count",    unitCost: 3,     notes: "Typical creches",                       displayGroup: "facilities" },
+  { itemKey: "inp.crecheRentPerMonth",        unit: "₹/month",  unitCost: 12000, notes: "Typical creche rent",                   displayGroup: "facilities" },
+  { itemKey: "inp.rcRentPerMonth",            unit: "₹/month",  unitCost: 5000,  notes: "Typical RC rent",                       displayGroup: "facilities" },
+  { itemKey: "inp.nElderly",                  unit: "count",    unitCost: 50,    notes: "Typical elderly enrolled",              displayGroup: "coverage"   },
+];
 
 export async function seedProgrammeInputs(city: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
-  const defaults = [
-    { itemKey: "inp.nSettlements",              unit: "count",    unitCost: 10,    notes: "Typical settlements in programme area" },
-    { itemKey: "inp.nClusters",                 unit: "count",    unitCost: 3,     notes: "Typical clusters" },
-    { itemKey: "inp.cosPerCluster",             unit: "count",    unitCost: 2,     notes: "Community Organisers per cluster" },
-    { itemKey: "inp.nCLCs",                     unit: "count",    unitCost: 5,     notes: "Typical CLCs" },
-    { itemKey: "inp.clcRentPerMonth",           unit: "₹/month",  unitCost: 15000, notes: "Typical CLC rent" },
-    { itemKey: "inp.nYRCs",                     unit: "count",    unitCost: 2,     notes: "Typical YRCs" },
-    { itemKey: "inp.yrcRentPerMonth",           unit: "₹/month",  unitCost: 10000, notes: "Typical YRC rent" },
-    { itemKey: "inp.nElderlyCentres",           unit: "count",    unitCost: 2,     notes: "Typical elderly centres" },
-    { itemKey: "inp.nElderly",                  unit: "count",    unitCost: 50,    notes: "Typical elderly enrolled" },
-    { itemKey: "inp.elderlyCentreRentPerMonth", unit: "₹/month",  unitCost: 8000,  notes: "Typical elderly centre rent" },
-    { itemKey: "inp.nCreches",                  unit: "count",    unitCost: 3,     notes: "Typical creches" },
-    { itemKey: "inp.crecheRentPerMonth",        unit: "₹/month",  unitCost: 12000, notes: "Typical creche rent" },
-    { itemKey: "inp.rcRentPerMonth",            unit: "₹/month",  unitCost: 5000,  notes: "Typical RC rent" },
-  ];
-
   await prisma.$transaction(
-    defaults.map(d =>
+    STANDARD_PROG_INPUTS.map(d =>
       prisma.costRegistry.upsert({
         where: { city_itemKey: { city, itemKey: d.itemKey } },
         create: { city, domain: null, effectiveYear: 2025, ...d },
-        update: {},
+        update: { displayGroup: d.displayGroup },
+      })
+    )
+  );
+  revalidatePath("/admin");
+}
+
+// Back-fills displayGroup on existing items that were seeded before this field existed
+export async function backfillDisplayGroups(city: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  await prisma.$transaction(
+    STANDARD_PROG_INPUTS.map(d =>
+      prisma.costRegistry.updateMany({
+        where: { city, itemKey: d.itemKey, displayGroup: null },
+        data: { displayGroup: d.displayGroup },
       })
     )
   );
