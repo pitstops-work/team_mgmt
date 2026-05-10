@@ -940,6 +940,7 @@ const fmt = (n: number) => n === 0 ? "—" : n.toLocaleString("en-IN");
 const fmtCost = (n: number) => n === 0 ? "—" : `₹${n.toLocaleString("en-IN")}`;
 const INP_CLS = "mt-0.5 w-full border border-stone-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500";
 const DERIVED_CLS = "mt-0.5 px-2 py-1 text-sm border border-stone-100 rounded bg-stone-50 text-stone-500 tabular-nums";
+const SCENARIO_CLS = "mt-0.5 px-2 py-1 text-sm border border-sky-200 rounded bg-sky-50 text-sky-700 tabular-nums font-medium";
 
 // Parse "₹40,000–55,000/month" or "₹45,000/month" → average monthly value
 function parseIndicativeSalary(hint: string | null | undefined): number {
@@ -1028,17 +1029,20 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
     : geoLevel === "cluster" ? !!geoClusterId
     : !!geoSettlementId;
 
+  // Scenario overlay — stored separately so inp (manual) is never mutated
+  const [scenarioOverrides, setScenarioOverrides] = useState<Record<string, number> | null>(null);
+
   const handleLoad = () => {
     if (!canLoad) return;
     startLoad(async () => {
       const vals = await loadNeedsScenario(city, geoLevel, geoId, scenarioMetric);
-      setInp(p => ({ ...p, ...vals }));
+      setScenarioOverrides(vals);
       setScenarioLabel(`${geoName} · ${METRIC_LABELS[scenarioMetric]}`);
     });
   };
 
   const handleReset = () => {
-    setInp(makeDefaultInputs(costs));
+    setScenarioOverrides(null);
     setScenarioLabel(null);
   };
 
@@ -1081,14 +1085,32 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
   const setDenom = (k: keyof typeof denoms, v: number) =>
     setDenoms(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
 
+  // Returns a read-only scenario display when a scenario overrides this key, else a normal input
+  const inpField = (key: string) => {
+    const override = scenarioOverrides?.[key];
+    if (override !== undefined) {
+      return <div className={SCENARIO_CLS}>{Math.round(override).toLocaleString("en-IN")}</div>;
+    }
+    return (
+      <input type="number" min={0} value={inp[key] ?? 0}
+        onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
+    );
+  };
+
   const registry = useMemo(
     () => Object.fromEntries(costs.map(c => [c.itemKey, c.currentCost])),
     [costs]
   );
 
+  // Scenario overrides layer on top of manual inp — never mutates inp
+  const effectiveInp = useMemo<BudgetGeneratorInputs>(
+    () => scenarioOverrides ? { ...inp, ...scenarioOverrides } : inp,
+    [inp, scenarioOverrides]
+  );
+
   const lines = useMemo(
-    () => generateBudgetLines(ALL_DOMAINS, inp, 3, registry, templates),
-    [inp, registry, templates]
+    () => generateBudgetLines(ALL_DOMAINS, effectiveInp, 3, registry, templates),
+    [effectiveInp, registry, templates]
   );
 
   type AnalysisLine = ReturnType<typeof generateBudgetLines>[number] & { isIndicative: boolean };
@@ -1119,12 +1141,12 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
   );
 
   // Total children derived from registry ratio
-  const totalChildren = Math.round((inp.nCLCs ?? 0) * (registry["children.children_per_clc"] ?? 0));
+  const totalChildren = Math.round((effectiveInp.nCLCs ?? 0) * (registry["children.children_per_clc"] ?? 0));
 
   // Est. households: use whichever domain maps nSettlements as its beneficiaryVar (WelfareRights)
   const hhDomain = domains.find(d => d.beneficiaryVar === "nSettlements");
   const hhPerSettlement = hhDomain?.beneficiaryMult ?? 150;
-  const estHH = Math.round((inp.nSettlements ?? 0) * hhPerSettlement);
+  const estHH = Math.round((effectiveInp.nSettlements ?? 0) * hhPerSettlement);
 
   // Per-domain operational Y1 totals — keyed by domain key
   const domainOp = useMemo(() => {
@@ -1146,7 +1168,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
     const result: { label: string; value: number | null; sub: string }[] = [];
     for (const d of domains) {
       if (!d.beneficiaryVar || !d.beneficiaryLabel) continue;
-      const autoCount = Math.round((inp[d.beneficiaryVar] ?? 0) * d.beneficiaryMult);
+      const autoCount = Math.round((effectiveInp[d.beneficiaryVar] ?? 0) * d.beneficiaryMult);
       const override = denomOverrideByLabel[d.beneficiaryLabel.toLowerCase()] ?? 0;
       const count = override > 0 ? override : autoCount;
       const domainTotal = domainOp[d.key] ?? 0;
@@ -1159,8 +1181,8 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
     // Always add cluster and HH
     result.push({
       label: "Per cluster",
-      value: inp.nClusters > 0 ? Math.round((domainOp["total"] ?? 0) / inp.nClusters) : null,
-      sub: `${inp.nClusters} clusters`,
+      value: (effectiveInp.nClusters ?? 0) > 0 ? Math.round((domainOp["total"] ?? 0) / effectiveInp.nClusters!) : null,
+      sub: `${effectiveInp.nClusters ?? 0} clusters`,
     });
     result.push({
       label: "Per HH",
@@ -1168,7 +1190,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
       sub: `${denoms.nHouseholds.toLocaleString("en-IN")} households`,
     });
     return result;
-  }, [domainOp, domains, inp, denoms]);
+  }, [domainOp, domains, effectiveInp, denoms]);
 
   type DomainGroup = {
     domain: string | null;
@@ -1291,8 +1313,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
                 <Fragment key={key}>
                   <label className="block">
                     <span className="text-xs text-stone-500">{label}</span>
-                    <input type="number" min={0} value={inp[key] ?? 0}
-                      onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
+                    {inpField(key)}
                   </label>
                   {/* Est. HH appears right after settlements, reads WelfareRights beneficiaryMult */}
                   {key === "nSettlements" && (
@@ -1339,15 +1360,13 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
                     {count && (
                       <label className="block">
                         <span className="text-[11px] text-stone-400">Count</span>
-                        <input type="number" min={0} value={inp[count.key] ?? 0}
-                          onChange={e => setField(count.key, parseFloat(e.target.value))} className={INP_CLS} />
+                        {inpField(count.key)}
                       </label>
                     )}
                     {rent && (
                       <label className="block">
                         <span className="text-[11px] text-stone-400">Rent / mo (₹)</span>
-                        <input type="number" min={0} value={inp[rent.key] ?? 0}
-                          onChange={e => setField(rent.key, parseFloat(e.target.value))} className={INP_CLS} />
+                        {inpField(rent.key)}
                       </label>
                     )}
                   </div>
@@ -1381,8 +1400,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
             {progByGroup.coverage.map(({ key, label }) => (
               <label key={key} className="block">
                 <span className="text-xs text-stone-500">{label}</span>
-                <input type="number" min={0} value={inp[key] ?? 0}
-                  onChange={e => setField(key, parseFloat(e.target.value))} className={INP_CLS} />
+                {inpField(key)}
               </label>
             ))}
             {/* Infants: manual denom */}
