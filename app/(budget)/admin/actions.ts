@@ -54,13 +54,20 @@ export async function addCostItem(
   revalidatePath("/admin");
 }
 
-export async function updateCostRegistry(id: string, unitCost: number, notes?: string, displayGroup?: string | null) {
+export async function updateCostRegistry(
+  id: string, unitCost: number, notes?: string,
+  displayGroup?: string | null, needsDomain?: string | null
+) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
   await prisma.costRegistry.update({
     where: { id },
-    data: { unitCost, notes, ...(displayGroup !== undefined ? { displayGroup } : {}) },
+    data: {
+      unitCost, notes,
+      ...(displayGroup !== undefined ? { displayGroup } : {}),
+      ...(needsDomain  !== undefined ? { needsDomain }  : {}),
+    },
   });
   revalidatePath("/admin");
 }

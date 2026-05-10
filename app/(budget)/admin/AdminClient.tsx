@@ -23,6 +23,7 @@ type CostRow = {
   currentCost: number;
   isEdited: boolean;
   displayGroup: string | null;
+  needsDomain: string | null;
 };
 
 const CITIES = ["Bangalore", "Chennai"] as const;
@@ -124,12 +125,14 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
   const handleBackfillGroups = () => startTransition(() => backfillDisplayGroups(city));
 
   const [editDisplayGroup, setEditDisplayGroup] = useState<string | null>(null);
+  const [editNeedsDomain, setEditNeedsDomain]   = useState<string | null>(null);
 
   const startEdit = (row: CostRow) => {
     setEditing(row.itemKey);
     setEditVal(String(row.currentCost));
     setEditNotes(row.notes ?? "");
     setEditDisplayGroup(row.displayGroup);
+    setEditNeedsDomain(row.needsDomain);
   };
 
   const saveEdit = (row: CostRow) => {
@@ -137,8 +140,12 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
     if (isNaN(newVal)) return;
     startTransition(async () => {
       if (row.id) {
-        const dg = row.itemKey.startsWith("inp.") ? editDisplayGroup : undefined;
-        await updateCostRegistry(row.id, newVal, editNotes || undefined, dg);
+        const isInp = row.itemKey.startsWith("inp.");
+        await updateCostRegistry(
+          row.id, newVal, editNotes || undefined,
+          isInp ? editDisplayGroup : undefined,
+          isInp ? editNeedsDomain  : undefined,
+        );
       } else {
         await seedCostRegistry(city);
       }
@@ -185,12 +192,17 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
         <input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes / label"
           className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" />
         {row.itemKey.startsWith("inp.") && (
-          <select value={editDisplayGroup ?? "coverage"} onChange={e => setEditDisplayGroup(e.target.value)}
-            className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500">
-            <option value="geography">Geography & Scale</option>
-            <option value="facilities">Facilities</option>
-            <option value="coverage">Coverage & Beneficiaries</option>
-          </select>
+          <>
+            <select value={editDisplayGroup ?? "coverage"} onChange={e => setEditDisplayGroup(e.target.value)}
+              className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500">
+              <option value="geography">Geography & Scale</option>
+              <option value="facilities">Facilities</option>
+              <option value="coverage">Coverage & Beneficiaries</option>
+            </select>
+            <input value={editNeedsDomain ?? ""} onChange={e => setEditNeedsDomain(e.target.value || null)}
+              placeholder="Needs domain (e.g. Creche, ChildrenCentre)"
+              className="mt-1 w-full text-xs font-mono border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" />
+          </>
         )}
       </td>
       <td className="px-3 py-2 text-right text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
@@ -212,6 +224,11 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
         <div className="text-stone-800">{formatKey(row.itemKey)}</div>
         <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
         {row.notes && <div className="text-xs text-stone-400 mt-0.5">{row.notes}</div>}
+        {row.itemKey.startsWith("inp.") && (
+          row.needsDomain
+            ? <span className="text-[10px] font-mono bg-sky-50 text-sky-600 border border-sky-100 px-1.5 py-0.5 rounded mt-0.5 inline-block">→ {row.needsDomain}</span>
+            : <span className="text-[10px] text-stone-300 mt-0.5 inline-block">no needs domain</span>
+        )}
       </td>
       <td className="px-3 py-2.5 text-stone-500 text-xs">{row.unit}</td>
       <td className="text-right px-3 py-2.5 text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
