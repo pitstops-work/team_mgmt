@@ -1239,6 +1239,9 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
           </div>
           {/* Cascading area selectors */}
           <div className="flex flex-wrap gap-2 items-center">
+            {geoLevel === "city" && (
+              <span className="text-xs border border-stone-200 rounded px-2 py-1 bg-stone-100 text-stone-500">{city}</span>
+            )}
             {geoLevel !== "city" && (
               <select value={geoZoneId} onChange={e => handleZoneChange(e.target.value)}
                 disabled={cascadePending}
