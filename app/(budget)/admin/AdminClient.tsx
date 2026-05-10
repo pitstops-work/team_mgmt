@@ -86,9 +86,10 @@ function makeDefaultInputs(costs: { itemKey: string; currentCost: number }[]): B
 
 // ─── Cost Registry tab ────────────────────────────────────────────────────────
 
-function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
+function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, needsDomains }: {
   costs: CostRow[]; isSeeded: boolean; city: string;
   domainOrder: (string | null)[]; domainLabels: Record<string, string>;
+  needsDomains: { domain: string; label: string | null }[];
 }) {
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<string | null>(null);
@@ -199,9 +200,13 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels }: {
               <option value="facilities">Facilities</option>
               <option value="coverage">Coverage & Beneficiaries</option>
             </select>
-            <input value={editNeedsDomain ?? ""} onChange={e => setEditNeedsDomain(e.target.value || null)}
-              placeholder="Needs domain (e.g. Creche, ChildrenCentre)"
-              className="mt-1 w-full text-xs font-mono border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" />
+            <select value={editNeedsDomain ?? ""} onChange={e => setEditNeedsDomain(e.target.value || null)}
+              className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500">
+              <option value="">— no needs domain —</option>
+              {needsDomains.map(nd => (
+                <option key={nd.domain} value={nd.domain}>{nd.label ?? nd.domain} ({nd.domain})</option>
+              ))}
+            </select>
           </>
         )}
       </td>
@@ -1745,7 +1750,7 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
 // ─── Root client component ────────────────────────────────────────────────────
 
 export default function AdminClient({
-  costs, isSeeded, city, templates, domains, zones,
+  costs, isSeeded, city, templates, domains, zones, needsDomains,
 }: {
   costs: CostRow[];
   isSeeded: boolean;
@@ -1753,6 +1758,7 @@ export default function AdminClient({
   templates: LineTemplate[];
   domains: BudgetDomainConfig[];
   zones: GeoItem[];
+  needsDomains: { domain: string; label: string | null }[];
 }) {
   const [activeTab, setActiveTab] = useState<"registry" | "templates" | "analysis" | "domains">("registry");
 
@@ -1803,7 +1809,7 @@ export default function AdminClient({
         </div>
       </div>
 
-      {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} domainOrder={domainOrder} domainLabels={domainLabels} />}
+      {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} domainOrder={domainOrder} domainLabels={domainLabels} needsDomains={needsDomains} />}
       {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} costs={costs} domains={domains} />}
       {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} domains={domains} city={city} zones={zones} />}
       {activeTab === "domains"   && <DomainsTab domains={domains} city={city} progInputKeys={costs.filter(c => c.itemKey.startsWith("inp.")).map(c => c.itemKey)} />}
