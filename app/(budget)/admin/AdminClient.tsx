@@ -1085,7 +1085,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
   }, [costs]);
 
   // Extra denominators not in BudgetGeneratorInputs
-  const [denoms, setDenoms] = useState({ nYouth: 100, nInfants: 60 });
+  const [denoms, setDenoms] = useState({ nYouth: 0, nInfants: 0 });
   const setDenom = (k: keyof typeof denoms, v: number) =>
     setDenoms(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
 
