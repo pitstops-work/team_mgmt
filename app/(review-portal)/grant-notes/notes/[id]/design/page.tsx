@@ -414,7 +414,7 @@ export default function DesignPage() {
       {/* Top bar */}
       <div className="gn-editor-topbar">
         <div className="gn-editor-topbar-left">
-          <Link href="/review/notes" className="gn-back">← All notes</Link>
+          <Link href="/grant-notes/notes" className="gn-back">← All notes</Link>
           {note && (
             <span className="gn-editor-topbar-title">
               {note.org_name}{note.org_city ? `, ${note.org_city}` : ''} — Design
@@ -560,7 +560,7 @@ export default function DesignPage() {
             </div>
 
             <div className="gn-editor-sidebar-footer">
-              <Link href="/review/draft" className="gn-editor-sidebar-link">Rulebook →</Link>
+              <Link href="/grant-notes/draft" className="gn-editor-sidebar-link">Rulebook →</Link>
             </div>
           </aside>
 

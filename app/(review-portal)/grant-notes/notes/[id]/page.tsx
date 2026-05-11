@@ -239,7 +239,7 @@ export default function NotePage() {
           <div className="gate-tag">Grant Note · {note.org_name}</div>
           <h1>Not ready for review</h1>
           <p>The staff team is still designing this document. It will appear here once submitted for review.</p>
-          <Link href="/review/notes" style={{ display: 'block', marginTop: 16, color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>← All notes</Link>
+          <Link href="/grant-notes/notes" style={{ display: 'block', marginTop: 16, color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>← All notes</Link>
         </div>
       </div>
     );

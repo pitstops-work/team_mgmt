@@ -249,7 +249,7 @@ export default function DraftPage() {
       <div className="draft-inputs">
         <div className="draft-brand">
           <div className="draft-brand-label">Internal Document</div>
-          <a href="/review/notes" className="draft-back">← All notes</a>
+          <a href="/grant-notes/notes" className="draft-back">← All notes</a>
         </div>
 
         {/* Doc type toggle */}

@@ -2,12 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    // Cache RSC payloads for dynamic routes — makes back-navigation instant
     staleTimes: {
-      dynamic: 0,    // always refetch RSC on navigation — prevents stale goal/pitstop data
+      dynamic: 0,
       static: 180,
     },
   },
+  // Native .node bindings — must not be bundled by Turbopack
+  serverExternalPackages: ["@resvg/resvg-js"],
 };
 
 export default nextConfig;

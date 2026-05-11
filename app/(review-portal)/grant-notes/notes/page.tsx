@@ -42,7 +42,7 @@ export default function NotesPage() {
           <div className="notes-subtitle">Submitted for review</div>
         </div>
         <div className="notes-header-right">
-          <Link href="/review/draft" className="notes-btn-primary">+ Draft new</Link>
+          <Link href="/grant-notes/draft" className="notes-btn-primary">+ Draft new</Link>
         </div>
       </div>
 
@@ -53,7 +53,7 @@ export default function NotesPage() {
           <div className="notes-empty-icon">◎</div>
           <div>No grant notes submitted yet.</div>
           <div className="notes-empty-hint">
-            <Link href="/review/draft">Draft the first one →</Link>
+            <Link href="/grant-notes/draft">Draft the first one →</Link>
           </div>
         </div>
       )}

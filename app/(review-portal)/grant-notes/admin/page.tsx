@@ -19,7 +19,7 @@ export default function AdminPage() {
           <div style={{ fontSize: 13, color: '#777' }}>Edit language rules, financial rules, document type templates and export modes</div>
         </Link>
 
-        <Link href="/review/notes" style={{
+        <Link href="/grant-notes/notes" style={{
           display: 'block', padding: '20px 24px',
           border: '1px solid #D4D4CC', borderRadius: 8,
           textDecoration: 'none', background: '#FAFAF7',
@@ -28,7 +28,7 @@ export default function AdminPage() {
           <div style={{ fontSize: 13, color: '#777' }}>View and manage all grant notes and programme design documents</div>
         </Link>
 
-        <Link href="/review/draft" style={{
+        <Link href="/grant-notes/draft" style={{
           display: 'block', padding: '20px 24px',
           border: '1px solid #D4D4CC', borderRadius: 8,
           textDecoration: 'none', background: '#FAFAF7',

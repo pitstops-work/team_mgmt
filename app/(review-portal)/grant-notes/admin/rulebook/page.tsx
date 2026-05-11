@@ -134,7 +134,7 @@ export default function RulebookPage() {
           <div className="rulebook-title">Rulebook</div>
           <div className="rulebook-subtitle">Controls what Claude follows when drafting and how Word exports are formatted</div>
         </div>
-        <Link href="/review/admin" className="rulebook-back">← Admin</Link>
+        <Link href="/grant-notes/admin" className="rulebook-back">← Admin</Link>
       </div>
 
       <div className="rulebook-passphrase">

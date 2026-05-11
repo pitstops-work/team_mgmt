@@ -72,7 +72,7 @@ export default async function PortalPage() {
 
         {/* Review Portal */}
         <Link
-          href="/review"
+          href="/grant-notes"
           className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md"
         >
           <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
