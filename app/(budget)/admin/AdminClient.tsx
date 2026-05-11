@@ -13,6 +13,9 @@ import {
 import type { BudgetSection, InflationType, LineTemplate, BudgetDomainConfig } from "@/app/generated/prisma/client";
 import { generateBudgetLines, buildAugmentedRegistry, type BudgetGeneratorInputs } from "@/lib/budget-generator";
 
+// inputVar values that produce units unconditionally (not driven by programme inputs)
+const FIXED_INPUT_VARS = new Set(["fixed_1", "fixed_12"]);
+
 type CostRow = {
   id: string | null;
   domain: string | null;
@@ -1202,7 +1205,11 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
   const grouped = useMemo<DomainGroup[]>(() => {
     const domainOrder = [...ALL_DOMAINS, null] as (string | null)[];
     return domainOrder.flatMap(domain => {
-      const domLines = indicativeLines.filter(l => l.domain === domain && l.y1Total > 0);
+      const allDomLines = indicativeLines.filter(l => l.domain === domain);
+      // Only show domain if at least one variable-driven (non-fixed) line has units > 0
+      const hasVariableLine = allDomLines.some(l => !FIXED_INPUT_VARS.has(l.inputVar) && l.y1Units > 0);
+      if (!hasVariableLine) return [];
+      const domLines = allDomLines.filter(l => l.y1Total > 0);
       if (!domLines.length) return [];
       const sections = [...new Set(domLines.map(l => l.section))];
       const bySection = sections.map(s => {
