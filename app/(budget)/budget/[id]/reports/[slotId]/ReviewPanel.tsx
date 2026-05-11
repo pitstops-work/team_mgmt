@@ -2,23 +2,155 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { approveReport, sendBackReport } from "../../../../budget/report-actions";
+import { approveReport, sendBackReport, resolveReallocationRequest } from "../../../../budget/report-actions";
 import ReportForm from "./ReportForm";
 
 type Slot = { id: string; slotNumber: number; grantYear: number; periodFrom: string; periodTo: string; dueDate: string; status: string; report: any };
 type Budget = { id: string; name: string; years: number; lines: any[]; reportConfig: any };
 
+type ReallocationRequest = {
+  id: string; status: string;
+  fromLine: { id: string; description: string };
+  toLine: { id: string; description: string } | null;
+  toDescription: string | null;
+  requestedAmount: number; durationType: string; durationMonths: number | null;
+  rationale: string; sourceUnspent: number; willSustain: boolean; sustainNote: string | null;
+  approvedAmount: number | null; reviewerComment: string | null;
+};
+
+const DURATION_LABELS: Record<string, string> = {
+  remaining_year: "Rest of grant year",
+  full_grant: "Full remaining grant period",
+  custom: "Custom period",
+  one_time: "One-time payment",
+};
+
+const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+
+function ReallocationReviewCard({
+  req, disabled,
+}: { req: ReallocationRequest; disabled: boolean }) {
+  const [approvedAmount, setApprovedAmount] = useState(String(req.requestedAmount));
+  const [comment, setComment] = useState(req.reviewerComment ?? "");
+  const [showForm, setShowForm] = useState(false);
+  const [resolving, startResolve] = useTransition();
+
+  if (req.status !== "pending") {
+    return (
+      <div className={`border rounded-xl px-5 py-4 ${req.status === "approved" ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}`}>
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className="text-sm font-medium text-stone-800">
+            {req.fromLine.description} → {req.toLine?.description ?? req.toDescription ?? "New line"}
+          </span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${req.status === "approved" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+            {req.status}
+          </span>
+        </div>
+        <p className="text-xs text-stone-500">{fmt(Math.round(req.requestedAmount))} · {DURATION_LABELS[req.durationType] ?? req.durationType}</p>
+        {req.status === "approved" && req.approvedAmount != null && req.approvedAmount !== req.requestedAmount && (
+          <p className="text-xs text-green-700 mt-1">Approved: {fmt(Math.round(req.approvedAmount))}</p>
+        )}
+        {req.reviewerComment && <p className="text-xs text-stone-600 mt-1 italic">"{req.reviewerComment}"</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-amber-200 bg-amber-50 rounded-xl px-5 py-4 space-y-3">
+      <div>
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className="text-sm font-medium text-stone-800">
+            {req.fromLine.description} → {req.toLine?.description ?? req.toDescription ?? "New line"}
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Pending</span>
+          {!req.willSustain && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Sustain concern</span>
+          )}
+        </div>
+        <p className="text-xs text-stone-600">
+          {fmt(Math.round(req.requestedAmount))} · {DURATION_LABELS[req.durationType] ?? req.durationType}
+          {req.durationType === "custom" && req.durationMonths ? ` (${req.durationMonths} months)` : ""}
+        </p>
+        <p className="text-xs text-stone-600 mt-0.5">{req.rationale}</p>
+        <p className="text-xs text-stone-400 mt-0.5">Source unspent: {fmt(Math.round(req.sourceUnspent))}</p>
+        {req.sustainNote && <p className="text-xs text-amber-700 mt-0.5">{req.sustainNote}</p>}
+      </div>
+
+      {!showForm ? (
+        <div className="flex gap-2">
+          <button onClick={() => setShowForm(true)} disabled={disabled}
+            className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-50">
+            Review
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3 pt-1 border-t border-amber-200">
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-stone-600 shrink-0">Approved amount (₹)</label>
+            <input type="number" min={0} max={req.requestedAmount} value={approvedAmount}
+              onChange={e => setApprovedAmount(e.target.value)}
+              className="w-36 text-sm text-right border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sky-400 bg-white" />
+            <span className="text-xs text-stone-400">of {fmt(Math.round(req.requestedAmount))}</span>
+          </div>
+          <div>
+            <label className="text-xs text-stone-600 block mb-1">Comment (optional)</label>
+            <input type="text" value={comment} onChange={e => setComment(e.target.value)}
+              placeholder="Note for partner…"
+              className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sky-400 bg-white" />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              disabled={resolving || disabled}
+              onClick={() => startResolve(async () => {
+                const amt = parseFloat(approvedAmount) || 0;
+                await resolveReallocationRequest(req.id, {
+                  status: "approved",
+                  approvedAmount: amt,
+                  reviewerComment: comment.trim() || undefined,
+                });
+              })}
+              className="text-sm bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg disabled:opacity-50">
+              {resolving ? "Saving…" : "Approve"}
+            </button>
+            <button
+              disabled={resolving || disabled}
+              onClick={() => startResolve(async () => {
+                await resolveReallocationRequest(req.id, {
+                  status: "rejected",
+                  reviewerComment: comment.trim() || undefined,
+                });
+              })}
+              className="text-sm border border-red-300 text-red-700 hover:bg-red-50 px-4 py-1.5 rounded-lg disabled:opacity-50">
+              Reject
+            </button>
+            <button onClick={() => setShowForm(false)} className="text-sm text-stone-400 hover:text-stone-700">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ReviewPanel({
-  slot, budget, cumulativePrior,
-}: { slot: Slot; budget: Budget; cumulativePrior: Record<string, number> }) {
+  slot, budget, cumulativePrior, revisedAdjustments,
+}: { slot: Slot; budget: Budget; cumulativePrior: Record<string, number>; revisedAdjustments: Record<string, number> }) {
   const [sendBackNotes, setSendBackNotes] = useState("");
   const [showSendBack, setShowSendBack] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
   const [approving, startApprove] = useTransition();
   const [sendingBack, startSendBack] = useTransition();
 
+  const reallocRequests: ReallocationRequest[] = slot.report?.reallocationRequests ?? [];
+  const pendingCount = reallocRequests.filter(r => r.status === "pending").length;
+
   function handleApprove() {
+    setApproveError(null);
     startApprove(async () => {
-      await approveReport(slot.id);
+      try {
+        await approveReport(slot.id);
+      } catch (e: any) {
+        setApproveError(e.message ?? "Approval failed");
+      }
     });
   }
 
@@ -47,12 +179,24 @@ export default function ReviewPanel({
             className="border border-amber-300 text-amber-700 hover:bg-amber-100 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             Send back
           </button>
-          <button onClick={handleApprove} disabled={approving}
+          <button onClick={handleApprove} disabled={approving || pendingCount > 0}
+            title={pendingCount > 0 ? `${pendingCount} reallocation request(s) pending` : undefined}
             className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
             {approving ? "Approving…" : "Approve"}
           </button>
         </div>
       </div>
+
+      {pendingCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3">
+          <p className="text-sm text-amber-700 font-medium">{pendingCount} reallocation request{pendingCount > 1 ? "s" : ""} need your attention before you can approve this report.</p>
+        </div>
+      )}
+      {approveError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-3">
+          <p className="text-sm text-red-700">{approveError}</p>
+        </div>
+      )}
 
       {showSendBack && (
         <div className="bg-white border border-red-200 rounded-xl px-5 py-4 space-y-3">
@@ -70,8 +214,20 @@ export default function ReviewPanel({
         </div>
       )}
 
+      {/* Reallocation requests panel */}
+      {reallocRequests.length > 0 && (
+        <section>
+          <h2 className="text-base font-semibold text-stone-800 mb-3">Reallocation requests</h2>
+          <div className="space-y-3">
+            {reallocRequests.map(req => (
+              <ReallocationReviewCard key={req.id} req={req} disabled={approving || sendingBack} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Read-only report view */}
-      <ReportForm slot={slot} budget={budget} cumulativePrior={cumulativePrior} canEdit={false} isSuperAdmin={true} />
+      <ReportForm slot={slot} budget={budget} cumulativePrior={cumulativePrior} revisedAdjustments={revisedAdjustments} canEdit={false} isSuperAdmin={true} />
     </div>
   );
 }

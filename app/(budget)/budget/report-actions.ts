@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { generateSlots } from "@/lib/budget-report-slots";
-import type { ReportFrequency } from "@/app/generated/prisma/client";
+import type { ReportFrequency, BudgetSection, ReallocationDuration } from "@/app/generated/prisma/client";
 
 // ── Admin: approve a budget and set up report config ──────────────────────────
 
@@ -143,12 +143,53 @@ export async function saveReportLines(
 export async function submitReport(slotId: string) {
   const slot = await prisma.budgetReportSlot.findUnique({
     where: { id: slotId },
-    select: { budgetId: true, status: true },
+    select: {
+      budgetId: true, status: true, grantYear: true, slotNumber: true,
+      report: { select: { id: true, lines: { select: { budgetLineId: true, actualAmount: true } } } },
+    },
   });
   if (!slot) throw new Error("Not found");
   if (!["pending", "sent_back"].includes(slot.status)) throw new Error("Cannot submit in current status");
 
   await assertCanEditReport(slot.budgetId);
+
+  // Recompute sustain checks on all reallocation requests for this report
+  if (slot.report) {
+    const requests = await prisma.budgetReallocationRequest.findMany({
+      where: { reportId: slot.report.id, status: "pending" },
+    });
+    if (requests.length > 0) {
+      // Fetch YTD actuals from prior approved/submitted slots
+      const priorSlots = await prisma.budgetReportSlot.findMany({
+        where: { budgetId: slot.budgetId, slotNumber: { lt: slot.slotNumber }, status: { in: ["approved", "submitted"] } },
+        include: { report: { include: { lines: { select: { budgetLineId: true, actualAmount: true } } } } },
+      });
+      const priorActuals: Record<string, number> = {};
+      for (const ps of priorSlots) {
+        for (const l of ps.report?.lines ?? []) {
+          priorActuals[l.budgetLineId] = (priorActuals[l.budgetLineId] ?? 0) + l.actualAmount;
+        }
+      }
+      const currentActuals: Record<string, number> = Object.fromEntries(
+        (slot.report.lines ?? []).map(l => [l.budgetLineId, l.actualAmount])
+      );
+
+      await Promise.all(requests.map(async req => {
+        const fromLine = await prisma.budgetLine.findUnique({ where: { id: req.fromLineId } });
+        if (!fromLine) return;
+        const yearTotal = slot.grantYear === 1 ? fromLine.y1Total : slot.grantYear === 2 ? fromLine.y2Total : fromLine.y3Total;
+        const ytdActual = (priorActuals[req.fromLineId] ?? 0) + (currentActuals[req.fromLineId] ?? 0);
+        const sourceUnspent = Math.max(0, yearTotal - ytdActual);
+        const willSustain = sourceUnspent >= req.requestedAmount;
+        const sustainNote = willSustain ? null
+          : `Source line has only ₹${Math.round(sourceUnspent).toLocaleString("en-IN")} unspent vs requested ₹${Math.round(req.requestedAmount).toLocaleString("en-IN")}`;
+        await prisma.budgetReallocationRequest.update({
+          where: { id: req.id },
+          data: { sourceUnspent, willSustain, sustainNote },
+        });
+      }));
+    }
+  }
 
   await prisma.$transaction([
     prisma.budgetReportSlot.update({ where: { id: slotId }, data: { status: "submitted" } }),
@@ -171,11 +212,47 @@ export async function approveReport(slotId: string) {
   });
   if (!slot || slot.status !== "submitted") throw new Error("Not in submitted state");
 
-  // Auto-fill opening balance for next pending slot
-  const report = await prisma.budgetReport.findUnique({ where: { slotId }, select: { id: true, openingBalance: true, tranchesReceived: true, interestEarned: true, bankBalance: true, fdBalance: true, cashInHand: true, advances: true, receivables: true, payables: true } });
+  // Block if any reallocation requests are still pending
+  const report = await prisma.budgetReport.findUnique({ where: { slotId }, select: { id: true } });
   if (report) {
-    const totalIncome = report.openingBalance + report.tranchesReceived + report.interestEarned;
-    const totalActuals = await prisma.budgetReportLine.aggregate({ where: { reportId: report.id }, _sum: { actualAmount: true } });
+    const pendingReallocations = await prisma.budgetReallocationRequest.count({
+      where: { reportId: report.id, status: "pending" },
+    });
+    if (pendingReallocations > 0) throw new Error(`${pendingReallocations} reallocation request(s) still pending — resolve them before approving.`);
+
+    // Create new BudgetLines for approved reallocations where toLineId is null
+    const approvedNewLines = await prisma.budgetReallocationRequest.findMany({
+      where: { reportId: report.id, status: "approved", toLineId: null, createdLineId: null },
+      select: { id: true, toDescription: true, toSection: true, approvedAmount: true },
+    });
+    if (approvedNewLines.length > 0) {
+      const maxPos = await prisma.budgetLine.aggregate({ where: { budgetId: slot.budgetId }, _max: { position: true } });
+      let pos = (maxPos._max.position ?? 0) + 1;
+      await Promise.all(approvedNewLines.map(async req => {
+        if (!req.toDescription || !req.toSection) return;
+        const newLine = await prisma.budgetLine.create({
+          data: {
+            budgetId: slot.budgetId,
+            section: req.toSection,
+            position: pos++,
+            description: req.toDescription,
+            costCategory: "Other",
+            isAutoGenerated: false,
+            isReallocation: true,
+            sourceReallocationId: req.id,
+            y1Total: req.approvedAmount ?? 0,
+          },
+        });
+        await prisma.budgetReallocationRequest.update({ where: { id: req.id }, data: { createdLineId: newLine.id } });
+      }));
+    }
+  }
+
+  // Auto-fill opening balance for next pending slot
+  const reportFull = await prisma.budgetReport.findUnique({ where: { slotId }, select: { id: true, openingBalance: true, tranchesReceived: true, interestEarned: true } });
+  if (reportFull) {
+    const totalIncome = reportFull.openingBalance + reportFull.tranchesReceived + reportFull.interestEarned;
+    const totalActuals = await prisma.budgetReportLine.aggregate({ where: { reportId: reportFull.id }, _sum: { actualAmount: true } });
     const closingBalance = totalIncome - (totalActuals._sum.actualAmount ?? 0);
 
     // Find next slot and pre-fill opening balance
@@ -220,4 +297,124 @@ export async function sendBackReport(slotId: string, reviewerNotes: string) {
   ]);
 
   revalidatePath(`/budget/${slot.budgetId}/reports`);
+}
+
+// ── Reallocation requests ─────────────────────────────────────────────────────
+
+export async function addReallocationRequest(
+  slotId: string,
+  req: {
+    fromLineId: string;
+    toLineId: string | null;
+    toDescription?: string;
+    toSection?: BudgetSection;
+    requestedAmount: number;
+    durationType: ReallocationDuration;
+    durationMonths?: number;
+    rationale: string;
+  }
+) {
+  const slot = await prisma.budgetReportSlot.findUnique({
+    where: { id: slotId },
+    select: { budgetId: true, status: true, grantYear: true, slotNumber: true },
+  });
+  if (!slot) throw new Error("Slot not found");
+  if (!["pending", "sent_back"].includes(slot.status)) throw new Error("Cannot add requests in current status");
+  await assertCanEditReport(slot.budgetId);
+
+  // Ensure report exists
+  const report = await prisma.budgetReport.upsert({
+    where: { slotId },
+    create: { slotId, budgetId: slot.budgetId },
+    update: {},
+    select: { id: true, lines: { select: { budgetLineId: true, actualAmount: true } } },
+  });
+
+  // Compute sustain check
+  const priorSlots = await prisma.budgetReportSlot.findMany({
+    where: { budgetId: slot.budgetId, slotNumber: { lt: slot.slotNumber }, status: { in: ["approved", "submitted"] } },
+    include: { report: { include: { lines: { select: { budgetLineId: true, actualAmount: true } } } } },
+  });
+  const priorActuals: Record<string, number> = {};
+  for (const ps of priorSlots) {
+    for (const l of ps.report?.lines ?? []) {
+      priorActuals[l.budgetLineId] = (priorActuals[l.budgetLineId] ?? 0) + l.actualAmount;
+    }
+  }
+  const currentActuals: Record<string, number> = Object.fromEntries(report.lines.map(l => [l.budgetLineId, l.actualAmount]));
+  const fromLine = await prisma.budgetLine.findUnique({ where: { id: req.fromLineId } });
+  if (!fromLine) throw new Error("Source line not found");
+  const yearTotal = slot.grantYear === 1 ? fromLine.y1Total : slot.grantYear === 2 ? fromLine.y2Total : fromLine.y3Total;
+  const ytdActual = (priorActuals[req.fromLineId] ?? 0) + (currentActuals[req.fromLineId] ?? 0);
+  const sourceUnspent = Math.max(0, yearTotal - ytdActual);
+  const willSustain = sourceUnspent >= req.requestedAmount;
+  const sustainNote = willSustain ? null
+    : `Source line has only ₹${Math.round(sourceUnspent).toLocaleString("en-IN")} unspent vs requested ₹${Math.round(req.requestedAmount).toLocaleString("en-IN")}`;
+
+  const isRecurring = req.durationType !== "one_time";
+  const durationMonths = req.durationMonths ?? null;
+  const monthlyAmount = isRecurring && durationMonths ? req.requestedAmount / durationMonths : 0;
+
+  await prisma.budgetReallocationRequest.create({
+    data: {
+      reportId: report.id,
+      fromLineId: req.fromLineId,
+      toLineId: req.toLineId,
+      toDescription: req.toDescription ?? null,
+      toSection: req.toSection ?? null,
+      requestedAmount: req.requestedAmount,
+      isRecurring,
+      monthlyAmount,
+      durationType: req.durationType,
+      durationMonths,
+      rationale: req.rationale,
+      sourceUnspent,
+      willSustain,
+      sustainNote,
+    },
+  });
+
+  revalidatePath(`/budget/${slot.budgetId}/reports/${slotId}`);
+}
+
+export async function deleteReallocationRequest(requestId: string) {
+  const req = await prisma.budgetReallocationRequest.findUnique({
+    where: { id: requestId },
+    select: { status: true, report: { select: { slotId: true, slot: { select: { budgetId: true, status: true } } } } },
+  });
+  if (!req) throw new Error("Not found");
+  if (req.status !== "pending") throw new Error("Cannot delete a resolved request");
+  if (!["pending", "sent_back"].includes(req.report.slot.status)) throw new Error("Cannot delete in current status");
+  await assertCanEditReport(req.report.slot.budgetId);
+
+  await prisma.budgetReallocationRequest.delete({ where: { id: requestId } });
+  revalidatePath(`/budget/${req.report.slot.budgetId}/reports/${req.report.slotId}`);
+}
+
+export async function resolveReallocationRequest(
+  requestId: string,
+  resolution: { status: "approved" | "rejected"; approvedAmount?: number; reviewerComment?: string }
+) {
+  const session = await auth();
+  if (!session?.user || !isSuperAdmin(session)) throw new Error("Unauthorized");
+
+  const req = await prisma.budgetReallocationRequest.findUnique({
+    where: { id: requestId },
+    select: { status: true, report: { select: { slotId: true, slot: { select: { budgetId: true, status: true } } } } },
+  });
+  if (!req) throw new Error("Not found");
+  if (req.status !== "pending") throw new Error("Already resolved");
+  if (req.report.slot.status !== "submitted") throw new Error("Report not in submitted state");
+
+  await prisma.budgetReallocationRequest.update({
+    where: { id: requestId },
+    data: {
+      status: resolution.status,
+      approvedAmount: resolution.status === "approved" ? (resolution.approvedAmount ?? null) : null,
+      reviewerComment: resolution.reviewerComment ?? null,
+      resolvedAt: new Date(),
+    },
+  });
+
+  revalidatePath(`/budget/${req.report.slot.budgetId}/reports/${req.report.slotId}`);
 }

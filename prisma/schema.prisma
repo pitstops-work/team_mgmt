@@ -1535,6 +1535,19 @@ enum ReportSlotStatus {
   approved
 }
 
+enum ReallocationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ReallocationDuration {
+  remaining_year
+  full_grant
+  custom
+  one_time
+}
+
 enum InflationType {
   Salary
   Other
@@ -1616,7 +1629,11 @@ model BudgetLine {
   y3UnitCost      Float              @default(0)
   y3AllocPct      Float              @default(1)
   y3Total         Float              @default(0)
+  isReallocation          Boolean    @default(false)
+  sourceReallocationId    String?
   reportLines     BudgetReportLine[]
+  reallocationRequestsFrom BudgetReallocationRequest[] @relation("ReallocationFrom")
+  reallocationRequestsTo   BudgetReallocationRequest[] @relation("ReallocationTo")
 
   @@index([budgetId, position])
 }
@@ -1672,10 +1689,42 @@ model BudgetReport {
   submittedAt         DateTime?
   approvedAt          DateTime?
   lines               BudgetReportLine[]
+  reallocationRequests BudgetReallocationRequest[]
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
   @@index([budgetId])
+}
+
+model BudgetReallocationRequest {
+  id               String               @id @default(cuid())
+  reportId         String
+  report           BudgetReport         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  fromLineId       String
+  fromLine         BudgetLine           @relation("ReallocationFrom", fields: [fromLineId], references: [id])
+  toLineId         String?
+  toLine           BudgetLine?          @relation("ReallocationTo", fields: [toLineId], references: [id])
+  toDescription    String?
+  toSection        BudgetSection?
+  requestedAmount  Float
+  isRecurring      Boolean              @default(false)
+  monthlyAmount    Float                @default(0)
+  durationType     ReallocationDuration
+  durationMonths   Int?
+  rationale        String
+  sourceUnspent    Float                @default(0)
+  willSustain      Boolean              @default(true)
+  sustainNote      String?
+  status           ReallocationStatus   @default(pending)
+  approvedAmount   Float?
+  reviewerComment  String?
+  resolvedAt       DateTime?
+  createdLineId    String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([reportId])
+  @@index([fromLineId])
 }
 
 model BudgetReportLine {

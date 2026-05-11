@@ -15,7 +15,16 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
       where: { id: slotId },
       include: {
         report: {
-          include: { lines: true },
+          include: {
+            lines: true,
+            reallocationRequests: {
+              include: {
+                fromLine: { select: { id: true, description: true, section: true } },
+                toLine: { select: { id: true, description: true, section: true } },
+              },
+              orderBy: { createdAt: "asc" },
+            },
+          },
         },
       },
     }),
@@ -50,7 +59,34 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
     }
   }
 
-  const serialized = JSON.parse(JSON.stringify({ slot, budget, cumulativePrior }));
+  // Approved reallocations from prior approved reports (any grant year) — for revised budget basis
+  const priorApprovedSlots = await prisma.budgetReportSlot.findMany({
+    where: { budgetId: id, slotNumber: { lt: slot.slotNumber }, status: "approved" },
+    include: {
+      report: {
+        include: {
+          reallocationRequests: {
+            where: { status: "approved" },
+            select: { fromLineId: true, toLineId: true, approvedAmount: true },
+          },
+        },
+      },
+    },
+  });
+
+  // revisedYearTotals[lineId] = original yearTotal ± approved reallocations
+  const revisedAdjustments: Record<string, number> = {};
+  for (const ps of priorApprovedSlots) {
+    for (const r of ps.report?.reallocationRequests ?? []) {
+      if (r.approvedAmount == null) continue;
+      revisedAdjustments[r.fromLineId] = (revisedAdjustments[r.fromLineId] ?? 0) - r.approvedAmount;
+      if (r.toLineId) {
+        revisedAdjustments[r.toLineId] = (revisedAdjustments[r.toLineId] ?? 0) + r.approvedAmount;
+      }
+    }
+  }
+
+  const serialized = JSON.parse(JSON.stringify({ slot, budget, cumulativePrior, revisedAdjustments }));
   const canEdit = isPartner && ["pending", "sent_back"].includes(slot.status);
   const isReview = superAdmin && !isPartner && slot.status === "submitted";
 
