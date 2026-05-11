@@ -30,6 +30,7 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
 
   if (!slot || !budget || slot.budgetId !== id) notFound();
   if (!superAdmin && budget.partnerId !== session!.user!.id!) notFound();
+  const isPartner = budget.partnerId === session!.user!.id!;
 
   // Cumulative actuals for all approved/submitted slots in same grant year before this one
   const priorSlots = await prisma.budgetReportSlot.findMany({
@@ -50,8 +51,8 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
   }
 
   const serialized = JSON.parse(JSON.stringify({ slot, budget, cumulativePrior }));
-  const canEdit = !superAdmin && ["pending", "sent_back"].includes(slot.status);
-  const isReview = superAdmin && slot.status === "submitted";
+  const canEdit = isPartner && ["pending", "sent_back"].includes(slot.status);
+  const isReview = superAdmin && !isPartner && slot.status === "submitted";
 
   return (
     <div>

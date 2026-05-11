@@ -38,6 +38,7 @@ export default async function BudgetReportsPage({ params }: { params: Promise<{ 
 
   if (!budget) notFound();
   if (!superAdmin && budget.partnerId !== session!.user!.id!) notFound();
+  const isPartner = budget.partnerId === session!.user!.id!;
 
   if (budget.status !== "approved" || !budget.reportConfig) {
     return (
@@ -70,9 +71,9 @@ export default async function BudgetReportsPage({ params }: { params: Promise<{ 
             <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-3">Grant Year {year}</h2>
             <div className="space-y-2">
               {slots.map(slot => {
-                const isOpen = ["pending", "sent_back"].includes(slot.status) && !superAdmin;
-                const isReview = slot.status === "submitted" && superAdmin;
-                const isView = slot.status === "approved" || (superAdmin && slot.status !== "pending");
+                const isOpen = ["pending", "sent_back"].includes(slot.status) && isPartner;
+                const isReview = slot.status === "submitted" && superAdmin && !isPartner;
+                const isView = slot.status === "approved" || (superAdmin && !isPartner && !["pending", "sent_back"].includes(slot.status));
                 const href = `/budget/${id}/reports/${slot.id}`;
                 const overdue = slot.status === "pending" && new Date(slot.dueDate) < new Date();
 
