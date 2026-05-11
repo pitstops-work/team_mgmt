@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CalendarClock, Target, BarChart3 } from "lucide-react";
+import { CalendarClock, Target, BarChart3, FileText } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import SignOutButton from "@/components/SignOutButton";
 
@@ -59,7 +59,7 @@ export default async function PortalPage() {
         {/* Budget */}
         <Link
           href="/budget"
-          className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md sm:col-span-2"
+          className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md"
         >
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
             <BarChart3 className="w-5 h-5 text-emerald-600" />
@@ -67,6 +67,20 @@ export default async function PortalPage() {
           <div>
             <p className="text-stone-800 font-semibold text-base">Budget</p>
             <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Programme budgets · Cost registry · Multi-year planning</p>
+          </div>
+        </Link>
+
+        {/* Review Portal */}
+        <Link
+          href="/review"
+          className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md"
+        >
+          <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
+            <FileText className="w-5 h-5 text-violet-600" />
+          </div>
+          <div>
+            <p className="text-stone-800 font-semibold text-base">Review Portal</p>
+            <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Grant notes · Drafts · Approvals</p>
           </div>
         </Link>
 
