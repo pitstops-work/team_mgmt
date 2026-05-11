@@ -39,6 +39,10 @@ export default function ReviewPanel({
           <p className="text-xs text-amber-600 mt-0.5">Report #{slot.slotNumber} · Grant Year {slot.grantYear}</p>
         </div>
         <div className="flex items-center gap-3">
+          <a href={`/api/budget/${budget.id}/reports/${slot.id}/export`}
+            className="border border-stone-200 text-stone-600 hover:bg-stone-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            Export (.xlsx)
+          </a>
           <button onClick={() => setShowSendBack(s => !s)}
             className="border border-amber-300 text-amber-700 hover:bg-amber-100 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             Send back

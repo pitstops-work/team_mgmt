@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
+import { upload } from "@vercel/blob/client";
 import { saveReport, saveReportLines, submitReport } from "../../../../budget/report-actions";
 import {
   SECTION_TO_HEAD, BUDGET_HEAD_ORDER,
@@ -73,6 +74,9 @@ export default function ReportForm({
   const [saving, startSave] = useTransition();
   const [submitting, startSubmit] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [parseStatus, setParseStatus] = useState<"idle" | "uploading" | "parsing" | "done" | "error">("idle");
+  const [parseNote, setParseNote] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const periodFrom = new Date(slot.periodFrom);
   const periodTo = new Date(slot.periodTo);
@@ -398,6 +402,60 @@ export default function ReportForm({
           </div>
         </div>
 
+        {/* Bank statement upload */}
+        {canEdit && (
+          <div className="mt-4 bg-white border border-stone-200 rounded-xl p-5">
+            <p className="text-sm font-medium text-stone-700 mb-1">Bank statement</p>
+            <p className="text-xs text-stone-400 mb-3">Upload your bank statement PDF — Claude will extract bank balance, FD balance, and interest earned and pre-fill the fields above.</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <input ref={fileRef} type="file" accept=".pdf,image/jpeg,image/png" className="hidden"
+                onChange={async e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setParseStatus("uploading");
+                  setParseNote(null);
+                  try {
+                    const blob = await upload(file.name, file, {
+                      access: "public",
+                      handleUploadUrl: "/api/budget/blob-upload",
+                    });
+                    setParseStatus("parsing");
+                    const res = await fetch("/api/budget/parse-bank-statement", {
+                      method: "POST",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ url: blob.url, slotId: slot.id }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error ?? "Parse failed");
+                    setRecon(p => ({
+                      ...p,
+                      bankBalance: data.bankBalance != null ? String(data.bankBalance) : p.bankBalance,
+                      interestEarned: data.interestEarned != null ? String(data.interestEarned) : p.interestEarned,
+                      fdBalance: data.fdBalance != null ? String(data.fdBalance) : p.fdBalance,
+                    }));
+                    setParseNote(data.notes ?? (data.bankName ? `Parsed from ${data.bankName}` : "Parsed successfully"));
+                    setParseStatus("done");
+                  } catch (err: any) {
+                    setParseNote(err.message ?? "Error");
+                    setParseStatus("error");
+                  }
+                  if (fileRef.current) fileRef.current.value = "";
+                }}
+              />
+              <button onClick={() => fileRef.current?.click()} disabled={parseStatus === "uploading" || parseStatus === "parsing"}
+                className="text-sm border border-stone-200 hover:border-sky-400 text-stone-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+                {parseStatus === "uploading" ? "Uploading…" : parseStatus === "parsing" ? "Parsing with Claude…" : "Upload statement"}
+              </button>
+              {parseNote && (
+                <span className={`text-xs ${parseStatus === "error" ? "text-red-500" : "text-green-600"}`}>
+                  {parseStatus === "done" ? "✓ " : "✗ "}{parseNote}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-stone-300 mt-2">Fields will be pre-filled — review and correct before saving.</p>
+          </div>
+        )}
+
         {/* Partner notes */}
         {(canEdit || recon.partnerNotes) && (
           <div className="mt-4">
@@ -413,18 +471,26 @@ export default function ReportForm({
       </section>
 
       {/* Actions */}
-      {canEdit && (
-        <div className="flex items-center gap-3">
-          <button onClick={handleSave} disabled={saving}
-            className="bg-white border border-stone-200 hover:border-stone-400 text-stone-700 text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50">
-            {saving ? "Saving…" : saved ? "Saved ✓" : "Save draft"}
-          </button>
-          <button onClick={handleSubmit} disabled={submitting || saving}
-            className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50">
-            {submitting ? "Submitting…" : "Submit for review"}
-          </button>
-        </div>
-      )}
+      <div className="flex items-center gap-3 flex-wrap">
+        {canEdit && (
+          <>
+            <button onClick={handleSave} disabled={saving}
+              className="bg-white border border-stone-200 hover:border-stone-400 text-stone-700 text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50">
+              {saving ? "Saving…" : saved ? "Saved ✓" : "Save draft"}
+            </button>
+            <button onClick={handleSubmit} disabled={submitting || saving}
+              className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50">
+              {submitting ? "Submitting…" : "Submit for review"}
+            </button>
+          </>
+        )}
+        {(isSuperAdmin || slot.status === "approved") && (
+          <a href={`/api/budget/${budget.id}/reports/${slot.id}/export`}
+            className="border border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-sm font-medium px-5 py-2 rounded-lg transition-colors">
+            Export (.xlsx)
+          </a>
+        )}
+      </div>
     </div>
   );
 }
