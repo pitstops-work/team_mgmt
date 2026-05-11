@@ -39,10 +39,10 @@ export default function RulebookPage() {
   const [newLabel, setNewLabel] = useState('');
 
   useEffect(() => {
-    fetch('/api/review/review/rulebook')
+    fetch('/api/review/rulebook')
       .then(r => r.json())
       .then(d => { setContent(d); setLoaded(true); });
-    fetch('/api/review/review/doc-types')
+    fetch('/api/review/doc-types')
       .then(r => r.json())
       .then(d => { setDocTypes(d.doc_types || []); setDtLoaded(true); });
   }, []);
@@ -51,7 +51,7 @@ export default function RulebookPage() {
     if (!passphrase) { setError('Enter admin passphrase first'); return; }
     setSaving(section);
     setError('');
-    const res = await fetch('/api/review/review/rulebook', {
+    const res = await fetch('/api/review/rulebook', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json', 'x-admin-passphrase': passphrase },
       body: JSON.stringify({ section, content: content[section] }),
@@ -66,13 +66,13 @@ export default function RulebookPage() {
     if (!passphrase) { setError('Enter admin passphrase first'); return; }
     if (!confirm(`Reset "${SECTIONS.find(s => s.key === section)?.label}" to default?`)) return;
     setSaving(section);
-    await fetch('/api/review/review/rulebook', {
+    await fetch('/api/review/rulebook', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json', 'x-admin-passphrase': passphrase },
       body: JSON.stringify({ section, content: null }),
     });
     setSaving(null);
-    fetch('/api/review/review/rulebook').then(r => r.json()).then(d => setContent(d));
+    fetch('/api/review/rulebook').then(r => r.json()).then(d => setContent(d));
   };
 
   const updateDt = (key: string, field: keyof DocType, value: any) => {
@@ -85,7 +85,7 @@ export default function RulebookPage() {
     setDtError('');
     const dt = docTypes.find(d => d.key === key);
     if (!dt) return;
-    const res = await fetch('/api/review/review/doc-types', {
+    const res = await fetch('/api/review/doc-types', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json', 'x-admin-passphrase': passphrase },
       body: JSON.stringify({
@@ -106,20 +106,20 @@ export default function RulebookPage() {
     if (!passphrase) { setDtError('Enter admin passphrase first'); return; }
     if (!newKey || !newLabel) { setDtError('Key and label required'); return; }
     const key = newKey.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-    const res = await fetch('/api/review/review/doc-types', {
+    const res = await fetch('/api/review/doc-types', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-admin-passphrase': passphrase },
       body: JSON.stringify({ key, label: newLabel }),
     });
     if (!res.ok) { setDtError('Failed to create doc type'); return; }
     setNewKey(''); setNewLabel('');
-    fetch('/api/review/review/doc-types').then(r => r.json()).then(d => setDocTypes(d.doc_types || []));
+    fetch('/api/review/doc-types').then(r => r.json()).then(d => setDocTypes(d.doc_types || []));
   };
 
   const deleteDt = async (key: string, label: string) => {
     if (!passphrase) { setDtError('Enter admin passphrase first'); return; }
     if (!confirm(`Delete document type "${label}"? This cannot be undone.`)) return;
-    const res = await fetch(`/api/review/review/doc-types?key=${encodeURIComponent(key)}`, {
+    const res = await fetch(`/api/review/doc-types?key=${encodeURIComponent(key)}`, {
       method: 'DELETE',
       headers: { 'x-admin-passphrase': passphrase },
     });

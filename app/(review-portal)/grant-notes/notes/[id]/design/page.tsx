@@ -92,7 +92,7 @@ export default function DesignPage() {
       const [moved] = arr.splice(fromIdx, 1);
       arr.splice(toIdx, 0, moved);
       const reindexed = arr.map((s, i) => ({ ...s, sort_order: i, section_num: toRoman(i + 1) }));
-      fetch(`/api/review/review/grant-notes/${id}/sections`, {
+      fetch(`/api/review/grant-notes/${id}/sections`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ order: reindexed.map(s => ({ section_key: s.section_key, sort_order: s.sort_order, section_num: s.section_num })) }),
@@ -124,7 +124,7 @@ export default function DesignPage() {
   }, []);
 
   const loadSections = useCallback(() => {
-    return fetch(`/api/review/review/grant-notes/${id}/sections`)
+    return fetch(`/api/review/grant-notes/${id}/sections`)
       .then(r => r.json())
       .then(d => {
         const loaded = d.sections || [];
@@ -136,8 +136,8 @@ export default function DesignPage() {
 
   useEffect(() => {
     if (!authed) return;
-    fetch(`/api/review/review/grant-notes/${id}`).then(r => r.json()).then(d => { if (d.note) setNote(d.note); });
-    fetch(`/api/review/review/grant-notes/${id}/metadata`).then(r => r.json()).then(d => {
+    fetch(`/api/review/grant-notes/${id}`).then(r => r.json()).then(d => { if (d.note) setNote(d.note); });
+    fetch(`/api/review/grant-notes/${id}/metadata`).then(r => r.json()).then(d => {
       if (Array.isArray(d.source_documents)) setSourceDocs(d.source_documents);
       if (d.vitals && typeof d.vitals === 'object') setVitals(d.vitals);
     });
@@ -188,7 +188,7 @@ export default function DesignPage() {
     setTransforming(true);
     setTransformError('');
     try {
-      const res = await fetch(`/api/review/review/grant-notes/${id}/transform`, { method: 'POST' });
+      const res = await fetch(`/api/review/grant-notes/${id}/transform`, { method: 'POST' });
       if (!res.ok) {
         try { const d = await res.json(); setTransformError(d.error || 'Transform failed'); }
         catch { setTransformError(`Server error (${res.status}) — check logs`); }
@@ -213,7 +213,7 @@ export default function DesignPage() {
     if (!activeKey || !editor || saving) return;
     setSaving(true);
     const html = editor.getHTML();
-    await fetch(`/api/review/review/grant-notes/${id}/sections`, {
+    await fetch(`/api/review/grant-notes/${id}/sections`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -241,7 +241,7 @@ export default function DesignPage() {
   };
 
   const saveBlocks = async (sectionKey: string, blocks: Block[]) => {
-    await fetch(`/api/review/review/grant-notes/${id}/sections`, {
+    await fetch(`/api/review/grant-notes/${id}/sections`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ section_key: sectionKey, blocks }),
@@ -270,7 +270,7 @@ export default function DesignPage() {
     setPromptBusy(true);
     setPromptError('');
     try {
-      const res = await fetch(`/api/review/review/grant-notes/${id}/prompt`, {
+      const res = await fetch(`/api/review/grant-notes/${id}/prompt`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -306,12 +306,12 @@ export default function DesignPage() {
   const saveVitals = async () => {
     setVitalsSaving(true);
     await Promise.all([
-      fetch(`/api/review/review/grant-notes/${id}/metadata`, {
+      fetch(`/api/review/grant-notes/${id}/metadata`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ vitals }),
       }),
-      fetch(`/api/review/review/grant-notes/${id}`, {
+      fetch(`/api/review/grant-notes/${id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -333,7 +333,7 @@ export default function DesignPage() {
   const removeSourceDoc = async (url: string) => {
     const updated = sourceDocs.filter(u => u !== url);
     setSourceDocs(updated);
-    await fetch(`/api/review/review/grant-notes/${id}/metadata`, {
+    await fetch(`/api/review/grant-notes/${id}/metadata`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ source_documents: updated }),
@@ -353,7 +353,7 @@ export default function DesignPage() {
       }));
       const updated = [...sourceDocs, ...newUrls];
       setSourceDocs(updated);
-      await fetch(`/api/review/review/grant-notes/${id}/metadata`, {
+      await fetch(`/api/review/grant-notes/${id}/metadata`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ source_documents: updated }),
@@ -369,7 +369,7 @@ export default function DesignPage() {
   const submitForReview = async () => {
     if (dirty) await saveSection();
     setSubmitting(true);
-    await fetch(`/api/review/review/grant-notes/${id}`, {
+    await fetch(`/api/review/grant-notes/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ status: 'submitted' }),
@@ -379,7 +379,7 @@ export default function DesignPage() {
 
   const authSubmit = async () => {
     setPassBusy(true); setPassError('');
-    const res = await fetch('/api/review/review/auth/staff', {
+    const res = await fetch('/api/review/auth/staff', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ passphrase: passInput }),
     });

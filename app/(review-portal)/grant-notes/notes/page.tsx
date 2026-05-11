@@ -29,7 +29,7 @@ export default function NotesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/review/review/grant-notes')
+    fetch('/api/review/grant-notes')
       .then(r => r.json())
       .then(d => { setNotes(d.notes || []); setLoading(false); });
   }, []);

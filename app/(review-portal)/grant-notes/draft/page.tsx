@@ -50,7 +50,7 @@ export default function DraftPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch('/api/review/review/doc-types').then(r => r.json()).then(d => {
+    fetch('/api/review/doc-types').then(r => r.json()).then(d => {
       if (d.doc_types?.length) setDocTypes(d.doc_types.map((dt: any) => ({ key: dt.key, label: dt.label })));
     }).catch(() => {});
   }, []);
@@ -63,7 +63,7 @@ export default function DraftPage() {
 
   const authSubmit = async () => {
     setPassBusy(true); setPassError('');
-    const res = await fetch('/api/review/review/auth/staff', {
+    const res = await fetch('/api/review/auth/staff', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ passphrase: passInput }),
     });
@@ -116,7 +116,7 @@ export default function DraftPage() {
       fd.append('docType', docType);
       fd.append('blobUrls', JSON.stringify(blobUrls));
 
-      const res = await fetch('/api/review/review/draft', { method: 'POST', body: fd });
+      const res = await fetch('/api/review/draft', { method: 'POST', body: fd });
       if (!res.ok) {
         const text = await res.text();
         let msg = 'Generation failed';
@@ -151,7 +151,7 @@ export default function DraftPage() {
       const blobUrls = await uploadFiles();
       localStorage.setItem('staffName', submitterName);
 
-      const res = await fetch('/api/review/review/grant-notes', {
+      const res = await fetch('/api/review/grant-notes', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -173,7 +173,7 @@ export default function DraftPage() {
 
   const downloadWord = async () => {
     if (!draft.trim()) return;
-    const res = await fetch('/api/review/review/export', {
+    const res = await fetch('/api/review/export', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         text: draft, org_name: meta.orgName, org_city: meta.orgCity,
@@ -198,7 +198,7 @@ export default function DraftPage() {
     setSubmitting(true);
     localStorage.setItem('staffName', submitterName);
     try {
-      const res = await fetch('/api/review/review/grant-notes', {
+      const res = await fetch('/api/review/grant-notes', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           org_name: meta.orgName, org_city: meta.orgCity, meeting: meta.meeting,

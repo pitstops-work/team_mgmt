@@ -64,27 +64,27 @@ export default function NotePage() {
   useEffect(() => {
     const saved = localStorage.getItem('reviewer');
     if (saved) { try { setReviewer(JSON.parse(saved)); } catch {} }
-    fetch(`/api/review/review/grant-notes/${id}`).then(r => r.json()).then(d => {
+    fetch(`/api/review/grant-notes/${id}`).then(r => r.json()).then(d => {
       if (d.note) {
         setNote(d.note);
         if (Array.isArray(d.note.diagrams) && d.note.diagrams.length > 0) setDiagrams(d.note.diagrams);
       }
     });
-    fetch(`/api/review/review/grant-notes/${id}/sections`).then(r => r.json()).then(d => setSections(d.sections || []));
-    fetch(`/api/review/review/grant-notes/${id}/section-comments`).then(r => r.json()).then(d => setComments(d.comments || []));
-    fetch(`/api/review/review/grant-notes/${id}/section-acks`).then(r => r.json()).then(d => setAcks(d.acks || []));
-    fetch(`/api/review/review/grant-notes/${id}/section-votes`).then(r => r.json()).then(d => setVotes(d.votes || []));
+    fetch(`/api/review/grant-notes/${id}/sections`).then(r => r.json()).then(d => setSections(d.sections || []));
+    fetch(`/api/review/grant-notes/${id}/section-comments`).then(r => r.json()).then(d => setComments(d.comments || []));
+    fetch(`/api/review/grant-notes/${id}/section-acks`).then(r => r.json()).then(d => setAcks(d.acks || []));
+    fetch(`/api/review/grant-notes/${id}/section-votes`).then(r => r.json()).then(d => setVotes(d.votes || []));
   }, [id]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      fetch(`/api/review/review/grant-notes/${id}/section-comments`).then(r => r.json()).then(d => {
+      fetch(`/api/review/grant-notes/${id}/section-comments`).then(r => r.json()).then(d => {
         if (d.comments) setComments(d.comments);
       });
-      fetch(`/api/review/review/grant-notes/${id}/section-acks`).then(r => r.json()).then(d => {
+      fetch(`/api/review/grant-notes/${id}/section-acks`).then(r => r.json()).then(d => {
         if (d.acks) setAcks(d.acks);
       });
-      fetch(`/api/review/review/grant-notes/${id}/section-votes`).then(r => r.json()).then(d => {
+      fetch(`/api/review/grant-notes/${id}/section-votes`).then(r => r.json()).then(d => {
         if (d.votes) setVotes(d.votes);
       });
     }, 4000);
@@ -139,7 +139,7 @@ export default function NotePage() {
   const joinAs = async () => {
     if (!nameInput.trim()) return;
     setNameBusy(true);
-    const res = await fetch('/api/review/review/reviewers', {
+    const res = await fetch('/api/review/reviewers', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: nameInput.trim() }),
     });
@@ -154,7 +154,7 @@ export default function NotePage() {
     const text = (commentInputs[sectionKey] || '').trim();
     if (!text || !reviewer || commentBusy) return;
     setCommentBusy(sectionKey);
-    const res = await fetch(`/api/review/review/grant-notes/${id}/section-comments`, {
+    const res = await fetch(`/api/review/grant-notes/${id}/section-comments`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ reviewer_id: reviewer.id, section_key: sectionKey, text }),
     });
@@ -166,13 +166,13 @@ export default function NotePage() {
 
   const deleteComment = async (commentId: string) => {
     if (!reviewer) return;
-    await fetch(`/api/review/review/grant-notes/${id}/section-comments?comment_id=${commentId}&reviewer_id=${reviewer.id}`, { method: 'DELETE' });
+    await fetch(`/api/review/grant-notes/${id}/section-comments?comment_id=${commentId}&reviewer_id=${reviewer.id}`, { method: 'DELETE' });
     setComments(prev => prev.map(c => c.id === commentId ? { ...c, deleted_at: new Date().toISOString() } : c));
   };
 
   const toggleAck = useCallback(async (sectionKey: string) => {
     if (!reviewer) return;
-    const res = await fetch(`/api/review/review/grant-notes/${id}/section-acks`, {
+    const res = await fetch(`/api/review/grant-notes/${id}/section-acks`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ reviewer_id: reviewer.id, section_key: sectionKey }),
     });
@@ -186,7 +186,7 @@ export default function NotePage() {
 
   const vote = useCallback(async (blockId: string, position: string) => {
     if (!reviewer) return;
-    const res = await fetch(`/api/review/review/grant-notes/${id}/section-votes`, {
+    const res = await fetch(`/api/review/grant-notes/${id}/section-votes`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ reviewer_id: reviewer.id, block_id: blockId, position }),
     });
@@ -203,7 +203,7 @@ export default function NotePage() {
 
   const setStatus = async (status: string) => {
     setStatusBusy(true);
-    await fetch(`/api/review/review/grant-notes/${id}`, {
+    await fetch(`/api/review/grant-notes/${id}`, {
       method: 'PATCH', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ status }),
     });
