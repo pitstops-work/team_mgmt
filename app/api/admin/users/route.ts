@@ -68,7 +68,7 @@ export async function POST(req: Request) {
   }
 
   // Only super-admin can create admin users
-  const role = ["admin", "member", "viewer"].includes(req_role) ? req_role : "member";
+  const role = ["admin", "member", "viewer", "budget-admin"].includes(req_role) ? req_role : "member";
   if (role === "admin" && !isSuperAdmin(session)) {
     return Response.json({ error: "Only the super-admin can create admin users" }, { status: 403 });
   }
