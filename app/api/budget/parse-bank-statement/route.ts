@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
 import prisma from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/roleGuard';
+import { put } from '@vercel/blob';
 
 export const maxDuration = 90;
 
@@ -11,8 +12,51 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { url, slotId } = await req.json();
-  if (!url || !slotId) return Response.json({ error: 'url and slotId required' }, { status: 400 });
+  // Accept both FormData (file upload) and JSON (legacy url-based)
+  const contentType = req.headers.get('content-type') ?? '';
+  let slotId: string;
+  let fileBytes: Uint8Array;
+  let fileName: string;
+  let storedUrl: string | undefined;
+
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await req.formData();
+    slotId = formData.get('slotId') as string;
+    const file = formData.get('file') as File | null;
+    if (!slotId || !file) return Response.json({ error: 'slotId and file required' }, { status: 400 });
+    if (file.size > 15 * 1024 * 1024) {
+      return Response.json({ error: 'PDF too large (max 15 MB). Please upload a shorter statement.' }, { status: 413 });
+    }
+    const ab = await file.arrayBuffer();
+    fileBytes = new Uint8Array(ab);
+    fileName = file.name;
+
+    // Store to blob for record-keeping (private)
+    try {
+      const blob = await put(`bank-statements/${Date.now()}-${fileName}`, file, {
+        access: 'private',
+        addRandomSuffix: false,
+      });
+      storedUrl = blob.url;
+    } catch {
+      // Non-fatal: proceed without storing
+    }
+  } else {
+    // Legacy JSON path (url + slotId)
+    const body = await req.json();
+    slotId = body.slotId;
+    const url: string = body.url;
+    if (!url || !slotId) return Response.json({ error: 'url and slotId required' }, { status: 400 });
+    const pdfRes = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!pdfRes.ok) return Response.json({ error: 'Could not fetch PDF from storage' }, { status: 400 });
+    const ab = await pdfRes.arrayBuffer();
+    if (ab.byteLength > 15 * 1024 * 1024) {
+      return Response.json({ error: 'PDF too large (max 15 MB). Please upload a shorter statement.' }, { status: 413 });
+    }
+    fileBytes = new Uint8Array(ab);
+    fileName = url.split('/').pop() ?? 'statement.pdf';
+    storedUrl = url;
+  }
 
   // Verify access
   const slot = await prisma.budgetReportSlot.findUnique({
@@ -30,19 +74,11 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Fetch the PDF as base64 (10s timeout on the blob fetch)
-  const pdfRes = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-  if (!pdfRes.ok) return Response.json({ error: 'Could not fetch PDF from storage' }, { status: 400 });
-  const arrayBuffer = await pdfRes.arrayBuffer();
-  if (arrayBuffer.byteLength > 15 * 1024 * 1024) {
-    return Response.json({ error: 'PDF too large (max 15 MB). Please upload a shorter statement.' }, { status: 413 });
-  }
-  const base64 = Buffer.from(arrayBuffer).toString('base64');
-  // Vercel Blob may return application/octet-stream; force pdf for .pdf uploads
-  const rawType = pdfRes.headers.get('content-type') ?? '';
+  const base64 = Buffer.from(fileBytes).toString('base64');
+  const lowerName = fileName.toLowerCase();
   const mediaType: 'application/pdf' | 'image/jpeg' | 'image/png' =
-    rawType.includes('jpeg') || rawType.includes('jpg') ? 'image/jpeg'
-    : rawType.includes('png') ? 'image/png'
+    lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') ? 'image/jpeg'
+    : lowerName.endsWith('.png') ? 'image/png'
     : 'application/pdf';
 
   const prompt = `You are extracting financial data from an Indian bank statement PDF.
@@ -93,14 +129,14 @@ Example:
     create: {
       slotId,
       budgetId: slot.budgetId,
-      bankStatementUrl: url,
+      bankStatementUrl: storedUrl,
       bankStatementParsed: { ...parsed, _parsedAt: new Date().toISOString() },
       bankBalance: parsed.closingBalance ?? 0,
       interestEarned: parsed.interestEarned ?? 0,
       fdBalance: parsed.fdBalance ?? 0,
     },
     update: {
-      bankStatementUrl: url,
+      bankStatementUrl: storedUrl,
       bankStatementParsed: { ...parsed, _parsedAt: new Date().toISOString() },
       bankBalance: parsed.closingBalance ?? 0,
       interestEarned: parsed.interestEarned ?? 0,

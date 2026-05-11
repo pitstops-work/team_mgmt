@@ -506,18 +506,11 @@ export default function ReportForm({
                       const file = files[i];
                       setParseProgress(files.length > 1 ? `File ${i + 1}/${files.length}` : "");
 
-                      // Upload via server-side route
+                      // Upload + parse in one request
                       setParseStatus("uploading");
                       const fd = new FormData();
                       fd.append("file", file);
-                      const uploadRes = await fetch("/api/budget/blob-upload", { method: "POST", body: fd });
-                      if (!uploadRes.ok) {
-                        const err = await uploadRes.json();
-                        throw new Error(err.error ?? "Upload failed");
-                      }
-                      const { url } = await uploadRes.json();
-
-                      // Parse with Claude
+                      fd.append("slotId", slot.id);
                       setParseStatus("parsing");
                       const controller = new AbortController();
                       const parseTimeout = setTimeout(() => controller.abort(), 80_000);
@@ -525,8 +518,7 @@ export default function ReportForm({
                       try {
                         parseRes = await fetch("/api/budget/parse-bank-statement", {
                           method: "POST",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify({ url, slotId: slot.id }),
+                          body: fd,
                           signal: controller.signal,
                         });
                       } finally {
