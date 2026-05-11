@@ -1529,19 +1529,21 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
       </div>
 
       {/* Grand total */}
-      <div className="mt-6 p-4 bg-stone-900 text-white rounded-xl flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold">Grand Total — all domains</p>
-          <p className="text-xs text-stone-400 mt-0.5">
-            {hasIndicative ? "Includes indicative salary estimates (marked ~)" : "Salary stubs not filled — add salary hints to templates for indicative totals"}
-          </p>
+      {grouped.length > 0 && (
+        <div className="mt-6 p-4 bg-stone-900 text-white rounded-xl flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold">Grand Total — all domains</p>
+            <p className="text-xs text-stone-400 mt-0.5">
+              {hasIndicative ? "Includes indicative salary estimates (marked ~)" : "Salary stubs not filled — add salary hints to templates for indicative totals"}
+            </p>
+          </div>
+          <div className="flex gap-6 sm:gap-8">
+            <div><p className="text-xs text-stone-400">Year 1</p><p className="text-lg font-bold">{fmtCost(grand.y1)}</p></div>
+            <div><p className="text-xs text-stone-400">Year 2</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y2)}</p></div>
+            <div><p className="text-xs text-stone-400">Year 3</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y3)}</p></div>
+          </div>
         </div>
-        <div className="flex gap-6 sm:gap-8">
-          <div><p className="text-xs text-stone-400">Year 1</p><p className="text-lg font-bold">{fmtCost(grand.y1)}</p></div>
-          <div><p className="text-xs text-stone-400">Year 2</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y2)}</p></div>
-          <div><p className="text-xs text-stone-400">Year 3</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y3)}</p></div>
-        </div>
-      </div>
+      )}
     </>
   );
 }
