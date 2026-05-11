@@ -22,17 +22,18 @@ interface User {
   reportsToId: string | null;
 }
 
-const ROLES = ["super-admin", "admin", "member", "viewer"] as const;
+const ROLES = ["super-admin", "admin", "member", "viewer", "budget-admin"] as const;
 type Role = typeof ROLES[number];
 
 const DESIGNATIONS = ["RP", "ZL", "PM", "Leader", "Other"] as const;
 type Designation = typeof DESIGNATIONS[number];
 
 const ROLE_STYLE: Record<Role, string> = {
-  "super-admin": "bg-amber-100 text-amber-700",
-  admin:         "bg-indigo-100 text-indigo-700",
-  member:        "bg-emerald-100 text-emerald-700",
-  viewer:        "bg-stone-100 text-stone-500",
+  "super-admin":  "bg-amber-100 text-amber-700",
+  admin:          "bg-indigo-100 text-indigo-700",
+  member:         "bg-emerald-100 text-emerald-700",
+  viewer:         "bg-stone-100 text-stone-500",
+  "budget-admin": "bg-sky-100 text-sky-700",
 };
 
 const DESIGNATION_STYLE: Record<Designation, string> = {
@@ -252,7 +253,7 @@ export default function UserManagementPage() {
         {ROLES.filter(r => r !== "super-admin" || isSuperAdmin).map(r => (
           <span key={r} className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${ROLE_STYLE[r]}`}>{r}</span>
         ))}
-        <span className="text-xs text-stone-400 self-center ml-1">— viewer can only read, not edit</span>
+        <span className="text-xs text-stone-400 self-center ml-1">— viewer: read-only · budget-admin: budget tool only</span>
       </div>
 
       {/* User list */}
