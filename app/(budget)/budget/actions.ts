@@ -13,6 +13,7 @@ export type CreateBudgetPayload = {
   domains: string[];
   years: 1 | 3;
   programmeInputs: Record<string, number>;
+  includeCrossCutting: boolean;
 };
 
 export async function createBudget(payload: CreateBudgetPayload) {
@@ -25,7 +26,10 @@ export async function createBudget(payload: CreateBudgetPayload) {
   ]);
   const registry: Record<string, number> = Object.fromEntries(registryRows.map(r => [r.itemKey, r.unitCost]));
 
-  const lines = generateBudgetLines(payload.domains, payload.programmeInputs, payload.years, registry, templates);
+  const eligibleTemplates = payload.includeCrossCutting
+    ? templates
+    : templates.filter(t => t.domain !== null);
+  const lines = generateBudgetLines(payload.domains, payload.programmeInputs, payload.years, registry, eligibleTemplates);
 
   const pi = payload.programmeInputs;
   const budget = await prisma.budget.create({

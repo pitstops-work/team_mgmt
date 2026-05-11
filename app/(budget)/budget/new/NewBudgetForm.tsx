@@ -39,6 +39,7 @@ export default function NewBudgetForm({
   const [name, setName]       = useState("");
   const [years, setYears]     = useState<1 | 3>(1);
   const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set());
+  const [includeCrossCutting, setIncludeCrossCutting] = useState(true);
   const [programmeInputs, setProgrammeInputs] = useState<Record<string, number>>(() =>
     initInputs(effectiveCrossCutting, effectiveDomains)
   );
@@ -59,7 +60,7 @@ export default function NewBudgetForm({
 
   const submit = () => {
     startTransition(async () => {
-      await createBudget({ name: name.trim(), city, domains: Array.from(selectedDomains), years, programmeInputs });
+      await createBudget({ name: name.trim(), city, domains: Array.from(selectedDomains), years, programmeInputs, includeCrossCutting });
     });
   };
 
@@ -116,6 +117,19 @@ export default function NewBudgetForm({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <button type="button" onClick={() => setIncludeCrossCutting(p => !p)}
+              className="flex items-center gap-3 w-full p-3 rounded-lg border text-left transition-all border-stone-200 hover:border-stone-300">
+              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${includeCrossCutting ? "border-sky-500 bg-sky-500" : "border-stone-300"}`}>
+                {includeCrossCutting && <span className="text-white text-xs">✓</span>}
+              </div>
+              <div>
+                <div className="text-sm font-medium text-stone-900">Include cross-cutting lines</div>
+                <div className="text-xs text-stone-500">Admin, travel, and other shared cost lines. Uncheck if this is a single-domain budget that doesn't need them.</div>
+              </div>
+            </button>
           </div>
 
           <div>
