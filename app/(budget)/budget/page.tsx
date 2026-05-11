@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
-import { deleteBudget } from "./actions";
+import DeleteBudgetButton from "./DeleteBudgetButton";
 
 const fmt = (n: number) => `₹${(n / 100000).toFixed(1)}L`;
 
@@ -39,31 +39,35 @@ export default async function BudgetListPage() {
           const y1 = b.lines.reduce((s, l) => s + l.y1Total, 0);
           const y3 = b.lines.reduce((s, l) => s + l.y1Total + l.y2Total + l.y3Total, 0);
           return (
-            <Link key={b.id} href={`/budget/${b.id}`}
-              className="block bg-white border border-stone-200 rounded-xl px-5 py-4 hover:border-sky-300 hover:shadow-sm transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-stone-900">{b.name}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${b.status === "final" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-                      {b.status === "final" ? "Finalized" : "Draft"}
-                    </span>
-                    <span className="text-xs text-stone-400">{b.years === 3 ? "3-year" : "1-year"}</span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {b.domains.map(d => (
-                      <span key={d} className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded">
-                        {domainLabels[d] ?? d}
+            <div key={b.id} className="relative bg-white border border-stone-200 rounded-xl hover:border-sky-300 hover:shadow-sm transition-all">
+              <Link href={`/budget/${b.id}`} className="block px-5 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-stone-900">{b.name}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${b.status === "final" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                        {b.status === "final" ? "Finalized" : "Draft"}
                       </span>
-                    ))}
+                      <span className="text-xs text-stone-400">{b.years === 3 ? "3-year" : "1-year"}</span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {b.domains.map(d => (
+                        <span key={d} className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded">
+                          {domainLabels[d] ?? d}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-semibold text-stone-900">{fmt(y1)}<span className="text-stone-400 font-normal">/yr</span></div>
+                    {b.years === 3 && <div className="text-xs text-stone-400">{fmt(y3)} total (3yr)</div>}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-sm font-semibold text-stone-900">{fmt(y1)}<span className="text-stone-400 font-normal">/yr</span></div>
-                  {b.years === 3 && <div className="text-xs text-stone-400">{fmt(y3)} total (3yr)</div>}
-                </div>
+              </Link>
+              <div className="absolute top-3 right-3">
+                <DeleteBudgetButton budgetId={b.id} />
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>
