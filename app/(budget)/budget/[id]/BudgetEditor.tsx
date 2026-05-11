@@ -28,6 +28,7 @@ type Budget = {
   status: "draft" | "final";
   lines: Line[];
   domainLabels?: Record<string, string>;
+  inputs?: Record<string, number | string | null> | null;
 };
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -85,6 +86,14 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
 
   const grandTotal = (yr: "y1" | "y2" | "y3") =>
     lines.reduce((s, l) => s + l[`${yr}Total`], 0);
+
+  const hasInputs = (() => {
+    if (!budget.inputs) return false;
+    const { extraInputs, ...top } = budget.inputs as Record<string, unknown>;
+    const isCountEntry = ([k, v]: [string, unknown]) => k.startsWith("n") && typeof v === "number" && v > 0;
+    return Object.entries(top).some(isCountEntry) ||
+      (extraInputs != null && typeof extraInputs === "object" && Object.entries(extraInputs as Record<string, unknown>).some(isCountEntry));
+  })();
 
   const startEdit = (l: Line) => {
     setEditing(l.id);
@@ -168,14 +177,16 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
       </div>
 
       {/* Grand total bar */}
-      <div className="bg-sky-50 border border-sky-200 rounded-xl px-5 py-4 mb-6 flex flex-wrap gap-6">
-        <TotalCell label="Year 1 Total" value={grandTotal("y1")} big />
-        {budget.years === 3 && <>
-          <TotalCell label="Year 2 Total" value={grandTotal("y2")} />
-          <TotalCell label="Year 3 Total" value={grandTotal("y3")} />
-          <TotalCell label="3-Year Total" value={grandTotal("y1") + grandTotal("y2") + grandTotal("y3")} big />
-        </>}
-      </div>
+      {hasInputs && (
+        <div className="bg-sky-50 border border-sky-200 rounded-xl px-5 py-4 mb-6 flex flex-wrap gap-6">
+          <TotalCell label="Year 1 Total" value={grandTotal("y1")} big />
+          {budget.years === 3 && <>
+            <TotalCell label="Year 2 Total" value={grandTotal("y2")} />
+            <TotalCell label="Year 3 Total" value={grandTotal("y3")} />
+            <TotalCell label="3-Year Total" value={grandTotal("y1") + grandTotal("y2") + grandTotal("y3")} big />
+          </>}
+        </div>
+      )}
 
       {/* Domain tabs */}
       <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
@@ -296,14 +307,16 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
       </div>
 
       {/* Grand total footer */}
-      <div className="mt-6 bg-stone-900 text-white rounded-xl px-5 py-4 flex flex-wrap gap-6">
-        <TotalCell label="GRAND TOTAL — Year 1" value={grandTotal("y1")} big white />
-        {budget.years === 3 && <>
-          <TotalCell label="Year 2" value={grandTotal("y2")} white />
-          <TotalCell label="Year 3" value={grandTotal("y3")} white />
-          <TotalCell label="3-Year Total" value={grandTotal("y1") + grandTotal("y2") + grandTotal("y3")} big white />
-        </>}
-      </div>
+      {hasInputs && (
+        <div className="mt-6 bg-stone-900 text-white rounded-xl px-5 py-4 flex flex-wrap gap-6">
+          <TotalCell label="GRAND TOTAL — Year 1" value={grandTotal("y1")} big white />
+          {budget.years === 3 && <>
+            <TotalCell label="Year 2" value={grandTotal("y2")} white />
+            <TotalCell label="Year 3" value={grandTotal("y3")} white />
+            <TotalCell label="3-Year Total" value={grandTotal("y1") + grandTotal("y2") + grandTotal("y3")} big white />
+          </>}
+        </div>
+      )}
     </div>
   );
 }
