@@ -45,8 +45,8 @@ export default async function BudgetListPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-stone-900">{b.name}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${b.status === "final" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-                        {b.status === "final" ? "Finalized" : "Draft"}
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${b.status === "approved" ? "bg-emerald-100 text-emerald-700" : b.status === "final" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                        {b.status === "approved" ? "Approved" : b.status === "final" ? "Finalized" : "Draft"}
                       </span>
                       <span className="text-xs text-stone-400">{b.years === 3 ? "3-year" : "1-year"}</span>
                     </div>
@@ -64,6 +64,12 @@ export default async function BudgetListPage() {
                   </div>
                 </div>
               </Link>
+              {b.status === "approved" && (
+                <Link href={`/budget/${b.id}/reports`}
+                  className="absolute bottom-4 right-14 text-xs text-emerald-600 hover:underline">
+                  Reports →
+                </Link>
+              )}
               <div className="absolute top-3 right-3">
                 <DeleteBudgetButton budgetId={b.id} />
               </div>

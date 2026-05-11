@@ -25,7 +25,7 @@ type Budget = {
   name: string;
   domains: string[];
   years: number;
-  status: "draft" | "final";
+  status: "draft" | "final" | "approved";
   lines: Line[];
   domainLabels?: Record<string, string>;
   inputs?: Record<string, number | string | null> | null;
@@ -147,8 +147,8 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold text-stone-900">{budget.name}</h1>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${budget.status === "final" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-              {budget.status === "final" ? "Finalized" : "Draft"}
+            <span className={`text-xs px-2 py-0.5 rounded-full ${budget.status === "approved" ? "bg-emerald-100 text-emerald-700" : budget.status === "final" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+              {budget.status === "approved" ? "Approved" : budget.status === "final" ? "Finalized" : "Draft"}
             </span>
             <span className="text-xs text-stone-400">{budget.years === 3 ? "3-year" : "1-year"}</span>
           </div>
@@ -157,6 +157,12 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {budget.status === "approved" && (
+            <a href={`/budget/${budget.id}/reports`}
+              className="text-sm bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700">
+              Reports
+            </a>
+          )}
           <a href={`/budget/${budget.id}/analysis`}
             className="text-sm border border-stone-300 px-3 py-1.5 rounded-lg hover:bg-stone-50 text-stone-700">
             Analysis
