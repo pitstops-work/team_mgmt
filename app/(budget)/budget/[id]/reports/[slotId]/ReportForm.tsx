@@ -420,11 +420,19 @@ export default function ReportForm({
                       handleUploadUrl: "/api/budget/blob-upload",
                     });
                     setParseStatus("parsing");
-                    const res = await fetch("/api/budget/parse-bank-statement", {
-                      method: "POST",
-                      headers: { "content-type": "application/json" },
-                      body: JSON.stringify({ url: blob.url, slotId: slot.id }),
-                    });
+                    const controller = new AbortController();
+                    const parseTimeout = setTimeout(() => controller.abort(), 80_000);
+                    let res: Response;
+                    try {
+                      res = await fetch("/api/budget/parse-bank-statement", {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ url: blob.url, slotId: slot.id }),
+                        signal: controller.signal,
+                      });
+                    } finally {
+                      clearTimeout(parseTimeout);
+                    }
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error ?? "Parse failed");
                     setRecon(p => ({
@@ -436,7 +444,10 @@ export default function ReportForm({
                     setParseNote(data.notes ?? (data.bankName ? `Parsed from ${data.bankName}` : "Parsed successfully"));
                     setParseStatus("done");
                   } catch (err: any) {
-                    setParseNote(err.message ?? "Error");
+                    const msg = err?.name === "AbortError"
+                      ? "Timed out — the PDF may be too large or complex. Try a shorter statement."
+                      : (err.message ?? "Parse failed");
+                    setParseNote(msg);
                     setParseStatus("error");
                   }
                   if (fileRef.current) fileRef.current.value = "";

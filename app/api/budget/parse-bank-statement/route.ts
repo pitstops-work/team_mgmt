@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import prisma from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/roleGuard';
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
@@ -30,12 +30,20 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Fetch the PDF as base64
-  const pdfRes = await fetch(url);
-  if (!pdfRes.ok) return Response.json({ error: 'Could not fetch PDF' }, { status: 400 });
+  // Fetch the PDF as base64 (10s timeout on the blob fetch)
+  const pdfRes = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  if (!pdfRes.ok) return Response.json({ error: 'Could not fetch PDF from storage' }, { status: 400 });
   const arrayBuffer = await pdfRes.arrayBuffer();
+  if (arrayBuffer.byteLength > 15 * 1024 * 1024) {
+    return Response.json({ error: 'PDF too large (max 15 MB). Please upload a shorter statement.' }, { status: 413 });
+  }
   const base64 = Buffer.from(arrayBuffer).toString('base64');
-  const mediaType = (pdfRes.headers.get('content-type') ?? 'application/pdf') as 'application/pdf' | 'image/jpeg' | 'image/png';
+  // Vercel Blob may return application/octet-stream; force pdf for .pdf uploads
+  const rawType = pdfRes.headers.get('content-type') ?? '';
+  const mediaType: 'application/pdf' | 'image/jpeg' | 'image/png' =
+    rawType.includes('jpeg') || rawType.includes('jpg') ? 'image/jpeg'
+    : rawType.includes('png') ? 'image/png'
+    : 'application/pdf';
 
   const prompt = `You are extracting financial data from an Indian bank statement PDF.
 
@@ -60,11 +68,14 @@ Example:
     ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }]
     : [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } }, { type: 'text', text: prompt }];
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 512,
-    messages: [{ role: 'user', content: contentBlock }],
-  });
+  const message = await client.messages.create(
+    {
+      model: 'claude-sonnet-4-6',
+      max_tokens: 512,
+      messages: [{ role: 'user', content: contentBlock }],
+    },
+    { signal: AbortSignal.timeout(70_000) },
+  );
 
   const rawText = message.content[0].type === 'text' ? message.content[0].text.trim() : '';
 
