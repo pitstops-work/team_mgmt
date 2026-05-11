@@ -1,3 +1,4 @@
+import "./review-portal.css";
 import { auth } from "@/lib/auth";
 import { isSuperAdmin } from "@/lib/roleGuard";
 import { redirect } from "next/navigation";
