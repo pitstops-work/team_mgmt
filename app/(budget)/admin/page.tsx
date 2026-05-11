@@ -1,10 +1,12 @@
 import { auth } from "@/lib/auth";
+import { isBudgetAdmin } from "@/lib/roleGuard";
 import prisma from "@/lib/prisma";
 import { getDefaultsForCity } from "@/lib/budget-costs";
 import AdminClient from "./AdminClient";
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {
-  await auth(); // auth guard handled by layout
+  const session = await auth(); // auth guard handled by layout
+  const budgetAdminOnly = isBudgetAdmin(session);
 
   const { city = "Bangalore" } = await searchParams;
 
@@ -75,5 +77,5 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       })),
   ];
 
-  return <AdminClient costs={merged} isSeeded={isSeeded} city={city} templates={templates} domains={domains} zones={zones} needsDomains={needsDomains} />;
+  return <AdminClient costs={merged} isSeeded={isSeeded} city={city} templates={templates} domains={domains} zones={zones} needsDomains={needsDomains} budgetAdminOnly={budgetAdminOnly} />;
 }

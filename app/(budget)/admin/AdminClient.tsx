@@ -1769,7 +1769,7 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
 // ─── Root client component ────────────────────────────────────────────────────
 
 export default function AdminClient({
-  costs, isSeeded, city, templates, domains, zones, needsDomains,
+  costs, isSeeded, city, templates, domains, zones, needsDomains, budgetAdminOnly = false,
 }: {
   costs: CostRow[];
   isSeeded: boolean;
@@ -1778,8 +1778,9 @@ export default function AdminClient({
   domains: BudgetDomainConfig[];
   zones: GeoItem[];
   needsDomains: { domain: string; label: string | null }[];
+  budgetAdminOnly?: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"registry" | "templates" | "analysis" | "domains">("registry");
+  const [activeTab, setActiveTab] = useState<"registry" | "templates" | "analysis" | "domains">(budgetAdminOnly ? "analysis" : "registry");
 
   // Build lookup maps from domain configs
   const domainOrder: (string | null)[] = [...domains.map(d => d.key), null];
@@ -1807,24 +1808,30 @@ export default function AdminClient({
       {/* Section tabs */}
       <div className="overflow-x-auto mb-6 pb-1">
         <div className="flex gap-1 bg-stone-100 rounded-lg p-1 w-fit min-w-full sm:min-w-0">
-          <button onClick={() => setActiveTab("registry")}
-            className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "registry" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
-            Cost Registry
-          </button>
-          <button onClick={() => setActiveTab("templates")}
-            className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "templates" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
-            Line Templates
-            <span className="ml-1.5 text-xs text-stone-400">{templates.length}</span>
-          </button>
+          {!budgetAdminOnly && (
+            <button onClick={() => setActiveTab("registry")}
+              className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "registry" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+              Cost Registry
+            </button>
+          )}
+          {!budgetAdminOnly && (
+            <button onClick={() => setActiveTab("templates")}
+              className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "templates" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+              Line Templates
+              <span className="ml-1.5 text-xs text-stone-400">{templates.length}</span>
+            </button>
+          )}
           <button onClick={() => setActiveTab("analysis")}
             className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "analysis" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
             Cost Analysis
           </button>
-          <button onClick={() => setActiveTab("domains")}
-            className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "domains" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
-            Domains
-            <span className="ml-1.5 text-xs text-stone-400">{domains.length}</span>
-          </button>
+          {!budgetAdminOnly && (
+            <button onClick={() => setActiveTab("domains")}
+              className={`text-sm px-4 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "domains" ? "bg-white shadow-sm text-stone-900 font-medium" : "text-stone-500 hover:text-stone-800"}`}>
+              Domains
+              <span className="ml-1.5 text-xs text-stone-400">{domains.length}</span>
+            </button>
+          )}
         </div>
       </div>
 

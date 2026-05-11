@@ -9,6 +9,10 @@ export function isAdminUser(session: SessionLike) {
   return role === "admin" || role === "super-admin";
 }
 
+export function isBudgetAdmin(session: SessionLike) {
+  return session?.user?.role === "budget-admin";
+}
+
 /** Returns a 403 Response if the user is a viewer, otherwise null. */
 export function viewerForbidden(session: SessionLike): Response | null {
   if (session?.user?.role === "viewer") {
