@@ -1202,7 +1202,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
   const grouped = useMemo<DomainGroup[]>(() => {
     const domainOrder = [...ALL_DOMAINS, null] as (string | null)[];
     return domainOrder.flatMap(domain => {
-      const domLines = indicativeLines.filter(l => l.domain === domain);
+      const domLines = indicativeLines.filter(l => l.domain === domain && l.y1Total > 0);
       if (!domLines.length) return [];
       const sections = [...new Set(domLines.map(l => l.section))];
       const bySection = sections.map(s => {
