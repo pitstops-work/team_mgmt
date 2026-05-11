@@ -121,7 +121,7 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, nee
     domain: d,
     label: d ? (domainLabels[d] ?? d) : "Cross-cutting",
     costs: domainCosts.filter(c => c.domain === d),
-  })).filter(g => g.costs.length > 0);
+  }));
 
   const currentGroup = grouped.find(g => (g.domain ?? "cross") === activeDomain) ?? grouped[0];
 
@@ -302,17 +302,21 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, nee
         );
         return (
           <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
-              <thead>{colHeaders}</thead>
-              <tbody>
-                {costRows.length > 0 && sectionHeader("Unit Costs")}
-                {costRows.map(renderRow)}
-                {ratioRows.length > 0 && sectionHeader("Programme Ratios")}
-                {ratioRows.map(renderRow)}
-              </tbody>
-            </table>
-            </div>
+            {costRows.length === 0 && ratioRows.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-stone-400 text-center">No cost items for this domain yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead>{colHeaders}</thead>
+                <tbody>
+                  {costRows.length > 0 && sectionHeader("Unit Costs")}
+                  {costRows.map(renderRow)}
+                  {ratioRows.length > 0 && sectionHeader("Programme Ratios")}
+                  {ratioRows.map(renderRow)}
+                </tbody>
+              </table>
+              </div>
+            )}
           </div>
         );
       })()}
