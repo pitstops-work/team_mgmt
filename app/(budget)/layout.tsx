@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { isBudgetAdmin } from "@/lib/roleGuard";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import SignOutButton from "@/components/SignOutButton";
 
 export const metadata: Metadata = {
   title: "Budget Builder",
@@ -22,6 +23,7 @@ export default async function BudgetLayout({ children }: { children: React.React
         <div className="ml-auto flex items-center gap-4">
           <a href="/budget" className="text-xs text-stone-500 hover:text-stone-800">My Budgets</a>
           <a href="/admin" className="text-xs text-stone-400 hover:text-stone-700">Admin</a>
+          {budgetOnly && <SignOutButton />}
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-4 py-8">{children}</main>
