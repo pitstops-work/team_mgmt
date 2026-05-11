@@ -2,7 +2,6 @@
 
 import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
 import {
   saveReport, saveReportLines, submitReport,
   addReallocationRequest, deleteReallocationRequest,
@@ -110,6 +109,7 @@ export default function ReportForm({
   const [saved, setSaved] = useState(false);
   const [parseStatus, setParseStatus] = useState<"idle" | "uploading" | "parsing" | "done" | "error">("idle");
   const [parseNote, setParseNote] = useState<string | null>(null);
+  const [parseProgress, setParseProgress] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Reallocation state
@@ -489,42 +489,77 @@ export default function ReportForm({
         {canEdit && (
           <div className="mt-4 bg-white border border-stone-200 rounded-xl p-5">
             <p className="text-sm font-medium text-stone-700 mb-1">Bank statement</p>
-            <p className="text-xs text-stone-400 mb-3">Upload your bank statement PDF — Claude will extract bank balance, FD balance, and interest earned and pre-fill the fields above.</p>
+            <p className="text-xs text-stone-400 mb-3">Upload one or more bank statement PDFs — Claude will extract balances and interest. If you have monthly statements, select all at once; interest will be summed and the latest closing balance used.</p>
             <div className="flex items-center gap-3 flex-wrap">
-              <input ref={fileRef} type="file" accept=".pdf,image/jpeg,image/png" className="hidden"
+              <input ref={fileRef} type="file" accept=".pdf,image/jpeg,image/png" multiple className="hidden"
                 onChange={async e => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
+                  const files = Array.from(e.target.files ?? []);
+                  if (!files.length) return;
                   setParseStatus("uploading");
                   setParseNote(null);
+                  setParseProgress("");
                   try {
-                    const blob = await upload(file.name, file, {
-                      access: "public",
-                      handleUploadUrl: "/api/budget/blob-upload",
-                    });
-                    setParseStatus("parsing");
-                    const controller = new AbortController();
-                    const parseTimeout = setTimeout(() => controller.abort(), 80_000);
-                    let res: Response;
-                    try {
-                      res = await fetch("/api/budget/parse-bank-statement", {
-                        method: "POST",
-                        headers: { "content-type": "application/json" },
-                        body: JSON.stringify({ url: blob.url, slotId: slot.id }),
-                        signal: controller.signal,
-                      });
-                    } finally {
-                      clearTimeout(parseTimeout);
+                    type ParsedResult = { bankBalance: number; interestEarned: number; fdBalance: number; periodTo: string | null; periodFrom: string | null; bankName: string | null; notes: string | null };
+                    const results: ParsedResult[] = [];
+
+                    for (let i = 0; i < files.length; i++) {
+                      const file = files[i];
+                      setParseProgress(files.length > 1 ? `File ${i + 1}/${files.length}` : "");
+
+                      // Upload via server-side route
+                      setParseStatus("uploading");
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      const uploadRes = await fetch("/api/budget/blob-upload", { method: "POST", body: fd });
+                      if (!uploadRes.ok) {
+                        const err = await uploadRes.json();
+                        throw new Error(err.error ?? "Upload failed");
+                      }
+                      const { url } = await uploadRes.json();
+
+                      // Parse with Claude
+                      setParseStatus("parsing");
+                      const controller = new AbortController();
+                      const parseTimeout = setTimeout(() => controller.abort(), 80_000);
+                      let parseRes: Response;
+                      try {
+                        parseRes = await fetch("/api/budget/parse-bank-statement", {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({ url, slotId: slot.id }),
+                          signal: controller.signal,
+                        });
+                      } finally {
+                        clearTimeout(parseTimeout);
+                      }
+                      const data = await parseRes.json();
+                      if (!parseRes.ok) throw new Error(data.error ?? "Parse failed");
+                      results.push(data);
                     }
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error ?? "Parse failed");
+
+                    // Combine: sum interest, use latest closing balance (by periodTo)
+                    const totalInterest = results.reduce((s, r) => s + (r.interestEarned ?? 0), 0);
+                    const latest = results.reduce((best, r) => {
+                      if (!best) return r;
+                      const bestDate = best.periodTo ? new Date(best.periodTo).getTime() : 0;
+                      const rDate = r.periodTo ? new Date(r.periodTo).getTime() : 0;
+                      return rDate >= bestDate ? r : best;
+                    }, null as ParsedResult | null)!;
+
                     setRecon(p => ({
                       ...p,
-                      bankBalance: data.bankBalance != null ? String(data.bankBalance) : p.bankBalance,
-                      interestEarned: data.interestEarned != null ? String(data.interestEarned) : p.interestEarned,
-                      fdBalance: data.fdBalance != null ? String(data.fdBalance) : p.fdBalance,
+                      bankBalance: latest.bankBalance != null ? String(latest.bankBalance) : p.bankBalance,
+                      fdBalance: latest.fdBalance != null ? String(latest.fdBalance) : p.fdBalance,
+                      interestEarned: String(totalInterest),
                     }));
-                    setParseNote(data.notes ?? (data.bankName ? `Parsed from ${data.bankName}` : "Parsed successfully"));
+
+                    const banks = [...new Set(results.map(r => r.bankName).filter(Boolean))];
+                    const notes = results.map(r => r.notes).filter(Boolean);
+                    setParseNote(
+                      (banks.length ? `Parsed from ${banks.join(", ")}` : "Parsed successfully") +
+                      (files.length > 1 ? ` · ${files.length} statements combined` : "") +
+                      (notes.length ? ` · ${notes.join("; ")}` : "")
+                    );
                     setParseStatus("done");
                   } catch (err: any) {
                     const msg = err?.name === "AbortError"
@@ -538,7 +573,11 @@ export default function ReportForm({
               />
               <button onClick={() => fileRef.current?.click()} disabled={parseStatus === "uploading" || parseStatus === "parsing"}
                 className="text-sm border border-stone-200 hover:border-sky-400 text-stone-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
-                {parseStatus === "uploading" ? "Uploading…" : parseStatus === "parsing" ? "Parsing with Claude…" : "Upload statement"}
+                {parseStatus === "uploading"
+                  ? `Uploading…${parseProgress ? ` (${parseProgress})` : ""}`
+                  : parseStatus === "parsing"
+                  ? `Parsing with Claude…${parseProgress ? ` (${parseProgress})` : ""}`
+                  : "Upload statement(s)"}
               </button>
               {parseNote && (
                 <span className={`text-xs ${parseStatus === "error" ? "text-red-500" : "text-green-600"}`}>
