@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { isSuperAdmin } from "@/lib/roleGuard";
+import { isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import ReportForm from "./ReportForm";
@@ -9,6 +9,8 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
   const { id, slotId } = await params;
   const session = await auth();
   const superAdmin = isSuperAdmin(session);
+  const budgetAdmin = isBudgetAdmin(session);
+  const canReview = superAdmin || budgetAdmin;
 
   const [slot, budget] = await Promise.all([
     prisma.budgetReportSlot.findUnique({
@@ -38,7 +40,7 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
   ]);
 
   if (!slot || !budget || slot.budgetId !== id) notFound();
-  if (!superAdmin && budget.partnerId !== session!.user!.id!) notFound();
+  if (!canReview && budget.partnerId !== session!.user!.id!) notFound();
   const isPartner = budget.partnerId === session!.user!.id!;
 
   // Cumulative actuals for all approved/submitted slots in same grant year before this one
@@ -88,13 +90,13 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
 
   const serialized = JSON.parse(JSON.stringify({ slot, budget, cumulativePrior, revisedAdjustments }));
   const canEdit = isPartner && ["pending", "sent_back"].includes(slot.status);
-  const isReview = superAdmin && !isPartner && slot.status === "submitted";
+  const isReview = canReview && !isPartner && slot.status === "submitted";
 
   return (
     <div>
       {isReview
         ? <ReviewPanel {...serialized} />
-        : <ReportForm {...serialized} canEdit={canEdit} isSuperAdmin={superAdmin} />
+        : <ReportForm {...serialized} canEdit={canEdit} isSuperAdmin={canReview} />
       }
     </div>
   );

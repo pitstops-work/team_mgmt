@@ -1,12 +1,12 @@
 import { auth } from "@/lib/auth";
-import { isSuperAdmin } from "@/lib/roleGuard";
+import { isBudgetAdminOrSuperAdmin } from "@/lib/roleGuard";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import BudgetApprovalsClient from "./BudgetApprovalsClient";
 
 export default async function AdminBudgetsPage() {
   const session = await auth();
-  if (!session?.user || !isSuperAdmin(session)) redirect("/portal");
+  if (!session?.user || !isBudgetAdminOrSuperAdmin(session)) redirect("/budget");
 
   const budgets = await prisma.budget.findMany({
     orderBy: { updatedAt: "desc" },

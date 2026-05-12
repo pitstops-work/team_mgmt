@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { isSuperAdmin } from "@/lib/roleGuard";
+import { isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -24,6 +24,8 @@ export default async function BudgetReportsPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const session = await auth();
   const superAdmin = isSuperAdmin(session);
+  const budgetAdmin = isBudgetAdmin(session);
+  const canReview = superAdmin || budgetAdmin;
 
   const budget = await prisma.budget.findUnique({
     where: { id },
@@ -37,7 +39,7 @@ export default async function BudgetReportsPage({ params }: { params: Promise<{ 
   });
 
   if (!budget) notFound();
-  if (!superAdmin && budget.partnerId !== session!.user!.id!) notFound();
+  if (!canReview && budget.partnerId !== session!.user!.id!) notFound();
   const isPartner = budget.partnerId === session!.user!.id!;
 
   if (budget.status !== "approved" || !budget.reportConfig) {
@@ -72,8 +74,8 @@ export default async function BudgetReportsPage({ params }: { params: Promise<{ 
             <div className="space-y-2">
               {slots.map(slot => {
                 const isOpen = ["pending", "sent_back"].includes(slot.status) && isPartner;
-                const isReview = slot.status === "submitted" && superAdmin && !isPartner;
-                const isView = slot.status === "approved" || (superAdmin && !isPartner && !["pending", "sent_back"].includes(slot.status));
+                const isReview = slot.status === "submitted" && canReview && !isPartner;
+                const isView = slot.status === "approved" || (canReview && !isPartner && !["pending", "sent_back"].includes(slot.status));
                 const href = `/budget/${id}/reports/${slot.id}`;
                 const overdue = slot.status === "pending" && new Date(slot.dueDate) < new Date();
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/lib/auth";
-import { isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
+import { isSuperAdmin, isBudgetAdminOrSuperAdmin } from "@/lib/roleGuard";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -20,7 +20,7 @@ export async function approveBudget(
   }
 ) {
   const session = await auth();
-  if (!session?.user || !isSuperAdmin(session)) throw new Error("Unauthorized");
+  if (!session?.user || !isBudgetAdminOrSuperAdmin(session)) throw new Error("Unauthorized");
 
   const dueAfterDays = config.dueAfterDays ?? 30;
   const slots = generateSlots(config.grantStartDate, config.grantEndDate, config.frequency, dueAfterDays);
@@ -204,7 +204,7 @@ export async function submitReport(slotId: string) {
 
 export async function approveReport(slotId: string) {
   const session = await auth();
-  if (!session?.user || !isSuperAdmin(session)) throw new Error("Unauthorized");
+  if (!session?.user || !isBudgetAdminOrSuperAdmin(session)) throw new Error("Unauthorized");
 
   const slot = await prisma.budgetReportSlot.findUnique({
     where: { id: slotId },
@@ -283,7 +283,7 @@ export async function approveReport(slotId: string) {
 
 export async function sendBackReport(slotId: string, reviewerNotes: string) {
   const session = await auth();
-  if (!session?.user || !isSuperAdmin(session)) throw new Error("Unauthorized");
+  if (!session?.user || !isBudgetAdminOrSuperAdmin(session)) throw new Error("Unauthorized");
 
   const slot = await prisma.budgetReportSlot.findUnique({
     where: { id: slotId },
@@ -396,7 +396,7 @@ export async function resolveReallocationRequest(
   resolution: { status: "approved" | "rejected"; approvedAmount?: number; reviewerComment?: string }
 ) {
   const session = await auth();
-  if (!session?.user || !isSuperAdmin(session)) throw new Error("Unauthorized");
+  if (!session?.user || !isBudgetAdminOrSuperAdmin(session)) throw new Error("Unauthorized");
 
   const req = await prisma.budgetReallocationRequest.findUnique({
     where: { id: requestId },

@@ -21,6 +21,10 @@ export function viewerForbidden(session: SessionLike): Response | null {
   return null;
 }
 
+export function isBudgetAdminOrSuperAdmin(session: SessionLike) {
+  return isBudgetAdmin(session) || isSuperAdmin(session);
+}
+
 /** Returns a 403 Response if the user is not an admin or super-admin. */
 export function adminForbidden(session: SessionLike): Response | null {
   if (!isAdminUser(session)) {
