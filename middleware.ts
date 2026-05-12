@@ -42,9 +42,9 @@ export default async function middleware(req: NextRequest) {
   const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
   const isApiRoute = pathname.startsWith("/api/");
 
-  // budget-admin: only the budget section is allowed
+  // budget-admin: only the budget section + account settings allowed
   if (role === "budget-admin") {
-    const BUDGET_PREFIXES = ["/budget", "/admin", "/api/budget", "/api/admin/budget"];
+    const BUDGET_PREFIXES = ["/budget", "/admin", "/api/budget", "/api/admin/budget", "/settings", "/api/account"];
     if (!BUDGET_PREFIXES.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/budget", req.url));
     }
