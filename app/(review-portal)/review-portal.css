@@ -2152,6 +2152,57 @@ section.s {
 .draft-submit-btn { background: #1a6b3c; color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .draft-submit-btn:disabled { opacity: 0.5; cursor: default; }
 .draft-submitted-link { font-size: 12px; color: #1a6b3c; font-weight: 600; text-decoration: none; }
+
+/* ── Collapsible sections ────────────────────────────────────────────────── */
+.draft-collapsible-header { display: flex; align-items: flex-start; justify-content: space-between; cursor: pointer; padding: 2px 0; user-select: none; }
+.draft-collapsible-header:hover .draft-section-title { color: var(--accent); }
+.draft-collapsible-toggle { font-size: 9px; color: var(--ink-3); margin-top: 5px; flex-shrink: 0; }
+.draft-collapsible-body { margin-top: 14px; }
+
+/* ── Dynamic section labels ──────────────────────────────────────────────── */
+.draft-dyn-label { font-size: 11px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+.draft-dyn-unit { font-weight: 400; text-transform: none; color: var(--ink-3); letter-spacing: 0; }
+
+/* ── Funding row card ────────────────────────────────────────────────────── */
+.draft-dyn-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+.draft-dyn-card-top { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.draft-dyn-donor { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; font-size: 12px; background: var(--bg); color: var(--ink); }
+.draft-dyn-card-top select { border: 1px solid var(--line); border-radius: 5px; padding: 5px 6px; font-size: 11px; background: var(--bg); color: var(--ink-2); flex-shrink: 0; }
+.draft-dyn-years { display: flex; gap: 6px; flex-wrap: wrap; }
+.draft-dyn-year-cell { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 50px; }
+.draft-dyn-year-label { font-size: 10px; color: var(--ink-3); white-space: nowrap; }
+.draft-dyn-year-input { border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; font-size: 11px; font-family: 'JetBrains Mono', monospace; background: var(--bg); width: 100%; box-sizing: border-box; color: var(--ink); }
+.draft-dyn-year-input:focus { border-color: var(--accent); outline: none; }
+
+/* ── Expenditure table ───────────────────────────────────────────────────── */
+.draft-dyn-exp-header { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; padding: 0 2px; }
+.draft-dyn-exp-header span { font-size: 10px; color: var(--ink-3); flex: 1; text-align: center; }
+.draft-dyn-exp-fy-col { flex: 0 0 66px !important; text-align: left !important; }
+.draft-dyn-exp-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.draft-dyn-fy { flex: 0 0 66px; border: 1px solid var(--line); border-radius: 5px; padding: 5px 6px; font-size: 11px; background: var(--bg); color: var(--ink); }
+.draft-dyn-amt { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 5px; padding: 5px 4px; font-size: 11px; font-family: 'JetBrains Mono', monospace; background: var(--bg); color: var(--ink); text-align: right; }
+.draft-dyn-amt:focus, .draft-dyn-fy:focus, .draft-dyn-donor:focus { border-color: var(--accent); outline: none; }
+.draft-dyn-total { flex-shrink: 0; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--ink-2); min-width: 52px; text-align: right; }
+
+/* ── Team rows ───────────────────────────────────────────────────────────── */
+.draft-dyn-team-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.draft-dyn-designation { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; font-size: 12px; background: var(--bg); color: var(--ink); }
+.draft-dyn-designation:focus { border-color: var(--accent); outline: none; }
+.draft-dyn-fte { flex: 0 0 52px; border: 1px solid var(--line); border-radius: 5px; padding: 5px 6px; font-size: 11px; background: var(--bg); color: var(--ink); text-align: center; }
+.draft-dyn-salary { flex: 0 0 82px; border: 1px solid var(--line); border-radius: 5px; padding: 5px 6px; font-size: 11px; font-family: 'JetBrains Mono', monospace; background: var(--bg); color: var(--ink); text-align: right; }
+.draft-dyn-fte:focus, .draft-dyn-salary:focus { border-color: var(--accent); outline: none; }
+
+/* ── Dynamic list (effects / interventions) ──────────────────────────────── */
+.draft-dyn-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.draft-dyn-list-item { display: flex; gap: 6px; align-items: center; }
+.draft-dyn-list-item input { flex: 1; border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; font-size: 12px; background: var(--bg); color: var(--ink); }
+.draft-dyn-list-item input:focus { border-color: var(--accent); outline: none; }
+
+/* ── Shared action buttons ───────────────────────────────────────────────── */
+.draft-dyn-remove { background: none; border: none; cursor: pointer; color: var(--ink-3); font-size: 16px; line-height: 1; padding: 2px 4px; flex-shrink: 0; }
+.draft-dyn-remove:hover { color: var(--accent); }
+.draft-dyn-add { background: none; border: 1px dashed var(--line-2); border-radius: 5px; padding: 6px 12px; font-size: 11px; color: var(--ink-3); cursor: pointer; width: 100%; text-align: center; }
+.draft-dyn-add:hover { border-color: var(--accent); color: var(--accent); }
 .draft-submitted-link:hover { text-decoration: underline; }
 .admin-rulebook-link { display: block; font-size: 12px; color: #888; text-decoration: none; padding: 6px 0; margin-bottom: 4px; }
 .admin-rulebook-link:hover { color: #111; }

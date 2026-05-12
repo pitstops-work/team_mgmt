@@ -126,6 +126,127 @@ export async function POST(req: NextRequest) {
       pilotNotes: formData.get('pilotNotes') as string || '',
     };
 
+    // ── Structured inputs ──────────────────────────────────────────────────────
+
+    const orgCompliance = {
+      registrationType:       formData.get('org_registrationType') as string || '',
+      yearOfRegistration:     formData.get('org_yearOfRegistration') as string || '',
+      taxStatus12a:           formData.get('org_taxStatus12a') as string || '',
+      taxStatus80g:           formData.get('org_taxStatus80g') as string || '',
+      fcraStatus:             formData.get('org_fcraStatus') as string || '',
+      fcraValidTill:          formData.get('org_fcraValidTill') as string || '',
+      boardSize:              formData.get('org_boardSize') as string || '',
+      booksLocation:          formData.get('org_booksLocation') as string || '',
+      accountingSoftware:     formData.get('org_accountingSoftware') as string || '',
+      pendingItNotices:       formData.get('org_pendingItNotices') as string || '',
+      pendingItNoticesDetails:formData.get('org_pendingItNoticesDetails') as string || '',
+      governanceNotes:        formData.get('org_governanceNotes') as string || '',
+    };
+
+    type FRow = { donor: string; grantType: string; di: string; fy2223: string; fy2324: string; fy2425: string; fy2526: string; fy2627: string; };
+    type ERow = { fy: string; salary: string; programme: string; admin: string; capital: string; };
+    type TRow = { designation: string; fte: string; monthlySalary: string; };
+
+    const fundingRows: FRow[] = (() => { try { return JSON.parse(formData.get('fundingRows') as string || '[]'); } catch { return []; } })();
+    const expenditureRows: ERow[] = (() => { try { return JSON.parse(formData.get('expenditureRows') as string || '[]'); } catch { return []; } })();
+    const teamRows: TRow[] = (() => { try { return JSON.parse(formData.get('teamRows') as string || '[]'); } catch { return []; } })();
+    const statutoryNotes = formData.get('statutoryNotes') as string || '';
+
+    const pddContext      = formData.get('pddContext') as string || '';
+    const pddGoal         = formData.get('pddGoal') as string || '';
+    const pddHistory      = formData.get('pddHistory') as string || '';
+    const pddEffects: string[]       = (() => { try { return JSON.parse(formData.get('pddEffects') as string || '[]'); } catch { return []; } })();
+    const pddInterventions: string[] = (() => { try { return JSON.parse(formData.get('pddInterventions') as string || '[]'); } catch { return []; } })();
+    const pddPeople       = formData.get('pddPeople') as string || '';
+
+    // ── Block builders ─────────────────────────────────────────────────────────
+
+    function buildOrgBlock(): string {
+      const c = orgCompliance;
+      const lines: string[] = [];
+      if (c.registrationType) lines.push(`Registered as: ${c.registrationType}${c.yearOfRegistration ? ` (${c.yearOfRegistration})` : ''}`);
+      if (c.taxStatus12a) lines.push(`12A: ${c.taxStatus12a}`);
+      if (c.taxStatus80g) lines.push(`80G: ${c.taxStatus80g}`);
+      if (c.fcraStatus) {
+        const fcra = c.fcraStatus === 'Registered' && c.fcraValidTill
+          ? `Registered (valid till ${c.fcraValidTill})` : c.fcraStatus;
+        lines.push(`FCRA: ${fcra}`);
+      }
+      if (c.boardSize) lines.push(`Governing board: ${c.boardSize} members`);
+      if (c.booksLocation) lines.push(`Books of accounts: ${c.booksLocation}${c.accountingSoftware ? ` — ${c.accountingSoftware}` : ''}`);
+      if (c.pendingItNotices === 'Yes') lines.push(`Pending IT notices: Yes — ${c.pendingItNoticesDetails || 'details not provided'}`);
+      else if (c.pendingItNotices === 'No') lines.push('Pending IT notices: None');
+      if (c.governanceNotes) lines.push(`Governance: ${c.governanceNotes}`);
+      return lines.length ? `ORGANISATION & COMPLIANCE:\n${lines.join('\n')}` : '';
+    }
+
+    function buildFinanceBlock(): string {
+      const parts: string[] = [];
+      const fmt = (v: string) => v ? `₹${v}L` : '—';
+
+      if (fundingRows.length) {
+        parts.push('FUNDING SOURCES (₹ Lakhs):');
+        parts.push('| Donor | Type | D/I | FY22-23 | FY23-24 | FY24-25 | FY25-26 | FY26-27 (committed) |');
+        parts.push('|---|---|---|---|---|---|---|---|');
+        for (const r of fundingRows) {
+          parts.push(`| ${r.donor} | ${r.grantType || '—'} | ${r.di || '—'} | ${fmt(r.fy2223)} | ${fmt(r.fy2324)} | ${fmt(r.fy2425)} | ${fmt(r.fy2526)} | ${fmt(r.fy2627)} |`);
+        }
+      }
+
+      if (expenditureRows.length) {
+        parts.push('\nEXPENDITURE HISTORY (₹ Lakhs, excl. depreciation):');
+        parts.push('| FY | Salary | Programme | Admin | Capital | Total |');
+        parts.push('|---|---|---|---|---|---|');
+        const opexValues: number[] = [];
+        for (const r of expenditureRows) {
+          const sal = parseFloat(r.salary) || 0;
+          const prog = parseFloat(r.programme) || 0;
+          const adm = parseFloat(r.admin) || 0;
+          const cap = parseFloat(r.capital) || 0;
+          const total = sal + prog + adm + cap;
+          opexValues.push(sal + prog + adm);
+          parts.push(`| ${r.fy} | ${fmt(r.salary)} | ${fmt(r.programme)} | ${fmt(r.admin)} | ${fmt(r.capital)} | ₹${total.toFixed(1)}L |`);
+        }
+        if (opexValues.length) {
+          const avg = opexValues.reduce((a, b) => a + b, 0) / opexValues.length;
+          parts.push(`Average annual opex (excl. capital): ₹${avg.toFixed(1)}L`);
+        }
+      }
+
+      if (teamRows.length) {
+        parts.push('\nPROPOSED TEAM (this grant):');
+        parts.push('| Designation | FTE% | Monthly ₹ | Annual cost |');
+        parts.push('|---|---|---|---|');
+        for (const r of teamRows) {
+          const annual = r.monthlySalary ? `₹${(parseFloat(r.monthlySalary) * 12 / 100000).toFixed(2)}L/yr` : '—';
+          parts.push(`| ${r.designation} | ${r.fte || '100'}% | ₹${r.monthlySalary || '—'}/mo | ${annual} |`);
+        }
+      }
+
+      if (statutoryNotes) parts.push(`\nSTATUTORY COMPLIANCE: ${statutoryNotes}`);
+
+      return parts.length ? parts.join('\n') : '';
+    }
+
+    function buildPddBlock(): string {
+      const parts: string[] = [];
+      if (pddContext)      parts.push(`Context:\n${pddContext}`);
+      if (pddGoal)         parts.push(`Goal:\n${pddGoal}`);
+      if (pddHistory)      parts.push(`Programme history:\n${pddHistory}`);
+      if (pddEffects.length) {
+        parts.push('Effects:');
+        pddEffects.forEach(e => parts.push(`- ${e}`));
+      }
+      if (pddInterventions.length) {
+        parts.push('Key interventions:');
+        pddInterventions.forEach(i => parts.push(`- ${i}`));
+      }
+      if (pddPeople) parts.push(`People involved:\n${pddPeople}`);
+      return parts.length ? `PROGRAMME DESIGN:\n${parts.join('\n\n')}` : '';
+    }
+
+    const structuredBlocks = [buildOrgBlock(), buildFinanceBlock(), buildPddBlock()].filter(Boolean).join('\n\n');
+
     // Download and process files from Vercel Blob URLs
     const blobUrlsRaw = formData.get('blobUrls') as string;
     const blobUrls: string[] = blobUrlsRaw ? JSON.parse(blobUrlsRaw) : [];
@@ -205,7 +326,7 @@ ${meta.staffNotes || '[Not provided]'}`;
     const textContent = `${metaBlock}
 
 ${staffNotesBlock}
-
+${structuredBlocks ? `\n${structuredBlocks}\n` : ''}
 ${docsBlock}
 
 ${budgetBlock}${imageNote}${pdfNote}
