@@ -12,6 +12,7 @@ export default function SettingsPage() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super-admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
   const isViewer = session?.user?.role === "viewer";
+  const isBudgetAdmin = session?.user?.role === "budget-admin";
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
@@ -185,6 +186,9 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      {isBudgetAdmin && (
+        <a href="/budget" className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-700 mb-6">← Back to Budget Builder</a>
+      )}
       <h1 className="text-xl font-semibold text-stone-900 mb-8">Settings</h1>
 
       {/* Change Password — shown to all non-viewers */}
