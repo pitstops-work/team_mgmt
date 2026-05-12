@@ -25,6 +25,7 @@ export default async function BudgetLayout({ children }: { children: React.React
           <a href="/budget" className="text-xs text-stone-500 hover:text-stone-800">My Budgets</a>
           {(superAdmin || budgetOnly) && <a href="/admin/budgets" className="text-xs text-stone-500 hover:text-stone-800">Approve</a>}
           <a href="/admin" className="text-xs text-stone-400 hover:text-stone-700">Admin</a>
+          {budgetOnly && <a href="/settings" className="text-xs text-stone-400 hover:text-stone-700">Settings</a>}
           {budgetOnly && <SignOutButton />}
         </div>
       </header>
