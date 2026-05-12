@@ -525,11 +525,17 @@ export default function ReportForm({
                     setParseStatus("parsing");
                     if (files.length > 1) setParseProgress(`0/${files.length}`);
 
-                    // Process all files in parallel; collect successes and failures
+                    // Process files with max 3 concurrent requests to avoid rate limits
                     let doneCount = 0;
-                    const settlements = await Promise.allSettled(
-                      files.map(f => parseFile(f).then(r => { doneCount++; setParseProgress(`${doneCount}/${files.length}`); return r; }))
-                    );
+                    const CONCURRENCY = 3;
+                    const settlements: PromiseSettledResult<ParsedResult>[] = [];
+                    for (let i = 0; i < files.length; i += CONCURRENCY) {
+                      const batch = files.slice(i, i + CONCURRENCY);
+                      const batchResults = await Promise.allSettled(
+                        batch.map(f => parseFile(f).then(r => { doneCount++; setParseProgress(`${doneCount}/${files.length}`); return r; }))
+                      );
+                      settlements.push(...batchResults);
+                    }
 
                     const results = settlements.flatMap(s => s.status === "fulfilled" ? [s.value] : []);
                     const failCount = settlements.filter(s => s.status === "rejected").length;

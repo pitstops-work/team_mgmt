@@ -33,9 +33,10 @@ export async function POST(req: Request) {
 
     // Store to blob for record-keeping (private)
     try {
-      const blob = await put(`bank-statements/${Date.now()}-${fileName}`, file, {
+      const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const blob = await put(`bank-statements/${Date.now()}-${safeFileName}`, file, {
         access: 'private',
-        addRandomSuffix: false,
+        addRandomSuffix: true,
       });
       storedUrl = blob.url;
     } catch {
@@ -104,14 +105,20 @@ Example:
     ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }]
     : [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } }, { type: 'text', text: prompt }];
 
-  const message = await client.messages.create(
-    {
-      model: 'claude-sonnet-4-6',
-      max_tokens: 512,
-      messages: [{ role: 'user', content: contentBlock }],
-    },
-    { signal: AbortSignal.timeout(70_000) },
-  );
+  let message: Anthropic.Message;
+  try {
+    message = await client.messages.create(
+      {
+        model: 'claude-sonnet-4-6',
+        max_tokens: 512,
+        messages: [{ role: 'user', content: contentBlock }],
+      },
+      { signal: AbortSignal.timeout(70_000) },
+    );
+  } catch (err: any) {
+    const msg = err?.message ?? 'Claude API error';
+    return Response.json({ error: msg.length > 200 ? 'Claude API error — file may be password-protected or corrupt' : msg }, { status: 502 });
+  }
 
   const rawText = message.content[0].type === 'text' ? message.content[0].text.trim() : '';
 
