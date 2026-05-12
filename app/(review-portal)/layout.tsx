@@ -22,6 +22,7 @@ export default async function ReviewLayout({ children }: { children: React.React
           <a href="/grant-notes" className="text-xs text-stone-500 hover:text-stone-800">Home</a>
           <a href="/grant-notes/draft" className="text-xs text-stone-500 hover:text-stone-800">Draft</a>
           <a href="/grant-notes/notes" className="text-xs text-stone-500 hover:text-stone-800">Grant Notes</a>
+          <a href="/due-diligence" className="text-xs text-stone-500 hover:text-stone-800">Due Diligence</a>
           <a href="/grant-notes/admin" className="text-xs text-stone-400 hover:text-stone-700">Admin</a>
         </div>
       </header>

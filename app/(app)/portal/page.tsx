@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CalendarClock, Target, BarChart3, FileText } from "lucide-react";
+import { CalendarClock, Target, BarChart3, FileText, ClipboardCheck } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import SignOutButton from "@/components/SignOutButton";
 
@@ -26,7 +26,7 @@ export default async function PortalPage() {
       <p className="text-stone-500 text-sm mb-8">Good day, {firstName}. What are you here for?</p>
 
       {/* Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
 
         {/* Operations */}
         <Link
@@ -81,6 +81,20 @@ export default async function PortalPage() {
           <div>
             <p className="text-stone-800 font-semibold text-base">Review Portal</p>
             <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Grant notes · Drafts · Approvals</p>
+          </div>
+        </Link>
+
+        {/* Due Diligence */}
+        <Link
+          href="/due-diligence"
+          className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md sm:col-span-2"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+            <ClipboardCheck className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-stone-800 font-semibold text-base">Due Diligence</p>
+            <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Org profile · Compliance · Financials · Programme design</p>
           </div>
         </Link>
 
