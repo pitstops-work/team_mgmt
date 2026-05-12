@@ -40,7 +40,7 @@ export default function DueDiligenceListPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto px-6 py-6">
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           <h1 className="text-xl font-semibold text-stone-900">Due Diligence</h1>

@@ -3,7 +3,7 @@ import { FileText, PenLine, Settings, ClipboardCheck } from 'lucide-react';
 
 export default function GrantNotesHomePage() {
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto px-6 py-6">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-stone-900">Review Portal</h1>
         <p className="text-sm text-stone-500 mt-1">Document drafting, editing, and leadership review</p>
