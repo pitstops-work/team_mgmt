@@ -500,20 +500,13 @@ export default function ReportForm({
                   setParseProgress("");
                   try {
                     type ParsedResult = { bankBalance: number; interestEarned: number; fdBalance: number; periodTo: string | null; periodFrom: string | null; bankName: string | null; notes: string | null };
-                    const results: ParsedResult[] = [];
 
-                    for (let i = 0; i < files.length; i++) {
-                      const file = files[i];
-                      setParseProgress(files.length > 1 ? `File ${i + 1}/${files.length}` : "");
-
-                      // Upload + parse in one request
-                      setParseStatus("uploading");
+                    async function parseFile(file: File): Promise<ParsedResult> {
                       const fd = new FormData();
                       fd.append("file", file);
                       fd.append("slotId", slot.id);
-                      setParseStatus("parsing");
                       const controller = new AbortController();
-                      const parseTimeout = setTimeout(() => controller.abort(), 80_000);
+                      const parseTimeout = setTimeout(() => controller.abort(), 88_000);
                       let parseRes: Response;
                       try {
                         parseRes = await fetch("/api/budget/parse-bank-statement", {
@@ -526,7 +519,27 @@ export default function ReportForm({
                       }
                       const data = await parseRes.json();
                       if (!parseRes.ok) throw new Error(data.error ?? "Parse failed");
-                      results.push(data);
+                      return data as ParsedResult;
+                    }
+
+                    setParseStatus("parsing");
+                    if (files.length > 1) setParseProgress(`0/${files.length}`);
+
+                    // Process all files in parallel; collect successes and failures
+                    let doneCount = 0;
+                    const settlements = await Promise.allSettled(
+                      files.map(f => parseFile(f).then(r => { doneCount++; setParseProgress(`${doneCount}/${files.length}`); return r; }))
+                    );
+
+                    const results = settlements.flatMap(s => s.status === "fulfilled" ? [s.value] : []);
+                    const failCount = settlements.filter(s => s.status === "rejected").length;
+
+                    if (results.length === 0) {
+                      const firstErr = settlements.find(s => s.status === "rejected") as PromiseRejectedResult;
+                      const errMsg = firstErr?.reason?.name === "AbortError"
+                        ? "Timed out — PDF may be too large. Try uploading fewer files at once."
+                        : (firstErr?.reason?.message ?? "All files failed to parse");
+                      throw new Error(errMsg);
                     }
 
                     // Combine: sum interest, use latest closing balance (by periodTo)
@@ -549,15 +562,13 @@ export default function ReportForm({
                     const notes = results.map(r => r.notes).filter(Boolean);
                     setParseNote(
                       (banks.length ? `Parsed from ${banks.join(", ")}` : "Parsed successfully") +
-                      (files.length > 1 ? ` · ${files.length} statements combined` : "") +
+                      (files.length > 1 ? ` · ${results.length}/${files.length} statements combined` : "") +
+                      (failCount > 0 ? ` · ${failCount} file(s) failed — review fields` : "") +
                       (notes.length ? ` · ${notes.join("; ")}` : "")
                     );
-                    setParseStatus("done");
+                    setParseStatus(failCount > 0 ? "error" : "done");
                   } catch (err: any) {
-                    const msg = err?.name === "AbortError"
-                      ? "Timed out — the PDF may be too large or complex. Try a shorter statement."
-                      : (err.message ?? "Parse failed");
-                    setParseNote(msg);
+                    setParseNote(err.message ?? "Parse failed");
                     setParseStatus("error");
                   }
                   if (fileRef.current) fileRef.current.value = "";
