@@ -11,11 +11,21 @@ import SearchShortcut from "@/components/SearchShortcut";
 import KeyboardShortcuts from "@/components/KeyboardShortcuts";
 import AgentPanel from "@/components/AgentPanel";
 import prisma from "@/lib/prisma";
-import { isAdminUser, isSuperAdmin } from "@/lib/roleGuard";
+import { isAdminUser, isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  if (isBudgetAdmin(session)) {
+    return (
+      <SessionProvider>
+        <QueryProvider>
+          <main className="min-h-screen bg-stone-50">{children}</main>
+        </QueryProvider>
+      </SessionProvider>
+    );
+  }
 
   const [unreadCount, me] = await Promise.all([
     prisma.notification.count({ where: { userId: session.user.id!, read: false } }),
