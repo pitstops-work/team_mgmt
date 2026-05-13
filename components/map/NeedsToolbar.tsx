@@ -10,8 +10,9 @@ export interface NeedsHeatmapData {
   domain: { domain: string; label: string; color: string } | null;
   metric: NeedsMetric;
   level: NeedsLevel;
-  allDomains: { domain: string; label: string; color: string }[];
+  allDomains: { domain: string; label: string; color: string; domainType?: string }[];
   hasData: boolean;
+  isCivic?: boolean;
 }
 
 interface NeedsToolbarProps {
@@ -66,7 +67,10 @@ export default function NeedsToolbar({
   const values = heatmap?.values ?? {};
   const max = heatmap?.max ?? 0;
   const isDoneMetric = metric === "done_pct";
-  const effectiveMax = isDoneMetric ? 100 : max;
+  // Civic: active domain is a civic survey % domain
+  const activeDomainType = allDomains.find(d => d.domain === domain)?.domainType;
+  const isCivic = heatmap?.isCivic ?? activeDomainType === "civic";
+  const effectiveMax = isCivic ? 100 : (isDoneMetric ? 100 : max);
 
   const entries = Object.entries(values)
     .filter(([, v]) => v >= threshold)
@@ -88,7 +92,7 @@ export default function NeedsToolbar({
           </svg>
           {collapsed && domainInfo ? (
             <span className="text-xs font-semibold text-slate-700 truncate">
-              {domainInfo.label} · {metricLabel} · {levelLabel}
+              {domainInfo.label} · {isCivic ? "Need score" : metricLabel} · {levelLabel}
             </span>
           ) : (
             <span className="text-xs font-bold text-slate-700">Needs Lens</span>
@@ -145,26 +149,36 @@ export default function NeedsToolbar({
           </div>
         </div>
 
-        {/* Metric pills */}
-        <div className="px-3 pb-2">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Metric</div>
-          <div className="flex flex-wrap gap-1">
-            {METRIC_OPTIONS.map(m => (
-              <button
-                key={m.value}
-                onClick={() => onMetricChange(m.value)}
-                title={m.desc}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${
-                  metric === m.value
-                    ? "bg-slate-700 text-white border-slate-700"
-                    : "text-slate-600 border-slate-200 bg-white hover:bg-slate-50"
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
+        {/* Metric pills — hidden for civic survey domains */}
+        {!isCivic && (
+          <div className="px-3 pb-2">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Metric</div>
+            <div className="flex flex-wrap gap-1">
+              {METRIC_OPTIONS.map(m => (
+                <button
+                  key={m.value}
+                  onClick={() => onMetricChange(m.value)}
+                  title={m.desc}
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${
+                    metric === m.value
+                      ? "bg-slate-700 text-white border-slate-700"
+                      : "text-slate-600 border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+        {/* Civic: brief explanation */}
+        {isCivic && (
+          <div className="px-3 pb-2">
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Showing <span className="font-semibold text-slate-700">need severity score</span> (0–100) from Janadhikara household survey. Higher = more unmet need.
+            </p>
+          </div>
+        )}
 
         {/* Level pills */}
         <div className="px-3 pb-2">
@@ -187,48 +201,50 @@ export default function NeedsToolbar({
         </div>
 
         {/* Threshold slider */}
-        {effectiveMax > 1 && (
+        {(isCivic || effectiveMax > 1) && (
           <div className="px-3 pb-2">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-              <span>Min threshold</span>
-              <span className="font-bold text-slate-700">{threshold}{isDoneMetric ? "%" : ""}</span>
+              <span>{isCivic ? "Min severity score" : "Min threshold"}</span>
+              <span className="font-bold text-slate-700">{threshold}{(isCivic || isDoneMetric) ? "%" : ""}</span>
             </div>
             <input
               type="range"
               min={0}
-              max={effectiveMax}
-              step={isDoneMetric ? 5 : 1}
+              max={isCivic ? 100 : effectiveMax}
+              step={isCivic ? 5 : isDoneMetric ? 5 : 1}
               value={threshold}
               onChange={e => onThresholdChange(Number(e.target.value))}
               className="w-full h-1.5 accent-teal-600"
             />
             <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
-              <span>0</span>
-              <span>{Math.round(effectiveMax / 2)}</span>
-              <span>{effectiveMax}{isDoneMetric ? "%" : ""}</span>
+              <span>0%</span>
+              <span>{isCivic ? "50%" : Math.round(effectiveMax / 2)}{!isCivic && isDoneMetric ? "%" : ""}</span>
+              <span>100%</span>
             </div>
           </div>
         )}
 
         {/* Legend */}
-        {domainInfo && max > 0 && (
+        {domainInfo && (isCivic || max > 0) && (
           <div className="px-3 pb-2">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Intensity</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              {isCivic ? "Severity" : "Intensity"}
+            </div>
             <div className="rounded h-3 w-full" style={{ background: `linear-gradient(to right, #f1f5f9, ${domainInfo.color})` }} />
             <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
-              <span>0</span>
-              <span>{isDoneMetric ? "100%" : max}</span>
+              <span>0%</span>
+              <span>{isCivic ? "100% need" : isDoneMetric ? "100%" : max}</span>
             </div>
           </div>
         )}
 
-        {/* Top 10 rank list */}
+        {/* Top 5 rank list */}
         {entries.length > 0 && (
           <div className="px-3 pb-3">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-              Top {entries.length}{" "}
+              {isCivic ? "Highest severity" : "Top"} {entries.length}{" "}
               {level === "settlement" ? "settlements" : level === "cluster" ? "clusters" : "zones"}
-              {threshold > 0 ? ` (≥ ${threshold}${isDoneMetric ? "%" : ""})` : ""}
+              {threshold > 0 ? ` (≥ ${threshold}${(isCivic || isDoneMetric) ? "%" : ""})` : ""}
             </div>
             <div className="flex flex-col gap-1">
               {entries.map(([name, value], i) => (
@@ -246,7 +262,7 @@ export default function NeedsToolbar({
                     <span className="text-[11px] text-slate-700 font-medium truncate capitalize">{name}</span>
                   </div>
                   <span className="text-[11px] font-bold text-slate-600 shrink-0 tabular-nums">
-                    {value}{isDoneMetric ? "%" : ""}
+                    {value}{(isCivic || isDoneMetric) ? "%" : ""}
                   </span>
                 </div>
               ))}

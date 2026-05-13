@@ -18,6 +18,18 @@ const LAYER_DOMAIN_MAP: Record<string, string> = {
   youth_centres: "YouthResourceCentre",
 };
 
+const CIVIC_SCORE_FIELD: Record<string, keyof {
+  borewellNeedScore: number | null;
+  toiletConnNeedScore: number | null;
+  toiletFacNeedScore: number | null;
+  waterSupplyNeedScore: number | null;
+}> = {
+  borewell:         "borewellNeedScore",
+  toiletConnection: "toiletConnNeedScore",
+  toiletFacility:   "toiletFacNeedScore",
+  waterSupply:      "waterSupplyNeedScore",
+};
+
 // GET /api/map/needs-heatmap?domain=X&metric=demand|addressable|existing|gap|done_pct|planned|deficit&level=settlement|cluster|zone
 export async function GET(req: Request) {
   const session = await auth();
@@ -40,18 +52,81 @@ export async function GET(req: Request) {
 
   const allDomains = formulaRows
     .filter(f => f.domainType !== "entitlement")
-    .map(f => ({ domain: f.domain, label: f.label ?? f.domain, color: f.color }));
+    .map(f => ({ domain: f.domain, label: f.label ?? f.domain, color: f.color, domainType: f.domainType }));
 
   if (!domain) {
-    return NextResponse.json({ values: {}, max: 0, domain: null, metric, level, allDomains, hasData: false });
+    return NextResponse.json({ values: {}, max: 0, domain: null, metric, level, allDomains, hasData: false, isCivic: false });
   }
 
   const domainRow = formulaRows.find(f => f.domain === domain);
   if (!domainRow) {
-    return NextResponse.json({ values: {}, max: 0, domain: null, metric, level, allDomains, hasData: false });
+    return NextResponse.json({ values: {}, max: 0, domain: null, metric, level, allDomains, hasData: false, isCivic: false });
   }
 
   const domainInfo = { domain: domainRow.domain, label: domainRow.label ?? domainRow.domain, color: domainRow.color };
+
+  // ── Civic domain: colour by need score (0-100) ──────────────────────────────
+  if (domainRow.domainType === "civic") {
+    const civicGroup = domainRow.civicGroup;
+    const scoreField = civicGroup ? CIVIC_SCORE_FIELD[civicGroup] : null;
+    if (!scoreField) {
+      return NextResponse.json({ values: {}, max: 100, domain: domainInfo, metric, level, allDomains, hasData: false, isCivic: true });
+    }
+
+    // All settlements with cluster/zone
+    const settlements = await prisma.settlement.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, cluster: { select: { name: true, zone: { select: { name: true } } } } },
+    });
+
+    const civicRows = await prisma.settlementCivicData.findMany({
+      select: { settlementId: true, borewellNeedScore: true, toiletConnNeedScore: true, toiletFacNeedScore: true, waterSupplyNeedScore: true },
+    });
+    const civicMap = new Map<string, number>(
+      civicRows
+        .filter(r => r[scoreField] != null)
+        .map(r => [r.settlementId, r[scoreField] as number])
+    );
+
+    const values: Record<string, number> = {};
+
+    if (level === "settlement") {
+      for (const s of settlements) {
+        const score = civicMap.get(s.id);
+        if (score != null && score > 0) values[s.name.toLowerCase()] = score;
+      }
+    } else if (level === "cluster") {
+      const clusterScores = new Map<string, number[]>();
+      for (const s of settlements) {
+        const score = civicMap.get(s.id);
+        if (score != null) {
+          const cn = s.cluster.name;
+          if (!clusterScores.has(cn)) clusterScores.set(cn, []);
+          clusterScores.get(cn)!.push(score);
+        }
+      }
+      for (const [cn, scores] of clusterScores) {
+        const avg = scores.reduce((a, v) => a + v, 0) / scores.length;
+        if (avg > 0) values[cn.toLowerCase()] = Math.round(avg * 10) / 10;
+      }
+    } else {
+      const zoneScores = new Map<string, number[]>();
+      for (const s of settlements) {
+        const score = civicMap.get(s.id);
+        if (score != null) {
+          const zn = s.cluster.zone.name;
+          if (!zoneScores.has(zn)) zoneScores.set(zn, []);
+          zoneScores.get(zn)!.push(score);
+        }
+      }
+      for (const [zn, scores] of zoneScores) {
+        const avg = scores.reduce((a, v) => a + v, 0) / scores.length;
+        if (avg > 0) values[zn.toLowerCase()] = Math.round(avg * 10) / 10;
+      }
+    }
+
+    return NextResponse.json({ values, max: 100, domain: domainInfo, metric, level, allDomains, hasData: Object.keys(values).length > 0, isCivic: true });
+  }
 
   // All settlements with cluster + zone
   const settlements = await prisma.settlement.findMany({
@@ -258,5 +333,5 @@ export async function GET(req: Request) {
 
   const max = Object.values(values).reduce((m, v) => Math.max(m, v), 0);
 
-  return NextResponse.json({ values, max, domain: domainInfo, metric, level, allDomains, hasData: Object.keys(values).length > 0 });
+  return NextResponse.json({ values, max, domain: domainInfo, metric, level, allDomains, hasData: Object.keys(values).length > 0, isCivic: false });
 }
