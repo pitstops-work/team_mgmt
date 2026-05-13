@@ -3840,3 +3840,14 @@ section.s {
 .draft-dd-text { font-size: 13px; color: var(--ink-2); flex: 1; }
 .draft-dd-link { font-size: 12px; font-weight: 600; color: #16a34a; text-decoration: none; white-space: nowrap; }
 .draft-dd-link:hover { text-decoration: underline; }
+
+/* ── Mobile overrides ────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .admin-rulebook { padding: 24px 16px; }
+  .rulebook-header { flex-wrap: wrap; gap: 8px; }
+  .rulebook-section-header { flex-wrap: wrap; gap: 8px; }
+  .rulebook-passphrase { flex-wrap: wrap; }
+  .rulebook-passphrase input { min-width: 0; }
+  .draft-gate-box { padding: 28px 20px; }
+  .gate-card { padding: 28px 20px; }
+}

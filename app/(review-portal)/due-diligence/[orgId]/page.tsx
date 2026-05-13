@@ -296,8 +296,8 @@ export default function DueDiligencePage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* ── Sidebar ── */}
-      <aside className="w-56 shrink-0 bg-white border-r border-stone-200 flex flex-col sticky top-0 h-screen overflow-y-auto">
+      {/* ── Sidebar (desktop) ── */}
+      <aside className="hidden md:flex w-56 shrink-0 bg-white border-r border-stone-200 flex-col sticky top-0 h-screen overflow-y-auto">
         <div className="px-4 py-4 border-b border-stone-100">
           <div className="font-semibold text-stone-900 text-sm leading-tight">{orgName}</div>
           {orgCity && <div className="text-xs text-stone-400 mt-0.5">{orgCity}</div>}
@@ -348,12 +348,28 @@ export default function DueDiligencePage() {
 
       {/* ── Content ── */}
       <main className="flex-1 min-w-0 bg-stone-50 flex flex-col">
-        <div className="sticky top-0 bg-stone-50 border-b border-stone-200 px-6 py-4 flex items-center justify-between gap-4 z-10">
+        {/* Mobile: org name + stage dropdown */}
+        <div className="md:hidden bg-white border-b border-stone-200 px-4 py-3 flex items-center gap-3">
+          <div className="text-sm font-semibold text-stone-900 truncate flex-1 min-w-0">{orgName}</div>
+          <select
+            className="text-sm border border-stone-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-sky-400 bg-white shrink-0 max-w-[160px]"
+            value={currentStage}
+            onChange={e => goTo(e.target.value)}
+          >
+            {STAGES.map((s, i) => (
+              <option key={s.id} value={s.id}>
+                {completedStages.includes(s.id) ? '✓' : `${i + 1}.`} {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="sticky top-0 bg-stone-50 border-b border-stone-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-3 z-10 flex-wrap">
           <div>
             <div className="font-semibold text-stone-900">{STAGES[stageIdx]?.label}</div>
             <div className="text-xs text-stone-500 mt-0.5">{STAGES[stageIdx]?.hint}</div>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {savedAt && <span className="text-xs text-stone-400">Saved {savedAt}</span>}
             <button
               className="px-4 py-2 text-sm bg-stone-100 text-stone-700 rounded-lg hover:bg-stone-200 transition-colors disabled:opacity-50"
@@ -372,7 +388,7 @@ export default function DueDiligencePage() {
           </div>
         </div>
 
-        <div className="px-6 py-6 flex-1">
+        <div className="px-4 sm:px-6 py-6 flex-1">
           {currentStage === 'org-profile'       && <OrgProfileForm data={orgProfile} onChange={setOrgProfile} />}
           {currentStage === 'governing-body'    && <GoverningBodyForm members={boardMembers} onChange={setBoardMembers} />}
           {currentStage === 'compliance'        && <ComplianceForm data={compliance} onChange={setCompliance} />}
@@ -383,7 +399,7 @@ export default function DueDiligencePage() {
           {currentStage === 'pdd'               && <PddForm data={pdd} onChange={setPdd} />}
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-stone-200">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-t border-stone-200 gap-3 flex-wrap">
           {stageIdx > 0 ? (
             <button
               className="px-4 py-2 text-sm bg-white border border-stone-200 text-stone-600 rounded-lg hover:border-sky-300 hover:text-sky-700 transition-colors"

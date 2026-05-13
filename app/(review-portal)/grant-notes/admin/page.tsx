@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 export default function AdminPage() {
   return (
-    <div style={{ maxWidth: 560, margin: '80px auto', padding: '0 24px' }}>
+    <div className="max-w-xl mx-auto px-6 py-8 sm:py-14">
       <div style={{ fontSize: 11, letterSpacing: 2, color: '#888', fontFamily: 'JetBrains Mono, monospace', marginBottom: 8 }}>ADMIN</div>
       <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1A1A1A', marginBottom: 6 }}>Review Portal</h1>
       <p style={{ fontSize: 14, color: '#777', marginBottom: 40 }}>Configuration and content management</p>
