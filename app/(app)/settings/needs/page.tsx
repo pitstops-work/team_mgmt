@@ -18,7 +18,15 @@ interface DomainConfig {
   isActive: boolean;
   linkedSchemeId: string | null;
   assessmentLevel: string;  // "settlement" | "cluster" | "zone" | "city"
+  civicGroup: string | null;
 }
+
+const CIVIC_GROUPS = [
+  { value: "borewell",         label: "Borewell" },
+  { value: "toiletConnection", label: "Toilet Connection" },
+  { value: "toiletFacility",   label: "Toilet Facility" },
+  { value: "waterSupply",      label: "Water Supply" },
+];
 
 const ASSESSMENT_LEVELS = [
   { value: "settlement", label: "Settlement", desc: "Each settlement's own population must meet the threshold" },
@@ -66,6 +74,7 @@ function FormulasSection() {
   const [newDesc, setNewDesc]             = useState("");
   const [newLinkedSchemeId, setNewLinkedSchemeId] = useState("");
   const [newAssessmentLevel, setNewAssessmentLevel] = useState("settlement");
+  const [newCivicGroup, setNewCivicGroup] = useState("borewell");
   const [adding, setAdding]               = useState(false);
   const [addError, setAddError]           = useState("");
   const [keyEdited, setKeyEdited]         = useState(false);
@@ -211,10 +220,11 @@ function FormulasSection() {
         label: newLabel.trim(),
         color: newColor,
         domainType: newType,
-        populationField: newType === "boolean" ? null : (newType === "entitlement" ? null : newPopField),
-        denominator: (newType === "boolean" || newType === "entitlement") ? null : (newDenom ? parseFloat(newDenom) : null),
+        populationField: (newType === "boolean" || newType === "entitlement" || newType === "civic") ? null : newPopField,
+        denominator: (newType === "boolean" || newType === "entitlement" || newType === "civic") ? null : (newDenom ? parseFloat(newDenom) : null),
         description: newDesc.trim() || null,
         linkedSchemeId: newType === "entitlement" ? newLinkedSchemeId : null,
+        civicGroup: newType === "civic" ? newCivicGroup : null,
         assessmentLevel: newType === "count" ? newAssessmentLevel : "settlement",
       }),
     });
@@ -223,7 +233,7 @@ function FormulasSection() {
       setDomains(prev => [...prev, created]);
       setEdits(prev => ({ ...prev, [created.domain]: created.denominator != null ? String(created.denominator) : "" }));
       setNewKey(""); setNewLabel(""); setNewColor("#6b7280"); setNewType("count");
-      setNewPopField("totalHouseholds"); setNewDenom(""); setNewDesc(""); setNewLinkedSchemeId(""); setNewAssessmentLevel("settlement");
+      setNewPopField("totalHouseholds"); setNewDenom(""); setNewDesc(""); setNewLinkedSchemeId(""); setNewAssessmentLevel("settlement"); setNewCivicGroup("borewell");
       setKeyEdited(false); setShowAdvanced(false);
       setShowAdd(false);
     } else {
@@ -289,7 +299,7 @@ function FormulasSection() {
           {/* Type */}
           <div>
             <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">How is the target calculated?</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setNewType("count")}
@@ -314,8 +324,31 @@ function FormulasSection() {
                 <p className="text-xs font-semibold text-stone-700">Scheme Saturation</p>
                 <p className="text-[10px] text-stone-400 mt-0.5">Links to an entitlement scheme — tracks HH enrollment %</p>
               </button>
+              <button
+                type="button"
+                onClick={() => setNewType("civic")}
+                className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${newType === "civic" ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}
+              >
+                <p className="text-xs font-semibold text-stone-700">Civic Survey %</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">Janadhikara household survey — % breakdown per category</p>
+              </button>
             </div>
           </div>
+
+          {/* Civic group picker */}
+          {newType === "civic" && (
+            <div>
+              <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Survey group</label>
+              <select
+                value={newCivicGroup}
+                onChange={e => setNewCivicGroup(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+              >
+                {CIVIC_GROUPS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+              </select>
+              <p className="text-[10px] text-sky-600 mt-1">Shows % breakdown from Janadhikara per-household survey data.</p>
+            </div>
+          )}
 
           {/* Scheme picker for entitlement type */}
           {newType === "entitlement" && (
@@ -404,6 +437,13 @@ function FormulasSection() {
           {newType === "entitlement" && (
             <p className="text-[11px] text-sky-700 bg-sky-100 rounded-lg px-3 py-2">
               Saturation is computed from assessment data: eligible HH vs enrolled HH. No population formula needed.
+            </p>
+          )}
+
+          {/* Civic hint */}
+          {newType === "civic" && (
+            <p className="text-[11px] text-sky-700 bg-sky-100 rounded-lg px-3 py-2">
+              Data is sourced from Janadhikara survey. Use the Sync button below to populate data. No formula needed.
             </p>
           )}
 
@@ -503,6 +543,8 @@ function FormulasSection() {
                     ? `Scheme saturation · ${allSchemes.find(s => s.id === d.linkedSchemeId)?.name ?? "no scheme linked"}`
                     : d.domainType === "boolean"
                     ? "Presence — yes/no per settlement"
+                    : d.domainType === "civic"
+                    ? `Civic survey % · ${CIVIC_GROUPS.find(g => g.value === d.civicGroup)?.label ?? d.civicGroup ?? "no group"}`
                     : `${d.populationField ?? "?"} · 1 per ${d.denominator ?? "?"} · ${d.assessmentLevel ?? "settlement"} level`}
                 </p>
               </div>
@@ -632,6 +674,72 @@ function FormulasSection() {
             )}
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+// ── Janadhikara Sync section ────────────────────────────────────────────────
+
+function JanadhikaraSyncSection() {
+  const [token, setToken] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [result, setResult] = useState<{ matched: number; skipped: number; total: number } | null>(null);
+  const [error, setError] = useState("");
+
+  const handleSync = async () => {
+    if (!token.trim()) { setError("Paste a token first"); return; }
+    setSyncing(true);
+    setError("");
+    setResult(null);
+    const res = await fetch("/api/admin/sync-civic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: token.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setError(data.error ?? "Sync failed"); }
+    else setResult(data);
+    setSyncing(false);
+  };
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-sm font-semibold text-stone-800">Sync Civic Data from Janadhikara</h2>
+        <p className="text-xs text-stone-400 mt-0.5">
+          Paste a fresh API token from janadhikara.org to update borewell, toilet connection, toilet facility and water supply data for all matched settlements.
+        </p>
+      </div>
+      <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-3">
+        <div>
+          <label className="block text-[10px] font-semibold text-stone-500 uppercase tracking-wide mb-1">
+            Token from janadhikara.org
+          </label>
+          <p className="text-[10px] text-stone-400 mb-2">
+            Open janadhikara.org → Network tab → find the <code className="font-mono bg-stone-100 px-1 rounded">multi_filter_report/9</code> request → copy the <code className="font-mono bg-stone-100 px-1 rounded">token</code> query param.
+          </p>
+          <textarea
+            value={token}
+            onChange={e => setToken(e.target.value)}
+            placeholder="eyJ0eXAiOiJKV1Qi..."
+            rows={3}
+            className="w-full px-3 py-2 text-xs font-mono border border-stone-200 rounded-lg focus:outline-none focus:border-sky-400 resize-none"
+          />
+        </div>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        {result && (
+          <p className="text-xs text-emerald-600 font-medium">
+            ✓ Synced {result.matched} settlements · {result.skipped} skipped (no Janadhikara match) · {result.total} total
+          </p>
+        )}
+        <button
+          onClick={handleSync}
+          disabled={syncing || !token.trim()}
+          className="px-4 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+        >
+          {syncing ? "Syncing…" : "Sync Now"}
+        </button>
       </div>
     </section>
   );
@@ -883,6 +991,7 @@ export default function NeedsSettingsPage() {
       </div>
 
       <FormulasSection />
+      <JanadhikaraSyncSection />
       <BangaloreFacilityCountsSection />
       <SchemesSection />
     </div>

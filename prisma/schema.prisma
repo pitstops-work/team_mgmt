@@ -858,6 +858,7 @@ model Settlement {
   assessments  SettlementAssessment[]
   profile      SettlementProfile?
   note         SettlementNote?
+  civicData    SettlementCivicData?
   // Needs geography back-relations
   needsGoals   Goal[]     @relation("GoalNeedsSettlement")
   needsPitstops Pitstop[] @relation("PitstopNeedsSettlement")
@@ -1180,10 +1181,11 @@ model NeedsFormulaConfig {
   description     String?
   label           String?
   color           String   @default("#6b7280")
-  domainType      String   @default("count")   // "count" | "boolean" | "entitlement"
+  domainType      String   @default("count")   // "count" | "boolean" | "entitlement" | "civic"
   populationField  String?                       // "totalHouseholds" | "children6m3yr" | "youth15to21" | "elderly60plus" etc.
   assessmentColumn  String?                       // column name in SettlementAssessment for "existing" count, e.g. "existingCreches"
   addressableColumn String?                       // column name in SettlementAssessment for "addressable need", e.g. "addressableCreches"
+  civicGroup      String?                       // for domainType="civic": "borewell" | "toiletConnection" | "toiletFacility" | "waterSupply"
   sortOrder        Int      @default(0)
   isActive        Boolean  @default(true)
   clusterScope    Boolean  @default(false) // legacy — superseded by assessmentLevel
@@ -1192,6 +1194,25 @@ model NeedsFormulaConfig {
   updatedAt       DateTime @updatedAt
 
   linkedScheme    EntitlementScheme? @relation("DomainScheme", fields: [linkedSchemeId], references: [id], onDelete: SetNull)
+}
+
+// Civic amenity data per settlement from Janadhikara survey
+// All % values are per-household percentages (0-100)
+model SettlementCivicData {
+  settlementId        String   @id
+  janaId              Int?     // janadhikara slum_id for future syncs
+  borewell            Json?    // { individual, public, shared, privateTanker, na } — all % of HH
+  toiletConnection    Json?    // { sewerage, soakPit, noSewerage }
+  toiletFacility      Json?    // { individual, shared, public, publicPaid, noFacility }
+  waterSupply         Json?    // { individual, shared, public, privateTanker }
+  // Pre-computed need scores (0-100, higher = more need) for aggregation
+  borewellNeedScore   Float?   // 100 - individual%
+  toiletConnNeedScore Float?   // soakPit% + noSewerage%
+  toiletFacNeedScore  Float?   // 100 - individual%
+  waterSupplyNeedScore Float?  // 100 - individual%
+  syncedAt            DateTime @default(now())
+
+  settlement  Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
 }
 
 // Entitlement schemes (hierarchical — BoCW parent + 14 children)

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
-import { calcTargets, buildDomainConfig, buildExisting, layerFeatureExisting, type FormulaRow } from "../settlement-needs/route";
+import { calcTargets, buildDomainConfig, buildExisting, layerFeatureExisting, avgCivicScores, type FormulaRow } from "../settlement-needs/route";
 
 // GET /api/map/zone-needs?zone=NAME
 export async function GET(request: Request) {
@@ -190,12 +190,21 @@ export async function GET(request: Request) {
     actuals[d].inProgress += g.parameter ?? g.metrics[0]?.current ?? 0;
   }
 
+  const civicRows = await prisma.settlementCivicData.findMany({
+    where: { settlementId: { in: allSettlementIds } },
+    select: {
+      borewellNeedScore: true, toiletConnNeedScore: true,
+      toiletFacNeedScore: true, waterSupplyNeedScore: true,
+    },
+  });
+
   return NextResponse.json({
     zone: { id: zone.id, name: zone.name },
     clusterCount: zone.clusters.length,
     settlementCount: allSettlementIds.length,
     assessedCount: assessments.length,
     pop, existing, targets, actuals, domainConfig, addressable,
+    civicAvg: avgCivicScores(civicRows),
     entitlements: Object.entries(entitlementMap).map(([id, v]) => ({ id, ...v })),
   });
 }

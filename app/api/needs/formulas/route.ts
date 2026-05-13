@@ -32,10 +32,11 @@ export async function PATCH(req: NextRequest) {
     sortOrder?: number;
     linkedSchemeId?: string | null;
     assessmentLevel?: string;
+    civicGroup?: string | null;
   }[] = await req.json();
 
   await Promise.all(
-    updates.map(({ domain, denominator, description, isActive, label, color, sortOrder, linkedSchemeId, assessmentLevel }) =>
+    updates.map(({ domain, denominator, description, isActive, label, color, sortOrder, linkedSchemeId, assessmentLevel, civicGroup }) =>
       prisma.needsFormulaConfig.update({
         where: { domain },
         data: {
@@ -46,6 +47,7 @@ export async function PATCH(req: NextRequest) {
           ...(color !== undefined ? { color } : {}),
           ...(sortOrder !== undefined ? { sortOrder } : {}),
           ...(linkedSchemeId !== undefined ? { linkedSchemeId: linkedSchemeId ?? null } : {}),
+          ...(civicGroup !== undefined ? { civicGroup: civicGroup ?? null } : {}),
           ...(assessmentLevel !== undefined ? {
             assessmentLevel,
             clusterScope: assessmentLevel === "cluster",
@@ -78,7 +80,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { key, label, color, domainType, denominator, populationField, description, linkedSchemeId, assessmentLevel } = await req.json();
+  const { key, label, color, domainType, denominator, populationField, description, linkedSchemeId, assessmentLevel, civicGroup } = await req.json();
 
   if (!key || !label) return Response.json({ error: "key and label are required" }, { status: 400 });
 
@@ -92,12 +94,13 @@ export async function POST(req: NextRequest) {
       label,
       color: color ?? "#6b7280",
       domainType: domainType ?? "count",
-      denominator: domainType === "entitlement" ? null : (denominator ?? null),
-      populationField: domainType === "entitlement" ? null : (populationField ?? null),
+      denominator: (domainType === "entitlement" || domainType === "civic") ? null : (denominator ?? null),
+      populationField: (domainType === "entitlement" || domainType === "civic") ? null : (populationField ?? null),
       description: description ?? null,
       sortOrder,
       isActive: true,
       linkedSchemeId: domainType === "entitlement" ? (linkedSchemeId ?? null) : null,
+      civicGroup: domainType === "civic" ? (civicGroup ?? null) : null,
       assessmentLevel: assessmentLevel ?? "settlement",
       clusterScope: assessmentLevel === "cluster",
     },

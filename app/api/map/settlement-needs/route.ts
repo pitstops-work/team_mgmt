@@ -9,6 +9,7 @@ export type FormulaRow = {
   populationField: string | null;
   assessmentColumn: string | null;
   domainType: string;
+  civicGroup: string | null;
   isActive: boolean;
   sortOrder: number;
 };
@@ -55,7 +56,7 @@ export function buildDomainConfig(formulaRows: FormulaRow[]) {
   return formulaRows
     .filter(f => f.isActive && f.domainType !== "entitlement") // entitlement domains are shown in the Schemes tab
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map(f => ({ domain: f.domain, label: f.label ?? f.domain, color: f.color, domainType: f.domainType }));
+    .map(f => ({ domain: f.domain, label: f.label ?? f.domain, color: f.color, domainType: f.domainType, civicGroup: f.civicGroup ?? undefined }));
 }
 
 // layerKey → needsDomain mapping — mirrors FacilityLayerConfig.needsDomain in the DB.
@@ -98,6 +99,21 @@ export function buildExisting(
     }
   }
   return result;
+}
+
+// Aggregate civic need scores across settlements (for cluster/zone level)
+export function avgCivicScores(rows: { borewellNeedScore: number | null; toiletConnNeedScore: number | null; toiletFacNeedScore: number | null; waterSupplyNeedScore: number | null }[]) {
+  if (rows.length === 0) return null;
+  const avg = (field: keyof typeof rows[0]) => {
+    const vals = rows.map(r => r[field]).filter((v): v is number => v != null);
+    return vals.length ? Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10 : null;
+  };
+  return {
+    borewellNeedScore:    avg("borewellNeedScore"),
+    toiletConnNeedScore:  avg("toiletConnNeedScore"),
+    toiletFacNeedScore:   avg("toiletFacNeedScore"),
+    waterSupplyNeedScore: avg("waterSupplyNeedScore"),
+  };
 }
 
 // Normalise a name coming from GeoJSON: collapse unicode spaces, trim
@@ -294,5 +310,10 @@ export async function GET(request: Request) {
     if (assessment.addressableWaterATMs != null) addressable["WaterATM"]        = assessment.addressableWaterATMs;
   }
 
-  return NextResponse.json({ settlement, assessment: assessmentWithEnts, pop, existing, targets, actuals, domainConfig, addressable });
+  // Civic data from Janadhikara survey
+  const civicData = await prisma.settlementCivicData.findUnique({
+    where: { settlementId: settlement.id },
+  });
+
+  return NextResponse.json({ settlement, assessment: assessmentWithEnts, pop, existing, targets, actuals, domainConfig, addressable, civicData: civicData ?? null });
 }

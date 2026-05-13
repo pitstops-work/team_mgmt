@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calcTargets, buildDomainConfig, buildExisting, layerFeatureExisting, type FormulaRow } from "../settlement-needs/route";
+import { calcTargets, buildDomainConfig, buildExisting, layerFeatureExisting, avgCivicScores, type FormulaRow } from "../settlement-needs/route";
 
 // GET /api/map/cluster-needs?cluster=NAME[&zone=ZONE_NAME]
 // zone param scopes the lookup to avoid cross-city name collisions
@@ -163,11 +163,22 @@ export async function GET(request: Request) {
 
   const assessedCount = assessments.length;
 
+  // Civic data — average need scores across settlements
+  const civicRows = await prisma.settlementCivicData.findMany({
+    where: { settlementId: { in: settlementIds } },
+    select: {
+      borewellNeedScore: true, toiletConnNeedScore: true,
+      toiletFacNeedScore: true, waterSupplyNeedScore: true,
+    },
+  });
+  const civicAvg = avgCivicScores(civicRows);
+
   return NextResponse.json({
     cluster: { id: cluster.id, name: cluster.name, zone: cluster.zone.name, city: cluster.zone.city?.name ?? null },
     settlementCount: cluster.settlements.length,
     assessedCount,
     pop, existing, targets, actuals, domainConfig, addressable,
+    civicAvg,
     entitlements: Object.entries(entitlementMap).map(([id, v]) => ({ id, ...v })),
   });
 }

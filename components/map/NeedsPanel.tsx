@@ -7,7 +7,47 @@ import { ExternalLink } from "lucide-react";
 type DomainActuals = Record<string, { done: number; inProgress: number }>;
 type Existing = Record<string, number>;
 type Targets = Record<string, number>;
-type DomainConfig = { domain: string; label: string; color: string; domainType: string }[];
+type DomainConfig = { domain: string; label: string; color: string; domainType: string; civicGroup?: string }[];
+
+// Civic group → JSONB key → display label + good/bad classification
+const CIVIC_GROUPS: Record<string, { key: string; label: string; good?: boolean }[]> = {
+  borewell: [
+    { key: "individual",    label: "Individual",     good: true },
+    { key: "public",        label: "Public",         good: false },
+    { key: "shared",        label: "Shared",         good: false },
+    { key: "privateTanker", label: "Private Tanker", good: false },
+    { key: "na",            label: "NA / None",      good: false },
+  ],
+  toiletConnection: [
+    { key: "sewerage",   label: "Sewerage",     good: true },
+    { key: "soakPit",    label: "Soak Pit",     good: false },
+    { key: "noSewerage", label: "No Sewerage",  good: false },
+  ],
+  toiletFacility: [
+    { key: "individual",  label: "Individual",          good: true },
+    { key: "shared",      label: "Shared",              good: false },
+    { key: "public",      label: "Public",              good: false },
+    { key: "publicPaid",  label: "Public Paid",         good: false },
+    { key: "noFacility",  label: "No Toilet Facility",  good: false },
+  ],
+  waterSupply: [
+    { key: "individual",    label: "Individual",     good: true },
+    { key: "public",        label: "Public",         good: false },
+    { key: "shared",        label: "Shared",         good: false },
+    { key: "privateTanker", label: "Private Tanker", good: false },
+  ],
+};
+
+type CivicData = {
+  borewell?: Record<string, number> | null;
+  toiletConnection?: Record<string, number> | null;
+  toiletFacility?: Record<string, number> | null;
+  waterSupply?: Record<string, number> | null;
+  borewellNeedScore?: number | null;
+  toiletConnNeedScore?: number | null;
+  toiletFacNeedScore?: number | null;
+  waterSupplyNeedScore?: number | null;
+} | null;
 
 interface NeedsData {
   settlement?: { id: string; name: string } | null;
@@ -40,9 +80,84 @@ interface NeedsData {
   targets: Targets;
   actuals: DomainActuals;
   addressable?: Record<string, number>;
+  civicData?: CivicData;
+  civicAvg?: { borewellNeedScore: number | null; toiletConnNeedScore: number | null; toiletFacNeedScore: number | null; waterSupplyNeedScore: number | null } | null;
   entitlements?: { id: string; name: string; parentId: string | null; eligible: number; enrolled: number }[];
 }
 
+
+// Civic domain row — shows % breakdown for each sub-category
+function CivicDomainRow({ label, color, civicGroup, civicData, avgNeedScore }: {
+  label: string;
+  color: string;
+  civicGroup: string;
+  civicData: CivicData;
+  avgNeedScore?: number | null;
+}) {
+  const groupDef = CIVIC_GROUPS[civicGroup];
+  const data = civicData ? (civicData as Record<string, Record<string, number> | null | undefined>)[civicGroup] : null;
+
+  if (!data && avgNeedScore == null) {
+    return (
+      <div className="py-1.5 border-b border-slate-50 last:border-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+          <span className="text-xs text-slate-700 flex-1">{label}</span>
+          <span className="text-[10px] text-slate-300 italic">No data</span>
+        </div>
+      </div>
+    );
+  }
+
+  // If we have aggregate need score but no per-category breakdown (cluster/zone level)
+  if (!data && avgNeedScore != null) {
+    const goodScore = Math.round(100 - avgNeedScore);
+    const needColor = avgNeedScore >= 60 ? "#ef4444" : avgNeedScore >= 30 ? "#f59e0b" : "#10b981";
+    return (
+      <div className="py-1.5 border-b border-slate-50 last:border-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+          <span className="text-xs text-slate-700 flex-1">{label}</span>
+          <span className="text-[10px] font-bold" style={{ color: needColor }}>{goodScore}% good</span>
+        </div>
+        <div className="flex items-center gap-1.5 pl-4">
+          <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${goodScore}%`, background: color + "cc" }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!groupDef || !data) return null;
+  const maxPct = Math.max(...groupDef.map(g => data[g.key] ?? 0), 1);
+
+  return (
+    <div className="py-1.5 border-b border-slate-50 last:border-0">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+        <span className="text-xs text-slate-700 flex-1">{label}</span>
+      </div>
+      <div className="pl-4 space-y-0.5">
+        {groupDef.map(({ key, label: subLabel, good }) => {
+          const pct = data[key] ?? 0;
+          if (pct === 0) return null;
+          const barColor = good ? "#10b981" : "#f87171";
+          const barWidth = Math.round((pct / maxPct) * 100);
+          return (
+            <div key={key} className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-500 w-28 flex-shrink-0 truncate">{subLabel}</span>
+              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${barWidth}%`, background: barColor }} />
+              </div>
+              <span className="text-[10px] font-semibold text-slate-600 w-8 text-right flex-shrink-0">{pct}%</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function NeedsRow({ label, color, existing, addressable, apfTarget, done, inProgress, onAdd }: {
   label: string; color: string; existing: number; addressable: number | null; apfTarget: number; done: number; inProgress: number;
@@ -253,19 +368,39 @@ export default function NeedsPanel({ mode, name, cluster, zone, settlementId, on
       {/* Needs tab */}
       {activeTab === "needs" && (
         <div>
-          {(noAssessment || noAssessments) ? (
+          {(noAssessment || noAssessments) && !(data.domainConfig ?? []).some(d => d.domainType === "civic") ? (
             <p className="text-[10px] text-slate-400 italic py-2">No population data — add an assessment to see targets.</p>
           ) : (
             <>
-              <div className="flex items-center gap-2 px-1 pb-1 text-[9px] font-bold uppercase tracking-wide text-slate-300">
-                <span className="w-2" />
-                <span className="flex-1">Domain</span>
-                <span>ex</span>
-                <span className="text-amber-400">addr</span>
-                <span>plan</span>
-                <span>gap</span>
-              </div>
+              {/* Header row only for non-civic domains */}
+              {(data.domainConfig ?? []).some(d => d.domainType !== "civic") && !noAssessment && !noAssessments && (
+                <div className="flex items-center gap-2 px-1 pb-1 text-[9px] font-bold uppercase tracking-wide text-slate-300">
+                  <span className="w-2" />
+                  <span className="flex-1">Domain</span>
+                  <span>ex</span>
+                  <span className="text-amber-400">addr</span>
+                  <span>plan</span>
+                  <span>gap</span>
+                </div>
+              )}
               {(data.domainConfig ?? []).map(d => {
+                if (d.domainType === "civic") {
+                  const civicGroup = (d as { civicGroup?: string }).civicGroup ?? "";
+                  const scoreKey: Record<string, keyof NonNullable<typeof data.civicAvg>> = {
+                    borewell: "borewellNeedScore", toiletConnection: "toiletConnNeedScore",
+                    toiletFacility: "toiletFacNeedScore", waterSupply: "waterSupplyNeedScore",
+                  };
+                  const avgScore = data.civicAvg?.[scoreKey[civicGroup]] ?? null;
+                  return (
+                    <CivicDomainRow key={d.domain}
+                      label={d.label} color={d.color}
+                      civicGroup={civicGroup}
+                      civicData={data.civicData ?? null}
+                      avgNeedScore={mode !== "settlement" ? avgScore : null}
+                    />
+                  );
+                }
+                if (noAssessment || noAssessments) return null;
                 const existing   = data.existing[d.domain] ?? 0;
                 const apfTarget  = Math.max(0, (data.targets[d.domain] ?? 0) - existing);
                 const done       = data.actuals[d.domain]?.done ?? 0;
