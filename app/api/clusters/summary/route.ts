@@ -55,6 +55,15 @@ export async function GET() {
   });
   const assessmentBySettlement = Object.fromEntries(assessments.map(a => [a.settlementId, a]));
 
+  // Civic scores for civicWeightGroup formula weighting
+  const civicRows = allSettlementIds.length > 0
+    ? await prisma.settlementCivicData.findMany({
+        where: { settlementId: { in: allSettlementIds } },
+        select: { settlementId: true, borewellNeedScore: true, toiletConnNeedScore: true, toiletFacNeedScore: true, waterSupplyNeedScore: true },
+      })
+    : [];
+  const civicBySettlement = new Map(civicRows.map(r => [r.settlementId, r]));
+
   // GoalOutcome rows for done
   const outcomeRows = await prisma.goalOutcome.findMany({
     where: { settlementId: { in: allSettlementIds } },
@@ -117,7 +126,19 @@ export async function GET() {
       .flatMap(s => s.assessments.map(a => a.assessedAt))
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
 
-    const targets = calcTargets(pop, formulaRows as FormulaRow[]);
+    // Civic-weighted population for civicWeightGroup domains
+    const civicWeightedPop: Record<string, number> = {};
+    for (const s of cluster.settlements) {
+      const a = assessmentBySettlement[s.id];
+      const c = civicBySettlement.get(s.id);
+      if (!a || !c) continue;
+      const HH = a.totalHouseholds;
+      if (c.borewellNeedScore     != null) civicWeightedPop.borewell        = (civicWeightedPop.borewell        ?? 0) + HH * c.borewellNeedScore     / 100;
+      if (c.toiletConnNeedScore   != null) civicWeightedPop.toiletConnection = (civicWeightedPop.toiletConnection ?? 0) + HH * c.toiletConnNeedScore   / 100;
+      if (c.toiletFacNeedScore    != null) civicWeightedPop.toiletFacility   = (civicWeightedPop.toiletFacility   ?? 0) + HH * c.toiletFacNeedScore    / 100;
+      if (c.waterSupplyNeedScore  != null) civicWeightedPop.waterSupply      = (civicWeightedPop.waterSupply      ?? 0) + HH * c.waterSupplyNeedScore  / 100;
+    }
+    const targets = calcTargets(pop, formulaRows as FormulaRow[], civicWeightedPop);
     const existing:    Record<string, number> = {};
     const addressable: Record<string, number> = {};
     for (const s of cluster.settlements) {
