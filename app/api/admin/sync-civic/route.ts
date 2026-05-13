@@ -92,8 +92,14 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { token } = await req.json().catch(() => ({}));
-  if (!token) return Response.json({ error: "token required" }, { status: 400 });
+  const { token: rawToken } = await req.json().catch(() => ({}));
+  if (!rawToken) return Response.json({ error: "token required" }, { status: 400 });
+
+  // Accept either the full URL or just the token value
+  let token = rawToken.trim();
+  if (token.startsWith("http")) {
+    try { token = new URL(token).searchParams.get("token") ?? token; } catch {}
+  }
 
   // 1. Fetch janadhikara data
   const res = await fetch(

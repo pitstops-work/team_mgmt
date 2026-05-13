@@ -717,12 +717,12 @@ function JanadhikaraSyncSection() {
             Token from janadhikara.org
           </label>
           <p className="text-[10px] text-stone-400 mb-2">
-            Open janadhikara.org → Network tab → find the <code className="font-mono bg-stone-100 px-1 rounded">multi_filter_report/9</code> request → copy the <code className="font-mono bg-stone-100 px-1 rounded">token</code> query param.
+            Open janadhikara.org → Network tab → find the <code className="font-mono bg-stone-100 px-1 rounded">multi_filter_report/9</code> request → copy the full URL or just the <code className="font-mono bg-stone-100 px-1 rounded">token</code> param value.
           </p>
           <textarea
             value={token}
             onChange={e => setToken(e.target.value)}
-            placeholder="eyJ0eXAiOiJKV1Qi..."
+            placeholder="Paste full URL or just the token — either works"
             rows={3}
             className="w-full px-3 py-2 text-xs font-mono border border-stone-200 rounded-lg focus:outline-none focus:border-sky-400 resize-none"
           />
