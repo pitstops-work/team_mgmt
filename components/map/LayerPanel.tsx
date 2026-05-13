@@ -7,6 +7,7 @@ import type { FacilityLayer } from "@/components/map/MapDashboard";
 interface LayerPanelProps {
   visibleLayers: Set<LayerKey>;
   onToggle: (key: LayerKey) => void;
+  onClose?: () => void;
   featureCounts: Partial<Record<LayerKey, number>>;
   activeZone: string | null;
   activeCluster: string | null;
@@ -68,6 +69,7 @@ const CLUSTER_ZONE_TEXT: Record<string, string> = {
 export default function LayerPanel({
   visibleLayers,
   onToggle,
+  onClose,
   featureCounts,
   activeZone,
   activeCluster,
@@ -128,7 +130,18 @@ export default function LayerPanel({
           <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center">
             <span className="text-white text-xs font-bold">U</span>
           </div>
-          <span className="font-bold text-slate-800 text-sm">Urban Program</span>
+          <span className="font-bold text-slate-800 text-sm flex-1">Urban Program</span>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              title="Close panel"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
         </div>
         {/* City toggle */}
         <div className="flex rounded-lg overflow-hidden border border-slate-200 text-xs font-semibold">

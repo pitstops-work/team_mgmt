@@ -424,6 +424,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
         <LayerPanel
           visibleLayers={visibleLayers}
           onToggle={toggleLayer}
+          onClose={() => setSidebarOpen(false)}
           featureCounts={featureCounts}
           activeZone={activeZone}
           activeCluster={activeCluster}
