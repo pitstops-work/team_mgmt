@@ -10,7 +10,7 @@ export default function AdminPage() {
       <p style={{ fontSize: 14, color: '#777', marginBottom: 40 }}>Configuration and content management</p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Link href="/admin/rulebook" style={{
+        <Link href="/grant-notes/admin/rulebook" style={{
           display: 'block', padding: '20px 24px',
           border: '1px solid #D4D4CC', borderRadius: 8,
           textDecoration: 'none', background: '#FAFAF7',
