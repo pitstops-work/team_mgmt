@@ -11,12 +11,13 @@ export interface DomainConfig {
   domain: string;
   label: string;
   color: string;
-  domainType: string;          // "count" | "boolean" | "entitlement"
+  domainType: string;          // "count" | "boolean" | "entitlement" | "civic"
   populationField: string | null;
   denominator: number | null;
   sortOrder: number;
   assessmentLevel: string;     // "settlement" | "cluster" | "zone" | "city"
   linkedSchemeId: string | null;
+  civicWeightGroup: string | null;
 }
 
 export interface DomainSummary {
@@ -124,15 +125,21 @@ type GoalRow = {
 //   At aggregate levels we sum per-settlement booleans so city shows
 //   "N settlements need a referral system", not just 1.
 
-function formulaTarget(pop: PopFields, cfg: DomainConfig): number {
-  if (cfg.domainType === "entitlement") return 0; // computed separately from scheme baselines
+// civicWeightedPop: pre-computed { civicWeightGroup → effective population (HH × score/100) }
+function formulaTarget(pop: PopFields, cfg: DomainConfig, civicWeightedPop?: Record<string, number>): number {
+  if (cfg.domainType === "entitlement" || cfg.domainType === "civic") return 0;
   if (cfg.domainType === "boolean") {
     const field = cfg.populationField as keyof PopFields | null;
     const popVal = field ? pop[field] : pop.totalHouseholds;
     return popVal > 0 ? 1 : 0;
   }
   if (!cfg.populationField || !cfg.denominator) return 0;
-  const popVal = pop[cfg.populationField as keyof PopFields] ?? 0;
+  let popVal = pop[cfg.populationField as keyof PopFields] ?? 0;
+  // Civic-weighted: substitute pre-computed weighted population when available
+  if (cfg.civicWeightGroup && civicWeightedPop) {
+    const weighted = civicWeightedPop[cfg.civicWeightGroup];
+    if (weighted != null) popVal = weighted;
+  }
   return Math.floor(popVal / cfg.denominator);   // 0 when pop < denom (not viable)
 }
 
@@ -143,6 +150,18 @@ function formulaTarget(pop: PopFields, cfg: DomainConfig): number {
 //   At zone/city level callers pass pre-computed cluster targets as overrides
 //   so we never apply the formula to zone/city totals (which would be wrong).
 
+type CivicScoreRow = { borewellNeedScore: number | null; toiletConnNeedScore: number | null; toiletFacNeedScore: number | null; waterSupplyNeedScore: number | null };
+
+function buildCivicWeightedPop(pop: PopFields, civic: CivicScoreRow): Record<string, number> {
+  const HH = pop.totalHouseholds;
+  const cwp: Record<string, number> = {};
+  if (civic.borewellNeedScore     != null) cwp.borewell        = HH * civic.borewellNeedScore     / 100;
+  if (civic.toiletConnNeedScore   != null) cwp.toiletConnection = HH * civic.toiletConnNeedScore   / 100;
+  if (civic.toiletFacNeedScore    != null) cwp.toiletFacility   = HH * civic.toiletFacNeedScore    / 100;
+  if (civic.waterSupplyNeedScore  != null) cwp.waterSupply      = HH * civic.waterSupplyNeedScore  / 100;
+  return cwp;
+}
+
 function computeStats(
   assessments: AssessmentRow[],
   goals: GoalRow[],
@@ -151,6 +170,8 @@ function computeStats(
   // Pre-computed targets for non-settlement domains that must not be re-derived from this level's total pop.
   // Pass explicit 0 for domains that are above this level (e.g. city-scoped at zone level).
   scopedOverrides?: Record<string, number>,
+  // Per-settlement civic scores for civicWeightGroup computation
+  civicBySettlement?: Map<string, CivicScoreRow>,
 ): LevelStats {
   const totalHH = assessments.reduce((s, a) => s + (Number(a.totalHouseholds) || 0), 0);
 
@@ -173,8 +194,11 @@ function computeStats(
     totalPop.children4to14   += pop.children4to14;
     totalPop.youth15to21     += pop.youth15to21;
     totalPop.elderly60plus   += pop.elderly60plus;
+    const sid = (a as { settlementId?: string }).settlementId;
+    const civicRow = sid ? civicBySettlement?.get(sid) : undefined;
+    const cwp = civicRow ? buildCivicWeightedPop(pop, civicRow) : undefined;
     for (const cfg of domainConfigs) {
-      if (cfg.assessmentLevel === "settlement") targetSum[cfg.domain] += formulaTarget(pop, cfg);
+      if (cfg.assessmentLevel === "settlement") targetSum[cfg.domain] += formulaTarget(pop, cfg, cwp);
       const col = EXISTING_FIELD_MAP[cfg.domain];
       if (col) existing[cfg.domain] += Number(a[col]) || 0;
     }
@@ -385,7 +409,7 @@ function computeMonthlyTrend(goals: GoalRow[], today: Date): MonthlyPoint[] {
 export default async function NeedsPage() {
   const session = await auth();
   const currentUserId = session!.user!.id!;
-  const [meRow, cities, formulaRows, latestAssessments, goals] = await Promise.all([
+  const [meRow, cities, formulaRows, latestAssessments, goals, allCivicData] = await Promise.all([
     prisma.user.findUnique({ where: { id: currentUserId }, select: { designation: true, role: true } }),
     prisma.city.findMany({
       where: { deletedAt: null },
@@ -447,20 +471,29 @@ export default async function NeedsPage() {
         pitstops: { where: { deletedAt: null }, select: { status: true } },
       },
     }),
+    prisma.settlementCivicData.findMany({
+      select: { settlementId: true, borewellNeedScore: true, toiletConnNeedScore: true, toiletFacNeedScore: true, waterSupplyNeedScore: true },
+    }),
   ]);
 
-  // Build domain configs from DB rows
-  const domainConfigs: DomainConfig[] = formulaRows.map(f => ({
-    domain:          f.domain,
-    label:           f.label ?? f.domain,
-    color:           f.color ?? "#6b7280",
-    domainType:      f.domainType ?? "count",
-    populationField: f.populationField ?? null,
-    denominator:     f.denominator ?? null,
-    sortOrder:       f.sortOrder ?? 0,
-    assessmentLevel: f.assessmentLevel ?? (f.clusterScope ? "cluster" : "settlement"),
-    linkedSchemeId:  f.linkedSchemeId ?? null,
-  }));
+  // Per-settlement civic scores map for civicWeightGroup computation
+  const civicBySettlement = new Map(allCivicData.map(r => [r.settlementId, r]));
+
+  // Build domain configs — civic-type domains excluded from field coverage (survey data, not service delivery)
+  const domainConfigs: DomainConfig[] = formulaRows
+    .filter(f => f.domainType !== "civic")
+    .map(f => ({
+      domain:          f.domain,
+      label:           f.label ?? f.domain,
+      color:           f.color ?? "#6b7280",
+      domainType:      f.domainType ?? "count",
+      populationField: f.populationField ?? null,
+      denominator:     f.denominator ?? null,
+      sortOrder:       f.sortOrder ?? 0,
+      assessmentLevel: f.assessmentLevel ?? (f.clusterScope ? "cluster" : "settlement"),
+      linkedSchemeId:  f.linkedSchemeId ?? null,
+      civicWeightGroup: f.civicWeightGroup ?? null,
+    }));
 
   const entitlementDomains = domainConfigs.filter(d => d.domainType === "entitlement" && d.linkedSchemeId);
 
@@ -585,7 +618,7 @@ export default async function NeedsPage() {
           zoneName: zone.name,
           cityName: city.name,
           stats: mergeEntStats(
-            computeStats(clAssessments, clGoals, domainConfigs, cluster.settlements.length, clusterZeroOverrides),
+            computeStats(clAssessments, clGoals, domainConfigs, cluster.settlements.length, clusterZeroOverrides, civicBySettlement),
             entOverlay(clSIds),
           ),
         };
@@ -644,7 +677,7 @@ export default async function NeedsPage() {
         cityName: city.name,
         stats: mergeEntStats(
           computeStats(zoneAssessments, zoneGoals, domainConfigs, zoneSettlements.length,
-            buildOverrides(clIds, [], ["cluster"], ["city"])),
+            buildOverrides(clIds, [], ["cluster"], ["city"]), civicBySettlement),
           entOverlay(zSIds),
         ),
       };
@@ -719,7 +752,7 @@ export default async function NeedsPage() {
       name: city.name,
       stats: mergeEntStats(
         computeStats(cityAssessments, cityGoals, domainConfigs, citySettlements.length,
-          buildOverrides(cityClusterIds, cityZoneIdList, ["cluster", "zone"], [])),
+          buildOverrides(cityClusterIds, cityZoneIdList, ["cluster", "zone"], []), civicBySettlement),
         entOverlay(citySIds),
       ),
     };
@@ -769,7 +802,7 @@ export default async function NeedsPage() {
   const allSettlementIds = allSettlements.map(s => s.id);
   const cityStats = applyGeoOverrides(mergeEntStats(
     computeStats(latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length,
-      buildOverrides(allClusterIds, allZoneIds, ["cluster", "zone"], [])),
+      buildOverrides(allClusterIds, allZoneIds, ["cluster", "zone"], []), civicBySettlement),
     entOverlay(allSettlementIds),
   ));
 
@@ -798,7 +831,7 @@ export default async function NeedsPage() {
         for (const s of cluster.settlements) {
           const a = assessmentBySettlement[s.id];
           const sGoals = goals.filter(g => g.needsSettlementId === s.id);
-          const stats = computeStats(a ? [a as unknown as AssessmentRow] : [], sGoals, domainConfigs, 1);
+          const stats = computeStats(a ? [a as unknown as AssessmentRow] : [], sGoals, domainConfigs, 1, undefined, civicBySettlement);
 
           // Override non-settlement-scoped domain targets for this settlement:
           // cluster-scoped: assign cluster target to top-pop settlement, 0 elsewhere

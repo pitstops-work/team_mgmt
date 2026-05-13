@@ -77,6 +77,7 @@ export async function GET(request: Request) {
     distinct: ["settlementId"],
     select: {
       id: true,
+      settlementId: true,
       totalHouseholds: true,
       children6m3yr: true, children4to14: true, youth15to21: true, elderly60plus: true,
       existingCreches: true, existingChildrenCentres: true, existingYouthGroups: true,
@@ -105,7 +106,25 @@ export async function GET(request: Request) {
     }
   }
 
-  const targets = calcTargets(pop, formulaRows);
+  // Civic-weighted population for civicWeightGroup domains
+  const allCivicRows = allSettlementIds.length > 0
+    ? await prisma.settlementCivicData.findMany({
+        where: { settlementId: { in: allSettlementIds } },
+        select: { settlementId: true, borewellNeedScore: true, toiletConnNeedScore: true, toiletFacNeedScore: true, waterSupplyNeedScore: true },
+      })
+    : [];
+  const civicBySettlement = new Map(allCivicRows.map(r => [r.settlementId, r]));
+  const civicWeightedPop: Record<string, number> = {};
+  for (const a of assessments) {
+    const c = civicBySettlement.get(a.settlementId);
+    if (!c) continue;
+    const HH = a.totalHouseholds;
+    if (c.borewellNeedScore     != null) civicWeightedPop.borewell         = (civicWeightedPop.borewell         ?? 0) + HH * c.borewellNeedScore     / 100;
+    if (c.toiletConnNeedScore   != null) civicWeightedPop.toiletConnection  = (civicWeightedPop.toiletConnection  ?? 0) + HH * c.toiletConnNeedScore   / 100;
+    if (c.toiletFacNeedScore    != null) civicWeightedPop.toiletFacility    = (civicWeightedPop.toiletFacility    ?? 0) + HH * c.toiletFacNeedScore    / 100;
+    if (c.waterSupplyNeedScore  != null) civicWeightedPop.waterSupply       = (civicWeightedPop.waterSupply       ?? 0) + HH * c.waterSupplyNeedScore  / 100;
+  }
+  const targets = calcTargets(pop, formulaRows, civicWeightedPop);
 
   // ── Actuals from goals ─────────────────────────────────────────────────────
 

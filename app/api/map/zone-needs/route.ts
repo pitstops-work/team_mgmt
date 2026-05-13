@@ -153,7 +153,29 @@ export async function GET(request: Request) {
   // Override with live LayerFeature counts — these are the authoritative count for facility domains
   Object.assign(existing, await layerFeatureExisting({ zoneId: zone.id }));
 
-  const targets = calcTargets(pop, formulaRows);
+  // Civic data — fetch early for both calcTargets weighting and civicAvg
+  const civicRows = await prisma.settlementCivicData.findMany({
+    where: { settlementId: { in: allSettlementIds } },
+    select: {
+      settlementId: true,
+      borewellNeedScore: true, toiletConnNeedScore: true,
+      toiletFacNeedScore: true, waterSupplyNeedScore: true,
+    },
+  });
+
+  // Civic-weighted population: sum(HHi × scorei/100) per civic group across all settlements
+  const civicBySettlement = new Map(civicRows.map(r => [r.settlementId, r]));
+  const civicWeightedPop: Record<string, number> = {};
+  for (const a of assessments) {
+    const c = civicBySettlement.get(a.settlementId);
+    if (!c) continue;
+    const HH = a.totalHouseholds;
+    if (c.borewellNeedScore     != null) civicWeightedPop.borewell         = (civicWeightedPop.borewell         ?? 0) + HH * c.borewellNeedScore     / 100;
+    if (c.toiletConnNeedScore   != null) civicWeightedPop.toiletConnection  = (civicWeightedPop.toiletConnection  ?? 0) + HH * c.toiletConnNeedScore   / 100;
+    if (c.toiletFacNeedScore    != null) civicWeightedPop.toiletFacility    = (civicWeightedPop.toiletFacility    ?? 0) + HH * c.toiletFacNeedScore    / 100;
+    if (c.waterSupplyNeedScore  != null) civicWeightedPop.waterSupply       = (civicWeightedPop.waterSupply       ?? 0) + HH * c.waterSupplyNeedScore  / 100;
+  }
+  const targets = calcTargets(pop, formulaRows, civicWeightedPop);
 
   // Done = GoalOutcome rows attributed to any settlement in this zone
   const outcomeRows = await prisma.goalOutcome.findMany({
@@ -189,14 +211,6 @@ export async function GET(request: Request) {
     if (!actuals[d]) actuals[d] = { done: 0, inProgress: 0 };
     actuals[d].inProgress += g.parameter ?? g.metrics[0]?.current ?? 0;
   }
-
-  const civicRows = await prisma.settlementCivicData.findMany({
-    where: { settlementId: { in: allSettlementIds } },
-    select: {
-      borewellNeedScore: true, toiletConnNeedScore: true,
-      toiletFacNeedScore: true, waterSupplyNeedScore: true,
-    },
-  });
 
   return NextResponse.json({
     zone: { id: zone.id, name: zone.name },

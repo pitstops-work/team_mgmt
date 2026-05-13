@@ -19,6 +19,7 @@ interface DomainConfig {
   linkedSchemeId: string | null;
   assessmentLevel: string;  // "settlement" | "cluster" | "zone" | "city"
   civicGroup: string | null;
+  civicWeightGroup: string | null;
 }
 
 const CIVIC_GROUPS = [
@@ -168,12 +169,13 @@ function FormulasSection() {
   const openEdit = (d: DomainConfig) => {
     setExpandedDomain(d.domain);
     setEditFields({
-      label:           d.label,
-      color:           d.color,
-      domainType:      d.domainType,
-      populationField: d.populationField ?? undefined,
-      assessmentLevel: d.assessmentLevel,
-      description:     d.description ?? undefined,
+      label:            d.label,
+      color:            d.color,
+      domainType:       d.domainType,
+      populationField:  d.populationField ?? undefined,
+      assessmentLevel:  d.assessmentLevel,
+      description:      d.description ?? undefined,
+      civicWeightGroup: d.civicWeightGroup ?? undefined,
     });
     setEdits(prev => ({ ...prev, [d.domain]: d.denominator != null ? String(d.denominator) : "" }));
   };
@@ -545,7 +547,7 @@ function FormulasSection() {
                     ? "Presence — yes/no per settlement"
                     : d.domainType === "civic"
                     ? `Civic survey % · ${CIVIC_GROUPS.find(g => g.value === d.civicGroup)?.label ?? d.civicGroup ?? "no group"}`
-                    : `${d.populationField ?? "?"} · 1 per ${d.denominator ?? "?"} · ${d.assessmentLevel ?? "settlement"} level`}
+                    : `${d.populationField ?? "?"}${d.civicWeightGroup ? ` × ${CIVIC_GROUPS.find(g => g.value === d.civicWeightGroup)?.label ?? d.civicWeightGroup} score` : ""} · 1 per ${d.denominator ?? "?"} · ${d.assessmentLevel ?? "settlement"} level`}
                 </p>
               </div>
 
@@ -656,6 +658,17 @@ function FormulasSection() {
                           </button>
                         ))}
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Civic weight <span className="font-normal text-stone-400">(optional — scales need by % unserved from Janadhikara survey)</span></label>
+                      <select
+                        value={editFields.civicWeightGroup ?? ""}
+                        onChange={e => setEditFields(f => ({ ...f, civicWeightGroup: e.target.value || null }))}
+                        className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                      >
+                        <option value="">None (use raw population)</option>
+                        {CIVIC_GROUPS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                      </select>
                     </div>
                   </>
                 )}

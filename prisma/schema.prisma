@@ -1186,6 +1186,7 @@ model NeedsFormulaConfig {
   assessmentColumn  String?                       // column name in SettlementAssessment for "existing" count, e.g. "existingCreches"
   addressableColumn String?                       // column name in SettlementAssessment for "addressable need", e.g. "addressableCreches"
   civicGroup      String?                       // for domainType="civic": "borewell" | "toiletConnection" | "toiletFacility" | "waterSupply"
+  civicWeightGroup String?                       // for domainType="count": multiply populationField by this civic group's need score before dividing by denominator
   sortOrder        Int      @default(0)
   isActive        Boolean  @default(true)
   clusterScope    Boolean  @default(false) // legacy — superseded by assessmentLevel

@@ -244,6 +244,16 @@ export async function GET(req: Request) {
     }
   }
 
+  // Civic data for civicWeightGroup computation
+  const allCivicData = new Map<string, { borewellNeedScore: number | null; toiletConnNeedScore: number | null; toiletFacNeedScore: number | null; waterSupplyNeedScore: number | null }>();
+  if (domainRow.civicWeightGroup) {
+    const rows = await prisma.settlementCivicData.findMany({
+      where: { settlementId: { in: settlementIds } },
+      select: { settlementId: true, borewellNeedScore: true, toiletConnNeedScore: true, toiletFacNeedScore: true, waterSupplyNeedScore: true },
+    });
+    for (const r of rows) allCivicData.set(r.settlementId, r);
+  }
+
   // Compute per-settlement value
   const settlementValues = new Map<string, number>();
   for (const s of settlements) {
@@ -254,7 +264,16 @@ export async function GET(req: Request) {
       totalHouseholds: a.totalHouseholds, children6m3yr: a.children6m3yr,
       children4to14: a.children4to14, youth15to21: a.youth15to21, elderly60plus: a.elderly60plus,
     };
-    const demand = (calcTargets(pop, [domainRow as FormulaRow]) as Record<string, number>)[domain] ?? 0;
+    const civic = allCivicData.get(s.id);
+    const cwp: Record<string, number> = {};
+    if (civic && a.totalHouseholds > 0) {
+      const HH = a.totalHouseholds;
+      if (civic.borewellNeedScore     != null) cwp.borewell        = HH * civic.borewellNeedScore     / 100;
+      if (civic.toiletConnNeedScore   != null) cwp.toiletConnection = HH * civic.toiletConnNeedScore   / 100;
+      if (civic.toiletFacNeedScore    != null) cwp.toiletFacility   = HH * civic.toiletFacNeedScore    / 100;
+      if (civic.waterSupplyNeedScore  != null) cwp.waterSupply      = HH * civic.waterSupplyNeedScore  / 100;
+    }
+    const demand = (calcTargets(pop, [domainRow as FormulaRow], cwp) as Record<string, number>)[domain] ?? 0;
     const existingFromAssessment = (buildExisting(a as Record<string, unknown>, [domainRow as FormulaRow]) as Record<string, number>)[domain] ?? 0;
     const existing = layerExistingMap.has(s.id) ? layerExistingMap.get(s.id)! : existingFromAssessment;
     const addressableField = ADDRESSABLE_FIELD[domain];

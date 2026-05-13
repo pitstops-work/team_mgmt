@@ -10,6 +10,7 @@ export type FormulaRow = {
   assessmentColumn: string | null;
   domainType: string;
   civicGroup: string | null;
+  civicWeightGroup: string | null;
   isActive: boolean;
   sortOrder: number;
 };
@@ -24,7 +25,13 @@ type PopFields = {
 
 // Shared helper — used by cluster-needs and zone-needs.
 // Fully config-driven: uses populationField and domainType from NeedsFormulaConfig.
-export function calcTargets(pop: PopFields, formulaRows: FormulaRow[]): Record<string, number> {
+//
+// civicWeightedPop: optional map of civicWeightGroup → effective population (already weighted).
+//   For settlement level: { borewell: HH × borewellNeedScore/100, ... }
+//   For cluster/zone:     sum(HHi × scorei/100) across all settlements in scope.
+// When a count domain has civicWeightGroup set and civicWeightedPop is provided,
+// that pre-weighted population is used instead of the raw populationField value.
+export function calcTargets(pop: PopFields, formulaRows: FormulaRow[], civicWeightedPop?: Record<string, number>): Record<string, number> {
   const popMap: Record<string, number> = {
     totalHouseholds: pop.totalHouseholds,
     children6m3yr: pop.children6m3yr,
@@ -35,7 +42,7 @@ export function calcTargets(pop: PopFields, formulaRows: FormulaRow[]): Record<s
 
   const result: Record<string, number> = {};
   for (const f of formulaRows) {
-    if (!f.isActive || f.domainType === "entitlement") continue;
+    if (!f.isActive || f.domainType === "entitlement" || f.domainType === "civic") continue;
     if (f.domainType === "boolean") {
       // Boolean with no population field → always 1 (every settlement needs it)
       if (!f.populationField) {
@@ -45,7 +52,12 @@ export function calcTargets(pop: PopFields, formulaRows: FormulaRow[]): Record<s
         result[f.domain] = popVal > 0 ? 1 : 0;
       }
     } else {
-      const popVal = f.populationField ? (popMap[f.populationField] ?? 0) : 0;
+      let popVal = f.populationField ? (popMap[f.populationField] ?? 0) : 0;
+      // Civic-weighted population: substitute pre-computed weighted value when available
+      if (f.civicWeightGroup && civicWeightedPop) {
+        const weighted = civicWeightedPop[f.civicWeightGroup];
+        if (weighted != null) popVal = weighted;
+      }
       result[f.domain] = f.denominator ? Math.floor(popVal / f.denominator) : 0;
     }
   }
@@ -261,7 +273,18 @@ export async function GET(request: Request) {
   // Override with live LayerFeature counts — the map-side source of truth for facility domains
   Object.assign(existing, await layerFeatureExisting({ settlementId: settlement.id }));
 
-  const targets = calcTargets(pop, formulaRows);
+  // Civic-weighted population: computed after civicData fetch below, but civicData is fetched later.
+  // Fetch it now so calcTargets can use it.
+  const civicDataEarly = await prisma.settlementCivicData.findUnique({ where: { settlementId: settlement.id } });
+  const civicWeightedPop: Record<string, number> = {};
+  if (civicDataEarly && pop.totalHouseholds > 0) {
+    const HH = pop.totalHouseholds;
+    if (civicDataEarly.borewellNeedScore     != null) civicWeightedPop.borewell         = HH * civicDataEarly.borewellNeedScore     / 100;
+    if (civicDataEarly.toiletConnNeedScore   != null) civicWeightedPop.toiletConnection  = HH * civicDataEarly.toiletConnNeedScore   / 100;
+    if (civicDataEarly.toiletFacNeedScore    != null) civicWeightedPop.toiletFacility    = HH * civicDataEarly.toiletFacNeedScore    / 100;
+    if (civicDataEarly.waterSupplyNeedScore  != null) civicWeightedPop.waterSupply       = HH * civicDataEarly.waterSupplyNeedScore  / 100;
+  }
+  const targets = calcTargets(pop, formulaRows, civicWeightedPop);
 
   // APF actuals: done = sum of GoalOutcome.count attributed to this settlement;
   // plan (inProgress) = sum of active goal parameters scoped to this settlement or its cluster.
@@ -310,10 +333,8 @@ export async function GET(request: Request) {
     if (assessment.addressableWaterATMs != null) addressable["WaterATM"]        = assessment.addressableWaterATMs;
   }
 
-  // Civic data from Janadhikara survey
-  const civicData = await prisma.settlementCivicData.findUnique({
-    where: { settlementId: settlement.id },
-  });
+  // Civic data from Janadhikara survey (already fetched above for calcTargets)
+  const civicData = civicDataEarly;
 
   return NextResponse.json({ settlement, assessment: assessmentWithEnts, pop, existing, targets, actuals, domainConfig, addressable, civicData: civicData ?? null });
 }
