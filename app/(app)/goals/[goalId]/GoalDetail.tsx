@@ -99,12 +99,11 @@ export default function GoalDetail({
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // React Query — seed with server data, cache for 60s, re-fetches silently after
   const { data: goal, isFetching } = useQuery<Goal>({
     queryKey: qk.goal(initialGoal.id),
     queryFn: () => fetchGoal(initialGoal.id),
     initialData: initialGoal,
-    initialDataUpdatedAt: Date.now(),
+    initialDataUpdatedAt: 0,
   });
 
   // Local mutation helper — update cache directly for optimistic updates

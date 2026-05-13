@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft, ChevronUp, ChevronDown, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar,
@@ -572,7 +572,12 @@ export default function PitstopDetail({
   const isViewer = currentUserRole === "viewer";
   const isAdmin = currentUserRole === "admin" || currentUserRole === "super-admin";
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [pitstop, setPitstop] = useState(initialPitstop);
+
+  useEffect(() => {
+    return () => { router.refresh(); };
+  }, []);
   const [preferredLang, setPreferredLang] = useState(initialPreferredLang);
   useEffect(() => {
     fetch("/api/account/language").then((r) => r.json()).then((d) => {

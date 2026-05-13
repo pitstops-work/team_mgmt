@@ -376,7 +376,7 @@ export default function GoalsDashboard({
     queryKey: qk.goals(),
     queryFn: fetchGoals,
     initialData: initialGoals,
-    initialDataUpdatedAt: Date.now(),
+    initialDataUpdatedAt: 0,
   });
 
   const filtered = goals.filter((g) => {

@@ -10,6 +10,7 @@ import ActivityPing from "@/components/ActivityPing";
 import SearchShortcut from "@/components/SearchShortcut";
 import KeyboardShortcuts from "@/components/KeyboardShortcuts";
 import AgentPanel from "@/components/AgentPanel";
+import BfcacheRefresh from "@/components/BfcacheRefresh";
 import prisma from "@/lib/prisma";
 import { isAdminUser, isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
 
@@ -35,6 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <SessionProvider>
       <QueryProvider>
+      <BfcacheRefresh />
       <NavigationProgress />
       <ActivityPing />
       <PushSubscriber />
