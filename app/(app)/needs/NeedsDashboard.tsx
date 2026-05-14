@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -532,6 +532,7 @@ export default function NeedsDashboard({
   const [openZones, setOpenZones]     = useState<Set<string>>(initZoneId ? new Set([initZoneId]) : new Set());
   const [openClusters, setOpenClusters] = useState<Set<string>>(initClusterId ? new Set([initClusterId]) : new Set());
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
+  const [cityTransitionPending, startCityTransition] = useTransition();
 
   // Progress tab: period filter + checklist data
   type ProgressTabPeriod = "month" | "quarter" | "year" | "all";
@@ -705,18 +706,18 @@ export default function NeedsDashboard({
             <div className="space-y-4">
               {multiCity && (
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <button onClick={() => setSelectedCityId(null)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === null ? "bg-stone-800 text-white border-stone-800" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+                  <button onClick={() => startCityTransition(() => setSelectedCityId(null))} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === null ? "bg-stone-800 text-white border-stone-800" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
                     All cities
                   </button>
                   {cities.map(city => (
-                    <button key={city.id} onClick={() => setSelectedCityId(city.id)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === city.id ? "bg-sky-600 text-white border-sky-600" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+                    <button key={city.id} onClick={() => startCityTransition(() => setSelectedCityId(city.id))} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === city.id ? "bg-sky-600 text-white border-sky-600" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
                       {city.name}
                     </button>
                   ))}
                 </div>
               )}
               {activeCityStats && activeCityStats.assessedCount > 0 && (
-                <>
+                <div className={`transition-opacity duration-150 ${cityTransitionPending ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
                   {selectedCityId && cityStatsMap[selectedCityId] && (
                     <p className="text-xs text-stone-500">
                       {cityStatsMap[selectedCityId].stats.assessedCount} settlements assessed ·{" "}
@@ -751,7 +752,7 @@ export default function NeedsDashboard({
                       onCreateGoal={(domain, existingCount) => setWizardState({ domain, cityId: selectedCityId ?? cities[0]?.id, existingCount })}
                     />
                   </div>
-                </>
+                </div>
               )}
               {(!activeCityStats || activeCityStats.assessedCount === 0) && (
                 <p className="text-sm text-stone-400 text-center py-12">No assessments recorded yet.</p>
@@ -1181,11 +1182,11 @@ export default function NeedsDashboard({
             {/* City filter pills */}
             {multiCity && (
               <div className="flex items-center gap-1 flex-wrap">
-                <button onClick={() => setSelectedCityId(null)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === null ? "bg-stone-800 text-white border-stone-800" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+                <button onClick={() => startCityTransition(() => setSelectedCityId(null))} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === null ? "bg-stone-800 text-white border-stone-800" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
                   All
                 </button>
                 {cities.map(city => (
-                  <button key={city.id} onClick={() => setSelectedCityId(city.id)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === city.id ? "bg-sky-600 text-white border-sky-600" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+                  <button key={city.id} onClick={() => startCityTransition(() => setSelectedCityId(city.id))} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === city.id ? "bg-sky-600 text-white border-sky-600" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
                     {city.name}
                   </button>
                 ))}
@@ -1480,11 +1481,11 @@ export default function NeedsDashboard({
           {/* City filter (multi-city) */}
           {multiCity && (
             <div className="flex items-center gap-1.5 flex-wrap mb-4">
-              <button onClick={() => setSelectedCityId(null)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === null ? "bg-stone-800 text-white border-stone-800" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+              <button onClick={() => startCityTransition(() => setSelectedCityId(null))} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === null ? "bg-stone-800 text-white border-stone-800" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
                 All cities
               </button>
               {cities.map(city => (
-                <button key={city.id} onClick={() => setSelectedCityId(city.id)} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === city.id ? "bg-sky-600 text-white border-sky-600" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
+                <button key={city.id} onClick={() => startCityTransition(() => setSelectedCityId(city.id))} className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${selectedCityId === city.id ? "bg-sky-600 text-white border-sky-600" : "text-stone-500 border-stone-200 hover:border-stone-400"}`}>
                   {city.name}
                 </button>
               ))}
