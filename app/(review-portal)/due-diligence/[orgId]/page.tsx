@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { upload } from '@vercel/blob/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,12 @@ type SalaryRow1 = {
 type SalaryRow2 = {
   id: string; name: string; designation: string;
   monthlySalary: string; salaryRangeMin: string; salaryRangeMax: string;
+};
+
+type DocAttachment = {
+  name: string;
+  url: string;
+  validation?: { status: 'pass' | 'fail' | 'partial'; summary: string; flags: string[] };
 };
 
 const newId = () => Math.random().toString(36).slice(2, 9);
@@ -123,7 +130,7 @@ function defaultOrgProfile() {
 
 function defaultCompliance() {
   const makeChecks = (arr: typeof MANDATORY_CHECKS) =>
-    Object.fromEntries(arr.map(c => [c.id, { responses: c.qs.map(() => ''), comments: '' }]));
+    Object.fromEntries(arr.map(c => [c.id, { responses: c.qs.map(() => ''), comments: '', documents: [] as DocAttachment[] }]));
   return { mandatory: makeChecks(MANDATORY_CHECKS), recommended: makeChecks(RECOMMENDED_CHECKS) };
 }
 
@@ -485,7 +492,21 @@ function GoverningBodyForm({ members, onChange }: { members: BoardMember[]; onCh
           <div className="flex flex-col gap-3">
             <div className="flex gap-3 flex-wrap">
               <div className={FIELD_ROW_CHILD}><label className={LABEL}>Name</label><input className={INPUT} value={m.name} onChange={e => update(m.id, 'name', e.target.value)} /></div>
-              <div className={FIELD_ROW_CHILD}><label className={LABEL}>Role / Position</label><input className={INPUT} value={m.role} onChange={e => update(m.id, 'role', e.target.value)} /></div>
+              <div className={FIELD_ROW_CHILD}>
+                <label className={LABEL}>Role / Position</label>
+                <select className={SELECT} value={m.role} onChange={e => update(m.id, 'role', e.target.value)}>
+                  <option value="">Select</option>
+                  <option>President</option>
+                  <option>Vice President</option>
+                  <option>Secretary</option>
+                  <option>Joint Secretary</option>
+                  <option>Treasurer</option>
+                  <option>Member</option>
+                  <option>Patron</option>
+                  <option>Advisor</option>
+                  <option>Other</option>
+                </select>
+              </div>
             </div>
             <div className={FIELD}><label className={LABEL}>Address & contact</label><input className={INPUT} value={m.addressContact} onChange={e => update(m.id, 'addressContact', e.target.value)} /></div>
             <div className="flex gap-3 flex-wrap">
@@ -498,7 +519,20 @@ function GoverningBodyForm({ members, onChange }: { members: BoardMember[]; onCh
               <div className={FIELD_ROW_CHILD}><label className={LABEL}>Educational background</label><input className={INPUT} value={m.education} onChange={e => update(m.id, 'education', e.target.value)} /></div>
             </div>
             <div className="flex gap-3 flex-wrap">
-              <div className={FIELD_ROW_CHILD}><label className={LABEL}>Political exposure / affiliation</label><input className={INPUT} value={m.politicalExposure} onChange={e => update(m.id, 'politicalExposure', e.target.value)} /></div>
+              <div className={FIELD_ROW_CHILD}>
+                <label className={LABEL}>Political exposure / affiliation</label>
+                <div className="flex gap-4 mt-1.5">
+                  {(['Yes', 'No', 'N/A'] as const).map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                      <input type="radio" name={`pol-exp-${m.id}`} value={opt}
+                        checked={m.politicalExposure === opt}
+                        onChange={e => update(m.id, 'politicalExposure', e.target.value)}
+                        className="accent-sky-500" />
+                      <span className="text-stone-700">{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className={FIELD_ROW_CHILD}><label className={LABEL}>Other institutions associated with</label><input className={INPUT} value={m.otherInstitutions} onChange={e => update(m.id, 'otherInstitutions', e.target.value)} /></div>
             </div>
             <div className={FIELD}><label className={LABEL}>Remarks</label><input className={INPUT} value={m.remarks} onChange={e => update(m.id, 'remarks', e.target.value)} /></div>
@@ -511,6 +545,9 @@ function GoverningBodyForm({ members, onChange }: { members: BoardMember[]; onCh
 }
 
 function ComplianceForm({ data, onChange }: { data: ReturnType<typeof defaultCompliance>; onChange: (d: any) => void }) {
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [validating, setValidating] = useState<string | null>(null);
+
   function setResponse(section: 'mandatory' | 'recommended', id: string, qi: number, value: string) {
     const responses = [...(data[section][id]?.responses || [])];
     responses[qi] = value;
@@ -520,25 +557,141 @@ function ComplianceForm({ data, onChange }: { data: ReturnType<typeof defaultCom
     onChange({ ...data, [section]: { ...data[section], [id]: { ...data[section][id], comments: value } } });
   }
 
+  async function handleDocUpload(checkId: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploading(checkId);
+    try {
+      const blob = await upload(`compliance/${Date.now()}-${file.name}`, file, {
+        access: 'public', handleUploadUrl: '/api/review/blob-upload',
+      });
+      const existing: DocAttachment[] = data.mandatory[checkId]?.documents ?? [];
+      onChange({
+        ...data,
+        mandatory: {
+          ...data.mandatory,
+          [checkId]: { ...data.mandatory[checkId], documents: [...existing, { name: file.name, url: blob.url }] },
+        },
+      });
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  async function handleValidate(checkId: string, docIdx: number) {
+    const doc: DocAttachment | undefined = data.mandatory[checkId]?.documents?.[docIdx];
+    if (!doc) return;
+    const check = MANDATORY_CHECKS.find(c => c.id === checkId);
+    if (!check) return;
+    const vKey = `${checkId}-${docIdx}`;
+    setValidating(vKey);
+    try {
+      const res = await fetch('/api/review/validate-compliance', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          docUrl: doc.url,
+          checkTitle: check.title,
+          questions: check.qs,
+          responses: data.mandatory[checkId]?.responses ?? [],
+        }),
+      });
+      const result = await res.json();
+      const docs = [...(data.mandatory[checkId]?.documents ?? [])] as DocAttachment[];
+      docs[docIdx] = { ...docs[docIdx], validation: result };
+      onChange({
+        ...data,
+        mandatory: { ...data.mandatory, [checkId]: { ...data.mandatory[checkId], documents: docs } },
+      });
+    } finally {
+      setValidating(null);
+    }
+  }
+
+  function removeDoc(checkId: string, docIdx: number) {
+    const docs = (data.mandatory[checkId]?.documents ?? []).filter((_: DocAttachment, i: number) => i !== docIdx);
+    onChange({
+      ...data,
+      mandatory: { ...data.mandatory, [checkId]: { ...data.mandatory[checkId], documents: docs } },
+    });
+  }
+
   function renderGroup(checks: typeof MANDATORY_CHECKS, section: 'mandatory' | 'recommended') {
     return checks.map(c => (
       <div key={c.id} className={CARD}>
         <div className="font-medium text-stone-900 text-sm mb-3">{c.title}</div>
         {c.qs.map((q, qi) => (
-          <div key={qi} className="flex flex-col gap-1 mb-3">
+          <div key={qi} className="flex flex-col gap-1.5 mb-3">
             <div className="text-xs text-stone-600">{q}</div>
-            <input
-              className={INPUT}
-              placeholder="Response"
-              value={data[section][c.id]?.responses?.[qi] || ''}
-              onChange={e => setResponse(section, c.id, qi, e.target.value)}
-            />
+            <div className="flex gap-4">
+              {(['yes', 'no', 'na'] as const).map(opt => (
+                <label key={opt} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`${section}-${c.id}-q${qi}`}
+                    value={opt}
+                    checked={data[section][c.id]?.responses?.[qi] === opt}
+                    onChange={() => setResponse(section, c.id, qi, opt)}
+                    className="accent-sky-500"
+                  />
+                  <span className="text-stone-700">{opt === 'na' ? 'N/A' : opt === 'yes' ? 'Yes' : 'No'}</span>
+                </label>
+              ))}
+            </div>
           </div>
         ))}
         <div className="flex flex-col gap-1 mt-2">
           <label className={LABEL}>Grant lead comments</label>
           <textarea className={TEXTAREA} rows={2} value={data[section][c.id]?.comments || ''} onChange={e => setComments(section, c.id, e.target.value)} />
         </div>
+        {section === 'mandatory' && (
+          <div className="mt-3 pt-3 border-t border-stone-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className={LABEL}>Supporting documents</span>
+              <label className={`text-xs font-medium cursor-pointer ${uploading === c.id ? 'text-stone-400 cursor-not-allowed' : 'text-sky-600 hover:text-sky-700'}`}>
+                {uploading === c.id ? 'Uploading…' : '+ Attach'}
+                <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.docx"
+                  disabled={uploading === c.id}
+                  onChange={e => handleDocUpload(c.id, e)} />
+              </label>
+            </div>
+            {((data.mandatory[c.id]?.documents ?? []) as DocAttachment[]).map((doc, di) => {
+              const vKey = `${c.id}-${di}`;
+              return (
+                <div key={di} className="flex items-center gap-2 text-xs bg-stone-50 rounded-lg px-3 py-2 mb-1">
+                  <a href={doc.url} target="_blank" rel="noreferrer" className="flex-1 truncate text-sky-700 hover:underline">{doc.name}</a>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {doc.validation ? (
+                      <span
+                        className={`font-medium ${doc.validation.status === 'pass' ? 'text-emerald-600' : doc.validation.status === 'fail' ? 'text-red-500' : 'text-amber-500'}`}
+                        title={doc.validation.summary}>
+                        {doc.validation.status === 'pass' ? '✓ Valid' : doc.validation.status === 'fail' ? '✗ Issues' : '~ Partial'}
+                      </span>
+                    ) : (
+                      <button
+                        className={`font-medium ${validating === vKey ? 'text-stone-400' : 'text-sky-600 hover:text-sky-700'}`}
+                        disabled={!!validating}
+                        onClick={() => handleValidate(c.id, di)}>
+                        {validating === vKey ? 'Checking…' : 'Validate'}
+                      </button>
+                    )}
+                    <button className="text-stone-300 hover:text-red-400 transition-colors ml-1" onClick={() => removeDoc(c.id, di)}>×</button>
+                  </div>
+                </div>
+              );
+            })}
+            {((data.mandatory[c.id]?.documents ?? []) as DocAttachment[]).some(d => d.validation?.flags?.length) && (
+              <div className="mt-2 flex flex-col gap-1">
+                {((data.mandatory[c.id]?.documents ?? []) as DocAttachment[])
+                  .flatMap(d => d.validation?.flags ?? [])
+                  .map((flag, fi) => (
+                    <div key={fi} className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">{flag}</div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     ));
   }
