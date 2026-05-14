@@ -85,7 +85,9 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
     lines.filter(l => l.section === sec).reduce((s, l) => s + l[`${yr}Total`], 0);
 
   const grandTotal = (yr: "y1" | "y2" | "y3") =>
-    lines.reduce((s, l) => s + l[`${yr}Total`], 0);
+    visibleLines.reduce((s, l) => s + l[`${yr}Total`], 0);
+
+  const grandTotalLabel = activeTab === "master" ? "All domains" : (domainLabels[activeTab] ?? activeTab);
 
   const hasInputs = (() => {
     if (!budget.inputs) return false;
@@ -184,7 +186,10 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
 
       {/* Grand total bar */}
       {hasInputs && (
-        <div className="bg-sky-50 border border-sky-200 rounded-xl px-5 py-4 mb-6 flex flex-wrap gap-6">
+        <div className="bg-sky-50 border border-sky-200 rounded-xl px-5 py-4 mb-6 flex flex-wrap gap-6 items-start">
+          <div className="self-center text-xs font-semibold text-sky-700 uppercase tracking-wide min-w-[100px]">
+            {grandTotalLabel}
+          </div>
           <TotalCell label="Year 1 Total" value={grandTotal("y1")} big />
           {budget.years === 3 && <>
             <TotalCell label="Year 2 Total" value={grandTotal("y2")} />
@@ -314,8 +319,12 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
 
       {/* Grand total footer */}
       {hasInputs && (
-        <div className="mt-6 bg-stone-900 text-white rounded-xl px-5 py-4 flex flex-wrap gap-6">
-          <TotalCell label="GRAND TOTAL — Year 1" value={grandTotal("y1")} big white />
+        <div className="mt-6 bg-stone-900 text-white rounded-xl px-5 py-4 flex flex-wrap gap-6 items-start">
+          <div className="self-center">
+            <div className="text-xs text-stone-400 uppercase tracking-wide">Grand Total</div>
+            <div className="text-sm font-semibold text-white">{grandTotalLabel}</div>
+          </div>
+          <TotalCell label="Year 1" value={grandTotal("y1")} big white />
           {budget.years === 3 && <>
             <TotalCell label="Year 2" value={grandTotal("y2")} white />
             <TotalCell label="Year 3" value={grandTotal("y3")} white />

@@ -79,13 +79,19 @@ function templateToLine(
   years: number,
 ): GeneratedLine {
   const fullUnits  = computeUnitCount(t, inp, reg);
-  const y1Units    = t.y1UnitsZero ? 0 : fullUnits;
-  const y2y3Units  = fullUnits;
   const unitCost   = computeUnitCost(t, inp, reg);
   const alloc      = 1;
   const rate       = INFLATION[t.costCategory];
   const y2UnitCost = unitCost * (1 + rate);
   const y3UnitCost = y2UnitCost * (1 + rate);
+
+  const applyY1 = t.applyY1 ?? true;
+  const applyY2 = (t.applyY2 ?? true) && years >= 3;
+  const applyY3 = (t.applyY3 ?? true) && years >= 3;
+
+  const y1Units = applyY1 ? (t.y1UnitsZero ? 0 : fullUnits) : 0;
+  const y2Units = applyY2 ? (t.y2UnitsScale != null ? Math.round(fullUnits * t.y2UnitsScale) : fullUnits) : 0;
+  const y3Units = applyY3 ? (t.y3UnitsScale != null ? Math.round(fullUnits * t.y3UnitsScale) : fullUnits) : 0;
 
   return {
     domain:          t.domain,
@@ -98,9 +104,9 @@ function templateToLine(
     inputVar:        t.inputVar,
     salaryHint:      t.salaryHint,
     notes:           t.notes,
-    y1Units,        y1UnitCost: unitCost,   y1AllocPct: alloc, y1Total: Math.round(y1Units * unitCost * alloc),
-    y2Units: years >= 3 ? y2y3Units : 0, y2UnitCost: years >= 3 ? y2UnitCost : 0, y2AllocPct: alloc, y2Total: years >= 3 ? Math.round(y2y3Units * y2UnitCost * alloc) : 0,
-    y3Units: years >= 3 ? y2y3Units : 0, y3UnitCost: years >= 3 ? y3UnitCost : 0, y3AllocPct: alloc, y3Total: years >= 3 ? Math.round(y2y3Units * y3UnitCost * alloc) : 0,
+    y1Units, y1UnitCost: unitCost,   y1AllocPct: alloc, y1Total: Math.round(y1Units * unitCost * alloc),
+    y2Units, y2UnitCost: applyY2 ? y2UnitCost : 0, y2AllocPct: alloc, y2Total: Math.round(y2Units * y2UnitCost * alloc),
+    y3Units, y3UnitCost: applyY3 ? y3UnitCost : 0, y3AllocPct: alloc, y3Total: Math.round(y3Units * y3UnitCost * alloc),
   };
 }
 

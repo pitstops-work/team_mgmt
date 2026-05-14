@@ -173,6 +173,11 @@ export type LineTemplateFields = {
   costPctOf?: string | null;
   costPct?: number | null;
   y1UnitsZero?: boolean;
+  applyY1?: boolean;
+  applyY2?: boolean;
+  applyY3?: boolean;
+  y2UnitsScale?: number | null;
+  y3UnitsScale?: number | null;
 };
 
 export async function toggleLineTemplate(id: string, isActive: boolean) {

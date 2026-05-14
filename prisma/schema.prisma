@@ -1831,6 +1831,13 @@ model LineTemplate {
   costPct        Float?
   y1UnitsZero    Boolean   @default(false)
 
+  // Year applicability & expansion / reduction
+  applyY1       Boolean   @default(true)
+  applyY2       Boolean   @default(true)
+  applyY3       Boolean   @default(true)
+  y2UnitsScale  Float?    // null = same as Y1; 1.5 = 50% more; 0.5 = 50% fewer
+  y3UnitsScale  Float?
+
   @@unique([city, templateKey])
   @@index([city, domain, position])
 }
