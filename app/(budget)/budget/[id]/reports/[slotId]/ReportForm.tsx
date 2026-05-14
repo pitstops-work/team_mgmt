@@ -270,6 +270,8 @@ export default function ReportForm({
                     <thead className="bg-stone-50 border-b border-stone-200">
                       <tr>
                         <th className="text-left px-4 py-2.5 font-medium text-stone-500 text-xs">Line item</th>
+                        <th className="text-right px-3 py-2.5 font-medium text-stone-500 text-xs">Annual budget</th>
+                        {hasRevisions && <th className="text-right px-3 py-2.5 font-medium text-amber-600 text-xs">Revised budget</th>}
                         <th className="text-right px-3 py-2.5 font-medium text-stone-500 text-xs">Period budget</th>
                         <th className="text-right px-3 py-2.5 font-medium text-stone-500 text-xs">This period actual</th>
                         <th className="text-right px-3 py-2.5 font-medium text-stone-500 text-xs">YTD actual</th>
@@ -292,12 +294,18 @@ export default function ReportForm({
 
                         return (
                           <tr key={line.id} className="hover:bg-stone-50">
-                            <td className="px-4 py-2.5 text-stone-700">
-                              {line.description}
-                              {isRevised && (
-                                <span className="ml-1.5 text-xs text-amber-600 font-medium">revised</span>
-                              )}
+                            <td className="px-4 py-2.5 text-stone-700">{line.description}</td>
+                            <td className={`px-3 py-2.5 text-right text-xs tabular-nums ${isRevised ? "line-through text-stone-400" : "text-stone-600"}`}>
+                              {fmt(yearTotal(line))}
                             </td>
+                            {hasRevisions && (
+                              <td className="px-3 py-2.5 text-right text-xs tabular-nums">
+                                {isRevised
+                                  ? <span className="font-semibold text-amber-700">{fmt(Math.round(rvt))}</span>
+                                  : <span className="text-stone-300">—</span>
+                                }
+                              </td>
+                            )}
                             <td className="px-3 py-2.5 text-right text-stone-500">{fmt(Math.round(periodBudget))}</td>
                             <td className="px-3 py-2.5 text-right">
                               {canEdit

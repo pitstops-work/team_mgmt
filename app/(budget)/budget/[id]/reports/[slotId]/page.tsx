@@ -61,9 +61,9 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
     }
   }
 
-  // Approved reallocations from prior approved reports (any grant year) — for revised budget basis
+  // Approved reallocations up to and including this slot (if approved) — for revised budget basis
   const priorApprovedSlots = await prisma.budgetReportSlot.findMany({
-    where: { budgetId: id, slotNumber: { lt: slot.slotNumber }, status: "approved" },
+    where: { budgetId: id, slotNumber: { lte: slot.slotNumber }, status: "approved" },
     include: {
       report: {
         include: {
