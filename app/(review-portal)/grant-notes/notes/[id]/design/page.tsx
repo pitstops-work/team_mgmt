@@ -374,7 +374,7 @@ export default function DesignPage() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ status: 'submitted' }),
     });
-    router.push(`/review/notes/${id}`);
+    router.push(`/grant-notes/notes/${id}`);
   };
 
   const authSubmit = async () => {

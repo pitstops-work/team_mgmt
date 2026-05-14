@@ -325,7 +325,7 @@ export default function NotePage() {
           </div>
 
           <a href={`/api/review/grant-notes/${id}/export`} className="gn-sidebar-export" download>↓ Download Word</a>
-          <Link href={`/review/notes/${id}/design`} className="gn-sidebar-export" style={{ marginTop: 6, opacity: 0.5 }}>Edit design →</Link>
+          <Link href={`/grant-notes/notes/${id}/design`} className="gn-sidebar-export" style={{ marginTop: 6, opacity: 0.5 }}>Edit design →</Link>
         </aside>
 
         <main className="main">
@@ -410,7 +410,7 @@ export default function NotePage() {
 
           {sections.length === 0 && (
             <div style={{ padding: '64px', color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 13 }}>
-              No visual sections yet. <Link href={`/review/notes/${id}/design`} style={{ color: 'var(--accent)' }}>Open design editor →</Link>
+              No visual sections yet. <Link href={`/grant-notes/notes/${id}/design`} style={{ color: 'var(--accent)' }}>Open design editor →</Link>
             </div>
           )}
 
