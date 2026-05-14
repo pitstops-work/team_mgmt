@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { LAYERS, type LayerConfig, type LayerKey, type MapCity } from "@/lib/layers";
@@ -128,7 +129,7 @@ function makePolygonPopup(name: string, layer: LayerConfig, desc: string, zone?:
         ${cluster ? `<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600">${cluster.replace(/_/g, " ")}</span>` : ""}
       </div>` : ""}
       ${desc ? `<div class="info" style="margin-top:6px">${desc}</div>` : ""}
-      <div class="info" style="margin-top:8px;font-size:11px;color:#6366f1;font-weight:600">Click for full details →</div>
+      <button class="popup-details-btn" style="margin-top:8px;font-size:11px;color:#6366f1;font-weight:600;background:none;border:none;padding:0;cursor:pointer;text-decoration:underline">Click for full details →</button>
     </div>
   `;
 }
@@ -240,6 +241,7 @@ export default function MapView({
   needsLevel = "settlement",
   needsThreshold = 0,
 }: MapViewProps) {
+  const router = useRouter();
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const layersReadyRef = useRef(false);
@@ -254,6 +256,8 @@ export default function MapView({
   const clusterFeaturesRef = useRef<any[]>([]);
 
   const activePopupRef = useRef<maplibregl.Popup | null>(null);
+  const routerRef = useRef(router);
+  useEffect(() => { routerRef.current = router; }, [router]);
   const mapFilterRef = useRef(mapFilter);
   const onCentreClickRef = useRef(onCentreClick);
   const onSettlementClickRef = useRef(onSettlementClick);
@@ -454,6 +458,33 @@ export default function MapView({
           .setLngLat(e.lngLat)
           .setHTML(makePolygonPopup(name, layerConfig, (props.description as string) || "", props.zone as string, props.cluster as string))
           .addTo(map);
+
+        // Wire up "Click for full details" button in the popup
+        const popupEl = activePopupRef.current.getElement();
+        const detailsBtn = popupEl?.querySelector<HTMLButtonElement>(".popup-details-btn");
+        if (detailsBtn) {
+          const settlementName = name;
+          const clusterName = (props.cluster as string) || "";
+          detailsBtn.addEventListener("click", async () => {
+            detailsBtn.textContent = "Loading…";
+            detailsBtn.style.pointerEvents = "none";
+            try {
+              const params = new URLSearchParams({ settlement: settlementName, cluster: clusterName });
+              const res = await fetch(`/api/map/settlement-needs?${params}`);
+              if (res.ok) {
+                const data = await res.json();
+                const id = data?.settlement?.id;
+                if (id) {
+                  routerRef.current.push(`/settlements/${id}`);
+                  return;
+                }
+              }
+            } catch { /* fall through */ }
+            detailsBtn.textContent = "Click for full details →";
+            detailsBtn.style.pointerEvents = "auto";
+          }, { once: true });
+        }
+
         onSettlementClickRef.current({
           name,
           layerKey: layerConfig.key,
