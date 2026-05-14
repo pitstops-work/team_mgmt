@@ -309,7 +309,15 @@ ${budgetBlock}${imageNote}${pdfNote}
 
 ${meta.docType === 'programme_design'
   ? 'Draft the complete internal programme design note now. Follow the template structure exactly. Where a figure or fact is not in the documents, write "[to be filled]" in that field only — do not add any commentary, summary of gaps, or readiness assessment.'
-  : 'Draft the complete internal grant approval note now. Follow the template structure exactly. Show the opex calculation working. Where a figure or fact is not in the documents, write "[to be filled]" in that field only — do not add any commentary, summary of gaps, or readiness assessment anywhere in the note.'
+  : `Draft the complete internal grant approval note now. Follow the template structure exactly.
+
+Critical requirements:
+1. OPEX WORKING: Under "Average Annual Spend", show the full calculation table (FY | Gross expenditure | Less: capital | Less: carryover | Regular opex) for each of the 3 years plus average row. Do not summarise — show every number.
+2. COST PER BENEFICIARY: In the Remarks section, write the arithmetic explicitly: "₹X L ÷ N beneficiaries ÷ Y years = ₹Z per person per year". Then compare to cost norms.
+3. OUR SENSE OF THEIR WORK: Use the staff notes as raw material. Include at least one specific anecdote or field observation — something concrete that happened, not a generalisation. State any concern plainly.
+4. SPECIFICITY: Every number in the documents must appear in the note. Do not write "substantial" or "significant" — use the actual figure.
+5. NO PADDING: Do not add sentences that restate what is already clear. If a paragraph has no new information to add, make it shorter.
+6. Where a figure or fact is not in the documents, write "[to be filled]" in that field only — do not add any commentary, summary of gaps, or readiness assessment anywhere in the note.`
 }`;
 
     // Build message content — text block, then scanned PDFs as document blocks, then images

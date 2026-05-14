@@ -387,7 +387,7 @@ function makeTable(rows: TableRow[]): Table {
 
 // ── Section classifier ───────────────────────────────────────────────────────
 
-const FIN_KEYS = ['donor', 'statutory', 'accounting', 'financial summary', 'average annual', 'budget breakdown', 'budget detail', 'remarks'];
+const FIN_KEYS = ['donor', 'statutory', 'accounting', 'financial summary', 'average annual', 'budget breakdown', 'budget detail', 'remarks', 'grant details', 'grant detail', 'annexure 1'];
 const ANN_KEYS = ['annexure', 'detailed budget', 'line item'];
 
 type SectionClass = 'header' | 'main' | 'financial' | 'annexure';
@@ -599,7 +599,7 @@ export async function buildGrantNoteDocx(note: NoteData, sections: SectionRow[])
   // Financial table (grant notes only)
   if (!isProgDesign && financialSections.length > 0) {
     const finRows: TableRow[] = [
-      tableHeaderRow('Financial Details'),
+      tableHeaderRow('ANNEXURE 1: Financial Assessment'),
       ...financialSections.map(s => sectionToRow(s.title, s.content_html, imageCache, s.blocks || [])),
     ];
     children.push(makeTable(finRows));
