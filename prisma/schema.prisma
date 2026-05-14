@@ -1192,6 +1192,8 @@ model NeedsFormulaConfig {
   clusterScope    Boolean  @default(false) // legacy — superseded by assessmentLevel
   assessmentLevel  String   @default("settlement") // "settlement" | "cluster" | "zone" | "city"
   linkedSchemeId  String?                       // for domainType="entitlement" — links to an EntitlementScheme
+  staleYellowDays Int      @default(60)          // days since last delivery before showing yellow staleness signal
+  staleRedDays    Int      @default(120)         // days since last delivery before showing red staleness signal
   updatedAt       DateTime @updatedAt
 
   linkedScheme    EntitlementScheme? @relation("DomainScheme", fields: [linkedSchemeId], references: [id], onDelete: SetNull)

@@ -13,6 +13,7 @@ export type FormulaRow = {
   civicWeightGroup: string | null;
   isActive: boolean;
   sortOrder: number;
+  assessmentLevel: string;  // "settlement" | "cluster" | "zone" | "city"
 };
 
 type PopFields = {
