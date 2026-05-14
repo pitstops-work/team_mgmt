@@ -800,8 +800,11 @@ export default async function NeedsPage() {
   const allClusterIds = cities.flatMap(c => c.zones.flatMap(z => z.clusters.map(cl => cl.id)));
   const allZoneIds    = cities.flatMap(c => c.zones.map(z => z.id));
   const allSettlementIds = allSettlements.map(s => s.id);
+  // Use the city-hierarchy settlements (active zones/clusters only) — latestAssessments has no
+  // filter so it includes orphaned settlements that inflate the all-cities aggregate.
+  const allCityAssessments = allSettlements.map(s => assessmentBySettlement[s.id]).filter(Boolean) as unknown as AssessmentRow[];
   const cityStats = applyGeoOverrides(mergeEntStats(
-    computeStats(latestAssessments as unknown as AssessmentRow[], goals, domainConfigs, allSettlements.length,
+    computeStats(allCityAssessments, goals, domainConfigs, allSettlements.length,
       buildOverrides(allClusterIds, allZoneIds, ["cluster", "zone"], []), civicBySettlement),
     entOverlay(allSettlementIds),
   ));
