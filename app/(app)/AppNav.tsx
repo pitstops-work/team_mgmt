@@ -59,7 +59,7 @@ export default function AppNav({
   const setupNavZL = [
     { href: "/dashboard", icon: <Target className="w-3.5 h-3.5" />,           label: "Goals"          },
     { href: "/needs",     icon: <BarChart3 className="w-3.5 h-3.5" />,        label: "Field Coverage" },
-    { href: "/impact",    icon: <TrendingUp className="w-3.5 h-3.5" />,       label: "Impact"         },
+    { href: "/effects",    icon: <TrendingUp className="w-3.5 h-3.5" />,       label: "Effects"         },
     { href: "/map",       icon: <MapPin className="w-3.5 h-3.5" />,           label: "Programme Map"  },
     { href: "/route",     icon: <Route className="w-3.5 h-3.5" />,            label: "Route Planner"  },
     { href: "/gantt",     icon: <GanttChartSquare className="w-3.5 h-3.5" />, label: "Gantt"          },

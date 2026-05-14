@@ -92,7 +92,7 @@ export default function ImpactDashboard({ cities }: Props) {
       if (v === null) sp.delete(k);
       else sp.set(k, v);
     }
-    router.push(`/impact?${sp.toString()}`);
+    router.push(`/effects?${sp.toString()}`);
   }, [router, searchParams]);
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function ImpactDashboard({ cities }: Props) {
     setLoading(true);
     const params = new URLSearchParams({ level, id: geoId });
     if (selectedDomain) params.set("domain", selectedDomain);
-    fetch(`/api/impact/needs-progress?${params}`)
+    fetch(`/api/effects/needs-progress?${params}`)
       .then(r => r.json())
       .then((d: ApiResponse) => {
         setData(d);
