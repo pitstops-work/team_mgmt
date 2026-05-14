@@ -90,7 +90,7 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
 
   const serialized = JSON.parse(JSON.stringify({ slot, budget, cumulativePrior, revisedAdjustments }));
   const canEdit = isPartner && ["pending", "sent_back"].includes(slot.status);
-  const isReview = canReview && !isPartner && slot.status === "submitted";
+  const isReview = canReview && slot.status === "submitted";
 
   return (
     <div>
