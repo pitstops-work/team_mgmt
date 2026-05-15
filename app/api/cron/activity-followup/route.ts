@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       title: true,
       attendees: { select: { userId: true } },
       followups: { select: { userId: true } },
+      checklistItem: { select: { completionType: true } },
     },
   });
 
@@ -44,7 +45,8 @@ export async function GET(req: NextRequest) {
 
     if (pendingUserIds.length === 0) continue;
 
-    const link = `/activities?followup=${event.id}`;
+    const ct = event.checklistItem?.completionType ?? "Activity";
+    const link = `/activities?followup=${event.id}&ct=${ct}`;
 
     await prisma.$transaction([
       prisma.notification.createMany({
@@ -52,7 +54,7 @@ export async function GET(req: NextRequest) {
           userId,
           type: "ActivityFollowup" as const,
           title: `Did you complete "${event.title}"?`,
-          body: "Tap Yes or No to update the activity",
+          body: "Did it happen? Tap Yes or No below.",
           link,
         })),
       }),

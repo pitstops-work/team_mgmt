@@ -30,28 +30,29 @@ export async function GET(req: NextRequest) {
     select: {
       id: true,
       userId: true,
-      event: { select: { id: true, title: true } },
+      event: { select: { id: true, title: true, checklistItem: { select: { completionType: true } } } },
     },
   });
 
   if (pendingFollowups.length === 0) return Response.json({ ok: true, nudged: 0, flagged: 0 });
 
   // Group by event
-  const byEvent = new Map<string, { eventTitle: string; userIds: string[]; followupIds: string[] }>();
+  const byEvent = new Map<string, { eventTitle: string; ct: string; userIds: string[]; followupIds: string[] }>();
   for (const f of pendingFollowups) {
     const existing = byEvent.get(f.event.id);
     if (existing) {
       existing.userIds.push(f.userId);
       existing.followupIds.push(f.id);
+      // ct is uniform per event — no need to update
     } else {
-      byEvent.set(f.event.id, { eventTitle: f.event.title, userIds: [f.userId], followupIds: [f.id] });
+      byEvent.set(f.event.id, { eventTitle: f.event.title, ct: f.event.checklistItem?.completionType ?? "Activity", userIds: [f.userId], followupIds: [f.id] });
     }
   }
 
   let nudged = 0;
 
-  for (const [eventId, { eventTitle, userIds, followupIds }] of byEvent) {
-    const link = `/activities?followup=${eventId}`;
+  for (const [eventId, { eventTitle, ct, userIds, followupIds }] of byEvent) {
+    const link = `/activities?followup=${eventId}&ct=${ct}`;
 
     await prisma.$transaction([
       // Send nudge notifications
