@@ -272,16 +272,17 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, nee
     <>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-stone-500">Unit costs used to auto-generate budgets. Changes apply to new budgets only.</p>
-        {!isSeeded && (
-          <button onClick={handleSeed} disabled={pending} className="bg-sky-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-sky-700 disabled:opacity-60">
-            {pending ? "Seeding…" : "Seed defaults"}
+        <div className="flex items-center gap-3">
+          {isSeeded && (
+            <span className="text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
+              {domainCosts.filter(c => c.isEdited).length} customised · {domainCosts.length} items
+            </span>
+          )}
+          <button onClick={handleSeed} disabled={pending}
+            className={`text-sm px-3 py-1.5 rounded-lg whitespace-nowrap disabled:opacity-50 ${!isSeeded ? "bg-sky-600 text-white hover:bg-sky-700" : "border border-stone-200 text-stone-500 hover:bg-stone-50"}`}>
+            {pending ? "Seeding…" : !isSeeded ? "Seed defaults" : "Re-seed defaults"}
           </button>
-        )}
-        {isSeeded && (
-          <span className="text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
-            {domainCosts.filter(c => c.isEdited).length} customised · {domainCosts.length} items
-          </span>
-        )}
+        </div>
       </div>
 
       {/* Domain tabs */}
@@ -397,12 +398,10 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, nee
                 Fix sections
               </button>
             )}
-            {progInputRows.length === 0 && (
-              <button onClick={handleSeedProgInputs} disabled={pending}
-                className="text-sm bg-sky-600 text-white px-3 py-1.5 rounded-lg hover:bg-sky-700 disabled:opacity-50">
-                {pending ? "Seeding…" : "Seed standard inputs"}
-              </button>
-            )}
+            <button onClick={handleSeedProgInputs} disabled={pending}
+              className={`text-sm px-3 py-1.5 rounded-lg disabled:opacity-50 ${progInputRows.length === 0 ? "bg-sky-600 text-white hover:bg-sky-700" : "border border-stone-200 text-stone-500 hover:bg-stone-50"}`}>
+              {pending ? "Seeding…" : progInputRows.length === 0 ? "Seed standard inputs" : "Re-seed standard inputs"}
+            </button>
           </div>
         </div>
 
@@ -830,12 +829,7 @@ function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
     startTransition(() => deleteLineTemplate(id));
   };
 
-  const handleSeed = () => {
-    if (templates.length > 0) {
-      if (!confirm(`Re-seed templates for ${city}? This resets all formula customisations to defaults.`)) return;
-    }
-    startTransition(() => seedLineTemplates(city));
-  };
+  const handleSeed = () => startTransition(() => seedLineTemplates(city));
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1648,12 +1642,10 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
         <p className="text-sm text-stone-500">
           Programme domains available when creating a budget. Changes apply immediately to new budgets.
         </p>
-        {domains.length === 0 && (
-          <button onClick={handleSeed} disabled={pending}
-            className="text-sm bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 disabled:opacity-60">
-            {pending ? "Seeding…" : "Seed standard domains"}
-          </button>
-        )}
+        <button onClick={handleSeed} disabled={pending}
+          className={`text-sm px-3 py-1.5 rounded-lg whitespace-nowrap disabled:opacity-50 ${domains.length === 0 ? "bg-sky-600 text-white hover:bg-sky-700" : "border border-stone-200 text-stone-500 hover:bg-stone-50"}`}>
+          {pending ? "Seeding…" : domains.length === 0 ? "Seed standard domains" : "Re-seed defaults"}
+        </button>
       </div>
 
       <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
