@@ -58,18 +58,30 @@ export const DEFAULT_LANGUAGE_RULES = `LANGUAGE RULES (non-negotiable):
 
 - Tone: cold, understated, direct. Not neutral — express the writer's views and apprehensions.
 - Forbidden adjectives: remarkable, impactful, transformative, innovative, dedicated, passionate, committed, inspiring, powerful, strong, vibrant, dynamic. Never use these.
+- Forbidden editorialising phrases: "credible backstop", "operationally sound", "strong accountability loop", "meaningful risk mitigation", "deliberate attention to", "mission-aligned", "operational innovation", "operational core". Never write a summary sentence that re-characterises a paragraph in adjectives — let the facts in the paragraph speak.
+- Forbidden hedging tags: "per staff assessment", "per documents", "documents evidence", "as reflected in the documents". If we know it, state it as fact; if we don't, do not write it.
 - Short sentences. Simple words. No jargon.
 - No padding. Every sentence must carry a fact, a number, or a view. Do not restate what documents already say without adding interpretation.
 - Numbers always specific: write "₹43 lakh" not "substantial funding"; write "55 staff" not "a large team"; write "52 participants from 5 organisations" not "several participants".
+- Currency formatting consistent: use ₹X L and ₹X Cr abbreviations throughout one document. Do not switch to ₹82,30,000 mid-document.
+- Spelling: US ("standardized", "organisation" stays British). Match prevailing org spelling — when uncertain default to "z" forms ("standardized", "centralized").
+- First-person plural in narrative voice. Write "We do not hold a direct contract", "We designed the model", "Our dedicated RP will be at the kitchen". Do not write "The Foundation does not hold...", "The Foundation designed...". Reserve third-person for sections where the writer is referring to the org from outside (e.g., a partner profile).
+- Consistent terminology: pick one term per concept and use it throughout. Do not mix synonyms (e.g., "DP" and "hotspot"; "vendor" and "supplier"). If multiple terms appear in source material, pick the one used in the contract / operational checklist.
+- Anchor section openings in a specific operational fact, not a thematic generalisation. Bad: "The Foundation has high ownership of this programme." Good: "Our dedicated RP will be at the kitchen during production and at the distribution points during delivery, 2am to 11am, every day." A reader should be able to picture what is happening from the opening line.
+- Forward-looking intent over present-tense gap-flagging in proposal/programme docs. Write "Buffer stock protocol will be documented", "JustDelivery will take responsibility for driver/truck replacement". Do not write "Buffer stock protocol not documented", "Backup arrangement not formalised in documents" — that framing is for internal review notes, not the proposal itself.
+- No reviewer-meta callout boxes (ASSUMPTION / OPEN DECISION / SETTLED / RISK FLAG) in proposal docs or external grant notes. These belong only in internal review notes. State the position plainly in narrative; if something is still open, state it as an open item in plain text in the body.
+- No "Recommend approval subject to..." footer in proposal docs. That belongs in a grant note where the writer is recommending to leadership. In a proposal, the conditions and dependencies live inline in the relevant section, not as a footer.
 - Concerns stated plainly — do not soften or hedge.
 - "Our sense of their work" paragraph is required in the Executive Summary. It must include:
   (a) at least one specific observation or anecdote from the staff notes — something that happened on a field visit, or a direct quote from a conversation
   (b) a frank view on leadership quality
   (c) any concern or open question the team has, stated plainly
   Do not write a generic characterisation. Use the staff notes provided as raw material.
-- Recommendation stated once, directly, at the end. No hedging.
+- Recommendation stated once, directly, at the end (grant notes only — not proposals). No hedging.
 - Effects section: mark "(Standard)" when using a known programme model.
-- Opex calculation working must appear as a table (see financial rules).`;
+- Document title should be descriptive and concrete (proposal docs): "Proposal for [thing] — [scale headline] across [scope]". Avoid meeting-header titles like "[date] SGM — ₹X & ₹Y respectively" for proposal docs; that format is for review meeting agendas.
+- Opex calculation working must appear as a table (see financial rules).
+- Unit-cost / budget tables: when presenting unit costs across alternatives, show the working in brackets after each sub-cost — numerator and denominator. Example: "₹5.22 (₹15.65 L/mo total wage ÷ 10,000 meals × 30 days)". Sub-rows must add up to the parent unit-cost row. Do not include a sub-cost without its working.`;
 
 export const DEFAULT_TEMPLATE_RULES = `GRANT NOTE STRUCTURE — follow this exactly:
 
