@@ -127,6 +127,57 @@ function crecheTemplates(city: string): TemplateSpec[] {
   return base;
 }
 
+const FOOD: TemplateSpec[] = [
+  // Salary — programme coordination (food-specific roles)
+  { templateKey: "food.programme_coord",   section: "salary",    description: "Programme Coordinator",                                    costCategory: "Salary", unitType: "Month",          inputVar: "fixed_12", costKey: "food.programme_coordinator_salary" },
+  { templateKey: "food.procurement_coord", section: "salary",    description: "Procurement Coordinator",                                  costCategory: "Salary", unitType: "Month",          inputVar: "fixed_12", costKey: "food.procurement_coordinator_salary" },
+  { templateKey: "food.delivery_coord",    section: "salary",    description: "Delivery Coordinator",                                     costCategory: "Salary", unitType: "Month",          inputVar: "fixed_12", costKey: "food.delivery_coordinator_salary" },
+
+  // Salary — kitchen staff (auto-scales with nMealsPerDay via supervisorRatioKey)
+  { templateKey: "food.kitchen_mgr",       section: "salary",    description: "Kitchen Manager",                                          costCategory: "Salary", unitType: "Month",          inputVar: "nMealsPerDay", supervisorRatioKey: "food.meals_per_kitchen_manager",   costKey: "food.kitchen_manager_salary" },
+  { templateKey: "food.warehouse_mgr",     section: "salary",    description: "Warehouse Manager",                                        costCategory: "Salary", unitType: "Month",          inputVar: "nMealsPerDay", supervisorRatioKey: "food.meals_per_warehouse_manager", costKey: "food.warehouse_manager_salary" },
+  { templateKey: "food.cook",              section: "salary",    description: "Cook",                                                     costCategory: "Salary", unitType: "Month",          inputVar: "nMealsPerDay", supervisorRatioKey: "food.meals_per_cook",              costKey: "food.cook_salary" },
+  { templateKey: "food.helper_cook",       section: "salary",    description: "Helper Cook",                                              costCategory: "Salary", unitType: "Month",          inputVar: "nMealsPerDay", supervisorRatioKey: "food.meals_per_helper_cook",       costKey: "food.helper_cook_salary" },
+  { templateKey: "food.kitchen_loader",    section: "salary",    description: "Kitchen Loader",                                           costCategory: "Salary", unitType: "Month",          inputVar: "nMealsPerDay", supervisorRatioKey: "food.meals_per_kitchen_loader",    costKey: "food.kitchen_loader_salary" },
+  { templateKey: "food.chopping_cleaning", section: "salary",    description: "Chopping & Cleaning staff",                                costCategory: "Salary", unitType: "Month",          inputVar: "nMealsPerDay", supervisorRatioKey: "food.meals_per_chopping_cleaning", costKey: "food.chopping_cleaning_salary" },
+  { templateKey: "food.food_loader",       section: "salary",    description: "Food Loader",                                              costCategory: "Salary", unitType: "Month",          inputVar: "nMealsPerDay", supervisorRatioKey: "food.meals_per_food_loader",       costKey: "food.food_loader_salary" },
+  { templateKey: "food.housekeeping",      section: "salary",    description: "Housekeeping staff",                                       costCategory: "Salary", unitType: "Month",          inputVar: "nMealsPerDay", supervisorRatioKey: "food.meals_per_housekeeping",      costKey: "food.housekeeping_salary" },
+
+  // Salary — DP staff (per DP × ratio)
+  { templateKey: "food.dp_staff",          section: "salary",    description: "Distribution Point staff (remuneration)",                  costCategory: "Salary", unitType: "Per DP",         inputVar: "nDPs",  workerRatioKey: "food.dp_staff_per_dp", costKey: "food.dp_staff_remuneration_per_month" },
+
+  // CAPEX — one-time per DP / per kitchen
+  { templateKey: "food.dp_table",          section: "capex",     description: "Foldable table",                                           costCategory: "Nil",    unitType: "Per DP",         inputVar: "nDPs",  costKey: "food.foldable_table_per_dp" },
+  { templateKey: "food.dp_canopy",         section: "capex",     description: "Canopy tent",                                              costCategory: "Nil",    unitType: "Per DP",         inputVar: "nDPs",  costKey: "food.canopy_tent_per_dp" },
+  { templateKey: "food.dp_umbrella",       section: "capex",     description: "Standee umbrella",                                         costCategory: "Nil",    unitType: "Per DP",         inputVar: "nDPs",  costKey: "food.standee_umbrella_per_dp" },
+  { templateKey: "food.dp_water_can",      section: "capex",     description: "Water containers",                                         costCategory: "Nil",    unitType: "Per DP",         inputVar: "nDPs",  costKey: "food.water_container_cost", costKey2: "food.water_containers_per_dp" },
+  { templateKey: "food.serving_kit",       section: "capex",     description: "Serving kit (casseroles, vessels, spoons, chimta)",        costCategory: "Nil",    unitType: "Per kitchen",    inputVar: "fixed_1", costKey: "food.serving_kit_per_kitchen" },
+  { templateKey: "food.kitchen_equipment", section: "capex",     description: "Kitchen equipment & utensils (in-house only)",            costCategory: "Nil",    unitType: "Per kitchen",    inputVar: "fixed_1", costKey: "food.kitchen_equipment_one_time" },
+
+  // PROGRAMME — food (scales with operating days × meals/day)
+  { templateKey: "food.food_ingredients",  section: "programme", description: "Food / ingredients",                                       costCategory: "Other",  unitType: "Per day",        inputVar: "nOperatingDaysPerYear", costKey: "food.cost_per_meal", costKey2: "inp.nMealsPerDay" },
+
+  // PROGRAMME — infrastructure (monthly fixed costs, paid regardless of operating days)
+  { templateKey: "food.kitchen_rent",      section: "programme", description: "Kitchen + warehouse rent",                                 costCategory: "Other",  unitType: "Month",          inputVar: "fixed_1", inputMonthly: true, userInputCost: "kitchenRentPerMonth" },
+  { templateKey: "food.electricity",       section: "programme", description: "Electricity",                                              costCategory: "Other",  unitType: "Month",          inputVar: "fixed_1", inputMonthly: true, costKey: "food.electricity_per_month" },
+  { templateKey: "food.water_bill",        section: "programme", description: "Water bill",                                               costCategory: "Other",  unitType: "Month",          inputVar: "fixed_1", inputMonthly: true, costKey: "food.water_bill_per_month" },
+  { templateKey: "food.cleaning",          section: "programme", description: "Cleaning",                                                 costCategory: "Other",  unitType: "Month",          inputVar: "fixed_1", inputMonthly: true, costKey: "food.cleaning_per_month" },
+  { templateKey: "food.gas",               section: "programme", description: "Gas",                                                      costCategory: "Other",  unitType: "Month",          inputVar: "fixed_1", inputMonthly: true, costKey: "food.gas_per_month" },
+  { templateKey: "food.maintenance",       section: "programme", description: "Maintenance & misc (kitchen)",                             costCategory: "Other",  unitType: "Month",          inputVar: "fixed_1", inputMonthly: true, costKey: "food.maintenance_per_month" },
+
+  // PROGRAMME — transport
+  { templateKey: "food.transport",         section: "programme", description: "Trucks (kitchen → DPs)",                                   costCategory: "Other",  unitType: "Per truck",      inputVar: "nTrucks", costKey: "food.truck_cost_per_month", costMonthly: true },
+
+  // PROGRAMME — DP consumables
+  { templateKey: "food.paper_plates",      section: "programme", description: "Paper plates",                                             costCategory: "Other",  unitType: "Per day",        inputVar: "nOperatingDaysPerYear", costKey: "food.paper_plate_cost", costKey2: "inp.nMealsPerDay" },
+  { templateKey: "food.dustbin_covers",    section: "programme", description: "Dustbin covers",                                           costCategory: "Other",  unitType: "Per DP",         inputVar: "nDPs", costKey: "food.dustbin_cover_cost", costKey2: "food.dustbin_covers_per_dp_per_month", costMonthly: true },
+  { templateKey: "food.gloves",            section: "programme", description: "Gloves",                                                   costCategory: "Other",  unitType: "Per DP",         inputVar: "nDPs", costKey: "food.gloves_cost", costKey2: "food.gloves_per_dp_per_month", costMonthly: true },
+  { templateKey: "food.head_caps",         section: "programme", description: "Head caps",                                                costCategory: "Other",  unitType: "Per DP",         inputVar: "nDPs", costKey: "food.head_cap_cost", costKey2: "food.head_caps_per_dp_per_month", costMonthly: true },
+  { templateKey: "food.drinking_water",    section: "programme", description: "Drinking water cans",                                      costCategory: "Other",  unitType: "Per DP",         inputVar: "nDPs", costKey: "food.drinking_water_can_cost", costKey2: "food.drinking_water_cans_per_dp_per_month", costMonthly: true },
+  { templateKey: "food.aprons",            section: "programme", description: "Aprons (annual)",                                          costCategory: "Other",  unitType: "Per DP",         inputVar: "nDPs", costKey: "food.apron_cost", costKey2: "food.aprons_per_dp_per_year" },
+  { templateKey: "food.misc_dp",           section: "programme", description: "Miscellaneous DP supplies",                                costCategory: "Other",  unitType: "Per DP",         inputVar: "nDPs", costKey: "food.misc_per_dp_per_month", costMonthly: true },
+];
+
 const CROSS: TemplateSpec[] = [
   { templateKey: "cross.mis",           section: "salary",    description: "MIS Coordinator",                            costCategory: "Salary", unitType: "Month",  inputVar: "fixed_12",  isSalaryStub: true,  salaryHint: "₹35,000–41,000/month", domain: null },
   { templateKey: "cross.accountant",    section: "salary",    description: "Accountant",                                 costCategory: "Salary", unitType: "Month",  inputVar: "fixed_12",  isSalaryStub: true,  salaryHint: "₹33,000–40,000/month", domain: null },
@@ -158,6 +209,7 @@ export function getTemplatesForCity(city: string): TemplateSpec[] {
     ...withDomain(ELDERLY,              "Elderly"),
     ...withDomain(WR,                   "WelfareRights"),
     ...withDomain(crecheTemplates(city),"Creche"),
+    ...withDomain(FOOD,                 "FoodDistribution"),
     ...CROSS,
     ...ADMIN,
   ];

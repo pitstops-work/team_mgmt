@@ -109,6 +109,72 @@ export const DEFAULT_COSTS: CostItem[] = [
   { domain: "WelfareRights", itemKey: "wr.special_occasions_cost",         unitCost: 10000,  unit: "₹/year",              notes: "Observation of special occasions" },
   { domain: "WelfareRights", itemKey: "wr.civic_baseline_cost",            unitCost: 50000,  unit: "₹/year",              notes: "Civic community baseline survey" },
 
+  // ── Food Distribution ─────────────────────────────────────────────────────
+  // Food ingredient (veg-only menu, per Automated Food Calculator)
+  { domain: "FoodDistribution", itemKey: "food.cost_per_meal",                       unitCost: 21.91,  unit: "₹/meal",              notes: "Veg menu weekly avg (₹153.36 ÷ 7 days)" },
+
+  // Programme coordination salaries (food-specific, programme-side)
+  { domain: "FoodDistribution", itemKey: "food.programme_coordinator_salary",        unitCost: 65000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.procurement_coordinator_salary",      unitCost: 50000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.delivery_coordinator_salary",         unitCost: 30000,  unit: "₹/month" },
+
+  // Kitchen staff salaries (per role, monthly)
+  { domain: "FoodDistribution", itemKey: "food.kitchen_manager_salary",              unitCost: 55000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.warehouse_manager_salary",            unitCost: 40000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.cook_salary",                         unitCost: 50000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.helper_cook_salary",                  unitCost: 25000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.kitchen_loader_salary",               unitCost: 25000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.chopping_cleaning_salary",            unitCost: 20000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.food_loader_salary",                  unitCost: 18000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.housekeeping_salary",                 unitCost: 15000,  unit: "₹/month" },
+
+  // Kitchen staffing ratios — meals/day per staff member (supervisorRatioKey: ceil(meals/ratio) × 12 staff-months)
+  { domain: "FoodDistribution", itemKey: "food.meals_per_kitchen_manager",           unitCost: 10000,  unit: "meals/day per staff", notes: "1 Kitchen Manager per 10K meals/day" },
+  { domain: "FoodDistribution", itemKey: "food.meals_per_warehouse_manager",         unitCost: 10000,  unit: "meals/day per staff", notes: "1 Warehouse Manager per 10K meals/day" },
+  { domain: "FoodDistribution", itemKey: "food.meals_per_cook",                      unitCost: 1667,   unit: "meals/day per staff", notes: "6 Cooks per 10K meals/day" },
+  { domain: "FoodDistribution", itemKey: "food.meals_per_helper_cook",               unitCost: 1112,   unit: "meals/day per staff", notes: "9 Helper Cooks per 10K meals/day" },
+  { domain: "FoodDistribution", itemKey: "food.meals_per_kitchen_loader",            unitCost: 1667,   unit: "meals/day per staff", notes: "6 Loaders per 10K meals/day" },
+  { domain: "FoodDistribution", itemKey: "food.meals_per_chopping_cleaning",         unitCost: 667,    unit: "meals/day per staff", notes: "15 Chopping & Cleaning per 10K meals/day" },
+  { domain: "FoodDistribution", itemKey: "food.meals_per_food_loader",               unitCost: 667,    unit: "meals/day per staff", notes: "15 Food Loaders per 10K meals/day" },
+  { domain: "FoodDistribution", itemKey: "food.meals_per_housekeeping",              unitCost: 667,    unit: "meals/day per staff", notes: "15 Housekeeping per 10K meals/day" },
+
+  // DP staff
+  { domain: "FoodDistribution", itemKey: "food.dp_staff_per_dp",                     unitCost: 2,      unit: "staff per DP" },
+  { domain: "FoodDistribution", itemKey: "food.dp_staff_remuneration_per_month",     unitCost: 6000,   unit: "₹/staff/month" },
+
+  // Kitchen infrastructure (monthly fixed, regardless of operating days)
+  { domain: "FoodDistribution", itemKey: "food.electricity_per_month",               unitCost: 75000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.water_bill_per_month",                unitCost: 40000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.cleaning_per_month",                  unitCost: 60000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.gas_per_month",                       unitCost: 85000,  unit: "₹/month" },
+  { domain: "FoodDistribution", itemKey: "food.maintenance_per_month",               unitCost: 50000,  unit: "₹/month" },
+
+  // Transport (from Sampark budget basis)
+  { domain: "FoodDistribution", itemKey: "food.truck_cost_per_month",                unitCost: 53100,  unit: "₹/truck/month",       notes: "Driver + fuel + maintenance + rental, all-in" },
+
+  // DP consumables (from Sampark budget)
+  { domain: "FoodDistribution", itemKey: "food.paper_plate_cost",                    unitCost: 1.30,   unit: "₹/plate" },
+  { domain: "FoodDistribution", itemKey: "food.dustbin_cover_cost",                  unitCost: 10,     unit: "₹/cover" },
+  { domain: "FoodDistribution", itemKey: "food.dustbin_covers_per_dp_per_month",     unitCost: 50,     unit: "covers/DP/month" },
+  { domain: "FoodDistribution", itemKey: "food.gloves_cost",                         unitCost: 5,      unit: "₹/pair" },
+  { domain: "FoodDistribution", itemKey: "food.gloves_per_dp_per_month",             unitCost: 100,    unit: "pairs/DP/month" },
+  { domain: "FoodDistribution", itemKey: "food.head_cap_cost",                       unitCost: 2,      unit: "₹/cap" },
+  { domain: "FoodDistribution", itemKey: "food.head_caps_per_dp_per_month",          unitCost: 50,     unit: "caps/DP/month" },
+  { domain: "FoodDistribution", itemKey: "food.drinking_water_can_cost",             unitCost: 30,     unit: "₹/can" },
+  { domain: "FoodDistribution", itemKey: "food.drinking_water_cans_per_dp_per_month",unitCost: 50,     unit: "cans/DP/month" },
+  { domain: "FoodDistribution", itemKey: "food.apron_cost",                          unitCost: 500,    unit: "₹/apron" },
+  { domain: "FoodDistribution", itemKey: "food.aprons_per_dp_per_year",              unitCost: 2,      unit: "aprons/DP/year" },
+  { domain: "FoodDistribution", itemKey: "food.misc_per_dp_per_month",               unitCost: 2000,   unit: "₹/DP/month",          notes: "Miscellaneous DP supplies" },
+
+  // Capex (one-time)
+  { domain: "FoodDistribution", itemKey: "food.foldable_table_per_dp",               unitCost: 6000,   unit: "₹/DP" },
+  { domain: "FoodDistribution", itemKey: "food.canopy_tent_per_dp",                  unitCost: 8000,   unit: "₹/DP" },
+  { domain: "FoodDistribution", itemKey: "food.standee_umbrella_per_dp",             unitCost: 2000,   unit: "₹/DP" },
+  { domain: "FoodDistribution", itemKey: "food.water_container_cost",                unitCost: 250,    unit: "₹/container" },
+  { domain: "FoodDistribution", itemKey: "food.water_containers_per_dp",             unitCost: 2,      unit: "containers/DP" },
+  { domain: "FoodDistribution", itemKey: "food.serving_kit_per_kitchen",             unitCost: 85000,  unit: "₹/kitchen",           notes: "Casseroles + vessels + spoons + chimta (lump from Sampark)" },
+  { domain: "FoodDistribution", itemKey: "food.kitchen_equipment_one_time",          unitCost: 0,      unit: "₹/kitchen",           notes: "Set to ₹75.39L for in-house kitchen; 0 for vendor-procured" },
+
   // ── Cross-cutting ─────────────────────────────────────────────────────────
   { domain: null,       itemKey: "cross.staff_capacity_building",          unitCost: 14480,  unit: "₹/year" },
   { domain: null,       itemKey: "cross.team_building_offsite",            unitCost: 204600, unit: "₹/year",              notes: "3-day offsite" },

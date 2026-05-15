@@ -88,6 +88,12 @@ const STANDARD_PROG_INPUTS = [
   { itemKey: "inp.crecheRentPerMonth",        unit: "₹/month",  unitCost: 12000, notes: "Creche rent / mo",                      displayGroup: "facilities" },
   { itemKey: "inp.rcRentPerMonth",            unit: "₹/month",  unitCost: 5000,  notes: "RC rent / mo",                          displayGroup: "facilities" },
   { itemKey: "inp.nElderly",                  unit: "count",    unitCost: 50,    notes: "Elderly enrolled",                      displayGroup: "coverage"   },
+  // Food distribution
+  { itemKey: "inp.nDPs",                      unit: "count",    unitCost: 50,    notes: "No. of distribution points",            displayGroup: "facilities" },
+  { itemKey: "inp.nMealsPerDay",              unit: "count",    unitCost: 10000, notes: "Total daily meals (kitchen capacity)",  displayGroup: "coverage"   },
+  { itemKey: "inp.nOperatingDaysPerYear",     unit: "days",     unitCost: 300,   notes: "Operating days/year (25 × 12)",         displayGroup: "coverage"   },
+  { itemKey: "inp.nTrucks",                   unit: "count",    unitCost: 17,    notes: "No. of trucks",                         displayGroup: "facilities" },
+  { itemKey: "inp.kitchenRentPerMonth",       unit: "₹/month",  unitCost: 150000, notes: "Kitchen + warehouse rent / mo",        displayGroup: "facilities" },
 ];
 
 export async function seedProgrammeInputs(city: string) {
@@ -298,6 +304,7 @@ export async function seedDomains(city: string) {
     { key: "Elderly",      label: "Elderly + Community Kitchen",  description: "Day care, nutrition, community kitchen",position: 2, beneficiaryLabel: "Elderly",        beneficiaryVar: "nElderly",     beneficiaryMult: 1   },
     { key: "WelfareRights",label: "Welfare Rights",               description: "Entitlement & collectivization",       position: 3, beneficiaryLabel: "Households",     beneficiaryVar: "nSettlements", beneficiaryMult: 150 },
     { key: "Creche",       label: "Creche",                       description: "0–3 yr children, standard model", position: 4, beneficiaryLabel: "Creche children", beneficiaryVar: "nCreches",     beneficiaryMult: 20  },
+    { key: "FoodDistribution", label: "Food Distribution",        description: "Kitchen-to-DP meal programme",         position: 5, beneficiaryLabel: "Daily meals",     beneficiaryVar: "nMealsPerDay", beneficiaryMult: 1   },
   ];
 
   await prisma.$transaction(
