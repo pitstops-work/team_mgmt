@@ -290,10 +290,23 @@ else show(1);
 // List of decks that have been hand-authored on top of the skeleton.
 // Used by the hub to show an "Authored" badge vs "Auto-generated" for the rest.
 const AUTHORED_SLUGS = new Set([
-  // (extend as decks get hand-authored)
-  'community-toilet',
-  'creche-program',
-  'welfare-rights',
+  // Original anchors
+  'community-toilet', 'creche-program', 'welfare-rights',
+  // Batch 1: centres
+  'children-learning-centre', 'children-learning-centre-existing',
+  'youth-resource-centre', 'youth-resource-centre-existing',
+  // Batch 2: water + elderly + remaining existing
+  'water-atm', 'water-atm-existing',
+  'elderly-kitchen', 'elderly-kitchen-existing',
+  'elderly-centre', 'elderly-centre-existing',
+  'creche-program-existing', 'community-toilet-existing',
+  // Batch 3: drives + seeding
+  'scheme-linkage-drive', 'seeding-programme',
+  // Batch 4: zonal leadership
+  'zone-review', 'grant-proposal', 'grant-proposal-renewal',
+  'partner-management', 'partner-management-existing',
+  // Batch 5: food distribution
+  'food-distribution-launch', 'food-distribution-monthly', 'food-distribution-new-dp',
 ]);
 
 function htmlForHub(rows) {
