@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight, Home, TrendingUp, TrendingDown, Minus, Clock } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -9,6 +9,10 @@ const ImpactChart = dynamic(() => import("./ImpactChart"), { ssr: false });
 
 type StalenessStatus = "green" | "yellow" | "red" | "none";
 type TimeRange = "3m" | "6m" | "1y" | "all";
+type ChartMode = "absolute" | "percent";
+
+// URL sentinel — user explicitly wants every domain overlaid (skips auto-select-on-load)
+const ALL_DOMAINS = "_all_";
 
 type TSPoint = {
   date: string;
@@ -79,12 +83,18 @@ export default function ImpactDashboard({ cities }: Props) {
 
   const level = (searchParams.get("level") as Level) ?? "city";
   const geoId = searchParams.get("id") ?? cities[0]?.id ?? "";
-  const selectedDomain = searchParams.get("domain") ?? null;
+  const domainParam = searchParams.get("domain");
+  // null → URL has nothing; auto-select on load. ALL_DOMAINS → user chose overlay.
+  // Anything else → that specific domain.
+  const selectedDomain = domainParam === ALL_DOMAINS ? null : domainParam;
+  const userChoseAllOverlay = domainParam === ALL_DOMAINS;
 
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
+  const [chartMode, setChartMode] = useState<ChartMode>("absolute");
   const [breadcrumb, setBreadcrumb] = useState<{ level: Level; id: string; name: string }[]>([]);
+  const autoSelectedRef = useRef(false);
 
   const setParams = useCallback((params: Record<string, string | null>) => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -112,6 +122,20 @@ export default function ImpactDashboard({ cities }: Props) {
       })
       .finally(() => setLoading(false));
   }, [level, geoId, selectedDomain]);
+
+  // On first data load with no domain in URL, pick the most-active domain so the chart isn't a wall of overlapping flat lines
+  useEffect(() => {
+    if (autoSelectedRef.current) return;
+    if (!data || userChoseAllOverlay || selectedDomain) {
+      autoSelectedRef.current = true;
+      return;
+    }
+    const best = Object.entries(data.domains)
+      .filter(([, d]) => d.totalDone > 0)
+      .sort((a, b) => b[1].totalDone - a[1].totalDone)[0];
+    autoSelectedRef.current = true;
+    if (best) setParams({ domain: best[0] });
+  }, [data, selectedDomain, userChoseAllOverlay, setParams]);
 
   const domainList = data ? Object.entries(data.domains).filter(([, d]) => d.baseline > 0 || d.totalDone > 0) : [];
   const filteredDomains = selectedDomain ? domainList.filter(([k]) => k === selectedDomain) : domainList;
@@ -194,8 +218,8 @@ export default function ImpactDashboard({ cities }: Props) {
       {/* Domain pills */}
       <div className="flex flex-wrap gap-1.5">
         <button
-          onClick={() => setParams({ domain: null })}
-          className={`px-3 py-1 text-xs rounded-full border transition-colors ${!selectedDomain ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50"}`}
+          onClick={() => setParams({ domain: ALL_DOMAINS })}
+          className={`px-3 py-1 text-xs rounded-full border transition-colors ${userChoseAllOverlay ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50"}`}
         >
           All domains
         </button>
@@ -273,30 +297,68 @@ export default function ImpactDashboard({ cities }: Props) {
       {/* Time-series chart */}
       {chartSeries.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-100 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm font-semibold text-stone-800">
+          <div className="flex items-center justify-between mb-3 gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-stone-800 truncate">
                 {selectedDomain ? (data?.domains[selectedDomain]?.label ?? selectedDomain) : "Needs Remaining"} over time
               </p>
-              <p className="text-[10px] text-stone-400">Each step = a goal completed</p>
+              <p className="text-[10px] text-stone-400">Each step = a goal completed{chartMode === "percent" ? " (% of baseline still needed)" : ""}</p>
             </div>
-            {selectedDomain && data?.domains[selectedDomain] && (
-              <div className="flex items-center gap-1.5">
-                {data.domains[selectedDomain].pctDone > 0
-                  ? <TrendingDown className="w-4 h-4 text-emerald-500" />
-                  : <Minus className="w-4 h-4 text-stone-400" />
-                }
-                <span className="text-xs font-semibold text-stone-700">
-                  {data.domains[selectedDomain].pctDone}% addressed
-                </span>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {selectedDomain && data?.domains[selectedDomain] && (
+                <div className="flex items-center gap-1.5">
+                  {data.domains[selectedDomain].pctDone > 0
+                    ? <TrendingDown className="w-4 h-4 text-emerald-500" />
+                    : <Minus className="w-4 h-4 text-stone-400" />
+                  }
+                  <span className="text-xs font-semibold text-stone-700">
+                    {data.domains[selectedDomain].pctDone}% addressed
+                  </span>
+                </div>
+              )}
+              {/* Absolute vs Percent toggle */}
+              <div className="flex items-center gap-0.5 bg-stone-100 rounded-lg p-0.5">
+                {(["absolute", "percent"] as ChartMode[]).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setChartMode(m)}
+                    className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-colors ${chartMode === m ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+                    title={m === "absolute" ? "Absolute count remaining" : "Percent of baseline remaining"}
+                  >
+                    {m === "absolute" ? "#" : "%"}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
           </div>
           <ImpactChart
             series={chartSeries}
             selectedDomain={selectedDomain}
             timeRange={timeRange}
+            mode={chartMode}
           />
+          {/* Legend strip — only meaningful in overlay mode */}
+          {!selectedDomain && chartSeries.length > 1 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 pt-3 border-t border-stone-100">
+              {chartSeries.map(s => {
+                const dd = data?.domains[s.domain];
+                const valueLabel = chartMode === "percent"
+                  ? `${dd ? Math.round(((s.baseline - dd.totalDone) / Math.max(s.baseline, 1)) * 100) : 100}% left`
+                  : `${dd?.remaining ?? s.baseline} left`;
+                return (
+                  <button
+                    key={s.domain}
+                    onClick={() => setParams({ domain: s.domain })}
+                    className="flex items-center gap-1.5 text-[10px] text-stone-600 hover:text-stone-900 transition-colors"
+                  >
+                    <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                    <span className="font-medium">{s.label}</span>
+                    <span className="text-stone-400">{valueLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
