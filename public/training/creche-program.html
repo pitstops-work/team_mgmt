@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<!-- HAND_AUTHORED: do not regenerate this file via gen-training-deck.mjs -->
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Creche Programme — Training</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+<div class="slide bg-navy active" id="s1">
+      <div style="margin:auto;max-width:920px;text-align:center">
+        <div style="font-size:96px;margin-bottom:24px">🏠</div>
+        <div class="label" style="color:#a78bfa">Community Programs</div>
+        <h1 class="hero" style="margin-bottom:20px">Creche Programme</h1>
+        <p class="body" style="font-size:20px;color:#cbd5e1;max-width:720px;margin:0 auto">End-to-end setup and operations for community creches, based on our protocols. Covers recruitment, govt liaison, community engagement, caregiver training, and ongoing operations.</p>
+        <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+          <div class="stat-pill"><span class="num">11</span><span class="lbl">pitstops</span></div>
+          <div class="stat-pill"><span class="num">95</span><span class="lbl">checklists</span></div>
+          <div class="stat-pill"><span class="num">95</span><span class="lbl">activities</span></div>
+          <div class="stat-pill"><span class="num">110d</span><span class="lbl">longest SLA</span></div>
+        </div>
+      </div></div>
+<div class="slide bg-rose" id="s2">
+      <div class="label" style="color:#fb7185">WHY THIS GOAL MATTERS</div>
+      <h2 class="title">The first 1,000 days decide a lifetime</h2>
+      <h3 class="sub">In our slums, working mothers leave 6-month-olds with older siblings — or alone. The creche is the difference between a child who is school-ready at 6 and one who isn't.</h3>
+      <div style="margin-top:24px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1080px">
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">6 mo – 6 yrs</div>
+          <p class="body" style="font-size:14px;margin-top:6px">the age window we serve. Brain development in these years sets cognitive ceiling for the rest of life — yet this is exactly when working mothers have no childcare option.</p>
+        </div>
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">~25 children</div>
+          <p class="body" style="font-size:14px;margin-top:6px">per creche, 6 days a week, 9am–6pm. Two trained caregivers, one in-charge. Daily hot meal, structured play, growth monitoring, school readiness.</p>
+        </div>
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">Mother → work</div>
+          <p class="body" style="font-size:14px;margin-top:6px">A working mother earns ₹150–250/day. Without childcare she stays home or loses 1 day/week to a sick child unattended. The creche is also an income unlock.</p>
+        </div>
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">Then anganwadi/govt</div>
+          <p class="body" style="font-size:14px;margin-top:6px">At 3, we mainstream the child into the local anganwadi or government school. The creche is a bridge, not a parallel system. Our job ends when the State takes over.</p>
+        </div>
+      </div>
+      <p class="body" style="margin-top:24px;font-size:16px;color:#fecaca;font-style:italic;max-width:1080px">A creche fails when the caregiver is wrong, not when the building is wrong. Read every pitstop with that lens — caregiver quality is what most of these steps are protecting.</p></div>
+<div class="slide bg-slate" id="s3">
+        <div class="label" style="color:#94a3b8">GOAL PARAMETERS</div>
+        <h2 class="title">What an RP fills in when creating this goal</h2>
+        <h3 class="sub">These shape the scale of every downstream pitstop.</h3>
+        <div style="display:grid;gap:16px;margin-top:32px;max-width:880px">
+          
+            <div style="padding:20px 24px;background:rgba(148,163,184,.08);border-left:3px solid #818cf8;border-radius:8px">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">creches</div>
+              <div style="font-size:20px;font-weight:600;color:#fff">Number of creches</div>
+              <div style="font-size:14px;color:#94a3b8;margin-top:4px">range: 1 to 1000000</div>
+              <div style="font-size:14px;color:#64748b;margin-top:4px">example: e.g. 10</div>
+            </div>
+          
+        </div></div>
+<div class="slide bg-dark" id="s4">
+      <div class="label" style="color:#a78bfa">THE JOURNEY</div>
+      <h2 class="title">11 pitstops, 110-day arc</h2>
+      <h3 class="sub">Every pitstop unlocks the next. Skipping or rushing one breaks downstream pitstops.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;max-width:1180px">
+        
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 1 · Training · 14d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Team Recruitment &amp; Induction</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 2 · Meeting · 21d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Government Liaison &amp; Approvals</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🔍</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#818cf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 3 · Research · 30d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Settlement Identification &amp; Line Listing</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 4 · Meeting · 45d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Ward Committee &amp; Community Engagement</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">📊</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 5 · Review · 50d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Caregiver Selection</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🏗</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#38bdf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 6 · Site Visit · 60d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Facility Selection &amp; Preparation</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">💰</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#f59e0b;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 7 · Budgeting · 65d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Procurement &amp; Infrastructure Setup</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 8 · Training · 75d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Pre-Service Training — Batch 1</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 9 · Meeting · 90d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Operations Launch — Child Enrollment</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">📊</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 10 · Review · 100d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Growth Monitoring &amp; Health Linking Setup</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 11 · Training · 110d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Supervision &amp; Capacity Building Cadence</div>
+              </div>
+            </div>
+      </div></div>
+<div class="slide bg-emerald" id="s5">
+      <div class="label" style="color:#34d399">A DAY AT THE CRECHE</div>
+      <h2 class="title">What ~25 children experience, 9am to 6pm</h2>
+      <h3 class="sub">If any of these blocks is missing or rushed, that day stops counting toward the child's development.</h3>
+      <div style="margin-top:28px;display:grid;gap:10px;max-width:1180px">
+        
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #fbbf24;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#fbbf24">9:00–9:30</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Drop-off, handwash, attendance, mood check</div>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #34d399;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#34d399">9:30–10:30</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Free-play with age-appropriate materials; caregiver observation log</div>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #38bdf8;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#38bdf8">10:30–11:00</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Morning snack — banana + milk or millet ladoo. Wash and seat in groups.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #a78bfa;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#a78bfa">11:00–12:30</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Structured early-learning activity (storytelling, songs, motor-skill play). Age-segregated.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #fb7185;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#fb7185">12:30–1:30</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Hot meal — rice, dal, vegetable, egg (or substitute). Plate-clearance and brushing follow.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #c084fc;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#c084fc">1:30–3:00</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Nap time. Each child has a mat and a clean sheet from home.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #fbbf24;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#fbbf24">3:00–3:30</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Wake, freshen, evening snack — sprouts/peanuts</div>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #38bdf8;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#38bdf8">3:30–5:00</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Outdoor play if weather allows; otherwise indoor group games and finger-painting</div>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #94a3b8;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#94a3b8">5:00–5:45</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Quiet activity — looking at picture books, gentle music — wind-down</div>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:16px;padding:10px 16px;background:rgba(255,255,255,.04);border-left:3px solid #34d399;border-radius:8px;align-items:center">
+            <div style="font-size:13px;font-weight:700;color:#34d399">5:45–6:00</div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.5">Pickup, hand-over of day notes to mother, growth-monitoring entry if it is the weekly day</div>
+          </div>
+      </div></div>
+
+<div class="slide bg-violet" id="s6">
+      <div class="label" style="color:#c084fc">THE CAREGIVER LOOP</div>
+      <h2 class="title">Hire → train → observe → coach — repeat monthly</h2>
+      <h3 class="sub">A caregiver who feels watched, supported, and respected stays. A creche stands or falls on this loop running every month.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:1180px;align-items:stretch">
+        
+          <div style="position:relative;padding:18px 16px;background:rgba(255,255,255,.05);border:1px solid #fbbf2440;border-radius:12px">
+            <div style="font-size:30px;text-align:center;margin-bottom:8px">🧭</div>
+            <div style="font-size:13px;font-weight:700;color:#fbbf24;text-align:center;margin-bottom:8px">Hire from community</div>
+            <div style="font-size:11px;color:#cbd5e1;line-height:1.55">SHG member · class-10 minimum · lives in/near the settlement · trusted by mothers · RP final interview</div>
+            <div style="position:absolute;top:50%;right:-14px;transform:translateY(-50%);font-size:20px;color:#fbbf24;z-index:2">→</div>
+          </div>
+          <div style="position:relative;padding:18px 16px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:12px">
+            <div style="font-size:30px;text-align:center;margin-bottom:8px">🎓</div>
+            <div style="font-size:13px;font-weight:700;color:#34d399;text-align:center;margin-bottom:8px">Pre-service train</div>
+            <div style="font-size:11px;color:#cbd5e1;line-height:1.55">5-day residential · child development basics · safety · nutrition · first-aid · activity planning · positive discipline</div>
+            <div style="position:absolute;top:50%;right:-14px;transform:translateY(-50%);font-size:20px;color:#34d399;z-index:2">→</div>
+          </div>
+          <div style="position:relative;padding:18px 16px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:12px">
+            <div style="font-size:30px;text-align:center;margin-bottom:8px">👀</div>
+            <div style="font-size:13px;font-weight:700;color:#38bdf8;text-align:center;margin-bottom:8px">Observe weekly</div>
+            <div style="font-size:11px;color:#cbd5e1;line-height:1.55">CO visits 2× a week · child mood + caregiver tone · meal hygiene · activity quality · safety check</div>
+            <div style="position:absolute;top:50%;right:-14px;transform:translateY(-50%);font-size:20px;color:#38bdf8;z-index:2">→</div>
+          </div>
+          <div style="position:relative;padding:18px 16px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:12px">
+            <div style="font-size:30px;text-align:center;margin-bottom:8px">💬</div>
+            <div style="font-size:13px;font-weight:700;color:#c084fc;text-align:center;margin-bottom:8px">Coach monthly</div>
+            <div style="font-size:11px;color:#cbd5e1;line-height:1.55">Caregiver supervisor 1:1 · review observation notes · pick 1 thing to improve · revisit next month</div>
+            
+          </div>
+      </div>
+      <div style="margin-top:24px;padding:18px 24px;background:rgba(196,132,252,.08);border:1px solid rgba(196,132,252,.3);border-radius:12px;max-width:1180px">
+        <p class="body" style="font-size:14px"><span style="color:#c084fc;font-weight:700">↻ Why the loop closes back to coaching, not firing:</span> caregivers in slum settings face stresses we don't (sick children at home, husband out of work, water shortages). Pure performance management produces high churn. Coaching produces low churn and steadily improving practice. Replace only when coaching has demonstrably not worked for 3 months.</p>
+      </div></div>
+<div class="slide bg-sky" id="s7">
+        <div class="label" style="color:#34d399">PITSTOP 1 OF 11 · TRAINING · 14 DAYS</div>
+        <h2 class="title">Team Recruitment &amp; Induction</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Recruit and induct core program team. For 5 creches you will need: 1 Program Manager, 1 Cluster Coordinator(s), 1 Creche Supervisor(s), 1 Training Coordinator, 1 Logistics Coordinator, 1 MIS Coordinator.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit Program Manager</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Programme Manager Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit Training Coordinator</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Training Coordinator Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit Logistics Coordinator</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Logistics Coordinator Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit MIS Coordinator</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MIS Coordinator Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit 1 Cluster Coordinator(s)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Cluster Coordinator Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit 1 Creche Supervisor(s)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Creche Supervisor Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct team induction and orientation</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Team Induction &amp; Orientation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up team communication channels</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Team Communication Setup</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-violet" id="s8">
+        <div class="label" style="color:#c084fc">PITSTOP 2 OF 11 · MEETING · 21 DAYS</div>
+        <h2 class="title">Government Liaison &amp; Approvals</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Establish formal relationship with district authorities. All outreach must be done under Program Officer guidance.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Submit formal letter to District Collector</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>District Collector Letter Submission</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Distribute letter to CDPO, DPO, BDO, and Block Health Officer</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Govt Officials Letter Distribution</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Meet with District/Block officials to explain program</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Government Officials Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Obtain necessary approvals or NOCs</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>NOC and Approvals Collection</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Collect secondary demographic data (0-3 year olds in target area)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Demographic Data Collection</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify vulnerable/priority populations</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Vulnerable Population Identification</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-amber" id="s9">
+        <div class="label" style="color:#818cf8">PITSTOP 3 OF 11 · RESEARCH · 30 DAYS</div>
+        <h2 class="title">Settlement Identification &amp; Line Listing</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #818cf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#818cf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Identify and confirm 5 target villages/locations for creche placement. Each creche serves 15-20 children from a single village.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Analyse secondary data to shortlist slums</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Slums Shortlisting Analysis</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct field visits to shortlisted slums</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Slum Field Visits</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm 5 slums meeting eligibility criteria</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Slum Eligibility Confirmation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct line listing of all 0-3 year olds in each slum</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Under-3 Line Listing Survey</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document household enumeration data</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Household Data Documentation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enter data into Shishughar MIS</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Shishughar MIS Data Entry</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-rose" id="s10">
+        <div class="label" style="color:#c084fc">PITSTOP 4 OF 11 · MEETING · 45 DAYS</div>
+        <h2 class="title">Ward Committee &amp; Community Engagement</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Conduct community meetings in each slum to introduce the program, build trust, and identify caregivers. Ward Committee must include all community adults.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule and conduct community meeting in each slum</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Community Meetings</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Explain creche program, benefits, and difference from Anganwadi</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Creche Programme Awareness Session</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Discuss caregiver roles, responsibilities, and stipend</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Caregiver Role Orientation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify 2-3 potential caregiver candidates with community nomination</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Caregiver Candidate Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Explain Creche Management Committee (CMC) concept</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>CMC Concept Introduction</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Address community concerns and questions</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Q&amp;A Session</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document meeting minutes and attendance</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Gram Sabha Minutes Documentation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s11">
+        <div class="label" style="color:#94a3b8">PITSTOP 5 OF 11 · REVIEW · 50 DAYS</div>
+        <h2 class="title">Caregiver Selection</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #94a3b8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Select 2 caregivers per creche (10 total). Must be from the same community, trusted by community, ideally from vulnerable backgrounds. At least one must be literate.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Shortlist candidates using 10-point assessment criteria</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Caregiver Shortlisting Assessment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify: prior child care experience, physical capability, willingness to learn</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Candidate Capability Verification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify: community trust and standing</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Trust Verification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify: representation from multiple hamlets in village</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Hamlet Representation Check</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify: at least one candidate is literate</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Literacy Verification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Prioritise economically/socially vulnerable candidates</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Vulnerable Candidate Prioritisation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Avoid candidates from affluent backgrounds</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Background Screening</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Finalise 10 caregivers (2 per creche)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Caregiver Final Selection</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct background check and collect documents</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Caregiver Document Collection</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Form Creche Management Committee (CMC) with parents and community</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CMC Formation Meeting</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-dark" id="s12">
+        <div class="label" style="color:#38bdf8">PITSTOP 6 OF 11 · SITE VISIT · 60 DAYS</div>
+        <h2 class="title">Facility Selection &amp; Preparation</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #38bdf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Identify and prepare facilities for all 5 creches. Each facility must be centrally located, have piped water, electricity, and a functional toilet. Execute rent agreements.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify facility meeting safety criteria in each slum</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Facility Site Visits</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify: central location, piped water, electricity, functional toilet</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Facility Standards Verification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Execute rent agreement for each facility</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Facility Rent Agreement Signing</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Install/repair toilets if needed</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Toilet Repair and Installation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up LPG/smokeless chulha and kitchen area</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Kitchen Area Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Arrange water purification system (boil + filter)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Water Purification Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Install safety gates to separate kitchen from play area</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Safety Gate Installation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up fencing and safe outdoor play area</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Outdoor Play Area Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Arrange for fans, lights, and ventilation</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Electrical Fixtures Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Install signage and collateral materials</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Signage Installation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-navy" id="s13">
+        <div class="label" style="color:#f59e0b">PITSTOP 7 OF 11 · BUDGETING · 65 DAYS</div>
+        <h2 class="title">Procurement &amp; Infrastructure Setup</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #f59e0b;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Procure all one-time and recurring supplies for 5 creches. Logistics Coordinator leads procurement. LPG must be under commercial account in organisation name. Maintain 1 extra LPG cylinder per 10-creche cluster.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify and approve vendors (pre-approved list for equipment, local for groceries)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Vendor Identification and Approval</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure weighing scales and infantometers/stadiometers</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Measurement Equipment Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure cooking equipment (pressure cookers, vessels, storage containers)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Kitchen Equipment Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure fire safety equipment (5 extinguishers, fire blankets, sand buckets)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Fire Safety Equipment Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure first-aid boxes and stock with required supplies</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>First Aid Kit Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure mattresses, blankets, and mosquito nets</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Bedding and Netting Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure play materials and age-appropriate toys (10+ types)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Play Materials Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up LPG commercial accounts (5 cylinders + 1 spares)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>LPG Commercial Account Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure registers (all 8 types) for each creche</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Register Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure opening stock of food (rice, dal, oil, jaggery, vegetables)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Initial Food Stock Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document all procurement in stock register</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Procurement Stock Documentation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-indigo" id="s14">
+        <div class="label" style="color:#34d399">PITSTOP 8 OF 11 · TRAINING · 75 DAYS</div>
+        <h2 class="title">Pre-Service Training — Batch 1</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">5-day residential training for caregivers. Batch 1: 10 caregivers. Max 24 per batch. Requires 2 facilitators, sample creche setup, and childcare for trainees' children.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Book residential training venue</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Training Venue Booking</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Arrange childcare for trainees' own children during training</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Trainee Childcare Arrangement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Prepare sample creche setup at training venue</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Sample Creche Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 1: Exposure visit to an operational creche</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Pre-Service Caregiver Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 2: Context, child needs, caregiver roles, safety protocols</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Training Day 2: Child Care Fundamentals</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 3: Food storage, water, egg handling, cooking demos, feeding practices</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Training Day 3: Nutrition and Feeding</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 4: Child care, hygiene, engagement activities, first aid demo</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Training Day 4: Hygiene and Engagement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 5: Operations, registers, fire safety demonstration</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Training Day 5: Operations and Safety</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct competency assessment of all trainees</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Trainee Competency Assessment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Distribute training materials and registers to each caregiver</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Training Materials Distribution</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-slate" id="s15">
+        <div class="label" style="color:#c084fc">PITSTOP 9 OF 11 · MEETING · 90 DAYS</div>
+        <h2 class="title">Operations Launch — Child Enrollment</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Launch all 5 creches and begin child enrollment. Target 15-20 children per creche. Enroll each child in Shishughar app and complete child cards.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm facility readiness (safety checklist — 24 points)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Facility Readiness Safety Check</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct pre-opening community meeting and announce start date</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Creche Launch Community Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enroll children (name, age, gender, health history, emergency contacts)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Child Enrollment Registration</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Obtain consent for growth monitoring and photography</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Parental Consent Collection</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Register each child in Shishughar app and child card</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Child MIS Registration</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct baseline weight and height measurement for all enrolled children</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Baseline Growth Measurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Brief parents on daily schedule (8:30 AM - 3:30 PM) and nutrition</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Parent Orientation Briefing</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct first CMC meeting</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>First CMC Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify all 8 registers are set up and ready</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Register Setup Verification</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-emerald" id="s16">
+        <div class="label" style="color:#94a3b8">PITSTOP 10 OF 11 · REVIEW · 100 DAYS</div>
+        <h2 class="title">Growth Monitoring &amp; Health Linking Setup</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #94a3b8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Establish the monthly growth monitoring cycle and link with local health system (ANMs, AWW, ASHA). Set up equipment calibration schedule.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train caregivers on weight measurement (tray method for &lt;2 years)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Weight Measurement Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train caregivers on height/length measurement (infantometer vs stadiometer)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Height Measurement Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Calibrate all weighing scales and measurement equipment</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Equipment Calibration</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set quarterly calibration schedule (January, April, July, October)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Calibration Schedule Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish contact with local ANM, AWW, and ASHA workers</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Health System Coordination Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map immunisation due dates for all enrolled children in Shishughar</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Immunisation Schedule Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up IFA supplementation tracking (bi-weekly for 6-59 months)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>IFA Tracking Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish referral pathway to PHC/CHC</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>PHC Referral Pathway Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Brief caregivers on Category A/B/C health alert protocols</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Health Alert Protocol Briefing</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-sky" id="s17">
+        <div class="label" style="color:#34d399">PITSTOP 11 OF 11 · TRAINING · 110 DAYS</div>
+        <h2 class="title">Supervision &amp; Capacity Building Cadence</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Establish ongoing supportive supervision system. Each supervisor covers 10 creches. Monthly support visits with demonstrations are non-negotiable.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule monthly supervisor visit roster for all 5 creches</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Supervisor Visit Roster Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Define in-service training calendar for caregivers</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>In-Service Training Calendar Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up monthly CMC meeting schedule for all creches</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>CMC Meeting Schedule Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule quarterly safety audits</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Quarterly Safety Audit Scheduling</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish Prabhaat Feri and Nukkad Natak community engagement schedule</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Engagement Calendar Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Plan bi-annual Measurement Day celebration</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Measurement Day Planning</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up MIS reporting cadence in Shishughar app</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MIS Reporting Cadence Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct first round of supportive supervision visits</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>First Supervision Round Visits</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document and share learnings from first month of operations</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>First Month Learning Documentation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s18">
+      <div class="label" style="color:#5eead4">HOW PITSTOPS GET CLOSED</div>
+      <h2 class="title">Three ways to mark a step done</h2>
+      <h3 class="sub">Each activity has a completion type. Some need a doc, some a voice note, some just a confirm.</h3>
+      <div style="margin-top:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1080px">
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">✓</div>
+            <div style="font-size:24px;font-weight:700;color:#34d399">Activity</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Mark done</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">📎</div>
+            <div style="font-size:24px;font-weight:700;color:#38bdf8">Upload</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Upload</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">🎙</div>
+            <div style="font-size:24px;font-weight:700;color:#c084fc">Voice</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Voice log</div>
+          </div>
+        
+      </div></div>
+<div class="slide bg-navy" id="s19">
+      <div style="margin:auto;max-width:780px;text-align:center">
+        <div style="font-size:72px;margin-bottom:20px">🏠</div>
+        <h1 class="hero" style="font-size:44px">Follow the pitstops. The community will see the difference.</h1>
+        <p class="body" style="margin-top:24px;font-size:18px;color:#cbd5e1">Every checklist exists because a previous project failed without it. Don't skip steps.</p>
+        <div style="margin-top:48px;display:flex;gap:16px;justify-content:center">
+          <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Back to training hub</a>
+        </div>
+      </div></div>
+</div>
+<div id="nav">
+  <a href="/pitstops-training.html" title="Back to training hub">⌂ Hub</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 19</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const total=19;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+// Deep-link via #sN
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>

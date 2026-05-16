@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Elderly Community Kitchen — Training</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+<div class="slide bg-navy active" id="s1">
+      <div style="margin:auto;max-width:920px;text-align:center">
+        <div style="font-size:96px;margin-bottom:24px">🍲</div>
+        <div class="label" style="color:#a78bfa">Community Programs</div>
+        <h1 class="hero" style="margin-bottom:20px">Elderly Community Kitchen</h1>
+        <p class="body" style="font-size:20px;color:#cbd5e1;max-width:720px;margin:0 auto">Setup and ongoing management of community kitchens serving elderly. Each kitchen is run by one woman serving 15 elderly daily (fixed menu: rice + vegetable side dish + ragi mudde + boiled egg). Covers identification, procurement, training, enrollment, rollout, and monthly monitoring.</p>
+        <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+          <div class="stat-pill"><span class="num">6</span><span class="lbl">pitstops</span></div>
+          <div class="stat-pill"><span class="num">56</span><span class="lbl">checklists</span></div>
+          <div class="stat-pill"><span class="num">0</span><span class="lbl">activities</span></div>
+          <div class="stat-pill"><span class="num">65d</span><span class="lbl">longest SLA</span></div>
+        </div>
+      </div></div>
+<div class="slide bg-rose" id="s2">
+      <div class="label" style="color:#fb7185">WHY THIS GOAL MATTERS</div>
+      <h2 class="title">[Hand-author the 'why' here]</h2>
+      <h3 class="sub">Replace this slide with the human story — who this serves, what the absence of it costs, and what success looks like on the ground.</h3>
+      <div style="margin-top:40px;padding:32px;background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);border-radius:16px;max-width:880px">
+        <p class="body" style="font-size:18px;line-height:1.7">
+          <em style="color:#fda4af">Author note:</em> A staff member should feel the urgency of the problem before they see the steps.
+          Pull from the proposal, refined doc, or field anecdotes. Keep it concrete: a household, a price, an avoidable disease, a missed entitlement.
+          Numbers from the project area beat statistics from elsewhere.
+        </p>
+      </div></div>
+<div class="slide bg-slate" id="s3">
+        <div class="label" style="color:#94a3b8">GOAL PARAMETERS</div>
+        <h2 class="title">What an RP fills in when creating this goal</h2>
+        <h3 class="sub">These shape the scale of every downstream pitstop.</h3>
+        <div style="display:grid;gap:16px;margin-top:32px;max-width:880px">
+          
+            <div style="padding:20px 24px;background:rgba(148,163,184,.08);border-left:3px solid #818cf8;border-radius:8px">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">kitchens</div>
+              <div style="font-size:20px;font-weight:600;color:#fff">Number of kitchens</div>
+              <div style="font-size:14px;color:#94a3b8;margin-top:4px">range: 1 to 10000</div>
+              <div style="font-size:14px;color:#64748b;margin-top:4px">example: e.g. 3</div>
+            </div>
+          
+        </div></div>
+<div class="slide bg-dark" id="s4">
+      <div class="label" style="color:#a78bfa">THE JOURNEY</div>
+      <h2 class="title">6 pitstops, 65-day arc</h2>
+      <h3 class="sub">Every pitstop unlocks the next. Skipping or rushing one breaks downstream pitstops.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;max-width:1180px">
+        
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🔍</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#818cf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 1 · Research · 15d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Kitchen Identification</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">💰</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#f59e0b;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 2 · Budgeting · 20d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Procurement Setup</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 3 · Training · 30d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Training</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 4 · Meeting · 32d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Enrollment</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 5 · Meeting · 35d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Rollout</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">📊</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 6 · Review · 65d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Monitoring &amp; Tracking</div>
+              </div>
+            </div>
+      </div></div>
+<div class="slide bg-sky" id="s5">
+        <div class="label" style="color:#818cf8">PITSTOP 1 OF 6 · RESEARCH · 15 DAYS</div>
+        <h2 class="title">Kitchen Identification</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #818cf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#818cf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Identify 3 kitchen woman/women from the community. Each kitchen serves 15 elderly for lunch daily (counts for lunch and dinner). The kitchen woman must stay home, cook reliably every day, and be trusted by the community. She is paid ₹3,000/month. CO shortlists candidates; RP visits to confirm final selection.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm number of kitchens needed based on needs assessment data for this settlement</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO identifies eligible women in community (stays home, cooks regularly, trusted)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify each candidate: cooks daily at home, not employed outside, physically capable</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify community standing and trust for each candidate</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO prepares shortlist and presents to RP</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP visits to confirm final selection for each kitchen</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Formalise understanding with selected kitchen women (role, stipend, daily expectations)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document kitchen locations and addresses</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-violet" id="s6">
+        <div class="label" style="color:#f59e0b">PITSTOP 2 OF 6 · BUDGETING · 20 DAYS</div>
+        <h2 class="title">Procurement Setup</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #f59e0b;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Set up all supply chains and infrastructure for 3 kitchen(s). Grocery is procured monthly and stored at the resource centre; CO rations stock to each kitchen. Vegetables are procured every 3 days by the CO from a vetted vendor — payment is handled by partner accounts, not the CO. Kitchen equipment is provided only where something is missing.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify and vet monthly grocery vendor (rice, dal, oil, jaggery, eggs, ragi)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify and vet vegetable vendor for 3-day cycle supply</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm vegetable vendor payment process with partner accounts team (not through CO)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up gas connection for each kitchen (or verify existing connection is functional)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assess and procure missing kitchen equipment: stove, vessels, plates</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure lunchboxes for home delivery to bed-ridden elderly</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up storage space in resource centre for monthly grocery stock</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up inventory register and usage tracker for each kitchen (pen and paper)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Place first month grocery order and confirm delivery schedule</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP visits to confirm procurement setup is complete</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-amber" id="s7">
+        <div class="label" style="color:#34d399">PITSTOP 3 OF 6 · TRAINING · 30 DAYS</div>
+        <h2 class="title">Training</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">RP conducts cluster-level training for all COs covering hygiene, inventory management, menu, and delivery procedures. COs then deliver this training to kitchen women. Menu is fixed: rice + one vegetable side dish + ragi mudde + one boiled egg per person, served at lunch.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP conducts cluster-level training for all COs (hygiene, inventory management, menu)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO trains kitchen woman on food hygiene: handwashing, storage, utensil cleaning</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO trains kitchen woman on the fixed menu: rice + vegetable side dish + ragi mudde + boiled egg</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO trains kitchen woman on correct portion sizes for 15 persons</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO trains kitchen woman on inventory register maintenance</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO explains vegetable delivery process (CO delivers every 3 days; kitchen woman does not procure)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO demonstrates lunchbox packing and delivery procedure for bed-ridden elderly</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct mock cook or trial run at each kitchen</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Kitchen woman confirms she understands escalation process (CO is first contact)</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-rose" id="s8">
+        <div class="label" style="color:#c084fc">PITSTOP 4 OF 6 · MEETING · 32 DAYS</div>
+        <h2 class="title">Enrollment</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">CO enrolls 15 elderly per kitchen. The list is largely prepared from prior community assessment. CO visits each elderly person at home, explains the programme, and notes any special needs. Bed-ridden elderly requiring home delivery are flagged.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO finalises list of 15 elderly per kitchen from prior assessment</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO visits each enrolled elderly to explain the programme</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Explain kitchen location, timings, and how to reach</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Explain grievance redressal mechanism (contact CO directly)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify any special nutritional needs based on health condition</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Flag bed-ridden elderly requiring daily home delivery and note addresses</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document enrollment details for all 15 per kitchen</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP verifies enrollment — meets a sample of enrolled elderly</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s9">
+        <div class="label" style="color:#c084fc">PITSTOP 5 OF 6 · MEETING · 35 DAYS</div>
+        <h2 class="title">Rollout</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Start kitchen operations. CO is present for the first few days to mobilise elderly and ensure smooth running. Track wastage, collect taste feedback, and confirm home delivery to bed-ridden is working.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Kitchen starts on agreed date</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO present on Day 1 to mobilise enrolled elderly and ensure turnout</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO present for first 3–5 days until operations are stable</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Food wastage tracked and portions adjusted if needed</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Taste and quality feedback collected from elderly</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Home delivery to bed-ridden elderly activated and confirmed working</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">First vegetable delivery received and quality verified (3-day cycle)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Any issues recorded in register and escalated to RP</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP visits during rollout phase to observe and support</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-dark" id="s10">
+        <div class="label" style="color:#94a3b8">PITSTOP 6 OF 6 · REVIEW · 65 DAYS</div>
+        <h2 class="title">Monitoring &amp; Tracking</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #94a3b8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Monthly monitoring of all 3 community kitchen(s). CO visits daily; RP visits all kitchens in the cluster monthly. Covers food quality, inventory, beneficiary coverage, vendor management, and substitute arrangements. Elderly kitchens are also a standing agenda item in the monthly cluster meeting.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CO daily visit log reviewed for all kitchens</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Random food quality check conducted (taste, quantity, hygiene)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Feedback collected from enrolled elderly on food quality and satisfaction</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify all enrolled elderly are receiving elderly pension</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify elderly with additional needs and refer to elderly programme team</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Inventory register checked — stock matched against usage</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Vegetable vendor delivery and quality verified (3-day cycle)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Check for leakage — overpayment, diversion, or missing stock</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Vendor performance reviewed; escalate or change vendor if needed</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Substitute kitchen arrangement confirmed for when kitchen woman is on leave</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP monthly visit to all kitchens in cluster completed</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">12.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Elderly kitchens reviewed as agenda item in monthly cluster meeting</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s11">
+      <div class="label" style="color:#5eead4">HOW PITSTOPS GET CLOSED</div>
+      <h2 class="title">Three ways to mark a step done</h2>
+      <h3 class="sub">Each activity has a completion type. Some need a doc, some a voice note, some just a confirm.</h3>
+      <div style="margin-top:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1080px">
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">✓</div>
+            <div style="font-size:24px;font-weight:700;color:#34d399">Activity</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Mark done</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">📎</div>
+            <div style="font-size:24px;font-weight:700;color:#38bdf8">Upload</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Upload</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">🎙</div>
+            <div style="font-size:24px;font-weight:700;color:#c084fc">Voice</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Voice log</div>
+          </div>
+        
+      </div></div>
+<div class="slide bg-navy" id="s12">
+      <div style="margin:auto;max-width:780px;text-align:center">
+        <div style="font-size:72px;margin-bottom:20px">🍲</div>
+        <h1 class="hero" style="font-size:44px">Follow the pitstops. The community will see the difference.</h1>
+        <p class="body" style="margin-top:24px;font-size:18px;color:#cbd5e1">Every checklist exists because a previous project failed without it. Don't skip steps.</p>
+        <div style="margin-top:48px;display:flex;gap:16px;justify-content:center">
+          <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Back to training hub</a>
+        </div>
+      </div></div>
+</div>
+<div id="nav">
+  <a href="/pitstops-training.html" title="Back to training hub">⌂ Hub</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 12</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const total=12;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+// Deep-link via #sN
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>

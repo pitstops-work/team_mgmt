@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Scheme Linkage &amp; Entitlements Drive — Training</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+<div class="slide bg-navy active" id="s1">
+      <div style="margin:auto;max-width:920px;text-align:center">
+        <div style="font-size:96px;margin-bottom:24px">📋</div>
+        <div class="label" style="color:#a78bfa">Community Programs</div>
+        <h1 class="hero" style="margin-bottom:20px">Scheme Linkage &amp; Entitlements Drive</h1>
+        <p class="body" style="font-size:20px;color:#cbd5e1;max-width:720px;margin:0 auto">CO-led household-level campaign to maximise entitlement coverage in urban slum communities. Covers linelisting, baseline survey, document rectification (Aadhaar, income cert, ration card, Jan Dhan), and enrollment drives for CMCHIS, PMJAY, PMJJBY, PMSBY, APY, welfare pensions, PMAY, and voter ID.</p>
+        <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+          <div class="stat-pill"><span class="num">10</span><span class="lbl">pitstops</span></div>
+          <div class="stat-pill"><span class="num">117</span><span class="lbl">checklists</span></div>
+          <div class="stat-pill"><span class="num">0</span><span class="lbl">activities</span></div>
+          <div class="stat-pill"><span class="num">180d</span><span class="lbl">longest SLA</span></div>
+        </div>
+      </div></div>
+<div class="slide bg-rose" id="s2">
+      <div class="label" style="color:#fb7185">WHY THIS GOAL MATTERS</div>
+      <h2 class="title">[Hand-author the 'why' here]</h2>
+      <h3 class="sub">Replace this slide with the human story — who this serves, what the absence of it costs, and what success looks like on the ground.</h3>
+      <div style="margin-top:40px;padding:32px;background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);border-radius:16px;max-width:880px">
+        <p class="body" style="font-size:18px;line-height:1.7">
+          <em style="color:#fda4af">Author note:</em> A staff member should feel the urgency of the problem before they see the steps.
+          Pull from the proposal, refined doc, or field anecdotes. Keep it concrete: a household, a price, an avoidable disease, a missed entitlement.
+          Numbers from the project area beat statistics from elsewhere.
+        </p>
+      </div></div>
+<div class="slide bg-slate" id="s3">
+        <div class="label" style="color:#94a3b8">GOAL PARAMETERS</div>
+        <h2 class="title">What an RP fills in when creating this goal</h2>
+        <h3 class="sub">These shape the scale of every downstream pitstop.</h3>
+        <div style="display:grid;gap:16px;margin-top:32px;max-width:880px">
+          
+            <div style="padding:20px 24px;background:rgba(148,163,184,.08);border-left:3px solid #818cf8;border-radius:8px">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">households</div>
+              <div style="font-size:20px;font-weight:600;color:#fff">Number of households</div>
+              <div style="font-size:14px;color:#94a3b8;margin-top:4px">range: 50 to 1000000</div>
+              <div style="font-size:14px;color:#64748b;margin-top:4px">example: e.g. 500</div>
+            </div>
+          
+        </div></div>
+<div class="slide bg-dark" id="s4">
+      <div class="label" style="color:#a78bfa">THE JOURNEY</div>
+      <h2 class="title">10 pitstops, 180-day arc</h2>
+      <h3 class="sub">Every pitstop unlocks the next. Skipping or rushing one breaks downstream pitstops.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;max-width:1180px">
+        
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 1 · Training · 21d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Team Deployment &amp; Scheme Training</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 2 · Milestone · 35d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Settlement Mapping &amp; Household Linelisting</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 3 · Milestone · 50d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Baseline Entitlement Survey</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 4 · Milestone · 80d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Document Foundation Drive (Aadhaar, Income Cert, Ration Card, Jan Dhan)</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 5 · Milestone · 100d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Health Insurance Enrollment Drive (CMCHIS / PMJAY)</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 6 · Milestone · 120d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Social Security Scheme Drive (PMJJBY / PMSBY / APY)</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 7 · Milestone · 130d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Welfare Pension &amp; Disability Entitlements Drive</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 8 · Milestone · 150d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Housing, Voter ID &amp; Civic Entitlements Drive</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 9 · Milestone · 180d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Ongoing Followup &amp; Pipeline Tracking</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 10 · Meeting · 180d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Community Review &amp; Grievance Redressal</div>
+              </div>
+            </div>
+      </div></div>
+<div class="slide bg-sky" id="s5">
+        <div class="label" style="color:#34d399">PITSTOP 1 OF 10 · TRAINING · 21 DAYS</div>
+        <h2 class="title">Team Deployment &amp; Scheme Training</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Assign and train the field team for 1,250 households. Staff needed: 1 Programme Manager, 2 Community Organiser(s) (1 per 625 HH), 1 Area Coordinator(s) (1 per 3–4 COs), 1 Resource Centre Coordinator(s) (1 per RCC), 1 MIS Coordinator. Training covers: eligibility criteria for each scheme, required documents, application process (online/offline), common rejection reasons, how to update household MIS, and daily plan generation logic.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assign Programme Manager (1 overall)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assign 2 Community Organiser(s) (1 per 625 HH)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assign 1 Area Coordinator(s) (1 per 3–4 COs)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assign 1 Resource Centre Coordinator(s) (1 per RCC)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assign MIS Coordinator (1 overall)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct 3-day induction: scheme eligibility, document checklist, application process</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train on CMCHIS / PMJAY: eligibility (income &lt;₹72k/year), docs (Aadhaar + Income cert), 1467 empanelled hospitals</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train on PMJJBY: ₹2L life insurance @₹436/year, needs bank account, age 18–50</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train on PMSBY: ₹2L accident insurance @₹20/year, needs bank account, age 18–70</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train on APY: pension ₹1k–5k/month on retirement, age 18–40, bank account needed</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train on state welfare pensions: old age (60+), widow, disability (UDID required)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">12.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train on PMAY: housing subsidy for homeless/kachha house, Aadhaar + income cert + land doc</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">13.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train on NFSA / ration card: PHH (5 kg/person @₹3/kg), AAY for destitute</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">14.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train on Jan Dhan: zero-balance account, RuPay card, Aadhaar seeding for DBT</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">15.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify and note key government contacts per scheme: taluk office, CMCHIS help desk, bank BC agent</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">16.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up team WhatsApp group for daily updates and issue escalation</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-violet" id="s6">
+        <div class="label" style="color:#fb7185">PITSTOP 2 OF 10 · MILESTONE · 35 DAYS</div>
+        <h2 class="title">Settlement Mapping &amp; Household Linelisting</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Build a complete household register for the settlement. Sketch or GPS-map each street/lane. Enumerate every household: head name, family members (name/age/gender), address, and contact number. This linelist is the foundation of all subsequent scheme-tracking work.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Prepare or verify settlement map — identify all streets/lanes/blocks</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assign streets to each CO for systematic door-to-door coverage</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enumerate all households: head of household name, address, mobile number</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">List all family members: name, age, gender, relationship to head</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Note if household is tenant or owner; approximate house structure (pucca/kachha/kutcha)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Flag vulnerable households: elderly (60+) living alone, widows, PwD, single women HH, destitute</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enter all households into MIS (Frappe / field app)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Review coverage — ensure no street/lane missed; verify count against any existing community data</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm final linelist count against target (1250 HH)</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-amber" id="s7">
+        <div class="label" style="color:#fb7185">PITSTOP 3 OF 10 · MILESTONE · 50 DAYS</div>
+        <h2 class="title">Baseline Entitlement Survey</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Survey every household to map current entitlement status and document gaps. Per-household fields: CMCHIS/PMJAY status, ration card type (AAY/PHH/SPHH/none), Jan Dhan bank account, social security schemes enrolled (PMJJBY/PMSBY/APY), pension status, housing type, voter ID status, and which Aadhaar/income/caste certificates are present. This drives scheme-wise priority lists in the MIS.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Design or finalise baseline survey form — cover all schemes and document fields</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct survey for all listed households (attach to existing linelist records)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per HH: ration card number and type (AAY / PHH / SPHH / none)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per HH: CMCHIS / PMJAY status (Active / Applied / Not Applied)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per individual: Jan Dhan or bank account (Yes/No), account number if yes</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per individual: PMJJBY enrolled (Y/N), PMSBY enrolled (Y/N), APY enrolled (Y/N)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per eligible elderly/widow/PwD: pension status and pension amount if receiving</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per individual: voter ID present (Y/N), correct address (Y/N)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per HH: house type (pucca/semi-pucca/kachha) — flag kachha/homeless for PMAY</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per individual: Aadhaar present (Y/N), mobile seeded (Y/N), name/DOB correct (Y/N)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per individual: income certificate present (Y/N), date of issue</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">12.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record per individual: caste/community certificate present (Y/N) where applicable</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">13.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Update MIS with survey data; generate scheme-wise gap reports</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">14.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Brief Area Coordinators on household priority lists per scheme</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-rose" id="s8">
+        <div class="label" style="color:#fb7185">PITSTOP 4 OF 10 · MILESTONE · 80 DAYS</div>
+        <h2 class="title">Document Foundation Drive (Aadhaar, Income Cert, Ration Card, Jan Dhan)</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Documents are the common bottleneck across all schemes. Prioritise this before scheme-specific drives. Key work: Aadhaar corrections and mobile seeding, Income Certificate applications and renewals (4-day ETA at TN taluk offices), Ration Card family member updates, Jan Dhan zero-balance account opening. Run document camps to batch-process multiple households in a day.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify households with Aadhaar gaps from baseline — missing, incorrect name/DOB, mobile not seeded</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Organise Aadhaar correction/enrollment camp or schedule CO-accompanied trips to Aadhaar centre</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Seed mobile number to Aadhaar for DBT linkage (UIDAI portal or Aadhaar centre)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify households needing Income Certificate (new application or renewal/expired)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Batch-apply Income Certificates at taluk office — track ETA (typically 4 days)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Follow up on pending Income Certs — escalate delays beyond 10 days to supervisor</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Flag expired Income Certs — re-apply immediately (blocks CMCHIS)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Review ration cards — identify non-members, newborns, new members needing addition</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Support ration card family member additions at TNPDS / PDS office</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify households with AAY eligibility not yet upgraded from PHH — support reclassification</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify adults without Jan Dhan/bank account; coordinate with nearest bank BC agent or branch</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">12.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Open zero-balance Jan Dhan accounts; ensure RuPay debit card issued</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">13.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Link Aadhaar to bank account for DBT (required for pension, PMAY, PMJJBY/PMSBY auto-debit)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">14.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track document status per household/individual in MIS — update after each completion</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s9">
+        <div class="label" style="color:#fb7185">PITSTOP 5 OF 10 · MILESTONE · 100 DAYS</div>
+        <h2 class="title">Health Insurance Enrollment Drive (CMCHIS / PMJAY)</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Primary health insurance enrollment for all eligible households. CMCHIS (TN): ₹5 lakh/year per family, requires Aadhaar + Income Cert (income &lt;₹72,000/year), 1,467 empanelled hospitals. PMJAY (Ayushman Bharat): ₹5 lakh/year for SECC-listed households — check beneficiary status on PMJAY portal. Run CO daily plan (30 HH/day) prioritising doc-ready households. Track: not applied → applied → active; rejected → re-applied.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Generate MIS list: households with Aadhaar Received AND Income Cert Received — highest priority</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Run CO daily plan (30 HH/day) starting with doc-ready households</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Accompany or guide HH head to nearest CMCHIS enrollment centre with documents</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Check PMJAY beneficiary status for each HH on pmjay.gov.in — eligible HH enrolled directly</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record CMCHIS / PMJAY application number and expected activation date in MIS</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Follow up on Applied HH after 5-day ETA — check activation status</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Investigate rejected cases: reason for rejection (income limit, name mismatch, duplicate)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Correct docs for rejected cases and re-apply — track as second application in MIS</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Inform activated families: how to use card, nearest empanelled hospitals, cashless process</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Notify Aadhaar-pending and Income-cert-pending HH of their blocking item — route to Document Drive</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track overall pipeline: Not Applied / Docs Pending / Applied / Active / Rejected</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-dark" id="s10">
+        <div class="label" style="color:#fb7185">PITSTOP 6 OF 10 · MILESTONE · 120 DAYS</div>
+        <h2 class="title">Social Security Scheme Drive (PMJJBY / PMSBY / APY)</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Bank-account-linked social security for individuals — best enrolled in a camp with bank BC agent. PMJJBY: ₹2L life insurance @₹436/year auto-debited, age 18–50, bank account needed. PMSBY: ₹2L accident insurance @₹20/year, age 18–70, bank account needed. APY: state pension ₹1k–5k/month on retirement based on contribution, age 18–40, bank account needed. These are individual-level enrollments — target every eligible adult.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Generate MIS list: adults aged 18–50 with bank account but not enrolled in PMJJBY</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Generate MIS list: adults aged 18–70 with bank account but not enrolled in PMSBY</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Generate MIS list: adults aged 18–40 in informal sector — APY candidates</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Coordinate with nearest bank BC agent or branch to run enrollment camp in the settlement</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enroll eligible adults in PMJJBY — fill nomination form, confirm auto-debit set up</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enroll eligible adults in PMSBY — same session, ₹20/year, confirm auto-debit</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enroll interested youth/adults in APY — explain contribution tiers (₹42–₹291/month) and pension amounts</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Update MIS: PMJJBY enrolled (Y/N), PMSBY enrolled (Y/N), APY enrolled (Y/N) per individual</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Brief families: what PMJJBY covers (death/natural cause), claim process, nominee importance</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Brief families: what PMSBY covers (accident death + disability), claim process</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Follow up: confirm bank statements show first auto-debit for PMJJBY/PMSBY</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-navy" id="s11">
+        <div class="label" style="color:#fb7185">PITSTOP 7 OF 10 · MILESTONE · 130 DAYS</div>
+        <h2 class="title">Welfare Pension &amp; Disability Entitlements Drive</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">State and central pension schemes for elderly, widows, and persons with disability. Old Age Pension (TN IGNOAPS): ₹1,000/month for age 60+, income-poor households — apply at Village Administrative Officer (VAO) or Taluk office. Widow Pension (IGNWPS): ₹1,000/month, apply similarly. UDID (Unique Disability ID): national disability card enabling reservations, travel concessions, scheme access — requires govt medical board assessment.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify elderly (60+) not receiving any pension from baseline survey</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify income eligibility — old age pension targets landless, income-poor HH</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Support application at Taluk office / VAO: Aadhaar, bank passbook, age proof, income cert</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify widows not receiving widow pension — support IGNWPS application</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track pension applications: submitted → approved → first payment received in MIS</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify PwD (persons with disability) from baseline — confirm disability type</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Support visit to nearest govt hospital for disability certificate / medical board assessment</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Facilitate UDID card enrollment at udid.gov.in after disability certificate issued</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify PwD with UDID eligible for disability pension — apply at Taluk office</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Brief families on UDID benefits: reservations, concessional travel, PDS priority, scheme access</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Update MIS: pension status (not applied / applied / approved / receiving) per individual</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-indigo" id="s12">
+        <div class="label" style="color:#fb7185">PITSTOP 8 OF 10 · MILESTONE · 150 DAYS</div>
+        <h2 class="title">Housing, Voter ID &amp; Civic Entitlements Drive</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">PMAY (Pradhan Mantri Awas Yojana): ₹1.2–2.5L subsidy for homeless or kachha-house families — Aadhaar, income cert, land document needed; apply at panchayat/municipality. Voter ID: enroll unregistered adults (Form 6 at BLO or online on voters.eci.gov.in). Property/Patta: support where settlement has been regularised. Civic gaps (water, sanitation, street lights) — coordinate with WRP/Welfare Rights team for systemic follow-up.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify households in kachha/kutcha house or homeless from baseline — flag for PMAY</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Check if settlement appears in PMAY beneficiary list (AwaasSoft portal or municipality)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Support PMAY application: Aadhaar, income cert, photo, bank account, land/possession document</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track PMAY applications: applied → approved → construction linked payment (CLP)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify adults without voter ID or with wrong address — support Form 6 or correction application</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct voter ID enrollment/correction camp (or schedule BLO visit to settlement)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track voter ID status per adult in MIS (not enrolled / applied / received)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify households without piped water connection — document and hand over to civic action team</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify households without individual toilet / open defecation — SBM linkage if settlement eligible</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify streets without street lights / road repair needs — escalate to Ward Councillor / municipality</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Update MIS: PMAY status, voter ID status, civic gap flags per household</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-slate" id="s13">
+        <div class="label" style="color:#fb7185">PITSTOP 9 OF 10 · MILESTONE · 180 DAYS</div>
+        <h2 class="title">Ongoing Followup &amp; Pipeline Tracking</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Continuous CO-led household followup driven by MIS priority lists — same model as CMCHIS daily work plan (30 HH/day per CO, pool-based prioritisation). Priority pools: (1) households with zero scheme coverage, (2) households with docs ready but applications pending, (3) households with overdue follow-up / pending status, (4) recently activated — check experience and address issues. Refresh MIS after each visit.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up MIS daily plan generation — pools based on scheme coverage gaps and doc readiness</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm COs running 30 HH visits/day per daily plan</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Weekly review: % households with CMCHIS active, PMJJBY, PMSBY, APY enrolled</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Weekly review: income cert pipeline — pending, applied, received, expired</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Weekly review: Aadhaar pipeline — missing, correction pending, received</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track rejection rate per scheme — investigate if &gt;10% rejections for any scheme</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track households with zero scheme coverage — these are highest priority</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Ensure newborns, new migrants, and newly-identified HH are onboarded to MIS</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Handle mid-year Income Cert expiry — re-apply before CMCHIS renewal deadline</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Monthly Area Coordinator review: scheme-wise pipeline, CO coverage rate, blockers</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-emerald" id="s14">
+        <div class="label" style="color:#c084fc">PITSTOP 10 OF 10 · MEETING · 180 DAYS</div>
+        <h2 class="title">Community Review &amp; Grievance Redressal</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Monthly community meetings to share entitlement progress and collect grievances. Grievance types: scheme denial without valid reason, corruption/bribery at government offices, application delays beyond SLA, wrong rejection (name mismatch, manual error). Escalation path: verbal → written complaint → senior official → RTI. Jan Sunwai (public hearing) for systemic denial affecting many households.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule monthly community meeting — share scheme enrollment numbers and pending list</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Collect grievances: households denied schemes, bribery demands, application delays</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Categorise grievances: individual (name mismatch, doc issue) vs systemic (policy/process gap)</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Resolve individual cases: write application to concerned officer with supporting docs</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Escalate systemic issues to District Officer / Collector with documented evidence</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track grievance status in MIS: raised → escalated → resolved</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">File RTI application for scheme-specific denial data if systemic pattern identified</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Organise Jan Sunwai (public hearing) if large number of HH denied same scheme</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document success stories — households that received CMCHIS and actually used it at hospital</div>
+                  
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Share quarterly progress report with programme leadership: scheme coverage %, pending, grievances</div>
+                  
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s15">
+      <div class="label" style="color:#5eead4">HOW PITSTOPS GET CLOSED</div>
+      <h2 class="title">Three ways to mark a step done</h2>
+      <h3 class="sub">Each activity has a completion type. Some need a doc, some a voice note, some just a confirm.</h3>
+      <div style="margin-top:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1080px">
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">✓</div>
+            <div style="font-size:24px;font-weight:700;color:#34d399">Activity</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Mark done</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">📎</div>
+            <div style="font-size:24px;font-weight:700;color:#38bdf8">Upload</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Upload</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">🎙</div>
+            <div style="font-size:24px;font-weight:700;color:#c084fc">Voice</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Voice log</div>
+          </div>
+        
+      </div></div>
+<div class="slide bg-navy" id="s16">
+      <div style="margin:auto;max-width:780px;text-align:center">
+        <div style="font-size:72px;margin-bottom:20px">📋</div>
+        <h1 class="hero" style="font-size:44px">Follow the pitstops. The community will see the difference.</h1>
+        <p class="body" style="margin-top:24px;font-size:18px;color:#cbd5e1">Every checklist exists because a previous project failed without it. Don't skip steps.</p>
+        <div style="margin-top:48px;display:flex;gap:16px;justify-content:center">
+          <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Back to training hub</a>
+        </div>
+      </div></div>
+</div>
+<div id="nav">
+  <a href="/pitstops-training.html" title="Back to training hub">⌂ Hub</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 16</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const total=16;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+// Deep-link via #sN
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Food Distribution — Launch &amp; Operationalisation — Training</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+<div class="slide bg-navy active" id="s1">
+      <div style="margin:auto;max-width:920px;text-align:center">
+        <div style="font-size:96px;margin-bottom:24px">🍱</div>
+        <div class="label" style="color:#a78bfa">Food Programme</div>
+        <h1 class="hero" style="margin-bottom:20px">Food Distribution — Launch &amp; Operationalisation</h1>
+        <p class="body" style="font-size:20px;color:#cbd5e1;max-width:720px;margin:0 auto">One-time setup goal to get the food distribution programme operational. Covers vendor contract, transport, kit procurement, DP personnel recruitment and training, APSA confirmation, and dry run through to Day 1.</p>
+        <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+          <div class="stat-pill"><span class="num">7</span><span class="lbl">pitstops</span></div>
+          <div class="stat-pill"><span class="num">47</span><span class="lbl">checklists</span></div>
+          <div class="stat-pill"><span class="num">47</span><span class="lbl">activities</span></div>
+          <div class="stat-pill"><span class="num">56d</span><span class="lbl">longest SLA</span></div>
+        </div>
+      </div></div>
+<div class="slide bg-rose" id="s2">
+      <div class="label" style="color:#fb7185">WHY THIS GOAL MATTERS</div>
+      <h2 class="title">[Hand-author the 'why' here]</h2>
+      <h3 class="sub">Replace this slide with the human story — who this serves, what the absence of it costs, and what success looks like on the ground.</h3>
+      <div style="margin-top:40px;padding:32px;background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);border-radius:16px;max-width:880px">
+        <p class="body" style="font-size:18px;line-height:1.7">
+          <em style="color:#fda4af">Author note:</em> A staff member should feel the urgency of the problem before they see the steps.
+          Pull from the proposal, refined doc, or field anecdotes. Keep it concrete: a household, a price, an avoidable disease, a missed entitlement.
+          Numbers from the project area beat statistics from elsewhere.
+        </p>
+      </div></div>
+<div class="slide bg-dark" id="s3">
+      <div class="label" style="color:#a78bfa">THE JOURNEY</div>
+      <h2 class="title">7 pitstops, 56-day arc</h2>
+      <h3 class="sub">Every pitstop unlocks the next. Skipping or rushing one breaks downstream pitstops.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;max-width:1180px">
+        
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 1 · Meeting · 14d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Vendor Contract &amp; Kitchen Readiness</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">📊</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 2 · Review · 21d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Transport &amp; Contingency Setup</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">📊</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 3 · Review · 21d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Kit Procurement &amp; Assembly</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 4 · Meeting · 28d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">DP Personnel Recruitment</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 5 · Meeting · 30d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">APSA Confirmation</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 6 · Training · 42d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">DP Personnel Training</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🏗</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#38bdf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 7 · Site Visit · 56d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Dry Run &amp; Programme Launch</div>
+              </div>
+            </div>
+      </div></div>
+<div class="slide bg-sky" id="s4">
+        <div class="label" style="color:#c084fc">PITSTOP 1 OF 7 · MEETING · 14 DAYS</div>
+        <h2 class="title">Vendor Contract &amp; Kitchen Readiness</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Formalise the Ramani Food contract and confirm kitchen is operationally ready before any distribution begins. Kitchen must be cleared for 04:30 AM daily readiness.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Ramani Food contract signed — price escalation clause included</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Sign and Upload Ramani Food Contract</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">SLA terms documented — delivery time, food quality standards, fallback protocol</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Document and Upload SLA Terms</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">FSSAI certificate verified and filed</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Upload FSSAI Certificate</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">04:30 AM kitchen readiness protocol agreed with Ramani team</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Kitchen Readiness Protocol Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Kitchen visit completed — hygiene and safety audit done</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Kitchen Inspection Visit</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">GPS logging on vehicle confirmed active</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Upload GPS Logging Confirmation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-violet" id="s5">
+        <div class="label" style="color:#94a3b8">PITSTOP 2 OF 7 · REVIEW · 21 DAYS</div>
+        <h2 class="title">Transport &amp; Contingency Setup</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #94a3b8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Confirm TATA Ace vehicle, train driver on FILO loading and timed route, and formalise JustDelivery as backup transport on a retainer. Backup must be contractual before Day 1.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">TATA Ace vehicle inspected and cleared</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Vehicle Inspection</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Driver confirmed and route-trained with timed dry run</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Driver Route Training Run</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">FILO loading protocol documented and tested with driver</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Document and Upload FILO Loading Protocol</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Departure checklist laminated and fixed in vehicle cab</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Prepare and Upload Departure Checklist</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">JustDelivery backup retainer signed and on file</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>JustDelivery Retainer Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Emergency handover protocol agreed — driver contacts JustDelivery directly if breakdown</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Upload Emergency Handover Protocol</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-amber" id="s6">
+        <div class="label" style="color:#94a3b8">PITSTOP 3 OF 7 · REVIEW · 21 DAYS</div>
+        <h2 class="title">Kit Procurement &amp; Assembly</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #94a3b8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Procure all kit components per the distribution kit specification. Number every item, affix QR codes, assemble one complete kit per DP, and test full vehicle bay loading before Day 1.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Insulated food containers procured — capacity 50–300 units, stainless steel inner lining</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Procure Insulated Food Containers</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Foldable tables procured — 180×60 cm, one per DP</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Procure Foldable Tables</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">20L water cans procured — 2 per DP</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Procure 20L Water Cans</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Serving equipment procured — 400g bowls, spoons, paper plates, gloves, headcaps, cups</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Procure Serving Equipment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Branded umbrellas / standees procured — one per DP</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Procure Branded Umbrellas and Standees</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Dustbin covers procured — 2 per DP</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Procure Dustbin Covers</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">All kit items numbered and catalogued in master inventory sheet</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Catalogue and Number Kit Items</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">QR codes printed and affixed to all containers and kit bags</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Print and Affix QR Codes</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#94a3b8;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Vehicle bay loading plan tested — both bays fully mapped</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Trial Vehicle Loading Test</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-rose" id="s7">
+        <div class="label" style="color:#c084fc">PITSTOP 4 OF 7 · MEETING · 28 DAYS</div>
+        <h2 class="title">DP Personnel Recruitment</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Identify and confirm one Distribution Point person per hotspot via Sampark/APSA community networks. DP 5 (shelter) is served directly by the driver — no separate personnel needed.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">DP 1 personnel identified via Sampark/APSA network</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Identify and Confirm DP 1 Personnel</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">DP 2 personnel identified</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Identify and Confirm DP 2 Personnel</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">DP 3 personnel identified</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Identify and Confirm DP 3 Personnel</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">DP 4 personnel identified</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Identify and Confirm DP 4 Personnel</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">DP 5 (shelter) — driver serves directly, no separate DP personnel needed</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Confirm DP 5 Shelter Driver Arrangement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">All DP personnel agreements signed</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Upload Signed DP Personnel Agreements</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">WhatsApp group set up with all DP personnel and driver</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>DP Personnel Identification Meeting with Sampark</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s8">
+        <div class="label" style="color:#c084fc">PITSTOP 5 OF 7 · MEETING · 30 DAYS</div>
+        <h2 class="title">APSA Confirmation</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">APSA inclusion is tentative. Resolve within 30 days of grant start. If not confirmed, stress-test viability as a Sampark-only 5-DP operation and adjust unit economics accordingly.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">APSA briefed on programme model and their role</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>APSA Coordination Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">APSA confirmation received — or Sampark-only fallback plan activated</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>APSA Decision Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">DP allocation finalised between Sampark and APSA</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Upload DP Allocation Plan</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">If APSA not onboarded — unit economics stress-tested at 5 DPs only and shared with Foundation</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Upload Sampark-Only Fallback Plan</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-dark" id="s9">
+        <div class="label" style="color:#34d399">PITSTOP 6 OF 7 · TRAINING · 42 DAYS</div>
+        <h2 class="title">DP Personnel Training</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Train all DP personnel together in one session. Cover queue management, hygiene, kit setup/teardown, the 45–60 minute service window, and daily reporting. Follow with a mock setup at each hotspot.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Queue management protocol trained — fixed unit cap, queue lines communicated</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>DP Personnel Training Session</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Hygiene protocol trained — gloves, headcaps, serving discipline</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Confirm Hygiene Protocol Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Kit setup and teardown trained — table, umbrella, containers, water cans</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Confirm Kit Setup and Teardown Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">45–60 minute service window protocol drilled</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Confirm Service Window Protocol Drilled</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Daily reporting trained — how to log losses, damage, crowd incidents</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Confirm Daily Reporting Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Mock setup done at each hotspot location</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Mock Setup Visits at Hotspots</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-navy" id="s10">
+        <div class="label" style="color:#38bdf8">PITSTOP 7 OF 7 · SITE VISIT · 56 DAYS</div>
+        <h2 class="title">Dry Run &amp; Programme Launch</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #38bdf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Full end-to-end dry run 3 days before launch. Kitchen departure → all 5 DPs → return. Time every leg. Resolve all issues before Day 1. Log launch formally.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Full dry run completed — kitchen to all 5 DPs and back</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Full Dry Run</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">DP 1 reached by 05:30 AM ✓</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Log DP 1 Arrival Time</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">DP 5 (shelter) reached by 06:30 AM ✓</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Log DP 5 Arrival Time</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Return route completed by 10:00 AM ✓</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Log Return Route Completion Time</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Kitchen return and unload done by 10:15 AM ✓</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Log Kitchen Return and Unload Time</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">QR tracking tested end-to-end — all kits scanned in and out</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Log QR Tracking Test Results</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Issues from dry run logged and resolved</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Post Dry-Run Debrief</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Foundation leadership informed of confirmed launch date</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Inform Foundation of Confirmed Launch Date</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 1 — first live distribution completed</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Day 1 — First Live Distribution</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s11">
+      <div class="label" style="color:#5eead4">HOW PITSTOPS GET CLOSED</div>
+      <h2 class="title">Three ways to mark a step done</h2>
+      <h3 class="sub">Each activity has a completion type. Some need a doc, some a voice note, some just a confirm.</h3>
+      <div style="margin-top:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1080px">
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">✓</div>
+            <div style="font-size:24px;font-weight:700;color:#34d399">Activity</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Mark done</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">📎</div>
+            <div style="font-size:24px;font-weight:700;color:#38bdf8">Upload</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Upload</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">🎙</div>
+            <div style="font-size:24px;font-weight:700;color:#c084fc">Voice</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Voice log</div>
+          </div>
+        
+      </div></div>
+<div class="slide bg-navy" id="s12">
+      <div style="margin:auto;max-width:780px;text-align:center">
+        <div style="font-size:72px;margin-bottom:20px">🍱</div>
+        <h1 class="hero" style="font-size:44px">Follow the pitstops. The community will see the difference.</h1>
+        <p class="body" style="margin-top:24px;font-size:18px;color:#cbd5e1">Every checklist exists because a previous project failed without it. Don't skip steps.</p>
+        <div style="margin-top:48px;display:flex;gap:16px;justify-content:center">
+          <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Back to training hub</a>
+        </div>
+      </div></div>
+</div>
+<div id="nav">
+  <a href="/pitstops-training.html" title="Back to training hub">⌂ Hub</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 12</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const total=12;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+// Deep-link via #sN
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>

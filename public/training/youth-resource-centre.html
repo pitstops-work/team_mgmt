@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Youth Resource Centre — Training</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+<div class="slide bg-navy active" id="s1">
+      <div style="margin:auto;max-width:920px;text-align:center">
+        <div style="font-size:96px;margin-bottom:24px">🌱</div>
+        <div class="label" style="color:#a78bfa">Community Programs</div>
+        <h1 class="hero" style="margin-bottom:20px">Youth Resource Centre</h1>
+        <p class="body" style="font-size:20px;color:#cbd5e1;max-width:720px;margin:0 auto">Setup and operations for Youth Resource Centres (YRC) serving youth aged 15–21. Covers team recruitment, YRC setup, enumeration &amp; baseline, group mobilisation, capacity building, scheme linkage, leadership programme, social actions, and crisis support.</p>
+        <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+          <div class="stat-pill"><span class="num">12</span><span class="lbl">pitstops</span></div>
+          <div class="stat-pill"><span class="num">120</span><span class="lbl">checklists</span></div>
+          <div class="stat-pill"><span class="num">120</span><span class="lbl">activities</span></div>
+          <div class="stat-pill"><span class="num">240d</span><span class="lbl">longest SLA</span></div>
+        </div>
+      </div></div>
+<div class="slide bg-rose" id="s2">
+      <div class="label" style="color:#fb7185">WHY THIS GOAL MATTERS</div>
+      <h2 class="title">[Hand-author the 'why' here]</h2>
+      <h3 class="sub">Replace this slide with the human story — who this serves, what the absence of it costs, and what success looks like on the ground.</h3>
+      <div style="margin-top:40px;padding:32px;background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);border-radius:16px;max-width:880px">
+        <p class="body" style="font-size:18px;line-height:1.7">
+          <em style="color:#fda4af">Author note:</em> A staff member should feel the urgency of the problem before they see the steps.
+          Pull from the proposal, refined doc, or field anecdotes. Keep it concrete: a household, a price, an avoidable disease, a missed entitlement.
+          Numbers from the project area beat statistics from elsewhere.
+        </p>
+      </div></div>
+<div class="slide bg-slate" id="s3">
+        <div class="label" style="color:#94a3b8">GOAL PARAMETERS</div>
+        <h2 class="title">What an RP fills in when creating this goal</h2>
+        <h3 class="sub">These shape the scale of every downstream pitstop.</h3>
+        <div style="display:grid;gap:16px;margin-top:32px;max-width:880px">
+          
+            <div style="padding:20px 24px;background:rgba(148,163,184,.08);border-left:3px solid #818cf8;border-radius:8px">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">clusters</div>
+              <div style="font-size:20px;font-weight:600;color:#fff">Number of clusters / YRCs</div>
+              <div style="font-size:14px;color:#94a3b8;margin-top:4px">range: 1 to 1000000</div>
+              <div style="font-size:14px;color:#64748b;margin-top:4px">example: e.g. 2 (1 YRC per cluster)</div>
+            </div>
+          
+        </div></div>
+<div class="slide bg-dark" id="s4">
+      <div class="label" style="color:#a78bfa">THE JOURNEY</div>
+      <h2 class="title">12 pitstops, 240-day arc</h2>
+      <h3 class="sub">Every pitstop unlocks the next. Skipping or rushing one breaks downstream pitstops.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;max-width:1180px">
+        
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 1 · Milestone · 21d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Team Recruitment &amp; Deployment</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🏗</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#38bdf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 2 · Site Visit · 30d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">YRC Location Selection &amp; Neighbour Sensitisation</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 3 · Milestone · 50d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">YRC Infrastructure Setup</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 4 · Training · 45d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Staff Orientation &amp; Training Programme</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🔍</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#818cf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 5 · Research · 60d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Youth Enumeration &amp; Baseline Survey</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 6 · Meeting · 80d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Small Group Meetings &amp; YRC Activation</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 7 · Training · 90d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Thematic Sessions &amp; Capacity Building for Youth</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 8 · Milestone · 90d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Documentation &amp; Scheme Linkage Drive</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 9 · Training · 110d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Youth Leadership Programme</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 10 · Milestone · 240d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Youth-Led Social Action Programme</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 11 · Milestone · 75d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Crisis Intervention &amp; Referral System</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 12 · Milestone · 60d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">MIS Setup &amp; Monitoring Cadence</div>
+              </div>
+            </div>
+      </div></div>
+<div class="slide bg-sky" id="s5">
+        <div class="label" style="color:#fb7185">PITSTOP 1 OF 12 · MILESTONE · 21 DAYS</div>
+        <h2 class="title">Team Recruitment &amp; Deployment</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Recruit staff for 2 Youth Resource Centre(s). Required: 2 YRC Coordinator(s), 4 Youth Worker(s) (2 per YRC), 1 Youth Lead (mandatory when ≥2 YRCs). Each worker reaches 500 youth but closely works with 200 and develops 20 youth leaders. Non-negotiable: youth workers must be from the community. No prior experience required — interest in youth and community work is essential. For existing staff: select those who have built strong youth relationships and brought youth regularly to centres.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit Youth Lead (1 per organisation, mandatory for ≥2 YRCs)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Lead Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit 2 YRC Coordinator(s)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Coordinator Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit 4 Youth Worker(s) — must be from community, 2 per YRC</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Worker Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map existing community organizers — assess youth relationship-building track record</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Existing CO Youth Track Record Assessment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct team induction: programme objectives, youth vulnerability context, gender lens</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Team Induction Session</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Contextualise with local data: 32% dropout after 10th grade, 63% working by 21, 28% married before 21</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Local Youth Context Briefing</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Brief on local patterns: substance abuse, GBV, early pregnancy, undertrial cases</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Local Risk Patterns Briefing</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assign workers to YRCs; define reporting relationships</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Worker YRC Assignment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up team communication channels and weekly review rhythm</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Team Communication Setup</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-violet" id="s6">
+        <div class="label" style="color:#38bdf8">PITSTOP 2 OF 12 · SITE VISIT · 30 DAYS</div>
+        <h2 class="title">YRC Location Selection &amp; Neighbour Sensitisation</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #38bdf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Identify location(s) for 2 Youth Resource Centre(s). Each YRC needs 2–3 rooms and at least 700 sqft. Preferred: close to the community but accessible from the nearest transport point to the slum. Neighbourhood must tolerate noise and late-evening sounds — neighbours must be sensitised with the support of the landlord before signing the agreement.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Shortlist 2–3 candidate locations per YRC — close to community, accessible from transport</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>YRC Location Site Visit</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify minimum 700 sqft with 2–3 rooms (group space, library/reading area, counselling corner)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Space Requirements Verification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assess neighbourhood: noise tolerance for evening activities is critical</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Neighbourhood Noise Tolerance Assessment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Sensitise neighbours about programme purpose with support of landlord</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Neighbour Sensitisation Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Verify adequate ventilation, lighting, and safety</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Safety and Lighting Verification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Execute rent agreement(s) for 2 YRC location(s)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>YRC Rent Agreement Signing</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm location with cluster coordinator and youth team</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Location Approval Meeting</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-amber" id="s7">
+        <div class="label" style="color:#fb7185">PITSTOP 3 OF 12 · MILESTONE · 50 DAYS</div>
+        <h2 class="title">YRC Infrastructure Setup</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Set up all 2 YRC(s) in a participatory manner — identified youth from the community must be involved in painting and furnishing. Each YRC: 2 racks for library books, 30 chairs, 2 tables, 1 projector, 1 screen, WiFi, 1 camera and gear, library with curated books, cultural activity corner, information bank notice board, and a private counselling space.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Involve identified youth from community in painting and furnishing (participatory setup)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth-Led YRC Painting and Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure and install 2 book racks for library</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Library Rack Installation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure 30 chairs and 2 tables per YRC</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Furniture Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Procure 1 projector, 1 screen, camera and assistive gear per YRC</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>AV and Photography Equipment Procurement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up WiFi connection</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>WiFi Connection Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Build library: curate books on health, legal literacy, financial literacy, career, life skills</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Library Curation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up cultural activity corner: musical instruments, indoor board games, art &amp; craft supplies</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Cultural Activity Corner Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Install information bank notice board: schemes, scholarships, helplines, opportunities</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Information Bank Notice Board Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up private counselling corner (individual and small group sessions)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Counselling Corner Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct community announcement of YRC opening</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Opening Announcement</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Finalise YRC visiting hours and daily/weekly activity schedule</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Activity Schedule Finalisation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-rose" id="s8">
+        <div class="label" style="color:#34d399">PITSTOP 4 OF 12 · TRAINING · 45 DAYS</div>
+        <h2 class="title">Staff Orientation &amp; Training Programme</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">All youth workers and YRC coordinators undergo a 3-day residential orientation. Followed by 2 days of training per month for the first 6 months (calendarized). Trainings conducted by internal and external resource persons. For existing staff already mapped to the programme, preparatory training of 2 days/month for 3–6 months before launch.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">For existing staff: conduct 2-day/month preparatory training for 3–6 months (before official launch)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Existing Staff Preparatory Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct 3-day orientation for all new youth programme staff</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Youth Staff Orientation Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 1: programme objectives, youth development context, gender and intersectionality</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Orientation Day 1: Youth Development Context</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 2: safe space facilitation, counselling basics, crisis identification and referral</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Orientation Day 2: Safe Space and Counselling</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 3: YRC operations, outreach methods, documentation, MIS app</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Orientation Day 3: YRC Operations and MIS</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Finalise 6-month monthly training calendar (2 days/month) with internal and external RPs</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>6-Month Training Calendar Finalisation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule training themes: SRHR, mental health, legal literacy, financial literacy, constitutional values, digital literacy</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Training Themes Schedule Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify and onboard external resource persons for specialised sessions</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>External Resource Person Onboarding</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s9">
+        <div class="label" style="color:#818cf8">PITSTOP 5 OF 12 · RESEARCH · 60 DAYS</div>
+        <h2 class="title">Youth Enumeration &amp; Baseline Survey</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #818cf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#818cf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Enumerate all youth aged 15–21 in each cluster's settlements. Each YRC serves 1000 youth; each worker closely engages 200 and develops 20 leaders. Also enumerate 22–30 year olds for need-based support. MIS captures full profile: education/employment status, documentation access, caste, religion, dropout reasons if applicable.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enumerate youth aged 15–21 in all settlements — target 2000 total across 2 YRC(s)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Youth Baseline Enumeration</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record: name, gender, DOB, caste, religion, mother tongue, cluster/slum, contact, family details</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Profile Data Entry</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record education/employment status: studying, studying+working, working, homemaker, job-seeking, dropout</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Education/Employment Status Recording</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">For dropouts: record reasons (financial, family emergency, marriage, substance use, lack of interest, etc.)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Dropout Reason Documentation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Record documentation access: Aadhaar, voter ID, bank account, ration card, caste/income certificate</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Documentation Gap Assessment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assess scholarship access: post-matric, BBMP fee reimbursement, Yuva Spandana, APF scholarship</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Scholarship Access Assessment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify at-risk youth: substance abuse, GBV, potential early marriage, trafficking signs, undertrial</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>At-Risk Youth Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enumerate 22–30 yr olds separately for need-based support tracking</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Young Adult Enumeration</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enter all baseline data into MIS; assign each worker their 500-youth caseload</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth MIS Data Entry and Caseload Assignment</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-dark" id="s10">
+        <div class="label" style="color:#c084fc">PITSTOP 6 OF 12 · MEETING · 80 DAYS</div>
+        <h2 class="title">Small Group Meetings &amp; YRC Activation</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Youth workers conduct regular small group meetings in settlements to build rapport, introduce the YRC, and identify interested youth. Build footfall at the YRC through cultural activities, sports, and monthly awareness meetings. Identify the 200 youth per worker who will be closely engaged and the leadership pipeline of 20 per worker.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct first round of small group meetings per settlement — introduce YRC and programme</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Youth Small Group Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Hold awareness meetings at slum level (monthly)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Community Awareness Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up cultural activities at YRC: musical instruments, indoor games, art &amp; craft (daily/weekly)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Cultural Activities Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Organise first outdoor sports event or youth cultural programme for broad mobilisation</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Mobilisation Sports/Cultural Event</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify from meetings: 200 youth per worker for close engagement</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Close-Engagement Youth Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify from meetings: 20 youth per worker showing leadership interest (pipeline)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Leadership Pipeline Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track YRC footfall: new youth visiting YRC, youth visiting repeatedly (&gt;2 times/month)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Footfall Tracking Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document issues and needs raised in small group meetings — feed into activity planning</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Needs Documentation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Begin monthly awareness meetings with relevant stakeholders (ASHA, police, school, PHC)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Monthly Stakeholder Awareness Meeting</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-navy" id="s11">
+        <div class="label" style="color:#34d399">PITSTOP 7 OF 12 · TRAINING · 90 DAYS</div>
+        <h2 class="title">Thematic Sessions &amp; Capacity Building for Youth</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Facilitate monthly thematic sessions at the YRC. Quarterly Yuva Adda on gender, GBV, constitution, caste, pluralism, environment. 2-day capacity-building workshops for youth (batches). Topics: health, reproductive health, nutrition, mental health, legal literacy, financial literacy, constitutional values, digital literacy, substance abuse. Individual and group counselling available at YRC.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Design 2-day capacity-building workshop curriculum for youth</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Workshop Curriculum Design</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct first 2-day workshop — health, hygiene, reproductive health, nutrition</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Capacity Building Workshop</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up monthly session calendar: mental health, legal literacy, financial literacy, digital literacy</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Monthly Thematic Session Calendar Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up monthly session calendar: constitutional values, substance abuse, career counselling, SRHR</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Additional Thematic Session Calendar Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule quarterly Yuva Adda (gender equality, GBV, constitution, caste, pluralism, environment)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Quarterly Yuva Adda Scheduling</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up individual counselling availability at YRC (youth worker + referral when needed)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Individual Counselling Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up group counselling for identified at-risk youth</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Group Counselling Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Populate YRC information bank with brochures, scheme helplines, and reference materials</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Information Bank Population</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Plan first youth festival / cultural programme</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Festival Planning</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Raise POCSO awareness in the community</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>POCSO Community Awareness Session</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-indigo" id="s12">
+        <div class="label" style="color:#fb7185">PITSTOP 8 OF 12 · MILESTONE · 90 DAYS</div>
+        <h2 class="title">Documentation &amp; Scheme Linkage Drive</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Facilitate access to identity documents and entitlements for all enrolled youth. Map each youth's documentation gaps from the baseline survey. Then facilitate applications for scholarships, skill training, and higher education. Youth workers dedicate time monthly to department visits and follow-up. Key schemes: post-matric scholarships, BBMP fee reimbursement (Shulka Marupavathi), Yuva Spandana, APF scholarship, NYK registration.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Review baseline documentation gaps per youth: Aadhaar, voter ID, bank account, ration card, caste/income certificate</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Documentation Gap Review</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Organise documentation camps to address gaps in bulk</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Documentation Camp</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Register eligible youth with Nehru Yuva Kendra (NYK)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>NYK Registration Drive</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Facilitate post-matric scholarship applications (SC/ST, minority, general)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Post-Matric Scholarship Application Support</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Facilitate BBMP fee reimbursement (Shulka Marupavathi) for eligible students</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>BBMP Fee Reimbursement Support</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Facilitate Yuva Spandana scheme registration</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Yuva Spandana Registration Support</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Facilitate APF scholarship applications where applicable</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>APF Scholarship Application Support</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Facilitate skill training enrolment (NSDC, state skill missions, NGO programmes)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Skill Training Enrollment Support</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Facilitate college referral and preparation for interested youth</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>College Referral and Preparation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up monthly department visit rhythm — youth workers dedicated days for follow-up</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Monthly Department Visit Schedule Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track scheme application status per youth in MIS</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Scheme Application Status Tracking</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-slate" id="s13">
+        <div class="label" style="color:#34d399">PITSTOP 9 OF 12 · TRAINING · 110 DAYS</div>
+        <h2 class="title">Youth Leadership Programme</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Develop 80 youth leaders (20 per worker across 2 YRC(s)) through structured leadership training, action research, and peer mentoring. These youth will eventually become community mentors and potential youth workers. Leadership activities begin once YRC has decent regular footfall — typically after 3–4 months.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm 80 youth as leadership cohort (20 per worker)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Leadership Cohort Confirmation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct leadership orientation: community development, rights, documentation, gender</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Youth Leadership Orientation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assign action research: assess functioning of a public institution (PHC, school, ration shop, SDMC)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Action Research Assignment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Support youth in documenting findings and drafting recommendations</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Action Research Documentation Support</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Facilitate youth-led presentation to relevant department official</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth-Led Department Presentation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify 1–2 youth per YRC as potential future youth workers/mentors</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Future Youth Worker Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Coach youth leaders: scholarship support for peers, sports coaching, academic peer support</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Leader Coaching Session</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Plan and conduct exposure visit for youth leaders</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Youth Leader Exposure Visit</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Felicitate outstanding leaders at annual youth festival</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Leader Felicitation at Festival</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track leadership engagement and community action in MIS</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Leadership Engagement MIS Tracking</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-emerald" id="s14">
+        <div class="label" style="color:#fb7185">PITSTOP 10 OF 12 · MILESTONE · 240 DAYS</div>
+        <h2 class="title">Youth-Led Social Action Programme</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Social action begins after 6–8 months of preparatory work (enlisting, campaigns, decent YRC footfall). Youth are split into groups of 5. Each worker is responsible for 5–10 social action programmes. Categories: crisis intervention (child marriage, trafficking, GBV), community building (street plays, wall paintings, events), youth cadre (sports coaching, scholarship support), and community work (re-enrolment, scheme advocacy, institution improvement).</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm YRC readiness: 6–8 months of operations, decent footfall, enrolled leadership cohort</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Social Action Readiness Check</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Divide active youth into action groups of 5</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Action Group Formation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Each worker identifies 5–10 social action programmes from the categories below</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Social Action Programme Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Crisis intervention actions: identify and escalate child marriage, trafficking signs, GBV cases</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Crisis Intervention Action</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Crisis intervention: accompany survivors to police/court; serve as witnesses; first responder for GBV</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Survivor Accompaniment to Police/Court</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Community building: street plays, wall paintings, film screenings, inter-faith celebrations</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Building Cultural Programme</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Youth cadre: coach younger children in sports; support peers in scholarship and job applications</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Cadre Coaching Session</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Community work: re-enrol dropout students; support younger students academically; peer counselling</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Academic Support Action</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Community work: ensure menstrual product access; lead tree plantation drives; organise health camps</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Health and Environment Action</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Community work: review school/SDMC/PHC functioning → take action (meetings, escalations, appeals)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Public Institution Review and Action</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Community work: conduct welfare scheme surveys (PDS, pensions, UDID, caste certificates)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Welfare Scheme Community Survey</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">12.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Community work: organise lok adalats/Jan Sunwai if entitlements are denied</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Lok Adalat / Jan Sunwai Organisation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">13.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document outcomes of each social action programme in MIS</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Social Action Outcome Documentation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-sky" id="s15">
+        <div class="label" style="color:#fb7185">PITSTOP 11 OF 12 · MILESTONE · 75 DAYS</div>
+        <h2 class="title">Crisis Intervention &amp; Referral System</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Establish a functioning support system for youth in crisis — substance abuse, GBV, early pregnancy, undertrial cases. Referral pathways to NIMHANS, psychologists, legal aid, and shelter services. Peer-to-peer support groups. Youth workers proactively identify at-risk youth from enumeration data and ongoing engagement.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map crisis referral services: NIMHANS, psychologists, legal aid, shelter, DV helplines, police</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Crisis Referral Services Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish referral pathway for substance abuse (counselling → professional care → follow-up)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Substance Abuse Referral Pathway Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish referral pathway for GBV / domestic violence (safe reporting → police → legal aid)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>GBV Referral Pathway Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish referral pathway for undertrial/legal cases (legal aid, court accompaniment)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Legal Aid Referral Pathway Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish referral pathway for potential child marriage (identify → escalate → intervene)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Child Marriage Prevention Pathway Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify early trafficking signs and escalate to NGO/police</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Trafficking Signs Identification and Escalation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up peer-to-peer support group at each YRC</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Peer Support Group Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train youth workers on basic counselling, crisis de-escalation, and when to refer</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Crisis Counselling Training for Workers</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify at-risk youth from enumeration and initiate individual engagement plan</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>At-Risk Youth Individual Engagement Plan</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track crisis cases in MIS: type, referral made, follow-up status, outcome</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Crisis Case MIS Tracking Setup</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-violet" id="s16">
+        <div class="label" style="color:#fb7185">PITSTOP 12 OF 12 · MILESTONE · 60 DAYS</div>
+        <h2 class="title">MIS Setup &amp; Monitoring Cadence</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Operationalise the Youth MIS. Key metrics: new youth at YRC, youth reached, sessions conducted vs planned, avg attendance, individual support facilitated, referrals made/successful, youth in multiple activities, community activity conducted vs planned. Monitoring: YRC Coordinator oversees workers daily; Youth Lead visits weekly (half-day at YRC + half-day with workers in field); Foundation RP visits all YRCs monthly; monthly review of all coordinators and workers by Youth Lead; monthly meeting of all Youth Leads by Foundation RP.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up MIS — enrol all enumerated youth with baseline data</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth MIS Setup and Enrollment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Configure: YRC daily attendance, session attendance, group meeting attendance</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>YRC Attendance Tracking Configuration</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Configure: youth visited repeatedly (&gt;2 times/month) tracker</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Repeat Youth Visits Tracker Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Configure: scheme and documentation tracker (status per youth)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Scheme and Documentation Tracker Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Configure: social action tracker (programme type, participants, outcome)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Social Action Tracker Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Configure: crisis/referral tracker (type, referral, follow-up, outcome)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Crisis/Referral Tracker Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Configure: leadership programme tracker (cohort, activities, status)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Leadership Programme Tracker Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Configure programme-level metrics: sessions planned vs conducted, avg attendance, referrals made vs successful</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Programme-Level Metrics Configuration</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set Youth Lead weekly visit schedule (half-day YRC + half-day with workers in field)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Youth Lead Weekly Visit Schedule Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set Foundation RP monthly visit schedule to all YRCs (handholding + review)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Foundation RP Monthly YRC Visit Schedule</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set monthly review meeting: all YRC coordinators + youth workers, led by Youth Lead</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Monthly YRC Review Meeting Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">12.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set monthly meeting of all Youth Leads by Foundation RP</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Monthly Youth Leads Meeting Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">13.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct first monthly review — document learnings from preparation and early engagement</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>First Monthly Youth Programme Review</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s17">
+      <div class="label" style="color:#5eead4">HOW PITSTOPS GET CLOSED</div>
+      <h2 class="title">Three ways to mark a step done</h2>
+      <h3 class="sub">Each activity has a completion type. Some need a doc, some a voice note, some just a confirm.</h3>
+      <div style="margin-top:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1080px">
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">✓</div>
+            <div style="font-size:24px;font-weight:700;color:#34d399">Activity</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Mark done</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">📎</div>
+            <div style="font-size:24px;font-weight:700;color:#38bdf8">Upload</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Upload</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">🎙</div>
+            <div style="font-size:24px;font-weight:700;color:#c084fc">Voice</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Voice log</div>
+          </div>
+        
+      </div></div>
+<div class="slide bg-navy" id="s18">
+      <div style="margin:auto;max-width:780px;text-align:center">
+        <div style="font-size:72px;margin-bottom:20px">🌱</div>
+        <h1 class="hero" style="font-size:44px">Follow the pitstops. The community will see the difference.</h1>
+        <p class="body" style="margin-top:24px;font-size:18px;color:#cbd5e1">Every checklist exists because a previous project failed without it. Don't skip steps.</p>
+        <div style="margin-top:48px;display:flex;gap:16px;justify-content:center">
+          <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Back to training hub</a>
+        </div>
+      </div></div>
+</div>
+<div id="nav">
+  <a href="/pitstops-training.html" title="Back to training hub">⌂ Hub</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 18</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const total=18;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+// Deep-link via #sN
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>

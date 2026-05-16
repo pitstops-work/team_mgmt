@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<!-- HAND_AUTHORED: do not regenerate this file via gen-training-deck.mjs -->
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Welfare Rights Programme — Training</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+<div class="slide bg-navy active" id="s1">
+      <div style="margin:auto;max-width:920px;text-align:center">
+        <div style="font-size:96px;margin-bottom:24px">⚖️</div>
+        <div class="label" style="color:#a78bfa">Community Programs</div>
+        <h1 class="hero" style="margin-bottom:20px">Welfare Rights Programme</h1>
+        <p class="body" style="font-size:20px;color:#cbd5e1;max-width:720px;margin:0 auto">Community collective formation and civic empowerment programme. Covers team setup, settlement mapping, community group formation, MAS, civic amenities baseline, stakeholder engagement, and ongoing review cadence.</p>
+        <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+          <div class="stat-pill"><span class="num">11</span><span class="lbl">pitstops</span></div>
+          <div class="stat-pill"><span class="num">98</span><span class="lbl">checklists</span></div>
+          <div class="stat-pill"><span class="num">98</span><span class="lbl">activities</span></div>
+          <div class="stat-pill"><span class="num">120d</span><span class="lbl">longest SLA</span></div>
+        </div>
+      </div></div>
+<div class="slide bg-rose" id="s2">
+      <div class="label" style="color:#fb7185">WHY THIS GOAL MATTERS</div>
+      <h2 class="title">Most slum households are eligible for entitlements they cannot access</h2>
+      <h3 class="sub">The schemes exist. The funds exist. The forms exist. What's missing is the bridge — and that bridge is community organising.</h3>
+      <div style="margin-top:24px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1080px">
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">~14 schemes</div>
+          <p class="body" style="font-size:14px;margin-top:6px">a typical slum household qualifies for — ration, pension, scholarship, maternity benefit, health insurance, housing, water connection, sanitation subsidy. Most households access 2–3.</p>
+        </div>
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">Documents first</div>
+          <p class="body" style="font-size:14px;margin-top:6px">Every scheme starts with the same three: Aadhaar, income certificate, ration card. Without these foundational IDs, no other entitlement unlocks. That is why we run document drives first.</p>
+        </div>
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">MAS + leaders</div>
+          <p class="body" style="font-size:14px;margin-top:6px">Mahila Arogya Samiti (women's health committee) + community leaders are the unit of change. Individual case-work doesn't scale. The committee scales because it negotiates collectively with the State.</p>
+        </div>
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">Civic agency</div>
+          <p class="body" style="font-size:14px;margin-top:6px">The goal isn't to deliver entitlements one-time. It's to make the community capable of demanding them on its own — every year, from every ward councillor, for every new entrant. We exit; the agency stays.</p>
+        </div>
+      </div>
+      <p class="body" style="margin-top:24px;font-size:16px;color:#fecaca;font-style:italic;max-width:1080px">A welfare rights programme that hands out scheme benefits without building the MAS and leader bench has produced nothing of lasting value. Every checklist here is in service of the leaders, not the benefits.</p></div>
+<div class="slide bg-slate" id="s3">
+        <div class="label" style="color:#94a3b8">GOAL PARAMETERS</div>
+        <h2 class="title">What an RP fills in when creating this goal</h2>
+        <h3 class="sub">These shape the scale of every downstream pitstop.</h3>
+        <div style="display:grid;gap:16px;margin-top:32px;max-width:880px">
+          
+            <div style="padding:20px 24px;background:rgba(148,163,184,.08);border-left:3px solid #818cf8;border-radius:8px">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">clusters</div>
+              <div style="font-size:20px;font-weight:600;color:#fff">Number of clusters</div>
+              <div style="font-size:14px;color:#94a3b8;margin-top:4px">range: 1 to 1000000</div>
+              <div style="font-size:14px;color:#64748b;margin-top:4px">example: e.g. 2 (each ~5,000 HH, 6-8 settlements)</div>
+            </div>
+          
+        </div></div>
+<div class="slide bg-dark" id="s4">
+      <div class="label" style="color:#a78bfa">THE JOURNEY</div>
+      <h2 class="title">11 pitstops, 120-day arc</h2>
+      <h3 class="sub">Every pitstop unlocks the next. Skipping or rushing one breaks downstream pitstops.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;max-width:1180px">
+        
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 1 · Milestone · 21d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Team Recruitment &amp; Deployment</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🔍</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#818cf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 2 · Research · 35d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Cluster &amp; Settlement Mapping</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 3 · Training · 45d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">CO Orientation Training</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 4 · Meeting · 75d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Community Group Formation &amp; Activation</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 5 · Meeting · 80d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Mahila Arogya Samiti (MAS) Setup</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🔍</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#818cf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 6 · Research · 90d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Civic Amenities Baseline Mapping</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 7 · Meeting · 90d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Stakeholder Engagement &amp; Relationship Building</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 8 · Milestone · 60d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">MIS &amp; Mobile App Deployment</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 9 · Training · 110d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Issue-Based Capacity Building of Community Leaders</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 10 · Milestone · 120d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Land Title Deed &amp; Housing Rights Drive</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 11 · Milestone · 120d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Review &amp; Monitoring Cadence Setup</div>
+              </div>
+            </div>
+      </div></div>
+<div class="slide bg-sky" id="s5">
+      <div class="label" style="color:#38bdf8">DOCUMENTS FOUNDATION</div>
+      <h2 class="title">The pyramid: foundational IDs unlock everything above</h2>
+      <h3 class="sub">Why we drive Aadhaar / income cert / ration card / Jan Dhan before any scheme application.</h3>
+      <div style="margin-top:32px;max-width:1100px;margin-left:auto;margin-right:auto">
+        
+            <div style="display:flex;justify-content:center;margin-bottom:6px">
+              <div style="width:40%;padding:14px 20px;background:rgba(255,255,255,.05);border:1px solid #fb718550;border-radius:10px;display:flex;align-items:center;gap:12px">
+                <div style="font-size:22px">🏠</div>
+                <div style="font-size:13px;color:#e2e8f0;line-height:1.45">Housing rights (PMAY) · land title deed · in-situ rehabilitation</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:center;margin-bottom:6px">
+              <div style="width:70%;padding:14px 20px;background:rgba(255,255,255,.05);border:1px solid #c084fc50;border-radius:10px;display:flex;align-items:center;gap:12px">
+                <div style="font-size:22px">🎓</div>
+                <div style="font-size:13px;color:#e2e8f0;line-height:1.45">Education entitlements · pre-matric / post-matric scholarship · RTE admission</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:center;margin-bottom:6px">
+              <div style="width:70%;padding:14px 20px;background:rgba(255,255,255,.05);border:1px solid #a78bfa50;border-radius:10px;display:flex;align-items:center;gap:12px">
+                <div style="font-size:22px">🏥</div>
+                <div style="font-size:13px;color:#e2e8f0;line-height:1.45">Health insurance (Ayushman / CMCHIS) · maternity benefit · disability pension</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:center;margin-bottom:6px">
+              <div style="width:70%;padding:14px 20px;background:rgba(255,255,255,.05);border:1px solid #fbbf2450;border-radius:10px;display:flex;align-items:center;gap:12px">
+                <div style="font-size:22px">🍚</div>
+                <div style="font-size:13px;color:#e2e8f0;line-height:1.45">Ration entitlement (PDS) · Antyodaya · widow pension · old-age pension</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:center;margin-bottom:6px">
+              <div style="width:100%;padding:14px 20px;background:rgba(255,255,255,.05);border:1px solid #34d39950;border-radius:10px;display:flex;align-items:center;gap:12px">
+                <div style="font-size:22px">🆔</div>
+                <div style="font-size:13px;color:#e2e8f0;line-height:1.45">Aadhaar · Income Certificate · Ration Card · Jan Dhan account</div>
+              </div>
+            </div>
+      </div>
+      <div style="margin-top:20px;display:flex;justify-content:center"><div style="padding:10px 20px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:50px;font-size:13px;color:#34d399;font-weight:600">↑ Each tier requires every layer below it ↑</div></div>
+      <p class="body" style="margin-top:18px;font-size:13px;color:#94a3b8;font-style:italic;text-align:center;max-width:900px;margin-left:auto;margin-right:auto">A household without an Aadhaar-linked ration card cannot enrol in PDS. Without PDS history, no income certificate. Without income certificate, no scholarship, no pension, no Ayushman. Start at the base of the pyramid; never skip a tier.</p></div>
+
+<div class="slide bg-violet" id="s6">
+      <div class="label" style="color:#c084fc">THE ECOSYSTEM</div>
+      <h2 class="title">Who does what — and who hands work off to whom</h2>
+      <h3 class="sub">The programme is a layered network. Every layer has a defined role; failures are usually a missing handoff, not a missing role.</h3>
+      <div style="margin-top:32px;max-width:1180px;margin-left:auto;margin-right:auto">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+          <div style="padding:18px;background:rgba(196,132,252,.08);border:1px solid rgba(196,132,252,.4);border-radius:12px">
+            <div style="font-size:11px;color:#c084fc;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">Our team</div>
+            <div style="margin-top:8px;font-size:14px;color:#fff;font-weight:600">RP + Community Organisers (COs)</div>
+            <ul style="margin-top:8px;font-size:12px;color:#cbd5e1;list-style:none;padding:0;line-height:1.7">
+              <li>· Settlement mapping</li>
+              <li>· CO training + supervision</li>
+              <li>· Liaison with ULB / govt</li>
+              <li>· Issue-based campaigns</li>
+              <li>· MIS quality + reporting</li>
+            </ul>
+          </div>
+          <div style="padding:18px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.4);border-radius:12px">
+            <div style="font-size:11px;color:#fbbf24;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">Community structures</div>
+            <div style="margin-top:8px;font-size:14px;color:#fff;font-weight:600">MAS + Community Leaders</div>
+            <ul style="margin-top:8px;font-size:12px;color:#cbd5e1;list-style:none;padding:0;line-height:1.7">
+              <li>· Women's health committee (MAS)</li>
+              <li>· Settlement-level leader (≥1 per cluster)</li>
+              <li>· Identify household-level needs</li>
+              <li>· Lead door-to-door drives</li>
+              <li>· Negotiate with ward councillor</li>
+            </ul>
+          </div>
+          <div style="padding:18px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.4);border-radius:12px">
+            <div style="font-size:11px;color:#38bdf8;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">State / Govt</div>
+            <div style="margin-top:8px;font-size:14px;color:#fff;font-weight:600">Ward councillor · Tehsildar · BBMP/CMC officer</div>
+            <ul style="margin-top:8px;font-size:12px;color:#cbd5e1;list-style:none;padding:0;line-height:1.7">
+              <li>· Issues documents (Aadhaar / income cert)</li>
+              <li>· Approves scheme applications</li>
+              <li>· Allocates ward-level funds</li>
+              <li>· Owns long-term service delivery</li>
+            </ul>
+          </div>
+        </div>
+        <div style="margin-top:20px;padding:18px 24px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.18);border-radius:12px">
+          <div style="font-size:11px;color:#94a3b8;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Critical handoffs</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:12px;color:#cbd5e1">
+            <div><span style="color:#c084fc;font-weight:700">RP / CO → MAS:</span> document drive, issue-based meeting agenda, training calendar. CO is present; MAS chairs.</div>
+            <div><span style="color:#fbbf24;font-weight:700">MAS → Govt:</span> formal letter from the committee (not from us). Demand is a community demand, not an NGO ask.</div>
+            <div><span style="color:#38bdf8;font-weight:700">Govt → Household:</span> document or scheme benefit reaches the household. CO logs in MIS; MAS verifies.</div>
+          </div>
+        </div>
+      </div></div>
+<div class="slide bg-sky" id="s7">
+        <div class="label" style="color:#fb7185">PITSTOP 1 OF 11 · MILESTONE · 21 DAYS</div>
+        <h2 class="title">Team Recruitment &amp; Deployment</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Recruit and deploy the full programme team for 2 cluster(s) (~11,000 HH total). Required: 1 Programme Manager, 2 Cluster Coordinator(s), 2 Resource Centre Coordinator(s), 1 MIS Coordinator, 4 Community Organizer(s) (2 per cluster, covering ~5,000–6,000 HH each). COs must be from the community with no prior experience required — only interest and openness to learn.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit Programme Manager (1 overall)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Programme Manager Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit 2 Cluster Coordinator(s) (1 per cluster)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Cluster Coordinator Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit 2 Resource Centre Coordinator(s) (1 per cluster RCC)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Resource Centre Coordinator Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit MIS Coordinator (1 overall)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MIS Coordinator Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Recruit 4 Community Organizers (2 per cluster, from community)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Organizer Recruitment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct team induction and orientation session</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Team Induction Session</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map existing COs — assess interests, capacity, entitlement experience, stakeholder relationships</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Existing CO Capability Assessment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Assign COs to clusters and settlements</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>CO Cluster Assignment</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up team communication channels and review cadence</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Team Communication Setup</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-violet" id="s8">
+        <div class="label" style="color:#818cf8">PITSTOP 2 OF 11 · RESEARCH · 35 DAYS</div>
+        <h2 class="title">Cluster &amp; Settlement Mapping</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #818cf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#818cf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Map all 2 cluster(s) covering approx. 11,000 households across 14 settlements. Each cluster has 6-8 settlements and ~5,000 households. Identify existing community groups (active/inactive), MAS groups, and locate relevant government infrastructure.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Delineate 2 cluster boundary/boundaries with ward/block boundaries</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Cluster Boundary Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">List all 14 settlements (approx.) in intervention area</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Settlement Listing</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Enumerate household count per settlement</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Household Count Survey</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify existing community groups (active, inactive, or absent) per settlement</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Group Inventory</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map existing Mahila Arogya Samiti (MAS) groups per settlement</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MAS Group Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Locate PHC, Anganwadi, government schools, police station per cluster</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Government Infrastructure Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify key community leaders and influencers in each settlement</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Settlement Mapping Visit</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document findings in cluster planning sheet and share with team</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Cluster Planning Documentation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-amber" id="s9">
+        <div class="label" style="color:#34d399">PITSTOP 3 OF 11 · TRAINING · 45 DAYS</div>
+        <h2 class="title">CO Orientation Training</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Conduct 3-day orientation for all 4 Community Organizers in batches of up to 20. Covers programme objectives, community organising, civic amenities, MAS, stakeholder engagement, mobile app for mapping and MIS, and the monthly training calendar for Year 1.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Batch 1: 3-day orientation for COs 1–4</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>CO Orientation Batch 1</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 1 content: Programme objectives, community group formation, roles &amp; responsibilities</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CO Orientation Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 2 content: Civic amenities baseline — categories, mapping tool, mobile app</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CO Training Day 2: Civic Amenities Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Day 3 content: MAS, Bal Raksha Samiti, SDMC, entitlements, stakeholder engagement</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CO Training Day 3: MAS and Entitlements</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Distribute mapping tools, registers, and mobile app access to all COs</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>CO Tools and App Distribution</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Share Year 1 monthly training calendar with all COs</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Year 1 Training Calendar Sharing</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-rose" id="s10">
+        <div class="label" style="color:#c084fc">PITSTOP 4 OF 11 · MEETING · 75 DAYS</div>
+        <h2 class="title">Community Group Formation &amp; Activation</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Form or activate community groups across all 14 settlements. Target: 1 group per ~500 HH (approx. 22 groups total), 20 members each. Ensure representation of women, parents of school-going children, and across age groups. Each group needs a regular meeting space.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Review existing groups from mapping — categorise as active, inactive, or absent</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Existing Community Group Review</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">For inactive groups: re-engage identified leaders and conduct revival meeting</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Inactive Group Revival Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">For settlements without groups: identify interested members with CO support</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>New Group Member Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Ensure group composition: women participation, parents of school-going children, cross-age</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Group Composition Verification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Form/activate approx. 22 community groups across all settlements</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Group Activation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify and confirm meeting space for each group</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Group Meeting Space Confirmation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct initial meeting for each group: objectives, roles &amp; responsibilities, monthly schedule</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Community Group Formation Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Introduce civic amenities baseline concept to each group</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Civic Amenities Concept Introduction</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify 2-3 group leaders per community group</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Community Group Leader Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document group roster, meeting schedule, and leader contacts in MIS</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Group Roster Documentation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s11">
+        <div class="label" style="color:#c084fc">PITSTOP 5 OF 11 · MEETING · 80 DAYS</div>
+        <h2 class="title">Mahila Arogya Samiti (MAS) Setup</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Form or strengthen MAS groups — 1 per 300 households (approx. 37 groups total). Work with ASHA to form groups where absent. Link each MAS with the local PHC and identify 5 priority health issues per group. Also initiate Bal Raksha Samiti and Vigilance Committee formation as conditions allow.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map all existing MAS groups with CO support</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Existing MAS Group Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify gaps — target total of 37 MAS groups across 2 cluster(s)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MAS Coverage Gap Analysis</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Work with ASHA workers to form MAS where none exist (1 per 300 HH)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>ASHA Partnership for MAS Formation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct first MAS meeting in each settlement — introduce programme and roles</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>MAS Formation Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Link each MAS group with local PHC/Medical Officer</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MAS–PHC Linkage Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Facilitate identification of 5 priority health issues per MAS group</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Priority Health Issue Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Begin Bal Raksha Samiti formation in settlements with school-going children</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Bal Raksha Samiti Formation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Begin Vigilance Committee formation as relevant issues are identified</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Vigilance Committee Formation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Register MAS groups and meeting cadence in MIS</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MAS MIS Registration</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-dark" id="s12">
+        <div class="label" style="color:#818cf8">PITSTOP 6 OF 11 · RESEARCH · 90 DAYS</div>
+        <h2 class="title">Civic Amenities Baseline Mapping</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #818cf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#818cf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Conduct a structured baseline mapping of 7 civic amenity categories across all 14 settlements. Use the mobile application and mapping tool. COs work alongside community members in this exercise. Output: settlement-level data on access to toilets, water, drainage, waste collection, streetlights, CCTV, and other issues.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Complete CO training on mapping tool and mobile application</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CO Mapping Tool Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map: access to public toilets (availability, functionality, gender-segregated)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Toilet Access Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map: access to regular drinking water supply</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Water Access Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map: drainage and sewer line coverage</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Drainage System Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map: waste collection frequency and coverage (BBMP or equivalent)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Waste Collection Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map: adequacy of streetlights</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Streetlight Adequacy Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map: CCTV coverage in blind spots / unsafe areas</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>CCTV Coverage Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map: other settlement-specific civic issues identified by community</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Other Civic Issues Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Compile findings for all 14 settlements</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Settlement Mapping Data Compilation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Share settlement-level mapping reports with community groups and cluster coordinators</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Settlement Mapping Report Sharing</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Prioritise top 3 issues per settlement for action planning</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Settlement Issue Prioritisation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-navy" id="s13">
+        <div class="label" style="color:#c084fc">PITSTOP 7 OF 11 · MEETING · 90 DAYS</div>
+        <h2 class="title">Stakeholder Engagement &amp; Relationship Building</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Establish structured relationships with key government stakeholders in each cluster: ASHA, ANM, PHC staff, police, nodal officer, Medical Officer, Block/Ward office officers. Conduct first round of stakeholder meetings. Set up regular engagement rhythm based on issues identified in baseline mapping.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Map all relevant stakeholders per cluster: ASHA, ANM, PHC MO, police, ward/block officers</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Stakeholder Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Introduce programme to each stakeholder with formal letter and CO meeting</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Stakeholder Programme Introduction</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish regular meeting schedule with PHC (monthly), police (monthly), ward officer (monthly)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Regular Stakeholder Meeting Schedule Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct first Adalat / grievance forum at slum level in each cluster</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Stakeholder Engagement Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Invite stakeholders to attend cluster-level community group meetings</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Stakeholder Community Meeting Invitation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish referral pathway for GBV/DV cases to police and support services</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>GBV Referral Pathway Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Establish referral pathway for housing/land rights to relevant authorities</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Housing Rights Referral Pathway Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Document stakeholder contacts, meeting rhythm, and engagement status per cluster</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Stakeholder Contact Documentation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-indigo" id="s14">
+        <div class="label" style="color:#fb7185">PITSTOP 8 OF 11 · MILESTONE · 60 DAYS</div>
+        <h2 class="title">MIS &amp; Mobile App Deployment</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Deploy and operationalise the MIS system and mobile application across all COs and coordinators. The app must capture: community group roster and attendance, meeting rhythm and action plans, civic amenity mapping data, entitlements facilitated, DV cases, MAS group data, and stakeholder visits.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Install mobile app on all CO devices</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Mobile App Installation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Create user accounts for all COs, cluster coordinators, and programme team</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>User Account Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train all COs on data entry: group meetings, attendance, action plans</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CO MIS Data Entry Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train COs on civic amenities mapping module</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Civic Mapping Module Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train COs on entitlement tracking and DV case reporting</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Entitlement and DV Reporting Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Configure cluster coordinator view: groups, meetings, attendance, action plan status</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Cluster Coordinator Dashboard Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Configure MAS tracking module</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MAS Tracking Module Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct first MIS data quality review (2 weeks after deployment)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MIS Data Quality Review</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set up monthly MIS reporting cadence for programme team</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Monthly MIS Reporting Setup</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-slate" id="s15">
+        <div class="label" style="color:#34d399">PITSTOP 9 OF 11 · TRAINING · 110 DAYS</div>
+        <h2 class="title">Issue-Based Capacity Building of Community Leaders</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Based on civic amenities mapping findings, conduct targeted training for community group leaders on specific issues. For example, if waste collection is irregular, train on BBMP process, grievance portal, responsible officer identification. Monthly 1-day training for group leaders planned throughout Year 1.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Review mapping data to identify top 3 issues per cluster</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Cluster Issue Priority Review</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Design issue-specific training modules for top civic amenity issues</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Issue Training Module Design</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train leaders on: how to use grievance redressal portals (BBMP, ward, PHC)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Grievance Portal Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train leaders on: how to identify and meet responsible department officer</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Officer Identification Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train leaders on: writing complaint letters and follow-up process</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Complaint Letter Writing Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train leaders on: housing rights and land title deed application process</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Housing Rights Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct exposure visit for community leaders to a well-functioning similar programme</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Community Leader Exposure Visit</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Begin tracking resolution rate of issues identified in baseline mapping</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Issue Resolution Tracking Setup</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-emerald" id="s16">
+        <div class="label" style="color:#fb7185">PITSTOP 10 OF 11 · MILESTONE · 120 DAYS</div>
+        <h2 class="title">Land Title Deed &amp; Housing Rights Drive</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Facilitate land title deed applications for eligible households across all clusters. COs to spend ~3 days/month on collection of applications and follow-up. Train COs and community leaders on application process. Conduct exposure visits to existing models.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Train COs on land title deed eligibility criteria and application process</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CO Land Rights Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct exposure visit for COs to an existing housing rights model</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CO Housing Rights Exposure Visit</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify eligible households in each settlement</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Eligible Household Identification</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct application collection drives (CO 3 days/month dedicated)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Housing Rights Application Drive</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Submit applications to relevant authority (municipality/BDA/BBMP)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Housing Application Submission</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Track application status per household in MIS</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Application Status Tracking</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct department follow-up visits (monthly)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Department Follow-up Visit</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Report resolution rate of housing/land rights cases quarterly</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Quarterly Housing Rights Report</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-sky" id="s17">
+        <div class="label" style="color:#fb7185">PITSTOP 11 OF 11 · MILESTONE · 120 DAYS</div>
+        <h2 class="title">Review &amp; Monitoring Cadence Setup</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Establish the full programme review and supervision architecture. Monthly: CC visits bi-monthly to each CO, resource centre monthly review, foundation team participates in cluster meetings. Key metrics: group meeting cadence, civic issue resolution rate, MAS functioning, entitlements facilitated, DV referrals.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Set Cluster Coordinator bi-monthly visit schedule to each CO's group meetings</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>CC Visit Schedule Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule monthly resource centre review (COs share action plans and status)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Resource Centre Review Scheduling</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule monthly cluster-level meeting (CC + all COs + community leaders)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Monthly Cluster Meeting Scheduling</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule monthly foundation team participation in cluster meetings</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Foundation Team Meeting Scheduling</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Schedule monthly Cluster Coordinator review by zone/programme lead</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Zone Lead Review Scheduling</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Define key metrics tracking: group meeting cadence &amp; attendance</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Group Meeting Metrics Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Define key metrics tracking: civic amenity issue resolution rate (one-time and recurring)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Civic Issue Resolution Metrics Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Define key metrics tracking: 100% of members able to resolve frequent category issues</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Member Capability Metrics Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">9.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Define key metrics tracking: MAS meeting frequency and PHC issue resolution</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>MAS Performance Metrics Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">10.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Define key metrics tracking: land/housing applications filed and resolved</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Housing Rights Metrics Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">11.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Define key metrics tracking: DV/GBV referrals made and follow-up status</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>DV/GBV Metrics Setup</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">12.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Conduct first round of monthly reviews and document learnings</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>First Programme Review Meeting</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s18">
+      <div class="label" style="color:#5eead4">HOW PITSTOPS GET CLOSED</div>
+      <h2 class="title">Three ways to mark a step done</h2>
+      <h3 class="sub">Each activity has a completion type. Some need a doc, some a voice note, some just a confirm.</h3>
+      <div style="margin-top:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1080px">
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">✓</div>
+            <div style="font-size:24px;font-weight:700;color:#34d399">Activity</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Mark done</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">📎</div>
+            <div style="font-size:24px;font-weight:700;color:#38bdf8">Upload</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Upload</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">🎙</div>
+            <div style="font-size:24px;font-weight:700;color:#c084fc">Voice</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Voice log</div>
+          </div>
+        
+      </div></div>
+<div class="slide bg-navy" id="s19">
+      <div style="margin:auto;max-width:780px;text-align:center">
+        <div style="font-size:72px;margin-bottom:20px">⚖️</div>
+        <h1 class="hero" style="font-size:44px">Follow the pitstops. The community will see the difference.</h1>
+        <p class="body" style="margin-top:24px;font-size:18px;color:#cbd5e1">Every checklist exists because a previous project failed without it. Don't skip steps.</p>
+        <div style="margin-top:48px;display:flex;gap:16px;justify-content:center">
+          <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Back to training hub</a>
+        </div>
+      </div></div>
+</div>
+<div id="nav">
+  <a href="/pitstops-training.html" title="Back to training hub">⌂ Hub</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 19</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const total=19;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+// Deep-link via #sN
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>

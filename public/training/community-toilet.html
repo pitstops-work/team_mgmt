@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<!-- HAND_AUTHORED: do not regenerate this file via gen-training-deck.mjs -->
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Community Sanitation Complex — Training</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+<div class="slide bg-navy active" id="s1">
+      <div style="margin:auto;max-width:920px;text-align:center">
+        <div style="font-size:96px;margin-bottom:24px">🚽</div>
+        <div class="label" style="color:#a78bfa">Community Programs</div>
+        <h1 class="hero" style="margin-bottom:20px">Community Sanitation Complex</h1>
+        <p class="body" style="font-size:20px;color:#cbd5e1;max-width:720px;margin:0 auto">Integrated toilet + bathing + laundry + drinking-water complex (Suvidha-type), with greywater recycling. New-build template.</p>
+        <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+          <div class="stat-pill"><span class="num">9</span><span class="lbl">pitstops</span></div>
+          <div class="stat-pill"><span class="num">63</span><span class="lbl">checklists</span></div>
+          <div class="stat-pill"><span class="num">63</span><span class="lbl">activities</span></div>
+          <div class="stat-pill"><span class="num">252d</span><span class="lbl">longest SLA</span></div>
+        </div>
+      </div></div>
+<div class="slide bg-rose" id="s2">
+      <div class="label" style="color:#fb7185">WHY THIS GOAL MATTERS</div>
+      <h2 class="title">A single, mutually reinforcing crisis of bodily dignity</h2>
+      <h3 class="sub">Open defecation, unsafe bathing, no laundry, no clean drinking water — addressing any one in isolation has consistently failed.</h3>
+      <div style="margin-top:24px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1080px">
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">1–2 hrs/day</div>
+          <p class="body" style="font-size:14px;margin-top:6px">that women in Chennai slums spend fetching water and managing laundry — a direct opportunity cost an integrated complex can eliminate.</p>
+        </div>
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">600,000 HHs</div>
+          <p class="body" style="font-size:14px;margin-top:6px">in 1,915 notified slums in Chennai — most outside CMWSSB sewer network, dependent on septic tanks discharging into open drains.</p>
+        </div>
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">2,000–5,000 mg/L</div>
+          <p class="body" style="font-size:14px;margin-top:6px">groundwater TDS in coastal Chennai slums — borewell water unsuitable for drinking or cooking without RO treatment.</p>
+        </div>
+        <div style="padding:20px 24px;background:rgba(251,113,133,.08);border-left:3px solid #fb7185;border-radius:10px">
+          <div style="font-size:30px;font-weight:800;color:#fda4af">6.5 M litres/yr</div>
+          <p class="body" style="font-size:14px;margin-top:6px">of fresh water saved at the Dharavi Suvidha Kendra alone, by routing greywater back into flushing and laundry. The integrated model is what makes a complex water-sustainable.</p>
+        </div>
+      </div>
+      <p class="body" style="margin-top:24px;font-size:16px;color:#fecaca;font-style:italic;max-width:1080px">The toilet block alone, the bathing block alone, the water ATM alone — each fails in two years without the others. The complex works because the services co-locate, share infrastructure, and create one operational model that one CMC can govern.</p></div>
+<div class="slide bg-slate" id="s3">
+        <div class="label" style="color:#94a3b8">GOAL PARAMETERS</div>
+        <h2 class="title">What an RP fills in when creating this goal</h2>
+        <h3 class="sub">These shape the scale of every downstream pitstop.</h3>
+        <div style="display:grid;gap:16px;margin-top:32px;max-width:880px">
+          
+            <div style="padding:20px 24px;background:rgba(148,163,184,.08);border-left:3px solid #818cf8;border-radius:8px">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">complexes</div>
+              <div style="font-size:20px;font-weight:600;color:#fff">Number of complexes</div>
+              <div style="font-size:14px;color:#94a3b8;margin-top:4px">range: 1 to 5</div>
+              <div style="font-size:14px;color:#64748b;margin-top:4px">example: e.g. 1</div>
+            </div>
+          
+            <div style="padding:20px 24px;background:rgba(148,163,184,.08);border-left:3px solid #818cf8;border-radius:8px">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">seats</div>
+              <div style="font-size:20px;font-weight:600;color:#fff">Total toilet seats</div>
+              <div style="font-size:14px;color:#94a3b8;margin-top:4px">range: 10 to 200</div>
+              <div style="font-size:14px;color:#64748b;margin-top:4px">example: e.g. 30</div>
+            </div>
+          
+            <div style="padding:20px 24px;background:rgba(148,163,184,.08);border-left:3px solid #818cf8;border-radius:8px">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">households</div>
+              <div style="font-size:20px;font-weight:600;color:#fff">Households in catchment</div>
+              <div style="font-size:14px;color:#94a3b8;margin-top:4px">range: 100 to 2000</div>
+              <div style="font-size:14px;color:#64748b;margin-top:4px">example: e.g. 500</div>
+            </div>
+          
+        </div></div>
+<div class="slide bg-dark" id="s4">
+      <div class="label" style="color:#a78bfa">THE JOURNEY</div>
+      <h2 class="title">9 pitstops, 252-day arc</h2>
+      <h3 class="sub">Every pitstop unlocks the next. Skipping or rushing one breaks downstream pitstops.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;max-width:1180px">
+        
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🔍</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#818cf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 1 · Research · 28d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Site, Land Tenure &amp; Water Source Assessment</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 2 · Meeting · 42d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Community Demand &amp; CMC Formation</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">📝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fbbf24;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 3 · Proposal · 56d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Regulatory Clearances &amp; Funding</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">💰</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#f59e0b;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 4 · Budgeting · 84d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Architectural Design &amp; Procurement</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🏗</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#38bdf8;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 5 · Site Visit · 168d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Civil + Equipment Installation</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 6 · Milestone · 175d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Commissioning &amp; Compliance Testing</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🎓</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 7 · Training · 196d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Operator Recruitment &amp; Staff Training</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🤝</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 8 · Meeting · 224d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Soft Launch &amp; Household Registration</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;display:flex;gap:14px;align-items:flex-start">
+              <div style="font-size:22px;line-height:1;width:32px;text-align:center">🚩</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:#fb7185;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Pitstop 9 · Milestone · 252d</div>
+                <div style="font-size:15px;color:#fff;font-weight:600;margin-top:4px">Formal Inauguration &amp; Community Anchoring</div>
+              </div>
+            </div>
+      </div></div>
+<div class="slide bg-indigo" id="s5">
+      <div class="label" style="color:#a78bfa">THE INTEGRATED COMPLEX</div>
+      <h2 class="title">Five services, one operational model, one CMC</h2>
+      <h3 class="sub">Why we don't build standalone toilet blocks — and what each service contributes.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(5,1fr);gap:12px;max-width:1180px">
+        
+          <div style="padding:18px 14px;background:rgba(255,255,255,.05);border:1px solid #fb718540;border-radius:12px;text-align:center">
+            <div style="font-size:38px;margin-bottom:8px">🚽</div>
+            <div style="font-size:13px;font-weight:700;color:#fb7185">Toilet block</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;line-height:1.4">111 seats at Dharavi · separate male/female/child/differently-abled</div>
+          </div>
+          <div style="padding:18px 14px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:12px;text-align:center">
+            <div style="font-size:38px;margin-bottom:8px">🚿</div>
+            <div style="font-size:13px;font-weight:700;color:#38bdf8">Bathing</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;line-height:1.4">Push-valve showers, lockable cubicles, drying area</div>
+          </div>
+          <div style="padding:18px 14px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:12px;text-align:center">
+            <div style="font-size:38px;margin-bottom:8px">🧺</div>
+            <div style="font-size:13px;font-weight:700;color:#c084fc">Laundromat</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;line-height:1.4">Industrial machines, ₹30–60/load, detergent included</div>
+          </div>
+          <div style="padding:18px 14px;background:rgba(255,255,255,.05);border:1px solid #5eead440;border-radius:12px;text-align:center">
+            <div style="font-size:38px;margin-bottom:8px">💧</div>
+            <div style="font-size:13px;font-weight:700;color:#5eead4">Water ATM</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;line-height:1.4">RO drinking water, RFID + UPI, ₹1–2/litre</div>
+          </div>
+          <div style="padding:18px 14px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:12px;text-align:center">
+            <div style="font-size:38px;margin-bottom:8px">🧼</div>
+            <div style="font-size:13px;font-weight:700;color:#34d399">Handwash</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;line-height:1.4">Soap-stocked stations adjacent to every service</div>
+          </div>
+      </div>
+      <div style="margin-top:32px;padding:24px 28px;background:linear-gradient(90deg,rgba(167,139,250,.08) 0%,rgba(94,234,212,.08) 100%);border:1px solid rgba(167,139,250,.25);border-radius:14px;max-width:1180px">
+        <div style="display:flex;align-items:center;gap:20px;justify-content:space-between;flex-wrap:wrap">
+          <div style="font-size:15px;color:#cbd5e1;flex:1">Shower, handwash &amp; laundry greywater (60–70% of total water consumed)</div>
+          <div style="font-size:28px;color:#a78bfa">→</div>
+          <div style="padding:10px 18px;background:rgba(94,234,212,.12);border:1px solid #5eead4;border-radius:10px;font-size:13px;color:#5eead4;font-weight:600;text-align:center">MBBR greywater plant<br/>BOD &lt; 10 mg/L</div>
+          <div style="font-size:28px;color:#a78bfa">→</div>
+          <div style="font-size:15px;color:#cbd5e1;flex:1;text-align:right">Reused for toilet flushing &amp; laundry · saves 40–60% of fresh water</div>
+        </div>
+      </div></div>
+
+<div class="slide bg-slate" id="s6">
+      <div class="label" style="color:#94a3b8">SCHEMATIC</div>
+      <h2 class="title">The G+2 building, floor by floor</h2>
+      <h3 class="sub">Verticality is what makes a 30–40 seat complex fit on a 300–500 sq m plot.</h3>
+      <div style="margin-top:28px;max-width:1100px">
+        
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:16px;padding:14px 18px;background:rgba(255,255,255,.04);border-left:4px solid #fbbf24;border-radius:8px;margin-bottom:8px;align-items:center">
+            <div style="display:flex;gap:10px;align-items:center">
+              <div style="font-size:22px">☀️</div>
+              <div style="font-size:14px;font-weight:700;color:#fbbf24">Terrace</div>
+            </div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.55">Solar PV (3–5 kWp) · clothes-drying area · overhead water storage tanks · biogas vent stack</div>
+          </div>
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:16px;padding:14px 18px;background:rgba(255,255,255,.04);border-left:4px solid #5eead4;border-radius:8px;margin-bottom:8px;align-items:center">
+            <div style="display:flex;gap:10px;align-items:center">
+              <div style="font-size:22px">💧</div>
+              <div style="font-size:14px;font-weight:700;color:#5eead4">Second floor</div>
+            </div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.55">RO drinking water station (Water ATM) · greywater treatment plant · storage tanks · solar inverter · operator rest area</div>
+          </div>
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:16px;padding:14px 18px;background:rgba(255,255,255,.04);border-left:4px solid #c084fc;border-radius:8px;margin-bottom:8px;align-items:center">
+            <div style="display:flex;gap:10px;align-items:center">
+              <div style="font-size:22px">🧺</div>
+              <div style="font-size:14px;font-weight:700;color:#c084fc">First floor</div>
+            </div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.55">Female bathing cubicles (6–12) · male bathing cubicles (4–8) · laundromat (4–8 machines + spin dryers) · clothes-hanging area</div>
+          </div>
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:16px;padding:14px 18px;background:rgba(255,255,255,.04);border-left:4px solid #fb7185;border-radius:8px;margin-bottom:8px;align-items:center">
+            <div style="display:flex;gap:10px;align-items:center">
+              <div style="font-size:22px">🚽</div>
+              <div style="font-size:14px;font-weight:700;color:#fb7185">Ground floor</div>
+            </div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.55">Male WC block · Female WC block (Indian + Western + child) · differently-abled unisex WC · handwash stations · operations room · tank room · meter cupboard · separate entrances by gender</div>
+          </div>
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:16px;padding:14px 18px;background:rgba(255,255,255,.04);border-left:4px solid #94a3b8;border-radius:8px;margin-bottom:8px;align-items:center">
+            <div style="display:flex;gap:10px;align-items:center">
+              <div style="font-size:22px">⬇</div>
+              <div style="font-size:14px;font-weight:700;color:#94a3b8">Sub-surface</div>
+            </div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.55">Underground water cistern (20,000–50,000 L) · septic tank or biodigester · greywater collection sump · soak pit / effluent disposal</div>
+          </div>
+      </div>
+      <p class="body" style="margin-top:16px;font-size:13px;color:#94a3b8;font-style:italic;max-width:1100px">RCC frame; IS 1893 seismic compliance (Zone II Bangalore / III Chennai). Anti-slip R11 floor tiles in all wet areas. Separate male and female entrances on different faces of the building.</p></div>
+
+<div class="slide bg-emerald" id="s7">
+      <div class="label" style="color:#34d399">PAYMENT ARCHITECTURE</div>
+      <h2 class="title">Four channels, one backend, zero exclusion</h2>
+      <h3 class="sub">Each channel serves a different user. Pick one, lose adoption.</h3>
+      <div style="margin-top:32px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1180px">
+        
+          <div style="padding:20px 16px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:12px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><div style="font-size:26px">💳</div><div style="font-size:14px;font-weight:700;color:#34d399">RFID Smart Card</div></div>
+            <div style="font-size:12px;color:#cbd5e1;line-height:1.55">Registered households · monthly pass holders · works offline · audit trail per swipe</div>
+          </div>
+          <div style="padding:20px 16px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:12px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><div style="font-size:26px">📱</div><div style="font-size:14px;font-weight:700;color:#38bdf8">UPI / QR Code</div></div>
+            <div style="font-size:12px;color:#cbd5e1;line-height:1.55">Casual users · migrants · visitors · vendors · no card registration needed</div>
+          </div>
+          <div style="padding:20px 16px;background:rgba(255,255,255,.05);border:1px solid #fbbf2440;border-radius:12px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><div style="font-size:26px">🪙</div><div style="font-size:14px;font-weight:700;color:#fbbf24">Coin slot</div></div>
+            <div style="font-size:12px;color:#cbd5e1;line-height:1.55">Smallest transactions (1–2 L) · users without cards or phones · reduces exclusion</div>
+          </div>
+          <div style="padding:20px 16px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:12px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><div style="font-size:26px">🛒</div><div style="font-size:14px;font-weight:700;color:#c084fc">Agent recharge</div></div>
+            <div style="font-size:12px;color:#cbd5e1;line-height:1.55">SHG members + shopkeepers · top up cards using UPI on commission · extends network beyond operator hours</div>
+          </div>
+      </div>
+      <div style="margin-top:24px;padding:20px 28px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:12px;max-width:1180px;text-align:center">
+        <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:6px">↓ all four feed into ↓</div>
+        <div style="font-size:18px;font-weight:700;color:#fff">Unified cloud dashboard — litres dispensed, revenue, footfall, complaints, all in one view</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:6px">CMC, RP, operator and ULB all see the same numbers. No siloed cash registers.</div>
+      </div>
+      <p class="body" style="margin-top:16px;font-size:13px;color:#86efac;font-style:italic;max-width:1180px">Programmed quota: 10–15% of daily capacity is free-access for verified extreme-poverty / disability / child-headed households. Managed at the database, not at the counter — keeps decisions out of the operator's hands.</p></div>
+
+<div class="slide bg-amber" id="s8">
+      <div class="label" style="color:#fbbf24">OPERATING ECONOMICS</div>
+      <h2 class="title">₹71K–₹1.5L opex vs ₹78K–₹1.8L revenue — at 500 daily users</h2>
+      <h3 class="sub">The model is cash-positive from month 1 if capex is grant-funded. Laundry &amp; water ATM cross-subsidise the toilet block.</h3>
+      <div style="margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:1180px">
+        <div style="padding:24px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.25);border-radius:14px">
+          <div style="font-size:13px;color:#fbbf24;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px">Monthly cost stack</div>
+          
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Attendant salaries (2–3 shifts)</span><span style="color:#fb7185;font-weight:600">₹30–60K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:100%;height:100%;background:#fb7185;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Electricity (pumps, lighting, machines)</span><span style="color:#fbbf24;font-weight:600">₹15–30K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:50%;height:100%;background:#fbbf24;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Water supply + tanker backup</span><span style="color:#38bdf8;font-weight:600">₹5–15K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:25%;height:100%;background:#38bdf8;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Cleaning consumables (never cut)</span><span style="color:#a78bfa;font-weight:600">₹5–10K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:16.666666666666664%;height:100%;background:#a78bfa;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">STP + RO consumables</span><span style="color:#5eead4;font-weight:600">₹8–22K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:36.666666666666664%;height:100%;background:#5eead4;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">AMC + monitoring fee</span><span style="color:#c084fc;font-weight:600">₹4–8K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:13.333333333333334%;height:100%;background:#c084fc;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Detergent + desludging amortised</span><span style="color:#94a3b8;font-weight:600">₹4–8K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:13.333333333333334%;height:100%;background:#94a3b8;opacity:.6"></div></div>
+            </div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(251,191,36,.2);font-size:15px;font-weight:700;color:#fff">Total: ₹71,000–₹1,53,500 / month</div>
+        </div>
+        <div style="padding:24px;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.25);border-radius:14px">
+          <div style="font-size:13px;color:#34d399;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px">Monthly revenue stack</div>
+          
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Toilet (Re.1–₹3/use)</span><span style="color:#fb7185;font-weight:600">₹15–45K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:75%;height:100%;background:#fb7185;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Bathing (₹5–₹10/use)</span><span style="color:#38bdf8;font-weight:600">₹15–45K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:75%;height:100%;background:#38bdf8;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Laundry (highest margin)</span><span style="color:#c084fc;font-weight:600">₹18–30K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:50%;height:100%;background:#c084fc;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Drinking water (₹1–₹2/L)</span><span style="color:#5eead4;font-weight:600">₹30–60K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:100%;height:100%;background:#5eead4;opacity:.6"></div></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#e2e8f0">Monthly household passes</span><span style="color:#fbbf24;font-weight:600">₹20–40K</span></div>
+              <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="width:66.66666666666666%;height:100%;background:#fbbf24;opacity:.6"></div></div>
+            </div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(52,211,153,.2);font-size:15px;font-weight:700;color:#fff">Total: ₹78,000–₹1,80,000 / month</div>
+          <div style="font-size:12px;color:#34d399;margin-top:6px">Net margin: ₹10,000–₹1,00,000 / month</div>
+        </div>
+      </div>
+      <p class="body" style="margin-top:18px;font-size:13px;color:#fcd34d;font-style:italic;max-width:1180px">Capex of ₹1–1.7 crore (G+2 · 30–40 seats · solar · greywater plant · RO). At ₹50K net margin: 24–36 month payback. Most builds are grant-funded (SBM-U 2.0: ₹98K/seat + ₹32K/urinal); capex is typically not recovered from operations.</p></div>
+<div class="slide bg-sky" id="s9">
+        <div class="label" style="color:#818cf8">PITSTOP 1 OF 9 · RESEARCH · 28 DAYS</div>
+        <h2 class="title">Site, Land Tenure &amp; Water Source Assessment</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #818cf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#818cf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">The single most common killer of community sanitation projects is land tenure. RP secures a formal lease or MoU (15+ years minimum) before any capital is committed. Site must be within 200–300 metres of all target households — beyond that distance, communities revert to open defecation even with a working facility nearby. Water source assessment runs in parallel: the complex needs 15,000–25,000 L/day with greywater recycling; double that without.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP identifies candidate plot (300–500 sq m minimum) within 200–300 metres walking distance of all target households</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Candidate Site Survey</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP secures formal land agreement (15+ year lease / MoU) with BBMP / TNSCB / ULB / landowner — no capital committed before this is signed</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Land MoU / Lease Document</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm sewer line proximity for blackwater disposal; if absent, plan for septic tank + FSTP hookup or biodigester</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Sewer / Drainage Network Survey</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Borewell or municipal water source assessed: TDS, hardness, microbial; full NABL lab panel if borewell will be used</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Water Source Lab Test Report</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Confirm commercial electrical connection available (single or 3-phase); plan backup (stabiliser / UPS / solar)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Electrical Supply Confirmation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Avoid sites in flood-prone low-lying areas (monsoon inundation risk) or adjacent to open drains / waste dumps (odour, vandalism)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Flood + Hygiene Risk Walk-through</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#818cf8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Soil investigation report for G+2 foundation design</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Soil Test Report</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-violet" id="s10">
+        <div class="label" style="color:#c084fc">PITSTOP 2 OF 9 · MEETING · 42 DAYS</div>
+        <h2 class="title">Community Demand &amp; CMC Formation</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">RPs go door-to-door before any design work. We need real demand: household count, gender-disaggregated willingness-to-pay, peak-hour load. The single best predictor of long-term sustainability is community ownership — formed through the Community Management Committee (CMC). 5–7 members including at least 3 women, an SHG representative, and one elderly or differently-abled member. CMC governs tariff changes, complaints, and operator renewal.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Door-to-door household count and OD prevalence survey within service radius</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Household Demand Survey</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Willingness-to-pay survey at multiple price points (Re.1 / ₹2 / ₹3 per use; ₹100–200 / month pass)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Willingness-to-Pay Survey</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Gender-disaggregated focus groups on bathing / laundry / safety needs — women’s inputs drive design</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Women’s Focus Group</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Identify peak-hour windows (5–8 AM, 8–10 PM) and size for peak load</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Peak Usage Mapping</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Form Community Management Committee (5–7 members; ≥3 women; SHG rep; elderly / differently-abled rep)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CMC Formation Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CMC drafts and signs governance charter (tariff approval, complaint adjudication, operator review process)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>CMC Charter</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP verifies CMC membership and conducts orientation on roles, dashboard reading, and decision cadence</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>CMC Orientation</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-amber" id="s11">
+        <div class="label" style="color:#fbbf24">PITSTOP 3 OF 9 · PROPOSAL · 56 DAYS</div>
+        <h2 class="title">Regulatory Clearances &amp; Funding</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fbbf24;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fbbf24;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Six clearances run in parallel; any one held up blocks construction. SBM-U 2.0 grant (₹98,000 / WC seat + ₹32,000 / urinal from GoI) is the primary capital window; AMRUT 2.0 covers water / sewerage / FSSM. Additional gap funding typically covers 30–40% of capex. Submit the SBM application early — it has long review cycles.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fbbf24;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Building plan approval submitted to BBMP (Bangalore) or CMDA / local municipal body (Chennai)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Building Plan Submission</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fbbf24;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">KSPCB / TNPCB Consent to Establish (CTE) applied for greywater plant + septic / biodigester</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>SPCB CTE Application</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fbbf24;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">FSSAI registration applied for the Water ATM service component</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>FSSAI Registration</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fbbf24;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">CGWB / SGWB NoC for new borewell (if applicable)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>CGWB Borewell NoC</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fbbf24;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Fire NoC for G+2 structure from state fire department</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Fire NoC</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fbbf24;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">SBM-U 2.0 grant application submitted via BBMP / TNSCB</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>SBM-U 2.0 Application</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fbbf24;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Additional / gap funding window confirmed (typically 30–40% of capex)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Funding Commitment Letter</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-rose" id="s12">
+        <div class="label" style="color:#f59e0b">PITSTOP 4 OF 9 · BUDGETING · 84 DAYS</div>
+        <h2 class="title">Architectural Design &amp; Procurement</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #f59e0b;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">G+2 building: ground floor WC blocks (separate male / female + child + differently-abled), first floor bathing + laundromat, second floor RO water + greywater plant + storage tanks. Anti-slip R11 floor tiles mandatory. Plumbing must keep blackwater and greywater on separate lines from day one — retrofit is near-impossible. Procure industrial-grade washing machines rated for 8–10 hours daily continuous operation; domestic machines fail within weeks under community use intensity.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">G+2 architectural drawings to per-floor brief; female WC share 55–60% of total seats; at least 1 unisex differently-abled WC per gender</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Architectural Drawings</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Structural engineer sign-off (RCC frame; IS 1893 seismic compliance — Zone II Bangalore / III Chennai)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Structural Engineer Sign-off</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Sanitary fittings procured: SATO low-flush or 6L cisterns, push-valve showers / taps, anti-slip floor tiles (R11)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Sanitary Fittings PO</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Industrial / semi-commercial washing machines procured (5–10 kg, front-load, rated for 8–10 hours continuous) + spin dryers</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Laundry Equipment PO</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RO plant + Water ATM unit procured (1,000 LPH for 300–500 HH; includes RFID + IoT)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>RO Plant PO</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Greywater treatment unit procured (MBBR-based packaged unit, 15–30 KLD)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Greywater STP PO</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Solar PV system procured (3–5 kWp + inverter + battery bank)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Solar PV PO</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#f59e0b;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Storage tanks (50,000 L total OH + UG, food-grade); septic tank or biodigester (if no sewer connection)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Storage + Septage PO</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s13">
+        <div class="label" style="color:#38bdf8">PITSTOP 5 OF 9 · SITE VISIT · 168 DAYS</div>
+        <h2 class="title">Civil + Equipment Installation</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #38bdf8;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#38bdf8;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">Construction sequence is critical: blackwater and greywater plumbing lines must be physically separated and labelled at every junction — there’s no second chance once the slab is poured. Roof waterproofing must be complete before solar installation. RP visits weekly during civil works; photo log every milestone.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Civil structure: plant room, RCC frame G+2, foundation work for storage tanks</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Civil Construction Photo Log</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Plumbing installation: blackwater + greywater lines physically separated and labelled at every junction</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Plumbing Separation Check</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Sub-surface works: underground water cistern, septic tank or biodigester chamber, greywater collection sump</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Sub-surface Works Photos</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Electrical wiring + BESCOM / TANGEDCO commercial connection approved and energised</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Electrical Inspection Certificate</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Equipment installed: RO plant, greywater treatment unit, washing machines, spin dryers, water ATM dispensing unit</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Equipment Installation Sign-off</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Roof waterproofing complete; solar PV panels installed; net-metering applied for</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Solar Install Photos</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">IoT monitoring + RFID / UPI payment system configured; cloud dashboard live</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>IoT + Payment System Test</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#38bdf8;font-weight:700;padding-top:2px">8.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP site visits weekly during this phase; photo log + voice notes captured every visit</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Weekly RP Site Visit</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-dark" id="s14">
+        <div class="label" style="color:#fb7185">PITSTOP 6 OF 9 · MILESTONE · 175 DAYS</div>
+        <h2 class="title">Commissioning &amp; Compliance Testing</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">48-hour soak test runs every system at design load. Water quality tests for both the RO product water (IS 10500 BIS standards) and greywater effluent (BOD &lt;10 mg/L, turbidity &lt;5 NTU per IS 16101) must pass before any user is admitted. FSSAI sample submission is mandatory for the water ATM service. Skip none of this; commissioning gaps surface as community trust collapses later.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">48-hour continuous operational test of all systems (toilets flushing, showers, washing machines, RO, greywater)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>48-hr Soak Test Log</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RO product water tested against IS 10500 BIS standards at NABL lab (TDS, microbial, chemical)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>RO Product Water Test</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Greywater effluent tested: BOD &lt;10 mg/L, turbidity &lt;5 NTU, E. coli not detected (IS 16101)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Greywater Effluent Test</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">FSSAI water sample submission for pre-operation compliance</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>FSSAI Sample Submission</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">All payment modes tested end-to-end (RFID swipe, UPI QR, coin if installed, AePS if installed)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Payment System E2E Test</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Safety walk-through: night lighting working, door latches functional, ventilation adequate, anti-slip floor verified</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Safety Walk-through</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP signs commissioning report — facility ready for soft launch</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Commissioning Sign-off</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-navy" id="s15">
+        <div class="label" style="color:#34d399">PITSTOP 7 OF 9 · TRAINING · 196 DAYS</div>
+        <h2 class="title">Operator Recruitment &amp; Staff Training</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #34d399;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#34d399;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">The lead caretaker is the most critical hire for long-term success. Preference: woman with SHG background and community standing. Total team is 6–10 FTEs across 3 shifts (caretakers, cashier, plant operator, laundry supervisor, community coordinator). Training covers cleaning protocol, payment system, basic maintenance, complaint management, and gender-sensitivity.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Lead caretaker / operator recruited (preferably woman with SHG background)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Lead Operator Hired</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Full team (6–10 FTEs) recruited: 3-shift caretakers, cashier / pass manager, plant operator, laundry supervisor, community coordinator</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Team Hiring List</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Operator training on cleaning protocol (3-shift cycle), shift register, cleanliness scoring</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Cleaning Protocol Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Payment system training: RFID issuance, UPI reconciliation, cash audit, monthly pass renewal</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Payment System Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Basic maintenance training: drain clearing, lock servicing, machine filter cleaning, RO membrane CIP</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Maintenance Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Complaint management and gender-sensitivity training; escalation pathway to CMC and RP</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Gender + Complaints Training</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#34d399;font-weight:700;padding-top:2px">7.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Plant operator certified on RO + greywater plant operation; weekly DO check + monthly BOD test procedure</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Plant Operator Certification</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-indigo" id="s16">
+        <div class="label" style="color:#c084fc">PITSTOP 8 OF 9 · MEETING · 224 DAYS</div>
+        <h2 class="title">Soft Launch &amp; Household Registration</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #c084fc;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#c084fc;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">A soft launch with subsidised pricing breaks the first-use barrier — the same logic as RFID free-trial credit at water ATMs. Door-to-door household registration with RFID + monthly pass issuance is the single most reliable predictor of sustained adoption. Free-use demo day generates word-of-mouth; without it, uptake stalls.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Free-use demo day with full-service demonstration (toilet, bath, laundry, drinking water); CMC + ward councillor invited</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Free-Use Demo Day</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Door-to-door household registration; RFID cards + monthly passes issued with photo + household ID</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Household Registration Log</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Subsidised trial pricing (4–6 weeks at 50% rate) to break first-use barrier</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Trial Pricing Window</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Agent network activated: 2–4 community agents (SHG / shopkeeper) trained to sell + recharge passes on commission</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Agent Network Activation</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Free / social quota programmed in payment system: 10–15% of daily capacity reserved for verified extreme-poverty / disability / child users</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Social Quota Configuration</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#c084fc;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Weekly check-ins for first 4 weeks; CMC + RP debrief on adoption, complaints, queue patterns</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>Week-1 to Week-4 Debrief</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-slate" id="s17">
+        <div class="label" style="color:#fb7185">PITSTOP 9 OF 9 · MILESTONE · 252 DAYS</div>
+        <h2 class="title">Formal Inauguration &amp; Community Anchoring</h2>
+        <div style="margin-top:20px;padding:20px 24px;background:rgba(255,255,255,.05);border-left:3px solid #fb7185;border-radius:8px;max-width:900px">
+          <div style="font-size:11px;color:#fb7185;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px">Why this pitstop</div>
+          <p class="body" style="font-size:15px;line-height:1.65">The formal inauguration is more than ceremony — it cements public legitimacy and creates the first occasion for CMC, ULB ward councillor, and funder to be visibly bound to the complex’s success. Community press coverage helps. The first monthly community feedback meeting at the complex anchors the ongoing cadence.</p>
+        </div>
+        <div style="margin-top:24px;display:grid;gap:10px;max-width:1180px">
+          
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">1.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Formal inauguration event with CMC, ULB ward councillor, funder partner, women community leaders</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Inauguration Event Photos</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">2.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Community press release / WhatsApp coverage to nearby slums and ward</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Press / Social Coverage</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">3.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">First monthly community feedback meeting held at the complex; minutes posted on noticeboard</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #c084fc40;border-radius:14px;font-size:11px;color:#c084fc;font-weight:600"><span style="font-size:12px">🎙</span>First Community Feedback Meeting</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">4.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Monthly cleanliness rating board installed at entrance (1–5 star peer accountability board)</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Cleanliness Board Live</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">5.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">Public dashboard set up: monthly footfall, revenue, cleanliness score, water quality test results visible to community</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #34d39940;border-radius:14px;font-size:11px;color:#34d399;font-weight:600"><span style="font-size:12px">✓</span>Public Dashboard Live</span></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:8px;align-items:start">
+                <div style="font-size:13px;color:#fb7185;font-weight:700;padding-top:2px">6.</div>
+                <div>
+                  <div style="font-size:14px;color:#e2e8f0;line-height:1.5">RP signs handover from project mode to ongoing-operations mode; CMC + lead operator now responsible</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center;padding:3px 10px;background:rgba(255,255,255,.06);border:1px solid #38bdf840;border-radius:14px;font-size:11px;color:#38bdf8;font-weight:600"><span style="font-size:12px">📎</span>Project-to-Ops Handover</span></div>
+                </div>
+              </div>
+        </div></div>
+<div class="slide bg-teal" id="s18">
+      <div class="label" style="color:#5eead4">HOW PITSTOPS GET CLOSED</div>
+      <h2 class="title">Three ways to mark a step done</h2>
+      <h3 class="sub">Each activity has a completion type. Some need a doc, some a voice note, some just a confirm.</h3>
+      <div style="margin-top:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1080px">
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #34d39940;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">✓</div>
+            <div style="font-size:24px;font-weight:700;color:#34d399">Activity</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Mark done</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #38bdf840;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">📎</div>
+            <div style="font-size:24px;font-weight:700;color:#38bdf8">Upload</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Upload</div>
+          </div>
+        
+          <div style="padding:32px 24px;background:rgba(255,255,255,.05);border:1px solid #c084fc40;border-radius:14px;text-align:center">
+            <div style="font-size:56px;margin-bottom:12px">🎙</div>
+            <div style="font-size:24px;font-weight:700;color:#c084fc">Voice</div>
+            <div style="font-size:14px;color:#94a3b8;margin-top:6px">Voice log</div>
+          </div>
+        
+      </div></div>
+
+<div class="slide bg-dark" id="s19">
+      <div class="label" style="color:#fb7185">COMMON FAILURE MODES</div>
+      <h2 class="title">Why complexes fail — and what stops the failure</h2>
+      <h3 class="sub">Every checklist in this template exists because a previous project failed without it.</h3>
+      <div style="margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:1180px">
+        
+          <div style="padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><div style="font-size:22px">👩</div><div style="font-size:13px;font-weight:700;color:#fda4af">Women stop using after 2–3 months</div></div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px"><span style="color:#fb7185;font-weight:600">Cause:</span> Poor lighting · no working latches · no privacy · safety</div>
+            <div style="font-size:11px;color:#cbd5e1"><span style="color:#34d399;font-weight:600">Prevention:</span> LED motion-sensor lighting · heavy-duty lever locks · separate entrances on different faces · night guard</div>
+          </div>
+          <div style="padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><div style="font-size:22px">🚱</div><div style="font-size:13px;font-weight:700;color:#fda4af">Foul odour, hygienic decline</div></div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px"><span style="color:#fb7185;font-weight:600">Cause:</span> Insufficient cleaning shifts · blocked drains · failing water seal traps</div>
+            <div style="font-size:11px;color:#cbd5e1"><span style="color:#34d399;font-weight:600">Prevention:</span> 3 cleaning shifts/day · drain inspection daily · smell = blocked trap = fix within 2 hrs</div>
+          </div>
+          <div style="padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><div style="font-size:22px">💸</div><div style="font-size:13px;font-weight:700;color:#fda4af">Revenue leakage</div></div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px"><span style="color:#fb7185;font-weight:600">Cause:</span> Cash pilferage · meter fraud · operator bypass</div>
+            <div style="font-size:11px;color:#cbd5e1"><span style="color:#34d399;font-weight:600">Prevention:</span> RFID/UPI dominance · IoT footfall counting · daily reconciliation · shift cash audit</div>
+          </div>
+          <div style="padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><div style="font-size:22px">🧨</div><div style="font-size:13px;font-weight:700;color:#fda4af">Vandalism / equipment theft</div></div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px"><span style="color:#fb7185;font-weight:600">Cause:</span> No community ownership · isolated location · poor siting</div>
+            <div style="font-size:11px;color:#cbd5e1"><span style="color:#34d399;font-weight:600">Prevention:</span> CMC stewardship · CCTV · busy-node siting · monthly community feedback meetings</div>
+          </div>
+          <div style="padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><div style="font-size:22px">🚱</div><div style="font-size:13px;font-weight:700;color:#fda4af">Water supply failure</div></div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px"><span style="color:#fb7185;font-weight:600">Cause:</span> Municipal supply cut · borewell depletion · pump failure</div>
+            <div style="font-size:11px;color:#cbd5e1"><span style="color:#34d399;font-weight:600">Prevention:</span> 2-day storage buffer · tanker backup MoU · duty-standby pump arrangement</div>
+          </div>
+          <div style="padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><div style="font-size:22px">🚫</div><div style="font-size:13px;font-weight:700;color:#fda4af">Exclusion of poorest</div></div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px"><span style="color:#fb7185;font-weight:600">Cause:</span> High pricing · no free tier · payment-system barriers</div>
+            <div style="font-size:11px;color:#cbd5e1"><span style="color:#34d399;font-weight:600">Prevention:</span> Free-use quota (10–15%) · cash always accepted · SHG subsidy pass · cross-tier pricing</div>
+          </div>
+          <div style="padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><div style="font-size:22px">⚙️</div><div style="font-size:13px;font-weight:700;color:#fda4af">Operator departure</div></div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px"><span style="color:#fb7185;font-weight:600">Cause:</span> Low wages · no growth path · burnout</div>
+            <div style="font-size:11px;color:#cbd5e1"><span style="color:#34d399;font-weight:600">Prevention:</span> Fair contracts · livelihood training · operator pathway to manage multiple sites</div>
+          </div>
+          <div style="padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><div style="font-size:22px">🪣</div><div style="font-size:13px;font-weight:700;color:#fda4af">Septic tank overflow</div></div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px"><span style="color:#fb7185;font-weight:600">Cause:</span> Infrequent desludging · under-sizing</div>
+            <div style="font-size:11px;color:#cbd5e1"><span style="color:#34d399;font-weight:600">Prevention:</span> Size for 125% of peak load · register with municipal desludging schedule (every 3–5 yrs)</div>
+          </div>
+          <div style="padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><div style="font-size:22px">🌧</div><div style="font-size:13px;font-weight:700;color:#fda4af">Facility abandoned in 2 yrs</div></div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px"><span style="color:#fb7185;font-weight:600">Cause:</span> No community ownership · operator dropout · management vacuum</div>
+            <div style="font-size:11px;color:#cbd5e1"><span style="color:#34d399;font-weight:600">Prevention:</span> CMC oversight · operator contract with performance incentives · community-driven design</div>
+          </div>
+      </div></div>
+<div class="slide bg-navy" id="s20">
+      <div style="margin:auto;max-width:780px;text-align:center">
+        <div style="font-size:72px;margin-bottom:20px">🚽</div>
+        <h1 class="hero" style="font-size:44px">Follow the pitstops. The community will see the difference.</h1>
+        <p class="body" style="margin-top:24px;font-size:18px;color:#cbd5e1">Every checklist exists because a previous project failed without it. Don't skip steps.</p>
+        <div style="margin-top:48px;display:flex;gap:16px;justify-content:center">
+          <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Back to training hub</a>
+        </div>
+      </div></div>
+</div>
+<div id="nav">
+  <a href="/pitstops-training.html" title="Back to training hub">⌂ Hub</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 20</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const total=20;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+// Deep-link via #sN
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>
