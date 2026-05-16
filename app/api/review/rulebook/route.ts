@@ -22,7 +22,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   const pass = req.headers.get('x-admin-passphrase');
-  if (pass !== process.env.ADMIN_PASSPHRASE) return bad('Unauthorized', 401);
+  if (pass !== process.env.STAFF_PASSPHRASE) return bad('Unauthorized', 401);
 
   let body: any;
   try { body = await req.json(); } catch { return bad('invalid json'); }

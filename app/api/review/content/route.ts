@@ -10,7 +10,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   const pass = req.headers.get('x-admin-passphrase');
-  if (pass !== process.env.ADMIN_PASSPHRASE) return bad('Unauthorized', 401);
+  if (pass !== process.env.STAFF_PASSPHRASE) return bad('Unauthorized', 401);
   const { section_id, content_html, prompt_text } = await req.json();
   if (!section_id || content_html === undefined) return bad('Missing fields');
   await sql`

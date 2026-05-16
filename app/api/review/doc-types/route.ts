@@ -9,7 +9,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   const pass = req.headers.get('x-admin-passphrase');
-  if (pass !== process.env.ADMIN_PASSPHRASE) return bad('Unauthorized', 401);
+  if (pass !== process.env.STAFF_PASSPHRASE) return bad('Unauthorized', 401);
 
   let body: any;
   try { body = await req.json(); } catch { return bad('invalid json'); }
@@ -32,7 +32,7 @@ export async function PATCH(req: Request) {
 
 export async function POST(req: Request) {
   const pass = req.headers.get('x-admin-passphrase');
-  if (pass !== process.env.ADMIN_PASSPHRASE) return bad('Unauthorized', 401);
+  if (pass !== process.env.STAFF_PASSPHRASE) return bad('Unauthorized', 401);
 
   let body: any;
   try { body = await req.json(); } catch { return bad('invalid json'); }
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const pass = req.headers.get('x-admin-passphrase');
-  if (pass !== process.env.ADMIN_PASSPHRASE) return bad('Unauthorized', 401);
+  if (pass !== process.env.STAFF_PASSPHRASE) return bad('Unauthorized', 401);
 
   const { searchParams } = new URL(req.url);
   const key = searchParams.get('key');
