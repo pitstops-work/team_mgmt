@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages, LayoutTemplate, Layers, Bell, BellOff, BellRing } from "lucide-react";
+import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages, LayoutTemplate, Layers, Bell, BellOff, BellRing, Activity, Cloud } from "lucide-react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import { useSession } from "next-auth/react";
@@ -355,6 +355,28 @@ export default function SettingsPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-stone-800">Map Features</p>
                 <p className="text-xs text-stone-400">Centre points · settlement polygons</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+            <Link
+              href="/settings/facility-indicators"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <Activity className="w-4 h-4 text-emerald-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">Facility Indicators (Layer 2)</p>
+                <p className="text-xs text-stone-400">Utilization · enrollment · saturation per facility</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+            <Link
+              href="/settings/mis-providers"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <Cloud className="w-4 h-4 text-sky-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">MIS Providers</p>
+                <p className="text-xs text-stone-400">External MIS APIs feeding indicators (e.g. Frappe Creche MIS)</p>
               </div>
               <ChevronRight className="w-4 h-4 text-stone-300" />
             </Link>

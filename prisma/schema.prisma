@@ -8,73 +8,75 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(cuid())
-  name             String?
-  email            String    @unique
-  emailVerified    DateTime?
-  image            String?
-  password         String?
-  role             String    @default("member")
-  designation      String    @default("Other")  // RP | ZL | PM | Other
-  bio              String?
+  id                  String    @id @default(cuid())
+  name                String?
+  email               String    @unique
+  emailVerified       DateTime?
+  image               String?
+  password            String?
+  role                String    @default("member")
+  designation         String    @default("Other") // RP | ZL | PM | Other
+  bio                 String?
   notifyDigest        Boolean   @default(false)
   weeklyCapacity      Float     @default(40)
   externalCalendarUrl String?
-  lastSeenAt       DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  lastSeenAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  accounts             Account[]
-  sessions             Session[]
-  goals                Goal[]
-  ownedPitstops        Pitstop[]             @relation("PitstopOwner")
-  programs             Program[]
-  messages             Message[]
-  mentions             Mention[]
-  goalFollows          GoalFollow[]
-  threadSubscriptions  ThreadSubscription[]
-  notifications        Notification[]
-  pushSubscriptions    PushSubscription[]
-  createdEvents        PitstopEvent[]
-  eventAttendances     PitstopEventAttendee[]
-  leadZones            Zone[]                @relation("ZoneLead")
-  rpClusters           Cluster[]             @relation("RPClusters")
-  eventFollowups       PitstopEventFollowup[]
-  planItems            PlanItem[]
+  accounts            Account[]
+  sessions            Session[]
+  goals               Goal[]
+  ownedPitstops       Pitstop[]                @relation("PitstopOwner")
+  programs            Program[]
+  messages            Message[]
+  mentions            Mention[]
+  goalFollows         GoalFollow[]
+  threadSubscriptions ThreadSubscription[]
+  notifications       Notification[]
+  pushSubscriptions   PushSubscription[]
+  createdEvents       PitstopEvent[]
+  eventAttendances    PitstopEventAttendee[]
+  leadZones           Zone[]                   @relation("ZoneLead")
+  rpClusters          Cluster[]                @relation("RPClusters")
+  eventFollowups      PitstopEventFollowup[]
+  planItems           PlanItem[]
   // Accountability
-  checkins             PitstopCheckin[]
-  retrospectives       Retrospective[]
-  standupLogs          StandupLog[]
+  checkins            PitstopCheckin[]
+  retrospectives      Retrospective[]
+  standupLogs         StandupLog[]
   // Escalation
-  escalationsGiven     PitstopEscalation[]   @relation("EscalatedBy")
-  escalationsTaken     PitstopEscalation[]   @relation("EscalatedTo")
+  escalationsGiven    PitstopEscalation[]      @relation("EscalatedBy")
+  escalationsTaken    PitstopEscalation[]      @relation("EscalatedTo")
   // Co-ownership
-  pitstopCoOwners      PitstopCoOwner[]
-  goalCoOwners         GoalCoOwner[]
+  pitstopCoOwners     PitstopCoOwner[]
+  goalCoOwners        GoalCoOwner[]
   // Decisions, Audit, Risks
-  decisions            Decision[]
-  auditLogs            AuditLog[]
-  risks                Risk[]
+  decisions           Decision[]
+  auditLogs           AuditLog[]
+  risks               Risk[]
   // Broadcasts & Metrics
-  broadcasts           GoalBroadcast[]
-  metricDataPoints     MetricDataPoint[]
+  broadcasts          GoalBroadcast[]
+  metricDataPoints    MetricDataPoint[]
+  // Layer 2 indicator captures
+  indicatorCaptures   FacilityIndicatorPoint[] @relation("IndicatorCapture")
   // Needs assessment
-  assessments          SettlementAssessment[]
+  assessments         SettlementAssessment[]
   // Reporting structure (for notification routing — not a hard gate)
-  preferredLang        String                @default("en")
-  reportsToId          String?
-  reportsTo            User?                 @relation("UserReports", fields: [reportsToId], references: [id])
-  reports              User[]                @relation("UserReports")
+  preferredLang       String                   @default("en")
+  reportsToId         String?
+  reportsTo           User?                    @relation("UserReports", fields: [reportsToId], references: [id])
+  reports             User[]                   @relation("UserReports")
   // City assignment (null = sees all cities)
-  cityId               String?
-  city                 City?                 @relation("UserCity", fields: [cityId], references: [id], onDelete: SetNull)
+  cityId              String?
+  city                City?                    @relation("UserCity", fields: [cityId], references: [id], onDelete: SetNull)
   // Verification / confirmation
-  verifiedPitstops     Pitstop[]             @relation("PitstopVerifier")
-  confirmedGoals       Goal[]                @relation("GoalConfirmer")
-  dateChanges          PitstopDateChange[]   @relation("DateChanger")
-  checklistItems       ChecklistItem[]       @relation("ChecklistItemAssignee")
-  loginEvents          UserLoginEvent[]
-  budgets              Budget[]              @relation("BudgetPartner")
+  verifiedPitstops    Pitstop[]                @relation("PitstopVerifier")
+  confirmedGoals      Goal[]                   @relation("GoalConfirmer")
+  dateChanges         PitstopDateChange[]      @relation("DateChanger")
+  checklistItems      ChecklistItem[]          @relation("ChecklistItemAssignee")
+  loginEvents         UserLoginEvent[]
+  budgets             Budget[]                 @relation("BudgetPartner")
 }
 
 model Account {
@@ -113,70 +115,70 @@ model VerificationToken {
 }
 
 model Goal {
-  id          String      @id @default(cuid())
+  id          String     @id @default(cuid())
   title       String
   description String?
-  status      GoalStatus  @default(Active)
-  isTemplate  Boolean     @default(false)
-  recurrence  Recurrence  @default(None)
+  status      GoalStatus @default(Active)
+  isTemplate  Boolean    @default(false)
+  recurrence  Recurrence @default(None)
   targetDate  DateTime?
   ownerId     String
   deletedAt   DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   // Confirmation (non-blocking — just records who confirmed and when)
-  confirmedById    String?
-  confirmedAt      DateTime?
-  confirmedBy      User?         @relation("GoalConfirmer", fields: [confirmedById], references: [id])
+  confirmedById String?
+  confirmedAt   DateTime?
+  confirmedBy   User?     @relation("GoalConfirmer", fields: [confirmedById], references: [id])
 
   // Linked facility (for goals managing an existing centre/facility)
-  linkedFacilityId  String?
+  linkedFacilityId String?
 
   // Needs assessment linkage
   needsDomain       String?
-  parameter         Float?        // planned headline number for this goal
-  outcomeCount      Float?        // actual count achieved on completion (if different from parameter)
+  parameter         Float? // planned headline number for this goal
+  outcomeCount      Float? // actual count achieved on completion (if different from parameter)
   needsSettlementId String?
   needsClusterId    String?
   needsZoneId       String?
   needsCityId       String?
 
-  owner            User             @relation(fields: [ownerId], references: [id])
-  pitstops         Pitstop[]
-  threads          Thread[]
-  attachments      Attachment[]
-  followers        GoalFollow[]
-  programs         ProgramGoal[]
+  owner           User            @relation(fields: [ownerId], references: [id])
+  pitstops        Pitstop[]
+  threads         Thread[]
+  attachments     Attachment[]
+  followers       GoalFollow[]
+  programs        ProgramGoal[]
   // Co-ownership
-  coOwners         GoalCoOwner[]
+  coOwners        GoalCoOwner[]
   // Decisions, risks, broadcasts
-  decisions        Decision[]
-  risks            Risk[]
-  broadcasts       GoalBroadcast[]
+  decisions       Decision[]
+  risks           Risk[]
+  broadcasts      GoalBroadcast[]
   // Metrics/KPIs
-  metrics          GoalMetric[]
+  metrics         GoalMetric[]
   // Strategic tags
-  themes           GoalTheme[]
-  quarters         GoalQuarter[]
+  themes          GoalTheme[]
+  quarters        GoalQuarter[]
   // Needs geography
-  needsSettlement  Settlement?      @relation("GoalNeedsSettlement", fields: [needsSettlementId], references: [id])
-  needsCluster     Cluster?         @relation("GoalNeedsCluster", fields: [needsClusterId], references: [id])
-  needsZone        Zone?            @relation("GoalNeedsZone", fields: [needsZoneId], references: [id])
-  needsCity        City?            @relation("GoalNeedsCity", fields: [needsCityId], references: [id])
-  linkedFacility   LayerFeature?    @relation("GoalLinkedFacility", fields: [linkedFacilityId], references: [id], onDelete: SetNull)
+  needsSettlement Settlement?     @relation("GoalNeedsSettlement", fields: [needsSettlementId], references: [id])
+  needsCluster    Cluster?        @relation("GoalNeedsCluster", fields: [needsClusterId], references: [id])
+  needsZone       Zone?           @relation("GoalNeedsZone", fields: [needsZoneId], references: [id])
+  needsCity       City?           @relation("GoalNeedsCity", fields: [needsCityId], references: [id])
+  linkedFacility  LayerFeature?   @relation("GoalLinkedFacility", fields: [linkedFacilityId], references: [id], onDelete: SetNull)
   // Settlement-level outcome attribution on completion
-  outcomes         GoalOutcome[]
+  outcomes        GoalOutcome[]
 }
 
 // One row per settlement that received actuals from a completed domain goal.
 // Created when a goal is marked Complete — mandatory for domain goals at cluster/zone level.
 model GoalOutcome {
-  id           String     @id @default(cuid())
+  id           String   @id @default(cuid())
   goalId       String
   settlementId String
-  count        Int        @default(0)
-  createdAt    DateTime   @default(now())
+  count        Int      @default(0)
+  createdAt    DateTime @default(now())
 
   goal       Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
   settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
@@ -186,74 +188,74 @@ model GoalOutcome {
 }
 
 model Pitstop {
-  id              String            @id @default(cuid())
-  title           String
-  type            PitstopType       @default(Discussion)
-  notes           String?
-  status          PitstopStatus     @default(Upcoming)
-  priority        PitstopPriority   @default(Medium)
-  goalId          String
-  ownerId         String?
-  ownerInherited  Boolean           @default(true)
-  customType      String?
-  order           Int               @default(0)
-  recurrence      PitstopRecurrence @default(None)
-  progressTag     String?           // Planning | Mobilisation | Setup | Capacity | Engagement | Delivery | Monitoring
-  startDate       DateTime?
-  targetDate      DateTime?
-  completedAt     DateTime?
-  deletedAt       DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id             String            @id @default(cuid())
+  title          String
+  type           PitstopType       @default(Discussion)
+  notes          String?
+  status         PitstopStatus     @default(Upcoming)
+  priority       PitstopPriority   @default(Medium)
+  goalId         String
+  ownerId        String?
+  ownerInherited Boolean           @default(true)
+  customType     String?
+  order          Int               @default(0)
+  recurrence     PitstopRecurrence @default(None)
+  progressTag    String? // Planning | Mobilisation | Setup | Capacity | Engagement | Delivery | Monitoring
+  startDate      DateTime?
+  targetDate     DateTime?
+  completedAt    DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   // Peer verification (non-blocking — records who verified and when)
-  verifiedById    String?
-  verifiedAt      DateTime?
+  verifiedById String?
+  verifiedAt   DateTime?
 
   // Needs geography (direct FK — single settlement/cluster/zone this pitstop targets)
   needsSettlementId String?
   needsClusterId    String?
   needsZoneId       String?
 
-  goal           Goal                @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  owner          User?               @relation("PitstopOwner", fields: [ownerId], references: [id])
-  verifiedBy     User?               @relation("PitstopVerifier", fields: [verifiedById], references: [id])
-  threads        Thread[]
-  attachments    Attachment[]
-  checklistItems ChecklistItem[]
-  blockedBy      PitstopDependency[] @relation("BlockedPitstop")
-  blocking       PitstopDependency[] @relation("BlockingPitstop")
-  reminderLogs   PitstopReminderLog[]
-  checkinLog     PitstopCheckinLog?
-  events         PitstopEventPitstop[]
-  planItems      PlanItemPitstop[]
+  goal            Goal                  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  owner           User?                 @relation("PitstopOwner", fields: [ownerId], references: [id])
+  verifiedBy      User?                 @relation("PitstopVerifier", fields: [verifiedById], references: [id])
+  threads         Thread[]
+  attachments     Attachment[]
+  checklistItems  ChecklistItem[]
+  blockedBy       PitstopDependency[]   @relation("BlockedPitstop")
+  blocking        PitstopDependency[]   @relation("BlockingPitstop")
+  reminderLogs    PitstopReminderLog[]
+  checkinLog      PitstopCheckinLog?
+  events          PitstopEventPitstop[]
+  planItems       PlanItemPitstop[]
   // Relations
-  coOwners       PitstopCoOwner[]
-  escalations    PitstopEscalation[]
-  checkins       PitstopCheckin[]
-  standupLinks   StandupLogPitstop[]
-  risks          Risk[]
-  themes         PitstopTheme[]
-  dateChanges    PitstopDateChange[]
+  coOwners        PitstopCoOwner[]
+  escalations     PitstopEscalation[]
+  checkins        PitstopCheckin[]
+  standupLinks    StandupLogPitstop[]
+  risks           Risk[]
+  themes          PitstopTheme[]
+  dateChanges     PitstopDateChange[]
   // Needs geography relations
-  needsSettlement Settlement? @relation("PitstopNeedsSettlement", fields: [needsSettlementId], references: [id])
-  needsCluster    Cluster?    @relation("PitstopNeedsCluster",    fields: [needsClusterId],    references: [id])
-  needsZone       Zone?       @relation("PitstopNeedsZone",       fields: [needsZoneId],       references: [id])
+  needsSettlement Settlement?           @relation("PitstopNeedsSettlement", fields: [needsSettlementId], references: [id])
+  needsCluster    Cluster?              @relation("PitstopNeedsCluster", fields: [needsClusterId], references: [id])
+  needsZone       Zone?                 @relation("PitstopNeedsZone", fields: [needsZoneId], references: [id])
 }
 
 model ChecklistItem {
-  id          String              @id @default(cuid())
-  pitstopId   String
-  text        String
-  checked     Boolean             @default(false)
-  status      ChecklistItemStatus @default(NotStarted)
+  id             String                  @id @default(cuid())
+  pitstopId      String
+  text           String
+  checked        Boolean                 @default(false)
+  status         ChecklistItemStatus     @default(NotStarted)
   assigneeId     String?
   notes          String?
   completionType ChecklistCompletionType @default(Activity)
-  order          Int                 @default(0)
+  order          Int                     @default(0)
   completedAt    DateTime?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
 
   pitstop     Pitstop        @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
   assignee    User?          @relation("ChecklistItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -283,7 +285,7 @@ model PitstopDependency {
   blockedId   String
   blockedById String
 
-  blocked   Pitstop @relation("BlockedPitstop",  fields: [blockedId],   references: [id], onDelete: Cascade)
+  blocked   Pitstop @relation("BlockedPitstop", fields: [blockedId], references: [id], onDelete: Cascade)
   blockedBy Pitstop @relation("BlockingPitstop", fields: [blockedById], references: [id], onDelete: Cascade)
 
   @@unique([blockedId, blockedById])
@@ -333,7 +335,7 @@ model Message {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  msgType      String  @default("text")  // "text" | "voice"
+  msgType      String  @default("text") // "text" | "voice"
   audioUrl     String?
   originalLang String  @default("en")
   translations Json?
@@ -357,9 +359,9 @@ model Attachment {
   checklistItemId String?
   createdAt       DateTime       @default(now())
 
-  message       Message?       @relation(fields: [messageId],       references: [id], onDelete: Cascade)
-  pitstop       Pitstop?       @relation(fields: [pitstopId],       references: [id], onDelete: Cascade)
-  goal          Goal?          @relation(fields: [goalId],          references: [id], onDelete: Cascade)
+  message       Message?       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pitstop       Pitstop?       @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  goal          Goal?          @relation(fields: [goalId], references: [id], onDelete: Cascade)
   checklistItem ChecklistItem? @relation(fields: [checklistItemId], references: [id], onDelete: SetNull)
 }
 
@@ -547,7 +549,7 @@ model PitstopCheckin {
 
 model Retrospective {
   id           String   @id @default(cuid())
-  entityType   String   // "Goal" | "Pitstop"
+  entityType   String // "Goal" | "Pitstop"
   entityId     String
   authorId     String
   wentWell     String?
@@ -559,13 +561,13 @@ model Retrospective {
 }
 
 model StandupLog {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
   date      DateTime
   yesterday String?
   today     String?
   blockers  String?
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   pitstops StandupLogPitstop[]
@@ -584,13 +586,13 @@ model StandupLogPitstop {
 // ── Escalation ────────────────────────────────────────────────────────────────
 
 model PitstopEscalation {
-  id             String    @id @default(cuid())
-  pitstopId      String
-  escalatedById  String
-  escalatedToId  String
-  note           String?
-  resolvedAt     DateTime?
-  createdAt      DateTime  @default(now())
+  id            String    @id @default(cuid())
+  pitstopId     String
+  escalatedById String
+  escalatedToId String
+  note          String?
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
 
   pitstop     Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
   escalatedBy User    @relation("EscalatedBy", fields: [escalatedById], references: [id], onDelete: Cascade)
@@ -642,10 +644,10 @@ model Decision {
 
 model AuditLog {
   id         String   @id @default(cuid())
-  entityType String   // "Goal" | "Pitstop"
+  entityType String // "Goal" | "Pitstop"
   entityId   String
   userId     String
-  action     String   // "status_change" | "owner_change" | "date_change" | "priority_change" | "created" | "deleted"
+  action     String // "status_change" | "owner_change" | "date_change" | "priority_change" | "created" | "deleted"
   field      String?
   oldValue   String?
   newValue   String?
@@ -725,6 +727,147 @@ model MetricDataPoint {
   user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// ── Layer 2: Facility / Settlement Indicators ────────────────────────────────
+// Ongoing state of community facilities/services — enrollment %, attendance,
+// downtime, saturation %. Distinct from Layer 1 (needs remaining, fixed
+// baseline) and from goal-scoped GoalMetric. Sourced from MIS APIs, RP activity
+// completions, or manual admin entry — all config-driven, no hardcoding.
+
+enum FacilityIndicatorSource {
+  MIS_API
+  RP_ACTIVITY
+  MANUAL_ADMIN
+}
+
+model FacilityIndicatorDef {
+  id               String          @id @default(cuid())
+  key              String          @unique // e.g. "creche_enrollment_pct"
+  label            String
+  description      String?
+  domain           String // links to NeedsFormulaConfig.domain
+  facilityLayerKey String? // links to FacilityLayerConfig.layerKey (optional narrowing)
+  schemeId         String? // links to EntitlementScheme (optional)
+  unit             String? // "%", "count", "litres", etc.
+  frequency        MetricFrequency @default(Monthly)
+  color            String          @default("#6366f1")
+
+  // Target — nullable for trend-only indicators. JSON describes how to compute:
+  // { type: "fixed", value: number }
+  // { type: "settlement_field", field: string, multiplier: number }
+  // { type: "facility_count", multiplier: number }
+  // { type: "scheme_baseline", multiplier: number }
+  targetFormula Json?
+
+  // Capture source (mutually exclusive — drives which fields below matter)
+  captureSource  FacilityIndicatorSource
+  // MIS_API path
+  misProviderId  String?
+  misFetchConfig Json? // provider-specific, e.g. { endpoint, valuePath, settlementCodePath, filters }
+  // RP_ACTIVITY path: see ActivityIndicatorBinding (separate table — many bindings possible)
+
+  // Staleness lens — same UX as Layer 1
+  staleYellowDays Int @default(45)
+  staleRedDays    Int @default(90)
+
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  misProvider      MISProviderConfig?         @relation(fields: [misProviderId], references: [id], onDelete: SetNull)
+  scheme           EntitlementScheme?         @relation("IndicatorScheme", fields: [schemeId], references: [id], onDelete: SetNull)
+  indicators       FacilityIndicator[]
+  activityBindings ActivityIndicatorBinding[]
+}
+
+model FacilityIndicator {
+  id             String                   @id @default(cuid())
+  defId          String
+  settlementId   String
+  currentValue   Float?
+  targetValue    Float? // snapshot at last capture
+  lastCapturedAt DateTime?
+  lastSource     FacilityIndicatorSource?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  def        FacilityIndicatorDef     @relation(fields: [defId], references: [id], onDelete: Cascade)
+  settlement Settlement               @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  points     FacilityIndicatorPoint[]
+
+  @@unique([defId, settlementId])
+  @@index([settlementId])
+}
+
+model FacilityIndicatorPoint {
+  id           String                  @id @default(cuid())
+  indicatorId  String
+  value        Float
+  targetValue  Float? // snapshot at capture time
+  capturedAt   DateTime
+  source       FacilityIndicatorSource
+  sourceRefId  String? // PitstopEvent.id, MIS sync log id, etc.
+  note         String?
+  capturedById String?
+  createdAt    DateTime                @default(now())
+
+  indicator  FacilityIndicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  capturedBy User?             @relation("IndicatorCapture", fields: [capturedById], references: [id], onDelete: SetNull)
+
+  @@index([indicatorId, capturedAt])
+}
+
+model MISProviderConfig {
+  id             String    @id @default(cuid())
+  key            String    @unique // "frappe-creche-mis"
+  label          String
+  baseUrl        String
+  authType       String    @default("frappe") // "frappe" | "api_key" | "basic" | "bearer"
+  // Credentials kept behind admin auth — provider-specific JSON
+  // e.g. frappe: { apiKey, apiSecret } ; bearer: { token } ; basic: { user, pass }
+  credentials    Json?
+  isActive       Boolean   @default(true)
+  lastSyncedAt   DateTime?
+  lastSyncStatus String? // "ok" | "error: <msg>"
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  indicators FacilityIndicatorDef[]
+  syncLogs   MISProviderSyncLog[]
+}
+
+model MISProviderSyncLog {
+  id            String    @id @default(cuid())
+  providerId    String
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  status        String // "running" | "ok" | "error"
+  pointsWritten Int       @default(0)
+  message       String?
+  details       Json?
+
+  provider MISProviderConfig @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, startedAt])
+}
+
+// Binds a checklist item (in a template) to an indicator — when an RP completes
+// that activity, a FacilityIndicatorPoint is written from a numeric form field.
+model ActivityIndicatorBinding {
+  id           String   @id @default(cuid())
+  defId        String
+  templateSlug String // GoalTemplateDef.slug
+  checklistKey String // slugified text of the checklist item (stable enough for v1)
+  numericField String   @default("value") // form field name expected on the activity completion payload
+  createdAt    DateTime @default(now())
+
+  def FacilityIndicatorDef @relation(fields: [defId], references: [id], onDelete: Cascade)
+
+  @@unique([defId, templateSlug, checklistKey])
+  @@index([templateSlug, checklistKey])
+}
+
 // ── Themes ────────────────────────────────────────────────────────────────────
 
 model Theme {
@@ -774,7 +917,6 @@ model City {
   users       User[]       @relation("UserCity")
 }
 
-
 model Zone {
   id        String    @id @default(cuid())
   name      String
@@ -815,7 +957,7 @@ model Cluster {
 model LayerFeature {
   id           String   @id @default(cuid())
   name         String
-  layerKey     String   // creches | children_centres | youth_centres | resource_centres
+  layerKey     String // creches | children_centres | youth_centres | resource_centres
   centreType   String?
   partner      String?
   lat          Float
@@ -827,19 +969,19 @@ model LayerFeature {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  settlement   Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
-  cluster      Cluster?    @relation(fields: [clusterId], references: [id], onDelete: SetNull)
-  zone         Zone?       @relation(fields: [zoneId], references: [id], onDelete: SetNull)
-  linkedGoals  Goal[]      @relation("GoalLinkedFacility")
+  settlement  Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+  cluster     Cluster?    @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  zone        Zone?       @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  linkedGoals Goal[]      @relation("GoalLinkedFacility")
 }
 
 model Settlement {
-  id          String    @id @default(cuid())
-  name        String
-  clusterId   String
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  name      String
+  clusterId String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   // Geospatial
   polygon     Json?
@@ -847,25 +989,27 @@ model Settlement {
   centroidLng Float?
 
   // City direct FK — denormalised for fast city-scoped queries (backfilled from cluster→zone→city)
-  cityId      String?
+  cityId String?
 
   // Partner organisation (1:1 — one partner covers this settlement)
-  partnerId   String?
+  partnerId String?
 
-  cluster      Cluster               @relation(fields: [clusterId], references: [id], onDelete: Cascade)
-  city         City?                 @relation(fields: [cityId], references: [id])
-  partner      MapPartner?           @relation(fields: [partnerId], references: [id])
-  assessments  SettlementAssessment[]
-  profile      SettlementProfile?
-  note         SettlementNote?
-  civicData    SettlementCivicData?
+  cluster            Cluster                  @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  city               City?                    @relation(fields: [cityId], references: [id])
+  partner            MapPartner?              @relation(fields: [partnerId], references: [id])
+  assessments        SettlementAssessment[]
+  profile            SettlementProfile?
+  note               SettlementNote?
+  civicData          SettlementCivicData?
   // Needs geography back-relations
-  needsGoals   Goal[]     @relation("GoalNeedsSettlement")
-  needsPitstops Pitstop[] @relation("PitstopNeedsSettlement")
-  goalOutcomes GoalOutcome[]
-  schools        SettlementSchool[]
-  healthCentres  SettlementHealthCentre[]
-  layerFeatures  LayerFeature[]
+  needsGoals         Goal[]                   @relation("GoalNeedsSettlement")
+  needsPitstops      Pitstop[]                @relation("PitstopNeedsSettlement")
+  goalOutcomes       GoalOutcome[]
+  schools            SettlementSchool[]
+  healthCentres      SettlementHealthCentre[]
+  layerFeatures      LayerFeature[]
+  // Layer 2 facility indicators
+  facilityIndicators FacilityIndicator[]
 }
 
 // Government / programme health centre
@@ -874,7 +1018,7 @@ model HealthCentre {
   name       String
   lat        Float
   lng        Float
-  centreType String   // CRC | Foundation Health Centre | Government Health Centre | Referral Helpdesk Hospital | Super Speciality Hospital
+  centreType String // CRC | Foundation Health Centre | Government Health Centre | Referral Helpdesk Hospital | Super Speciality Hospital
   notes      String?
   createdAt  DateTime @default(now())
 
@@ -883,7 +1027,7 @@ model HealthCentre {
 
 // Junction: settlement ↔ health centre with haversine distance
 model SettlementHealthCentre {
-  id             String       @id @default(cuid())
+  id             String @id @default(cuid())
   settlementId   String
   healthCentreId String
   distanceKm     Float
@@ -910,7 +1054,7 @@ model School {
 
 // Junction: settlement ↔ school with computed distance
 model SettlementSchool {
-  id           String     @id @default(cuid())
+  id           String @id @default(cuid())
   settlementId String
   schoolId     String
   distanceKm   Float
@@ -923,32 +1067,31 @@ model SettlementSchool {
 
 // Flattened snapshot of the latest SettlementAssessment for fast reads
 model SettlementProfile {
-  settlementId    String    @id
-  totalHouseholds Int       @default(0)
-  children6m3yr   Int       @default(0)
-  children4to14   Int       @default(0)
-  youth15to21     Int       @default(0)
-  elderly60plus   Int       @default(0)
-  settlementType  String?
-  priorityIssues  String?
+  settlementId         String    @id
+  totalHouseholds      Int       @default(0)
+  children6m3yr        Int       @default(0)
+  children4to14        Int       @default(0)
+  youth15to21          Int       @default(0)
+  elderly60plus        Int       @default(0)
+  settlementType       String?
+  priorityIssues       String?
   // Addressable need snapshot (latest assessment)
   addressableCreches   Int?
   addressableToilets   Int?
   addressableWaterATMs Int?
-  lastAssessmentId String?
-  lastSyncedAt    DateTime?
-  updatedAt       DateTime  @updatedAt
+  lastAssessmentId     String?
+  lastSyncedAt         DateTime?
+  updatedAt            DateTime  @updatedAt
 
   settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
 }
-
 
 // ── Quarterly Planning ────────────────────────────────────────────────────────
 
 model Quarter {
   id        String    @id @default(cuid())
   year      Int
-  quarter   Int       // 1–4
+  quarter   Int // 1–4
   startDate DateTime
   endDate   DateTime
   focus     String?
@@ -981,7 +1124,7 @@ model CustomPitstopType {
 model PitstopReminderLog {
   id        String   @id @default(cuid())
   pitstopId String
-  type      String   // "10d" | "3d" | "due"
+  type      String // "10d" | "3d" | "due"
   sentAt    DateTime @default(now())
 
   pitstop Pitstop @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
@@ -1022,12 +1165,12 @@ model PitstopEvent {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  createdBy     User                      @relation(fields: [createdById], references: [id])
-  checklistItem ChecklistItem?            @relation("ChecklistActivity", fields: [checklistItemId], references: [id], onDelete: SetNull)
-  attendees PitstopEventAttendee[]
-  pitstops  PitstopEventPitstop[]
-  followups PitstopEventFollowup[]
-  threads   Thread[]
+  createdBy     User                   @relation(fields: [createdById], references: [id])
+  checklistItem ChecklistItem?         @relation("ChecklistActivity", fields: [checklistItemId], references: [id], onDelete: SetNull)
+  attendees     PitstopEventAttendee[]
+  pitstops      PitstopEventPitstop[]
+  followups     PitstopEventFollowup[]
+  threads       Thread[]
 }
 
 model PitstopEventFollowup {
@@ -1145,11 +1288,10 @@ model PushSubscription {
 
 // ── Urban Programme Map ───────────────────────────────────────────────────────
 
-
 model SettlementNote {
-  settlementId String     @id
-  note         String     @default("")
-  updatedAt    DateTime   @updatedAt
+  settlementId String   @id
+  note         String   @default("")
+  updatedAt    DateTime @updatedAt
 
   settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
 }
@@ -1165,9 +1307,8 @@ model MapPartner {
   isBuiltIn    Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  settlements  Settlement[]
+  settlements Settlement[]
 }
-
 
 // ── Needs Assessment ──────────────────────────────────────────────────────────
 
@@ -1176,62 +1317,63 @@ model MapPartner {
 
 // Admin-configurable formula denominators per domain
 model NeedsFormulaConfig {
-  domain          String   @id
-  denominator     Float?
-  description     String?
-  label           String?
-  color           String   @default("#6b7280")
-  domainType      String   @default("count")   // "count" | "boolean" | "entitlement" | "civic"
-  populationField  String?                       // "totalHouseholds" | "children6m3yr" | "youth15to21" | "elderly60plus" etc.
-  assessmentColumn  String?                       // column name in SettlementAssessment for "existing" count, e.g. "existingCreches"
-  addressableColumn String?                       // column name in SettlementAssessment for "addressable need", e.g. "addressableCreches"
-  civicGroup      String?                       // for domainType="civic": "borewell" | "toiletConnection" | "toiletFacility" | "waterSupply"
-  civicWeightGroup String?                       // for domainType="count": multiply populationField by this civic group's need score before dividing by denominator
-  sortOrder        Int      @default(0)
-  isActive        Boolean  @default(true)
-  clusterScope    Boolean  @default(false) // legacy — superseded by assessmentLevel
-  assessmentLevel  String   @default("settlement") // "settlement" | "cluster" | "zone" | "city"
-  linkedSchemeId  String?                       // for domainType="entitlement" — links to an EntitlementScheme
-  staleYellowDays Int      @default(60)          // days since last delivery before showing yellow staleness signal
-  staleRedDays    Int      @default(120)         // days since last delivery before showing red staleness signal
-  updatedAt       DateTime @updatedAt
+  domain            String   @id
+  denominator       Float?
+  description       String?
+  label             String?
+  color             String   @default("#6b7280")
+  domainType        String   @default("count") // "count" | "boolean" | "entitlement" | "civic"
+  populationField   String? // "totalHouseholds" | "children6m3yr" | "youth15to21" | "elderly60plus" etc.
+  assessmentColumn  String? // column name in SettlementAssessment for "existing" count, e.g. "existingCreches"
+  addressableColumn String? // column name in SettlementAssessment for "addressable need", e.g. "addressableCreches"
+  civicGroup        String? // for domainType="civic": "borewell" | "toiletConnection" | "toiletFacility" | "waterSupply"
+  civicWeightGroup  String? // for domainType="count": multiply populationField by this civic group's need score before dividing by denominator
+  sortOrder         Int      @default(0)
+  isActive          Boolean  @default(true)
+  clusterScope      Boolean  @default(false) // legacy — superseded by assessmentLevel
+  assessmentLevel   String   @default("settlement") // "settlement" | "cluster" | "zone" | "city"
+  linkedSchemeId    String? // for domainType="entitlement" — links to an EntitlementScheme
+  staleYellowDays   Int      @default(60) // days since last delivery before showing yellow staleness signal
+  staleRedDays      Int      @default(120) // days since last delivery before showing red staleness signal
+  updatedAt         DateTime @updatedAt
 
-  linkedScheme    EntitlementScheme? @relation("DomainScheme", fields: [linkedSchemeId], references: [id], onDelete: SetNull)
+  linkedScheme EntitlementScheme? @relation("DomainScheme", fields: [linkedSchemeId], references: [id], onDelete: SetNull)
 }
 
 // Civic amenity data per settlement from Janadhikara survey
 // All % values are per-household percentages (0-100)
 model SettlementCivicData {
-  settlementId        String   @id
-  janaId              Int?     // janadhikara slum_id for future syncs
-  borewell            Json?    // { individual, public, shared, privateTanker, na } — all % of HH
-  toiletConnection    Json?    // { sewerage, soakPit, noSewerage }
-  toiletFacility      Json?    // { individual, shared, public, publicPaid, noFacility }
-  waterSupply         Json?    // { individual, shared, public, privateTanker }
+  settlementId         String   @id
+  janaId               Int? // janadhikara slum_id for future syncs
+  borewell             Json? // { individual, public, shared, privateTanker, na } — all % of HH
+  toiletConnection     Json? // { sewerage, soakPit, noSewerage }
+  toiletFacility       Json? // { individual, shared, public, publicPaid, noFacility }
+  waterSupply          Json? // { individual, shared, public, privateTanker }
   // Pre-computed need scores (0-100, higher = more need) for aggregation
-  borewellNeedScore   Float?   // 100 - individual%
-  toiletConnNeedScore Float?   // soakPit% + noSewerage%
-  toiletFacNeedScore  Float?   // 100 - individual%
-  waterSupplyNeedScore Float?  // 100 - individual%
-  syncedAt            DateTime @default(now())
+  borewellNeedScore    Float? // 100 - individual%
+  toiletConnNeedScore  Float? // soakPit% + noSewerage%
+  toiletFacNeedScore   Float? // 100 - individual%
+  waterSupplyNeedScore Float? // 100 - individual%
+  syncedAt             DateTime @default(now())
 
-  settlement  Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
 }
 
 // Entitlement schemes (hierarchical — BoCW parent + 14 children)
 model EntitlementScheme {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   description String?
   parentId    String?
-  sortOrder   Int       @default(0)
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
-  parent        EntitlementScheme?   @relation("SchemeHierarchy", fields: [parentId], references: [id])
-  children      EntitlementScheme[]  @relation("SchemeHierarchy")
+  parent        EntitlementScheme?     @relation("SchemeHierarchy", fields: [parentId], references: [id])
+  children      EntitlementScheme[]    @relation("SchemeHierarchy")
   baselines     EntitlementBaseline[]
-  linkedDomains NeedsFormulaConfig[] @relation("DomainScheme")
+  linkedDomains NeedsFormulaConfig[]   @relation("DomainScheme")
+  indicators    FacilityIndicatorDef[] @relation("IndicatorScheme")
 }
 
 // One row per survey per settlement — versioned (history preserved)
@@ -1264,13 +1406,13 @@ model SettlementAssessment {
   existingWaterATMs              Int @default(0)
 
   // Addressable need — field-verified, feasibility-filtered demand
-  addressableCreches    Int?
-  addressableToilets    Int?
-  toiletLandAvailable   Boolean?
-  toiletLandType        String?   // "Govt" | "Private"
-  addressableWaterATMs  Int?
-  waterATMCurrentCount  Int?
-  waterATMFeasible      Boolean?
+  addressableCreches   Int?
+  addressableToilets   Int?
+  toiletLandAvailable  Boolean?
+  toiletLandType       String? // "Govt" | "Private"
+  addressableWaterATMs Int?
+  waterATMCurrentCount Int?
+  waterATMFeasible     Boolean?
 
   // Settlement profile (Section 2)
   settlementType    String?
@@ -1288,8 +1430,8 @@ model SettlementAssessment {
   priorityIssues  String?
   enumeratorNotes String?
 
-  settlement    Settlement          @relation(fields: [settlementId], references: [id], onDelete: Cascade)
-  assessedBy    User                @relation(fields: [assessedById], references: [id])
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  assessedBy User       @relation(fields: [assessedById], references: [id])
 
   // Civic baseline sections (1-to-1 per assessment)
   roads         RoadBaseline?
@@ -1302,19 +1444,19 @@ model SettlementAssessment {
   facilities    FacilitiesBaseline?
   safety        SafetyBaseline?
 
-  entitlements  EntitlementBaseline[]
+  entitlements EntitlementBaseline[]
 
   @@index([settlementId, assessedAt])
 }
 
 // Section 4 — Roads
 model RoadBaseline {
-  assessmentId  String  @id
-  roadType      String?  // CONCRETE|GRAVEL|MUD|NONE
-  condition     String?  // GOOD|DAMAGED|VERY_POOR
-  accessibility String?  // MOTORABLE|TWO_WHEELER|PEDESTRIAN
+  assessmentId   String  @id
+  roadType       String? // CONCRETE|GRAVEL|MUD|NONE
+  condition      String? // GOOD|DAMAGED|VERY_POOR
+  accessibility  String? // MOTORABLE|TWO_WHEELER|PEDESTRIAN
   unusableInRain Boolean @default(false)
-  remarks       String?
+  remarks        String?
 
   assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 }
@@ -1322,10 +1464,10 @@ model RoadBaseline {
 // Section 5 — Water
 model WaterBaseline {
   assessmentId         String  @id
-  drinkingSource       String?  // PIPED|PUBLIC_TAP|BOREWELL|TANKER|PACKAGED|OTHER
+  drinkingSource       String? // PIPED|PUBLIC_TAP|BOREWELL|TANKER|PACKAGED|OTHER
   treatsDrinkingWater  Boolean @default(false)
   treatmentMethod      String?
-  waterQuality         String?  // GOOD|ACCEPTABLE|POOR
+  waterQuality         String? // GOOD|ACCEPTABLE|POOR
   poorQualityReason    String?
   nonPotableSource     String?
   nonPotableSufficient Boolean @default(true)
@@ -1337,22 +1479,22 @@ model WaterBaseline {
 
 // Section 6 — Sanitation
 model SanitationBaseline {
-  assessmentId        String  @id
-  individualToiletPct Float   @default(0)
-  sharedToiletPct     Float   @default(0)
-  openDefecationPct   Float   @default(0)
-  communityToiletCount Int    @default(0)
-  toiletSeats         Int     @default(0)
-  bathCount           Int     @default(0)
-  urinalCount         Int     @default(0)
-  toiletsPaid         Boolean @default(false)
-  toiletFee           Float?
-  toiletCondition     String?  // GOOD|FAIR|POOR|NOT_USABLE
-  toiletsSufficient   Boolean @default(false)
-  sewerConnection     String?  // SEWER_LINE|SEPTIC_TANK|OPEN_DRAIN|NONE
-  blockageFrequency   String?  // FREQUENTLY|OCCASIONALLY|NO_ISSUES
-  bathingFacilities   String?  // ADEQUATE|LIMITED|NONE
-  remarks             String?
+  assessmentId         String  @id
+  individualToiletPct  Float   @default(0)
+  sharedToiletPct      Float   @default(0)
+  openDefecationPct    Float   @default(0)
+  communityToiletCount Int     @default(0)
+  toiletSeats          Int     @default(0)
+  bathCount            Int     @default(0)
+  urinalCount          Int     @default(0)
+  toiletsPaid          Boolean @default(false)
+  toiletFee            Float?
+  toiletCondition      String? // GOOD|FAIR|POOR|NOT_USABLE
+  toiletsSufficient    Boolean @default(false)
+  sewerConnection      String? // SEWER_LINE|SEPTIC_TANK|OPEN_DRAIN|NONE
+  blockageFrequency    String? // FREQUENTLY|OCCASIONALLY|NO_ISSUES
+  bathingFacilities    String? // ADEQUATE|LIMITED|NONE
+  remarks              String?
 
   assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 }
@@ -1360,11 +1502,11 @@ model SanitationBaseline {
 // Section 7A — Sewer/Wastewater Drainage
 model DrainageSewerBaseline {
   assessmentId      String  @id
-  disposalType      String?  // UNDERGROUND|SEPTIC_INDIVIDUAL|SEPTIC_SHARED|OPEN_DRAINS|NONE
-  coverage          String?  // MOST|SOME|VERY_FEW|NONE
-  condition         String?  // GOOD|NEEDS_REPAIR|POOR
-  issues            String?  // JSON array
-  blockageFrequency String?  // FREQUENTLY|OCCASIONALLY|RARE
+  disposalType      String? // UNDERGROUND|SEPTIC_INDIVIDUAL|SEPTIC_SHARED|OPEN_DRAINS|NONE
+  coverage          String? // MOST|SOME|VERY_FEW|NONE
+  condition         String? // GOOD|NEEDS_REPAIR|POOR
+  issues            String? // JSON array
+  blockageFrequency String? // FREQUENTLY|OCCASIONALLY|RARE
   safeDisposal      Boolean @default(false)
   remarks           String?
 
@@ -1374,14 +1516,14 @@ model DrainageSewerBaseline {
 // Section 7B — Storm Water Drainage
 model DrainageStormBaseline {
   assessmentId       String  @id
-  drainType          String?  // COVERED|OPEN|MIXED|NONE
-  drainCondition     String?  // CLEAN|PARTIALLY_CLOGGED|FULLY_CLOGGED|DAMAGED
-  connectivity       String?  // WELL_CONNECTED|PARTIALLY|NOT_CONNECTED
+  drainType          String? // COVERED|OPEN|MIXED|NONE
+  drainCondition     String? // CLEAN|PARTIALLY_CLOGGED|FULLY_CLOGGED|DAMAGED
+  connectivity       String? // WELL_CONNECTED|PARTIALLY|NOT_CONNECTED
   floodingOccurs     Boolean @default(false)
-  floodFrequency     String?  // EVERY_RAIN|HEAVY_ONLY|OCCASIONALLY
-  floodLevel         String?  // ANKLE|KNEE|ABOVE_KNEE
-  stagnationDuration String?  // UNDER_1H|1_6H|OVER_6H|OVER_1D
-  floodCauses        String?  // JSON array
+  floodFrequency     String? // EVERY_RAIN|HEAVY_ONLY|OCCASIONALLY
+  floodLevel         String? // ANKLE|KNEE|ABOVE_KNEE
+  stagnationDuration String? // UNDER_1H|1_6H|OVER_6H|OVER_1D
+  floodCauses        String? // JSON array
   floodLocations     String?
   remarks            String?
 
@@ -1391,8 +1533,8 @@ model DrainageStormBaseline {
 // Section 8 — Solid Waste
 model WasteBaseline {
   assessmentId       String  @id
-  collectionType     String?  // DOOR_TO_DOOR|COMMUNITY_BINS|NONE
-  frequency          String?  // DAILY|ALTERNATE|WEEKLY|IRREGULAR
+  collectionType     String? // DOOR_TO_DOOR|COMMUNITY_BINS|NONE
+  frequency          String? // DAILY|ALTERNATE|WEEKLY|IRREGULAR
   informalDumpsCount Int     @default(0)
   remarks            String?
 
@@ -1405,11 +1547,11 @@ model ElectricityBaseline {
   hhWithConnection       Int     @default(0)
   hhWithoutConnection    Int     @default(0)
   avgHoursPerDay         Float?
-  connectionTypes        String?  // JSON array
-  supplyNature           String?  // REGULAR|FREQUENT_CUTS|VERY_UNRELIABLE
+  connectionTypes        String? // JSON array
+  supplyNature           String? // REGULAR|FREQUENT_CUTS|VERY_UNRELIABLE
   totalStreetlights      Int     @default(0)
   functionalStreetlights Int     @default(0)
-  streetlightAdequacy    String?  // ADEQUATE|FEW|NONE
+  streetlightAdequacy    String? // ADEQUATE|FEW|NONE
   priorityStreets        String?
   remarks                String?
 
@@ -1418,16 +1560,16 @@ model ElectricityBaseline {
 
 // Section 10 — Community Facilities
 model FacilitiesBaseline {
-  assessmentId     String  @id
-  anganwadiCount   Int     @default(0)
-  hasSchool        Boolean @default(false)
-  hasPHC           Boolean @default(false)
-  hasNammaClinic   Boolean @default(false)
-  hasRationShop    Boolean @default(false)
-  hasCommunityHall Boolean @default(false)
-  hasLibrary       Boolean @default(false)
-  hasPark          Boolean @default(false)
-  hasPlayground    Boolean @default(false)
+  assessmentId      String  @id
+  anganwadiCount    Int     @default(0)
+  hasSchool         Boolean @default(false)
+  hasPHC            Boolean @default(false)
+  hasNammaClinic    Boolean @default(false)
+  hasRationShop     Boolean @default(false)
+  hasCommunityHall  Boolean @default(false)
+  hasLibrary        Boolean @default(false)
+  hasPark           Boolean @default(false)
+  hasPlayground     Boolean @default(false)
   distanceToSchool  Float?
   distanceToHealth  Float?
   distanceToBusStop Float?
@@ -1440,8 +1582,8 @@ model FacilitiesBaseline {
 model SafetyBaseline {
   assessmentId       String  @id
   blindSpotsCount    Int     @default(0)
-  blindSpotTypes     String?  // JSON array
-  activitiesObserved String?  // JSON array
+  blindSpotTypes     String? // JSON array
+  activitiesObserved String? // JSON array
   remarks            String?
 
   assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
@@ -1449,12 +1591,12 @@ model SafetyBaseline {
 
 // Entitlement tracking per scheme per assessment
 model EntitlementBaseline {
-  id                 String @id @default(cuid())
+  id                 String  @id @default(cuid())
   assessmentId       String
   schemeId           String
-  eligibleHouseholds Int    @default(0)
-  enrolledHouseholds Int    @default(0)  // NGO-assisted enrollments (from scheme_report / Frappe)
-  surveyEnrolled     Int?                // Pre-existing at survey time (from Janadhikara household survey XLSX)
+  eligibleHouseholds Int     @default(0)
+  enrolledHouseholds Int     @default(0) // NGO-assisted enrollments (from scheme_report / Frappe)
+  surveyEnrolled     Int? // Pre-existing at survey time (from Janadhikara household survey XLSX)
   notes              String?
 
   assessment SettlementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
@@ -1482,7 +1624,7 @@ model GoalTemplateDef {
   category               String
   icon                   String   @default("🎯")
   needsDomain            String?
-  linkedFacilityLayerKey String?  // e.g. "creches" | "children_centres" | "youth_centres" — shows facility picker on goal creation
+  linkedFacilityLayerKey String? // e.g. "creches" | "children_centres" | "youth_centres" — shows facility picker on goal creation
   sortOrder              Int      @default(0)
   parameters             Json     @default("[]")
   pitstops               Json     @default("[]")
@@ -1507,7 +1649,7 @@ model FacilityLayerConfig {
   layerKey    String   @unique
   label       String
   color       String   @default("#6366f1")
-  needsDomain String?  // links to NeedsFormulaConfig.domain — ties this layer to a field-coverage need
+  needsDomain String? // links to NeedsFormulaConfig.domain — ties this layer to a field-coverage need
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -1522,14 +1664,14 @@ model FacilityLayerConfig {
 model BudgetDomainConfig {
   id               String   @id @default(cuid())
   city             String   @default("Bangalore")
-  key              String   // stored in domain fields, e.g. "Children"
-  label            String   // display name, e.g. "Elderly + Community Kitchen"
+  key              String // stored in domain fields, e.g. "Children"
+  label            String // display name, e.g. "Elderly + Community Kitchen"
   description      String?
   position         Int      @default(0)
   isActive         Boolean  @default(true)
   // For per-beneficiary cost analysis
-  beneficiaryLabel String?  // e.g. "Children", "Youth enrolled"
-  beneficiaryVar   String?  // programme input key: "nCLCs", "nElderly", "nCreches", "nSettlements"
+  beneficiaryLabel String? // e.g. "Children", "Youth enrolled"
+  beneficiaryVar   String? // programme input key: "nCLCs", "nElderly", "nCreches", "nSettlements"
   beneficiaryMult  Float    @default(1) // multiply beneficiaryVar by this
   createdAt        DateTime @default(now())
 
@@ -1609,53 +1751,53 @@ model Budget {
 }
 
 model BudgetInputs {
-  id                        String  @id @default(cuid())
-  budgetId                  String  @unique
-  budget                    Budget  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  nSettlements              Int     @default(0)
-  nClusters                 Int     @default(0)
-  nCLCs                     Int     @default(0)
-  clcRentPerMonth           Int     @default(0)
-  nYRCs                     Int     @default(0)
-  yrcRentPerMonth           Int     @default(0)
-  nElderlyCentres           Int     @default(0)
-  nElderly                  Int     @default(0)
-  elderlyCentreRentPerMonth Int     @default(0)
-  cosPerCluster             Int     @default(2)
-  rcRentPerMonth            Int     @default(0)
-  nCreches                  Int     @default(0)
-  crecheRentPerMonth        Int     @default(0)
-  extraInputs               Json    @default("{}")  // custom programme inputs added via admin
+  id                        String @id @default(cuid())
+  budgetId                  String @unique
+  budget                    Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  nSettlements              Int    @default(0)
+  nClusters                 Int    @default(0)
+  nCLCs                     Int    @default(0)
+  clcRentPerMonth           Int    @default(0)
+  nYRCs                     Int    @default(0)
+  yrcRentPerMonth           Int    @default(0)
+  nElderlyCentres           Int    @default(0)
+  nElderly                  Int    @default(0)
+  elderlyCentreRentPerMonth Int    @default(0)
+  cosPerCluster             Int    @default(2)
+  rcRentPerMonth            Int    @default(0)
+  nCreches                  Int    @default(0)
+  crecheRentPerMonth        Int    @default(0)
+  extraInputs               Json   @default("{}") // custom programme inputs added via admin
 }
 
 model BudgetLine {
-  id              String             @id @default(cuid())
-  budgetId        String
-  budget          Budget             @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  domain          String?
-  section         BudgetSection
-  position        Int
-  description     String
-  costCategory    InflationType
-  unitType        String             @default("")
-  isAutoGenerated Boolean            @default(true)
-  salaryHint      String?
-  notes           String?
-  y1Units         Float              @default(0)
-  y1UnitCost      Float              @default(0)
-  y1AllocPct      Float              @default(1)
-  y1Total         Float              @default(0)
-  y2Units         Float              @default(0)
-  y2UnitCost      Float              @default(0)
-  y2AllocPct      Float              @default(1)
-  y2Total         Float              @default(0)
-  y3Units         Float              @default(0)
-  y3UnitCost      Float              @default(0)
-  y3AllocPct      Float              @default(1)
-  y3Total         Float              @default(0)
-  isReallocation          Boolean    @default(false)
-  sourceReallocationId    String?
-  reportLines     BudgetReportLine[]
+  id                       String                      @id @default(cuid())
+  budgetId                 String
+  budget                   Budget                      @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  domain                   String?
+  section                  BudgetSection
+  position                 Int
+  description              String
+  costCategory             InflationType
+  unitType                 String                      @default("")
+  isAutoGenerated          Boolean                     @default(true)
+  salaryHint               String?
+  notes                    String?
+  y1Units                  Float                       @default(0)
+  y1UnitCost               Float                       @default(0)
+  y1AllocPct               Float                       @default(1)
+  y1Total                  Float                       @default(0)
+  y2Units                  Float                       @default(0)
+  y2UnitCost               Float                       @default(0)
+  y2AllocPct               Float                       @default(1)
+  y2Total                  Float                       @default(0)
+  y3Units                  Float                       @default(0)
+  y3UnitCost               Float                       @default(0)
+  y3AllocPct               Float                       @default(1)
+  y3Total                  Float                       @default(0)
+  isReallocation           Boolean                     @default(false)
+  sourceReallocationId     String?
+  reportLines              BudgetReportLine[]
   reallocationRequestsFrom BudgetReallocationRequest[] @relation("ReallocationFrom")
   reallocationRequestsTo   BudgetReallocationRequest[] @relation("ReallocationTo")
 
@@ -1675,107 +1817,107 @@ model BudgetReportConfig {
 }
 
 model BudgetReportSlot {
-  id          String           @id @default(cuid())
-  budgetId    String
-  budget      Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  slotNumber  Int
-  grantYear   Int
-  periodFrom  DateTime
-  periodTo    DateTime
-  dueDate     DateTime
-  status      ReportSlotStatus @default(pending)
-  report      BudgetReport?
-  createdAt   DateTime         @default(now())
+  id         String           @id @default(cuid())
+  budgetId   String
+  budget     Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  slotNumber Int
+  grantYear  Int
+  periodFrom DateTime
+  periodTo   DateTime
+  dueDate    DateTime
+  status     ReportSlotStatus @default(pending)
+  report     BudgetReport?
+  createdAt  DateTime         @default(now())
 
   @@unique([budgetId, slotNumber])
   @@index([budgetId, grantYear])
 }
 
 model BudgetReport {
-  id                  String           @id @default(cuid())
-  slotId              String           @unique
-  slot                BudgetReportSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  budgetId            String
-  budget              Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  openingBalance      Float            @default(0)
-  tranchesReceived    Float            @default(0)
-  interestEarned      Float            @default(0)
-  bankBalance         Float            @default(0)
-  fdBalance           Float            @default(0)
-  cashInHand          Float            @default(0)
-  advances            Float            @default(0)
-  receivables         Float            @default(0)
-  payables            Float            @default(0)
-  bankStatementUrl    String?
-  bankStatementParsed Json?
-  partnerNotes        String?
-  reviewerNotes       String?
-  submittedAt         DateTime?
-  approvedAt          DateTime?
-  lines               BudgetReportLine[]
+  id                   String                      @id @default(cuid())
+  slotId               String                      @unique
+  slot                 BudgetReportSlot            @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  budgetId             String
+  budget               Budget                      @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  openingBalance       Float                       @default(0)
+  tranchesReceived     Float                       @default(0)
+  interestEarned       Float                       @default(0)
+  bankBalance          Float                       @default(0)
+  fdBalance            Float                       @default(0)
+  cashInHand           Float                       @default(0)
+  advances             Float                       @default(0)
+  receivables          Float                       @default(0)
+  payables             Float                       @default(0)
+  bankStatementUrl     String?
+  bankStatementParsed  Json?
+  partnerNotes         String?
+  reviewerNotes        String?
+  submittedAt          DateTime?
+  approvedAt           DateTime?
+  lines                BudgetReportLine[]
   reallocationRequests BudgetReallocationRequest[]
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
 
   @@index([budgetId])
 }
 
 model BudgetReallocationRequest {
-  id               String               @id @default(cuid())
-  reportId         String
-  report           BudgetReport         @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  fromLineId       String
-  fromLine         BudgetLine           @relation("ReallocationFrom", fields: [fromLineId], references: [id])
-  toLineId         String?
-  toLine           BudgetLine?          @relation("ReallocationTo", fields: [toLineId], references: [id])
-  toDescription    String?
-  toSection        BudgetSection?
-  requestedAmount  Float
-  isRecurring      Boolean              @default(false)
-  monthlyAmount    Float                @default(0)
-  durationType     ReallocationDuration
-  durationMonths   Int?
-  rationale        String
-  sourceUnspent    Float                @default(0)
-  willSustain      Boolean              @default(true)
-  sustainNote      String?
-  status           ReallocationStatus   @default(pending)
-  approvedAmount   Float?
-  reviewerComment  String?
-  resolvedAt       DateTime?
-  createdLineId    String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  id              String               @id @default(cuid())
+  reportId        String
+  report          BudgetReport         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  fromLineId      String
+  fromLine        BudgetLine           @relation("ReallocationFrom", fields: [fromLineId], references: [id])
+  toLineId        String?
+  toLine          BudgetLine?          @relation("ReallocationTo", fields: [toLineId], references: [id])
+  toDescription   String?
+  toSection       BudgetSection?
+  requestedAmount Float
+  isRecurring     Boolean              @default(false)
+  monthlyAmount   Float                @default(0)
+  durationType    ReallocationDuration
+  durationMonths  Int?
+  rationale       String
+  sourceUnspent   Float                @default(0)
+  willSustain     Boolean              @default(true)
+  sustainNote     String?
+  status          ReallocationStatus   @default(pending)
+  approvedAmount  Float?
+  reviewerComment String?
+  resolvedAt      DateTime?
+  createdLineId   String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   @@index([reportId])
   @@index([fromLineId])
 }
 
 model BudgetReportLine {
-  id            String       @id @default(cuid())
-  reportId      String
-  report        BudgetReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  budgetLineId  String
-  budgetLine    BudgetLine   @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
-  actualAmount  Float        @default(0)
-  notes         String?
+  id           String       @id @default(cuid())
+  reportId     String
+  report       BudgetReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  budgetLineId String
+  budgetLine   BudgetLine   @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+  actualAmount Float        @default(0)
+  notes        String?
 
   @@unique([reportId, budgetLineId])
   @@index([reportId])
 }
 
 model CostRegistry {
-  id            String        @id @default(cuid())
-  city          String        @default("Bangalore")
+  id            String   @id @default(cuid())
+  city          String   @default("Bangalore")
   domain        String?
   itemKey       String
   unitCost      Float
   unit          String
-  effectiveYear Int           @default(2025)
+  effectiveYear Int      @default(2025)
   notes         String?
-  displayGroup  String?       // for inp.* items: "geography" | "facilities" | "coverage"; null → coverage
-  needsDomain   String?       // for inp.* items: links to NeedsFormulaConfig.domain for scenario loading
-  updatedAt     DateTime      @updatedAt
+  displayGroup  String? // for inp.* items: "geography" | "facilities" | "coverage"; null → coverage
+  needsDomain   String? // for inp.* items: links to NeedsFormulaConfig.domain for scenario loading
+  updatedAt     DateTime @updatedAt
 
   @@unique([city, itemKey])
 }
@@ -1812,33 +1954,33 @@ model LineTemplate {
   isAutoGenerated Boolean       @default(true)
   notes           String?
   salaryHint      String?
-  templateKey     String        // stable slug used for upsert seeding
+  templateKey     String // stable slug used for upsert seeding
 
   // unit count
-  inputVar           String    @default("fixed_1")
-  inputMonthly       Boolean   @default(false)
+  inputVar           String  @default("fixed_1")
+  inputMonthly       Boolean @default(false)
   supervisorRatioKey String?
-  inputThreshold     Int?      // if set: suppress line (units=0) when inputVar value <= this
+  inputThreshold     Int? // if set: suppress line (units=0) when inputVar value <= this
 
   // unit cost
-  isSalaryStub   Boolean   @default(false)
+  isSalaryStub   Boolean @default(false)
   userInputCost  String?
   costKey        String?
   costKey2       String?
   costKey3       String?
-  costMonthly    Boolean   @default(false)
+  costMonthly    Boolean @default(false)
   workerRatioKey String?
   bufferKey      String?
   costPctOf      String?
   costPct        Float?
-  y1UnitsZero    Boolean   @default(false)
+  y1UnitsZero    Boolean @default(false)
 
   // Year applicability & expansion / reduction
-  applyY1       Boolean   @default(true)
-  applyY2       Boolean   @default(true)
-  applyY3       Boolean   @default(true)
-  y2UnitsScale  Float?    // null = same as Y1; 1.5 = 50% more; 0.5 = 50% fewer
-  y3UnitsScale  Float?
+  applyY1      Boolean @default(true)
+  applyY2      Boolean @default(true)
+  applyY3      Boolean @default(true)
+  y2UnitsScale Float? // null = same as Y1; 1.5 = 50% more; 0.5 = 50% fewer
+  y3UnitsScale Float?
 
   @@unique([city, templateKey])
   @@index([city, domain, position])

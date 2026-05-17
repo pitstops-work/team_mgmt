@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight, Home, TrendingUp, TrendingDown, Minus, Clock } from "lucide-react";
+import { ChevronRight, Home, TrendingUp, TrendingDown, Minus, Clock, Target, Activity } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const ImpactChart = dynamic(() => import("./ImpactChart"), { ssr: false });
+const IndicatorsView = dynamic(() => import("./IndicatorsView"), { ssr: false });
+
+type Layer = "needs" | "indicators";
 
 type StalenessStatus = "green" | "yellow" | "red" | "none";
 type TimeRange = "3m" | "6m" | "1y" | "all";
@@ -83,6 +86,8 @@ export default function ImpactDashboard({ cities }: Props) {
 
   const level = (searchParams.get("level") as Level) ?? "city";
   const geoId = searchParams.get("id") ?? cities[0]?.id ?? "";
+  const layer = (searchParams.get("layer") as Layer) ?? "needs";
+  const indicatorKey = searchParams.get("indicator");
   const domainParam = searchParams.get("domain");
   // null → URL has nothing; auto-select on load. ALL_DOMAINS → user chose overlay.
   // Anything else → that specific domain.
@@ -106,6 +111,7 @@ export default function ImpactDashboard({ cities }: Props) {
   }, [router, searchParams]);
 
   useEffect(() => {
+    if (layer !== "needs") return;
     if (!geoId) return;
     setLoading(true);
     const params = new URLSearchParams({ level, id: geoId });
@@ -121,7 +127,7 @@ export default function ImpactDashboard({ cities }: Props) {
         });
       })
       .finally(() => setLoading(false));
-  }, [level, geoId, selectedDomain]);
+  }, [layer, level, geoId, selectedDomain]);
 
   // On first data load with no domain in URL, pick the most-active domain so the chart isn't a wall of overlapping flat lines
   useEffect(() => {
@@ -161,21 +167,47 @@ export default function ImpactDashboard({ cities }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold text-stone-900">Community Needs Progress</h1>
-          <p className="text-xs text-stone-500 mt-0.5">How gaps have changed as programme goals complete</p>
+          <h1 className="text-lg font-semibold text-stone-900">
+            {layer === "needs" ? "Community Needs Progress" : "Facility Indicators"}
+          </h1>
+          <p className="text-xs text-stone-500 mt-0.5">
+            {layer === "needs"
+              ? "How gaps have changed as programme goals complete"
+              : "Utilization / state of community facilities — distinct from goal completion"}
+          </p>
         </div>
-        {/* Time range picker */}
-        <div className="flex items-center gap-1 bg-stone-100 rounded-lg p-0.5 flex-shrink-0">
-          {(["3m", "6m", "1y", "all"] as TimeRange[]).map(r => (
-            <button
-              key={r}
-              onClick={() => setTimeRange(r)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${timeRange === r ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
-            >
-              {r === "all" ? "All" : r}
-            </button>
-          ))}
-        </div>
+        {/* Time range picker — Layer 1 only */}
+        {layer === "needs" && (
+          <div className="flex items-center gap-1 bg-stone-100 rounded-lg p-0.5 flex-shrink-0">
+            {(["3m", "6m", "1y", "all"] as TimeRange[]).map(r => (
+              <button
+                key={r}
+                onClick={() => setTimeRange(r)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${timeRange === r ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+              >
+                {r === "all" ? "All" : r}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Layer tabs */}
+      <div className="flex items-center gap-1 bg-stone-100 rounded-lg p-0.5 self-start">
+        <button
+          onClick={() => setParams({ layer: "needs", indicator: null })}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${layer === "needs" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+        >
+          <Target className="w-3.5 h-3.5" />
+          Layer 1 · Needs Remaining
+        </button>
+        <button
+          onClick={() => setParams({ layer: "indicators", domain: null })}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${layer === "indicators" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
+        >
+          <Activity className="w-3.5 h-3.5" />
+          Layer 2 · Facility Indicators
+        </button>
       </div>
 
       {/* Geography selector + breadcrumb */}
@@ -214,6 +246,17 @@ export default function ImpactDashboard({ cities }: Props) {
           </nav>
         )}
       </div>
+
+      {layer === "indicators" ? (
+        <IndicatorsView
+          level={level}
+          geoId={geoId}
+          selectedIndicator={indicatorKey}
+          setSelectedIndicator={(k) => setParams({ indicator: k })}
+          nextLevel={nextLevel}
+          drillInto={drillInto}
+        />
+      ) : (<>
 
       {/* Domain pills */}
       <div className="flex flex-wrap gap-1.5">
@@ -441,6 +484,7 @@ export default function ImpactDashboard({ cities }: Props) {
           <p className="text-xs text-stone-400 mt-1">Complete goals with domain targets to see progress here</p>
         </div>
       )}
+      </>)}
     </div>
   );
 }
