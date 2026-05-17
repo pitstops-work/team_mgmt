@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
-import { captureIndicatorPointsForChecklistItem } from "@/lib/captureIndicatorPoints";
+import { captureIndicatorPointsForChecklistItem, captureJourneyOutcomePointsForChecklistItem } from "@/lib/captureIndicatorPoints";
 
 const VALID_STATUSES = [
   "NotStarted", "Scheduled", "InProgress", "Done", "Blocked", "Rescheduled", "Cancelled",
@@ -49,14 +49,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
   if (resolvedStatus === "Done") {
     await autoAdvancePitstopFromItem(itemId);
     if (indicatorValues && typeof indicatorValues === "object") {
+      const values = indicatorValues as Record<string, number>;
       try {
         await captureIndicatorPointsForChecklistItem({
-          itemId,
-          values: indicatorValues as Record<string, number>,
-          capturedById: session.user.id,
+          itemId, values, capturedById: session.user.id,
         });
       } catch (e) {
-        console.error("[checklist PATCH] indicator capture failed:", e);
+        console.error("[checklist PATCH] Layer 2 capture failed:", e);
+      }
+      try {
+        await captureJourneyOutcomePointsForChecklistItem({
+          itemId, values, capturedById: session.user.id,
+        });
+      } catch (e) {
+        console.error("[checklist PATCH] Layer 3 capture failed:", e);
       }
     }
   }

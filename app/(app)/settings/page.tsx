@@ -380,6 +380,17 @@ export default function SettingsPage() {
               </div>
               <ChevronRight className="w-4 h-4 text-stone-300" />
             </Link>
+            <Link
+              href="/settings/journey-outcome-packs"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <Layers className="w-4 h-4 text-indigo-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">Journey Outcome Packs (Layer 3)</p>
+                <p className="text-xs text-stone-400">Reusable outcome definitions you can apply to programme journeys</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
           </div>
         </section>
 

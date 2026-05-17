@@ -16,6 +16,10 @@ type JourneyRow = {
   notes: string | null;
   parentId: string | null;
   parentLabel: string | null;
+  closedAt: Date | null;
+  closedReason: string | null;
+  closedByName: string | null;
+  outcomeSnapshot: unknown;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -74,11 +78,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       j.status, j.notes,
       j."parentId",
       pj.label AS "parentLabel",
+      j."closedAt", j."closedReason",
+      cu.name AS "closedByName",
+      j."outcomeSnapshot",
       j."createdAt", j."updatedAt"
     FROM "ProgrammeJourney" j
     LEFT JOIN "Settlement" s ON s.id = j."settlementId"
     LEFT JOIN "Cluster" c ON c.id = s."clusterId"
     LEFT JOIN "ProgrammeJourney" pj ON pj.id = j."parentId"
+    LEFT JOIN "User" cu ON cu.id = j."closedById"
     WHERE j.id = ${id} LIMIT 1
   `;
   const journey = journeyRows[0];

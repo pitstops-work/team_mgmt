@@ -97,3 +97,63 @@ export async function captureIndicatorPointsForChecklistItem({
     `;
   }
 }
+
+/**
+ * Writes ProgrammeJourneyOutcomePoint rows for RP_ACTIVITY outcomes whose
+ * (bindingTemplateSlug, bindingChecklistKey) match this checklist item AND
+ * whose journey covers this settlement.
+ */
+export async function captureJourneyOutcomePointsForChecklistItem({
+  itemId,
+  values,
+  capturedById,
+}: {
+  itemId: string;
+  values: Record<string, number>;
+  capturedById: string | null;
+}) {
+  if (!values || Object.keys(values).length === 0) return;
+
+  const ctxRows = await prisma.$queryRaw<ItemContext[]>`
+    SELECT
+      ci.key,
+      ci."templateSlug",
+      COALESCE(g."needsSettlementId", p."needsSettlementId") AS "settlementId"
+    FROM "ChecklistItem" ci
+    JOIN "Pitstop" p ON p.id = ci."pitstopId"
+    JOIN "Goal" g ON g.id = p."goalId"
+    WHERE ci.id = ${itemId}
+    LIMIT 1
+  `;
+  const ctx = ctxRows[0];
+  if (!ctx?.key || !ctx?.templateSlug || !ctx?.settlementId) return;
+
+  // Each outcome's numericField key in the request body is `outcome_<outcomeId>`
+  const outcomes = await prisma.$queryRaw<{ id: string; key: string }[]>`
+    SELECT o.id, o.key
+    FROM "ProgrammeJourneyOutcome" o
+    JOIN "ProgrammeJourney" j ON j.id = o."journeyId"
+    WHERE o."captureSource" = 'RP_ACTIVITY'
+      AND o."isActive" = true
+      AND o."bindingTemplateSlug" = ${ctx.templateSlug}
+      AND o."bindingChecklistKey" = ${ctx.key}
+      AND j."settlementId" = ${ctx.settlementId}
+  `;
+
+  for (const o of outcomes) {
+    const field = `outcome_${o.id.slice(0, 8)}`;
+    const raw = values[field];
+    if (raw === undefined || raw === null || !isFinite(raw)) continue;
+
+    await prisma.$executeRaw`
+      INSERT INTO "ProgrammeJourneyOutcomePoint" (
+        id, "outcomeId", value, "capturedAt", source,
+        "capturedById", "sourceRefId", "createdAt"
+      ) VALUES (
+        ${randomUUID()}, ${o.id}, ${raw},
+        NOW(), 'RP_ACTIVITY',
+        ${capturedById}, ${itemId}, NOW()
+      )
+    `;
+  }
+}

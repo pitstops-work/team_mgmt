@@ -56,12 +56,15 @@ type ChecklistItem = {
 };
 
 type ItemBinding = {
+  kind: "facility" | "journey";
   bindingId: string;
   numericField: string;
   defId: string;
   defLabel: string;
   defUnit: string | null;
   defColor: string;
+  journeyId?: string;
+  journeyLabel?: string;
 };
 type DepPitstop = { id: string; title: string; status: string };
 type Dependency = { id: string; blockedBy: DepPitstop };
@@ -310,10 +313,17 @@ function ChecklistItemRow({
               {bindings.map((b) => (
                 <div
                   key={b.bindingId}
-                  className="flex items-center gap-1 px-1.5 py-0.5 bg-stone-50 border border-stone-200 rounded"
+                  className={`flex items-center gap-1 px-1.5 py-0.5 border rounded ${
+                    b.kind === "journey"
+                      ? "bg-indigo-50 border-indigo-200"
+                      : "bg-stone-50 border-stone-200"
+                  }`}
+                  title={b.kind === "journey" ? `Journey outcome: ${b.journeyLabel ?? ""}` : undefined}
                 >
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: b.defColor }} />
-                  <span className="text-[10px] text-stone-500">{b.defLabel}</span>
+                  <span className={`text-[10px] ${b.kind === "journey" ? "text-indigo-700" : "text-stone-500"}`}>
+                    {b.defLabel}
+                  </span>
                   <input
                     type="number"
                     inputMode="decimal"

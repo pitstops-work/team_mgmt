@@ -10,6 +10,8 @@ type Journey = {
   settlementId: string; settlementName: string | null; clusterName: string | null;
   status: string; notes: string | null;
   parentId: string | null; parentLabel: string | null;
+  closedAt: string | null; closedReason: string | null; closedByName: string | null;
+  outcomeSnapshot: Record<string, number | null> | null;
   createdAt: string; updatedAt: string;
 };
 type Phase = {
@@ -65,6 +67,31 @@ export default function ProgrammeDetailPage({ params }: { params: Promise<{ id: 
     router.push("/programmes");
   };
 
+  const handleCloseJourney = async () => {
+    const reason = prompt(`Close journey "${journey.label}"?\nReason (optional):`);
+    if (reason === null) return;
+    await fetch(`/api/programmes/${id}/close`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }),
+    });
+    load();
+  };
+
+  const handlePauseJourney = async (next: "Active" | "Paused") => {
+    await fetch(`/api/programmes/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next }),
+    });
+    load();
+  };
+
+  const handleReopenJourney = async () => {
+    if (!confirm("Reopen this closed journey? Snapshot will be cleared.")) return;
+    await fetch(`/api/programmes/${id}/reopen`, { method: "POST" });
+    load();
+  };
+
+  const isClosed = journey.status === "Closed";
+  const isPaused = journey.status === "Paused";
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {/* Header */}
@@ -97,20 +124,56 @@ export default function ProgrammeDetailPage({ params }: { params: Promise<{ id: 
             <span className="text-stone-400">Created {new Date(journey.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
-        <button onClick={handleDeleteJourney} className="p-1.5 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors shrink-0" title="Delete journey">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {!isClosed && !isPaused && (
+            <button onClick={() => handlePauseJourney("Paused")} className="text-[11px] px-2 py-1 rounded text-stone-500 hover:bg-stone-100" title="Pause">Pause</button>
+          )}
+          {!isClosed && isPaused && (
+            <button onClick={() => handlePauseJourney("Active")} className="text-[11px] px-2 py-1 rounded text-stone-500 hover:bg-stone-100" title="Resume">Resume</button>
+          )}
+          {!isClosed && (
+            <button onClick={handleCloseJourney} className="text-[11px] px-2 py-1 rounded text-stone-500 hover:bg-stone-100" title="Close">Close</button>
+          )}
+          {isClosed && (
+            <button onClick={handleReopenJourney} className="text-[11px] px-2 py-1 rounded text-emerald-600 hover:bg-emerald-50">Reopen</button>
+          )}
+          <button onClick={handleDeleteJourney} className="p-1.5 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors" title="Delete journey">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
+
+      {isClosed && (
+        <div className="mb-5 bg-stone-50 border border-stone-200 rounded-lg p-3 text-xs text-stone-600">
+          <p className="font-medium text-stone-700 mb-1">Journey closed{journey.closedAt ? ` on ${new Date(journey.closedAt).toLocaleDateString()}` : ""}{journey.closedByName ? ` by ${journey.closedByName}` : ""}.</p>
+          {journey.closedReason && <p className="text-stone-500 mb-1">{journey.closedReason}</p>}
+          {journey.outcomeSnapshot && Object.keys(journey.outcomeSnapshot).length > 0 && (
+            <div className="mt-2">
+              <p className="text-[10px] uppercase tracking-wider text-stone-400 mb-1">Outcome snapshot</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-[11px]">
+                {Object.entries(journey.outcomeSnapshot).map(([k, v]) => (
+                  <span key={k} className="text-stone-600">
+                    <code className="text-stone-400">{k}</code>: {v ?? "—"}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Outcomes section */}
       <section className="mb-6">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
             <Target className="w-3.5 h-3.5" /> Outcomes ({outcomes.length})
           </h2>
-          <button onClick={() => { setEditingOutcomeId(null); setOutcomeFormOpen(true); }} className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Add outcome
-          </button>
+          <div className="flex items-center gap-3">
+            <ApplyPackPicker journeyId={id} journeyDomain={journey.primaryDomain} onApplied={load} />
+            <button onClick={() => { setEditingOutcomeId(null); setOutcomeFormOpen(true); }} className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Add outcome
+            </button>
+          </div>
         </div>
 
         {outcomeFormOpen && (
@@ -585,6 +648,46 @@ function PhaseTable({ journeyId, phases, edges, onChanged }: { journeyId: string
         </tbody>
       </table>
     </div>
+  );
+}
+
+function ApplyPackPicker({ journeyId, journeyDomain, onApplied }: { journeyId: string; journeyDomain: string | null; onApplied: () => void }) {
+  const [packs, setPacks] = useState<{ id: string; key: string; label: string; domain: string | null }[]>([]);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) fetch("/api/admin/journey-outcome-packs").then(r => r.ok ? r.json() : []).then(setPacks).catch(() => {});
+  }, [open]);
+
+  const applicable = packs.filter(p => !p.domain || p.domain === journeyDomain);
+
+  const apply = async (packId: string) => {
+    setBusy(true);
+    const res = await fetch(`/api/programmes/${journeyId}/apply-pack/${packId}`, { method: "POST" });
+    setBusy(false);
+    setOpen(false);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.created === 0) alert(`No new outcomes added (${data.skipped} skipped — already exist).`);
+      onApplied();
+    } else {
+      alert("Failed to apply pack.");
+    }
+  };
+
+  return open ? (
+    <div className="flex items-center gap-1">
+      <select autoFocus className="text-xs px-2 py-1 border border-stone-200 rounded bg-white" onChange={e => e.target.value && apply(e.target.value)}>
+        <option value="">— Pick a pack —</option>
+        {applicable.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+      </select>
+      <button onClick={() => setOpen(false)} disabled={busy} className="px-1 py-0.5 text-xs text-stone-400 hover:text-stone-600"><X className="w-3 h-3" /></button>
+    </div>
+  ) : (
+    <button onClick={() => setOpen(true)} className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1">
+      <Plus className="w-3 h-3" /> Apply pack
+    </button>
   );
 }
 
