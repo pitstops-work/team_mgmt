@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { DbPitstop, interpolatePitstops, normalizeActivities, slugifyChecklistText } from "@/lib/templateDb";
+import { attachGoalToProgrammeJourney } from "@/lib/programmeJourneys";
 import {
   buildScheduleConfig,
   getWorkingDays,
@@ -299,6 +300,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         `;
       }
     }
+  }
+
+  // Layer 3: auto-link this goal into a programme journey (silent on failures)
+  try {
+    await attachGoalToProgrammeJourney({
+      goalId: goal.id,
+      templateSlug: id,
+      domain: needsDomain ?? null,
+      settlementId: needsSettlementId ?? null,
+    });
+  } catch (e) {
+    console.error("[templates/apply] programme journey attach failed:", e);
   }
 
   return Response.json(goal, { status: 201 });

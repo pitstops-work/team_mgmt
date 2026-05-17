@@ -60,6 +60,8 @@ model User {
   metricDataPoints    MetricDataPoint[]
   // Layer 2 indicator captures
   indicatorCaptures   FacilityIndicatorPoint[] @relation("IndicatorCapture")
+  // Layer 3 journey outcome captures
+  journeyOutcomeCaptures ProgrammeJourneyOutcomePoint[] @relation("JourneyOutcomeCapture")
   // Needs assessment
   assessments         SettlementAssessment[]
   // Reporting structure (for notification routing — not a hard gate)
@@ -169,6 +171,8 @@ model Goal {
   linkedFacility  LayerFeature?   @relation("GoalLinkedFacility", fields: [linkedFacilityId], references: [id], onDelete: SetNull)
   // Settlement-level outcome attribution on completion
   outcomes        GoalOutcome[]
+  // Layer 3 programme journey phase (this goal fulfilling a phase)
+  journeyPhases   ProgrammeJourneyPhase[]
 }
 
 // One row per settlement that received actuals from a completed domain goal.
@@ -1014,6 +1018,8 @@ model Settlement {
   layerFeatures      LayerFeature[]
   // Layer 2 facility indicators
   facilityIndicators FacilityIndicator[]
+  // Layer 3 programme journeys
+  programmeJourneys  ProgrammeJourney[]
 }
 
 // Government / programme health centre
@@ -1988,4 +1994,128 @@ model LineTemplate {
 
   @@unique([city, templateKey])
   @@index([city, domain, position])
+}
+
+// ── Layer 3: Programme Journeys ──────────────────────────────────────────────
+// Threads connecting multiple goals (across templates / over time) under a
+// shared outcome objective. Auto-spawned per (domain, settlement) on goal
+// apply. Phases form a DAG (linear by default; admin can rewire).
+
+model ProgrammeJourney {
+  id            String   @id @default(cuid())
+  // Stable slug for ops + dedupe, e.g. "creche-munireddypalya"
+  key           String   @unique
+  label         String
+  // Auto-linking dimension. Null when admin makes a cross-domain super-journey.
+  primaryDomain String?
+  settlementId  String
+  status        String   @default("Active") // Active | Paused | Closed
+  notes         String?
+  // Optional pointer to a parent super-journey (cross-domain aggregation).
+  parentId      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  settlement Settlement                 @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  parent     ProgrammeJourney?          @relation("ProgrammeJourneyChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children   ProgrammeJourney[]         @relation("ProgrammeJourneyChildren")
+  phases     ProgrammeJourneyPhase[]
+  outcomes   ProgrammeJourneyOutcome[]
+
+  @@index([settlementId, primaryDomain])
+  @@index([parentId])
+}
+
+model ProgrammeJourneyPhase {
+  id        String   @id @default(cuid())
+  journeyId String
+  // Layout hint only — real ordering is the DAG (edges)
+  position  Int      @default(0)
+  label     String   // "Setup" | "Operations" | "Maintenance" | custom
+  // The fulfilling goal. Null = logical/planned phase not yet started.
+  goalId    String?
+  status    String   @default("Planned") // Planned | Active | Done | Skipped
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  journey  ProgrammeJourney            @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  goal     Goal?                       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  outEdges ProgrammeJourneyPhaseEdge[] @relation("PhaseOutEdges")
+  inEdges  ProgrammeJourneyPhaseEdge[] @relation("PhaseInEdges")
+
+  @@index([journeyId])
+  @@index([goalId])
+}
+
+model ProgrammeJourneyPhaseEdge {
+  id          String  @id @default(cuid())
+  fromPhaseId String
+  toPhaseId   String
+  label       String? // "after creche running", "in parallel"
+
+  from ProgrammeJourneyPhase @relation("PhaseOutEdges", fields: [fromPhaseId], references: [id], onDelete: Cascade)
+  to   ProgrammeJourneyPhase @relation("PhaseInEdges", fields: [toPhaseId], references: [id], onDelete: Cascade)
+
+  @@unique([fromPhaseId, toPhaseId])
+}
+
+model ProgrammeJourneyOutcome {
+  id          String  @id @default(cuid())
+  journeyId   String
+  key         String  // unique within journey
+  label       String
+  description String?
+  unit        String?
+  // MANUAL_ADMIN | RP_ACTIVITY (mirrors FacilityIndicatorSource)
+  captureSource       String  @default("MANUAL_ADMIN")
+  // For RP_ACTIVITY: bind to a checklist key (one binding per outcome in v1)
+  bindingTemplateSlug String?
+  bindingChecklistKey String?
+  targetValue         Float?
+  targetCadence       String? // "annual" | "quarterly" | "monthly"
+  sortOrder           Int     @default(0)
+  isActive            Boolean @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  journey ProgrammeJourney               @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  points  ProgrammeJourneyOutcomePoint[]
+
+  @@unique([journeyId, key])
+}
+
+model ProgrammeJourneyOutcomePoint {
+  id           String   @id @default(cuid())
+  outcomeId    String
+  value        Float
+  capturedAt   DateTime
+  source       String   // MANUAL_ADMIN | RP_ACTIVITY
+  capturedById String?
+  sourceRefId  String?  // ChecklistItem.id for RP_ACTIVITY
+  note         String?
+  createdAt    DateTime @default(now())
+
+  outcome    ProgrammeJourneyOutcome @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  capturedBy User?                   @relation("JourneyOutcomeCapture", fields: [capturedById], references: [id], onDelete: SetNull)
+
+  @@index([outcomeId, capturedAt])
+}
+
+// Outcome templates — admin-defined packs that can be applied to any journey
+// matching a target domain. Each pack contains one or more outcome definitions
+// (label / unit / target / capture mode) that get cloned into a journey on apply.
+model ProgrammeJourneyOutcomeTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String
+  // Optional domain filter — admin can apply this pack only to journeys whose
+  // primaryDomain matches (or to any journey if null).
+  domain    String?
+  notes     String?
+  // JSON array of outcome definitions to clone into the journey on apply.
+  // Shape: [{ key, label, unit, captureSource, bindingTemplateSlug?, bindingChecklistKey?, targetValue?, targetCadence? }]
+  outcomes  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
