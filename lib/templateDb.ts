@@ -7,10 +7,23 @@ export interface DbActivity {
 
 export interface DbChecklistItem {
   text: string;
+  // Stable identifier for binding to indicators / external systems.
+  // Auto-derived by slugifying text on first save; admin may override.
+  key?: string;
   activities?: DbActivity[];
   // Legacy single-activity fields (kept for backward compat reading)
   activityTitle?: string;
   completionType?: string;
+}
+
+export function slugifyChecklistText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
 }
 
 export function normalizeActivities(item: DbChecklistItem): DbActivity[] {
@@ -75,6 +88,7 @@ export function interpolatePitstops(
     notes: interpolate(pt.notes, params),
     checklist: pt.checklist.map((item) => ({
       text: interpolate(item.text, params),
+      key: item.key,
       completionType: item.completionType,
       activities: normalizeActivities(item).map((act) => ({
         title: interpolate(act.title, params),

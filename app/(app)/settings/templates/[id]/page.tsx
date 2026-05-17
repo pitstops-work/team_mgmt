@@ -9,7 +9,7 @@ import {
   GripVertical, Save, AlertTriangle, CheckCircle, ChevronRight,
 } from "lucide-react";
 import type { DbTemplate, DbPitstop, DbTemplateParam, DbActivity } from "@/lib/templateDb";
-import { normalizeActivities } from "@/lib/templateDb";
+import { normalizeActivities, slugifyChecklistText } from "@/lib/templateDb";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -197,6 +197,11 @@ function PitstopEditor({
       checklist: pitstop.checklist.map((item, idx) => idx === i ? { ...item, text } : item),
     });
 
+  const updateChecklistItemKey = (i: number, key: string) =>
+    update({
+      checklist: pitstop.checklist.map((item, idx) => idx === i ? { ...item, key } : item),
+    });
+
   const moveChecklistItem = (i: number, dir: -1 | 1) =>
     update({ checklist: move(pitstop.checklist, i, i + dir) });
 
@@ -374,6 +379,16 @@ function PitstopEditor({
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
+                    {/* Stable key for indicator bindings */}
+                    <div className="flex items-center gap-1.5 pl-10">
+                      <span className="text-[10px] uppercase tracking-wider text-stone-400 shrink-0">Key</span>
+                      <input
+                        className="flex-1 px-2 py-0.5 text-[11px] font-mono border border-stone-200 rounded bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                        value={item.key ?? ""}
+                        onChange={(e) => updateChecklistItemKey(i, e.target.value)}
+                        placeholder={slugifyChecklistText(item.text) || "auto-derived from text on save"}
+                      />
+                    </div>
                     {/* Activities sub-section */}
                     <div className="pl-6 border-l-2 border-stone-200 ml-4 space-y-1.5">
                       <div className="flex items-center justify-between">
@@ -547,19 +562,31 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
     setSaving(true);
     setStatus("idle");
 
+    // Auto-fill missing checklist keys (slugify the text). Trim explicit keys.
+    const payload = {
+      ...template,
+      pitstops: (template.pitstops ?? []).map((p) => ({
+        ...p,
+        checklist: p.checklist.map((item) => {
+          const trimmed = (item.key ?? "").trim();
+          return { ...item, key: trimmed || slugifyChecklistText(item.text) };
+        }),
+      })),
+    };
+
     try {
       let res: Response;
       if (isNew) {
         res = await fetch("/api/admin/templates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(template),
+          body: JSON.stringify(payload),
         });
       } else {
         res = await fetch(`/api/admin/templates/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(template),
+          body: JSON.stringify(payload),
         });
       }
 

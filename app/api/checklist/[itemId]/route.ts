@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
+import { captureIndicatorPointsForChecklistItem } from "@/lib/captureIndicatorPoints";
 
 const VALID_STATUSES = [
   "NotStarted", "Scheduled", "InProgress", "Done", "Blocked", "Rescheduled", "Cancelled",
@@ -12,7 +13,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { itemId } = await params;
-  const { checked, text, status, assigneeId, notes } = await req.json();
+  const { checked, text, status, assigneeId, notes, indicatorValues } = await req.json();
 
   // Sync checked ↔ status
   let resolvedChecked = checked;
@@ -47,6 +48,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
 
   if (resolvedStatus === "Done") {
     await autoAdvancePitstopFromItem(itemId);
+    if (indicatorValues && typeof indicatorValues === "object") {
+      try {
+        await captureIndicatorPointsForChecklistItem({
+          itemId,
+          values: indicatorValues as Record<string, number>,
+          capturedById: session.user.id,
+        });
+      } catch (e) {
+        console.error("[checklist PATCH] indicator capture failed:", e);
+      }
+    }
   }
 
   const updated = await prisma.$queryRaw<{

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { DbPitstop, interpolatePitstops, normalizeActivities } from "@/lib/templateDb";
+import { DbPitstop, interpolatePitstops, normalizeActivities, slugifyChecklistText } from "@/lib/templateDb";
 import {
   buildScheduleConfig,
   getWorkingDays,
@@ -171,9 +171,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               create: inst.pt.checklist.map((item, itemIdx) => {
                 const itemActivities = item.activities ?? [];
                 const derivedType = item.completionType ?? itemActivities[0]?.completionType;
+                const itemKey = (item.key ?? "").trim() || slugifyChecklistText(item.text);
                 return {
                   text: item.text,
                   order: itemIdx,
+                  key: itemKey || null,
+                  templateSlug: id,
                   ...(derivedType && derivedType !== "Activity"
                     ? { completionType: derivedType as "Voice" | "Upload" }
                     : {}),

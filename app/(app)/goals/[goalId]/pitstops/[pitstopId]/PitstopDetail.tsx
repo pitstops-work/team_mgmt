@@ -51,6 +51,17 @@ type ChecklistItem = {
   completionType?: string; // 'Activity' | 'Voice' | 'Upload'
   activities: ActivityRef[];
   attachments: Attachment[];
+  key?: string | null;
+  templateSlug?: string | null;
+};
+
+type ItemBinding = {
+  bindingId: string;
+  numericField: string;
+  defId: string;
+  defLabel: string;
+  defUnit: string | null;
+  defColor: string;
 };
 type DepPitstop = { id: string; title: string; status: string };
 type Dependency = { id: string; blockedBy: DepPitstop };
@@ -138,6 +149,7 @@ const STATUS_CFG: Record<ChecklistStatus, { label: string; cls: string }> = {
 function ChecklistItemRow({
   item, users, pitstopId, isFirst, isLast,
   onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onMove, onVoiceLogged, onAttachmentLogged, onAttachmentDeleted,
+  bindings, indicatorValues, onIndicatorValueChange,
 }: {
   item: ChecklistItem;
   users: User[];
@@ -154,6 +166,9 @@ function ChecklistItemRow({
   onVoiceLogged: (id: string, notes: string) => void;
   onAttachmentLogged: (id: string, attachment: Attachment) => void;
   onAttachmentDeleted: (itemId: string, attachmentId: string) => void;
+  bindings: ItemBinding[];
+  indicatorValues: Record<string, string>;
+  onIndicatorValueChange: (itemId: string, numericField: string, value: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -290,6 +305,29 @@ function ChecklistItemRow({
           <p className={`text-xs leading-relaxed ${isFaded ? "line-through text-stone-400" : "text-stone-700"}`}>
             {item.text}
           </p>
+          {bindings.length > 0 && !isFaded && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              {bindings.map((b) => (
+                <div
+                  key={b.bindingId}
+                  className="flex items-center gap-1 px-1.5 py-0.5 bg-stone-50 border border-stone-200 rounded"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: b.defColor }} />
+                  <span className="text-[10px] text-stone-500">{b.defLabel}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    className="w-14 px-1 py-0.5 text-[11px] border border-stone-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-stone-300"
+                    value={indicatorValues[b.numericField] ?? ""}
+                    onChange={(e) => onIndicatorValueChange(item.id, b.numericField, e.target.value)}
+                    placeholder="—"
+                  />
+                  {b.defUnit && <span className="text-[10px] text-stone-400">{b.defUnit}</span>}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* Status badge / picker */}
             <div className="relative">
@@ -574,6 +612,33 @@ export default function PitstopDetail({
   const searchParams = useSearchParams();
   const router = useRouter();
   const [pitstop, setPitstop] = useState(initialPitstop);
+  const [bindingsByItem, setBindingsByItem] = useState<Record<string, ItemBinding[]>>({});
+  const [indicatorValues, setIndicatorValues] = useState<Record<string, Record<string, string>>>({});
+
+  useEffect(() => {
+    fetch(`/api/pitstops/${initialPitstop.id}/indicator-bindings`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then(setBindingsByItem)
+      .catch(() => {});
+  }, [initialPitstop.id]);
+
+  const setIndicatorValue = (itemId: string, numericField: string, value: string) => {
+    setIndicatorValues((prev) => ({
+      ...prev,
+      [itemId]: { ...(prev[itemId] ?? {}), [numericField]: value },
+    }));
+  };
+
+  const collectIndicatorPayload = (itemId: string) => {
+    const raw = indicatorValues[itemId];
+    if (!raw) return undefined;
+    const out: Record<string, number> = {};
+    for (const [field, str] of Object.entries(raw)) {
+      const n = parseFloat(str);
+      if (!isNaN(n)) out[field] = n;
+    }
+    return Object.keys(out).length ? out : undefined;
+  };
 
   useEffect(() => {
     return () => { router.refresh(); };
@@ -720,11 +785,12 @@ export default function PitstopDetail({
       if (derived !== pitstop.status) newStatus = derived;
     }
     setPitstop((p) => ({ ...p, checklistItems: newItems, ...(newStatus ? { status: newStatus } : {}) }));
+    const indicatorPayload = checked ? collectIndicatorPayload(itemId) : undefined;
     const calls: Promise<Response>[] = [
       fetch(`/api/checklist/${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checked }),
+        body: JSON.stringify({ checked, ...(indicatorPayload ? { indicatorValues: indicatorPayload } : {}) }),
       }),
     ];
     if (newStatus) {
@@ -744,10 +810,11 @@ export default function PitstopDetail({
         i.id === itemId ? { ...i, status, checked: status === "Done" ? true : i.checked } : i
       ),
     }));
+    const indicatorPayload = status === "Done" ? collectIndicatorPayload(itemId) : undefined;
     await fetch(`/api/checklist/${itemId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, ...(indicatorPayload ? { indicatorValues: indicatorPayload } : {}) }),
     });
   };
 
@@ -1484,6 +1551,9 @@ export default function PitstopDetail({
                     onVoiceLogged={handleVoiceLogged}
                     onAttachmentLogged={handleAttachmentLogged}
                     onAttachmentDeleted={handleAttachmentDeleted}
+                    bindings={bindingsByItem[item.id] ?? []}
+                    indicatorValues={indicatorValues[item.id] ?? {}}
+                    onIndicatorValueChange={setIndicatorValue}
                   />
                 ))
             )}

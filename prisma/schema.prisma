@@ -253,6 +253,10 @@ model ChecklistItem {
   notes          String?
   completionType ChecklistCompletionType @default(Activity)
   order          Int                     @default(0)
+  // Stable binding identifier propagated from GoalTemplateDef checklist item.
+  // Used with templateSlug to look up ActivityIndicatorBinding rows on completion.
+  key            String?
+  templateSlug   String?
   completedAt    DateTime?
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt

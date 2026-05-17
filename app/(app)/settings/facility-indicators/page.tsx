@@ -616,10 +616,13 @@ function IndicatorForm({
           </div>
         )}
         {draft.captureSource === "RP_ACTIVITY" && (
-          <p className="text-[10px] text-stone-400 leading-relaxed">
-            Bindings to specific checklist items will be added on the indicator detail page (next step).
-            For now, save the indicator and bind it from the template editor.
-          </p>
+          draft.id ? (
+            <BindingsPanel defId={draft.id} />
+          ) : (
+            <p className="text-[10px] text-stone-400 leading-relaxed">
+              Save this indicator first, then add bindings to specific checklist items.
+            </p>
+          )
         )}
       </div>
 
@@ -691,6 +694,154 @@ function IndicatorForm({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Bindings panel (RP_ACTIVITY captures) ────────────────────────────────────
+
+interface Binding {
+  id: string;
+  defId: string;
+  templateSlug: string;
+  checklistKey: string;
+  numericField: string;
+  templateName: string | null;
+}
+
+interface TemplateChecklistKeys {
+  slug: string;
+  name: string;
+  domain: string | null;
+  items: { key: string; text: string; pitstopTitle: string }[];
+}
+
+function BindingsPanel({ defId }: { defId: string }) {
+  const [bindings, setBindings] = useState<Binding[]>([]);
+  const [templates, setTemplates] = useState<TemplateChecklistKeys[]>([]);
+  const [pickTemplate, setPickTemplate] = useState("");
+  const [pickItem, setPickItem] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const [bRes, tRes] = await Promise.all([
+      fetch(`/api/admin/facility-indicators/${defId}/bindings`),
+      fetch(`/api/admin/template-checklist-keys`),
+    ]);
+    if (bRes.ok) setBindings(await bRes.json());
+    if (tRes.ok) setTemplates(await tRes.json());
+  }, [defId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const addBinding = async () => {
+    if (!pickTemplate || !pickItem) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/facility-indicators/${defId}/bindings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateSlug: pickTemplate, checklistKey: pickItem }),
+      });
+      if (res.ok) {
+        setPickTemplate("");
+        setPickItem("");
+        load();
+      } else {
+        const d = await res.json();
+        setError(d.error ?? "Failed to add binding");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeBinding = async (bindingId: string) => {
+    if (!confirm("Remove this binding? Historical points are kept.")) return;
+    await fetch(`/api/admin/facility-indicators/${defId}/bindings/${bindingId}`, { method: "DELETE" });
+    load();
+  };
+
+  const templateOptions = templates.filter(t => t.items.length > 0);
+  const selectedTpl = templates.find(t => t.slug === pickTemplate);
+  const availableItems = selectedTpl?.items.filter(
+    i => !bindings.some(b => b.templateSlug === pickTemplate && b.checklistKey === i.key),
+  ) ?? [];
+
+  return (
+    <div className="border border-stone-200 rounded-lg p-3 bg-stone-50 space-y-2">
+      <div className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">
+        Activity Bindings ({bindings.length})
+      </div>
+      <p className="text-[10px] text-stone-500 leading-relaxed">
+        When an RP completes a bound checklist item, a numeric input appears on the completion form and the value is captured as an indicator point.
+      </p>
+
+      {bindings.length > 0 && (
+        <div className="space-y-1">
+          {bindings.map((b) => (
+            <div key={b.id} className="flex items-center gap-2 px-2 py-1 bg-white border border-stone-200 rounded">
+              <Activity className="w-3 h-3 text-emerald-500 shrink-0" />
+              <div className="flex-1 min-w-0 text-xs">
+                <span className="font-medium text-stone-700">{b.templateName ?? b.templateSlug}</span>
+                <span className="text-stone-400 mx-1.5">·</span>
+                <code className="text-[10px] font-mono text-stone-500">{b.checklistKey}</code>
+              </div>
+              <button
+                onClick={() => removeBinding(b.id)}
+                className="p-1 hover:bg-red-50 rounded text-stone-400 hover:text-red-500 transition-colors shrink-0"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-1.5 items-end pt-1">
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-[10px] text-stone-400 mb-0.5">Template</label>
+          <select
+            className={inputCls + " w-full text-xs"}
+            value={pickTemplate}
+            onChange={e => { setPickTemplate(e.target.value); setPickItem(""); }}
+          >
+            <option value="">— Select template —</option>
+            {templateOptions.map(t => (
+              <option key={t.slug} value={t.slug}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-[10px] text-stone-400 mb-0.5">Checklist item</label>
+          <select
+            className={inputCls + " w-full text-xs"}
+            value={pickItem}
+            onChange={e => setPickItem(e.target.value)}
+            disabled={!pickTemplate}
+          >
+            <option value="">— Select item —</option>
+            {availableItems.map(i => (
+              <option key={i.key} value={i.key}>{i.pitstopTitle} · {i.text}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={addBinding}
+          disabled={!pickTemplate || !pickItem || busy}
+          className="px-2.5 py-1.5 text-xs rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-40 flex items-center gap-1 shrink-0"
+        >
+          <Plus className="w-3 h-3" /> Add
+        </button>
+      </div>
+      {error && <p className="text-[10px] text-red-500">{error}</p>}
+      {templateOptions.length === 0 && (
+        <p className="text-[10px] text-amber-600">
+          No templates have checklist items with stable keys yet. Open a template, save it once to populate keys.
+        </p>
+      )}
     </div>
   );
 }
