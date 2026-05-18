@@ -32,8 +32,12 @@ type PhaseRow = {
   goalTitle: string | null;
   goalStatus: string | null;
   goalTargetDate: Date | null;
+  goalStartDate: Date | null;
+  goalCompletedAt: Date | null;
   status: string;
   notes: string | null;
+  canvasX: number | null;
+  canvasY: number | null;
   createdAt: Date;
 };
 
@@ -98,7 +102,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       g.title AS "goalTitle",
       g.status::text AS "goalStatus",
       g."targetDate" AS "goalTargetDate",
-      p.status, p.notes, p."createdAt"
+      (SELECT MIN(pt."startDate") FROM "Pitstop" pt WHERE pt."goalId" = g.id) AS "goalStartDate",
+      (SELECT MAX(pt."completedAt") FROM "Pitstop" pt WHERE pt."goalId" = g.id) AS "goalCompletedAt",
+      p.status, p.notes, p."canvasX", p."canvasY", p."createdAt"
     FROM "ProgrammeJourneyPhase" p
     LEFT JOIN "Goal" g ON g.id = p."goalId"
     WHERE p."journeyId" = ${id}

@@ -12,7 +12,7 @@ export async function PUT(
 
   const { id, phaseId } = await params;
   const body = await req.json();
-  const { label, status, position, notes, goalId } = body;
+  const { label, status, position, notes, goalId, canvasX, canvasY } = body;
 
   await prisma.$executeRaw`
     UPDATE "ProgrammeJourneyPhase" SET
@@ -21,6 +21,8 @@ export async function PUT(
       position = COALESCE(${position ?? null}::int, position),
       notes = CASE WHEN ${notes !== undefined}::boolean THEN ${notes ?? null}::text ELSE notes END,
       "goalId" = CASE WHEN ${goalId !== undefined}::boolean THEN ${goalId ?? null}::text ELSE "goalId" END,
+      "canvasX" = CASE WHEN ${canvasX !== undefined}::boolean THEN ${canvasX ?? null}::int ELSE "canvasX" END,
+      "canvasY" = CASE WHEN ${canvasY !== undefined}::boolean THEN ${canvasY ?? null}::int ELSE "canvasY" END,
       "updatedAt" = NOW()
     WHERE id = ${phaseId} AND "journeyId" = ${id}
   `;

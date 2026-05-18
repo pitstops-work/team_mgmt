@@ -2040,6 +2040,9 @@ model ProgrammeJourneyPhase {
   // Layout hint only — real ordering is the DAG (edges)
   position  Int      @default(0)
   label     String   // "Setup" | "Operations" | "Maintenance" | custom
+  // Canvas coordinates for the DAG view. Null = auto-layout.
+  canvasX   Int?
+  canvasY   Int?
   // The fulfilling goal. Null = logical/planned phase not yet started.
   goalId    String?
   status    String   @default("Planned") // Planned | Active | Done | Skipped

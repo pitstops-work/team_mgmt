@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Plus, Pencil, Trash2, Activity, Target, Check, X, Layers, MapPin } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Activity, Target, Check, X, Layers, MapPin, Network, Table as TableIcon } from "lucide-react";
+import PhaseCanvas from "./PhaseCanvas";
 
 type Journey = {
   id: string; key: string; label: string; primaryDomain: string | null;
@@ -17,7 +18,9 @@ type Journey = {
 type Phase = {
   id: string; position: number; label: string;
   goalId: string | null; goalTitle: string | null; goalStatus: string | null; goalTargetDate: string | null;
+  goalStartDate: string | null; goalCompletedAt: string | null;
   status: string; notes: string | null;
+  canvasX: number | null; canvasY: number | null;
 };
 type Edge = { id: string; fromPhaseId: string; toPhaseId: string; label: string | null };
 type Outcome = {
@@ -47,6 +50,7 @@ export default function ProgrammeDetailPage({ params }: { params: Promise<{ id: 
   const [editingOutcomeId, setEditingOutcomeId] = useState<string | null>(null);
   const [capturingOutcomeId, setCapturingOutcomeId] = useState<string | null>(null);
   const [phaseFormOpen, setPhaseFormOpen] = useState(false);
+  const [phaseView, setPhaseView] = useState<"table" | "canvas">("table");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/programmes/${id}`);
@@ -91,6 +95,7 @@ export default function ProgrammeDetailPage({ params }: { params: Promise<{ id: 
 
   const isClosed = journey.status === "Closed";
   const isPaused = journey.status === "Paused";
+  const isSuper = !journey.primaryDomain;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -208,13 +213,23 @@ export default function ProgrammeDetailPage({ params }: { params: Promise<{ id: 
 
       {/* Phases section */}
       <section className="mb-6">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
             <Activity className="w-3.5 h-3.5" /> Phases ({phases.length})
           </h2>
-          <button onClick={() => setPhaseFormOpen(v => !v)} className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Add phase
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 bg-stone-100 rounded-md p-0.5">
+              <button onClick={() => setPhaseView("table")} className={`px-2 py-0.5 text-[11px] rounded ${phaseView === "table" ? "bg-white text-stone-700 shadow-sm" : "text-stone-500"}`}>
+                <TableIcon className="w-3 h-3 inline mr-1" /> Table
+              </button>
+              <button onClick={() => setPhaseView("canvas")} className={`px-2 py-0.5 text-[11px] rounded ${phaseView === "canvas" ? "bg-white text-stone-700 shadow-sm" : "text-stone-500"}`}>
+                <Network className="w-3 h-3 inline mr-1" /> Canvas
+              </button>
+            </div>
+            <button onClick={() => setPhaseFormOpen(v => !v)} className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Add phase
+            </button>
+          </div>
         </div>
 
         {phaseFormOpen && (
@@ -227,10 +242,14 @@ export default function ProgrammeDetailPage({ params }: { params: Promise<{ id: 
 
         {phases.length === 0 ? (
           <p className="text-xs text-stone-400 italic text-center py-4">No phases yet.</p>
-        ) : (
+        ) : phaseView === "table" ? (
           <PhaseTable journeyId={id} phases={phases} edges={edges} onChanged={load} />
+        ) : (
+          <PhaseCanvas journeyId={id} phases={phases} edges={edges} onChanged={load} />
         )}
       </section>
+
+      {isSuper && <ChildJourneysSection journeyId={id} />}
 
       {journey.notes && (
         <section className="mb-6">
@@ -239,6 +258,62 @@ export default function ProgrammeDetailPage({ params }: { params: Promise<{ id: 
         </section>
       )}
     </div>
+  );
+}
+
+// ── Child journeys (for super-journeys) ──────────────────────────────────────
+
+type ChildJourney = {
+  id: string; label: string; primaryDomain: string | null; status: string;
+  phaseCount: number; donePhaseCount: number; outcomeCount: number;
+};
+
+function ChildJourneysSection({ journeyId }: { journeyId: string }) {
+  const [children, setChildren] = useState<ChildJourney[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/programmes/${journeyId}/children`);
+    if (res.ok) setChildren(await res.json());
+    setLoading(false);
+  }, [journeyId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const detach = async (childId: string) => {
+    if (!confirm("Detach this child journey? It returns to standalone.")) return;
+    await fetch(`/api/programmes/${journeyId}/children?childId=${childId}`, { method: "DELETE" });
+    load();
+  };
+
+  return (
+    <section className="mb-6">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2 flex items-center gap-1.5">
+        <Layers className="w-3.5 h-3.5" /> Child journeys ({children.length})
+      </h2>
+      {loading ? (
+        <p className="text-xs text-stone-400 italic text-center py-3">Loading…</p>
+      ) : children.length === 0 ? (
+        <p className="text-xs text-stone-400 italic text-center py-3">No children yet. Use "Group with…" from the journey list to attach.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {children.map(c => (
+            <div key={c.id} className="flex items-center gap-3 px-3 py-2 bg-white border border-stone-200 rounded-lg">
+              <Link href={`/programmes/${c.id}`} className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-stone-800 hover:underline">{c.label}</span>
+                  {c.primaryDomain && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-50 text-stone-500">{c.primaryDomain}</span>}
+                  <span className="text-[10px] text-stone-400">{c.donePhaseCount}/{c.phaseCount} phases · {c.outcomeCount} outcomes</span>
+                </div>
+              </Link>
+              <button onClick={() => detach(c.id)} className="p-1 hover:bg-red-50 rounded text-stone-300 hover:text-red-500" title="Detach">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -281,7 +356,9 @@ function OutcomeCard({
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-medium text-stone-800">{outcome.label}</span>
+            <Link href={`/programmes/${journeyId}/outcomes/${outcome.id}`} className="text-xs font-medium text-stone-800 hover:underline">
+              {outcome.label}
+            </Link>
             {outcome.captureSource === "RP_ACTIVITY" && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">RP-bound</span>
             )}
