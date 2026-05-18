@@ -57,14 +57,23 @@ export async function GET(
   `;
 
   // A phase's active span = earliest pitstop startDate → latest pitstop
-  // completedAt (or NULL if still active). Heuristic; goalCompletedAt approach.
+  // completedAt (or NULL if still active). When the phase has no linked goal
+  // (logical phases), fall back to the phase's own createdAt as the start,
+  // and its updatedAt if status is Done.
   const phaseSpans = await prisma.$queryRaw<PhaseSpan[]>`
     SELECT
       p.id, p.label, p.status,
       g.title AS "goalTitle", g.id AS "goalId",
-      (SELECT MIN(pt."startDate") FROM "Pitstop" pt WHERE pt."goalId" = g.id) AS "startedAt",
-      CASE WHEN p.status = 'Done' THEN (SELECT MAX(pt."completedAt") FROM "Pitstop" pt WHERE pt."goalId" = g.id)
-           ELSE NULL END AS "endedAt"
+      COALESCE(
+        (SELECT MIN(pt."startDate") FROM "Pitstop" pt WHERE pt."goalId" = g.id),
+        p."createdAt"
+      ) AS "startedAt",
+      CASE WHEN p.status = 'Done'
+        THEN COALESCE(
+          (SELECT MAX(pt."completedAt") FROM "Pitstop" pt WHERE pt."goalId" = g.id),
+          p."updatedAt"
+        )
+        ELSE NULL END AS "endedAt"
     FROM "ProgrammeJourneyPhase" p
     LEFT JOIN "Goal" g ON g.id = p."goalId"
     WHERE p."journeyId" = ${id}
