@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import GoalsDashboard from "./GoalsDashboard";
 import { goalCityFilter } from "@/lib/goalCityFilter";
+import { buildRbacContext, scopeWhere, getTeamIds } from "@/lib/rbac";
+
+const USE_RBAC = process.env.USE_RBAC === "1";
 
 export default async function DashboardPage({
   searchParams,
@@ -21,7 +24,11 @@ export default async function DashboardPage({
   const designation = me?.designation ?? "Other";
   const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
 
-  // Build team ID scope for RP/ZL/PM
+  // Legacy scope vars. `cityFilter` is retained verbatim for the search query
+  // below (its semantics are intentionally narrower than the list scope —
+  // search sees city-wide, not team-restricted). `teamIds` and `isScoped`
+  // also feed user-list + workload + audit-feed queries that don't yet have
+  // RBAC scope builders.
   let teamIds: string[] = [currentUserId];
   if (designation === "ZL") {
     const team = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
@@ -34,15 +41,31 @@ export default async function DashboardPage({
       : [];
     teamIds = [currentUserId, ...zlIds, ...rps.map(m => m.id)];
   }
-  const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
-  // Super admin: no filters. Scoped roles: owner filter only (cityFilter is redundant when scoped by owner).
-  // Leader/Other: city filter only.
-  const ownerFilter = isScoped ? { ownerId: { in: teamIds } } : {};
+  let isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
   const cityFilter = (isSuperAdmin || isScoped) ? {} : goalCityFilter(me?.cityId);
+
+  // Phase 1c: list-query scopes. Under USE_RBAC=1, goal/pitstop scopes come
+  // from the central RBAC system; legacy path preserves prior behavior for the
+  // staging dual-run.
+  let goalWhere: Record<string, unknown>;
+  let pitstopWhere: Record<string, unknown>;
+  if (USE_RBAC) {
+    const ctx = await buildRbacContext(session);
+    const goalScope = ctx ? await scopeWhere(ctx, "goal", "list") : null;
+    const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
+    goalWhere = goalScope ?? {};
+    pitstopWhere = pitstopScope ?? {};
+    if (ctx) teamIds = await getTeamIds(ctx.userId);
+    isScoped = pitstopScope !== null && Object.keys(pitstopScope).length > 0;
+  } else {
+    const ownerFilter = isScoped ? { ownerId: { in: teamIds } } : {};
+    goalWhere = { ...cityFilter, ...ownerFilter };
+    pitstopWhere = ownerFilter;
+  }
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
     prisma.goal.findMany({
-      where: { deletedAt: null, ...cityFilter, ...ownerFilter },
+      where: { deletedAt: null, ...goalWhere },
       include: {
         owner: { select: { id: true, name: true, image: true } },
         pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
@@ -142,7 +165,7 @@ export default async function DashboardPage({
           status: { in: ["Upcoming", "InProgress"] },
           targetDate: { lt: todayStart },
           goal: { deletedAt: null },
-          ...ownerFilter,
+          ...pitstopWhere,
         },
         select: {
           id: true, title: true, status: true, targetDate: true,
@@ -155,7 +178,7 @@ export default async function DashboardPage({
 
       // InProgress pitstops with checklist items (scoped to team)
       prisma.pitstop.findMany({
-        where: { deletedAt: null, status: "InProgress", goal: { deletedAt: null }, ...ownerFilter },
+        where: { deletedAt: null, status: "InProgress", goal: { deletedAt: null }, ...pitstopWhere },
         select: {
           id: true, title: true, targetDate: true,
           goal: { select: { id: true, title: true } },
@@ -189,7 +212,7 @@ export default async function DashboardPage({
           status: "Done",
           completedAt: { gte: monthStart },
           goal: { deletedAt: null },
-          ...ownerFilter,
+          ...pitstopWhere,
         },
       }),
 
@@ -207,7 +230,7 @@ export default async function DashboardPage({
 
       // Goals with geo FKs + pitstops (scoped to team for RP/ZL)
       prisma.goal.findMany({
-        where: { deletedAt: null, ...cityFilter, ...ownerFilter },
+        where: { deletedAt: null, ...goalWhere },
         select: {
           id: true, needsClusterId: true, needsZoneId: true,
           pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },

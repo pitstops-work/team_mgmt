@@ -1,6 +1,9 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { buildRbacContext, scopeWhere, getTeamIds } from "@/lib/rbac";
 import HomeView from "./HomeView";
+
+const USE_RBAC = process.env.USE_RBAC === "1";
 
 function getWeekBounds(now: Date) {
   const s = new Date(now);
@@ -262,7 +265,9 @@ export default async function HomePage() {
   const designation = me?.designation ?? "Other";
   const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
 
-  // Team IDs: ZL includes her reports; PM pre-fetches ZL+RP IDs so myGoals is correctly scoped
+  // Team IDs: ZL includes her reports; PM pre-fetches ZL+RP IDs so myGoals is correctly scoped.
+  // `teamMembers` (ZL roster with rpClusters) feeds ZL-specific UI further down — kept on the
+  // legacy path even under USE_RBAC=1; per-designation UI branching is out of Phase 1c scope.
   let teamIds: string[] = [userId];
   let teamMembers: { id: string; name: string | null; image: string | null }[] = [];
   if (designation === "ZL") {
@@ -283,9 +288,21 @@ export default async function HomePage() {
     teamIds = [userId, ...zlIds, ...pmRPs.map(m => m.id)];
   }
 
-  const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
+  let isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
 
   const isLeader = !["RP", "ZL", "PM"].includes(designation);
+
+  // Phase 1c: USE_RBAC=1 replaces teamIds + isScoped with central RBAC derivation.
+  // WITH RECURSIVE expands the team to arbitrary depth, fixing the wildcard-else
+  // bug for Leader/Other (member role with pitstop.list = TEAM scope).
+  if (USE_RBAC) {
+    const ctx = await buildRbacContext(session);
+    if (ctx) {
+      const pitstopScope = await scopeWhere(ctx, "pitstop", "list");
+      teamIds = await getTeamIds(ctx.userId);
+      isScoped = pitstopScope !== null && Object.keys(pitstopScope).length > 0;
+    }
+  }
 
   const [
     todayActivities,
