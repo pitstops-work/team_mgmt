@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>What kind of team do we want to be? — Workshop</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:54px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:34px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+.section-num{font-size:14px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#a78bfa;margin-bottom:10px;opacity:.7}
+p.body{font-size:17px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+.card{padding:22px 26px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px}
+.card.accent-violet{border-left:3px solid #a78bfa}
+.card.accent-emerald{border-left:3px solid #34d399}
+.card.accent-rose{border-left:3px solid #fb7185}
+.card.accent-amber{border-left:3px solid #fbbf24}
+.card.accent-sky{border-left:3px solid #38bdf8}
+.card.accent-teal{border-left:3px solid #2dd4bf}
+.card-title{font-size:18px;font-weight:600;color:#fff;margin-bottom:6px}
+.card-body{font-size:14px;line-height:1.6;color:#cbd5e1}
+.pause-cue{margin-top:auto;padding-top:24px;border-top:1px dashed rgba(255,255,255,.12);font-size:13px;color:#64748b;font-style:italic;letter-spacing:0.5px;text-align:center}
+.pull{font-size:22px;line-height:1.5;color:#fff;font-weight:500;padding:24px 32px;background:rgba(255,255,255,.04);border-left:3px solid #a78bfa;border-radius:0 12px 12px 0;margin-top:20px}
+.lineage-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;max-width:1180px;margin-top:24px}
+.lineage-cell{padding:20px 22px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px}
+.lineage-cell .who{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#a78bfa;margin-bottom:6px}
+.lineage-cell .said{font-size:15px;color:#e2e8f0;line-height:1.55}
+.q-list{margin-top:28px;display:grid;gap:12px;max-width:1080px}
+.q-list .q{display:flex;align-items:flex-start;gap:14px;padding:16px 20px;background:rgba(251,191,36,.06);border-left:3px solid #fbbf24;border-radius:0 10px 10px 0}
+.q-list .q .n{font-size:13px;font-weight:800;color:#fbbf24;width:24px;flex-shrink:0;line-height:1.5}
+.q-list .q .t{font-size:16px;color:#fef3c7;line-height:1.55;flex:1}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+
+<div class="slide bg-navy active" id="s1">
+  <div style="margin:auto;max-width:920px;text-align:center">
+    <div style="font-size:96px;margin-bottom:24px">🪞</div>
+    <div class="label" style="color:#a78bfa">Workshop · Session 4 · Day 1</div>
+    <h1 class="hero" style="margin-bottom:20px">What kind of team<br/>do we want to be?</h1>
+    <p class="body" style="font-size:20px;color:#cbd5e1;max-width:760px;margin:0 auto;font-style:italic">A conversation, not a presentation.</p>
+    <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+      <div class="stat-pill"><span class="num">9</span><span class="lbl">Sections</span></div>
+      <div class="stat-pill"><span class="num">6</span><span class="lbl">Questions back to you</span></div>
+      <div class="stat-pill"><span class="num">0</span><span class="lbl">Names called out</span></div>
+    </div>
+    <p class="body" style="margin-top:36px;color:#94a3b8;font-size:14px">45 min · talk + room responds at each pause</p>
+  </div>
+</div>
+
+<div class="slide bg-violet" id="s2">
+  <div class="section-num">One · A confession</div>
+  <h2 class="title">We work in a sector that has spent fifty years arguing with itself.</h2>
+  <h3 class="sub">Rights or service. Awareness or delivery. Movements or programmes. Stand with the community or work for the community. Each of us walked in carrying a position on these — even if we have never named it.</h3>
+  <div style="max-width:1100px;margin-top:20px">
+    <p class="body">And we are doing this work from an unusual position. We are not an NGO. We are a funder — with our own money, not someone else's. But we are also not a normal funder. We do not write cheques and read reports. We are on the ground. We implement. We handhold. We troubleshoot — sometimes directly, sometimes alongside partner organisations. We have teams in settlements, dashboards on schemes, organisers we train ourselves.</p>
+    <p class="body" style="margin-top:14px">We sit in a place that almost nobody in our sector sits in. To some people, this is a compromise of what a funder should be. To others, it is what a funder should have been all along. Either way — it is what we are.</p>
+    <div class="pull" style="margin-top:24px">So before we talk about anything else — what do we actually <em>think</em> we are doing here?</div>
+  </div>
+  <p class="pause-cue">— Pause. Let the room respond. —</p>
+</div>
+
+<div class="slide bg-indigo" id="s3">
+  <div class="section-num">Two · The arguments we inherited</div>
+  <h2 class="title">Most of the arguments we have are not ours. We inherited them.</h2>
+  <h3 class="sub">Every position you have heard in our team meetings has a fifty-year-old genealogy. Most of us don't know we are re-enacting it.</h3>
+  <div class="lineage-grid">
+    <div class="lineage-cell">
+      <div class="who">"The community should lead — we are only facilitators."</div>
+      <div class="said">→ Paulo Freire, <em>Pedagogy of the Oppressed</em>, 1968.</div>
+    </div>
+    <div class="lineage-cell">
+      <div class="who">"What matters is whether the widow gets her pension this month."</div>
+      <div class="said">→ Amartya Sen — capabilities, measurable freedoms.</div>
+    </div>
+    <div class="lineage-cell">
+      <div class="who">"Be suspicious of large institutions that decide what is good for the poor."</div>
+      <div class="said">→ Rajni Kothari and Lokayan — warning since the 1980s that scale and centralisation, however well-intentioned, hollow out community agency. This one applies to us.</div>
+    </div>
+    <div class="lineage-cell">
+      <div class="who">"Stop romanticising — do the work."</div>
+      <div class="said">→ John Dewey. Karma-yoga. Every practitioner who outlasted their own ideology.</div>
+    </div>
+  </div>
+  <p class="body" style="margin-top:24px;font-style:italic;color:#c4b5fd;max-width:1100px">These are old fights. They have not been settled because they cannot be settled. Each side is partly right — and goes wrong when it forgets the other. I am not asking us to settle them. I am asking us to know we are inside them.</p>
+  <p class="pause-cue">— Pause. Let the room respond. —</p>
+</div>
+
+<div class="slide bg-amber" id="s4">
+  <div class="section-num">Three · Freire correcting himself</div>
+  <h2 class="title">He wrote the book in 1968. Then spent thirty years quietly correcting it.</h2>
+  <h3 class="sub">Most of us have absorbed early Freire whether we have read him or not. Almost nobody reads late Freire.</h3>
+  <div style="max-width:1100px;margin-top:20px;display:grid;gap:14px">
+    <div class="card accent-amber">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">He worried that people had turned his work into a method. That facilitators were performing dialogue while still controlling outcomes. That <em>conscientisation</em> had become a curriculum to be delivered rather than a process to be lived.</div>
+    </div>
+    <div class="card accent-amber">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">He warned, especially, against what he called <strong>basismo</strong> — the romanticisation of the grassroots. The belief that the community is always right. That the organiser's job is just to midwife what is already there. He called it the mirror image of the banking model. Equally evasive of the real work.</div>
+    </div>
+    <div class="card accent-amber">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">The real work, he said, is the <em>encounter</em>. Neither imposing nor abdicating. The organiser has knowledge, skills, power. Pretending otherwise is not humility. It is a way of avoiding accountability.</div>
+    </div>
+    <div class="pull" style="margin-top:8px;border-left-color:#fbbf24;background:rgba(251,191,36,.06)">If the partner is god, you cannot be wrong. You also cannot be useful.</div>
+  </div>
+  <p class="pause-cue">— Pause. Let the room respond. —</p>
+</div>
+
+<div class="slide bg-rose" id="s5">
+  <div class="section-num">Four · The thing nobody likes to say</div>
+  <h2 class="title">We are powerful.</h2>
+  <h3 class="sub">And it applies to us more than to almost anyone in this sector.</h3>
+  <div style="max-width:1100px;margin-top:20px">
+    <p class="body" style="color:#fecaca">We have our own money. We decide where it goes. We decide which settlements get attention. We decide which partner organisations we work with — and which we do not. We decide which families get enrolled. We decide which stories go into our internal reports. We decide which organisers get promoted, which ones get trained, which ones get heard in meetings. We sit between a state apparatus and a community failed by it — and we move things across that gap with our own hands and our own resources. The act of doing that <em>is</em> power.</p>
+    <p class="body" style="margin-top:14px;color:#fecaca">Most organisations in our sector perform powerlessness. <em>We are just facilitators. The community leads. We are allies, not actors.</em> It sounds humble. It is not. It is a way of holding power without being accountable for it. For a funder that also implements — the performance of powerlessness would be especially dishonest. We have more discretion than most. We answer to a different and smaller set of people than most. That is a serious thing.</p>
+    <div style="margin-top:24px;padding:22px 26px;background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.25);border-radius:12px;max-width:780px">
+      <div style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fda4af;margin-bottom:10px">I would like us to be a team that says, out loud:</div>
+      <div style="font-size:17px;line-height:1.9;color:#fff">
+        Yes, we are middlemen.<br/>
+        Yes, middlemen are needed.<br/>
+        Yes, we have power.<br/>
+        Yes, we will be accountable for it.
+      </div>
+    </div>
+    <p class="body" style="margin-top:18px;font-style:italic;color:#fb7185">That sentence is harder to live than to say. But it is the foundation of everything else.</p>
+  </div>
+  <p class="pause-cue">— Pause. Let the room respond. —</p>
+</div>
+
+<div class="slide bg-emerald" id="s6">
+  <div class="section-num">Five · The arguments we keep having</div>
+  <h2 class="title">Look at them. Without naming anyone. Without taking sides.</h2>
+  <div style="margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:1180px">
+    <div class="card accent-emerald">
+      <div class="card-title" style="color:#6ee7b7">Rights vs Service</div>
+      <div class="card-body">The organiser who only does rights-talk and cannot get a pension disbursed is not a better organiser. The one who gets pensions but cannot tell when a family is being humiliated by the system is not better either.</div>
+    </div>
+    <div class="card accent-emerald">
+      <div class="card-title" style="color:#6ee7b7">Academics vs Life skills</div>
+      <div class="card-body">The Children's Learning Centre that teaches only academics is failing. The one that teaches only life skills is also failing. Both — or neither.</div>
+    </div>
+    <div class="card accent-emerald">
+      <div class="card-title" style="color:#6ee7b7">Partner sacred vs Partner instrument</div>
+      <div class="card-body">The partner who treats the community as god ends up doing what the community already wanted — sometimes wise, sometimes not. The partner who treats the community as a tool ends up extracting from it. Neither is what we want to be.</div>
+    </div>
+  </div>
+  <p class="body" style="margin-top:28px;color:#a7f3d0;font-style:italic;max-width:1080px">Every one of these is a false choice if you stay in the work long enough. The synthesis is not a compromise. It is a discipline. It is harder than picking a side.</p>
+  <p class="pause-cue">— Pause. Let the room respond. —</p>
+</div>
+
+<div class="slide bg-sky" id="s7">
+  <div class="section-num">Six · Why it is easier to pick a side</div>
+  <h2 class="title">One pole has a literature. The other has practitioners — but few prophets.</h2>
+  <div style="margin-top:20px;max-width:1100px">
+    <p class="body">Freire. Kothari. Illich. Escobar. Beautiful books. Moral charge. The other side — deliver, measure, follow up, get it done — has people who do it well, but nobody writes inspiring books about pension files moving on time. If you are new to this work and looking for who to become, the radical pole is loud and the practitioner pole is quiet. You pick the loud one. Not because it is more right. <em>Because it has better recruitment material.</em></p>
+    <div style="margin-top:24px;padding:24px 28px;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.2);border-radius:12px">
+      <div style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#7dd3fc;margin-bottom:14px">Practitioners who held both</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;font-size:15px;color:#e0f2fe;line-height:1.6">
+        <div>· <strong>Ela Bhatt</strong> at SEWA</div>
+        <div>· <strong>Aruna Roy</strong> in the RTI movement</div>
+        <div>· <strong>Bunker Roy</strong> at Barefoot</div>
+        <div>· <strong>Jean Drèze</strong> on the right to food</div>
+      </div>
+      <p class="body" style="margin-top:16px;font-size:15px;color:#bae6fd">Not less radical for being practical. <em>More</em> radical — because they actually shifted what was possible. They took power seriously. They used it. They were accountable for it.</p>
+    </div>
+    <p class="body" style="margin-top:18px;color:#cbd5e1;font-style:italic">That lineage is also available to us. We do not have to choose between being thinkers and being doers. We can refuse the choice.</p>
+  </div>
+  <p class="pause-cue">— Pause. Let the room respond. —</p>
+</div>
+
+<div class="slide bg-teal" id="s8">
+  <div class="section-num">Seven · What I think we are for</div>
+  <h2 class="title">Practice first. Do things. Make mistakes. Learn. Move on.</h2>
+  <h3 class="sub">Not because theory does not matter — it does. But in our work, theory that is not tested in a doorstep conversation in Bhoganahalli is just an opinion. And opinions, we have plenty of.</h3>
+  <div style="margin-top:24px;max-width:1100px;display:grid;gap:10px">
+    <div class="card accent-teal"><div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>Decisions get made and then examined</strong> — not debated forever.</div></div>
+    <div class="card accent-teal"><div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>Mistakes are talked about openly</strong> — because that is the only way they become learning.</div></div>
+    <div class="card accent-teal"><div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>Disagreement is welcome but does not become identity.</strong></div></div>
+    <div class="card accent-teal"><div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>The person who actually moved something this week</strong> has more weight than the person with the cleanest position.</div></div>
+    <div class="card accent-teal"><div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>Nobody has to perform powerlessness</strong>, and nobody gets to forget they have power.</div></div>
+    <div class="card accent-teal"><div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>New people are pulled toward whoever does the work well</strong> — not whoever speaks loudest.</div></div>
+  </div>
+  <p class="pause-cue">— Pause. Let the room respond. —</p>
+</div>
+
+<div class="slide bg-violet" id="s9">
+  <div class="section-num">Eight · The dream</div>
+  <h2 class="title">A team that is an engine.</h2>
+  <h3 class="sub">Said once. Then we stop talking and start working.</h3>
+  <div style="margin-top:20px;max-width:1100px;display:grid;gap:14px">
+    <div class="card accent-violet">
+      <div class="card-body" style="font-size:16px;color:#e9d5ff">Diverse in how each of us thinks — but coming together to get things done. For the people in the settlements we work with. Not for the dashboard. Not for the report. Not for our own sense of being good people.</div>
+    </div>
+    <div class="card accent-violet">
+      <div class="card-body" style="font-size:16px;color:#e9d5ff">A team that is honest with itself. That says, out loud, that we despise the misuse of power and we ourselves are powerful and we will be accountable for that.</div>
+    </div>
+    <div class="card accent-violet">
+      <div class="card-body" style="font-size:16px;color:#e9d5ff">A team that does not get carried away by the rebellious or by the impractical. That knows the difference between a hard truth and a satisfying posture.</div>
+    </div>
+    <div class="card accent-violet">
+      <div class="card-body" style="font-size:16px;color:#e9d5ff">A team where common sense and conscience are not opposites. Where pragmatism is not the absence of values but the way values get into the world.</div>
+    </div>
+    <div class="card accent-violet">
+      <div class="card-body" style="font-size:16px;color:#e9d5ff">A team that can move mountains. Quietly. Without needing to be told it is moving them.</div>
+    </div>
+  </div>
+  <p class="pause-cue">— Pause. Let the room respond. —</p>
+</div>
+
+<div class="slide bg-dark" id="s10">
+  <div class="section-num">Nine · Over to you</div>
+  <h2 class="title">I am not going to answer any of these. They are for us.</h2>
+  <div class="q-list">
+    <div class="q"><div class="n">1.</div><div class="t">What do you think we are doing here? Not what is in the proposal. What do you actually think?</div></div>
+    <div class="q"><div class="n">2.</div><div class="t">When was the last time you changed your mind about something in this work? What changed it?</div></div>
+    <div class="q"><div class="n">3.</div><div class="t">Where in our work are we performing powerlessness while exercising power?</div></div>
+    <div class="q"><div class="n">4.</div><div class="t">Who in this team do you learn the most from when you watch them work? What is it they do?</div></div>
+    <div class="q"><div class="n">5.</div><div class="t">What is one thing you believed strongly when you joined this work that you would say differently now?</div></div>
+    <div class="q"><div class="n">6.</div><div class="t">What is one thing we are not doing because it does not sound radical enough? And one thing we are doing because it sounds radical, even though it is not working?</div></div>
+  </div>
+  <p class="body" style="margin-top:28px;font-style:italic;color:#fbbf24;text-align:center;font-size:18px">Let us talk.</p>
+</div>
+
+<div class="slide bg-navy" id="s11">
+  <div style="margin:auto;max-width:820px;text-align:center">
+    <div style="font-size:72px;margin-bottom:20px">→</div>
+    <h1 class="hero" style="font-size:44px">After tea — the people we work with.</h1>
+    <p class="body" style="margin-top:24px;font-size:18px;color:#cbd5e1">If we are honest about our own power, the partner conversation gets easier. That is next.</p>
+    <div style="margin-top:48px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+      <a href="/workshop-agenda.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Workshop agenda</a>
+      <a href="/workshop/05-partners.html" style="padding:14px 28px;background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.4);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">Next: Partners &amp; team →</a>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div id="nav">
+  <a href="/workshop-agenda.html" title="Workshop agenda">⌂ Agenda</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 11</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const total=11;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>
