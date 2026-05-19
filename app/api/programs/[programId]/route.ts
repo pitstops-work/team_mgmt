@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 const include = {
   owner: { select: { id: true, name: true, image: true } },
@@ -33,6 +34,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pro
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ programId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { programId } = await params;
   const { title, description } = await req.json();
@@ -48,6 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pr
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ programId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { programId } = await params;
   await prisma.program.update({ where: { id: programId }, data: { deletedAt: new Date() } });

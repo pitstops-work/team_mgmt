@@ -10,7 +10,8 @@ type Member = { id: string; name: string | null; email: string | null; image: st
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super-admin" || session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super-admin";
+  const isSuperAdmin = session?.user?.role === "super-admin";
   const isViewer = session?.user?.role === "viewer";
   const isBudgetAdmin = session?.user?.role === "budget-admin";
   const [code, setCode] = useState<string | null>(null);
@@ -409,6 +410,19 @@ export default function SettingsPage() {
               </div>
               <ChevronRight className="w-4 h-4 text-stone-300" />
             </Link>
+            {isSuperAdmin && (
+              <Link
+                href="/settings/roles"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Roles &amp; Permissions</p>
+                  <p className="text-xs text-stone-400">Edit what each role can do · super-admin only</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
             <Link
               href="/settings/templates"
               className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"

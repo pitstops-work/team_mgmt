@@ -260,7 +260,6 @@ export default async function HomePage() {
     select: { name: true, designation: true },
   });
   const designation = me?.designation ?? "Other";
-  // Use session role — auth stamps super-admin by ADMIN_EMAIL, which may differ from DB value
   const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
 
   // Team IDs: ZL includes her reports; PM pre-fetches ZL+RP IDs so myGoals is correctly scoped

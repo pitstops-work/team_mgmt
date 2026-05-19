@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { adminForbidden } from "@/lib/roleGuard";
 
 /** Resolve a settlement name or id to a Settlement.id. */
 async function resolveSettlementId(nameOrId: string): Promise<string | null> {
@@ -26,6 +28,10 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = adminForbidden(session); if (veto) return veto;
+
   const { settlement, note } = await request.json();
   if (!settlement) return NextResponse.json({ error: "Missing settlement" }, { status: 400 });
 

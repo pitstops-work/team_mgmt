@@ -3,6 +3,7 @@ import { ToolLoopAgent, createAgentUIStreamResponse, stepCountIs, zodSchema } fr
 import { z } from "zod/v3";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { isSuperAdmin } from "@/lib/roleGuard";
 
 const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -455,7 +456,7 @@ const agent = new ToolLoopAgent({
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.email !== process.env.ADMIN_EMAIL) return Response.json({ error: "Forbidden" }, { status: 403 });
+  if (!isSuperAdmin(session)) return Response.json({ error: "Forbidden" }, { status: 403 });
 
   const { messages } = await req.json();
 

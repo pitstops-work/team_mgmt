@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ decisionId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { decisionId } = await params;
   const { status, rationale, description, decidedAt } = await req.json();
@@ -38,6 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ de
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ decisionId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { decisionId } = await params;
   await prisma.decision.update({ where: { id: decisionId }, data: { deletedAt: new Date() } });

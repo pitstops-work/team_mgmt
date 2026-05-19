@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { adminForbidden } from "@/lib/roleGuard";
 
 // GET  — domain configs; ?all=1 returns all (including inactive) for admin settings
 export async function GET(req: NextRequest) {
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = adminForbidden(session); if (veto) return veto;
 
   const updates: {
     domain: string;

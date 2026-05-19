@@ -1,7 +1,10 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isAdminUser } from "@/lib/roleGuard";
+import { buildRbacContext, scopeWhere } from "@/lib/rbac";
 import ThreadsList from "./ThreadsList";
+
+const USE_RBAC = process.env.USE_RBAC === "1";
 
 export default async function ThreadsPage({ searchParams }: { searchParams: Promise<{ thread?: string }> }) {
   const { thread: threadParam } = await searchParams;
@@ -10,13 +13,13 @@ export default async function ThreadsPage({ searchParams }: { searchParams: Prom
   const userRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
   const isAdmin = isAdminUser(session);
 
+  // teamIds is used by both code paths (also by the goal-picker query below)
   const me = await prisma.user.findUnique({
     where: { id: userId },
     select: { designation: true, reportsToId: true },
   });
   const designation = me?.designation ?? "Other";
 
-  // Scope thread visibility by role/designation
   let teamIds: string[] = [userId];
   if (designation === "ZL") {
     const reports = await prisma.user.findMany({
@@ -39,38 +42,47 @@ export default async function ThreadsPage({ searchParams }: { searchParams: Prom
     teamIds = [userId, ...directIds, ...indirectReports.map(r => r.id)];
   }
 
-  // Pre-fetch owned IDs for RP/ZL/PM so the filter uses simple IN clauses
-  // (nested relation filters with OR can silently over-include in complex schemas)
-  let ownedGoalIds: string[] = [];
-  let ownedPitstopIds: string[] = [];
-  if (!isAdmin && (designation === "RP" || designation === "ZL" || designation === "PM")) {
-    const [gRows, pRows] = await Promise.all([
-      prisma.goal.findMany({
-        where: { deletedAt: null, ownerId: { in: teamIds } },
-        select: { id: true },
-      }),
-      prisma.pitstop.findMany({
-        where: { deletedAt: null, ownerId: { in: teamIds } },
-        select: { id: true },
-      }),
-    ]);
-    ownedGoalIds    = gRows.map(r => r.id);
-    ownedPitstopIds = pRows.map(r => r.id);
-  }
+  let ownershipWhere: Record<string, unknown>;
 
-  // Build thread visibility filter (ownership-based)
-  const ownershipWhere = isAdmin
-    ? { deletedAt: null }
-    : designation === "RP" || designation === "ZL" || designation === "PM"
-    ? {
-        deletedAt: null,
-        OR: [
-          ...(ownedPitstopIds.length > 0 ? [{ pitstopId: { in: ownedPitstopIds } }] : []),
-          ...(ownedGoalIds.length    > 0 ? [{ goalId:    { in: ownedGoalIds    } }] : []),
-          { subscriptions: { some: { userId } } },
-        ],
-      }
-    : { deletedAt: null };
+  if (USE_RBAC) {
+    const ctx = await buildRbacContext(session);
+    const scope = ctx ? await scopeWhere(ctx, "thread", "list") : null;
+    ownershipWhere = scope === null
+      ? { deletedAt: null, id: "__no_access__" } // empty result if no permission
+      : { deletedAt: null, ...scope };
+  } else {
+    // Admins and Leaders see all threads; everyone else is scoped to threads they
+    // own (via team for RP/ZL/PM, self for Other) or subscribe to.
+    const seesAll = isAdmin || designation === "Leader";
+
+    let ownedGoalIds: string[] = [];
+    let ownedPitstopIds: string[] = [];
+    if (!seesAll) {
+      const [gRows, pRows] = await Promise.all([
+        prisma.goal.findMany({
+          where: { deletedAt: null, ownerId: { in: teamIds } },
+          select: { id: true },
+        }),
+        prisma.pitstop.findMany({
+          where: { deletedAt: null, ownerId: { in: teamIds } },
+          select: { id: true },
+        }),
+      ]);
+      ownedGoalIds    = gRows.map(r => r.id);
+      ownedPitstopIds = pRows.map(r => r.id);
+    }
+
+    ownershipWhere = seesAll
+      ? { deletedAt: null }
+      : {
+          deletedAt: null,
+          OR: [
+            ...(ownedPitstopIds.length > 0 ? [{ pitstopId: { in: ownedPitstopIds } }] : []),
+            ...(ownedGoalIds.length    > 0 ? [{ goalId:    { in: ownedGoalIds    } }] : []),
+            { subscriptions: { some: { userId } } },
+          ],
+        };
+  }
 
   // Validity filter: thread must be attached to a live pitstop/goal/event
   // (separate so it doesn't overwrite the OR in ownershipWhere)

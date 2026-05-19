@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { isSuperAdmin } from "@/lib/roleGuard";
 
 export async function GET() {
   const session = await auth();
-  if (session?.user?.email !== process.env.ADMIN_EMAIL) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (!isSuperAdmin(session)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const city = await prisma.city.findFirst({

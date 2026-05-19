@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isAdminUser, isSuperAdmin } from "@/lib/roleGuard";
+import { auditLog } from "@/lib/auditLog";
 
 const VALID_ROLES = ["super-admin", "admin", "member", "viewer", "budget-admin"] as const;
 const VALID_DESIGNATIONS = ["RP", "ZL", "PM", "Leader", "Other"] as const;
@@ -49,6 +50,12 @@ export async function PATCH(
     }
   }
 
+  // Snapshot before update so we can audit field-level changes
+  const before = await prisma.user.findUnique({
+    where: { id },
+    select: { email: true, role: true, designation: true, cityId: true, reportsToId: true },
+  });
+
   const user = await prisma.user.update({
     where: { id },
     data: {
@@ -61,6 +68,31 @@ export async function PATCH(
     },
     select: { id: true, name: true, email: true, role: true, designation: true, createdAt: true, image: true, cityId: true, reportsToId: true },
   });
+
+  // Audit sensitive field changes
+  if (before) {
+    const actorId = session!.user!.id!;
+    const auditFields: Array<{ field: string; before: string | null | undefined; after: string | null | undefined }> = [
+      { field: "role",         before: before.role,         after: user.role },
+      { field: "designation",  before: before.designation,  after: user.designation },
+      { field: "email",        before: before.email,        after: user.email },
+      { field: "cityId",       before: before.cityId,       after: user.cityId },
+      { field: "reportsToId",  before: before.reportsToId,  after: user.reportsToId },
+    ];
+    for (const f of auditFields) {
+      if (f.before !== f.after) {
+        auditLog({
+          entityType: "User",
+          entityId: id,
+          userId: actorId,
+          action: f.field === "role" ? "role_change" : "updated",
+          field: f.field,
+          oldValue: f.before ?? null,
+          newValue: f.after ?? null,
+        });
+      }
+    }
+  }
 
   // Update zone lead assignments if provided (ZL/PM)
   if (Array.isArray(zoneIds)) {
@@ -103,5 +135,14 @@ export async function DELETE(
   }
 
   await prisma.user.delete({ where: { id } });
+
+  auditLog({
+    entityType: "User",
+    entityId: id,
+    userId: session!.user!.id!,
+    action: "deleted",
+    oldValue: target ? JSON.stringify({ role: target.role }) : null,
+  });
+
   return Response.json({ ok: true });
 }

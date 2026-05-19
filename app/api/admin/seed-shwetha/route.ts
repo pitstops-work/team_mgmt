@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { isSuperAdmin } from "@/lib/roleGuard";
 
 // ONE-TIME seed route — creates Shwetha's goals, pitstops, checklists and Q1 plan items
 // Admin-only. Delete this file after use.
@@ -498,10 +499,9 @@ const ACTIVITIES_DATA: {
 ];
 
 export async function GET(req: Request) {
-  // Admin-only
   const session = await auth();
-  if (!session?.user?.email || session.user.email !== process.env.ADMIN_EMAIL) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (!isSuperAdmin(session)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // Find Shwetha

@@ -1,4 +1,6 @@
 import { sql, ok, bad } from '@/lib/review/db';
+import { auth } from '@/lib/auth';
+import { isSuperAdmin } from '@/lib/roleGuard';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +31,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ orgId: 
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ orgId: string }> }) {
+  const session = await auth();
+  if (!isSuperAdmin(session)) return bad('Forbidden', 403);
+
   const { orgId } = await params;
   const { stage, data, markComplete } = await req.json();
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 const pitstopsInclude = {
   pitstops: {
@@ -13,6 +14,7 @@ const pitstopsInclude = {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { id } = await params;
   const { title, description, date, endDate, type, pitstopIds } = await req.json();
@@ -42,6 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { id } = await params;
   await prisma.planItem.update({ where: { id }, data: { deletedAt: new Date() } });

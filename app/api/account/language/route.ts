@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextRequest } from "next/server";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 export const SUPPORTED_LANGS = [
   { code: "en", label: "English",   native: "English"   },
@@ -28,6 +29,7 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { lang } = await req.json();
   const valid = SUPPORTED_LANGS.map((l) => l.code);

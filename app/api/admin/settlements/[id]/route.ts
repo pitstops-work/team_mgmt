@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { adminForbidden } from "@/lib/roleGuard";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = adminForbidden(session); if (veto) return veto;
+
   const { id } = await params;
   const body = await req.json();
   const { name, clusterId, partnerId, polygon, centroidLat, centroidLng } = body;
@@ -43,6 +49,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = adminForbidden(session); if (veto) return veto;
+
   const { id } = await params;
   // Soft delete
   await prisma.settlement.update({ where: { id }, data: { deletedAt: new Date() } });

@@ -1,7 +1,10 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { generateCalendarToken } from "@/lib/calendarToken";
+import { buildRbacContext, scopeWhere } from "@/lib/rbac";
 import EventsCalendar from "./EventsCalendar";
+
+const USE_RBAC = process.env.USE_RBAC === "1";
 
 export default async function ActivitiesPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const session = await auth();
@@ -9,35 +12,45 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
   const inviteEventId = sp.invite ?? null;
   const userId = session!.user!.id!;
 
-  const me = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { designation: true },
-  });
-  const designation = me?.designation ?? "Other";
+  let eventAttendeeFilter: Record<string, unknown>;
+  let pitstopOwnerFilter: Record<string, unknown>;
 
-  // Scope events: RP sees own, ZL sees team, PM sees ZLs + their RPs, others see all
-  let teamIds: string[] = [userId];
-  if (designation === "ZL") {
-    const team = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
-    teamIds = [userId, ...team.map(m => m.id)];
-  } else if (designation === "PM") {
-    const zls = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
-    const zlIds = zls.map(z => z.id);
-    const rps = zlIds.length > 0
-      ? await prisma.user.findMany({ where: { reportsToId: { in: zlIds } }, select: { id: true } })
-      : [];
-    teamIds = [userId, ...zlIds, ...rps.map(r => r.id)];
+  if (USE_RBAC) {
+    const ctx = await buildRbacContext(session);
+    const eventScope = ctx ? await scopeWhere(ctx, "pitstop_event", "list") : null;
+    const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
+    eventAttendeeFilter = eventScope ?? {};
+    pitstopOwnerFilter = pitstopScope ?? {};
+  } else {
+    const me = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { designation: true },
+    });
+    const designation = me?.designation ?? "Other";
+
+    // Scope events: RP sees own, ZL sees team, PM sees ZLs + their RPs, others see all.
+    // KNOWN GAP (fixed via RBAC path): Leader and Other see all here — see catalog sweep checklist.
+    let teamIds: string[] = [userId];
+    if (designation === "ZL") {
+      const team = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
+      teamIds = [userId, ...team.map(m => m.id)];
+    } else if (designation === "PM") {
+      const zls = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
+      const zlIds = zls.map(z => z.id);
+      const rps = zlIds.length > 0
+        ? await prisma.user.findMany({ where: { reportsToId: { in: zlIds } }, select: { id: true } })
+        : [];
+      teamIds = [userId, ...zlIds, ...rps.map(r => r.id)];
+    }
+
+    const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
+    eventAttendeeFilter = isScoped
+      ? { attendees: { some: { userId: { in: teamIds } } } }
+      : {};
+    pitstopOwnerFilter = isScoped
+      ? { ownerId: { in: teamIds } }
+      : {};
   }
-
-  const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
-  const eventAttendeeFilter = isScoped
-    ? { attendees: { some: { userId: { in: teamIds } } } }
-    : {};
-
-  // Scope pitstops for the "link to activity" picker similarly
-  const pitstopOwnerFilter = isScoped
-    ? { ownerId: { in: teamIds } }
-    : {};
 
   // All users shown in attendee picker — anyone can invite anyone
   const userFilter = {};

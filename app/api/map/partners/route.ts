@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { adminForbidden } from "@/lib/roleGuard";
 
 export async function GET() {
   const partners = await prisma.mapPartner.findMany({
@@ -14,6 +15,7 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const veto = adminForbidden(session); if (veto) return veto;
 
   const body = await request.json();
   const { key, label, color, contactName, contactPhone, notes, isBuiltIn } = body;
@@ -42,6 +44,7 @@ export async function PATCH(request: Request) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const veto = adminForbidden(session); if (veto) return veto;
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");

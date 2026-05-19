@@ -1,6 +1,13 @@
 import { sql, ok, bad } from '@/lib/review/db';
+import { auth } from '@/lib/auth';
+import { isSuperAdmin } from '@/lib/roleGuard';
 
 export const runtime = 'nodejs';
+
+async function requireSuperAdmin(): Promise<Response | null> {
+  const session = await auth();
+  return isSuperAdmin(session) ? null : bad('Forbidden', 403);
+}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,6 +21,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const veto = await requireSuperAdmin(); if (veto) return veto;
+
   const { id } = await params;
   let body: any;
   try { body = await req.json(); } catch { return bad('invalid json'); }
@@ -31,6 +40,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const veto = await requireSuperAdmin(); if (veto) return veto;
+
   const { id } = await params;
   let body: any;
   try { body = await req.json(); } catch { return bad('invalid json'); }
@@ -49,6 +60,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const veto = await requireSuperAdmin(); if (veto) return veto;
+
   const { id } = await params;
   let body: any;
   try { body = await req.json(); } catch { return bad('invalid json'); }

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 const include = {
   pitstops: {
@@ -23,6 +24,7 @@ const include = {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { eventId } = await params;
   const {
@@ -190,6 +192,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { eventId } = await params;
   await prisma.pitstopEvent.update({ where: { id: eventId }, data: { deletedAt: new Date() } });

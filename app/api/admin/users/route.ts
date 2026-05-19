@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { isAdminUser, isSuperAdmin } from "@/lib/roleGuard";
+import { auditLog } from "@/lib/auditLog";
 
 export async function GET() {
   const session = await auth();
@@ -78,6 +79,14 @@ export async function POST(req: Request) {
   const user = await prisma.user.create({
     data: { name: name || null, email, password: hashed, role, designation },
     select: { id: true, name: true, email: true, role: true, designation: true, createdAt: true },
+  });
+
+  auditLog({
+    entityType: "User",
+    entityId: user.id,
+    userId: session!.user!.id!,
+    action: "created",
+    newValue: JSON.stringify({ email, role, designation }),
   });
 
   return Response.json(user, { status: 201 });

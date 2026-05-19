@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { isAdminUser } from "@/lib/roleGuard";
 
 type JourneyListRow = {
   id: string;
@@ -29,6 +30,14 @@ export async function GET(req: NextRequest) {
   const domain = url.searchParams.get("domain");
   const status = url.searchParams.get("status");
 
+  // City scope: admins see all; everyone else is restricted to journeys whose
+  // settlement belongs to their assigned city (null cityId = no restriction).
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { cityId: true },
+  });
+  const scopeCityId = isAdminUser(session) ? null : (me?.cityId ?? null);
+
   const rows = await prisma.$queryRaw<JourneyListRow[]>`
     SELECT
       j.id, j.key, j.label, j."primaryDomain",
@@ -51,6 +60,7 @@ export async function GET(req: NextRequest) {
       AND (${clusterId}::text IS NULL OR s."clusterId" = ${clusterId})
       AND (${domain}::text IS NULL OR j."primaryDomain" = ${domain})
       AND (${status}::text IS NULL OR j.status = ${status})
+      AND (${scopeCityId}::text IS NULL OR s."cityId" = ${scopeCityId})
     ORDER BY j."updatedAt" DESC
   `;
 

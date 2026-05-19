@@ -72,12 +72,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
 
-  const journeyRows = await prisma.$queryRaw<JourneyRow[]>`
+  const journeyRows = await prisma.$queryRaw<(JourneyRow & { settlementCityId: string | null })[]>`
     SELECT
       j.id, j.key, j.label, j."primaryDomain",
       j."settlementId",
       s.name AS "settlementName",
       s."clusterId",
+      s."cityId" AS "settlementCityId",
       c.name AS "clusterName",
       j.status, j.notes,
       j."parentId",
@@ -95,6 +96,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   `;
   const journey = journeyRows[0];
   if (!journey) return Response.json({ error: "Not found" }, { status: 404 });
+
+  // City scope check: non-admins only see journeys in their city
+  if (!isAdminUser(session)) {
+    const me = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { cityId: true },
+    });
+    if (me?.cityId && journey.settlementCityId && me.cityId !== journey.settlementCityId) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+  }
 
   const phases = await prisma.$queryRaw<PhaseRow[]>`
     SELECT
@@ -133,8 +145,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ORDER BY o."sortOrder" ASC, o.label ASC
   `;
 
+  const { settlementCityId: _scopeCityId, ...journeyPublic } = journey;
   return Response.json({
-    journey,
+    journey: journeyPublic,
     phases,
     edges,
     outcomes: outcomes.map((o) => ({ ...o, pointCount: Number(o.pointCount) })),

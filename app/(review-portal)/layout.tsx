@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isSuperAdmin } from "@/lib/roleGuard";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { auditLog } from "@/lib/auditLog";
 
 export const metadata: Metadata = {
   title: "Review Portal",
@@ -13,6 +14,13 @@ export default async function ReviewLayout({ children }: { children: React.React
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!isSuperAdmin(session)) redirect("/portal");
+
+  auditLog({
+    entityType: "System",
+    entityId: "review-portal",
+    userId: session.user.id!,
+    action: "portal_access",
+  });
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b border-stone-200 bg-white px-4 py-3 flex items-center gap-3 min-w-0">

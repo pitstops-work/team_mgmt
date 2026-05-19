@@ -653,10 +653,10 @@ model Decision {
 
 model AuditLog {
   id         String   @id @default(cuid())
-  entityType String // "Goal" | "Pitstop"
+  entityType String // "Goal" | "Pitstop" | "User" | "System"
   entityId   String
-  userId     String
-  action     String // "status_change" | "owner_change" | "date_change" | "priority_change" | "created" | "deleted"
+  userId     String // actor (the user who performed the action)
+  action     String // "created" | "updated" | "deleted" | "role_change" | "password_reset" | "password_change" | "portal_access" | ...
   field      String?
   oldValue   String?
   newValue   String?
@@ -665,6 +665,7 @@ model AuditLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([entityType, entityId])
+  @@index([action, createdAt])
 }
 
 // ── Risk Registry ─────────────────────────────────────────────────────────────
@@ -2129,4 +2130,48 @@ model ProgrammeJourneyOutcomeTemplate {
   outcomes  Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ── RBAC ──────────────────────────────────────────────────────────────────────
+// Centralized role/permission system. User.role (string) is the canonical role
+// identifier; it matches Role.name 1:1. Keeping the string column avoids a
+// breaking schema change for now — a future migration can swap to an FK.
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique // "super-admin" | "admin" | "member" | "viewer" | "budget-admin"
+  description String?
+  isSystem    Boolean          @default(true) // System roles cannot be deleted from admin UI
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  permissions RolePermission[]
+}
+
+model Permission {
+  id        String   @id @default(cuid())
+  resource  String   // "goal" | "pitstop" | "user" | "thread" | ...
+  action    String   // "list" | "read" | "create" | "update" | "delete" | special verbs
+  createdAt DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@unique([resource, action])
+}
+
+// Pivot with the *scope rule* attached. The rule is jsonb so the admin UI can
+// edit predicates without a schema migration. See lib/rbac.ts for evaluators.
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+  scopeRule    Json     // { kind: "all" | "self" | "own" | "team" | "city" | ... }
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
 }

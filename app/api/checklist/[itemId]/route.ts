@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
 import { captureIndicatorPointsForChecklistItem, captureJourneyOutcomePointsForChecklistItem } from "@/lib/captureIndicatorPoints";
+import { viewerForbidden } from "@/lib/roleGuard";
 
 const VALID_STATUSES = [
   "NotStarted", "Scheduled", "InProgress", "Done", "Blocked", "Rescheduled", "Cancelled",
@@ -11,6 +12,7 @@ const VALID_STATUSES = [
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { itemId } = await params;
   const { checked, text, status, assigneeId, notes, indicatorValues } = await req.json();
@@ -81,6 +83,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = viewerForbidden(session); if (veto) return veto;
 
   const { itemId } = await params;
   await prisma.checklistItem.delete({ where: { id: itemId } });
