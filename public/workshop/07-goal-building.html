@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Goal building &amp; workshop close — Workshop</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:17px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+.card{padding:22px 26px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px}
+.card.accent-violet{border-left:3px solid #a78bfa}
+.card.accent-emerald{border-left:3px solid #34d399}
+.card.accent-rose{border-left:3px solid #fb7185}
+.card.accent-amber{border-left:3px solid #fbbf24}
+.card.accent-sky{border-left:3px solid #38bdf8}
+.card-title{font-size:18px;font-weight:600;color:#fff;margin-bottom:6px}
+.card-body{font-size:14px;line-height:1.6;color:#cbd5e1}
+.step{display:flex;align-items:flex-start;gap:18px;padding:18px 22px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;margin-bottom:10px}
+.step .num{font-size:24px;font-weight:800;color:#a78bfa;width:36px;flex-shrink:0;line-height:1.4}
+.step .body{flex:1}
+.step .ttl{font-size:17px;font-weight:600;color:#fff}
+.step .desc{font-size:14px;color:#cbd5e1;margin-top:4px;line-height:1.55}
+.checklist{margin-top:24px;display:grid;gap:10px;max-width:920px}
+.checklist .item{display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px}
+.checklist .box{width:22px;height:22px;border:2px solid #475569;border-radius:6px;flex-shrink:0}
+.checklist .txt{font-size:15px;color:#e2e8f0}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+
+<div class="slide bg-navy active" id="s1">
+  <div style="margin:auto;max-width:920px;text-align:center">
+    <div style="font-size:96px;margin-bottom:24px">🛠️</div>
+    <div class="label" style="color:#a78bfa">Workshop · Sessions 7 + 8 · Day 2 afternoon</div>
+    <h1 class="hero" style="margin-bottom:20px">Goal building · Working session</h1>
+    <p class="body" style="font-size:22px;color:#cbd5e1;max-width:780px;margin:0 auto">Phones out. Pitstops open. By the end of today, every person in this room has their year planned on their phone.</p>
+    <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+      <div class="stat-pill"><span class="num">3h</span><span class="lbl">Working time</span></div>
+      <div class="stat-pill"><span class="num">RP+ZL+PM</span><span class="lbl">Roles</span></div>
+      <div class="stat-pill"><span class="num">1</span><span class="lbl">Year planned</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-sky" id="s2">
+  <div class="label" style="color:#38bdf8">SETUP · 10 MIN</div>
+  <h2 class="title">Get the basics in place before we start.</h2>
+  <h3 class="sub">Every team member does this first. ZL and PM will walk around to help.</h3>
+  <div class="step"><div class="num">1.</div><div class="body"><div class="ttl">Open pitstops on your phone</div><div class="desc">https://pitstops.work · sign in with your Google account. If you don't have access, raise your hand.</div></div></div>
+  <div class="step"><div class="num">2.</div><div class="body"><div class="ttl">Confirm your role</div><div class="desc">Top right corner of the home screen. RP / ZL / PM / Leader. If wrong — flag to PM, they can fix on the spot.</div></div></div>
+  <div class="step"><div class="num">3.</div><div class="body"><div class="ttl">Open the training hub bookmark</div><div class="desc">/pitstops-training.html — for any goal template you are unsure about, the deck is one tap away. Use it.</div></div></div>
+  <div class="step"><div class="num">4.</div><div class="body"><div class="ttl">Have the ops-plan deck open in another tab</div><div class="desc">The ten priorities are your menu. Every goal you create should map back to one of those priorities — or be a "new real need" you can defend.</div></div></div>
+</div>
+
+<div class="slide bg-emerald" id="s3">
+  <div class="label" style="color:#34d399">IF YOU ARE AN RP</div>
+  <h2 class="title">Build 3 to 6 goals — your year on the ground.</h2>
+  <h3 class="sub">Don't optimise for impressive count. Optimise for what you can actually run with rigour.</h3>
+  <div style="margin-top:24px;max-width:1080px;display:grid;gap:12px">
+    <div class="card accent-emerald">
+      <div class="card-title" style="color:#6ee7b7">For each priority you own this year</div>
+      <div class="card-body">Pick the most appropriate goal template from the hub. Fill in the parameters (number of clusters, settlements, beneficiaries). Save. The pitstops will auto-generate.</div>
+    </div>
+    <div class="card accent-emerald">
+      <div class="card-title" style="color:#6ee7b7">Then sequence them</div>
+      <div class="card-body">Stagger start dates across the year. Don't put six goals all starting January 1. Look at the heat-map of your team's capacity. Be honest about what gets done in Q1 versus Q3.</div>
+    </div>
+    <div class="card accent-emerald">
+      <div class="card-title" style="color:#6ee7b7">Add the saturation goals first</div>
+      <div class="card-body">If you have current creches below saturation — those are your first goals. Don't skip ahead to the shiny new things.</div>
+    </div>
+    <div class="card accent-amber">
+      <div class="card-title" style="color:#fde68a">Realism check before locking</div>
+      <div class="card-body">Look at the total pitstops across all your goals. If it is over ~70 for the year, you are over-promising. Cut back. Better to commit to less and over-deliver than to lose the year by Q2.</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-violet" id="s4">
+  <div class="label" style="color:#c084fc">IF YOU ARE A ZL</div>
+  <h2 class="title">Aggregate. Review. Lock cluster-level commitments.</h2>
+  <div style="margin-top:24px;max-width:1080px;display:grid;gap:12px">
+    <div class="card accent-violet">
+      <div class="card-title" style="color:#c4b5fd">First — sit with each of your RPs</div>
+      <div class="card-body">Walk through what they have drafted. Ask: is this realistic? What did they forget? What did they over-stretch on? Sign off before they lock it.</div>
+    </div>
+    <div class="card accent-violet">
+      <div class="card-title" style="color:#c4b5fd">Then — build your zone-level goals</div>
+      <div class="card-body">Civic-amenities baseline across your cluster. Community-leader bench numbers. Kitchen-ops oversight. Welfare-rights cycle. These are <em>your</em> goals — not aggregations of RP goals.</div>
+    </div>
+    <div class="card accent-violet">
+      <div class="card-title" style="color:#c4b5fd">Watch for gaps</div>
+      <div class="card-body">If your zone has 14 settlements and your RPs' goals only cover 9 of them — that's a problem to surface, not paper over. Either someone takes more, or the zone is deliberately leaving 5 settlements unattended (and we should say so).</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-amber" id="s5">
+  <div class="label" style="color:#fbbf24">IF YOU ARE A PM</div>
+  <h2 class="title">Supervisor's lens — cross-zone, cross-priority, cross-cost.</h2>
+  <div style="margin-top:24px;max-width:1080px;display:grid;gap:12px">
+    <div class="card accent-amber">
+      <div class="card-title" style="color:#fde68a">Goals you own personally</div>
+      <div class="card-body">Geographic expansion (one new zone in your city). New partner seeding. Cost discipline across all programmes. Quarterly "new real needs" review setup. Internal MIS rigour.</div>
+    </div>
+    <div class="card accent-amber">
+      <div class="card-title" style="color:#fde68a">Goals you ratify, not create</div>
+      <div class="card-body">Each ZL's zone-level commitments. Walk through them. Push back on anything that smells like wishful thinking. Approve only what you would defend in a year-end review.</div>
+    </div>
+    <div class="card accent-amber">
+      <div class="card-title" style="color:#fde68a">Watch the ratios</div>
+      <div class="card-body">Total pitstops per RP. Total active goals per zone. Cost-per-meal target for each kitchen. If any number stretches beyond the historical pattern — interrogate it before letting it lock.</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-teal" id="s6">
+  <div class="label" style="color:#2dd4bf">WHAT "DONE" LOOKS LIKE</div>
+  <h2 class="title">By 5:30 today — every person in this room has these.</h2>
+  <div class="checklist">
+    <div class="item"><div class="box"></div><div class="txt">All goals for the year created and saved on your pitstops account</div></div>
+    <div class="item"><div class="box"></div><div class="txt">Each goal has the right needs-domain, the right settlement / cluster scope, and the right parameters</div></div>
+    <div class="item"><div class="box"></div><div class="txt">Pitstop dates are sequenced across the calendar — not all bunched in one quarter</div></div>
+    <div class="item"><div class="box"></div><div class="txt">Your ZL has reviewed and signed off (RPs)</div></div>
+    <div class="item"><div class="box"></div><div class="txt">Your PM has reviewed and signed off (ZLs)</div></div>
+    <div class="item"><div class="box"></div><div class="txt">Anything left unresolved is written on the workshop whiteboard — we don't take it home in your head</div></div>
+  </div>
+  <p class="body" style="margin-top:24px;color:#99f6e4;font-style:italic;max-width:1080px">If you finish early — help the person next to you. The workshop ends when everyone is done. Not when the clock says 5:30.</p>
+</div>
+
+<div class="slide bg-rose" id="s7">
+  <div class="label" style="color:#fb7185">THE NEXT 7 DAYS</div>
+  <h2 class="title">What you take home — and what we do next.</h2>
+  <h3 class="sub">Two days of conversation. The real test starts when you are alone with your settlement.</h3>
+  <div style="margin-top:24px;max-width:1080px;display:grid;gap:14px">
+    <div class="card accent-rose">
+      <div class="card-title" style="color:#fda4af">Within 48 hours — sanity check on the field</div>
+      <div class="card-body">Visit at least one settlement covered by one of your new goals. Walk it again. See if anything you committed in the room makes less sense once you are back on the ground. If so — edit. The plan is a draft until it survives the field.</div>
+    </div>
+    <div class="card accent-rose">
+      <div class="card-title" style="color:#fda4af">Within 7 days — partner conversations</div>
+      <div class="card-body">For every goal involving a partner — schedule a sit-down. Walk them through what you are committing to. Listen to their version of the constraints. Update the goal if their inputs change your thinking.</div>
+    </div>
+    <div class="card accent-rose">
+      <div class="card-title" style="color:#fda4af">Within 14 days — first pitstop review</div>
+      <div class="card-body">The first set of pitstops starts firing. ZL reviews them in zone meetings. PM watches the dashboard. If something is already slipping in week 2 — that's the year telling us something. Pay attention.</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-dark" id="close">
+  <div class="label" style="color:#fbbf24">WORKSHOP CLOSE · 30 MIN OPEN Q&amp;A</div>
+  <h2 class="title">Ask anything. Push on anything. This is the last slot.</h2>
+  <h3 class="sub">Things from yesterday that still don't sit right. Things you would have said but didn't. Things you would be afraid to ask over email.</h3>
+  <div style="margin-top:32px;max-width:1000px;display:grid;gap:14px">
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">What did we get wrong this year that we are not yet admitting?</div>
+    </div>
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">What is one thing about our stance that you privately disagree with?</div>
+    </div>
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">What is the one habit, of yours or the team's, that you most want to change in 2026?</div>
+    </div>
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">What is the one farce in our own work we should call out this year?</div>
+    </div>
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">Anything else. No saving it for a 1:1.</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-navy" id="s9">
+  <div style="margin:auto;max-width:920px;text-align:center">
+    <div style="font-size:84px;margin-bottom:24px">🏁</div>
+    <h1 class="hero" style="font-size:48px;margin-bottom:24px">That's the workshop.</h1>
+    <p class="body" style="font-size:20px;color:#cbd5e1;max-width:780px;margin:0 auto;line-height:1.6">Two days behind us. One year ahead. Stay close to the field. Stay rigorous on the small things. Stay open to learning. Walk politely past the noise.</p>
+    <p class="body" style="margin-top:24px;font-style:italic;color:#94a3b8;font-size:16px;max-width:760px;margin-left:auto;margin-right:auto">The community we serve has no idea we ran this workshop. Their year doesn't change because of these two days. It changes — or doesn't — because of what you do on Monday morning.</p>
+    <div style="margin-top:48px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+      <a href="/workshop-agenda.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">⌂ Workshop agenda</a>
+      <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">Training hub</a>
+      <a href="/home" style="padding:14px 28px;background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.4);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">→ Pitstops home</a>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div id="nav">
+  <a href="/workshop-agenda.html" title="Workshop agenda">⌂ Agenda</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 9</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const slideIds=['s1','s2','s3','s4','s5','s6','s7','close','s9'];
+const total=slideIds.length;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById(slideIds[n-1]);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash=slideIds[n-1];
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+// Honor deep-link via hash (#close jumps to the close slide)
+const h=location.hash.replace('#','');
+const idx=slideIds.indexOf(h);
+if(idx>=0)show(idx+1);else show(1);
+</script>
+</body>
+</html>

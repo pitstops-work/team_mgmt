@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Partners and team — Workshop</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#6366f1,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.2}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:17px;line-height:1.7;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+.card{padding:22px 26px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px}
+.card.accent-violet{border-left:3px solid #a78bfa}
+.card.accent-emerald{border-left:3px solid #34d399}
+.card.accent-rose{border-left:3px solid #fb7185}
+.card.accent-amber{border-left:3px solid #fbbf24}
+.card.accent-sky{border-left:3px solid #38bdf8}
+.card.accent-teal{border-left:3px solid #2dd4bf}
+.card-title{font-size:18px;font-weight:600;color:#fff;margin-bottom:6px}
+.card-body{font-size:14px;line-height:1.6;color:#cbd5e1}
+.timeline{position:relative;padding-left:32px;margin-top:24px;max-width:1100px}
+.timeline::before{content:"";position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:linear-gradient(to bottom,#fb7185,#fbbf24,#34d399)}
+.tl-item{position:relative;padding-bottom:24px}
+.tl-item::before{content:"";position:absolute;left:-32px;top:6px;width:18px;height:18px;border-radius:50%;background:#0f172a;border:3px solid #fb7185}
+.tl-item .yr{font-size:13px;font-weight:700;color:#fb7185;letter-spacing:1.5px}
+.tl-item .ttl{font-size:17px;font-weight:600;color:#fff;margin-top:4px}
+.tl-item .bd{font-size:14px;color:#cbd5e1;line-height:1.6;margin-top:6px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+
+<div class="slide bg-navy active" id="s1">
+  <div style="margin:auto;max-width:920px;text-align:center">
+    <div style="font-size:96px;margin-bottom:24px">🤝</div>
+    <div class="label" style="color:#a78bfa">Workshop · Session 4 · Day 1</div>
+    <h1 class="hero" style="margin-bottom:20px">Partners and team</h1>
+    <p class="body" style="font-size:22px;color:#cbd5e1;max-width:780px;margin:0 auto">How we hold rigour with the people we work with — without becoming the donor-on-the-head we ourselves complain about.</p>
+    <div style="margin-top:48px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+      <div class="stat-pill"><span class="num">0</span><span class="lbl">Surprise visits (default)</span></div>
+      <div class="stat-pill"><span class="num">∞</span><span class="lbl">Politeness budget</span></div>
+      <div class="stat-pill"><span class="num">₹</span><span class="lbl">Unit costs always</span></div>
+    </div>
+    <p class="body" style="margin-top:40px;color:#94a3b8;font-size:14px">45 min · talk + Q&amp;A</p>
+  </div>
+</div>
+
+<div class="slide bg-amber" id="s2">
+  <div class="label" style="color:#fbbf24">RULE ONE</div>
+  <h2 class="title">Rigour — non-negotiable. Surprise visits — only when necessary.</h2>
+  <h3 class="sub">These sound like they contradict. They don't, if you set it up right.</h3>
+  <div style="margin-top:32px;max-width:1080px;display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div class="card accent-emerald">
+      <div class="card-title" style="color:#6ee7b7">Rigour means scheduled visits happen</div>
+      <div class="card-body">Every month, the date is held. The partner knows we are coming. The settlement knows the day. The pitstop has its review. We are predictable — and we are present.</div>
+    </div>
+    <div class="card accent-rose">
+      <div class="card-title" style="color:#fda4af">Surprise visits — sparingly</div>
+      <div class="card-body">When something feels off. When a report contradicts what we saw last month. When a partner asks for them. Not as a default culture of suspicion. Suspicion-as-default destroys partnerships.</div>
+    </div>
+  </div>
+  <p class="body" style="margin-top:24px;color:#fde68a;font-style:italic;max-width:1080px">A partner who knows you visit on the 5th every month, and who knows you also have the right to visit on the 17th if something looks wrong, is more honest than one who lives in constant ambush.</p>
+</div>
+
+<div class="slide bg-violet" id="s3">
+  <div class="label" style="color:#c084fc">THE DONOR NARRATIVE</div>
+  <h2 class="title">"Donors sit on partners' heads. Donors dictate programmes."</h2>
+  <h3 class="sub">A common critique. It is true. It is also false. Both at the same time.</h3>
+  <div style="margin-top:32px;max-width:1080px;display:grid;gap:14px">
+    <div class="card accent-violet">
+      <div class="card-title" style="color:#c4b5fd">The "true" part</div>
+      <div class="card-body">Donor reporting demands have ballooned. Donor pet themes shape what partners apply for. Donor fragility has produced partners that perform compliance more than work. Decades of grant history have skewed the social sector — that is real.</div>
+    </div>
+    <div class="card accent-amber">
+      <div class="card-title" style="color:#fde68a">The "false" part</div>
+      <div class="card-body">The critique often hides a deeper truth: many CSOs <em>like</em> having the donor decide. It outsources accountability. "We had to do it — the donor wanted it" is easier than "We chose this, and we own it."</div>
+    </div>
+    <div class="card accent-rose">
+      <div class="card-title" style="color:#fda4af">The deeper bug</div>
+      <div class="card-body">The whole donor-partner-community chain rests on an overestimation of what a CSO actually is. Strip the language — and a CSO is a small intermediary organisation, with limited capacity, executing programmes for funders, in communities that did not elect them.</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-rose" id="s4">
+  <div class="label" style="color:#fb7185">THE UNCOMFORTABLE LINE</div>
+  <h2 class="title">CSOs are middlemen. CBOs are middlemen. We are middlemen.</h2>
+  <h3 class="sub">Once you say this out loud, a lot of other things become easier to see.</h3>
+  <div style="margin-top:32px;max-width:1080px">
+    <div class="card accent-rose" style="background:rgba(251,113,133,.05)">
+      <p class="body" style="font-size:17px;color:#fecaca">A "Community-Based Organisation" is, almost always, a small set of self-appointed representatives. Sometimes elected, often not. Sometimes accountable to the community, often not. They are intermediaries — just like we are. They have their own incentives, their own politics, their own survival anxieties.</p>
+      <p class="body" style="margin-top:14px;font-size:17px;color:#fecaca">The "voice of the community" — when delivered through a CBO or a CSO — has already passed through at least one filter. We need to know whose filter.</p>
+    </div>
+    <p class="body" style="margin-top:20px;color:#cbd5e1;max-width:1080px">This is not a reason to stop working with CBOs and partners. It is a reason to stop romanticising them, and to keep going back to the community ourselves. <strong style="color:#fbbf24">The household is the ground truth. Everything else is intermediation.</strong></p>
+  </div>
+</div>
+
+<div class="slide bg-dark" id="s5">
+  <div class="label" style="color:#94a3b8">WHAT WE OWE THE PARTNER</div>
+  <h2 class="title">Politeness. Equality. Empathy. As a baseline, not a bonus.</h2>
+  <h3 class="sub">If our team treats a partner staff member as junior, that's a failure of culture — not a personality quirk.</h3>
+  <div style="margin-top:32px;max-width:1080px;display:grid;gap:14px">
+    <div class="card accent-emerald">
+      <div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>Equal seating.</strong> Same chair, same tea, same address. Not "sir / madam" from the partner and first names from us.</div>
+    </div>
+    <div class="card accent-emerald">
+      <div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>No talking down.</strong> Even when we are sure they are wrong. The way to win that argument is to ask better questions, not to lecture.</div>
+    </div>
+    <div class="card accent-emerald">
+      <div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>Honour their constraints.</strong> A partner staff member has rent to pay, children at home, a phone bill, a relative in hospital. We are not the centre of their universe. Plan visits around that, not against it.</div>
+    </div>
+    <div class="card accent-emerald">
+      <div class="card-body" style="font-size:15px;color:#a7f3d0"><strong>Take their criticism seriously.</strong> A partner is often the first to spot a flaw in our design. If we hear "yes sir" from a partner all the time — we are doing something wrong.</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-amber" id="s6">
+  <div class="label" style="color:#fbbf24">BUT — NOT NAIVE</div>
+  <h2 class="title">Politeness is not the same as trust. Integrity is not assumed — it is verified.</h2>
+  <h3 class="sub">The sector has real integrity problems. Pretending it doesn't is its own form of dishonesty.</h3>
+  <div style="margin-top:32px;max-width:1080px;display:grid;gap:14px">
+    <div class="card accent-amber">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">Ghost beneficiaries. Inflated headcounts. Vendor kickbacks. Salary leakage. Inflated travel. Bills that don't add up. All of it exists in the sector. We have seen all of it.</div>
+    </div>
+    <div class="card accent-amber">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">Politeness gives the partner the dignity. The verification gives the work integrity. Both at the same time. Pick one — and you've broken something.</div>
+    </div>
+    <div class="card accent-amber">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">If a number on a report can't be traced, we ask — politely — to trace it. If it still can't be traced, we don't pay against it. Quietly. Firmly. Without making a scene.</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-rose" id="s7">
+  <div class="label" style="color:#fb7185">UNIT COSTS · FRUGALITY</div>
+  <h2 class="title">Never forget what one rupee costs in a settlement.</h2>
+  <h3 class="sub">A discipline we carry into every spending decision — ours, the partner's, the donor's.</h3>
+  <div style="margin-top:32px;max-width:1080px;display:grid;gap:14px">
+    <div class="card accent-rose">
+      <div class="card-body" style="font-size:15px;color:#fecaca">A meal is ₹22. A school uniform is ₹400. A creche teacher's monthly salary is ₹9,000. A community leader's bus pass is ₹600. These are the units. Hold them in your head while you read every budget line.</div>
+    </div>
+    <div class="card accent-rose">
+      <div class="card-body" style="font-size:15px;color:#fecaca">A ₹2 lakh venue cost for an event = 9,000 meals. A ₹3 lakh consultant fee = nine months of a creche teacher. Express budgets in what they replace, not just what they cost.</div>
+    </div>
+    <div class="card accent-rose">
+      <div class="card-body" style="font-size:15px;color:#fecaca">Frugality is not a vow of poverty. It is alignment. Where the household can afford ₹450 a month for everything, we cannot run an office that spends ₹450 on coffee.</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-slate" id="s8">
+  <div class="label" style="color:#94a3b8">HISTORY · JUDGEMENT</div>
+  <h2 class="title">We will be judged. We are ready.</h2>
+  <h3 class="sub">Every confident programme of the last fifty years has eventually faced its reckoning. Ours will too.</h3>
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="yr">1960s · GREEN REVOLUTION</div>
+      <div class="ttl">"We solved hunger."</div>
+      <div class="bd">Later judged: aquifer depletion, soil degradation, suicide in farming families, monoculture, dependency on input chains. The intent was real. The damage was also real.</div>
+    </div>
+    <div class="tl-item">
+      <div class="yr">1970s · WHITE REVOLUTION</div>
+      <div class="ttl">"We made India self-sufficient in milk."</div>
+      <div class="bd">Now visible: the production-led narrative was overstated; cooperative structures captured by middlemen; nutrition outcomes uneven. Some of the foundational claims are now read as half-truths at best.</div>
+    </div>
+    <div class="tl-item">
+      <div class="yr">2000s+ · LARGE NGO/CSR PROGRAMMES</div>
+      <div class="ttl">"AHADs and similar — celebrated, replicated, judged."</div>
+      <div class="bd">Internal critiques and external evaluations now read very differently from the early triumphalism. Several flagship programmes are being quietly revisited. The model stories were not the whole stories.</div>
+    </div>
+    <div class="tl-item">
+      <div class="yr">202X · US</div>
+      <div class="ttl">Whatever we do confidently today will be re-read in twenty years.</div>
+      <div class="bd">Our creche model. Our welfare-rights playbook. Our way of thinking about partners. Some will hold up. Some will be embarrassing. We don't yet know which is which. We accept that.</div>
+    </div>
+  </div>
+  <p class="body" style="margin-top:16px;font-style:italic;color:#cbd5e1;max-width:1080px">What we can do today: stay grounded, listen to the field, follow common sense and conscience, and not perform certainty we don't have. History can judge us later. The middlemen circus does not get to judge us now.</p>
+</div>
+
+<div class="slide bg-dark" id="s9">
+  <div class="label" style="color:#fbbf24">QUESTIONS</div>
+  <h2 class="title">Short slot for this one — but make it count.</h2>
+  <div style="margin-top:32px;max-width:1000px;display:grid;gap:14px">
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">"Calling our partners — and ourselves — 'middlemen' feels harsh. Is there a better word that's still honest?"</div>
+    </div>
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">"How do we run a verification without making the partner feel suspected?"</div>
+    </div>
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">"What does 'integrity verified' look like in practice — what's the checklist?"</div>
+    </div>
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">"When does a surprise visit actually become necessary?"</div>
+    </div>
+    <div class="card" style="background:rgba(251,191,36,.05);border-left:3px solid #fbbf24">
+      <div class="card-body" style="font-size:16px;color:#fef3c7">"What's the right way to push back on a donor who is sitting on our head?"</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide bg-navy" id="s10">
+  <div style="margin:auto;max-width:820px;text-align:center">
+    <div style="font-size:72px;margin-bottom:20px">📚</div>
+    <h1 class="hero" style="font-size:44px">Now — the work itself.</h1>
+    <p class="body" style="margin-top:24px;font-size:18px;color:#cbd5e1">For the rest of Day 1, we open the training hub. About half of it tonight. The other half tomorrow morning.</p>
+    <p class="body" style="margin-top:14px;font-size:15px;color:#94a3b8;font-style:italic">Each goal template. Each pitstop. The reasoning behind every checklist. This is the curriculum.</p>
+    <div style="margin-top:48px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+      <a href="/workshop-agenda.html" style="padding:14px 28px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Workshop agenda</a>
+      <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.4);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">Open training hub →</a>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div id="nav">
+  <a href="/workshop-agenda.html" title="Workshop agenda">⌂ Agenda</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 10</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+<script>
+const total=10;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>
