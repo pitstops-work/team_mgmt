@@ -84,6 +84,8 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
   const [selectedSettlement, setSelectedSettlement] = useState<SettlementFeature | null>(null);
   const [selectedCentre, setSelectedCentre] = useState<CentreFeature | null>(null);
   const [mapFilter, setMapFilter] = useState<MapFilter | null>(null);
+  const [mineMode, setMineMode] = useState(false);
+  const [myScope, setMyScope] = useState<{ clusterNames: Set<string>; zoneNames: Set<string>; settlementNames: Set<string>; goalCount: number } | null>(null);
   const [progressMode, setProgressMode] = useState(false);
   const [progressHealth, setProgressHealth] = useState<{
     settlements: Record<string, string>;
@@ -377,6 +379,59 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     setMapFilter(null);
     setActiveZone(null);
     setActiveCluster(null);
+    setMineMode(false);
+  }, []);
+
+  // ── Mine / All toggle ──
+  // When mine === true, filter the map down to the clusters / zones /
+  // settlements where the current user owns (or co-owns) a goal.
+  useEffect(() => {
+    if (!mineMode) return;
+    if (myScope) return; // already loaded
+    fetch("/api/map/my-goal-scope")
+      .then(r => r.json())
+      .then((d: { clusterNames: string[]; zoneNames: string[]; settlementNames: string[]; goalCount: number }) => {
+        setMyScope({
+          clusterNames: new Set(d.clusterNames ?? []),
+          zoneNames: new Set(d.zoneNames ?? []),
+          settlementNames: new Set(d.settlementNames ?? []),
+          goalCount: d.goalCount ?? 0,
+        });
+      })
+      .catch(() => setMyScope({ clusterNames: new Set(), zoneNames: new Set(), settlementNames: new Set(), goalCount: 0 }));
+  }, [mineMode, myScope]);
+
+  // Whenever mineMode flips on, build & apply the filter from myScope.
+  useEffect(() => {
+    if (!mineMode) return;
+    if (!myScope) return; // still loading
+    const label = myScope.goalCount > 0
+      ? `My goals · ${myScope.clusterNames.size} cluster${myScope.clusterNames.size === 1 ? "" : "s"}`
+      : "My goals (none)";
+    setMapFilter({
+      partnerKeys: new Set(),
+      zones: new Set(myScope.zoneNames),
+      clusters: new Set(myScope.clusterNames),
+      centrePartnerLabels: new Set(),
+      source: "mine",
+      label,
+      hideNonMatching: true,
+    });
+    setActiveZone(null);
+    setActiveCluster(null);
+  }, [mineMode, myScope]);
+
+  const toggleMineMode = useCallback(() => {
+    setMineMode(prev => {
+      const next = !prev;
+      if (!next) {
+        // Switching to All — drop the filter.
+        setMapFilter(null);
+        setActiveZone(null);
+        setActiveCluster(null);
+      }
+      return next;
+    });
   }, []);
 
   const switchCity = useCallback((city: MapCity) => {
@@ -455,6 +510,8 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           mapFilter={mapFilter}
           onPartnerFilter={handlePartnerFilter}
           onClearFilter={handleClearFilter}
+          mineMode={mineMode}
+          onToggleMineMode={toggleMineMode}
           activeCity={activeCity}
           onCityChange={switchCity}
           schoolMaxKm={schoolMaxKm}

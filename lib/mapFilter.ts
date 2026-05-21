@@ -6,8 +6,12 @@ export interface MapFilter {
   zones: Set<string>;                // zone names to highlight
   clusters: Set<string>;             // cluster keys to highlight
   centrePartnerLabels: Set<string>;  // centre partner labels to show
-  source: "zone" | "cluster" | "settlement" | "partner" | "centre";
+  source: "zone" | "cluster" | "settlement" | "partner" | "centre" | "mine";
   label: string;                     // human-readable description of active filter
+  /** When true, hide non-matching settlements/centres entirely (opacity 0)
+   *  instead of dimming them. Used by the "Mine" toggle so the RP sees
+   *  only their territory. */
+  hideNonMatching?: boolean;
 }
 
 type ComputeParams = {
@@ -126,6 +130,13 @@ export function computeMapFilter(
         centrePartnerLabels: centrePartner ? new Set([centrePartner]) : new Set(),
       };
     }
+
+    // "mine" filters are built externally (MapDashboard composes the cluster
+    // and zone sets from the user's goals via /api/map/my-goal-scope), so
+    // this branch is never reached. Defined for completeness so the switch
+    // is exhaustive.
+    case "mine":
+      return emptyFilter("mine", "Mine");
   }
 }
 

@@ -1193,8 +1193,10 @@ export default function MapView({
         return { ...f, properties: { ...f.properties, filterMatch: matches ? 1 : 0 } };
       });
       (map.getSource(`${layerConfig.key}-source`) as maplibregl.GeoJSONSource)?.setData({ type: "FeatureCollection", features: enriched });
-      map.setPaintProperty(fillId, "fill-opacity", ["case", ["==", ["get", "filterMatch"], 1], 0.55, 0.08]);
-      map.setPaintProperty(lineId, "line-width", ["case", ["==", ["get", "filterMatch"], 1], 2.5, 1]);
+      const offOpacity = filter?.hideNonMatching ? 0 : 0.08;
+      const offLineWidth = filter?.hideNonMatching ? 0 : 1;
+      map.setPaintProperty(fillId, "fill-opacity", ["case", ["==", ["get", "filterMatch"], 1], 0.55, offOpacity]);
+      map.setPaintProperty(lineId, "line-width", ["case", ["==", ["get", "filterMatch"], 1], 2.5, offLineWidth]);
     });
   }
 

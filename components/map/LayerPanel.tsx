@@ -11,6 +11,9 @@ interface LayerPanelProps {
   featureCounts: Partial<Record<LayerKey, number>>;
   /** DB-backed settlement count for the active city (matches /needs field coverage). */
   settlementDbCount?: number;
+  /** "Mine" toggle: when true, map shows only clusters/settlements the user has a goal in. */
+  mineMode?: boolean;
+  onToggleMineMode?: () => void;
   activeZone: string | null;
   activeCluster: string | null;
   onZoneSelect: (zone: string | null) => void;
@@ -98,6 +101,8 @@ export default function LayerPanel({
   showHealthClusters,
   onShowHealthClustersChange,
   facilityLayers = [],
+  mineMode = false,
+  onToggleMineMode,
 }: LayerPanelProps) {
   // Filter layers by active city
   const polygonLayers = LAYERS.filter((l) => l.type === "polygon" && l.city === activeCity);
@@ -164,6 +169,25 @@ export default function LayerPanel({
             Chennai
           </button>
         </div>
+        {/* Mine / All toggle */}
+        {onToggleMineMode && (
+          <div className="mt-2 flex rounded-lg overflow-hidden border border-slate-200 text-xs font-semibold">
+            <button
+              onClick={() => mineMode && onToggleMineMode()}
+              className={`flex-1 py-1.5 transition-colors ${!mineMode ? "bg-slate-800 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+              title="Show every cluster and settlement"
+            >
+              All
+            </button>
+            <button
+              onClick={() => !mineMode && onToggleMineMode()}
+              className={`flex-1 py-1.5 transition-colors border-l border-slate-200 ${mineMode ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+              title="Show only clusters and settlements where you own or co-own a goal"
+            >
+              Mine
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
