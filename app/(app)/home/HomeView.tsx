@@ -364,186 +364,21 @@ function TodayTab({
   myActivities: Activity[];
   weekChecklists: ChecklistItem[];
 }) {
-  const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
-  const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
-  const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
-
-  const now = new Date();
-  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
-
-  async function handleDone(eventId: string) {
-    setLoadingDoneId(eventId);
-    await fetch(`/api/pitstop-events/${eventId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Done" }),
-    });
-    setDoneIds(prev => new Set([...prev, eventId]));
-    setLoadingDoneId(null);
-  }
-
-  function isVisible(id: string) { return !doneIds.has(id); }
-
-  const overdueItems = overdueActivities.filter(a => isVisible(a.id));
-  const todayItems = myActivities.filter(
-    a => isVisible(a.id) && new Date(a.scheduledAt) >= now && new Date(a.scheduledAt) <= todayEnd
-  );
-  const weekItems = myActivities.filter(
-    a => isVisible(a.id) && new Date(a.scheduledAt) > todayEnd
-  );
-
-  // Checklists owned by this user
-  const myChecklists = weekChecklists.filter(
-    ci => !completedItemIds.has(ci.id) && ci.pitstop.ownerId === userId
-  );
-
-  // Group by cluster. Goals without a cluster fall into a single "No cluster" bucket.
-  const UNCLUSTERED_ID = "__unclustered__";
-  type Bucket = {
-    id: string;
-    name: string;
-    overdue: Activity[];
-    today: Activity[];
-    checklists: ChecklistItem[];
-    week: Activity[];
-  };
-  const bucketMap = new Map<string, Bucket>();
-  const ensureBucket = (c: { id: string; name: string } | null | undefined): Bucket => {
-    const id = c?.id ?? UNCLUSTERED_ID;
-    const name = c?.name ?? "No cluster";
-    let b = bucketMap.get(id);
-    if (!b) { b = { id, name, overdue: [], today: [], checklists: [], week: [] }; bucketMap.set(id, b); }
-    return b;
-  };
-  const activityCluster = (a: Activity) => a.pitstops?.[0]?.pitstop?.goal?.needsCluster ?? null;
-  const checklistCluster = (ci: ChecklistItem) => ci.pitstop.goal.needsCluster ?? null;
-
-  for (const a of overdueItems)    ensureBucket(activityCluster(a)).overdue.push(a);
-  for (const a of todayItems)      ensureBucket(activityCluster(a)).today.push(a);
-  for (const ci of myChecklists)   ensureBucket(checklistCluster(ci)).checklists.push(ci);
-  for (const a of weekItems)       ensureBucket(activityCluster(a)).week.push(a);
-
-  const buckets = [...bucketMap.values()].sort((a, b) => {
-    if (a.id === UNCLUSTERED_ID) return 1;
-    if (b.id === UNCLUSTERED_ID) return -1;
-    return a.name.localeCompare(b.name);
-  });
-
-  const allEmpty = overdueItems.length === 0 && todayItems.length === 0 && myChecklists.length === 0;
-
-  // Shared inline activity row (desktop)
-  function ActivityRowSimple({ a, isOverdue }: { a: Activity; isOverdue: boolean }) {
-    const { goal, isOwner, isAttendee, geo, domain } = activityMeta(a, userId);
-    return (
-      <div className={`px-4 py-3 rounded-xl border transition-colors ${
-        isOverdue ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-white"
-      }`}>
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-              {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-              {(isOwner || isAttendee) && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${isOwner ? "bg-violet-50 text-violet-600" : "bg-stone-100 text-stone-500"}`}>
-                  {isOwner ? "Owner" : "Attendee"}
-                </span>
-              )}
-            </div>
-            <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
-              {isOverdue ? `${daysAgo(a.scheduledAt)}d overdue` : fmtTime(a.scheduledAt)}
-              {a.location ? ` · ${a.location}` : ""}
-            </p>
-            {(goal || domain || geo) && (
-              <p className="text-[11px] text-stone-400 mt-0.5 truncate">
-                {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
-              </p>
-            )}
-          </div>
-          <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-            className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors mt-0.5">
-            {loadingDoneId === a.id ? "…" : "Done"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // Leader / Other Today view — uses the same cluster-card layout that RPs see.
+  const todayActivities = myActivities.filter(a => isToday(a.scheduledAt));
+  const weekActivities = myActivities.filter(a => !isToday(a.scheduledAt));
+  const myChecklists = weekChecklists.filter(ci => ci.pitstop.ownerId === userId);
   return (
-    <div className="space-y-4">
-      {allEmpty && buckets.length === 0 && (
-        <EmptyState message="You're all caught up for today." />
-      )}
-
-      {buckets.map(bucket => {
-        const totals = bucket.overdue.length + bucket.today.length + bucket.checklists.length + bucket.week.length;
-        if (totals === 0) return null;
-        return (
-          <section
-            key={bucket.id}
-            className="rounded-2xl border border-stone-200 bg-white overflow-hidden"
-          >
-            {/* Cluster header */}
-            <header className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center gap-2 min-w-0">
-              <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0" />
-              <h3 className="text-sm font-semibold text-stone-800 truncate">{bucket.name}</h3>
-            </header>
-
-            <div className="p-3 space-y-5">
-              {/* Needs your update */}
-              {bucket.overdue.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                    <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Needs your update</p>
-                  </div>
-                  <div className="space-y-2">
-                    {bucket.overdue.map(a => <ActivityRowSimple key={a.id} a={a} isOverdue />)}
-                  </div>
-                </div>
-              )}
-
-              {/* Today */}
-              {bucket.today.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Today</p>
-                  <div className="space-y-2">
-                    {bucket.today.map(a => <ActivityRowSimple key={a.id} a={a} isOverdue={false} />)}
-                  </div>
-                </div>
-              )}
-
-              {/* Open checklists */}
-              {bucket.checklists.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Open checklists</p>
-                  <div className="rounded-xl border border-stone-100 bg-white divide-y divide-stone-100 overflow-hidden">
-                    {bucket.checklists.map(ci => (
-                      <RPChecklistRow key={ci.id} item={ci} onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Coming up this week */}
-              {bucket.week.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Coming up this week ({bucket.week.length})</p>
-                  <div className="space-y-2">
-                    {bucket.week.map(a => {
-                      const { goal, isOwner, isAttendee, geo, domain } = activityMeta(a, userId);
-                      const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
-                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={goal?.title} domain={domain} geo={geo} role={role} />;
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-        );
-      })}
-
-    </div>
+    <ClusterTodayView
+      userId={userId}
+      overdueActivities={overdueActivities}
+      todayActivities={todayActivities}
+      weekActivities={weekActivities}
+      weekChecklists={myChecklists}
+    />
   );
 }
+
 
 // ── Tab: RP Field Coverage ────────────────────────────────────────────────────
 
@@ -2612,6 +2447,15 @@ function PMTodayTab({
   return (
     <div className="space-y-8">
 
+      {/* PM's own work as cluster cards. */}
+      <ClusterTodayView
+        userId={userId}
+        overdueActivities={myOverdue as unknown as Activity[]}
+        todayActivities={myToday as unknown as Activity[]}
+        weekActivities={myWeek as unknown as Activity[]}
+        weekChecklists={[]}
+      />
+
       {/* ZL attention — inline expand */}
       {zlAttention.length > 0 && (
         <div>
@@ -3797,8 +3641,37 @@ function ZLTodayTab({
     );
   }
 
+  // ZL's own work as cluster cards. Filter overdue/today/week down to items
+  // whose pitstop is owned by this ZL, then hand off to ClusterTodayView for
+  // the same layout RPs see. Team breakdown sections render below.
+  const myOwnOverdue = zlOverdueActivities.filter(
+    a => a.pitstops[0]?.pitstop.ownerId === userId && !completedActivityIds.has(a.id)
+  );
+  const myOwnToday = zlMyActivities.filter(
+    a => isToday(a.scheduledAt)
+      && a.pitstops[0]?.pitstop.ownerId === userId
+      && !completedActivityIds.has(a.id)
+  );
+  const myOwnWeek = zlMyActivities.filter(
+    a => !isToday(a.scheduledAt)
+      && a.pitstops[0]?.pitstop.ownerId === userId
+      && !completedActivityIds.has(a.id)
+  );
+  const myOwnChecklists = weekChecklists.filter(
+    ci => ci.pitstop.ownerId === userId && !completedChecklistIds.has(ci.id)
+  );
+
   return (
     <div className="space-y-8">
+
+      {/* My work — cluster-card view (same layout as the RP Today tab). */}
+      <ClusterTodayView
+        userId={userId}
+        overdueActivities={myOwnOverdue as unknown as Activity[]}
+        todayActivities={myOwnToday as unknown as Activity[]}
+        weekActivities={myOwnWeek as unknown as Activity[]}
+        weekChecklists={myOwnChecklists}
+      />
 
       {/* Team attention — RPs with overdue activities */}
       {attentionRPs.length > 0 && (
@@ -4386,20 +4259,22 @@ function RPActivityRow({
   );
 }
 
-function RPTodayTab({
+// Reusable cluster-card "today" view. Used by every designation's Today tab
+// for the user's own work (cluster cards + collapsible sections + mobile
+// horizontal carousel + Done/Voice/Upload actions inline). ZL/PM compose
+// this on top of their team-breakdown sections; RP and Leader use it alone.
+function ClusterTodayView({
   userId,
   overdueActivities,
   todayActivities,
   weekActivities,
   weekChecklists,
-  doneActivities,
 }: {
   userId: string;
   overdueActivities: Activity[];
   todayActivities: Activity[];
   weekActivities: Activity[];
   weekChecklists: ChecklistItem[];
-  doneActivities: Activity[];
 }) {
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
@@ -4767,6 +4642,32 @@ function RPTodayTab({
         {nonEmptyBuckets.map(bucket => renderClusterCard(bucket))}
       </div>
     </div>
+  );
+}
+
+// Thin wrapper that preserves the original RPTodayTab signature.
+function RPTodayTab({
+  userId,
+  overdueActivities,
+  todayActivities,
+  weekActivities,
+  weekChecklists,
+}: {
+  userId: string;
+  overdueActivities: Activity[];
+  todayActivities: Activity[];
+  weekActivities: Activity[];
+  weekChecklists: ChecklistItem[];
+  doneActivities?: Activity[]; // accepted but unused; kept for backward compat
+}) {
+  return (
+    <ClusterTodayView
+      userId={userId}
+      overdueActivities={overdueActivities}
+      todayActivities={todayActivities}
+      weekActivities={weekActivities}
+      weekChecklists={weekChecklists}
+    />
   );
 }
 
