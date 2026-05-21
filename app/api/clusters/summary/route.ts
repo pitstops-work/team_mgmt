@@ -138,7 +138,14 @@ export async function GET() {
       if (c.toiletFacNeedScore    != null) civicWeightedPop.toiletFacility   = (civicWeightedPop.toiletFacility   ?? 0) + HH * c.toiletFacNeedScore    / 100;
       if (c.waterSupplyNeedScore  != null) civicWeightedPop.waterSupply      = (civicWeightedPop.waterSupply      ?? 0) + HH * c.waterSupplyNeedScore  / 100;
     }
-    const targets = calcTargets(pop, formulaRows as FormulaRow[], civicWeightedPop);
+    // Boolean+settlement target at cluster scope = count of settlements with population.
+    const settlementsWithPop = cluster.settlements
+      .map(s => assessmentBySettlement[s.id])
+      .filter(a => a && a.totalHouseholds > 0).length;
+    const targets = calcTargets(pop, formulaRows as FormulaRow[], civicWeightedPop, {
+      scope: "cluster",
+      subUnitsWithPop: { settlement: settlementsWithPop },
+    });
     const existing:    Record<string, number> = {};
     const addressable: Record<string, number> = {};
     for (const s of cluster.settlements) {

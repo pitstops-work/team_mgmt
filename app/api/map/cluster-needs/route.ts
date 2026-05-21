@@ -147,7 +147,13 @@ export async function GET(request: Request) {
     if (c.toiletFacNeedScore    != null) civicWeightedPop.toiletFacility    = (civicWeightedPop.toiletFacility    ?? 0) + HH * c.toiletFacNeedScore    / 100;
     if (c.waterSupplyNeedScore  != null) civicWeightedPop.waterSupply       = (civicWeightedPop.waterSupply       ?? 0) + HH * c.waterSupplyNeedScore  / 100;
   }
-  const targets = calcTargets(pop, formulaRows, civicWeightedPop);
+  // For boolean+settlement domains aggregated at cluster scope, the target is the
+  // count of settlements with any population — not "1 because the cluster has pop".
+  const settlementsWithPop = assessments.filter(a => a.totalHouseholds > 0).length;
+  const targets = calcTargets(pop, formulaRows, civicWeightedPop, {
+    scope: "cluster",
+    subUnitsWithPop: { settlement: settlementsWithPop },
+  });
 
   // Done = GoalOutcome rows attributed to any settlement in this cluster
   const outcomeRows = await prisma.goalOutcome.findMany({

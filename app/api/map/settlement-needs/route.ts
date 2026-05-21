@@ -25,6 +25,26 @@ type PopFields = {
   elderly60plus: number;
 };
 
+const LEVEL_RANK: Record<string, number> = { settlement: 0, cluster: 1, zone: 2, city: 3 };
+
+/**
+ * Context describing the aggregation scope a calcTargets() call represents.
+ *
+ *  - `scope`            — the level we're computing for (settlement / cluster / zone / city).
+ *  - `subUnitsWithPop`  — for boolean domains aggregated above their native level: how many
+ *                         sub-units of that level have population > 0. e.g. when scope=zone,
+ *                         `subUnitsWithPop.cluster` is the number of clusters in this zone
+ *                         that have any population (used for boolean+cluster domains).
+ */
+export interface AggregationContext {
+  scope: "settlement" | "cluster" | "zone" | "city";
+  subUnitsWithPop?: {
+    settlement?: number;
+    cluster?: number;
+    zone?: number;
+  };
+}
+
 // Shared helper — used by cluster-needs and zone-needs.
 // Fully config-driven: uses populationField and domainType from NeedsFormulaConfig.
 //
@@ -33,7 +53,12 @@ type PopFields = {
 //   For cluster/zone:     sum(HHi × scorei/100) across all settlements in scope.
 // When a count domain has civicWeightGroup set and civicWeightedPop is provided,
 // that pre-weighted population is used instead of the raw populationField value.
-export function calcTargets(pop: PopFields, formulaRows: FormulaRow[], civicWeightedPop?: Record<string, number>): Record<string, number> {
+export function calcTargets(
+  pop: PopFields,
+  formulaRows: FormulaRow[],
+  civicWeightedPop?: Record<string, number>,
+  ctx?: AggregationContext,
+): Record<string, number> {
   const popMap: Record<string, number> = {
     totalHouseholds: pop.totalHouseholds,
     children6m3yr: pop.children6m3yr,
@@ -42,16 +67,30 @@ export function calcTargets(pop: PopFields, formulaRows: FormulaRow[], civicWeig
     elderly60plus: pop.elderly60plus,
   };
 
+  const scopeRank = LEVEL_RANK[ctx?.scope ?? "settlement"];
+
   const result: Record<string, number> = {};
   for (const f of formulaRows) {
     if (!f.isActive || f.domainType === "entitlement" || f.domainType === "civic") continue;
     if (f.domainType === "boolean") {
-      // Boolean with no population field → always 1 (every settlement needs it)
-      if (!f.populationField) {
-        result[f.domain] = 1;
+      const aLevel = f.assessmentLevel ?? "settlement";
+      const aRank = LEVEL_RANK[aLevel] ?? 0;
+      const popVal = f.populationField ? (popMap[f.populationField] ?? 0) : pop.totalHouseholds;
+
+      if (scopeRank < aRank) {
+        // Boolean evaluated above this scope — not assessable here yet.
+        result[f.domain] = 0;
+      } else if (scopeRank === aRank) {
+        // Native level: 1 if any population (or if no population field gates it), else 0.
+        result[f.domain] = !f.populationField || popVal > 0 ? 1 : 0;
       } else {
-        const popVal = popMap[f.populationField] ?? 0;
-        result[f.domain] = popVal > 0 ? 1 : 0;
+        // Aggregated above native level: sum sub-units that need it.
+        const subCount = aLevel === "settlement" ? ctx?.subUnitsWithPop?.settlement
+                       : aLevel === "cluster"    ? ctx?.subUnitsWithPop?.cluster
+                       : aLevel === "zone"       ? ctx?.subUnitsWithPop?.zone
+                       : undefined;
+        // Fallback when caller didn't provide the count: preserve legacy "1 if any pop" behavior.
+        result[f.domain] = subCount !== undefined ? subCount : (popVal > 0 ? 1 : 0);
       }
     } else {
       let popVal = f.populationField ? (popMap[f.populationField] ?? 0) : 0;

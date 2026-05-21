@@ -153,7 +153,21 @@ export async function GET() {
       if (c.toiletFacNeedScore    != null) civicWeightedPop.toiletFacility   = (civicWeightedPop.toiletFacility   ?? 0) + HH * c.toiletFacNeedScore    / 100;
       if (c.waterSupplyNeedScore  != null) civicWeightedPop.waterSupply      = (civicWeightedPop.waterSupply      ?? 0) + HH * c.waterSupplyNeedScore  / 100;
     }
-    const targets = calcTargets(pop, formulaRows as FormulaRow[], civicWeightedPop);
+    // Boolean aggregation at zone scope: count settlements & clusters with population.
+    const settlementsWithPop = settlements
+      .map(s => assessmentBySettlement[s.id])
+      .filter(a => a && a.totalHouseholds > 0).length;
+    let clustersWithPop = 0;
+    for (const c of zone.clusters) {
+      const cPop = c.settlements
+        .map(s => assessmentBySettlement[s.id])
+        .reduce((sum, a) => sum + (a?.totalHouseholds ?? 0), 0);
+      if (cPop > 0) clustersWithPop += 1;
+    }
+    const targets = calcTargets(pop, formulaRows as FormulaRow[], civicWeightedPop, {
+      scope: "zone",
+      subUnitsWithPop: { settlement: settlementsWithPop, cluster: clustersWithPop },
+    });
     const existing:    Record<string, number> = {};
     const addressable: Record<string, number> = {};
     const sids = zoneSettlementIds.get(zone.id) ?? new Set<string>();

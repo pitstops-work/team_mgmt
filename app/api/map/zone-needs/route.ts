@@ -175,7 +175,28 @@ export async function GET(request: Request) {
     if (c.toiletFacNeedScore    != null) civicWeightedPop.toiletFacility    = (civicWeightedPop.toiletFacility    ?? 0) + HH * c.toiletFacNeedScore    / 100;
     if (c.waterSupplyNeedScore  != null) civicWeightedPop.waterSupply       = (civicWeightedPop.waterSupply       ?? 0) + HH * c.waterSupplyNeedScore  / 100;
   }
-  const targets = calcTargets(pop, formulaRows, civicWeightedPop);
+  // Sub-unit counts for boolean aggregation at zone scope.
+  // settlementsWithPop: how many settlements in the zone have any population.
+  // clustersWithPop:    how many clusters in the zone have any population.
+  const settlementsWithPop = assessments.filter(a => a.totalHouseholds > 0).length;
+  const clusterPopMap = new Map<string, number>();
+  for (const a of assessments) {
+    // Walk to the cluster id via assessment.settlementId → settlement → clusterId.
+    // We don't have that mapping inline here; build it from zone.clusters.
+  }
+  for (const c of zone.clusters) {
+    let cPop = 0;
+    for (const s of c.settlements) {
+      const a = assessments.find(x => x.settlementId === s.id);
+      if (a) cPop += a.totalHouseholds;
+    }
+    clusterPopMap.set(c.id, cPop);
+  }
+  const clustersWithPop = [...clusterPopMap.values()].filter(p => p > 0).length;
+  const targets = calcTargets(pop, formulaRows, civicWeightedPop, {
+    scope: "zone",
+    subUnitsWithPop: { settlement: settlementsWithPop, cluster: clustersWithPop },
+  });
 
   // Done = GoalOutcome rows attributed to any settlement in this zone
   const outcomeRows = await prisma.goalOutcome.findMany({

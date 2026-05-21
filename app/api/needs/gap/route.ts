@@ -124,7 +124,41 @@ export async function GET(request: Request) {
     if (c.toiletFacNeedScore    != null) civicWeightedPop.toiletFacility    = (civicWeightedPop.toiletFacility    ?? 0) + HH * c.toiletFacNeedScore    / 100;
     if (c.waterSupplyNeedScore  != null) civicWeightedPop.waterSupply       = (civicWeightedPop.waterSupply       ?? 0) + HH * c.waterSupplyNeedScore  / 100;
   }
-  const targets = calcTargets(pop, formulaRows, civicWeightedPop);
+  // Determine aggregation scope + sub-unit counts for boolean targets.
+  const scope: "settlement" | "cluster" | "zone" | "city" =
+    settlementId ? "settlement" :
+    clusterId    ? "cluster"    :
+    zoneId       ? "zone"       :
+    "city";
+  const settlementsWithPop = assessments.filter(a => a.totalHouseholds > 0).length;
+  let clustersWithPop: number | undefined;
+  let zonesWithPop: number | undefined;
+  if (scope === "zone" || scope === "city") {
+    const popByCluster: Record<string, number> = {};
+    for (const a of assessments) {
+      const s = await prisma.settlement.findUnique({ where: { id: a.settlementId }, select: { clusterId: true } });
+      if (s?.clusterId) popByCluster[s.clusterId] = (popByCluster[s.clusterId] ?? 0) + a.totalHouseholds;
+    }
+    clustersWithPop = Object.values(popByCluster).filter(p => p > 0).length;
+  }
+  if (scope === "city") {
+    // For city scope, also count zones with population.
+    const popByZone: Record<string, number> = {};
+    const clusters = allClusterIds.length > 0
+      ? await prisma.cluster.findMany({ where: { id: { in: allClusterIds } }, select: { id: true, zoneId: true } })
+      : [];
+    const zoneByCluster = new Map(clusters.map(c => [c.id, c.zoneId]));
+    for (const a of assessments) {
+      const s = await prisma.settlement.findUnique({ where: { id: a.settlementId }, select: { clusterId: true } });
+      const zid = s?.clusterId ? zoneByCluster.get(s.clusterId) : undefined;
+      if (zid) popByZone[zid] = (popByZone[zid] ?? 0) + a.totalHouseholds;
+    }
+    zonesWithPop = Object.values(popByZone).filter(p => p > 0).length;
+  }
+  const targets = calcTargets(pop, formulaRows, civicWeightedPop, {
+    scope,
+    subUnitsWithPop: { settlement: settlementsWithPop, cluster: clustersWithPop, zone: zonesWithPop },
+  });
 
   // ── Actuals from goals ─────────────────────────────────────────────────────
 
