@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronDown, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, ChevronDown, ChevronRight, Check, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 function broadcastBoundariesUpdated() {
@@ -60,6 +60,9 @@ export default function GeographyPage() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [addingZoneCityId, setAddingZoneCityId] = useState<string | null>(null);
+  const [addingClusterZoneId, setAddingClusterZoneId] = useState<string | null>(null);
+  const [newName, setNewName] = useState("");
   const toast = useToast();
 
   const startEdit = (id: string, currentName: string) => {
@@ -171,6 +174,80 @@ export default function GeographyPage() {
     }
   };
 
+  const handleAddZone = async (cityId: string) => {
+    const name = newName.trim();
+    if (!name) { setAddingZoneCityId(null); setNewName(""); return; }
+    const res = await fetch("/api/admin/geography", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "add-zone", name, cityId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setZones(prev => [...prev, data.zone].sort((a, b) => a.name.localeCompare(b.name)));
+      setExpandedZones(prev => new Set(prev).add(data.zone.id));
+      toast.show("Zone added");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      toast.show(err.error ?? "Could not add zone");
+    }
+    setAddingZoneCityId(null);
+    setNewName("");
+  };
+
+  const handleAddCluster = async (zoneId: string) => {
+    const name = newName.trim();
+    if (!name) { setAddingClusterZoneId(null); setNewName(""); return; }
+    const res = await fetch("/api/admin/geography", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "add-cluster", name, zoneId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setZones(prev => prev.map(z =>
+        z.id !== zoneId ? z : { ...z, clusters: [...z.clusters, data.cluster].sort((a, b) => a.name.localeCompare(b.name)) }
+      ));
+      toast.show("Cluster added");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      toast.show(err.error ?? "Could not add cluster");
+    }
+    setAddingClusterZoneId(null);
+    setNewName("");
+  };
+
+  const handleDelete = async (type: "zone" | "cluster" | "settlement", id: string, label: string, hasChildren: boolean) => {
+    const childWarning = hasChildren
+      ? `\n\nThis ${type} is not empty. Click OK again with confirmation to also remove its contents.`
+      : "";
+    if (!confirm(`Delete "${label}"?${childWarning}\n\nIt will be soft-deleted (recoverable).`)) return;
+    const cascade = hasChildren ? "&cascade=1" : "";
+    const res = await fetch(`/api/admin/geography?type=${type}&id=${encodeURIComponent(id)}${cascade}`, { method: "DELETE" });
+    if (res.ok) {
+      if (type === "zone") {
+        setZones(prev => prev.filter(z => z.id !== id));
+      } else if (type === "cluster") {
+        setZones(prev => prev.map(z => ({ ...z, clusters: z.clusters.filter(c => c.id !== id) })));
+      } else {
+        setZones(prev => prev.map(z => ({
+          ...z,
+          clusters: z.clusters.map(c => ({
+            ...c,
+            settlements: c.settlements.filter(s => s.id !== id),
+            settlementCount: c.settlements.filter(s => s.id !== id).length,
+          })),
+        })));
+      }
+      const data = await res.json();
+      if (data.boundariesUpdated) broadcastBoundariesUpdated();
+      toast.show(`${type[0].toUpperCase()}${type.slice(1)} deleted`);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      toast.show(err.error ?? "Delete failed");
+    }
+  };
+
   const handleSettlementClusterChange = async (settlementId: string, oldClusterId: string, newClusterId: string) => {
     const res = await fetch("/api/admin/geography", {
       method: "PATCH",
@@ -260,6 +337,44 @@ export default function GeographyPage() {
         <p className="text-xs text-stone-400 text-center py-12">Loading…</p>
       )}
 
+      {/* Add zone — visible when a specific city is selected, or when there's exactly one city */}
+      {!loading && (() => {
+        const targetCityId =
+          selectedCity ? cities.find(c => c.name === selectedCity)?.id ?? null
+          : cities.length === 1 ? cities[0].id
+          : null;
+        if (!targetCityId) {
+          return cities.length > 1 && selectedCity === null ? (
+            <p className="text-[11px] text-stone-400 italic">Pick a city tab above to add a new zone.</p>
+          ) : null;
+        }
+        const isAdding = addingZoneCityId === targetCityId;
+        return isAdding ? (
+          <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
+            <input
+              autoFocus
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") handleAddZone(targetCityId);
+                if (e.key === "Escape") { setAddingZoneCityId(null); setNewName(""); }
+              }}
+              placeholder="New zone name"
+              className="flex-1 text-sm border border-sky-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-sky-400"
+            />
+            <button onClick={() => handleAddZone(targetCityId)} className="px-3 py-1 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold rounded">Add</button>
+            <button onClick={() => { setAddingZoneCityId(null); setNewName(""); }} className="px-2 py-1 text-xs text-stone-500 hover:text-stone-700">Cancel</button>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setAddingZoneCityId(targetCityId); setNewName(""); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Zone
+          </button>
+        );
+      })()}
+
       {/* Zones accordion */}
       {!loading && (
         <div className="space-y-2">
@@ -271,13 +386,13 @@ export default function GeographyPage() {
             return (
               <div key={zone.id} className="rounded-xl border border-stone-200 overflow-hidden">
                 {/* Zone header */}
-                <button
+                <div
                   onClick={() => setExpandedZones(prev => {
                     const next = new Set(prev);
                     if (next.has(zone.id)) next.delete(zone.id); else next.add(zone.id);
                     return next;
                   })}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-stone-50 hover:bg-stone-100 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-stone-50 hover:bg-stone-100 transition-colors text-left cursor-pointer"
                 >
                   {isZoneOpen
                     ? <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
@@ -312,11 +427,46 @@ export default function GeographyPage() {
                   <span className="text-xs text-stone-400 flex-shrink-0">
                     {zone.clusters.length} cluster{zone.clusters.length !== 1 ? "s" : ""}
                   </span>
-                </button>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleDelete("zone", zone.id, zone.name, zone.clusters.length > 0);
+                    }}
+                    className="text-stone-300 hover:text-red-500 transition-colors flex-shrink-0"
+                    title="Delete zone"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
                 {/* Clusters */}
                 {isZoneOpen && (
                   <div className="divide-y divide-stone-100">
+                    {/* Add cluster row */}
+                    {addingClusterZoneId === zone.id ? (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-sky-50">
+                        <input
+                          autoFocus
+                          value={newName}
+                          onChange={e => setNewName(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") handleAddCluster(zone.id);
+                            if (e.key === "Escape") { setAddingClusterZoneId(null); setNewName(""); }
+                          }}
+                          placeholder="New cluster name"
+                          className="flex-1 text-sm border border-sky-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-sky-400"
+                        />
+                        <button onClick={() => handleAddCluster(zone.id)} className="px-3 py-1 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold rounded">Add</button>
+                        <button onClick={() => { setAddingClusterZoneId(null); setNewName(""); }} className="px-2 py-1 text-xs text-stone-500 hover:text-stone-700">Cancel</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setAddingClusterZoneId(zone.id); setNewName(""); }}
+                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-sky-600 hover:bg-sky-50 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> Add Cluster
+                      </button>
+                    )}
                     {zone.clusters.length === 0 && (
                       <p className="px-6 py-3 text-xs text-stone-400 italic">No clusters</p>
                     )}
@@ -380,6 +530,13 @@ export default function GeographyPage() {
                                 <option key={z.id} value={z.id}>{z.name}</option>
                               ))}
                             </select>
+                            <button
+                              onClick={() => handleDelete("cluster", cluster.id, cluster.name, cluster.settlementCount > 0)}
+                              className="text-stone-300 hover:text-red-500 transition-colors flex-shrink-0"
+                              title="Delete cluster"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
 
                           {/* Settlements */}
@@ -434,6 +591,14 @@ export default function GeographyPage() {
                                     }`}
                                   >
                                     {s.active ? "Active" : "Inactive"}
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDelete("settlement", s.id, s.name, false)}
+                                    className="text-stone-300 hover:text-red-500 transition-colors flex-shrink-0"
+                                    title="Delete settlement"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
                                   </button>
                                 </div>
                               ))}

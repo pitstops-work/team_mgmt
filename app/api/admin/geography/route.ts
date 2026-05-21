@@ -159,3 +159,121 @@ export async function PATCH(req: NextRequest) {
 
   return Response.json({ error: "Invalid type" }, { status: 400 });
 }
+
+// POST /api/admin/geography
+// body: { type: "add-zone",    name, cityId }
+//   OR { type: "add-cluster", name, zoneId }
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = adminForbidden(session); if (veto) return veto;
+
+  const body = await req.json();
+  const name = (body.name ?? "").trim();
+  if (!name) return Response.json({ error: "name required" }, { status: 400 });
+
+  if (body.type === "add-zone") {
+    if (!body.cityId) return Response.json({ error: "cityId required" }, { status: 400 });
+    const exists = await prisma.zone.findFirst({
+      where: { cityId: body.cityId, name: { equals: name, mode: "insensitive" }, deletedAt: null },
+      select: { id: true },
+    });
+    if (exists) return Response.json({ error: "A zone with that name already exists in this city" }, { status: 409 });
+    const zone = await prisma.zone.create({
+      data: { name, cityId: body.cityId },
+      select: { id: true, name: true, cityId: true, city: { select: { name: true } } },
+    });
+    return Response.json({
+      ok: true,
+      zone: { id: zone.id, name: zone.name, cityId: zone.cityId, cityName: zone.city?.name ?? null, leadId: null, leadName: null, clusters: [] },
+    });
+  }
+
+  if (body.type === "add-cluster") {
+    if (!body.zoneId) return Response.json({ error: "zoneId required" }, { status: 400 });
+    const exists = await prisma.cluster.findFirst({
+      where: { zoneId: body.zoneId, name: { equals: name, mode: "insensitive" }, deletedAt: null },
+      select: { id: true },
+    });
+    if (exists) return Response.json({ error: "A cluster with that name already exists in this zone" }, { status: 409 });
+    const cluster = await prisma.cluster.create({
+      data: { name, zoneId: body.zoneId },
+      select: { id: true, name: true, zoneId: true },
+    });
+    return Response.json({
+      ok: true,
+      cluster: { id: cluster.id, name: cluster.name, zoneId: cluster.zoneId, settlementCount: 0, settlements: [] },
+    });
+  }
+
+  return Response.json({ error: "Invalid type" }, { status: 400 });
+}
+
+// DELETE /api/admin/geography?type=zone|cluster|settlement&id=...
+// Soft-deletes the entity (sets deletedAt). For zones/clusters, refuses if
+// non-empty unless `?cascade=1` is passed (which also soft-deletes children).
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const veto = adminForbidden(session); if (veto) return veto;
+
+  const { searchParams } = new URL(req.url);
+  const type = searchParams.get("type");
+  const id = searchParams.get("id");
+  const cascade = searchParams.get("cascade") === "1";
+
+  if (!type || !id) return Response.json({ error: "type and id required" }, { status: 400 });
+  const now = new Date();
+
+  if (type === "settlement") {
+    const s = await prisma.settlement.findUnique({
+      where: { id },
+      select: { clusterId: true, cluster: { select: { zoneId: true } } },
+    });
+    if (!s) return Response.json({ error: "Settlement not found" }, { status: 404 });
+    await prisma.settlement.update({ where: { id }, data: { deletedAt: now } });
+    if (s.clusterId) await recomputeClusterBoundary(s.clusterId, prisma);
+    if (s.cluster?.zoneId) await recomputeZoneBoundary(s.cluster.zoneId, prisma);
+    return Response.json({ ok: true, boundariesUpdated: true });
+  }
+
+  if (type === "cluster") {
+    const settlementCount = await prisma.settlement.count({ where: { clusterId: id, deletedAt: null } });
+    if (settlementCount > 0 && !cascade) {
+      return Response.json({
+        error: `This cluster has ${settlementCount} active settlement${settlementCount === 1 ? "" : "s"}. Move or delete them first, or pass cascade=1.`,
+      }, { status: 409 });
+    }
+    if (cascade) {
+      await prisma.settlement.updateMany({ where: { clusterId: id, deletedAt: null }, data: { deletedAt: now } });
+    }
+    const c = await prisma.cluster.findUnique({ where: { id }, select: { zoneId: true } });
+    await prisma.cluster.update({ where: { id }, data: { deletedAt: now } });
+    if (c?.zoneId) await recomputeZoneBoundary(c.zoneId, prisma);
+    return Response.json({ ok: true, boundariesUpdated: true });
+  }
+
+  if (type === "zone") {
+    const clusterCount = await prisma.cluster.count({ where: { zoneId: id, deletedAt: null } });
+    if (clusterCount > 0 && !cascade) {
+      return Response.json({
+        error: `This zone has ${clusterCount} active cluster${clusterCount === 1 ? "" : "s"}. Move or delete them first, or pass cascade=1.`,
+      }, { status: 409 });
+    }
+    if (cascade) {
+      // Soft-delete settlements in any of this zone's clusters, then the clusters.
+      const clusterIds = (await prisma.cluster.findMany({
+        where: { zoneId: id, deletedAt: null },
+        select: { id: true },
+      })).map(c => c.id);
+      if (clusterIds.length > 0) {
+        await prisma.settlement.updateMany({ where: { clusterId: { in: clusterIds }, deletedAt: null }, data: { deletedAt: now } });
+        await prisma.cluster.updateMany({ where: { id: { in: clusterIds } }, data: { deletedAt: now } });
+      }
+    }
+    await prisma.zone.update({ where: { id }, data: { deletedAt: now } });
+    return Response.json({ ok: true });
+  }
+
+  return Response.json({ error: "Invalid type" }, { status: 400 });
+}
