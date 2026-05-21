@@ -307,7 +307,7 @@ export default function SettlementSidebar({ feature, geoData, onClose, currentUs
                         { label: "Children 0–3", value: settlementProfile.children6m3yr },
                         { label: "Children 4–14", value: settlementProfile.children4to14 },
                         { label: "Youth 15–21", value: settlementProfile.youth15to21 },
-                        { label: "Elderly 60+", value: settlementProfile.elderly60plus },
+                        { label: feature.zone?.toLowerCase().includes("chennai") ? "Elderly 55+" : "Elderly 60+", value: settlementProfile.elderly60plus },
                       ].map(({ label, value }) => (
                         <div key={label} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
                           <Users className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />

@@ -30,6 +30,10 @@
       "schedule": "30 2 * * 0"
     },
     {
+      "path": "/api/cron/sync-chennai-demographics",
+      "schedule": "45 2 * * 0"
+    },
+    {
       "path": "/api/cron/sync-entitlements-survey",
       "schedule": "0 3 1 * *"
     }

@@ -178,7 +178,7 @@ export default function SettlementDetail({ settlement }: Props) {
               { label: "Children 0–3 yr", value: profile.children6m3yr },
               { label: "Children 4–14 yr", value: profile.children4to14 },
               { label: "Youth 15–21 yr", value: profile.youth15to21 },
-              { label: "Elderly 60+", value: profile.elderly60plus },
+              { label: city?.name?.toLowerCase().includes("chennai") ? "Elderly 55+" : "Elderly 60+", value: profile.elderly60plus },
             ].map(({ label, value }) => (
               <div key={label} className="bg-stone-50 rounded-xl px-4 py-3 flex items-center gap-3">
                 <Users className="w-4 h-4 text-stone-400 flex-shrink-0" />

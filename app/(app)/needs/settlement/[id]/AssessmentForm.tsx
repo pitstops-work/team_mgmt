@@ -789,7 +789,7 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
             <Field label="Children 6m–3yr (creche)"><NumInput value={pop.children6m3yr} onChange={v => setPop(p => ({ ...p, children6m3yr: v }))} /></Field>
             <Field label="Children 4–14 (children centre)"><NumInput value={pop.children4to14} onChange={v => setPop(p => ({ ...p, children4to14: v }))} /></Field>
             <Field label="Youth 15–21"><NumInput value={pop.youth15to21} onChange={v => setPop(p => ({ ...p, youth15to21: v }))} /></Field>
-            <Field label="Elderly 60+"><NumInput value={pop.elderly60plus} onChange={v => setPop(p => ({ ...p, elderly60plus: v }))} /></Field>
+            <Field label={settlement.cluster.zone.city?.name?.toLowerCase().includes("chennai") ? "Elderly 55+" : "Elderly 60+"}><NumInput value={pop.elderly60plus} onChange={v => setPop(p => ({ ...p, elderly60plus: v }))} /></Field>
           </div>
           <div className="mt-3 p-3 bg-sky-50 rounded-lg text-xs text-sky-700 space-y-1">
             <p className="font-medium text-sky-800">Calculated total targets</p>
