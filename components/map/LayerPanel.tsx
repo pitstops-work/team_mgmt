@@ -173,13 +173,23 @@ export default function LayerPanel({
       </div>
       {/* Centre breakdown — Bangalore only, dynamic */}
       {activeCity === "bangalore" && facilityLayers.length > 0 && (
-        <div className={`px-3 py-2 border-b border-slate-100 grid gap-1 flex-shrink-0`} style={{ gridTemplateColumns: `repeat(${Math.min(facilityLayers.length, 3)}, 1fr)` }}>
-          {facilityLayers.map(fl => (
-            <div key={fl.layerKey} className="text-center">
-              <div className="text-sm font-bold" style={{ color: fl.color }}>{featureCounts[fl.layerKey] ?? 0}</div>
-              <div className="text-xs text-slate-400 leading-tight truncate">{fl.label.replace(/ Centre[s]?$/i, "").replace(/ Kitchen[s]?$/i, "")}</div>
-            </div>
-          ))}
+        <div
+          className="px-3 py-2 border-b border-slate-100 grid gap-1 flex-shrink-0"
+          style={{ gridTemplateColumns: `repeat(${facilityLayers.length}, minmax(0, 1fr))` }}
+        >
+          {facilityLayers.map(fl => {
+            const shortLabel = fl.label
+              .replace(/ Centre[s]?$/i, "")
+              .replace(/ Kitchen[s]?$/i, "")
+              .replace(/ Complex$/i, "")
+              .replace(/^Community /i, "");
+            return (
+              <div key={fl.layerKey} className="text-center min-w-0">
+                <div className="text-sm font-bold" style={{ color: fl.color }}>{featureCounts[fl.layerKey] ?? 0}</div>
+                <div className="text-xs text-slate-400 leading-tight truncate" title={fl.label}>{shortLabel}</div>
+              </div>
+            );
+          })}
         </div>
       )}
 
