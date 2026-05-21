@@ -39,7 +39,15 @@ export async function GET() {
       teamIds = [session.user.id, ...zlIds, ...rps.map(m => m.id)];
     }
     const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
-    const ownerFilter = isScoped ? { ownerId: { in: teamIds } } : {};
+    // Co-owners are treated as owners for visibility.
+    const ownerFilter = isScoped
+      ? {
+          OR: [
+            { ownerId: { in: teamIds } },
+            { coOwners: { some: { userId: { in: teamIds } } } },
+          ],
+        }
+      : {};
     const cityFilter = (isSuperAdmin || isScoped) ? {} : goalCityFilter(me?.cityId);
     where = { deletedAt: null, ...cityFilter, ...ownerFilter };
   }
@@ -48,6 +56,7 @@ export async function GET() {
     where,
     include: {
       owner: { select: { id: true, name: true, image: true } },
+      coOwners: { select: { userId: true } },
       pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
       programs: { include: { program: { select: { id: true, title: true } } } },
       needsCity: { select: { id: true, name: true } },
