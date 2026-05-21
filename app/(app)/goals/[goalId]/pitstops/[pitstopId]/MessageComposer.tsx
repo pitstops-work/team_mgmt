@@ -142,10 +142,11 @@ export default function MessageComposer({ threadId, users, onSent, onMessageUpda
               pollTranslations(message.id, onMessageUpdated);
             }
           } else {
-            setMicError("Voice message failed. Please try again.");
+            const err = await res.json().catch(() => ({}));
+            setMicError(err.error ? `Voice message failed: ${err.error}` : "Voice message failed. Please try again.");
           }
-        } catch {
-          setMicError("Voice message failed. Please try again.");
+        } catch (e) {
+          setMicError(e instanceof Error ? `Voice message failed: ${e.message}` : "Voice message failed. Please try again.");
         } finally {
           setRecordState("idle");
         }

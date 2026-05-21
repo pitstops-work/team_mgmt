@@ -37,8 +37,9 @@ export async function POST(
     audioUrl = await uploadAudio(buffer, mimeType, threadId);
     console.log("[voice] blob uploaded:", audioUrl);
   } catch (e) {
-    console.error("[voice] blob upload failed:", e);
-    return Response.json({ error: "Audio upload failed" }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[voice] blob upload failed:", msg);
+    return Response.json({ error: `Audio upload failed: ${msg}` }, { status: 500 });
   }
 
   // 2. Transcribe
@@ -50,8 +51,9 @@ export async function POST(
     detectedLang = result.detectedLang;
     console.log(`[voice] transcribed lang=${detectedLang} text="${text.slice(0, 80)}"`);
   } catch (e) {
-    console.error("[voice] transcription failed:", e);
-    return Response.json({ error: "Transcription failed" }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[voice] transcription failed:", msg);
+    return Response.json({ error: `Transcription failed: ${msg}` }, { status: 500 });
   }
 
   if (!text) return Response.json({ error: "Transcription empty" }, { status: 422 });
