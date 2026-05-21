@@ -184,23 +184,43 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { goalId } = await params;
   const now = new Date();
 
-  // Soft-delete all pitstops belonging to this goal
-  await prisma.pitstop.updateMany({
+  // Capture pitstop ids up front — once they're soft-deleted, we still need to
+  // sweep their child rows (activities + checklist items).
+  const pitstops = await prisma.pitstop.findMany({
     where: { goalId, deletedAt: null },
-    data: { deletedAt: now },
+    select: { id: true },
   });
+  const pitstopIds = pitstops.map(p => p.id);
 
-  // Soft-delete all PitstopEvents linked to those pitstops (via junction table)
-  await prisma.$executeRaw`
-    UPDATE "PitstopEvent" SET "deletedAt" = ${now}
-    WHERE "deletedAt" IS NULL
-      AND id IN (
-        SELECT ep."eventId"
-        FROM "PitstopEventPitstop" ep
-        JOIN "Pitstop" p ON p.id = ep."pitstopId"
-        WHERE p."goalId" = ${goalId}
-      )
-  `;
+  // Soft-delete pitstops
+  if (pitstopIds.length > 0) {
+    await prisma.pitstop.updateMany({
+      where: { id: { in: pitstopIds } },
+      data: { deletedAt: now },
+    });
+
+    // Soft-delete every PitstopEvent (activity) tied to this goal — either via
+    // the pitstops junction table OR via a checklistItem that belongs to one
+    // of these pitstops. Covers events that lost their pitstop link.
+    await prisma.pitstopEvent.updateMany({
+      where: {
+        deletedAt: null,
+        OR: [
+          { pitstops: { some: { pitstopId: { in: pitstopIds } } } },
+          { checklistItem: { pitstopId: { in: pitstopIds } } },
+        ],
+      },
+      data: { deletedAt: now },
+    });
+
+    // Hard-delete checklist items — they have no `deletedAt` column, and
+    // their parent pitstop is now soft-deleted, so they should not linger.
+    // FKs from PitstopEvent.checklistItemId, Thread.checklistItemId and
+    // Attachment.checklistItemId are all `SetNull`, so this is safe.
+    await prisma.checklistItem.deleteMany({
+      where: { pitstopId: { in: pitstopIds } },
+    });
+  }
 
   await prisma.goal.update({ where: { id: goalId }, data: { deletedAt: now } });
   return Response.json({ ok: true });
