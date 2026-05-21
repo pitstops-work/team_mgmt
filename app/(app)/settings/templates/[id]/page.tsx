@@ -615,12 +615,18 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
           router.replace(`/settings/templates/${data.id}`);
         }
       } else {
-        const data = await res.json();
-        setErrorMsg(data.error ?? "Failed to save");
+        let msg = `Failed to save (HTTP ${res.status})`;
+        try {
+          const data = await res.json();
+          if (data?.error) msg = data.error;
+        } catch {
+          try { msg = (await res.text()).slice(0, 240) || msg; } catch {}
+        }
+        setErrorMsg(msg);
         setStatus("error");
       }
-    } catch {
-      setErrorMsg("Network error");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? `Network error: ${err.message}` : "Network error");
       setStatus("error");
     } finally {
       setSaving(false);

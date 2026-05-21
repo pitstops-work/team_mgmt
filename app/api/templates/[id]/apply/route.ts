@@ -108,11 +108,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const repeatCount = isRecurring ? Math.max(1, pt.repeatCount ?? 1) : 1;
     const cadence = isRecurring ? getCadenceDays(pt.recurrence!) : 0;
 
+    const startOffset = Number.isFinite(pt.startSlaDays) ? pt.startSlaDays : 0;
+    const targetOffset = Number.isFinite(pt.slaDays) ? pt.slaDays : startOffset;
+
     for (let i = 0; i < repeatCount; i++) {
       const pitstopStart = new Date(goalStart);
-      pitstopStart.setDate(pitstopStart.getDate() + pt.startSlaDays + i * cadence);
+      pitstopStart.setDate(pitstopStart.getDate() + startOffset + i * cadence);
       const pitstopTarget = new Date(goalStart);
-      pitstopTarget.setDate(pitstopTarget.getDate() + pt.slaDays + i * cadence);
+      pitstopTarget.setDate(pitstopTarget.getDate() + targetOffset + i * cadence);
 
       allInstances.push({
         pt,

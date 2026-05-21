@@ -31,30 +31,36 @@ export async function PUT(
   if (!isAdminUser(session)) return Response.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const body = await req.json();
-  const { name, description, category, icon, needsDomain, linkedFacilityLayerKey, sortOrder, parameters, pitstops, isActive } = body;
+  try {
+    const body = await req.json();
+    const { name, description, category, icon, needsDomain, linkedFacilityLayerKey, sortOrder, parameters, pitstops, isActive } = body;
 
-  if (!name || !category) {
-    return Response.json({ error: "name and category are required" }, { status: 400 });
+    if (!name || !category) {
+      return Response.json({ error: "name and category are required" }, { status: 400 });
+    }
+
+    await prisma.$executeRaw`
+      UPDATE "GoalTemplateDef" SET
+        name        = ${name},
+        description = ${description ?? ""},
+        category    = ${category},
+        icon        = ${icon ?? "🎯"},
+        "needsDomain" = ${needsDomain ?? null},
+        "linkedFacilityLayerKey" = ${linkedFacilityLayerKey ?? null},
+        "sortOrder" = ${sortOrder ?? 99},
+        parameters  = ${JSON.stringify(parameters ?? [])}::jsonb,
+        pitstops    = ${JSON.stringify(pitstops ?? [])}::jsonb,
+        "isActive"  = ${isActive ?? true},
+        "updatedAt" = NOW()
+      WHERE id = ${id}
+    `;
+
+    return Response.json({ ok: true });
+  } catch (e) {
+    console.error("[admin/templates PUT] failed:", e);
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return Response.json({ error: `Save failed: ${message}` }, { status: 500 });
   }
-
-  await prisma.$executeRaw`
-    UPDATE "GoalTemplateDef" SET
-      name        = ${name},
-      description = ${description ?? ""},
-      category    = ${category},
-      icon        = ${icon ?? "🎯"},
-      "needsDomain" = ${needsDomain ?? null},
-      "linkedFacilityLayerKey" = ${linkedFacilityLayerKey ?? null},
-      "sortOrder" = ${sortOrder ?? 99},
-      parameters  = ${JSON.stringify(parameters ?? [])}::jsonb,
-      pitstops    = ${JSON.stringify(pitstops ?? [])}::jsonb,
-      "isActive"  = ${isActive ?? true},
-      "updatedAt" = NOW()
-    WHERE id = ${id}
-  `;
-
-  return Response.json({ ok: true });
 }
 
 export async function DELETE(

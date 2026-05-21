@@ -29,8 +29,11 @@ export default async function middleware(req: NextRequest) {
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
-  // Not logged in — redirect to login
+  // Not logged in — redirect HTML routes to login, return JSON 401 for API routes
   if (!token) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
+    }
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("callbackUrl", req.nextUrl.href);

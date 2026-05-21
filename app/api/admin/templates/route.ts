@@ -20,40 +20,45 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!isAdminUser(session)) return Response.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await req.json();
-  const { slug, name, description, category, icon, needsDomain, linkedFacilityLayerKey, sortOrder, parameters, pitstops } = body;
+  try {
+    const body = await req.json();
+    const { slug, name, description, category, icon, needsDomain, linkedFacilityLayerKey, sortOrder, parameters, pitstops } = body;
 
-  if (!slug || !name || !category) {
-    return Response.json({ error: "slug, name, and category are required" }, { status: 400 });
+    if (!slug || !name || !category) {
+      return Response.json({ error: "slug, name, and category are required" }, { status: 400 });
+    }
+
+    const existing = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "GoalTemplateDef" WHERE slug = ${slug} LIMIT 1
+    `;
+    if (existing.length > 0) {
+      return Response.json({ error: "A template with this slug already exists" }, { status: 409 });
+    }
+
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      INSERT INTO "GoalTemplateDef"
+        (slug, name, description, category, icon, "needsDomain", "linkedFacilityLayerKey", "sortOrder", parameters, pitstops, "isActive", "updatedAt")
+      VALUES (
+        ${slug},
+        ${name},
+        ${description ?? ""},
+        ${category},
+        ${icon ?? "🎯"},
+        ${needsDomain ?? null},
+        ${linkedFacilityLayerKey ?? null},
+        ${sortOrder ?? 99},
+        ${JSON.stringify(parameters ?? [])}::jsonb,
+        ${JSON.stringify(pitstops ?? [])}::jsonb,
+        true,
+        NOW()
+      )
+      RETURNING id
+    `;
+
+    return Response.json({ id: rows[0]?.id }, { status: 201 });
+  } catch (e) {
+    console.error("[admin/templates POST] failed:", e);
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return Response.json({ error: `Create failed: ${message}` }, { status: 500 });
   }
-
-  // Check slug uniqueness
-  const existing = await prisma.$queryRaw<{ id: string }[]>`
-    SELECT id FROM "GoalTemplateDef" WHERE slug = ${slug} LIMIT 1
-  `;
-  if (existing.length > 0) {
-    return Response.json({ error: "A template with this slug already exists" }, { status: 409 });
-  }
-
-  const rows = await prisma.$queryRaw<{ id: string }[]>`
-    INSERT INTO "GoalTemplateDef"
-      (slug, name, description, category, icon, "needsDomain", "linkedFacilityLayerKey", "sortOrder", parameters, pitstops, "isActive", "updatedAt")
-    VALUES (
-      ${slug},
-      ${name},
-      ${description ?? ""},
-      ${category},
-      ${icon ?? "🎯"},
-      ${needsDomain ?? null},
-      ${linkedFacilityLayerKey ?? null},
-      ${sortOrder ?? 99},
-      ${JSON.stringify(parameters ?? [])}::jsonb,
-      ${JSON.stringify(pitstops ?? [])}::jsonb,
-      true,
-      NOW()
-    )
-    RETURNING id
-  `;
-
-  return Response.json({ id: rows[0]?.id }, { status: 201 });
 }
