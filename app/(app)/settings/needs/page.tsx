@@ -202,17 +202,18 @@ function FormulasSection() {
     const denom = edits[domain] === "" ? null : parseFloat(edits[domain]) || null;
     const numer = parseFloat(numerEdits[domain] ?? "1") || 1;
     const isCount = editFields.domainType === "count";
+    const isFixed = editFields.domainType === "fixed";
     const isBoolean = editFields.domainType === "boolean";
     const isEntitlement = editFields.domainType === "entitlement";
     const isCivic = editFields.domainType === "civic";
     await patchDomain([{
       domain,
       ...editFields,
-      // Persist numerator only for count; others should reset to 1.
-      numerator: isCount ? numer : 1,
-      // Denominator only applies to count; entitlement/civic/boolean should null it.
+      // Numerator applies to count (X units per N people) and fixed (N units per scope).
+      numerator: (isCount || isFixed) ? numer : 1,
+      // Denominator only applies to count.
       denominator: isCount ? denom : null,
-      // Population field only for count/boolean.
+      // Population field only for count/boolean (boolean still uses it as a non-emptiness gate).
       populationField: (isCount || isBoolean) ? (editFields.populationField ?? null) : null,
       // civicWeightGroup only meaningful for count.
       civicWeightGroup: isCount ? (editFields.civicWeightGroup ?? null) : null,
@@ -259,14 +260,17 @@ function FormulasSection() {
         label: newLabel.trim(),
         color: newColor,
         domainType: newType,
-        populationField: (newType === "entitlement" || newType === "civic") ? null : newPopField,
-        numerator: newType === "count" ? (newNumer ? parseFloat(newNumer) || 1 : 1) : 1,
-        denominator: (newType === "boolean" || newType === "entitlement" || newType === "civic") ? null : (newDenom ? parseFloat(newDenom) : null),
+        populationField: (newType === "entitlement" || newType === "civic" || newType === "fixed") ? null : newPopField,
+        numerator: (newType === "count" || newType === "fixed")
+          ? (newNumer ? parseFloat(newNumer) || 1 : 1)
+          : 1,
+        // Fixed reuses numerator only; no denominator.
+        denominator: (newType === "boolean" || newType === "entitlement" || newType === "civic" || newType === "fixed") ? null : (newDenom ? parseFloat(newDenom) : null),
         description: newDesc.trim() || null,
         linkedSchemeId: newType === "entitlement" ? newLinkedSchemeId : null,
         civicGroup: newType === "civic" ? newCivicGroup : null,
-        // Boolean and count both support assessment level now; entitlement/civic stay at settlement default.
-        assessmentLevel: (newType === "count" || newType === "boolean") ? newAssessmentLevel : "settlement",
+        // Count, Presence and Fixed all support a scope; entitlement/civic stay at settlement default.
+        assessmentLevel: (newType === "count" || newType === "boolean" || newType === "fixed") ? newAssessmentLevel : "settlement",
       }),
     });
     if (res.ok) {
@@ -347,7 +351,15 @@ function FormulasSection() {
                 className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${newType === "count" ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}
               >
                 <p className="text-xs font-semibold text-stone-700">Ratio</p>
-                <p className="text-[10px] text-stone-400 mt-0.5">1 unit per N people (e.g. 1 crèche per 40 children)</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">X units per N people (e.g. 1 crèche per 40 children)</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewType("fixed")}
+                className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${newType === "fixed" ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}
+              >
+                <p className="text-xs font-semibold text-stone-700">Fixed</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">N units per scope (e.g. 10 youth groups per cluster)</p>
               </button>
               <button
                 type="button"
@@ -355,7 +367,7 @@ function FormulasSection() {
                 className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${newType === "boolean" ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}
               >
                 <p className="text-xs font-semibold text-stone-700">Presence</p>
-                <p className="text-[10px] text-stone-400 mt-0.5">1 per settlement, yes/no (e.g. data baseline done)</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">1 per scope, yes/no (e.g. data baseline done)</p>
               </button>
               <button
                 type="button"
@@ -375,6 +387,38 @@ function FormulasSection() {
               </button>
             </div>
           </div>
+
+          {/* Fixed-type fields */}
+          {newType === "fixed" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Units per scope</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newNumer}
+                    onChange={e => setNewNumer(e.target.value)}
+                    placeholder="e.g. 10"
+                    className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Per</label>
+                  <select
+                    value={newAssessmentLevel}
+                    onChange={e => setNewAssessmentLevel(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                  >
+                    {ASSESSMENT_LEVELS.map(lv => <option key={lv.value} value={lv.value}>{lv.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <p className="text-[11px] text-sky-700 bg-sky-100 rounded-lg px-3 py-2">
+                e.g. <strong>10</strong> youth groups per <strong>cluster</strong>. Target multiplies up across higher scopes (zone target = 10 × clusters with population).
+              </p>
+            </>
+          )}
 
           {/* Civic group picker */}
           {newType === "civic" && (
@@ -616,6 +660,8 @@ function FormulasSection() {
                     ? `Scheme saturation · ${allSchemes.find(s => s.id === d.linkedSchemeId)?.name ?? "no scheme linked"}`
                     : d.domainType === "boolean"
                     ? `Presence — yes/no per ${d.assessmentLevel ?? "settlement"}`
+                    : d.domainType === "fixed"
+                    ? `Fixed · ${d.numerator ?? 1} per ${d.assessmentLevel ?? "settlement"}`
                     : d.domainType === "civic"
                     ? `Civic survey % · ${CIVIC_GROUPS.find(g => g.value === d.civicGroup)?.label ?? d.civicGroup ?? "no group"}`
                     : `${d.populationField ?? "?"}${d.civicWeightGroup ? ` × ${CIVIC_GROUPS.find(g => g.value === d.civicWeightGroup)?.label ?? d.civicWeightGroup} score` : ""} · ${(d.numerator ?? 1) === 1 ? "1" : d.numerator} per ${d.denominator ?? "?"} · ${d.assessmentLevel ?? "settlement"} level`}
@@ -682,6 +728,7 @@ function FormulasSection() {
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { v: "count", label: "Ratio", desc: "X units per N people" },
+                      { v: "fixed", label: "Fixed", desc: "N units per settlement/cluster/zone/city" },
                       { v: "boolean", label: "Presence", desc: "Yes/no per settlement/cluster/zone/city" },
                       { v: "entitlement", label: "Scheme Saturation", desc: "Linked to an entitlement scheme" },
                       { v: "civic", label: "Civic Survey %", desc: "Janadhikara survey breakdown" },
@@ -694,6 +741,31 @@ function FormulasSection() {
                     ))}
                   </div>
                 </div>
+
+                {/* Fixed-specific: units + scope */}
+                {editFields.domainType === "fixed" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Units per scope</label>
+                      <input
+                        type="number" min={1}
+                        value={numerEdits[d.domain] ?? "1"}
+                        onChange={e => setNumerEdits(prev => ({ ...prev, [d.domain]: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Per</label>
+                      <select
+                        value={editFields.assessmentLevel ?? "settlement"}
+                        onChange={e => setEditFields(f => ({ ...f, assessmentLevel: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                      >
+                        {ASSESSMENT_LEVELS.map(lv => <option key={lv.value} value={lv.value}>{lv.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
 
                 {/* Count-specific: population field + numerator + denominator + assessment level */}
                 {editFields.domainType === "count" && (

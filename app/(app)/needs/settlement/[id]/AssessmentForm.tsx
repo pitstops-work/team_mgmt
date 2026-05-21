@@ -549,6 +549,10 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
     if (f.domainType === "boolean") {
       const popVal = f.populationField ? (POP_MAP[f.populationField] ?? 0) : pop.totalHouseholds;
       t = popVal > 0 ? 1 : 0;
+    } else if (f.domainType === "fixed") {
+      // Fixed: N units per scope. Per-settlement assessment shows N when this
+      // settlement has population (downstream aggregations multiply by sub-units).
+      t = pop.totalHouseholds > 0 ? Math.max(0, Math.floor(f.numerator ?? 0)) : 0;
     } else if (f.populationField && f.denominator != null) {
       const popVal = POP_MAP[f.populationField] ?? 0;
       t = calcTarget(popVal, f.denominator, f.numerator ?? 1);

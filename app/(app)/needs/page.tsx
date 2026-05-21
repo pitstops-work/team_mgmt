@@ -134,6 +134,11 @@ function formulaTarget(pop: PopFields, cfg: DomainConfig, civicWeightedPop?: Rec
     const popVal = field ? pop[field] : pop.totalHouseholds;
     return popVal > 0 ? 1 : 0;
   }
+  if (cfg.domainType === "fixed") {
+    // N units per scope. Gate on population so empty scopes contribute 0
+    // (matches the Presence semantics — an unpopulated unit shouldn't need anything).
+    return pop.totalHouseholds > 0 ? Math.max(0, Math.floor(cfg.numerator ?? 0)) : 0;
+  }
   if (!cfg.populationField || !cfg.denominator) return 0;
   let popVal = pop[cfg.populationField as keyof PopFields] ?? 0;
   // Civic-weighted: substitute pre-computed weighted population when available

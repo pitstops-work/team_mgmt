@@ -72,25 +72,30 @@ export function calcTargets(
   const result: Record<string, number> = {};
   for (const f of formulaRows) {
     if (!f.isActive || f.domainType === "entitlement" || f.domainType === "civic") continue;
-    if (f.domainType === "boolean") {
+
+    if (f.domainType === "boolean" || f.domainType === "fixed") {
+      // Both Presence (per-unit yes/no = numerator 1) and Fixed (N per unit)
+      // share the same aggregation shape: count sub-units that have pop and
+      // multiply by N.
       const aLevel = f.assessmentLevel ?? "settlement";
       const aRank = LEVEL_RANK[aLevel] ?? 0;
       const popVal = f.populationField ? (popMap[f.populationField] ?? 0) : pop.totalHouseholds;
+      const unit = f.domainType === "fixed"
+        ? Math.max(0, Math.floor(f.numerator ?? 0))
+        : 1;
 
       if (scopeRank < aRank) {
-        // Boolean evaluated above this scope — not assessable here yet.
         result[f.domain] = 0;
       } else if (scopeRank === aRank) {
-        // Native level: 1 if any population (or if no population field gates it), else 0.
-        result[f.domain] = !f.populationField || popVal > 0 ? 1 : 0;
+        result[f.domain] = (!f.populationField || popVal > 0) && pop.totalHouseholds > 0 ? unit : 0;
       } else {
-        // Aggregated above native level: sum sub-units that need it.
         const subCount = aLevel === "settlement" ? ctx?.subUnitsWithPop?.settlement
                        : aLevel === "cluster"    ? ctx?.subUnitsWithPop?.cluster
                        : aLevel === "zone"       ? ctx?.subUnitsWithPop?.zone
                        : undefined;
-        // Fallback when caller didn't provide the count: preserve legacy "1 if any pop" behavior.
-        result[f.domain] = subCount !== undefined ? subCount : (popVal > 0 ? 1 : 0);
+        result[f.domain] = subCount !== undefined
+          ? subCount * unit
+          : (popVal > 0 ? unit : 0);
       }
     } else {
       let popVal = f.populationField ? (popMap[f.populationField] ?? 0) : 0;

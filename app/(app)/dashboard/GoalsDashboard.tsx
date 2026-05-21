@@ -379,8 +379,13 @@ export default function GoalsDashboard({
     initialDataUpdatedAt: 0,
   });
 
+  // Treat co-owners as owners — "Mine" and "My Goals" should include goals
+  // I co-own, not just goals where I'm the primary owner.
+  const isMine = (g: { owner: { id: string }; coOwners?: { userId: string }[] }) =>
+    g.owner.id === currentUserId || (g.coOwners ?? []).some(co => co.userId === currentUserId);
+
   const filtered = goals.filter((g) => {
-    if (filter === "Mine" && g.owner.id !== currentUserId) return false;
+    if (filter === "Mine" && !isMine(g)) return false;
     if (filter === "Active" && g.status !== "Active") return false;
     if (filter === "Paused" && g.status !== "Paused") return false;
     if (filter === "Complete" && g.status !== "Complete") return false;
@@ -392,8 +397,8 @@ export default function GoalsDashboard({
     return true;
   });
 
-  const myGoals = filtered.filter((g) => g.owner.id === currentUserId);
-  const teamGoals = filtered.filter((g) => g.owner.id !== currentUserId);
+  const myGoals = filtered.filter(isMine);
+  const teamGoals = filtered.filter((g) => !isMine(g));
 
   const prefetchGoal = (goalId: string) => {
     queryClient.prefetchQuery({

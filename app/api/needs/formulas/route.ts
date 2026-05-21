@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
   const sortOrder = (max?.sortOrder ?? 0) + 1;
 
   const isCount = (domainType ?? "count") === "count";
+  const isFixed = domainType === "fixed";
 
   const row = await prisma.needsFormulaConfig.create({
     data: {
@@ -106,15 +107,17 @@ export async function POST(req: NextRequest) {
       label,
       color: color ?? "#6b7280",
       domainType: domainType ?? "count",
-      numerator: isCount ? (numerator ?? 1) : 1,
-      denominator: (domainType === "entitlement" || domainType === "civic") ? null : (denominator ?? null),
-      populationField: (domainType === "entitlement" || domainType === "civic") ? null : (populationField ?? null),
+      // numerator applies to both count ("X per N") and fixed ("N per scope").
+      numerator: (isCount || isFixed) ? (numerator ?? 1) : 1,
+      // denominator only applies to count.
+      denominator: isCount ? (denominator ?? null) : null,
+      populationField: (domainType === "entitlement" || domainType === "civic" || isFixed) ? null : (populationField ?? null),
       description: description ?? null,
       sortOrder,
       isActive: true,
       linkedSchemeId: domainType === "entitlement" ? (linkedSchemeId ?? null) : null,
       civicGroup: domainType === "civic" ? (civicGroup ?? null) : null,
-      civicWeightGroup: domainType === "count" ? (civicWeightGroup ?? null) : null,
+      civicWeightGroup: isCount ? (civicWeightGroup ?? null) : null,
       assessmentLevel: assessmentLevel ?? "settlement",
       clusterScope: assessmentLevel === "cluster",
     },

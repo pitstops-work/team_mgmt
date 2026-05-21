@@ -366,6 +366,13 @@ function _calcNeed(pop: PopFields, rows: { domain: string; numerator: number; de
   const r: Record<string, number> = {};
   for (const f of rows) {
     if (!f.isActive || f.domainType === "entitlement" || f.domainType === "boolean") continue;
+    if (f.domainType === "fixed") {
+      // Budget builder doesn't know cluster/zone breakdown here; report the per-scope
+      // numerator when population is non-zero. Caller aggregates upstream as needed.
+      const num = f.numerator > 0 ? f.numerator : 1;
+      r[f.domain] = pop.totalHouseholds > 0 ? Math.floor(num) : 0;
+      continue;
+    }
     const pv = f.populationField ? (pm[f.populationField] ?? 0) : 0;
     const num = f.numerator > 0 ? f.numerator : 1;
     r[f.domain] = f.denominator && pv >= f.denominator ? Math.floor((pv * num) / f.denominator) : 0;
