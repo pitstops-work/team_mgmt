@@ -4408,6 +4408,14 @@ function RPTodayTab({
   // Everything starts collapsed so the page opens to a scannable list of
   // cluster cards with count badges.
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  // Mobile cluster carousel state.
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [carouselIdx, setCarouselIdx] = useState(0);
+  const handleCarouselScroll = () => {
+    const el = carouselRef.current;
+    if (!el || el.clientWidth === 0) return;
+    setCarouselIdx(Math.round(el.scrollLeft / el.clientWidth));
+  };
   const toggleSection = (clusterId: string, section: string) => {
     setOpenSections(prev => {
       const k = `${clusterId}:${section}`;
@@ -4513,13 +4521,14 @@ function RPTodayTab({
     today: Activity[];
     checklists: ChecklistItem[];
     week: Activity[];
+    earliestMs: number;
   };
   const bucketMap = new Map<string, Bucket>();
   const ensureBucket = (c: { id: string; name: string } | null | undefined): Bucket => {
     const id = c?.id ?? UNCLUSTERED_ID;
     const name = c?.name ?? "No cluster";
     let b = bucketMap.get(id);
-    if (!b) { b = { id, name, overdue: [], today: [], checklists: [], week: [] }; bucketMap.set(id, b); }
+    if (!b) { b = { id, name, overdue: [], today: [], checklists: [], week: [] , earliestMs: Infinity}; bucketMap.set(id, b); }
     return b;
   };
   const activityCluster = (a: Activity) => a.pitstops?.[0]?.pitstop?.goal?.needsCluster ?? null;
@@ -4528,23 +4537,64 @@ function RPTodayTab({
   for (const a of todayItems)          ensureBucket(activityCluster(a)).today.push(a);
   for (const ci of openChecklists)     ensureBucket(checklistCluster(ci)).checklists.push(ci);
   for (const a of weekItems)           ensureBucket(activityCluster(a)).week.push(a);
+
+  // Sort items within each bucket by SLA-due (earliest first), and stamp the
+  // bucket's earliest urgent date so we can order the cards too.
+  const activityMs = (a: Activity) => new Date(a.scheduledAt).getTime();
+  const checklistMs = (ci: ChecklistItem) =>
+    ci.pitstop.targetDate ? new Date(ci.pitstop.targetDate).getTime() : Number.MAX_SAFE_INTEGER;
+  for (const b of bucketMap.values()) {
+    b.overdue.sort((x, y) => activityMs(x) - activityMs(y));
+    b.today.sort((x, y) => activityMs(x) - activityMs(y));
+    b.week.sort((x, y) => activityMs(x) - activityMs(y));
+    b.checklists.sort((x, y) => checklistMs(x) - checklistMs(y));
+    const candidates: number[] = [];
+    if (b.overdue[0]) candidates.push(activityMs(b.overdue[0]));
+    if (b.today[0]) candidates.push(activityMs(b.today[0]));
+    if (b.checklists[0]) candidates.push(checklistMs(b.checklists[0]));
+    if (b.week[0]) candidates.push(activityMs(b.week[0]));
+    b.earliestMs = candidates.length > 0 ? Math.min(...candidates) : Number.MAX_SAFE_INTEGER;
+  }
+
+  // Most-urgent cluster first. "No cluster" bucket always last.
   const buckets = [...bucketMap.values()].sort((a, b) => {
     if (a.id === UNCLUSTERED_ID) return 1;
     if (b.id === UNCLUSTERED_ID) return -1;
+    if (a.earliestMs !== b.earliestMs) return a.earliestMs - b.earliestMs;
     return a.name.localeCompare(b.name);
   });
 
+  const nonEmptyBuckets = buckets.filter(b =>
+    b.overdue.length + b.today.length + b.checklists.length + b.week.length > 0
+  );
+
   return (
-    <div className="space-y-4">
+    <div>
       {allEmpty && <EmptyState message="You're all caught up for today." />}
 
-      {buckets.map(bucket => {
-        const total = bucket.overdue.length + bucket.today.length + bucket.checklists.length + bucket.week.length;
-        if (total === 0) return null;
+      {/* Pager indicator (mobile only) */}
+      {nonEmptyBuckets.length > 1 && (
+        <div className="sm:hidden flex items-center justify-between mb-3 px-1">
+          <span className="text-xs text-stone-400 tabular-nums">
+            {Math.min(carouselIdx + 1, nonEmptyBuckets.length)} of {nonEmptyBuckets.length}
+          </span>
+          <span className="text-[11px] text-stone-400 truncate ml-2">
+            ← swipe between clusters →
+          </span>
+        </div>
+      )}
+
+      <div
+        ref={carouselRef}
+        onScroll={handleCarouselScroll}
+        className="flex sm:flex-col gap-0 sm:gap-4 overflow-x-auto sm:overflow-x-visible snap-x snap-mandatory sm:snap-none [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {nonEmptyBuckets.map(bucket => {
         return (
           <section
             key={bucket.id}
-            className="rounded-2xl border border-stone-200 bg-white overflow-hidden"
+            className="rounded-2xl border border-stone-200 bg-white overflow-hidden min-w-full sm:min-w-0 snap-start flex-shrink-0 sm:flex-shrink"
           >
             {/* Cluster header */}
             <header className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center gap-2 min-w-0">
@@ -4678,6 +4728,18 @@ function RPTodayTab({
           </section>
         );
       })}
+      </div>
+
+      {/* Mobile carousel dots */}
+      {nonEmptyBuckets.length > 1 && (
+        <div className="sm:hidden flex justify-center gap-1.5 mt-3">
+          {nonEmptyBuckets.map((_, i) => (
+            <div key={i} className={`h-1.5 rounded-full transition-all duration-200 ${
+              i === carouselIdx ? "w-4 bg-stone-700" : "w-1.5 bg-stone-200"
+            }`} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
