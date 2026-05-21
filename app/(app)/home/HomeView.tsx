@@ -4845,7 +4845,6 @@ function PastTab({
   designation: string;
 }) {
   const isMobileCarousel = true;
-  const now = Date.now();
   const todayStart = new Date(new Date().toDateString()).getTime();
   const dayMs = 24 * 60 * 60 * 1000;
   const weekStart = todayStart - 7 * dayMs;
@@ -4875,6 +4874,47 @@ function PastTab({
     setCarouselIdx(Math.round(el.scrollLeft / el.clientWidth));
   };
 
+  // ── Load older: extend the SSR-fetched lists by paging back from the oldest
+  // currently-visible item. Tracked separately for own + team because the
+  // server endpoint exposes both scopes and they're rendered independently.
+  const PAGE_SIZE = 50;
+  const [extraOwn, setExtraOwn] = useState<Activity[]>([]);
+  const [extraTeam, setExtraTeam] = useState<ZLTeamActivity[]>([]);
+  const [loadingOwn, setLoadingOwn] = useState(false);
+  const [loadingTeam, setLoadingTeam] = useState(false);
+  const [exhaustedOwn, setExhaustedOwn] = useState(false);
+  const [exhaustedTeam, setExhaustedTeam] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const allOwn = useMemo(() => [...ownDoneActivities, ...extraOwn], [ownDoneActivities, extraOwn]);
+  const allTeam = useMemo(() => [...teamDoneActivities, ...extraTeam], [teamDoneActivities, extraTeam]);
+
+  const oldestIso = (list: { scheduledAt: string }[]) =>
+    list.length === 0 ? null : list.reduce((min, a) => (a.scheduledAt < min ? a.scheduledAt : min), list[0].scheduledAt);
+
+  async function loadOlder(scope: "own" | "team") {
+    const before = oldestIso(scope === "own" ? allOwn : allTeam);
+    if (!before) { (scope === "own" ? setExhaustedOwn : setExhaustedTeam)(true); return; }
+    if (scope === "own") setLoadingOwn(true); else setLoadingTeam(true);
+    setLoadError(null);
+    try {
+      const res = await fetch(`/api/home/past-activities?scope=${scope}&before=${encodeURIComponent(before)}&pageSize=${PAGE_SIZE}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: { items: (Activity | ZLTeamActivity)[] } = await res.json();
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (scope === "own") {
+        setExtraOwn(prev => [...prev, ...(items as Activity[])]);
+        if (items.length < PAGE_SIZE) setExhaustedOwn(true);
+      } else {
+        setExtraTeam(prev => [...prev, ...(items as ZLTeamActivity[])]);
+        if (items.length < PAGE_SIZE) setExhaustedTeam(true);
+      }
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Failed to load older activity");
+    } finally {
+      if (scope === "own") setLoadingOwn(false); else setLoadingTeam(false);
+    }
+  }
+
   // Cluster bucketing for own done work.
   const UNCLUSTERED_ID = "__unclustered__";
   type Bucket = { id: string; name: string; today: Activity[]; week: Activity[]; earlier: Activity[]; earliestMs: number };
@@ -4888,7 +4928,7 @@ function PastTab({
   };
   const clusterOf = (a: Activity) => a.pitstops?.[0]?.pitstop?.goal?.needsCluster ?? null;
   const ms = (a: Activity) => new Date(a.scheduledAt).getTime();
-  for (const a of ownDoneActivities) {
+  for (const a of allOwn) {
     const b = ensureBucket(clusterOf(a));
     const t = ms(a);
     if (t >= todayStart) b.today.push(a);
@@ -4911,10 +4951,10 @@ function PastTab({
   const nonEmptyBuckets = buckets.filter(b => b.today.length + b.week.length + b.earlier.length > 0);
 
   // Team breakdown — only when there's team data and the designation has reports.
-  const hasTeam = (designation === "ZL" || designation === "PM" || (!["RP"].includes(designation) && teamDoneActivities.length > 0));
+  const hasTeam = (designation === "ZL" || designation === "PM" || (!["RP"].includes(designation) && allTeam.length > 0));
   const teamByOwner = new Map<string, ZLTeamActivity[]>();
   if (hasTeam) {
-    for (const a of teamDoneActivities) {
+    for (const a of allTeam) {
       const owner = a.pitstops[0]?.pitstop?.ownerId;
       if (!owner) continue;
       if (!teamByOwner.has(owner)) teamByOwner.set(owner, []);
@@ -4952,7 +4992,7 @@ function PastTab({
         {([
           { key: "today", label: "Done today", items: bucket.today },
           { key: "week", label: "Done this week", items: bucket.week },
-          { key: "earlier", label: "Done earlier (30 days)", items: bucket.earlier },
+          { key: "earlier", label: "Done earlier", items: bucket.earlier },
         ] as const).map(section => {
           if (section.items.length === 0) return null;
           const open = isOpen(bucket.id, section.key);
@@ -5027,10 +5067,27 @@ function PastTab({
         </>
       )}
 
+      {nonEmptyBuckets.length > 0 && (
+        <div className="flex justify-center">
+          {exhaustedOwn ? (
+            <span className="text-[11px] text-stone-400 italic">No older activity</span>
+          ) : (
+            <button
+              onClick={() => loadOlder("own")}
+              disabled={loadingOwn}
+              className="text-xs font-medium px-3 py-1.5 rounded-full border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-wait flex items-center gap-1.5"
+            >
+              {loadingOwn ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronDown className="w-3 h-3" />}
+              {loadingOwn ? "Loading…" : "Load older"}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Team breakdown */}
       {hasTeam && teamRows.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Team — last 30 days</h2>
+          <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Team</h2>
           <div className="rounded-2xl border border-stone-200 bg-white overflow-hidden divide-y divide-stone-100">
             {teamRows.map(row => {
               const expanded = expandedMembers.has(row.ownerId);
@@ -5060,7 +5117,25 @@ function PastTab({
               );
             })}
           </div>
+          <div className="flex justify-center">
+            {exhaustedTeam ? (
+              <span className="text-[11px] text-stone-400 italic">No older team activity</span>
+            ) : (
+              <button
+                onClick={() => loadOlder("team")}
+                disabled={loadingTeam}
+                className="text-xs font-medium px-3 py-1.5 rounded-full border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-wait flex items-center gap-1.5"
+              >
+                {loadingTeam ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronDown className="w-3 h-3" />}
+                {loadingTeam ? "Loading…" : "Load older"}
+              </button>
+            )}
+          </div>
         </div>
+      )}
+
+      {loadError && (
+        <p className="text-[11px] text-rose-500 text-center">{loadError}</p>
       )}
     </div>
   );
