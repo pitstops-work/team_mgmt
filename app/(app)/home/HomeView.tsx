@@ -482,25 +482,9 @@ function TodayTab({
             className="rounded-2xl border border-stone-200 bg-white overflow-hidden"
           >
             {/* Cluster header */}
-            <header className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 min-w-0">
-                <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                <h3 className="text-sm font-semibold text-stone-800 truncate">{bucket.name}</h3>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-stone-500 flex-shrink-0 flex-wrap">
-                {bucket.overdue.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">{bucket.overdue.length} update{bucket.overdue.length === 1 ? "" : "s"}</span>
-                )}
-                {bucket.today.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-semibold">{bucket.today.length} today</span>
-                )}
-                {bucket.checklists.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">{bucket.checklists.length} checklist{bucket.checklists.length === 1 ? "" : "s"}</span>
-                )}
-                {bucket.week.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-700 font-semibold">{bucket.week.length} this week</span>
-                )}
-              </div>
+            <header className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center gap-2 min-w-0">
+              <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0" />
+              <h3 className="text-sm font-semibold text-stone-800 truncate">{bucket.name}</h3>
             </header>
 
             <div className="p-3 space-y-5">
@@ -4420,6 +4404,20 @@ function RPTodayTab({
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
+  // Set of "<clusterId>:<section>" keys for sections the user has expanded.
+  // Everything starts collapsed so the page opens to a scannable list of
+  // cluster cards with count badges.
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  const toggleSection = (clusterId: string, section: string) => {
+    setOpenSections(prev => {
+      const k = `${clusterId}:${section}`;
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
+  const isOpen = (clusterId: string, section: string) =>
+    openSections.has(`${clusterId}:${section}`);
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
@@ -4549,101 +4547,133 @@ function RPTodayTab({
             className="rounded-2xl border border-stone-200 bg-white overflow-hidden"
           >
             {/* Cluster header */}
-            <header className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 min-w-0">
-                <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                <h3 className="text-sm font-semibold text-stone-800 truncate">{bucket.name}</h3>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-stone-500 flex-shrink-0 flex-wrap">
-                {bucket.overdue.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">{bucket.overdue.length} update{bucket.overdue.length === 1 ? "" : "s"}</span>
-                )}
-                {bucket.today.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-semibold">{bucket.today.length} today</span>
-                )}
-                {bucket.checklists.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">{bucket.checklists.length} checklist{bucket.checklists.length === 1 ? "" : "s"}</span>
-                )}
-                {bucket.week.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-700 font-semibold">{bucket.week.length} this week</span>
-                )}
-              </div>
+            <header className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center gap-2 min-w-0">
+              <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0" />
+              <h3 className="text-sm font-semibold text-stone-800 truncate">{bucket.name}</h3>
             </header>
 
-            <div className="p-3 space-y-5">
+            <div className="divide-y divide-stone-100">
               {/* Needs your update */}
-              {bucket.overdue.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                    <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Needs your update</p>
+              {bucket.overdue.length > 0 && (() => {
+                const open = isOpen(bucket.id, "overdue");
+                return (
+                  <div>
+                    <button
+                      onClick={() => toggleSection(bucket.id, "overdue")}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                      <p className="text-[11px] font-semibold text-stone-600 uppercase tracking-wider flex-1">Needs your update</p>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">{bucket.overdue.length}</span>
+                      {open ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                    </button>
+                    {open && (
+                      <div className="px-3 pb-3 space-y-2">
+                        {bucket.overdue.map(a => (
+                          <RPActivityRow
+                            key={a.id} a={a} userId={userId} isOverdue
+                            linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                            onDone={handleDone} onCompleted={handleCompleted}
+                            isLoadingDone={loadingDoneId === a.id}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    {bucket.overdue.map(a => (
-                      <RPActivityRow
-                        key={a.id} a={a} userId={userId} isOverdue
-                        linkedChecklist={activityChecklistMap.get(a.id) ?? null}
-                        onDone={handleDone} onCompleted={handleCompleted}
-                        isLoadingDone={loadingDoneId === a.id}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Today */}
-              {bucket.today.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Today</p>
-                  <div className="space-y-2">
-                    {bucket.today.map(a => (
-                      <RPActivityRow
-                        key={a.id} a={a} userId={userId} isOverdue={false}
-                        linkedChecklist={activityChecklistMap.get(a.id) ?? null}
-                        onDone={handleDone} onCompleted={handleCompleted}
-                        isLoadingDone={loadingDoneId === a.id}
-                      />
-                    ))}
+              {bucket.today.length > 0 && (() => {
+                const open = isOpen(bucket.id, "today");
+                return (
+                  <div>
+                    <button
+                      onClick={() => toggleSection(bucket.id, "today")}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
+                    >
+                      <p className="text-[11px] font-semibold text-stone-600 uppercase tracking-wider flex-1">Today</p>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-semibold">{bucket.today.length}</span>
+                      {open ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                    </button>
+                    {open && (
+                      <div className="px-3 pb-3 space-y-2">
+                        {bucket.today.map(a => (
+                          <RPActivityRow
+                            key={a.id} a={a} userId={userId} isOverdue={false}
+                            linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                            onDone={handleDone} onCompleted={handleCompleted}
+                            isLoadingDone={loadingDoneId === a.id}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Open checklists */}
-              {bucket.checklists.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Open checklists</p>
-                  <div className="rounded-xl border border-stone-100 bg-white divide-y divide-stone-100 overflow-hidden">
-                    {bucket.checklists.map(ci => {
-                      const pitstopMs = ci.pitstop.targetDate ? new Date(ci.pitstop.targetDate).getTime() : null;
-                      const isOverdueChecklist = pitstopMs !== null && pitstopMs < todayMs;
-                      return (
-                        <div key={ci.id} className={isOverdueChecklist ? "bg-amber-50" : undefined}>
-                          <RPChecklistRow item={ci} onCompleted={handleCompleted} />
+              {bucket.checklists.length > 0 && (() => {
+                const open = isOpen(bucket.id, "checklists");
+                return (
+                  <div>
+                    <button
+                      onClick={() => toggleSection(bucket.id, "checklists")}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
+                    >
+                      <p className="text-[11px] font-semibold text-stone-600 uppercase tracking-wider flex-1">Open checklists</p>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">{bucket.checklists.length}</span>
+                      {open ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                    </button>
+                    {open && (
+                      <div className="px-3 pb-3">
+                        <div className="rounded-xl border border-stone-100 bg-white divide-y divide-stone-100 overflow-hidden">
+                          {bucket.checklists.map(ci => {
+                            const pitstopMs = ci.pitstop.targetDate ? new Date(ci.pitstop.targetDate).getTime() : null;
+                            const isOverdueChecklist = pitstopMs !== null && pitstopMs < todayMs;
+                            return (
+                              <div key={ci.id} className={isOverdueChecklist ? "bg-amber-50" : undefined}>
+                                <RPChecklistRow item={ci} onCompleted={handleCompleted} />
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Coming up this week */}
-              {bucket.week.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Coming up this week ({bucket.week.length})</p>
-                  <div className="space-y-2">
-                    {bucket.week.map(a => {
-                      const ps = a.pitstops?.[0]?.pitstop;
-                      const g = ps?.goal;
-                      const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
-                      const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
-                      const isOwner = ps?.ownerId === userId;
-                      const isAttendee = !isOwner && (a.attendees?.some(at => at.user.id === userId) ?? false);
-                      const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
-                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} role={role} />;
-                    })}
+              {bucket.week.length > 0 && (() => {
+                const open = isOpen(bucket.id, "week");
+                return (
+                  <div>
+                    <button
+                      onClick={() => toggleSection(bucket.id, "week")}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
+                    >
+                      <p className="text-[11px] font-semibold text-stone-600 uppercase tracking-wider flex-1">Coming up this week</p>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-700 font-semibold">{bucket.week.length}</span>
+                      {open ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                    </button>
+                    {open && (
+                      <div className="px-3 pb-3 space-y-2">
+                        {bucket.week.map(a => {
+                          const ps = a.pitstops?.[0]?.pitstop;
+                          const g = ps?.goal;
+                          const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
+                          const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
+                          const isOwner = ps?.ownerId === userId;
+                          const isAttendee = !isOwner && (a.attendees?.some(at => at.user.id === userId) ?? false);
+                          const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
+                          return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} role={role} />;
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </section>
         );
