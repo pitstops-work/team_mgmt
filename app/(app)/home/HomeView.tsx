@@ -4404,10 +4404,26 @@ function RPTodayTab({
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
-  // Set of "<clusterId>:<section>" keys for sections the user has expanded.
-  // Everything starts collapsed so the page opens to a scannable list of
-  // cluster cards with count badges.
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  // Section open/closed state. The "today" section defaults to open so each
+  // cluster card has real content visible immediately on landing. The other
+  // three default to closed. `sectionOverrides` stores explicit user choices
+  // keyed by "<clusterId>:<section>" so toggling persists across renders.
+  const DEFAULT_OPEN_SECTIONS = new Set(["today"]);
+  const [sectionOverrides, setSectionOverrides] = useState<Map<string, "open" | "closed">>(new Map());
+  const isOpen = (clusterId: string, section: string) => {
+    const override = sectionOverrides.get(`${clusterId}:${section}`);
+    if (override) return override === "open";
+    return DEFAULT_OPEN_SECTIONS.has(section);
+  };
+  const toggleSection = (clusterId: string, section: string) => {
+    const k = `${clusterId}:${section}`;
+    const current = isOpen(clusterId, section);
+    setSectionOverrides(prev => {
+      const next = new Map(prev);
+      next.set(k, current ? "closed" : "open");
+      return next;
+    });
+  };
   // Mobile cluster carousel state.
   const carouselRef = useRef<HTMLDivElement>(null);
   const [carouselIdx, setCarouselIdx] = useState(0);
@@ -4416,16 +4432,6 @@ function RPTodayTab({
     if (!el || el.clientWidth === 0) return;
     setCarouselIdx(Math.round(el.scrollLeft / el.clientWidth));
   };
-  const toggleSection = (clusterId: string, section: string) => {
-    setOpenSections(prev => {
-      const k = `${clusterId}:${section}`;
-      const next = new Set(prev);
-      if (next.has(k)) next.delete(k); else next.add(k);
-      return next;
-    });
-  };
-  const isOpen = (clusterId: string, section: string) =>
-    openSections.has(`${clusterId}:${section}`);
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
