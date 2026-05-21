@@ -9,6 +9,8 @@ interface LayerPanelProps {
   onToggle: (key: LayerKey) => void;
   onClose?: () => void;
   featureCounts: Partial<Record<LayerKey, number>>;
+  /** DB-backed settlement count for the active city (matches /needs field coverage). */
+  settlementDbCount?: number;
   activeZone: string | null;
   activeCluster: string | null;
   onZoneSelect: (zone: string | null) => void;
@@ -71,6 +73,7 @@ export default function LayerPanel({
   onToggle,
   onClose,
   featureCounts,
+  settlementDbCount,
   activeZone,
   activeCluster,
   onZoneSelect,
@@ -101,10 +104,13 @@ export default function LayerPanel({
   // Static point layers (resource_centres) + dynamic facility layers from DB
   const staticPointLayers = LAYERS.filter((l) => l.type === "point" && l.city === activeCity && l.key !== "schools" && l.key !== "health_centres");
 
-  const totalSettlements = polygonLayers.reduce(
+  const polygonFeatureTotal = polygonLayers.reduce(
     (sum, l) => sum + (featureCounts[l.key] ?? 0),
     0
   );
+  // Prefer DB-backed count (matches /needs field coverage). Fall back to polygon
+  // feature count until /api/geo loads.
+  const totalSettlements = settlementDbCount ?? polygonFeatureTotal;
   const totalCentres =
     facilityLayers.reduce((sum, fl) => sum + (featureCounts[fl.layerKey] ?? 0), 0) +
     staticPointLayers.reduce((sum, l) => sum + (featureCounts[l.key] ?? 0), 0);
@@ -162,7 +168,14 @@ export default function LayerPanel({
 
       {/* Stats */}
       <div className="px-3 py-2 bg-indigo-50 border-b border-indigo-100 grid grid-cols-2 gap-2 flex-shrink-0">
-        <div className="text-center">
+        <div
+          className="text-center"
+          title={
+            settlementDbCount !== undefined && polygonFeatureTotal !== settlementDbCount
+              ? `${settlementDbCount} settlements in records · ${polygonFeatureTotal} polygons drawn on map`
+              : undefined
+          }
+        >
           <div className="text-base font-bold text-indigo-700">{totalSettlements}</div>
           <div className="text-xs text-indigo-400">Settlements</div>
         </div>
@@ -172,26 +185,30 @@ export default function LayerPanel({
         </div>
       </div>
       {/* Centre breakdown — Bangalore only, dynamic */}
-      {activeCity === "bangalore" && facilityLayers.length > 0 && (
-        <div
-          className="px-3 py-2 border-b border-slate-100 grid gap-1 flex-shrink-0"
-          style={{ gridTemplateColumns: `repeat(${facilityLayers.length}, minmax(0, 1fr))` }}
-        >
-          {facilityLayers.map(fl => {
-            const shortLabel = fl.label
-              .replace(/ Centre[s]?$/i, "")
-              .replace(/ Kitchen[s]?$/i, "")
-              .replace(/ Complex$/i, "")
-              .replace(/^Community /i, "");
-            return (
-              <div key={fl.layerKey} className="text-center min-w-0">
-                <div className="text-sm font-bold" style={{ color: fl.color }}>{featureCounts[fl.layerKey] ?? 0}</div>
-                <div className="text-xs text-slate-400 leading-tight truncate" title={fl.label}>{shortLabel}</div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {activeCity === "bangalore" && facilityLayers.length > 0 && (() => {
+        // Wrap into rows of at most 4 so labels stay readable.
+        const perRow = facilityLayers.length <= 4 ? facilityLayers.length : Math.ceil(facilityLayers.length / 2);
+        return (
+          <div
+            className="px-3 py-2 border-b border-slate-100 grid gap-y-2 gap-x-1 flex-shrink-0"
+            style={{ gridTemplateColumns: `repeat(${perRow}, minmax(0, 1fr))` }}
+          >
+            {facilityLayers.map(fl => {
+              const shortLabel = fl.label
+                .replace(/ Centre[s]?$/i, "")
+                .replace(/ Kitchen[s]?$/i, "")
+                .replace(/ Complex$/i, "")
+                .replace(/^Community /i, "");
+              return (
+                <div key={fl.layerKey} className="text-center min-w-0">
+                  <div className="text-sm font-bold" style={{ color: fl.color }}>{featureCounts[fl.layerKey] ?? 0}</div>
+                  <div className="text-[11px] text-slate-500 leading-tight truncate" title={fl.label}>{shortLabel}</div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Active filter banner — shown for any filter source */}
       {mapFilter && (

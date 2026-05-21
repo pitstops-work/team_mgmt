@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import LayerPanel from "./LayerPanel";
 import SearchBox from "./SearchBox";
@@ -69,7 +69,11 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     new Set(LAYERS.filter(l => l.city === "bangalore" && l.key !== "schools").map((l) => l.key))
   );
   const [featureCounts, setFeatureCounts] = useState<Partial<Record<LayerKey, number>>>({});
-  const [geoDb, setGeoDb] = useState<{ zones: { id: string; name: string }[]; clusters: { id: string; name: string; settlementCount?: number }[] }>({ zones: [], clusters: [] });
+  const [geoDb, setGeoDb] = useState<{
+    cities: { id: string; name: string }[];
+    zones: { id: string; name: string; cityId?: string | null; cityName?: string | null }[];
+    clusters: { id: string; name: string; zoneId?: string; settlementCount?: number }[];
+  }>({ cities: [], zones: [], clusters: [] });
   // Sidebar closed by default; opens on desktop via useEffect
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeZone, setActiveZone] = useState<string | null>(null);
@@ -202,7 +206,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
       .catch(() => {});
     fetch("/api/geo")
       .then(r => r.json())
-      .then(d => setGeoDb({ zones: d.zones ?? [], clusters: d.clusters ?? [] }))
+      .then(d => setGeoDb({ cities: d.cities ?? [], zones: d.zones ?? [], clusters: d.clusters ?? [] }))
       .catch(() => {});
   }, []);
 
@@ -396,6 +400,19 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     flyToCityRef.current?.(city);
   }, []);
 
+  // DB-backed settlement count for the active city — matches /needs field coverage.
+  // Sums settlementCount across all clusters whose zone is in the active city.
+  const dbSettlementCount = useMemo(() => {
+    const cityZoneIds = new Set(
+      geoDb.zones
+        .filter(z => (z.cityName ?? "").toLowerCase().includes(activeCity))
+        .map(z => z.id)
+    );
+    return geoDb.clusters
+      .filter(c => c.zoneId && cityZoneIds.has(c.zoneId))
+      .reduce((sum, c) => sum + (c.settlementCount ?? 0), 0);
+  }, [geoDb, activeCity]);
+
   return (
     <div ref={containerRef} className="flex h-full w-full overflow-hidden bg-slate-100">
 
@@ -426,6 +443,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           onToggle={toggleLayer}
           onClose={() => setSidebarOpen(false)}
           featureCounts={featureCounts}
+          settlementDbCount={dbSettlementCount}
           activeZone={activeZone}
           activeCluster={activeCluster}
           onZoneSelect={handleZoneSelect}

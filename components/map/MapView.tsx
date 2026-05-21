@@ -108,6 +108,49 @@ function polygonCentroid(feature: { geometry: { type: string; coordinates: numbe
   }
 }
 
+// Ray-cast point-in-ring test. pt = [lng, lat], ring = [[lng, lat], ...].
+function pointInRing(pt: [number, number], ring: number[][]): boolean {
+  const x = pt[0], y = pt[1];
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    const intersect = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// True point-in-polygon test handling Polygon, MultiPolygon and holes.
+// pt = [lng, lat].
+function pointInPolygon(
+  pt: [number, number],
+  feature: { geometry: { type: string; coordinates: number[][][] | number[][][][] } }
+): boolean {
+  try {
+    if (feature.geometry.type === "MultiPolygon") {
+      const polys = feature.geometry.coordinates as number[][][][];
+      for (const poly of polys) {
+        if (!pointInRing(pt, poly[0])) continue;
+        let inHole = false;
+        for (let i = 1; i < poly.length; i++) {
+          if (pointInRing(pt, poly[i])) { inHole = true; break; }
+        }
+        if (!inHole) return true;
+      }
+      return false;
+    }
+    const poly = feature.geometry.coordinates as number[][][];
+    if (!pointInRing(pt, poly[0])) return false;
+    for (let i = 1; i < poly.length; i++) {
+      if (pointInRing(pt, poly[i])) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function getPolygonEnvelope(feature: { geometry: { type: string; coordinates: number[][][] | number[][][][] } }): [number, number][] {
   try {
     if (feature.geometry.type === "MultiPolygon") {
@@ -410,17 +453,77 @@ export default function MapView({
       map.on("click", (e) => {
         const { x, y } = e.point;
 
-        // If a point/circle layer was clicked, let its own handler run instead.
-        // Use a 6px box — single-point QRF misses clicks near the circle edge.
+        // Circle / centre hit detection. Uses a 14px box so near-misses register
+        // (raw circle radius is 4-10px depending on zoom — too tight to hit reliably).
+        // Direct hits already fire the per-layer click handler; here we only act when
+        // the click was close-but-not-on a circle and dispatch the popup ourselves.
         const circleLayers = (map.getStyle()?.layers ?? [])
           .filter(l => l.id.endsWith("-circle"))
           .map(l => l.id);
         if (circleLayers.length) {
-          const circleHits = map.queryRenderedFeatures(
-            [[x - 6, y - 6], [x + 6, y + 6]] as [maplibregl.PointLike, maplibregl.PointLike],
+          const directHits = map.queryRenderedFeatures(
+            [[x, y], [x, y]] as [maplibregl.PointLike, maplibregl.PointLike],
             { layers: circleLayers }
           );
-          if (circleHits.length) return;
+          if (directHits.length) return; // per-layer handler already fired
+
+          const nearHits = map.queryRenderedFeatures(
+            [[x - 14, y - 14], [x + 14, y + 14]] as [maplibregl.PointLike, maplibregl.PointLike],
+            { layers: circleLayers }
+          );
+          if (nearHits.length) {
+            // Pick the hit closest to the click point in screen space.
+            let bestDist = Infinity;
+            let best: maplibregl.MapGeoJSONFeature | null = null;
+            for (const hit of nearHits) {
+              if (hit.geometry.type !== "Point") continue;
+              const coords = (hit.geometry as unknown as { coordinates: [number, number] }).coordinates;
+              if (!coords) continue;
+              const p = map.project([coords[0], coords[1]]);
+              const dx = p.x - x, dy = p.y - y;
+              const d2 = dx * dx + dy * dy;
+              if (d2 < bestDist) { bestDist = d2; best = hit; }
+            }
+            if (best) {
+              const layerKey = (best.layer.id as string).replace(/-circle$/, "");
+              const props = best.properties ?? {};
+              const name = (props.name as string) || "Centre";
+              const fl = facilityLayersRef.current.find(f => f.layerKey === layerKey);
+              const staticLc = LAYERS.find(l => l.key === layerKey);
+              const color = fl?.color ?? staticLc?.color ?? "#1d4ed8";
+              const label = fl?.label ?? staticLc?.label ?? layerKey;
+              const isRC = layerKey === "resource_centres";
+              const coords = (best.geometry as unknown as { coordinates: [number, number] }).coordinates;
+              const lngLat = new maplibregl.LngLat(coords[0], coords[1]);
+
+              activePopupRef.current?.remove();
+              activePopupRef.current = new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
+                .setLngLat(lngLat)
+                .setHTML(isRC
+                  ? makeRCPopup(name, (props.description as string) || "")
+                  : makeProgrammeCentrePopup(
+                      (props.centre_type as string) || label, name,
+                      (props.partner as string) || "", (props.zone as string) || "", (props.cluster as string) || "",
+                      color, (props.note as string) || ""
+                    ))
+                .addTo(map);
+
+              if (onCentreClickRef.current && !isRC) {
+                const latlng: [number, number] = [lngLat.lat, lngLat.lng];
+                const centreFeature: CentreFeature = {
+                  name, centreType: (props.centre_type as string) || label,
+                  layerKey, layerColor: color,
+                  matchedSettlement: (props.matched_settlement as string) || "",
+                  zone: (props.zone as string) || "", cluster: (props.cluster as string) || "",
+                  partner: (props.partner as string) || "", latlng,
+                };
+                onCentreClickRef.current((props.partner as string) || "", (props.zone as string) || "", (props.cluster as string) || "", centreFeature);
+              } else if (onCentreClickRef.current) {
+                onCentreClickRef.current((props.partner as string) || "", (props.zone as string) || "", (props.cluster as string) || "");
+              }
+              return;
+            }
+          }
         }
 
         // Stage 1: rendered-pixel hit test
@@ -447,6 +550,24 @@ export default function MapView({
         if (!layerConfig) {
           const near = nearestSettlement(x, y, 24);
           if (near) { layerConfig = near.layerConfig; props = near.props; centroid = near.centroid; }
+        }
+
+        // Stage 3: true point-in-polygon test on stored GeoJSON features.
+        // Catches large polygons where Stage 1 missed (rendering/layer order quirks)
+        // and the cursor is too far from the centroid for Stage 2's 24px window.
+        if (!layerConfig) {
+          const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+          for (const lc of LAYERS.filter(l => l.file && l.type === "polygon")) {
+            if (!visibleLayersRef.current.has(lc.key)) continue;
+            const feats = settlementFeaturesRef.current[lc.key] ?? [];
+            const hit = feats.find(f => pointInPolygon(lngLat, f as { geometry: { type: string; coordinates: number[][][] | number[][][][] } }));
+            if (hit) {
+              layerConfig = lc;
+              props = (hit as { properties: Record<string, unknown> }).properties ?? {};
+              centroid = polygonCentroid(hit as { geometry: { type: string; coordinates: number[][][] } });
+              break;
+            }
+          }
         }
 
         if (!layerConfig) return;
