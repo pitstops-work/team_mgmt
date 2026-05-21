@@ -615,10 +615,6 @@ function GoalsTab({
   designation: string;
   teamMembers: TeamMember[];
 }) {
-  const active   = goals.filter(g => g.status === "Active");
-  const paused   = goals.filter(g => g.status === "Paused");
-  const complete = goals.filter(g => g.status === "Complete");
-
   if (designation === "ZL" && teamMembers.length > 0) {
     // Treat co-owners as owners for "My goals" — they share responsibility.
     const isMine = (g: Goal) =>
@@ -668,33 +664,87 @@ function GoalsTab({
     );
   }
 
-  const showOwner = designation !== "RP";
   return (
-    <div className="space-y-6">
-      {active.length > 0 && (
-        <div>
-          <SectionTitle>Active ({active.length})</SectionTitle>
-          <div className="space-y-2">{active.map(g => <GoalRow key={g.id} goal={g} showOwner={showOwner} />)}</div>
-        </div>
-      )}
-      {paused.length > 0 && (
-        <div>
-          <SectionTitle>Paused ({paused.length})</SectionTitle>
-          <div className="space-y-2">{paused.map(g => <GoalRow key={g.id} goal={g} showOwner={showOwner} />)}</div>
-        </div>
-      )}
-      {complete.length > 0 && (
-        <div>
-          <SectionTitle>Complete ({complete.length})</SectionTitle>
-          <div className="space-y-2">{complete.slice(0, 5).map(g => <GoalRow key={g.id} goal={g} showOwner={showOwner} />)}</div>
-          {complete.length > 5 && (
-            <Link href="/dashboard" className="text-xs text-sky-500 hover:text-sky-700 mt-1 block px-1">
-              +{complete.length - 5} more completed goals
-            </Link>
-          )}
-        </div>
-      )}
-      {goals.length === 0 && <EmptyState message="No goals yet." />}
+    <NonZLGoalsView
+      goals={goals}
+      designation={designation}
+    />
+  );
+}
+
+// Group-by view used by PM / RP / Leader (anyone without the ZL team-member
+// breakdown). Keeps status grouping as the default; the dropdown unlocks
+// grouping by domain, owner, or cluster too.
+function NonZLGoalsView({ goals, designation }: { goals: Goal[]; designation: string }) {
+  const showOwner = designation !== "RP";
+  const [groupBy, setGroupBy] = useState<"status" | "domain" | "owner" | "cluster" | "none">("status");
+
+  // Filter out completed goals only AFTER the user picks "complete" status?
+  // No — show everything; grouping handles the breakdown.
+  const grouped = useMemo(() => {
+    const out: Record<string, Goal[]> = {};
+    if (groupBy === "none") { out[""] = [...goals]; return out; }
+    for (const g of goals) {
+      let key = "";
+      if (groupBy === "status")  key = g.status ?? "Unknown";
+      else if (groupBy === "domain")  key = g.needsDomain ?? "No domain";
+      else if (groupBy === "owner")   key = g.owner?.name ?? "Unassigned";
+      else if (groupBy === "cluster") key = (g as Goal & { needsCluster?: { name: string } | null }).needsCluster?.name ?? "No cluster";
+      if (!out[key]) out[key] = [];
+      out[key].push(g);
+    }
+    return out;
+  }, [goals, groupBy]);
+
+  // Deterministic order: known status order for "status", alpha for everything else.
+  const groupOrder = useMemo(() => {
+    if (groupBy === "status") {
+      const ordered = ["Active", "Paused", "Complete", "Cancelled"];
+      const keys = Object.keys(grouped);
+      return [
+        ...ordered.filter(k => keys.includes(k)),
+        ...keys.filter(k => !ordered.includes(k)).sort(),
+      ];
+    }
+    return Object.keys(grouped).sort();
+  }, [grouped, groupBy]);
+
+  return (
+    <div className="space-y-5">
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <label className="text-xs text-stone-500">Group by</label>
+        <select
+          value={groupBy}
+          onChange={e => setGroupBy(e.target.value as typeof groupBy)}
+          className="text-sm border border-stone-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-sky-300"
+        >
+          <option value="status">Status</option>
+          <option value="domain">Domain</option>
+          <option value="owner">Owner</option>
+          <option value="cluster">Cluster</option>
+          <option value="none">No grouping</option>
+        </select>
+        <span className="ml-auto text-xs text-stone-400">{goals.length} goal{goals.length === 1 ? "" : "s"}</span>
+      </div>
+
+      {/* Groups */}
+      {groupOrder.length === 0 && <EmptyState message="No goals yet." />}
+      {groupOrder.map(gkey => {
+        const items = grouped[gkey] ?? [];
+        if (items.length === 0) return null;
+        return (
+          <div key={gkey || "all"}>
+            {groupBy !== "none" && (
+              <SectionTitle>{gkey} ({items.length})</SectionTitle>
+            )}
+            <div className="space-y-2">
+              {items.map(g => <GoalRow key={g.id} goal={g} showOwner={showOwner} />)}
+            </div>
+          </div>
+        );
+      })}
+
       <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
         All goals <ChevronRight className="w-3.5 h-3.5" />
       </Link>
