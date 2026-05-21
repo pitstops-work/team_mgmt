@@ -112,6 +112,16 @@ export type RPHealthStat = {
   delayedPitstops: RPPitstopDetail[];
 };
 
+// Leader / Other: one entry per user in the leader's recursive reporting tree.
+export type LeaderTeamMember = {
+  id: string;
+  name: string | null;
+  image: string | null;
+  designation: string;
+  overdueCount: number;
+  openChecklistCount: number;
+};
+
 // ── Admin dashboard types ─────────────────────────────────────────────────────
 
 export type AdminKPIs = {
@@ -291,6 +301,16 @@ export default async function HomePage() {
   let isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
 
   const isLeader = !["RP", "ZL", "PM"].includes(designation);
+
+  // Leader / Other Today tab now shows a team breakdown of every user in
+  // their reporting tree (recursive descendants). Compute the team IDs once
+  // up-front so the queries below can scope to them.
+  let leaderTeamIds: string[] = [];
+  let leaderTeam: LeaderTeamMember[] = [];
+  if (isLeader) {
+    const allDescendants = await getTeamIds(userId);
+    leaderTeamIds = allDescendants.filter(id => id !== userId);
+  }
 
   // Phase 1c: USE_RBAC=1 replaces teamIds + isScoped with central RBAC derivation.
   // WITH RECURSIVE expands the team to arbitrary depth, fixing the wildcard-else
@@ -675,6 +695,52 @@ export default async function HomePage() {
         })
       : Promise.resolve([]),
   ]);
+
+  // ── Leader/Other: team breakdown data ──────────────────────────────────────
+  // Pulls one row per team member + their overdue / open-checklist counts so
+  // the Today tab can render a grouped "your team" view (PMs / ZLs / RPs /
+  // Others). Only runs when there are team members to scope against.
+  if (isLeader && leaderTeamIds.length > 0) {
+    const [teamUsers, teamOverdueRaw, teamChecklistsRaw] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: leaderTeamIds } },
+        select: { id: true, name: true, image: true, designation: true },
+      }),
+      prisma.$queryRaw<{ ownerId: string; cnt: number }[]>`
+        SELECT p."ownerId" as "ownerId", COUNT(DISTINCT e.id)::int as cnt
+        FROM "PitstopEvent" e
+        JOIN "PitstopEventPitstop" ep ON ep."eventId" = e.id
+        JOIN "Pitstop" p ON p.id = ep."pitstopId"
+        WHERE e."deletedAt" IS NULL
+          AND e.status = 'Scheduled'::"PitstopEventStatus"
+          AND e."scheduledAt" < ${todayStart}
+          AND p."deletedAt" IS NULL
+          AND p."ownerId" = ANY(${leaderTeamIds})
+        GROUP BY p."ownerId"
+      `,
+      prisma.$queryRaw<{ ownerId: string; cnt: number }[]>`
+        SELECT p."ownerId" as "ownerId", COUNT(*)::int as cnt
+        FROM "ChecklistItem" ci
+        JOIN "Pitstop" p ON p.id = ci."pitstopId"
+        JOIN "Goal" g ON g.id = p."goalId"
+        WHERE ci.status NOT IN ('Done'::"ChecklistItemStatus", 'Cancelled'::"ChecklistItemStatus")
+          AND p."deletedAt" IS NULL
+          AND g."deletedAt" IS NULL
+          AND p."ownerId" = ANY(${leaderTeamIds})
+        GROUP BY p."ownerId"
+      `,
+    ]);
+    const overdueByUser = new Map(teamOverdueRaw.map(r => [r.ownerId, Number(r.cnt)]));
+    const checklistByUser = new Map(teamChecklistsRaw.map(r => [r.ownerId, Number(r.cnt)]));
+    leaderTeam = teamUsers.map(u => ({
+      id: u.id,
+      name: u.name,
+      image: u.image,
+      designation: u.designation ?? "Other",
+      overdueCount: overdueByUser.get(u.id) ?? 0,
+      openChecklistCount: checklistByUser.get(u.id) ?? 0,
+    }));
+  }
 
   const domainLabels = Object.fromEntries(domainConfigs.map(d => [d.domain, d.label ?? d.domain]));
 
@@ -1614,6 +1680,7 @@ export default async function HomePage() {
       pmClusterStatus={pmClusterStatus}
       leaderOverdueActivities={JSON.parse(JSON.stringify(leaderOverdueActivities))}
       leaderMyActivities={JSON.parse(JSON.stringify(leaderMyActivities))}
+      leaderTeam={leaderTeam}
       adminDash={adminDash}
     />
   );
