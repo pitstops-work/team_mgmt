@@ -4755,8 +4755,9 @@ function RPTodayTab({
         )}
       </div>
 
-      {/* Desktop: vertical list */}
-      <div className="hidden sm:block space-y-4">
+      {/* Desktop: grid of cluster cards — single column on tablet, two
+          columns on wide screens to use the horizontal real-estate. */}
+      <div className="hidden sm:grid sm:grid-cols-1 lg:grid-cols-2 gap-4">
         {nonEmptyBuckets.map(bucket => renderClusterCard(bucket))}
       </div>
     </div>
@@ -5034,7 +5035,11 @@ export default function HomeView({
       </div>
 
       {/* Tab content */}
-      <div className={`flex-1 px-5 sm:px-8 py-6 pb-24 sm:pb-8 ${activeTab === "overview" || activeTab === "pipeline" || activeTab === "team" ? "max-w-5xl" : "max-w-3xl"}`}>
+      <div className={`flex-1 px-5 sm:px-8 py-6 pb-24 sm:pb-8 ${
+        activeTab === "today" || activeTab === "overview" || activeTab === "pipeline" || activeTab === "team"
+          ? "max-w-6xl"
+          : "max-w-3xl"
+      }`}>
 
         {/* RP: tile overview + drill-down today view */}
         {activeTab === "today" && designation === "RP" && (
