@@ -47,8 +47,14 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
     eventAttendeeFilter = isScoped
       ? { attendees: { some: { userId: { in: teamIds } } } }
       : {};
+    // Co-owners of a pitstop are treated as owners for visibility.
     pitstopOwnerFilter = isScoped
-      ? { ownerId: { in: teamIds } }
+      ? {
+          OR: [
+            { ownerId: { in: teamIds } },
+            { coOwners: { some: { userId: { in: teamIds } } } },
+          ],
+        }
       : {};
   }
 

@@ -58,13 +58,26 @@ export default async function ThreadsPage({ searchParams }: { searchParams: Prom
     let ownedGoalIds: string[] = [];
     let ownedPitstopIds: string[] = [];
     if (!seesAll) {
+      // Co-owners are treated as owners for visibility.
       const [gRows, pRows] = await Promise.all([
         prisma.goal.findMany({
-          where: { deletedAt: null, ownerId: { in: teamIds } },
+          where: {
+            deletedAt: null,
+            OR: [
+              { ownerId: { in: teamIds } },
+              { coOwners: { some: { userId: { in: teamIds } } } },
+            ],
+          },
           select: { id: true },
         }),
         prisma.pitstop.findMany({
-          where: { deletedAt: null, ownerId: { in: teamIds } },
+          where: {
+            deletedAt: null,
+            OR: [
+              { ownerId: { in: teamIds } },
+              { coOwners: { some: { userId: { in: teamIds } } } },
+            ],
+          },
           select: { id: true },
         }),
       ]);
@@ -139,7 +152,14 @@ export default async function ThreadsPage({ searchParams }: { searchParams: Prom
     isAdmin
       ? prisma.goal.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } })
       : prisma.goal.findMany({
-          where: { deletedAt: null, ownerId: { in: teamIds } },
+          where: {
+            deletedAt: null,
+            // Co-owners are treated as owners.
+            OR: [
+              { ownerId: { in: teamIds } },
+              { coOwners: { some: { userId: { in: teamIds } } } },
+            ],
+          },
           select: { id: true, title: true },
           orderBy: { title: "asc" },
         }),

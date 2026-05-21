@@ -16,7 +16,15 @@ export default async function PeoplePage() {
   }
   const isScoped = designation === "ZL";
   const userFilter = isScoped ? { id: { in: teamIds } } : {};
-  const ownerFilter = isScoped ? { ownerId: { in: teamIds } } : {};
+  // Co-owners are treated as owners for visibility.
+  const ownerFilter = isScoped
+    ? {
+        OR: [
+          { ownerId: { in: teamIds } },
+          { coOwners: { some: { userId: { in: teamIds } } } },
+        ],
+      }
+    : {};
 
   const [users, goals, partners] = await Promise.all([
     prisma.user.findMany({

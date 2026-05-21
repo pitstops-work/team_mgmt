@@ -14,7 +14,15 @@ export default async function GanttPage() {
     const team = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
     teamIds = [userId, ...team.map(m => m.id)];
   }
-  const ownerFilter = (designation === "RP" || designation === "ZL") ? { ownerId: { in: teamIds } } : {};
+  // Co-owners are treated as owners for visibility.
+  const ownerFilter = (designation === "RP" || designation === "ZL")
+    ? {
+        OR: [
+          { ownerId: { in: teamIds } },
+          { coOwners: { some: { userId: { in: teamIds } } } },
+        ],
+      }
+    : {};
 
   const goals = await prisma.goal.findMany({
     where: { deletedAt: null, ...ownerFilter },

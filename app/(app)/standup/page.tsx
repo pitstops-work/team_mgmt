@@ -37,7 +37,11 @@ export default async function StandupPage() {
     prisma.pitstop.findMany({
       where: {
         deletedAt: null,
-        ownerId: currentUserId,
+        // Co-owners of a pitstop are treated as owners.
+        OR: [
+          { ownerId: currentUserId },
+          { coOwners: { some: { userId: currentUserId } } },
+        ],
         status: "InProgress",
         goal: { deletedAt: null },
       },

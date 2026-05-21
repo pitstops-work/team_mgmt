@@ -268,7 +268,8 @@ export default async function DashboardPage({
         },
       }),
 
-      // Checklist items completed this week per pitstop owner
+      // Checklist items completed this week per pitstop owner.
+      // Co-owners of a pitstop are treated as owners for scope.
       prisma.checklistItem.findMany({
         where: {
           checked: true,
@@ -276,7 +277,14 @@ export default async function DashboardPage({
           pitstop: {
             deletedAt: null,
             goal: { deletedAt: null },
-            ...(isScoped ? { ownerId: { in: teamIds } } : {}),
+            ...(isScoped
+              ? {
+                  OR: [
+                    { ownerId: { in: teamIds } },
+                    { coOwners: { some: { userId: { in: teamIds } } } },
+                  ],
+                }
+              : {}),
           },
         },
         select: { pitstop: { select: { ownerId: true } } },

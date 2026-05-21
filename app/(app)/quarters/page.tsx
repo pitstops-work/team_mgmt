@@ -16,7 +16,15 @@ export default async function QuartersPage() {
     const team = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
     teamIds = [currentUserId, ...team.map(m => m.id)];
   }
-  const ownerFilter = (designation === "RP" || designation === "ZL") ? { ownerId: { in: teamIds } } : {};
+  // Co-owners are treated as owners for visibility.
+  const ownerFilter = (designation === "RP" || designation === "ZL")
+    ? {
+        OR: [
+          { ownerId: { in: teamIds } },
+          { coOwners: { some: { userId: { in: teamIds } } } },
+        ],
+      }
+    : {};
 
   const pitstopSelect = {
     where: { deletedAt: null },
