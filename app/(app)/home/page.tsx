@@ -528,26 +528,44 @@ export default async function HomePage() {
         })
       : Promise.resolve([]),
 
-    // RP only: past events already marked Done (so RP can see what they've updated)
-    designation === "RP"
-      ? prisma.pitstopEvent.findMany({
-          where: {
-            deletedAt: null,
-            status: "Done",
-            scheduledAt: { lt: todayStart },
-            OR: [
-              { attendees: { some: { userId } } },
-              { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
-            ],
-          },
+    // Past tab data — done activities from the last 30 days for the user's
+    // OWN pitstops (every designation gets this). Includes goal/cluster info
+    // so the Past tab can cluster-bucket like Today.
+    prisma.pitstopEvent.findMany({
+      where: {
+        deletedAt: null,
+        status: "Done",
+        scheduledAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        OR: [
+          { attendees: { some: { userId } } },
+          { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
+        ],
+      },
+      select: {
+        id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        attendees: { select: { user: { select: { id: true, name: true } } } },
+        pitstops: {
           select: {
-            id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
-            attendees: { select: { user: { select: { id: true, name: true } } } },
+            pitstop: {
+              select: {
+                id: true, title: true, ownerId: true,
+                goal: {
+                  select: {
+                    id: true, title: true, needsDomain: true,
+                    needsCluster:    { select: { id: true, name: true } },
+                    needsSettlement: { select: { id: true, name: true } },
+                    needsZone:       { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
           },
-          orderBy: { scheduledAt: "desc" },
-          take: 50,
-        })
-      : Promise.resolve([]),
+          take: 1,
+        },
+      },
+      orderBy: { scheduledAt: "desc" },
+      take: 200,
+    }),
 
     // ZL only: team overdue activities (past Scheduled, owned by any team member)
     designation === "ZL"
@@ -697,6 +715,69 @@ export default async function HomePage() {
         })
       : Promise.resolve([]),
   ]);
+
+  // ── Past tab: team done activities (last 30 days) for ZL / PM / Leader.
+  // RPs only see their own (rpDoneActivities above). For ZL/PM the scope is
+  // teamIds; for Leader/Other it's the recursive descendants leaderTeamIds.
+  // Returns one row per Done event with goal+cluster info and the owner id
+  // so the client can both cluster-bucket the user's own work and group the
+  // rest by team-member.
+  const pastTeamScopeIds = designation === "ZL" || designation === "PM"
+    ? teamIds.filter(id => id !== userId)
+    : isLeader
+    ? leaderTeamIds
+    : [];
+  type TeamDoneActivity = {
+    id: string; title: string; type: string; scheduledAt: string;
+    location: string | null; status: string;
+    attendees: { user: { id: string; name: string | null } }[];
+    pitstops: {
+      pitstop: {
+        id: string; title: string; ownerId: string;
+        goal: {
+          id: string; title: string; needsDomain: string | null;
+          needsCluster:    { id: string; name: string } | null;
+          needsSettlement: { id: string; name: string } | null;
+          needsZone:       { id: string; name: string } | null;
+        };
+      };
+    }[];
+  };
+  let pastTeamDoneActivities: TeamDoneActivity[] = [];
+  if (pastTeamScopeIds.length > 0) {
+    pastTeamDoneActivities = await prisma.pitstopEvent.findMany({
+      where: {
+        deletedAt: null,
+        status: "Done",
+        scheduledAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: pastTeamScopeIds } }, { coOwners: { some: { userId: { in: pastTeamScopeIds } } } }] } } },
+      },
+      select: {
+        id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        attendees: { select: { user: { select: { id: true, name: true } } } },
+        pitstops: {
+          select: {
+            pitstop: {
+              select: {
+                id: true, title: true, ownerId: true,
+                goal: {
+                  select: {
+                    id: true, title: true, needsDomain: true,
+                    needsCluster:    { select: { id: true, name: true } },
+                    needsSettlement: { select: { id: true, name: true } },
+                    needsZone:       { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+          },
+          take: 1,
+        },
+      },
+      orderBy: { scheduledAt: "desc" },
+      take: 500,
+    }) as unknown as TeamDoneActivity[];
+  }
 
   // ── Leader/Other: team breakdown data ──────────────────────────────────────
   // Pulls one row per team member + their overdue / open-checklist counts so
@@ -1661,6 +1742,7 @@ export default async function HomePage() {
       rpClusterStats={rpClusterStats}
       rpOverdueActivities={JSON.parse(JSON.stringify(rpOverdueActivities))}
       rpDoneActivities={JSON.parse(JSON.stringify(rpDoneActivities))}
+      pastTeamDoneActivities={JSON.parse(JSON.stringify(pastTeamDoneActivities))}
       zlOverdueActivities={JSON.parse(JSON.stringify(zlOverdueActivities))}
       zlMyActivities={JSON.parse(JSON.stringify(zlMyActivities))}
       zlZoneName={myZone?.name ?? null}
