@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
@@ -448,6 +448,8 @@ function PitstopEditor({
 export default function TemplateEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const isNew = id === "new";
+  const searchParams = useSearchParams();
+  const copyFromId = isNew ? searchParams.get("copy") : null;
 
   const { data: session } = useSession();
   const router = useRouter();
@@ -466,7 +468,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
     pitstops: [],
     isActive: true,
   });
-  const [loading, setLoading] = useState(!isNew);
+  const [loading, setLoading] = useState(!isNew || !!copyFromId);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -493,9 +495,12 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
   }, []);
 
   const load = useCallback(async () => {
-    if (isNew) return;
+    // Fetch the source template when editing an existing one, or when copying
+    // one into a fresh draft (?copy=<sourceId>).
+    const fetchId = isNew ? copyFromId : id;
+    if (!fetchId) return;
     setLoading(true);
-    const res = await fetch(`/api/admin/templates/${id}`);
+    const res = await fetch(`/api/admin/templates/${fetchId}`);
     if (res.ok) {
       const data = await res.json();
       // Normalize checklist items to new multi-activity format
@@ -512,10 +517,22 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
           };
         }),
       }));
+      // When copying, blank out identifiers and tag the name so it's obvious
+      // this is a draft. User will adjust before saving.
+      if (isNew && copyFromId) {
+        const origSlug = (data.slug ?? "").trim();
+        const origName = (data.name ?? "").trim();
+        data.slug = origSlug ? `${origSlug}-copy` : "";
+        data.name = origName ? `${origName} (copy)` : "";
+        data.id = undefined;
+        data.isActive = true;
+        data.createdAt = undefined;
+        data.updatedAt = undefined;
+      }
       setTemplate(data);
     }
     setLoading(false);
-  }, [id, isNew]);
+  }, [id, isNew, copyFromId]);
 
   useEffect(() => { load(); }, [load]);
 
