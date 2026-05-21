@@ -44,9 +44,11 @@ type Goal = {
   id: string; title: string; status: string;
   needsDomain: string | null; needsClusterId: string | null; needsZoneId: string | null;
   parameter: number | null; outcomeCount: number | null;
+  targetDate?: string | null;
   ownerId: string | null;
   owner: { id: string; name: string | null } | null;
   coOwners?: { userId: string }[];
+  needsCluster?: { id: string; name: string } | null;
   pitstops: { id: string; status: string }[];
 };
 
@@ -673,28 +675,34 @@ function GoalsTab({
 }
 
 // Group-by view used by PM / RP / Leader (anyone without the ZL team-member
-// breakdown). Keeps status grouping as the default; the dropdown unlocks
-// grouping by domain, owner, or cluster too.
+// breakdown). Sorts goals by SLA (targetDate) ascending inside each group
+// so the most-imminent work is at the top. Group sections start collapsed
+// except for the first one with items.
 function NonZLGoalsView({ goals, designation }: { goals: Goal[]; designation: string }) {
   const showOwner = designation !== "RP";
   const [groupBy, setGroupBy] = useState<"status" | "domain" | "owner" | "cluster" | "none">("status");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-  // Filter out completed goals only AFTER the user picks "complete" status?
-  // No — show everything; grouping handles the breakdown.
+  // SLA-due ordering: earliest targetDate first; goals without a date go last.
+  const goalsByDate = useMemo(() => {
+    const slaMs = (g: Goal) => g.targetDate ? new Date(g.targetDate).getTime() : Number.MAX_SAFE_INTEGER;
+    return [...goals].sort((a, b) => slaMs(a) - slaMs(b));
+  }, [goals]);
+
   const grouped = useMemo(() => {
     const out: Record<string, Goal[]> = {};
-    if (groupBy === "none") { out[""] = [...goals]; return out; }
-    for (const g of goals) {
+    if (groupBy === "none") { out[""] = [...goalsByDate]; return out; }
+    for (const g of goalsByDate) {
       let key = "";
       if (groupBy === "status")  key = g.status ?? "Unknown";
       else if (groupBy === "domain")  key = g.needsDomain ?? "No domain";
       else if (groupBy === "owner")   key = g.owner?.name ?? "Unassigned";
-      else if (groupBy === "cluster") key = (g as Goal & { needsCluster?: { name: string } | null }).needsCluster?.name ?? "No cluster";
+      else if (groupBy === "cluster") key = g.needsCluster?.name ?? "No cluster";
       if (!out[key]) out[key] = [];
       out[key].push(g);
     }
     return out;
-  }, [goals, groupBy]);
+  }, [goalsByDate, groupBy]);
 
   // Deterministic order: known status order for "status", alpha for everything else.
   const groupOrder = useMemo(() => {
@@ -709,8 +717,17 @@ function NonZLGoalsView({ goals, designation }: { goals: Goal[]; designation: st
     return Object.keys(grouped).sort();
   }, [grouped, groupBy]);
 
+  // Collapse state. Default = all collapsed except the first non-empty group
+  // (so the page lands with one expanded section instead of an empty page).
+  const firstNonEmpty = groupOrder.find(k => (grouped[k]?.length ?? 0) > 0);
+  const isOpen = (k: string) => {
+    if (collapsed.has(k)) return false;
+    if (collapsed.has(`${k}::open`)) return true;
+    return k === firstNonEmpty;
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-wrap gap-2 items-center">
         <label className="text-xs text-stone-500">Group by</label>
@@ -725,7 +742,7 @@ function NonZLGoalsView({ goals, designation }: { goals: Goal[]; designation: st
           <option value="cluster">Cluster</option>
           <option value="none">No grouping</option>
         </select>
-        <span className="ml-auto text-xs text-stone-400">{goals.length} goal{goals.length === 1 ? "" : "s"}</span>
+        <span className="ml-auto text-xs text-stone-400">{goals.length} goal{goals.length === 1 ? "" : "s"} · earliest SLA first</span>
       </div>
 
       {/* Groups */}
@@ -733,15 +750,45 @@ function NonZLGoalsView({ goals, designation }: { goals: Goal[]; designation: st
       {groupOrder.map(gkey => {
         const items = grouped[gkey] ?? [];
         if (items.length === 0) return null;
-        return (
-          <div key={gkey || "all"}>
-            {groupBy !== "none" && (
-              <SectionTitle>{gkey} ({items.length})</SectionTitle>
-            )}
-            <div className="space-y-2">
+        if (groupBy === "none") {
+          return (
+            <div key="all" className="space-y-2">
               {items.map(g => <GoalRow key={g.id} goal={g} showOwner={showOwner} />)}
             </div>
-          </div>
+          );
+        }
+        const open = isOpen(gkey);
+        const handleToggle = () => {
+          // Encode explicit open/closed so the default rule doesn't override
+          // a manual choice.
+          setCollapsed(prev => {
+            const next = new Set(prev);
+            const closedKey = gkey;
+            const openKey = `${gkey}::open`;
+            const wasOpen = open;
+            // Clear both, then set the appropriate one.
+            next.delete(closedKey);
+            next.delete(openKey);
+            next.add(wasOpen ? closedKey : openKey);
+            return next;
+          });
+        };
+        return (
+          <section key={gkey} className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+            <button
+              onClick={handleToggle}
+              className="w-full flex items-center gap-2 px-4 py-2.5 bg-stone-50 hover:bg-stone-100 transition-colors text-left"
+            >
+              <span className="text-xs font-semibold text-stone-700 uppercase tracking-wider flex-1">{gkey}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-600 font-semibold">{items.length}</span>
+              {open ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+            </button>
+            {open && (
+              <div className="p-3 space-y-2">
+                {items.map(g => <GoalRow key={g.id} goal={g} showOwner={showOwner} />)}
+              </div>
+            )}
+          </section>
         );
       })}
 
@@ -751,6 +798,7 @@ function NonZLGoalsView({ goals, designation }: { goals: Goal[]; designation: st
     </div>
   );
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ADMIN PILOT DASHBOARD TABS
