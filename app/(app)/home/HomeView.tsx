@@ -4568,34 +4568,14 @@ function RPTodayTab({
     b.overdue.length + b.today.length + b.checklists.length + b.week.length > 0
   );
 
-  return (
-    <div>
-      {allEmpty && <EmptyState message="You're all caught up for today." />}
-
-      {/* Pager indicator (mobile only) */}
-      {nonEmptyBuckets.length > 1 && (
-        <div className="sm:hidden flex items-center justify-between mb-3 px-1">
-          <span className="text-xs text-stone-400 tabular-nums">
-            {Math.min(carouselIdx + 1, nonEmptyBuckets.length)} of {nonEmptyBuckets.length}
-          </span>
-          <span className="text-[11px] text-stone-400 truncate ml-2">
-            ← swipe between clusters →
-          </span>
-        </div>
-      )}
-
-      <div
-        ref={carouselRef}
-        onScroll={handleCarouselScroll}
-        className="flex sm:flex-col gap-0 sm:gap-4 overflow-x-auto sm:overflow-x-visible snap-x snap-mandatory sm:snap-none [&::-webkit-scrollbar]:hidden"
-        style={{ scrollbarWidth: "none" }}
-      >
-        {nonEmptyBuckets.map(bucket => {
-        return (
-          <section
-            key={bucket.id}
-            className="rounded-2xl border border-stone-200 bg-white overflow-hidden min-w-full sm:min-w-0 snap-start flex-shrink-0 sm:flex-shrink"
-          >
+  // Render a single cluster card. Re-used by both the mobile carousel and the
+  // desktop list — extracted so we don't have to fight Tailwind's responsive
+  // class precedence with a dual-mode flex container.
+  const renderClusterCard = (bucket: Bucket) => (
+    <section
+      key={bucket.id}
+      className="rounded-2xl border border-stone-200 bg-white overflow-hidden"
+    >
             {/* Cluster header */}
             <header className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center gap-2 min-w-0">
               <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0" />
@@ -4725,21 +4705,52 @@ function RPTodayTab({
                 );
               })()}
             </div>
-          </section>
-        );
-      })}
-      </div>
+    </section>
+  );
 
-      {/* Mobile carousel dots */}
-      {nonEmptyBuckets.length > 1 && (
-        <div className="sm:hidden flex justify-center gap-1.5 mt-3">
-          {nonEmptyBuckets.map((_, i) => (
-            <div key={i} className={`h-1.5 rounded-full transition-all duration-200 ${
-              i === carouselIdx ? "w-4 bg-stone-700" : "w-1.5 bg-stone-200"
-            }`} />
+  return (
+    <div>
+      {allEmpty && <EmptyState message="You're all caught up for today." />}
+
+      {/* Mobile: horizontal swipe carousel of cluster cards */}
+      <div className="sm:hidden">
+        {nonEmptyBuckets.length > 1 && (
+          <div className="flex items-center justify-between mb-3 px-1">
+            <span className="text-xs text-stone-400 tabular-nums">
+              {Math.min(carouselIdx + 1, nonEmptyBuckets.length)} of {nonEmptyBuckets.length}
+            </span>
+            <span className="text-[11px] text-stone-400 truncate ml-2">
+              ← swipe between clusters →
+            </span>
+          </div>
+        )}
+        <div
+          ref={carouselRef}
+          onScroll={handleCarouselScroll}
+          className="flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {nonEmptyBuckets.map(bucket => (
+            <div key={bucket.id} className="snap-start flex-shrink-0 w-full pr-[1px]">
+              {renderClusterCard(bucket)}
+            </div>
           ))}
         </div>
-      )}
+        {nonEmptyBuckets.length > 1 && (
+          <div className="flex justify-center gap-1.5 mt-3">
+            {nonEmptyBuckets.map((_, i) => (
+              <div key={i} className={`h-1.5 rounded-full transition-all duration-200 ${
+                i === carouselIdx ? "w-4 bg-stone-700" : "w-1.5 bg-stone-200"
+              }`} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: vertical list */}
+      <div className="hidden sm:block space-y-4">
+        {nonEmptyBuckets.map(bucket => renderClusterCard(bucket))}
+      </div>
     </div>
   );
 }
