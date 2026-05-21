@@ -4613,9 +4613,11 @@ function RPTodayTab({
                 );
               })()}
 
-              {/* Today */}
-              {bucket.today.length > 0 && (() => {
+              {/* Today — always rendered so the section is visible even when
+                  every today-activity has already moved into "Needs your update". */}
+              {(() => {
                 const open = isOpen(bucket.id, "today");
+                const empty = bucket.today.length === 0;
                 return (
                   <div>
                     <button
@@ -4623,19 +4625,27 @@ function RPTodayTab({
                       className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-stone-50 transition-colors text-left"
                     >
                       <p className="text-[11px] font-semibold text-stone-600 uppercase tracking-wider flex-1">Today</p>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-semibold">{bucket.today.length}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${empty ? "bg-stone-100 text-stone-400" : "bg-sky-100 text-sky-700"}`}>{bucket.today.length}</span>
                       {open ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
                     </button>
                     {open && (
                       <div className="px-3 pb-3 space-y-2">
-                        {bucket.today.map(a => (
-                          <RPActivityRow
-                            key={a.id} a={a} userId={userId} isOverdue={false}
-                            linkedChecklist={activityChecklistMap.get(a.id) ?? null}
-                            onDone={handleDone} onCompleted={handleCompleted}
-                            isLoadingDone={loadingDoneId === a.id}
-                          />
-                        ))}
+                        {empty ? (
+                          <p className="text-xs text-stone-400 italic px-1 py-2">
+                            {bucket.overdue.length > 0
+                              ? "Nothing else scheduled for later today."
+                              : "Nothing scheduled for today."}
+                          </p>
+                        ) : (
+                          bucket.today.map(a => (
+                            <RPActivityRow
+                              key={a.id} a={a} userId={userId} isOverdue={false}
+                              linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                              onDone={handleDone} onCompleted={handleCompleted}
+                              isLoadingDone={loadingDoneId === a.id}
+                            />
+                          ))
+                        )}
                       </div>
                     )}
                   </div>
