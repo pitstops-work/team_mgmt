@@ -402,16 +402,20 @@ function ChecklistItemRow({
               )}
             </div>
 
-            {/* Activity chips */}
+            {/* Activity chips — title + date */}
             {item.activities.map((act) => (
               <Link
                 key={act.id}
                 href={`/activities?date=${act.scheduledAt.slice(0, 10)}`}
-                className="text-[9px] text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded flex items-center gap-1 hover:bg-sky-100 transition-colors"
-                title={act.title}
+                className="text-[10px] text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded inline-flex items-center gap-1 hover:bg-sky-100 transition-colors max-w-[260px]"
+                title={`${act.title} · ${new Date(act.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`}
               >
-                <Calendar className="w-2.5 h-2.5" />
-                {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
+                <span className="truncate">{act.title}</span>
+                <span className="text-sky-500 flex-shrink-0">·</span>
+                <span className="text-sky-500 flex-shrink-0">
+                  {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                </span>
               </Link>
             ))}
             {/* Attachment chips */}
