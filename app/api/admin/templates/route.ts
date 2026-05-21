@@ -35,27 +35,26 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "A template with this slug already exists" }, { status: 409 });
     }
 
-    const rows = await prisma.$queryRaw<{ id: string }[]>`
-      INSERT INTO "GoalTemplateDef"
-        (slug, name, description, category, icon, "needsDomain", "linkedFacilityLayerKey", "sortOrder", parameters, pitstops, "isActive", "updatedAt")
-      VALUES (
-        ${slug},
-        ${name},
-        ${description ?? ""},
-        ${category},
-        ${icon ?? "🎯"},
-        ${needsDomain ?? null},
-        ${linkedFacilityLayerKey ?? null},
-        ${sortOrder ?? 99},
-        ${JSON.stringify(parameters ?? [])}::jsonb,
-        ${JSON.stringify(pitstops ?? [])}::jsonb,
-        true,
-        NOW()
-      )
-      RETURNING id
-    `;
+    // Use Prisma client (not raw SQL) so the @default(cuid()) on id is applied —
+    // raw INSERT would skip the client-side default and violate the NOT NULL constraint.
+    const created = await prisma.goalTemplateDef.create({
+      data: {
+        slug,
+        name,
+        description: description ?? "",
+        category,
+        icon: icon ?? "🎯",
+        needsDomain: needsDomain ?? null,
+        linkedFacilityLayerKey: linkedFacilityLayerKey ?? null,
+        sortOrder: sortOrder ?? 99,
+        parameters: parameters ?? [],
+        pitstops: pitstops ?? [],
+        isActive: true,
+      },
+      select: { id: true },
+    });
 
-    return Response.json({ id: rows[0]?.id }, { status: 201 });
+    return Response.json({ id: created.id }, { status: 201 });
   } catch (e) {
     console.error("[admin/templates POST] failed:", e);
     const message = e instanceof Error ? e.message : "Unknown error";
