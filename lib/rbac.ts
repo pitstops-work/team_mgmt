@@ -151,16 +151,41 @@ type WhereFragment = Record<string, unknown>;
 
 const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
   goal: ({ rule, ctx, teamIds }) => {
+    // Co-owners are treated like owners for visibility purposes.
     switch (rule.kind) {
       case "all":            return {};
-      case "own":            return { ownerId: ctx.userId };
-      case "team":           return { ownerId: { in: teamIds } };
+      case "own":
+        return {
+          OR: [
+            { ownerId: ctx.userId },
+            { coOwners: { some: { userId: ctx.userId } } },
+          ],
+        };
+      case "team":
+        return {
+          OR: [
+            { ownerId: { in: teamIds } },
+            { coOwners: { some: { userId: { in: teamIds } } } },
+          ],
+        };
       case "city":           return goalCityWhere(ctx.cityId);
-      case "team_and_city":  return { AND: [{ ownerId: { in: teamIds } }, goalCityWhere(ctx.cityId)] };
+      case "team_and_city":
+        return {
+          AND: [
+            {
+              OR: [
+                { ownerId: { in: teamIds } },
+                { coOwners: { some: { userId: { in: teamIds } } } },
+              ],
+            },
+            goalCityWhere(ctx.cityId),
+          ],
+        };
       case "own_or_followed":
         return {
           OR: [
             { ownerId: ctx.userId },
+            { coOwners: { some: { userId: ctx.userId } } },
             { followers: { some: { userId: ctx.userId } } },
           ],
         };
@@ -168,10 +193,23 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
     }
   },
   pitstop: ({ rule, ctx, teamIds }) => {
+    // Co-owners are treated like owners for visibility purposes.
     switch (rule.kind) {
       case "all":  return {};
-      case "own":  return { ownerId: ctx.userId };
-      case "team": return { ownerId: { in: teamIds } };
+      case "own":
+        return {
+          OR: [
+            { ownerId: ctx.userId },
+            { coOwners: { some: { userId: ctx.userId } } },
+          ],
+        };
+      case "team":
+        return {
+          OR: [
+            { ownerId: { in: teamIds } },
+            { coOwners: { some: { userId: { in: teamIds } } } },
+          ],
+        };
       default: throw scopeUnsupported("pitstop", rule.kind);
     }
   },

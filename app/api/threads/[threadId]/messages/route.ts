@@ -47,7 +47,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
 
   const { threadId } = await params;
   const { body, attachmentIds } = await req.json();
-  if (!body?.trim()) return Response.json({ error: "Body required" }, { status: 400 });
+  const trimmedBody = (body ?? "").trim();
+  const hasAttachments = Array.isArray(attachmentIds) && attachmentIds.length > 0;
+  if (!trimmedBody && !hasAttachments) {
+    return Response.json({ error: "Body or attachments required" }, { status: 400 });
+  }
 
   // Parse @mentions from body
   const mentionPattern = /@\[([^\]]+)\]\(([^)]+)\)/g;
@@ -59,11 +63,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
 
   const message = await prisma.message.create({
     data: {
-      body,
+      body: trimmedBody,
       authorId: session.user.id,
       threadId,
-      attachments: attachmentIds?.length
-        ? { connect: attachmentIds.map((id: string) => ({ id })) }
+      attachments: hasAttachments
+        ? { connect: (attachmentIds as string[]).map((id) => ({ id })) }
         : undefined,
       mentions: mentionedUserIds.length
         ? { create: mentionedUserIds.map((userId) => ({ userId })) }

@@ -422,13 +422,25 @@ export default async function HomePage() {
     }),
 
     prisma.goal.findMany({
-      where: { deletedAt: null, ...(isScoped ? { ownerId: { in: teamIds } } : {}) },
+      where: {
+        deletedAt: null,
+        // Co-owners are treated as owners for visibility.
+        ...(isScoped
+          ? {
+              OR: [
+                { ownerId: { in: teamIds } },
+                { coOwners: { some: { userId: { in: teamIds } } } },
+              ],
+            }
+          : {}),
+      },
       select: {
         id: true, title: true, status: true, needsDomain: true,
         needsClusterId: true, needsZoneId: true,
         parameter: true, outcomeCount: true,
         ownerId: true,
         owner: { select: { id: true, name: true } },
+        coOwners: { select: { userId: true } },
         pitstops: { where: { deletedAt: null }, select: { id: true, status: true } },
       },
       orderBy: { updatedAt: "desc" },

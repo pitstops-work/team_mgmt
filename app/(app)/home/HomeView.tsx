@@ -46,6 +46,7 @@ type Goal = {
   parameter: number | null; outcomeCount: number | null;
   ownerId: string | null;
   owner: { id: string; name: string | null } | null;
+  coOwners?: { userId: string }[];
   pitstops: { id: string; status: string }[];
 };
 
@@ -689,8 +690,11 @@ function GoalsTab({
   const complete = goals.filter(g => g.status === "Complete");
 
   if (designation === "ZL" && teamMembers.length > 0) {
-    const myGoals   = goals.filter(g => g.ownerId === userId);
-    const teamGoals = goals.filter(g => g.ownerId !== userId);
+    // Treat co-owners as owners for "My goals" — they share responsibility.
+    const isMine = (g: Goal) =>
+      g.ownerId === userId || (g.coOwners ?? []).some(co => co.userId === userId);
+    const myGoals   = goals.filter(isMine);
+    const teamGoals = goals.filter(g => !isMine(g));
     const byMember: Record<string, Goal[]> = {};
     for (const g of teamGoals) {
       const oid = g.ownerId ?? "unknown";

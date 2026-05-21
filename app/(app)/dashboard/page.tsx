@@ -58,9 +58,25 @@ export default async function DashboardPage({
     if (ctx) teamIds = await getTeamIds(ctx.userId);
     isScoped = pitstopScope !== null && Object.keys(pitstopScope).length > 0;
   } else {
-    const ownerFilter = isScoped ? { ownerId: { in: teamIds } } : {};
-    goalWhere = { ...cityFilter, ...ownerFilter };
-    pitstopWhere = ownerFilter;
+    // Co-owners are treated as owners for visibility purposes.
+    const goalOwnerFilter = isScoped
+      ? {
+          OR: [
+            { ownerId: { in: teamIds } },
+            { coOwners: { some: { userId: { in: teamIds } } } },
+          ],
+        }
+      : {};
+    const pitstopOwnerFilter = isScoped
+      ? {
+          OR: [
+            { ownerId: { in: teamIds } },
+            { coOwners: { some: { userId: { in: teamIds } } } },
+          ],
+        }
+      : {};
+    goalWhere = { ...cityFilter, ...goalOwnerFilter };
+    pitstopWhere = pitstopOwnerFilter;
   }
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
