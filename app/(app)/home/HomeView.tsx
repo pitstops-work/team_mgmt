@@ -4699,16 +4699,14 @@ function RPTodayTab({
                     </button>
                     {open && (
                       <div className="px-3 pb-3 space-y-2">
-                        {bucket.week.map(a => {
-                          const ps = a.pitstops?.[0]?.pitstop;
-                          const g = ps?.goal;
-                          const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
-                          const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
-                          const isOwner = ps?.ownerId === userId;
-                          const isAttendee = !isOwner && (a.attendees?.some(at => at.user.id === userId) ?? false);
-                          const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
-                          return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} role={role} />;
-                        })}
+                        {bucket.week.map(a => (
+                          <RPActivityRow
+                            key={a.id} a={a} userId={userId} isOverdue={false}
+                            linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                            onDone={handleDone} onCompleted={handleCompleted}
+                            isLoadingDone={loadingDoneId === a.id}
+                          />
+                        ))}
                       </div>
                     )}
                   </div>
