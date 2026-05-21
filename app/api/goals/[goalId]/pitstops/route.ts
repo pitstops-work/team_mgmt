@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
         owner: { select: { id: true, name: true, image: true } },
         attachments: true,
         threads: { select: { id: true, name: true, _count: { select: { messages: true } } } },
-        checklistItems: { select: { id: true, text: true, checked: true }, orderBy: { order: "asc" } },
+        checklistItems: { select: { id: true, text: true, checked: true, completionType: true }, orderBy: { order: "asc" } },
       },
     }),
     prisma.goal.findUnique({

@@ -27,7 +27,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ goa
             where: { deletedAt: null },
             select: { id: true, name: true, _count: { select: { messages: { where: { deletedAt: null } } } } },
           },
-          checklistItems: { select: { id: true, text: true, checked: true }, orderBy: { order: "asc" } },
+          checklistItems: { select: { id: true, text: true, checked: true, completionType: true }, orderBy: { order: "asc" } },
         },
         orderBy: { order: "asc" },
       },

@@ -5,9 +5,10 @@ import Link from "next/link";
 import { GoalStatusBadge } from "@/components/StatusBadge";
 import { ChevronDown, ChevronRight, AlertCircle, X, CheckSquare, ExternalLink, ChevronLeft } from "lucide-react";
 import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
+import { confirmManualChecklistTick } from "@/lib/checklistGate";
 
 type User = { id: string; name: string | null; image: string | null };
-type ChecklistItem = { id: string; text: string; checked: boolean };
+type ChecklistItem = { id: string; text: string; checked: boolean; completionType?: string | null };
 type Pitstop = {
   id: string;
   title: string;
@@ -148,6 +149,8 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
 
   const handlePanelToggle = async (itemId: string, checked: boolean) => {
     if (!panel) return;
+    const targetItem = panel.pitstop.checklistItems.find((i) => i.id === itemId);
+    if (!confirmManualChecklistTick(targetItem?.completionType, checked)) return;
     const pitstopId = panel.pitstop.id;
     const newItems = panel.pitstop.checklistItems.map((i) =>
       i.id === itemId ? { ...i, checked } : i

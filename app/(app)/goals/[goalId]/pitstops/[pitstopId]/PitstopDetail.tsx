@@ -8,6 +8,7 @@ import {
   CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History, FileText, UserPlus, Mic, Square, Loader2,
 } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
+import { confirmManualChecklistTick } from "@/lib/checklistGate";
 import OwnerPicker from "@/components/OwnerPicker";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge } from "@/components/StatusBadge";
@@ -297,12 +298,8 @@ function ChecklistItemRow({
         <input
           type="checkbox"
           checked={item.checked}
-          onChange={(e) => {
-            if (item.completionType && item.completionType !== 'Activity') return;
-            onToggle(item.id, e.target.checked);
-          }}
-          disabled={!!(item.completionType && item.completionType !== 'Activity' && !item.checked)}
-          className="mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+          onChange={(e) => onToggle(item.id, e.target.checked)}
+          className="mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0"
         />
         <div className="flex-1 min-w-0 space-y-1">
           <p className={`text-xs leading-relaxed ${isFaded ? "line-through text-stone-400" : "text-stone-700"}`}>
@@ -788,6 +785,8 @@ export default function PitstopDetail({
   };
 
   const handleToggleCheck = async (itemId: string, checked: boolean) => {
+    const targetItem = pitstop.checklistItems.find((i) => i.id === itemId);
+    if (!confirmManualChecklistTick(targetItem?.completionType, checked)) return;
     const newItems = pitstop.checklistItems.map((i) =>
       i.id === itemId ? { ...i, checked, status: checked ? "Done" : "NotStarted" } : i
     );

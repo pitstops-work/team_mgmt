@@ -14,6 +14,7 @@ import PitstopTypeBadge from "@/components/PitstopTypeBadge";
 import CreatePitstopModal from "./CreatePitstopModal";
 import EditGoalModal from "./EditGoalModal";
 import { getTimelineInfo, timelineChip, timelineNodeBorder, fmtDate, getPitstopHealth, HEALTH_DOT } from "@/lib/timeline";
+import { confirmManualChecklistTick } from "@/lib/checklistGate";
 import OwnerPicker from "@/components/OwnerPicker";
 import { qk } from "@/lib/query-keys";
 import { fetchGoal } from "@/lib/api-client";
@@ -27,7 +28,7 @@ import GoalDecisionsRisksSection from "./GoalDecisionsRisksSection";
 type Attachment = { id: string; name: string; url: string; type: string };
 type Thread = { id: string; name: string; _count: { messages: number } };
 type User = { id: string; name: string | null; image: string | null };
-type ChecklistItem = { id: string; text: string; checked: boolean };
+type ChecklistItem = { id: string; text: string; checked: boolean; completionType?: string | null };
 type PitstopPriority = "High" | "Medium" | "Low";
 type Pitstop = {
   id: string;
@@ -256,6 +257,8 @@ export default function GoalDetail({
   };
 
   const handlePanelCheckToggle = async (pitstopId: string, itemId: string, checked: boolean) => {
+    const targetItem = goal!.pitstops.find((p) => p.id === pitstopId)?.checklistItems.find((i) => i.id === itemId);
+    if (!confirmManualChecklistTick(targetItem?.completionType, checked)) return;
     updateGoal((g) => {
       const pitstops = g.pitstops.map((p) => {
         if (p.id !== pitstopId) return p;

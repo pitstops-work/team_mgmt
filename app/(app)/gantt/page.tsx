@@ -43,7 +43,7 @@ export default async function GanttPage() {
           completedAt: true,
           ownerId: true,
           owner: { select: { id: true, name: true, image: true } },
-          checklistItems: { select: { id: true, text: true, checked: true }, orderBy: { order: "asc" } },
+          checklistItems: { select: { id: true, text: true, checked: true, completionType: true }, orderBy: { order: "asc" } },
         },
         orderBy: { order: "asc" },
       },
