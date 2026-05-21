@@ -367,7 +367,6 @@ function TodayTab({
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
   const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
-  const [weekExpanded, setWeekExpanded] = useState(false);
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
@@ -396,6 +395,38 @@ function TodayTab({
   const myChecklists = weekChecklists.filter(
     ci => !completedItemIds.has(ci.id) && ci.pitstop.ownerId === userId
   );
+
+  // Group by cluster. Goals without a cluster fall into a single "No cluster" bucket.
+  const UNCLUSTERED_ID = "__unclustered__";
+  type Bucket = {
+    id: string;
+    name: string;
+    overdue: Activity[];
+    today: Activity[];
+    checklists: ChecklistItem[];
+    week: Activity[];
+  };
+  const bucketMap = new Map<string, Bucket>();
+  const ensureBucket = (c: { id: string; name: string } | null | undefined): Bucket => {
+    const id = c?.id ?? UNCLUSTERED_ID;
+    const name = c?.name ?? "No cluster";
+    let b = bucketMap.get(id);
+    if (!b) { b = { id, name, overdue: [], today: [], checklists: [], week: [] }; bucketMap.set(id, b); }
+    return b;
+  };
+  const activityCluster = (a: Activity) => a.pitstops?.[0]?.pitstop?.goal?.needsCluster ?? null;
+  const checklistCluster = (ci: ChecklistItem) => ci.pitstop.goal.needsCluster ?? null;
+
+  for (const a of overdueItems)    ensureBucket(activityCluster(a)).overdue.push(a);
+  for (const a of todayItems)      ensureBucket(activityCluster(a)).today.push(a);
+  for (const ci of myChecklists)   ensureBucket(checklistCluster(ci)).checklists.push(ci);
+  for (const a of weekItems)       ensureBucket(activityCluster(a)).week.push(a);
+
+  const buckets = [...bucketMap.values()].sort((a, b) => {
+    if (a.id === UNCLUSTERED_ID) return 1;
+    if (b.id === UNCLUSTERED_ID) return -1;
+    return a.name.localeCompare(b.name);
+  });
 
   const allEmpty = overdueItems.length === 0 && todayItems.length === 0 && myChecklists.length === 0;
 
@@ -436,104 +467,95 @@ function TodayTab({
     );
   }
 
-  const emptyMap = new Map<string, ChecklistItem>();
-
   return (
-    <div className="space-y-8">
-
-      {/* Overdue — amber carousel mobile, list desktop */}
-      {overdueItems.length > 0 && (
-        <>
-          <div className="sm:hidden">
-            <RPOverdueCarousel
-              overdueItems={overdueItems}
-              activityChecklistMap={emptyMap}
-              loadingDoneId={loadingDoneId}
-              onDone={handleDone}
-              onCompleted={() => {}}
-            />
-          </div>
-          <div className="hidden sm:block">
-            <div className="flex items-center gap-1.5 mb-3">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-              <SectionTitle>Needs your update</SectionTitle>
-            </div>
-            <div className="space-y-2">
-              {overdueItems.map(a => <ActivityRowSimple key={a.id} a={a} isOverdue />)}
-            </div>
-          </div>
-        </>
+    <div className="space-y-4">
+      {allEmpty && buckets.length === 0 && (
+        <EmptyState message="You're all caught up for today." />
       )}
 
-      {/* Today — white carousel mobile, list desktop */}
-      {todayItems.length === 0 ? (
-        <div>
-          <SectionTitle>Today</SectionTitle>
-          <EmptyState message={overdueItems.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
-        </div>
-      ) : (
-        <>
-          <div className="sm:hidden">
-            <RPTodayCarousel
-              todayItems={todayItems}
-              activityChecklistMap={emptyMap}
-              loadingDoneId={loadingDoneId}
-              onDone={handleDone}
-              onCompleted={() => {}}
-            />
-          </div>
-          <div className="hidden sm:block">
-            <SectionTitle>Today</SectionTitle>
-            <div className="space-y-2 mt-3">
-              {todayItems.map(a => <ActivityRowSimple key={a.id} a={a} isOverdue={false} />)}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Open checklists (Leader-owned pitstops only) */}
-      {myChecklists.length > 0 && (
-        <div>
-          <SectionTitle>Open checklists</SectionTitle>
-          <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100 overflow-hidden mt-3">
-            {myChecklists.map(ci => (
-              <RPChecklistRow key={ci.id} item={ci} onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* All clear */}
-      {allEmpty && <EmptyState message="You're all caught up for today." />}
-
-      {/* Coming up this week */}
-      {weekItems.length > 0 && (
-        <div>
-          <button
-            onClick={() => setWeekExpanded(e => !e)}
-            className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-400 uppercase tracking-wider hover:text-stone-600 transition-colors mb-2"
+      {buckets.map(bucket => {
+        const totals = bucket.overdue.length + bucket.today.length + bucket.checklists.length + bucket.week.length;
+        if (totals === 0) return null;
+        return (
+          <section
+            key={bucket.id}
+            className="rounded-2xl border border-stone-200 bg-white overflow-hidden"
           >
-            Coming up this week ({weekItems.length})
-            {weekExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-          {weekExpanded && (
-            <div className="space-y-5">
-              {groupByDay(weekItems, a => a.scheduledAt).map(({ label, items }) => (
-                <div key={label}>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
+            {/* Cluster header */}
+            <header className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2 min-w-0">
+                <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0" />
+                <h3 className="text-sm font-semibold text-stone-800 truncate">{bucket.name}</h3>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] text-stone-500 flex-shrink-0 flex-wrap">
+                {bucket.overdue.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">{bucket.overdue.length} update{bucket.overdue.length === 1 ? "" : "s"}</span>
+                )}
+                {bucket.today.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-semibold">{bucket.today.length} today</span>
+                )}
+                {bucket.checklists.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">{bucket.checklists.length} checklist{bucket.checklists.length === 1 ? "" : "s"}</span>
+                )}
+                {bucket.week.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-700 font-semibold">{bucket.week.length} this week</span>
+                )}
+              </div>
+            </header>
+
+            <div className="p-3 space-y-5">
+              {/* Needs your update */}
+              {bucket.overdue.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                    <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Needs your update</p>
+                  </div>
                   <div className="space-y-2">
-                    {items.map(a => {
+                    {bucket.overdue.map(a => <ActivityRowSimple key={a.id} a={a} isOverdue />)}
+                  </div>
+                </div>
+              )}
+
+              {/* Today */}
+              {bucket.today.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Today</p>
+                  <div className="space-y-2">
+                    {bucket.today.map(a => <ActivityRowSimple key={a.id} a={a} isOverdue={false} />)}
+                  </div>
+                </div>
+              )}
+
+              {/* Open checklists */}
+              {bucket.checklists.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Open checklists</p>
+                  <div className="rounded-xl border border-stone-100 bg-white divide-y divide-stone-100 overflow-hidden">
+                    {bucket.checklists.map(ci => (
+                      <RPChecklistRow key={ci.id} item={ci} onCompleted={id => setCompletedItemIds(prev => new Set([...prev, id]))} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Coming up this week */}
+              {bucket.week.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Coming up this week ({bucket.week.length})</p>
+                  <div className="space-y-2">
+                    {bucket.week.map(a => {
                       const { goal, isOwner, isAttendee, geo, domain } = activityMeta(a, userId);
                       const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
                       return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={goal?.title} domain={domain} geo={geo} role={role} />;
                     })}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </section>
+        );
+      })}
 
     </div>
   );
