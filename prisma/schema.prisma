@@ -1330,6 +1330,8 @@ model MapPartner {
 // Admin-configurable formula denominators per domain
 model NeedsFormulaConfig {
   domain            String   @id
+  /// numerator in "X units per N people". 1 for the legacy single-unit ratio.
+  numerator         Float    @default(1)
   denominator       Float?
   description       String?
   label             String?

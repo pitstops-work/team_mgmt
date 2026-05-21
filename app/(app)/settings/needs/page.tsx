@@ -12,6 +12,7 @@ interface DomainConfig {
   color: string;
   domainType: string;
   populationField: string | null;
+  numerator: number;        // "X units per N people"; defaults to 1
   denominator: number | null;
   description: string | null;
   sortOrder: number;
@@ -71,11 +72,14 @@ function FormulasSection() {
   const [newColor, setNewColor]           = useState("#6b7280");
   const [newType, setNewType]             = useState("count");
   const [newPopField, setNewPopField]     = useState("totalHouseholds");
+  const [newNumer, setNewNumer]           = useState("1");
   const [newDenom, setNewDenom]           = useState("");
   const [newDesc, setNewDesc]             = useState("");
   const [newLinkedSchemeId, setNewLinkedSchemeId] = useState("");
   const [newAssessmentLevel, setNewAssessmentLevel] = useState("settlement");
   const [newCivicGroup, setNewCivicGroup] = useState("borewell");
+  // Numerator edits keyed by domain (mirrors the existing `edits` map for denominator)
+  const [numerEdits, setNumerEdits] = useState<Record<string, string>>({});
   const [adding, setAdding]               = useState(false);
   const [addError, setAddError]           = useState("");
   const [keyEdited, setKeyEdited]         = useState(false);
@@ -99,8 +103,13 @@ function FormulasSection() {
       .then((data: DomainConfig[]) => {
         setDomains(data);
         const init: Record<string, string> = {};
-        data.forEach(d => { init[d.domain] = d.denominator != null ? String(d.denominator) : ""; });
+        const numerInit: Record<string, string> = {};
+        data.forEach(d => {
+          init[d.domain] = d.denominator != null ? String(d.denominator) : "";
+          numerInit[d.domain] = String(d.numerator ?? 1);
+        });
         setEdits(init);
+        setNumerEdits(numerInit);
       });
     fetch("/api/needs/schemes")
       .then(r => r.json())
@@ -117,8 +126,13 @@ function FormulasSection() {
       const updated: DomainConfig[] = await res.json();
       setDomains(updated);
       const newEdits: Record<string, string> = {};
-      updated.forEach(d => { newEdits[d.domain] = d.denominator != null ? String(d.denominator) : ""; });
+      const newNumerEdits: Record<string, string> = {};
+      updated.forEach(d => {
+        newEdits[d.domain] = d.denominator != null ? String(d.denominator) : "";
+        newNumerEdits[d.domain] = String(d.numerator ?? 1);
+      });
       setEdits(newEdits);
+      setNumerEdits(newNumerEdits);
     }
     return res;
   };
@@ -176,14 +190,37 @@ function FormulasSection() {
       assessmentLevel:  d.assessmentLevel,
       description:      d.description ?? undefined,
       civicWeightGroup: d.civicWeightGroup ?? undefined,
+      civicGroup:       d.civicGroup ?? undefined,
+      linkedSchemeId:   d.linkedSchemeId ?? undefined,
     });
     setEdits(prev => ({ ...prev, [d.domain]: d.denominator != null ? String(d.denominator) : "" }));
+    setNumerEdits(prev => ({ ...prev, [d.domain]: String(d.numerator ?? 1) }));
   };
 
   const saveEdit = async (domain: string) => {
     setEditSaving(true);
     const denom = edits[domain] === "" ? null : parseFloat(edits[domain]) || null;
-    await patchDomain([{ domain, ...editFields, denominator: denom }]);
+    const numer = parseFloat(numerEdits[domain] ?? "1") || 1;
+    const isCount = editFields.domainType === "count";
+    const isBoolean = editFields.domainType === "boolean";
+    const isEntitlement = editFields.domainType === "entitlement";
+    const isCivic = editFields.domainType === "civic";
+    await patchDomain([{
+      domain,
+      ...editFields,
+      // Persist numerator only for count; others should reset to 1.
+      numerator: isCount ? numer : 1,
+      // Denominator only applies to count; entitlement/civic/boolean should null it.
+      denominator: isCount ? denom : null,
+      // Population field only for count/boolean.
+      populationField: (isCount || isBoolean) ? (editFields.populationField ?? null) : null,
+      // civicWeightGroup only meaningful for count.
+      civicWeightGroup: isCount ? (editFields.civicWeightGroup ?? null) : null,
+      // civicGroup only for civic type.
+      civicGroup: isCivic ? (editFields.civicGroup ?? null) : null,
+      // linkedSchemeId only for entitlement type.
+      linkedSchemeId: isEntitlement ? (editFields.linkedSchemeId ?? null) : null,
+    }]);
     setExpandedDomain(null);
     setEditSaving(false);
   };
@@ -222,12 +259,14 @@ function FormulasSection() {
         label: newLabel.trim(),
         color: newColor,
         domainType: newType,
-        populationField: (newType === "boolean" || newType === "entitlement" || newType === "civic") ? null : newPopField,
+        populationField: (newType === "entitlement" || newType === "civic") ? null : newPopField,
+        numerator: newType === "count" ? (newNumer ? parseFloat(newNumer) || 1 : 1) : 1,
         denominator: (newType === "boolean" || newType === "entitlement" || newType === "civic") ? null : (newDenom ? parseFloat(newDenom) : null),
         description: newDesc.trim() || null,
         linkedSchemeId: newType === "entitlement" ? newLinkedSchemeId : null,
         civicGroup: newType === "civic" ? newCivicGroup : null,
-        assessmentLevel: newType === "count" ? newAssessmentLevel : "settlement",
+        // Boolean and count both support assessment level now; entitlement/civic stay at settlement default.
+        assessmentLevel: (newType === "count" || newType === "boolean") ? newAssessmentLevel : "settlement",
       }),
     });
     if (res.ok) {
@@ -235,7 +274,7 @@ function FormulasSection() {
       setDomains(prev => [...prev, created]);
       setEdits(prev => ({ ...prev, [created.domain]: created.denominator != null ? String(created.denominator) : "" }));
       setNewKey(""); setNewLabel(""); setNewColor("#6b7280"); setNewType("count");
-      setNewPopField("totalHouseholds"); setNewDenom(""); setNewDesc(""); setNewLinkedSchemeId(""); setNewAssessmentLevel("settlement"); setNewCivicGroup("borewell");
+      setNewPopField("totalHouseholds"); setNewNumer("1"); setNewDenom(""); setNewDesc(""); setNewLinkedSchemeId(""); setNewAssessmentLevel("settlement"); setNewCivicGroup("borewell");
       setKeyEdited(false); setShowAdvanced(false);
       setShowAdd(false);
     } else {
@@ -383,7 +422,7 @@ function FormulasSection() {
           {/* Ratio fields */}
           {newType === "count" && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Population group</label>
                   <select
@@ -395,7 +434,18 @@ function FormulasSection() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">1 unit per N people</label>
+                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Units</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newNumer}
+                    onChange={e => setNewNumer(e.target.value)}
+                    placeholder="e.g. 20"
+                    className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Per N people</label>
                   <input
                     type="number"
                     min={1}
@@ -406,6 +456,9 @@ function FormulasSection() {
                   />
                 </div>
               </div>
+              <p className="text-[10px] text-sky-600">
+                e.g. <strong>20</strong> youth leaders per <strong>500</strong> youth — leave Units as 1 for a simple 1-per-N ratio.
+              </p>
               <div>
                 <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Viability assessed at</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -428,11 +481,29 @@ function FormulasSection() {
             </>
           )}
 
-          {/* Presence hint */}
+          {/* Presence — yes/no per geography level */}
           {newType === "boolean" && (
-            <p className="text-[11px] text-sky-700 bg-sky-100 rounded-lg px-3 py-2">
-              Target: 1 per settlement — tracks whether each settlement has this resource/service. No population formula needed.
-            </p>
+            <>
+              <div>
+                <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Tracked at</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ASSESSMENT_LEVELS.map(lv => (
+                    <button
+                      key={lv.value}
+                      type="button"
+                      onClick={() => setNewAssessmentLevel(lv.value)}
+                      className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${newAssessmentLevel === lv.value ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}
+                    >
+                      <p className="text-xs font-semibold text-stone-700">{lv.label}</p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">Yes/no per {lv.label.toLowerCase()}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11px] text-sky-700 bg-sky-100 rounded-lg px-3 py-2">
+                Tracks whether each {newAssessmentLevel} has this resource/service. No population formula needed.
+              </p>
+            </>
           )}
 
           {/* Entitlement hint */}
@@ -544,10 +615,10 @@ function FormulasSection() {
                   {d.domainType === "entitlement"
                     ? `Scheme saturation · ${allSchemes.find(s => s.id === d.linkedSchemeId)?.name ?? "no scheme linked"}`
                     : d.domainType === "boolean"
-                    ? "Presence — yes/no per settlement"
+                    ? `Presence — yes/no per ${d.assessmentLevel ?? "settlement"}`
                     : d.domainType === "civic"
                     ? `Civic survey % · ${CIVIC_GROUPS.find(g => g.value === d.civicGroup)?.label ?? d.civicGroup ?? "no group"}`
-                    : `${d.populationField ?? "?"}${d.civicWeightGroup ? ` × ${CIVIC_GROUPS.find(g => g.value === d.civicWeightGroup)?.label ?? d.civicWeightGroup} score` : ""} · 1 per ${d.denominator ?? "?"} · ${d.assessmentLevel ?? "settlement"} level`}
+                    : `${d.populationField ?? "?"}${d.civicWeightGroup ? ` × ${CIVIC_GROUPS.find(g => g.value === d.civicWeightGroup)?.label ?? d.civicWeightGroup} score` : ""} · ${(d.numerator ?? 1) === 1 ? "1" : d.numerator} per ${d.denominator ?? "?"} · ${d.assessmentLevel ?? "settlement"} level`}
                 </p>
               </div>
 
@@ -608,11 +679,12 @@ function FormulasSection() {
                 {/* Type */}
                 <div>
                   <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">How is the target calculated?</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {[
-                      { v: "count", label: "Ratio", desc: "1 unit per N people" },
-                      { v: "boolean", label: "Presence", desc: "Yes/no per settlement" },
+                      { v: "count", label: "Ratio", desc: "X units per N people" },
+                      { v: "boolean", label: "Presence", desc: "Yes/no per settlement/cluster/zone/city" },
                       { v: "entitlement", label: "Scheme Saturation", desc: "Linked to an entitlement scheme" },
+                      { v: "civic", label: "Civic Survey %", desc: "Janadhikara survey breakdown" },
                     ].map(t => (
                       <button key={t.v} type="button" onClick={() => setEditFields(f => ({ ...f, domainType: t.v }))}
                         className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${editFields.domainType === t.v ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}>
@@ -623,10 +695,10 @@ function FormulasSection() {
                   </div>
                 </div>
 
-                {/* Count-specific: population field + denominator + assessment level */}
+                {/* Count-specific: population field + numerator + denominator + assessment level */}
                 {editFields.domainType === "count" && (
                   <>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Population group</label>
                         <select
@@ -638,7 +710,16 @@ function FormulasSection() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">1 unit per N people</label>
+                        <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Units</label>
+                        <input
+                          type="number" min={1}
+                          value={numerEdits[d.domain] ?? "1"}
+                          onChange={e => setNumerEdits(prev => ({ ...prev, [d.domain]: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Per N people</label>
                         <input
                           type="number" min={1}
                           value={edits[d.domain] ?? ""}
@@ -647,6 +728,9 @@ function FormulasSection() {
                         />
                       </div>
                     </div>
+                    <p className="text-[10px] text-sky-600">
+                      e.g. <strong>20</strong> youth leaders per <strong>500</strong> youth — leave Units as 1 for a simple 1-per-N ratio.
+                    </p>
                     <div>
                       <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Viability assessed at</label>
                       <div className="grid grid-cols-2 gap-2">
@@ -671,6 +755,59 @@ function FormulasSection() {
                       </select>
                     </div>
                   </>
+                )}
+
+                {/* Boolean (Presence): tracked at what level? */}
+                {editFields.domainType === "boolean" && (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Tracked at</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ASSESSMENT_LEVELS.map(lv => (
+                        <button key={lv.value} type="button" onClick={() => setEditFields(f => ({ ...f, assessmentLevel: lv.value }))}
+                          className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${editFields.assessmentLevel === lv.value ? "border-sky-400 bg-sky-100" : "border-sky-100 bg-white hover:border-sky-200"}`}>
+                          <p className="text-xs font-semibold text-stone-700">{lv.label}</p>
+                          <p className="text-[10px] text-stone-400 mt-0.5">Yes/no per {lv.label.toLowerCase()}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Civic Survey %: which survey group? */}
+                {editFields.domainType === "civic" && (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Survey group</label>
+                    <select
+                      value={editFields.civicGroup ?? ""}
+                      onChange={e => setEditFields(f => ({ ...f, civicGroup: e.target.value || null }))}
+                      className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                    >
+                      <option value="">— select a group —</option>
+                      {CIVIC_GROUPS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {/* Entitlement: which scheme? */}
+                {editFields.domainType === "entitlement" && (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-sky-700 uppercase tracking-wide mb-1">Entitlement scheme</label>
+                    <select
+                      value={editFields.linkedSchemeId ?? ""}
+                      onChange={e => setEditFields(f => ({ ...f, linkedSchemeId: e.target.value || null }))}
+                      className="w-full px-2.5 py-1.5 text-xs border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                    >
+                      <option value="">— select a scheme —</option>
+                      {allSchemes.filter(s => s.isActive && !s.parentId).map(s => (
+                        <optgroup key={s.id} label={s.name}>
+                          <option value={s.id}>{s.name} (parent)</option>
+                          {allSchemes.filter(c => c.parentId === s.id && c.isActive).map(c => (
+                            <option key={c.id} value={c.id}>&nbsp;&nbsp;{c.name}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
                 )}
 
                 <div className="flex gap-2 pt-1">

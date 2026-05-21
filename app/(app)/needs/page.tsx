@@ -13,6 +13,7 @@ export interface DomainConfig {
   color: string;
   domainType: string;          // "count" | "boolean" | "entitlement" | "civic"
   populationField: string | null;
+  numerator: number;           // for "X units per N people"; defaults to 1
   denominator: number | null;
   sortOrder: number;
   assessmentLevel: string;     // "settlement" | "cluster" | "zone" | "city"
@@ -140,7 +141,10 @@ function formulaTarget(pop: PopFields, cfg: DomainConfig, civicWeightedPop?: Rec
     const weighted = civicWeightedPop[cfg.civicWeightGroup];
     if (weighted != null) popVal = weighted;
   }
-  return Math.floor(popVal / cfg.denominator);   // 0 when pop < denom (not viable)
+  // "X units per N people". Viability still gated by the denominator threshold.
+  const numerator = cfg.numerator > 0 ? cfg.numerator : 1;
+  if (popVal < cfg.denominator) return 0;
+  return Math.floor((popVal * numerator) / cfg.denominator);
 }
 
 // ── Aggregate stats for a set of assessments + goals ────────────────────────
@@ -488,6 +492,7 @@ export default async function NeedsPage() {
       color:           f.color ?? "#6b7280",
       domainType:      f.domainType ?? "count",
       populationField: f.populationField ?? null,
+      numerator:       f.numerator ?? 1,
       denominator:     f.denominator ?? null,
       sortOrder:       f.sortOrder ?? 0,
       assessmentLevel: f.assessmentLevel ?? (f.clusterScope ? "cluster" : "settlement"),

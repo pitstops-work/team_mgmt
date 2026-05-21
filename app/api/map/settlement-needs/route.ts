@@ -5,6 +5,7 @@ export type FormulaRow = {
   domain: string;
   label: string | null;
   color: string;
+  numerator: number;        // "X units per N people"; defaults to 1
   denominator: number | null;
   populationField: string | null;
   assessmentColumn: string | null;
@@ -59,7 +60,10 @@ export function calcTargets(pop: PopFields, formulaRows: FormulaRow[], civicWeig
         const weighted = civicWeightedPop[f.civicWeightGroup];
         if (weighted != null) popVal = weighted;
       }
-      result[f.domain] = f.denominator ? Math.floor(popVal / f.denominator) : 0;
+      const num = (f.numerator ?? 1) > 0 ? (f.numerator ?? 1) : 1;
+      result[f.domain] = f.denominator && popVal >= f.denominator
+        ? Math.floor((popVal * num) / f.denominator)
+        : 0;
     }
   }
   return result;

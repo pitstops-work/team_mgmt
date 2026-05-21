@@ -14,6 +14,7 @@ import {
 type Scheme = { id: string; name: string; parentId: string | null; sortOrder: number };
 type FormulaConfig = {
   domain: string;
+  numerator: number | null;
   denominator: number | null;
   description: string | null;
   label: string | null;
@@ -89,9 +90,10 @@ const b = (v: unknown): boolean => Boolean(v);
 const n = (v: unknown): number => (v == null ? 0 : Number(v));
 
 // Denominator is BOTH divisor and minimum viable threshold:
-// floor(pop / denom) → 0 when pop < denom (not enough people to justify the facility)
-function calcTarget(population: number, denominator: number) {
-  return Math.floor(population / denominator);
+// floor((pop * numerator) / denom) → 0 when pop < denom (not enough people to justify the facility)
+function calcTarget(population: number, denominator: number, numerator = 1) {
+  if (population < denominator) return 0;
+  return Math.floor((population * numerator) / denominator);
 }
 
 function domainActual(goals: GoalActual[], domain: string) {
@@ -549,7 +551,7 @@ export default function AssessmentForm({ settlement, schemes, formulas, goals }:
       t = popVal > 0 ? 1 : 0;
     } else if (f.populationField && f.denominator != null) {
       const popVal = POP_MAP[f.populationField] ?? 0;
-      t = calcTarget(popVal, f.denominator); // floor — 0 when pop < denom (not viable)
+      t = calcTarget(popVal, f.denominator, f.numerator ?? 1);
     }
     targets[f.domain] = t;
     apfTargets[f.domain] = Math.max(0, t - (EXISTING_MAP[f.domain] ?? 0));

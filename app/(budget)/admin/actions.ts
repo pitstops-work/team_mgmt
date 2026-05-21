@@ -358,7 +358,7 @@ type PopFields = {
   youth15to21: number; elderly60plus: number;
 };
 
-function _calcNeed(pop: PopFields, rows: { domain: string; denominator: number | null; populationField: string | null; domainType: string; isActive: boolean }[]): Record<string, number> {
+function _calcNeed(pop: PopFields, rows: { domain: string; numerator: number; denominator: number | null; populationField: string | null; domainType: string; isActive: boolean }[]): Record<string, number> {
   const pm: Record<string, number> = {
     totalHouseholds: pop.totalHouseholds, children6m3yr: pop.children6m3yr,
     children4to14: pop.children4to14, youth15to21: pop.youth15to21, elderly60plus: pop.elderly60plus,
@@ -367,7 +367,8 @@ function _calcNeed(pop: PopFields, rows: { domain: string; denominator: number |
   for (const f of rows) {
     if (!f.isActive || f.domainType === "entitlement" || f.domainType === "boolean") continue;
     const pv = f.populationField ? (pm[f.populationField] ?? 0) : 0;
-    r[f.domain] = f.denominator ? Math.floor(pv / f.denominator) : 0;
+    const num = f.numerator > 0 ? f.numerator : 1;
+    r[f.domain] = f.denominator && pv >= f.denominator ? Math.floor((pv * num) / f.denominator) : 0;
   }
   return r;
 }

@@ -26,12 +26,15 @@ export async function PATCH(req: NextRequest) {
 
   const updates: {
     domain: string;
+    numerator?: number | null;
     denominator?: number | null;
     description?: string;
     isActive?: boolean;
     label?: string;
     color?: string;
     sortOrder?: number;
+    domainType?: string;
+    populationField?: string | null;
     linkedSchemeId?: string | null;
     assessmentLevel?: string;
     civicGroup?: string | null;
@@ -39,16 +42,19 @@ export async function PATCH(req: NextRequest) {
   }[] = await req.json();
 
   await Promise.all(
-    updates.map(({ domain, denominator, description, isActive, label, color, sortOrder, linkedSchemeId, assessmentLevel, civicGroup, civicWeightGroup }) =>
+    updates.map(({ domain, numerator, denominator, description, isActive, label, color, sortOrder, domainType, populationField, linkedSchemeId, assessmentLevel, civicGroup, civicWeightGroup }) =>
       prisma.needsFormulaConfig.update({
         where: { domain },
         data: {
+          ...(numerator !== undefined ? { numerator: numerator ?? 1 } : {}),
           ...(denominator !== undefined ? { denominator: denominator ?? null } : {}),
           ...(description !== undefined ? { description } : {}),
           ...(isActive !== undefined ? { isActive } : {}),
           ...(label !== undefined ? { label } : {}),
           ...(color !== undefined ? { color } : {}),
           ...(sortOrder !== undefined ? { sortOrder } : {}),
+          ...(domainType !== undefined ? { domainType } : {}),
+          ...(populationField !== undefined ? { populationField: populationField ?? null } : {}),
           ...(linkedSchemeId !== undefined ? { linkedSchemeId: linkedSchemeId ?? null } : {}),
           ...(civicGroup !== undefined ? { civicGroup: civicGroup ?? null } : {}),
           ...(civicWeightGroup !== undefined ? { civicWeightGroup: civicWeightGroup ?? null } : {}),
@@ -84,7 +90,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { key, label, color, domainType, denominator, populationField, description, linkedSchemeId, assessmentLevel, civicGroup, civicWeightGroup } = await req.json();
+  const { key, label, color, domainType, numerator, denominator, populationField, description, linkedSchemeId, assessmentLevel, civicGroup, civicWeightGroup } = await req.json();
 
   if (!key || !label) return Response.json({ error: "key and label are required" }, { status: 400 });
 
@@ -92,12 +98,15 @@ export async function POST(req: NextRequest) {
   const max = await prisma.needsFormulaConfig.findFirst({ orderBy: { sortOrder: "desc" } });
   const sortOrder = (max?.sortOrder ?? 0) + 1;
 
+  const isCount = (domainType ?? "count") === "count";
+
   const row = await prisma.needsFormulaConfig.create({
     data: {
       domain: key,
       label,
       color: color ?? "#6b7280",
       domainType: domainType ?? "count",
+      numerator: isCount ? (numerator ?? 1) : 1,
       denominator: (domainType === "entitlement" || domainType === "civic") ? null : (denominator ?? null),
       populationField: (domainType === "entitlement" || domainType === "civic") ? null : (populationField ?? null),
       description: description ?? null,
