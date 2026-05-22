@@ -195,6 +195,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
             })),
           });
         }
+
+        // Extend the goal's targetDate when this recurring clone pushes past
+        // it. Goal targetDate is initialised to max(pitstop targetDates) at
+        // template-apply time; recurring pitstops keep generating later
+        // instances, so the goal deadline must track the latest pitstop.
+        const parentGoal = await prisma.goal.findUnique({
+          where: { id: existing.goalId },
+          select: { targetDate: true },
+        });
+        if (parentGoal && (!parentGoal.targetDate || newTarget > parentGoal.targetDate)) {
+          await prisma.goal.update({
+            where: { id: existing.goalId },
+            data: { targetDate: newTarget },
+          });
+        }
       }
     }
   }
