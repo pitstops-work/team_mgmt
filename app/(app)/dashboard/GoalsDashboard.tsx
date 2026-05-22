@@ -84,8 +84,28 @@ type ChecklistDrillItem = {
   text: string;
   checked: boolean;
   status: string;
-  activities: { id: string; title: string; status: string; scheduledAt: string; type: string }[];
+  completedAt: string | null;
+  activities: { id: string; title: string; status: string; scheduledAt: string; type: string; completedAt: string | null }[];
 };
+
+function dueDelta(dueDate: string | null, isDone: boolean, completedAt: string | null) {
+  if (!dueDate) return null;
+  const due = new Date(dueDate); due.setHours(0, 0, 0, 0);
+  if (isDone) {
+    const ref = completedAt ? new Date(completedAt) : null;
+    if (!ref) return null;
+    ref.setHours(0, 0, 0, 0);
+    const days = Math.round((ref.getTime() - due.getTime()) / 86400000);
+    if (days === 0) return { label: "on time", cls: "text-emerald-600" };
+    if (days < 0)   return { label: `${-days}d early`, cls: "text-emerald-600" };
+    return { label: `${days}d late`, cls: "text-red-600" };
+  }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((today.getTime() - due.getTime()) / 86400000);
+  if (days === 0) return { label: "due today", cls: "text-amber-600" };
+  if (days < 0)   return { label: `${-days}d left`, cls: "text-stone-500" };
+  return { label: `${days}d overdue`, cls: "text-red-600" };
+}
 
 type DrillState = { tag: PhaseTag; seedGoalId?: string } | null;
 
@@ -797,7 +817,7 @@ export default function GoalsDashboard({
 
       {/* ── Phase tab ── */}
       {activeTab === "phase" && (
-        <PhaseMatrix goals={filtered} phaseData={phaseData} users={users} />
+        <PhaseMatrix goals={filtered} phaseData={phaseData} users={users} currentUserRole={currentUserRole} />
       )}
 
       {showCreate && (
@@ -1001,6 +1021,7 @@ function PitstopDrillCard({
           {!loadingChecklist && checklistItems && checklistItems.length > 0 && checklistItems.map(item => {
             const cColor = CHECKLIST_STATUS_COLORS[item.status] ?? "bg-stone-100 text-stone-400";
             const isChecklistExpanded = expandedChecklist === item.id;
+            const delta = dueDelta(row.targetDate, item.status === "Done", item.completedAt);
             return (
               <div key={item.id}>
                 <div
@@ -1013,6 +1034,9 @@ function PitstopDrillCard({
                   <span className={`text-xs flex-1 min-w-0 ${item.checked ? "line-through text-stone-400" : "text-stone-600"}`}>
                     {item.text}
                   </span>
+                  {delta && (
+                    <span className={`text-[10px] tabular-nums flex-shrink-0 mt-0.5 ${delta.cls}`}>{delta.label}</span>
+                  )}
                   {item.activities.length > 0 && (
                     <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0 mt-1.5" title="Has linked activities" />
                   )}
@@ -1021,19 +1045,25 @@ function PitstopDrillCard({
                   <div className="ml-2 mt-0.5 mb-1 px-3 py-2 bg-white rounded-lg border border-stone-100">
                     {item.activities.length > 0 ? (
                       <div className="space-y-1.5">
-                        {item.activities.map((act) => (
-                          <div key={act.id} className="flex items-center gap-2">
-                            <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${EVENT_STATUS_COLORS[act.status] ?? "bg-stone-100 text-stone-400"}`}>
-                              {act.status}
-                            </span>
-                            <div className="min-w-0">
-                              <p className="text-xs font-medium text-stone-700 truncate">{act.title}</p>
-                              <p className="text-[10px] text-stone-400">
-                                {act.type} · {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                              </p>
+                        {item.activities.map((act) => {
+                          const actDelta = dueDelta(act.scheduledAt, act.status === "Done", act.completedAt);
+                          return (
+                            <div key={act.id} className="flex items-center gap-2">
+                              <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${EVENT_STATUS_COLORS[act.status] ?? "bg-stone-100 text-stone-400"}`}>
+                                {act.status}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-stone-700 truncate">{act.title}</p>
+                                <p className="text-[10px] text-stone-400">
+                                  {act.type} · {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                </p>
+                              </div>
+                              {actDelta && (
+                                <span className={`text-[10px] tabular-nums flex-shrink-0 ${actDelta.cls}`}>{actDelta.label}</span>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-xs text-stone-400">No activities linked to this item</p>
@@ -1240,14 +1270,17 @@ function DrillDownPanel({
 }
 
 function PhaseMatrix({
-  goals, phaseData, users,
+  goals, phaseData, users, currentUserRole,
 }: {
   goals: Goal[];
   phaseData: PhaseRow[];
   users: UserRef[];
+  currentUserRole?: string;
 }) {
+  const isAdmin = currentUserRole === "admin" || currentUserRole === "super-admin";
   const [drill, setDrill] = useState<DrillState>(null);
   const [viewMode, setViewMode] = useState<"by-goal" | "by-phase">("by-goal");
+  const [groupBy, setGroupBy] = useState<"none" | "city" | "domain" | "owner" | "status">("none");
   const [filterGoalIds,    setFilterGoalIds]    = useState<string[]>([]);
   const [filterUserIds,    setFilterUserIds]    = useState<string[]>([]);
   const [filterZoneId,     setFilterZoneId]     = useState<string>("");
@@ -1320,6 +1353,34 @@ function PhaseMatrix({
     setFilterGoalIds([]); setFilterUserIds([]); setFilterZoneId(""); setFilterClusterId("");
   }
 
+  function goalGroupInfo(g: Goal): { key: string; label: string } {
+    if (groupBy === "city") {
+      const c = g.needsCity?.name ?? g.needsZone?.city?.name ?? g.needsCluster?.zone?.city?.name ?? "—";
+      return { key: c, label: c };
+    }
+    if (groupBy === "domain") {
+      const d = g.needsDomain ?? "—";
+      return { key: d, label: d };
+    }
+    if (groupBy === "owner") {
+      return { key: g.owner.id, label: g.owner.name ?? "Unknown" };
+    }
+    if (groupBy === "status") {
+      return { key: g.status, label: g.status };
+    }
+    return { key: "all", label: "" };
+  }
+
+  const goalGroupsMap = new Map<string, { label: string; goals: Goal[] }>();
+  for (const g of displayGoals) {
+    const { key, label } = goalGroupInfo(g);
+    if (!goalGroupsMap.has(key)) goalGroupsMap.set(key, { label, goals: [] });
+    goalGroupsMap.get(key)!.goals.push(g);
+  }
+  const goalGroups = [...goalGroupsMap.entries()]
+    .map(([key, { label, goals }]) => ({ key, label, goals }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
   if (visibleGoals.length === 0) {
     return (
       <div className="text-center py-16 border border-dashed border-stone-200 rounded-xl">
@@ -1389,6 +1450,22 @@ function PhaseMatrix({
               Clear filters
             </button>
           )}
+          {isAdmin && (
+            <div className="flex items-center gap-1 ml-auto">
+              <span className="text-[11px] text-stone-500">Group by</span>
+              <select
+                value={groupBy}
+                onChange={e => setGroupBy(e.target.value as typeof groupBy)}
+                className="text-xs border border-stone-200 rounded-md px-2 py-1.5 text-stone-700 bg-white"
+              >
+                <option value="none">None</option>
+                <option value="city">City</option>
+                <option value="domain">Domain</option>
+                <option value="owner">Owner</option>
+                <option value="status">Status</option>
+              </select>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4 mb-4 flex-wrap">
           <p className="text-xs text-stone-500 flex-1">
@@ -1412,12 +1489,20 @@ function PhaseMatrix({
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Done</span>
           </div>
         </div>
+        {goalGroups.map(group => (
+        <div key={group.key} className="space-y-3">
+          {groupBy !== "none" && (
+            <div className="flex items-center gap-2 pt-3 mt-1 border-t border-stone-100">
+              <h3 className="text-sm font-semibold text-stone-700">{group.label}</h3>
+              <span className="text-xs text-stone-400">({group.goals.length} goal{group.goals.length !== 1 ? "s" : ""})</span>
+            </div>
+          )}
         {viewMode === "by-goal" ? (
           <>
             {/* Mobile: one card per goal */}
             <div className="sm:hidden -mx-4 px-4">
               <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
-                {displayGoals.map((goal) => {
+                {group.goals.map((goal) => {
                   const gMap = tagMap.get(goal.id) ?? new Map();
                   const activePhaseTags = PHASE_TAGS.filter(tag => gMap.has(tag));
                   return (
@@ -1489,7 +1574,7 @@ function PhaseMatrix({
                   </tr>
                 </thead>
                 <tbody>
-                  {displayGoals.map((goal, i) => {
+                  {group.goals.map((goal, i) => {
                     const gMap = tagMap.get(goal.id) ?? new Map();
                     return (
                       <tr key={goal.id} className={i % 2 === 0 ? "bg-white" : "bg-stone-50"}>
@@ -1543,8 +1628,8 @@ function PhaseMatrix({
             {/* Mobile: one card per phase, goals listed inside */}
             <div className="sm:hidden -mx-4 px-4">
               <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
-                {PHASE_TAGS.filter(tag => displayGoals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
-                  const goalsInPhase = displayGoals.filter(g => tagMap.get(g.id)?.has(tag));
+                {PHASE_TAGS.filter(tag => group.goals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
+                  const goalsInPhase = group.goals.filter(g => tagMap.get(g.id)?.has(tag));
                   return (
                     <div key={tag} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 bg-white p-4 flex-shrink-0">
                       <div className="flex items-center gap-2 mb-3">
@@ -1597,8 +1682,8 @@ function PhaseMatrix({
 
             {/* Desktop: phase sections, goals listed under each */}
             <div className="hidden sm:block space-y-4">
-              {PHASE_TAGS.filter(tag => displayGoals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
-                const goalsInPhase = displayGoals.filter(g => tagMap.get(g.id)?.has(tag));
+              {PHASE_TAGS.filter(tag => group.goals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
+                const goalsInPhase = group.goals.filter(g => tagMap.get(g.id)?.has(tag));
                 const isTagActive = drill?.tag === tag && !drill.seedGoalId;
                 return (
                   <div key={tag}>
@@ -1662,6 +1747,8 @@ function PhaseMatrix({
             </div>
           </>
         )}
+        </div>
+        ))}
         <div className="flex items-center gap-4 pt-1 text-[10px] text-stone-400">
           <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-sky-400 rounded-full" />Checklist</span>
           <span className="flex items-center gap-1"><span className="inline-block w-8 h-1 bg-violet-400 rounded-full" />Activities</span>
