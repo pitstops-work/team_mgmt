@@ -145,11 +145,14 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
 
   const searchParams = useSearchParams();
   const settlementParam = searchParams.get("settlement");
+  const clusterParam = searchParams.get("cluster");
 
   // Ref so the deep-link effect can call handleSettlementClick without it
   // needing to be in the dependency array (handleSettlementClick depends on geoData
   // which is already listed, avoiding an extra render cycle).
   const handleSettlementClickRef = useRef<((f: SettlementFeature) => void) | null>(null);
+  const handleClusterSelectRef = useRef<((cluster: string | null) => void) | null>(null);
+  const clusterDeepLinkAppliedRef = useRef(false);
 
   // Deep-link: when geoData loads and a settlement name param exists, select it
   useEffect(() => {
@@ -351,9 +354,32 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     setMapFilter(geoData ? computeMapFilter("settlement", geoData, { settlementName: f.name }) : null);
   }, [geoData]);
 
-  // Keep ref in sync so the deep-link effect (which runs on geoData load) can
-  // call the latest version of handleSettlementClick without extra re-runs.
+  // Keep refs in sync so the deep-link effects (which run on geoData load) can
+  // call the latest handlers without putting them in their dep arrays.
   useEffect(() => { handleSettlementClickRef.current = handleSettlementClick; }, [handleSettlementClick]);
+  useEffect(() => { handleClusterSelectRef.current = handleClusterSelect; }, [handleClusterSelect]);
+
+  // Deep-link: when geoData loads and a ?cluster=<name> param exists, select it.
+  // Cluster fly-to fires automatically from MapView's activeCluster effect.
+  useEffect(() => {
+    if (!geoData || !clusterParam || clusterDeepLinkAppliedRef.current) return;
+    const target = clusterParam.trim().toLowerCase();
+    // Find any settlement feature whose cluster matches; if found, treat the
+    // canonical cluster name as that feature's cluster property so casing /
+    // punctuation matches the rest of the map filter pipeline.
+    let canonicalName: string | null = null;
+    for (const features of Object.values(geoData.settlements)) {
+      if (!features) continue;
+      for (const f of features) {
+        const name = String(f.properties.cluster ?? "");
+        if (name.toLowerCase() === target) { canonicalName = name; break; }
+      }
+      if (canonicalName) break;
+    }
+    if (!canonicalName) return; // unknown cluster name — leave map at default
+    clusterDeepLinkAppliedRef.current = true;
+    handleClusterSelectRef.current?.(canonicalName);
+  }, [geoData, clusterParam]);
 
   const handlePartnerFilter = useCallback((key: LayerKey | null) => {
     if (key) {

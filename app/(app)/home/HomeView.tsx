@@ -5603,7 +5603,7 @@ function RPClusterCard({
         <h3 className="text-sm font-semibold text-stone-800 truncate flex-1">{bucket.clusterName}</h3>
         {cluster && (
           <Link
-            href={`/programmes/map?cluster=${cluster.id}`}
+            href={`/map?cluster=${encodeURIComponent(cluster.name)}`}
             className="text-[10px] text-sky-500 hover:text-sky-700 flex items-center gap-0.5 flex-shrink-0"
           >
             Open in map <ChevronRight className="w-3 h-3" />
