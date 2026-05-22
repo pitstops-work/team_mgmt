@@ -550,6 +550,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
           title: title.trim(),
           description: description.trim() || null,
           status,
+          startDate,
           targetDate,
           recurrence,
           needsDomain: isOperational ? null : (needsDomain || null),

@@ -124,7 +124,9 @@ model Goal {
   status      GoalStatus @default(Active)
   isTemplate  Boolean    @default(false)
   recurrence  Recurrence @default(None)
+  startDate   DateTime?
   targetDate  DateTime?
+  closedAt    DateTime?
   ownerId     String
   deletedAt   DateTime?
   createdAt   DateTime   @default(now())

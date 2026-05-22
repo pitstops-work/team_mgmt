@@ -14,6 +14,7 @@ import {
 import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat, RPPitstopDetail, AdminDash, AdminGoal, AdminUser, AdminZone, OverduePitstop, AdminPersonHealth, AdminDelayedPitstop, AdminOverdueActivity, AdminEngagementStat, AdminCityCoverage, LeaderTeamMember, RPClusterDeckCluster, FacilityLayerConfigLite } from "./page";
 import Avatar from "@/components/Avatar";
 import dynamic from "next/dynamic";
+import { TeamSlaPanel, TeamOverduePanel } from "./TeamPerformance";
 
 const ClusterMiniMap = dynamic(() => import("@/components/home/ClusterMiniMap"), { ssr: false });
 
@@ -376,36 +377,12 @@ function TodayTab({
   weekChecklists: ChecklistItem[];
   leaderTeam?: LeaderTeamMember[];
 }) {
-  // Leader / Other Today view — uses the same cluster-card layout that RPs see
-  // for personal work, then a per-designation team breakdown below.
+  // Leader / Other Today view — cluster-card layout for personal work, then
+  // SLA performance + overdue panels for the recursive reporting tree.
   const todayActivities = myActivities.filter(a => isToday(a.scheduledAt));
   const weekActivities = myActivities.filter(a => !isToday(a.scheduledAt));
   const myChecklists = weekChecklists.filter(ci => ci.pitstop.ownerId === userId);
-
-  // Group the recursive team by designation for the breakdown blocks below.
   const team = leaderTeam ?? [];
-  const DESIGNATION_ORDER = ["PM", "ZL", "RP"] as const;
-  const buckets = new Map<string, LeaderTeamMember[]>();
-  for (const m of team) {
-    const key = (DESIGNATION_ORDER as readonly string[]).includes(m.designation) ? m.designation : "Other";
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key)!.push(m);
-  }
-  for (const arr of buckets.values()) {
-    arr.sort((a, b) => {
-      // Push members with outstanding work to the top of each group.
-      const aHas = a.overdueCount + a.openChecklistCount;
-      const bHas = b.overdueCount + b.openChecklistCount;
-      if (aHas !== bHas) return bHas - aHas;
-      return (a.name ?? "").localeCompare(b.name ?? "");
-    });
-  }
-  const orderedGroups = [...DESIGNATION_ORDER, "Other"].filter(d => buckets.has(d)) as string[];
-  const designationLabel = (d: string) =>
-    d === "PM" ? "Programme Managers"
-    : d === "ZL" ? "Zonal Leads"
-    : d === "RP" ? "Resource Persons"
-    : "Others";
 
   return (
     <div className="space-y-8">
@@ -417,63 +394,14 @@ function TodayTab({
         weekChecklists={myChecklists}
       />
 
-      {/* Team breakdown — every user under this leader in the reporting tree,
-          grouped by designation. */}
+      {/* SLA Performance + Overdue panels — replaces the old per-reportee
+          counts roll-up. Both fetch their own data; they only appear for
+          users who actually have reportees. */}
       {team.length > 0 && (
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Your team</h2>
-            <p className="text-[11px] text-stone-400 mt-0.5">Everyone in your reporting tree — direct + indirect.</p>
-          </div>
-
-          {orderedGroups.map(d => {
-            const members = buckets.get(d) ?? [];
-            const totalOverdue = members.reduce((s, m) => s + m.overdueCount, 0);
-            const totalChecklists = members.reduce((s, m) => s + m.openChecklistCount, 0);
-            return (
-              <section key={d} className="rounded-2xl border border-stone-200 bg-white overflow-hidden">
-                <header className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <h3 className="text-sm font-semibold text-stone-800 truncate">{designationLabel(d)}</h3>
-                    <span className="text-[11px] text-stone-400">({members.length})</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] flex-shrink-0">
-                    {totalOverdue > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">{totalOverdue} overdue</span>
-                    )}
-                    {totalChecklists > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">{totalChecklists} checklists</span>
-                    )}
-                  </div>
-                </header>
-                <div className="divide-y divide-stone-100">
-                  {members.map(m => (
-                    <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50 transition-colors">
-                      <Avatar name={m.name} image={m.image} size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-800 truncate">{m.name ?? "Unknown"}</p>
-                        {m.designation && m.designation !== d && (
-                          <p className="text-[10px] text-stone-400">{m.designation}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] flex-shrink-0">
-                        {m.overdueCount > 0 && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">{m.overdueCount} overdue</span>
-                        )}
-                        {m.openChecklistCount > 0 && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">{m.openChecklistCount} open</span>
-                        )}
-                        {m.overdueCount === 0 && m.openChecklistCount === 0 && (
-                          <span className="text-stone-300">—</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
+        <>
+          <TeamSlaPanel />
+          <TeamOverduePanel />
+        </>
       )}
     </div>
   );

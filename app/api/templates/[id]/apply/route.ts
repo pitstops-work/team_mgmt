@@ -145,6 +145,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       description: description ?? null,
       status: "Active",
       ownerId: goalOwnerId,
+      startDate: goalStart,
       targetDate: resolvedTargetDate,
       needsDomain: needsDomain ?? null,
       parameter: (parameter != null && !isNaN(Number(parameter))) ? Number(parameter) : null,

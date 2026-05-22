@@ -49,8 +49,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
   // Fetch existing goal for change detection
   const existing = await prisma.goal.findUnique({
     where: { id: goalId },
-    select: { status: true, title: true, targetDate: true, followers: { select: { userId: true } } },
+    select: { status: true, title: true, targetDate: true, closedAt: true, followers: { select: { userId: true } } },
   });
+
+  const wasComplete = existing?.status === "Complete";
+  const willBeComplete = data.status === "Complete";
 
   const goal = await prisma.goal.update({
     where: { id: goalId },
@@ -60,7 +63,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       status: data.status,
       ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
       recurrence: data.recurrence,
+      startDate: data.startDate ? new Date(data.startDate) : undefined,
       targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
+      ...(willBeComplete && !wasComplete ? { closedAt: new Date() } : {}),
+      ...(!willBeComplete && wasComplete ? { closedAt: null } : {}),
       ...(data.outcomeCount !== undefined ? { outcomeCount: data.outcomeCount } : {}),
       ...("needsDomain"    in data ? { needsDomain:    data.needsDomain    ?? null } : {}),
       ...("needsCityId"    in data ? { needsCityId:    data.needsCityId    ?? null } : {}),

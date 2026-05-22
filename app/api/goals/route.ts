@@ -74,13 +74,15 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const veto = viewerForbidden(session); if (veto) return veto;
 
-  const { title, description, status, targetDate, needsDomain, parameter, recurrence, needsSettlementId, needsClusterId, needsZoneId, needsCityId } = await req.json();
+  const { title, description, status, startDate, targetDate, needsDomain, parameter, recurrence, needsSettlementId, needsClusterId, needsZoneId, needsCityId } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
   if (!targetDate) return Response.json({ error: "Target date required" }, { status: 400 });
 
   const goal = await prisma.goal.create({
     data: {
-      title, description, status: status ?? "Active", ownerId: session.user.id, targetDate: new Date(targetDate),
+      title, description, status: status ?? "Active", ownerId: session.user.id,
+      startDate: startDate ? new Date(startDate) : new Date(),
+      targetDate: new Date(targetDate),
       ...(needsDomain && { needsDomain }),
       ...(parameter != null && { parameter: Number(parameter) }),
       ...(recurrence && recurrence !== "None" && { recurrence }),
