@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
     dateChanges,
     standups,
     followups,
+    logins,
   ] = await Promise.all([
     prisma.auditLog.findMany({
       where: { userId, createdAt: { gte: start, lt: end } },
@@ -99,6 +100,11 @@ export async function GET(req: NextRequest) {
         eventId: true, response: true, updatedAt: true,
         event: { select: { title: true } },
       },
+    }),
+    prisma.userLoginEvent.findMany({
+      where: { userId, createdAt: { gte: start, lt: end } },
+      select: { id: true, provider: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
     }),
   ]);
 
@@ -244,6 +250,18 @@ export async function GET(req: NextRequest) {
       summary: `Responded "${f.response}" to activity "${f.event?.title ?? ""}"`,
       entityType: "Activity", entityId: f.eventId,
       link: `/activities?event=${f.eventId}`,
+    });
+  }
+
+  // Login events — collapsed to the first login per day so the feed always
+  // shows at least "Used the app at ..." for read-only users.
+  if (logins.length > 0) {
+    const first = logins[0];
+    items.push({
+      at: first.createdAt.toISOString(),
+      kind: "system",
+      summary: `Signed in${first.provider ? ` (${first.provider})` : ""}${logins.length > 1 ? ` — ${logins.length} sessions today` : ""}`,
+      entityType: "Login", entityId: first.id,
     });
   }
 

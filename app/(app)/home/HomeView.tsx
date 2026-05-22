@@ -2020,7 +2020,8 @@ function shiftIstDate(dateStr: string, days: number): string {
 function AdminEngagementTab({ engagement }: { engagement: AdminEngagementStat[] }) {
   const [sortBy, setSortBy] = useState<"login" | "completion" | "freshness">("login");
   const [date, setDate] = useState<string>(istTodayStr());
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Default expanded — all cards show their daily feed inline.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(engagement.map(e => e.userId)));
 
   const sorted = useMemo(() => [...engagement].sort((a, b) => {
     if (sortBy === "login") {
