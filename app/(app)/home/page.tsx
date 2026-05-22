@@ -1402,7 +1402,7 @@ export default async function HomePage() {
         orderBy: { name: "asc" },
       }),
       prisma.user.findMany({
-        select: { id: true, name: true, image: true, designation: true, reportsToId: true, lastSeenAt: true },
+        select: { id: true, name: true, image: true, designation: true, role: true, reportsToId: true, lastSeenAt: true },
         orderBy: [{ designation: "asc" }, { name: "asc" }],
       }),
       prisma.goal.findMany({
@@ -1572,7 +1572,10 @@ export default async function HomePage() {
     for (const r of pitstopFreshnessRaw) freshnessMap[r.owner_id] = r;
 
     const adminEngagement: AdminEngagementStat[] = usersRaw
-      .filter(u => u.designation === "RP" || u.designation === "ZL" || u.designation === "PM")
+      .filter(u =>
+        u.designation === "RP" || u.designation === "ZL" || u.designation === "PM" || u.designation === "Leader"
+        || u.role === "admin" || u.role === "super-admin"
+      )
       .map(u => {
         const lg = loginByUser[u.id];
         const lt = latencyByOwner[u.id];

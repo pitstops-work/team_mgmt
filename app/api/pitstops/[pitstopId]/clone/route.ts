@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { auditLog } from "@/lib/auditLog";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ pitstopId: string }> }) {
   const session = await auth();
@@ -51,6 +52,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ pi
       checklistItems: { select: { id: true, text: true, checked: true }, orderBy: { order: "asc" } },
       owner: { select: { id: true, name: true, image: true } },
     },
+  });
+
+  auditLog({
+    entityType: "Pitstop", entityId: clone.id, userId: session.user.id,
+    action: "created", newValue: `${clone.title} (cloned from ${pitstopId})`,
   });
 
   return Response.json(clone, { status: 201 });

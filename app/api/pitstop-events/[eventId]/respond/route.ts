@@ -5,6 +5,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { auditLog } from "@/lib/auditLog";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   const session = await auth();
@@ -36,6 +37,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ eve
     update: { response: followupResponse },
   });
 
+  auditLog({
+    entityType: "Activity", entityId: eventId, userId: session.user.id,
+    action: "responded", field: "response", newValue: followupResponse,
+  });
+
+  const actorId = session.user.id;
+
   if (action === "yes") {
     // Check if ALL attendees have responded Done — if so, mark event Done
     const event = await prisma.pitstopEvent.findUnique({
@@ -50,14 +58,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ eve
         event.followups.some((f) => f.userId === a.userId && f.response === "Done")
       );
       if (allResponded) {
-        await prisma.pitstopEvent.update({ where: { id: eventId }, data: { status: "Done" } });
+        await prisma.pitstopEvent.update({
+          where: { id: eventId },
+          data: {
+            status: "Done",
+            completedAt: new Date(),
+            completedById: actorId,
+            lastUpdatedById: actorId,
+          },
+        });
       }
     }
     return Response.json({ ok: true, eventStatus: "Done" });
   }
 
   if (action === "cancel") {
-    await prisma.pitstopEvent.update({ where: { id: eventId }, data: { status: "Cancelled" } });
+    await prisma.pitstopEvent.update({
+      where: { id: eventId },
+      data: { status: "Cancelled", lastUpdatedById: actorId },
+    });
     return Response.json({ ok: true, eventStatus: "Cancelled" });
   }
 
@@ -69,6 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ eve
         scheduledAt: new Date(scheduledAt),
         endsAt: endsAt ? new Date(endsAt) : null,
         status: "Scheduled",
+        lastUpdatedById: actorId,
       },
     });
     // Clear followup records so the new date gets a fresh follow-up cycle

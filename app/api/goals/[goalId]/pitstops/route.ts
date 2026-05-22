@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { viewerForbidden } from "@/lib/roleGuard";
+import { auditLog } from "@/lib/auditLog";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
@@ -56,6 +57,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
       update: {},
     });
   }
+
+  auditLog({
+    entityType: "Pitstop", entityId: pitstop.id, userId: session.user.id,
+    action: "created", newValue: title,
+  });
 
   // Pitstop owner auto-follows the goal
   if (pitstop.ownerId) {

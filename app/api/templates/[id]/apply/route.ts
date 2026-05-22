@@ -10,6 +10,7 @@ import {
   distributeAcrossDays,
   pitstopTypeToEventType,
 } from "@/lib/scheduleActivities";
+import { auditLog } from "@/lib/auditLog";
 
 async function resolveCityName(
   needsCityId?: string | null,
@@ -228,6 +229,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       update: {},
     });
   }
+
+  auditLog({
+    entityType: "Goal", entityId: goal.id, userId: session.user.id,
+    action: "created", newValue: `${title} (from template)`,
+  });
 
   // Auto-schedule activities for checklist items that have activities defined
   const appSettings = await prisma.$queryRaw<{ key: string; value: string }[]>`

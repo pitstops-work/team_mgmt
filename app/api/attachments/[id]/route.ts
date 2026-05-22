@@ -30,7 +30,13 @@ export async function DELETE(
     if (remaining === 0) {
       await prisma.checklistItem.update({
         where: { id: attachment.checklistItemId },
-        data: { status: "NotStarted", checked: false, completedAt: null },
+        data: {
+          status: "NotStarted",
+          checked: false,
+          completedAt: null,
+          completedById: null,
+          lastUpdatedById: session.user.id,
+        },
       });
     }
   }

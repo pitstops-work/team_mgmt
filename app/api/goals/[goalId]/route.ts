@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { viewerForbidden } from "@/lib/roleGuard";
+import { auditLog, auditLogMany, diffAudit } from "@/lib/auditLog";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
@@ -49,7 +50,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
   // Fetch existing goal for change detection
   const existing = await prisma.goal.findUnique({
     where: { id: goalId },
-    select: { status: true, title: true, targetDate: true, closedAt: true, followers: { select: { userId: true } } },
+    select: {
+      status: true, title: true, description: true,
+      ownerId: true, recurrence: true,
+      startDate: true, targetDate: true, closedAt: true,
+      needsDomain: true, needsCityId: true, needsZoneId: true, needsClusterId: true,
+      outcomeCount: true,
+      followers: { select: { userId: true } },
+    },
   });
 
   const wasComplete = existing?.status === "Complete";
@@ -94,6 +102,40 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
         count: Math.round(a.count),
       })),
     });
+  }
+
+  // Audit field changes (status/owner/dates/etc) — diff of supplied fields vs existing.
+  if (existing) {
+    auditLogMany(diffAudit("Goal", goalId, session.user.id,
+      {
+        title: existing.title,
+        status: existing.status,
+        description: existing.description,
+        ownerId: existing.ownerId,
+        recurrence: existing.recurrence,
+        startDate: existing.startDate,
+        targetDate: existing.targetDate,
+        needsDomain: existing.needsDomain,
+        needsCityId: existing.needsCityId,
+        needsZoneId: existing.needsZoneId,
+        needsClusterId: existing.needsClusterId,
+        outcomeCount: existing.outcomeCount,
+      },
+      {
+        title: data.title,
+        status: data.status,
+        description: data.description,
+        ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
+        recurrence: data.recurrence,
+        startDate: data.startDate ? new Date(data.startDate) : undefined,
+        targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
+        needsDomain: "needsDomain"    in data ? (data.needsDomain    ?? null) : undefined,
+        needsCityId: "needsCityId"    in data ? (data.needsCityId    ?? null) : undefined,
+        needsZoneId: "needsZoneId"    in data ? (data.needsZoneId    ?? null) : undefined,
+        needsClusterId: "needsClusterId" in data ? (data.needsClusterId ?? null) : undefined,
+        outcomeCount: data.outcomeCount,
+      },
+    ));
   }
 
   // Cascade owner change to pitstops that haven't been manually reassigned
@@ -229,5 +271,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   await prisma.goal.update({ where: { id: goalId }, data: { deletedAt: now } });
+  auditLog({ entityType: "Goal", entityId: goalId, userId: session.user.id, action: "deleted" });
   return Response.json({ ok: true });
 }

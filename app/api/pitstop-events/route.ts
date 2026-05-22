@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
+import { auditLog } from "@/lib/auditLog";
 
 const include = {
   pitstops: {
@@ -77,11 +78,18 @@ export async function POST(req: NextRequest) {
   if (checklistItemId) {
     await prisma.$executeRaw`
       UPDATE "ChecklistItem"
-      SET status = 'Scheduled'::"ChecklistItemStatus", "updatedAt" = NOW()
+      SET status = 'Scheduled'::"ChecklistItemStatus",
+          "lastUpdatedById" = ${creatorId},
+          "updatedAt" = NOW()
       WHERE id = ${checklistItemId}
         AND status = 'NotStarted'::"ChecklistItemStatus"
     `;
   }
+
+  auditLog({
+    entityType: "Activity", entityId: event.id, userId: creatorId,
+    action: "created", newValue: title,
+  });
 
   const creatorName = session.user.name ?? "Someone";
   const dateLabel = new Date(scheduledAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });

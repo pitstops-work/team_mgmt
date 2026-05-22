@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { auditLog } from "@/lib/auditLog";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ pitstopId: string }> }) {
   const session = await auth();
@@ -31,6 +32,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pit
   const count = await prisma.checklistItem.count({ where: { pitstopId } });
   const item = await prisma.checklistItem.create({
     data: { pitstopId, text: text.trim(), order: count },
+  });
+
+  auditLog({
+    entityType: "Checklist", entityId: item.id, userId: session.user.id,
+    action: "created", newValue: text.trim(),
   });
 
   return Response.json(item, { status: 201 });

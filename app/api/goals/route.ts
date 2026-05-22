@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { goalCityFilter } from "@/lib/goalCityFilter";
 import { viewerForbidden } from "@/lib/roleGuard";
 import { buildRbacContext, scopeWhere } from "@/lib/rbac";
+import { auditLog } from "@/lib/auditLog";
 
 const USE_RBAC = process.env.USE_RBAC === "1";
 
@@ -102,6 +103,11 @@ export async function POST(req: NextRequest) {
     where: { userId_goalId: { userId: session.user.id, goalId: goal.id } },
     create: { userId: session.user.id, goalId: goal.id },
     update: {},
+  });
+
+  auditLog({
+    entityType: "Goal", entityId: goal.id, userId: session.user.id,
+    action: "created", newValue: title,
   });
 
   return Response.json(goal, { status: 201 });

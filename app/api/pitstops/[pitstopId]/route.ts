@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { viewerForbidden } from "@/lib/roleGuard";
+import { auditLog } from "@/lib/auditLog";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pitstopId: string }> }) {
   const session = await auth();
@@ -251,5 +252,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { pitstopId } = await params;
   await prisma.pitstop.update({ where: { id: pitstopId }, data: { deletedAt: new Date() } });
+  auditLog({ entityType: "Pitstop", entityId: pitstopId, userId: session.user.id, action: "deleted" });
   return Response.json({ ok: true });
 }

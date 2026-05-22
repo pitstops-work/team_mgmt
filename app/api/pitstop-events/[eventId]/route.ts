@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
 import { viewerForbidden } from "@/lib/roleGuard";
+import { auditLog } from "@/lib/auditLog";
 
 const include = {
   pitstops: {
@@ -27,6 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
   const veto = viewerForbidden(session); if (veto) return veto;
 
   const { eventId } = await params;
+  const actorId = session.user.id;
   const {
     title, description, type, scheduledAt, endsAt, location, pitstopIds, attendeeIds,
     // Lifecycle fields
@@ -45,9 +47,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
     if (status === "Done") {
       await prisma.$executeRaw`
         UPDATE "PitstopEvent"
-        SET status = 'Done'::"PitstopEventStatus", "completedAt" = NOW(), "updatedAt" = NOW()
+        SET status = 'Done'::"PitstopEventStatus",
+            "completedAt" = NOW(),
+            "completedById" = ${actorId},
+            "lastUpdatedById" = ${actorId},
+            "updatedAt" = NOW()
         WHERE id = ${eventId}
       `;
+      auditLog({ entityType: "Activity", entityId: eventId, userId: actorId, action: "status_change", field: "status", newValue: "Done" });
       if (current[0].checklistItemId) {
         const [ci] = await prisma.$queryRaw<{ completionType: string }[]>`
           SELECT "completionType"::text FROM "ChecklistItem" WHERE id = ${current[0].checklistItemId}
@@ -55,7 +62,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
         if (!ci || ci.completionType === 'Activity') {
           await prisma.$executeRaw`
             UPDATE "ChecklistItem"
-            SET status = 'Done'::"ChecklistItemStatus", checked = TRUE, "completedAt" = NOW(), "updatedAt" = NOW()
+            SET status = 'Done'::"ChecklistItemStatus",
+                checked = TRUE,
+                "completedAt" = NOW(),
+                "completedById" = ${actorId},
+                "lastUpdatedById" = ${actorId},
+                "updatedAt" = NOW()
             WHERE id = ${current[0].checklistItemId}
           `;
           await autoAdvancePitstopFromItem(current[0].checklistItemId);
@@ -67,13 +79,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
         UPDATE "PitstopEvent"
         SET status = 'Cancelled'::"PitstopEventStatus",
             "cancellationReason" = ${reason},
+            "lastUpdatedById" = ${actorId},
             "updatedAt" = NOW()
         WHERE id = ${eventId}
       `;
+      auditLog({ entityType: "Activity", entityId: eventId, userId: actorId, action: "status_change", field: "status", newValue: "Cancelled" });
       if (current[0].checklistItemId) {
         await prisma.$executeRaw`
           UPDATE "ChecklistItem"
-          SET status = 'Cancelled'::"ChecklistItemStatus", "updatedAt" = NOW()
+          SET status = 'Cancelled'::"ChecklistItemStatus",
+              "lastUpdatedById" = ${actorId},
+              "updatedAt" = NOW()
           WHERE id = ${current[0].checklistItemId}
         `;
       }
@@ -87,13 +103,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
             "scheduledAt" = ${newDate},
             "rescheduledFrom" = ${oldDate},
             "rescheduleReason" = ${reason},
+            "lastUpdatedById" = ${actorId},
             "updatedAt" = NOW()
         WHERE id = ${eventId}
       `;
+      auditLog({
+        entityType: "Activity", entityId: eventId, userId: actorId,
+        action: "scheduledAt_change", field: "scheduledAt",
+        oldValue: oldDate.toISOString(), newValue: newDate.toISOString(),
+      });
       if (current[0].checklistItemId) {
         await prisma.$executeRaw`
           UPDATE "ChecklistItem"
-          SET status = 'Rescheduled'::"ChecklistItemStatus", "updatedAt" = NOW()
+          SET status = 'Rescheduled'::"ChecklistItemStatus",
+              "lastUpdatedById" = ${actorId},
+              "updatedAt" = NOW()
           WHERE id = ${current[0].checklistItemId}
         `;
       }
@@ -143,6 +167,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
       endsAt: endsAt !== undefined ? (endsAt ? new Date(endsAt) : null) : undefined,
       location: location !== undefined ? (location || null) : undefined,
+      lastUpdatedById: actorId,
       ...(pitstopIds !== undefined ? {
         pitstops: {
           deleteMany: {},
@@ -195,6 +220,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const veto = viewerForbidden(session); if (veto) return veto;
 
   const { eventId } = await params;
-  await prisma.pitstopEvent.update({ where: { id: eventId }, data: { deletedAt: new Date() } });
+  await prisma.pitstopEvent.update({
+    where: { id: eventId },
+    data: { deletedAt: new Date(), lastUpdatedById: session.user.id },
+  });
+  auditLog({ entityType: "Activity", entityId: eventId, userId: session.user.id, action: "deleted" });
   return Response.json({ ok: true });
 }

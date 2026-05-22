@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   CalendarClock, CheckSquare, Target, MapPin, BarChart3, ChevronRight,
@@ -2002,8 +2002,25 @@ function engLevel(s: AdminEngagementStat): "good" | "at-risk" | "poor" | "inacti
   return "good";
 }
 
+function istTodayStr(): string {
+  // Render the date in IST (UTC+5:30) — covers Bangalore & Chennai.
+  const now = new Date();
+  const ist = new Date(now.getTime() + 330 * 60_000);
+  return ist.toISOString().slice(0, 10);
+}
+
+function shiftIstDate(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  // Build the date in UTC at noon to dodge DST/timezone edges (irrelevant for IST, defensive).
+  const t = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  t.setUTCDate(t.getUTCDate() + days);
+  return t.toISOString().slice(0, 10);
+}
+
 function AdminEngagementTab({ engagement }: { engagement: AdminEngagementStat[] }) {
   const [sortBy, setSortBy] = useState<"login" | "completion" | "freshness">("login");
+  const [date, setDate] = useState<string>(istTodayStr());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const sorted = useMemo(() => [...engagement].sort((a, b) => {
     if (sortBy === "login") {
@@ -2019,6 +2036,17 @@ function AdminEngagementTab({ engagement }: { engagement: AdminEngagementStat[] 
     if (!b.lastPitstopActivityAt) return 1;
     return new Date(a.lastPitstopActivityAt).getTime() - new Date(b.lastPitstopActivityAt).getTime();
   }), [engagement, sortBy]);
+
+  const today = istTodayStr();
+  const yesterday = shiftIstDate(today, -1);
+
+  function toggleExpand(userId: string) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId); else next.add(userId);
+      return next;
+    });
+  }
 
   function daysAgoLabel(iso: string | null): { label: string; color: string } {
     if (!iso) return { label: "Never", color: "text-stone-400" };
@@ -2041,6 +2069,40 @@ function AdminEngagementTab({ engagement }: { engagement: AdminEngagementStat[] 
 
   return (
     <div className="space-y-3">
+      {/* Daily activity feed date stepper */}
+      <div className="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-stone-500 font-medium">Daily activity for</span>
+          <button type="button" onClick={() => setDate(shiftIstDate(date, -1))}
+            className="text-stone-500 hover:text-stone-800 px-1" aria-label="Previous day">‹</button>
+          <input
+            type="date"
+            value={date}
+            max={today}
+            onChange={(e) => e.target.value && setDate(e.target.value)}
+            className="text-xs px-2 py-1 rounded border border-stone-200 bg-white"
+          />
+          <button type="button" onClick={() => setDate(shiftIstDate(date, +1))}
+            disabled={date >= today}
+            className="text-stone-500 hover:text-stone-800 disabled:opacity-30 px-1" aria-label="Next day">›</button>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {[
+            { label: "Yesterday", value: yesterday },
+            { label: "Today", value: today },
+          ].map(opt => (
+            <button key={opt.value} type="button" onClick={() => setDate(opt.value)}
+              className={`text-[11px] px-2 py-1 rounded-full border ${
+                date === opt.value
+                  ? "bg-stone-800 text-white border-stone-800"
+                  : "bg-white text-stone-600 border-stone-200 hover:border-stone-400"
+              }`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Sort controls */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[11px] text-stone-400 font-medium">Sort worst-first by:</span>
@@ -2067,10 +2129,15 @@ function AdminEngagementTab({ engagement }: { engagement: AdminEngagementStat[] 
           : s.completionRate >= 40 ? "text-amber-600"
           : "text-red-600";
 
+        const isOpen = expanded.has(s.userId);
+
         return (
           <div key={s.userId} className="bg-white border border-stone-200 rounded-xl p-4">
             {/* Header row */}
-            <div className="flex items-center gap-3 mb-3">
+            <button type="button"
+              onClick={() => toggleExpand(s.userId)}
+              aria-expanded={isOpen}
+              className="w-full flex items-center gap-3 mb-3 text-left">
               <Avatar name={s.name} image={s.image} size="sm" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -2083,7 +2150,10 @@ function AdminEngagementTab({ engagement }: { engagement: AdminEngagementStat[] 
                   </span>
                 </div>
               </div>
-            </div>
+              {isOpen
+                ? <ChevronUp className="w-4 h-4 text-stone-400 shrink-0" />
+                : <ChevronDown className="w-4 h-4 text-stone-400 shrink-0" />}
+            </button>
 
             {/* Metrics grid */}
             <div className="grid grid-cols-3 gap-3">
@@ -2143,6 +2213,12 @@ function AdminEngagementTab({ engagement }: { engagement: AdminEngagementStat[] 
                 </p>
               </div>
             </div>
+
+            {isOpen && (
+              <div className="mt-3 pt-3 border-t border-stone-100">
+                <ActivityFeedPanel userId={s.userId} date={date} />
+              </div>
+            )}
           </div>
         );
       })}
@@ -2164,6 +2240,88 @@ function AdminEngagementTab({ engagement }: { engagement: AdminEngagementStat[] 
         ))}
       </div>
     </div>
+  );
+}
+
+// ── Activity feed panel (expanded per-person row in Engagement tab) ─────────
+
+type ActivityFeedItem = {
+  at: string;
+  kind: string;
+  summary: string;
+  entityType: string;
+  entityId: string;
+  link?: string;
+  detail?: { field?: string | null; oldValue?: string | null; newValue?: string | null };
+};
+
+const ACTIVITY_KIND_DOT: Record<string, string> = {
+  goal_created: "bg-emerald-500",
+  goal_updated: "bg-stone-400",
+  goal_deleted: "bg-red-500",
+  pitstop_created: "bg-emerald-500",
+  pitstop_updated: "bg-stone-400",
+  pitstop_deleted: "bg-red-500",
+  pitstop_date_change: "bg-amber-500",
+  activity_created: "bg-sky-500",
+  activity_completed: "bg-emerald-500",
+  activity_cancelled: "bg-red-400",
+  activity_rescheduled: "bg-amber-500",
+  activity_responded: "bg-sky-400",
+  activity_updated: "bg-stone-400",
+  checklist_created: "bg-sky-500",
+  checklist_checked: "bg-emerald-500",
+  checklist_status_change: "bg-amber-500",
+  checklist_updated: "bg-stone-400",
+  standup: "bg-violet-500",
+  system: "bg-stone-300",
+};
+
+function ActivityFeedPanel({ userId, date }: { userId: string; date: string }) {
+  const [items, setItems] = useState<ActivityFeedItem[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/engagement/activity-feed?userId=${encodeURIComponent(userId)}&date=${encodeURIComponent(date)}`)
+      .then(async r => {
+        if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error ?? `HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data: { items: ActivityFeedItem[] }) => { if (!cancelled) setItems(data.items); })
+      .catch(e => { if (!cancelled) setError(String(e?.message ?? e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId, date]);
+
+  if (loading) return <p className="text-[11px] text-stone-400">Loading activity…</p>;
+  if (error)   return <p className="text-[11px] text-red-500">Failed to load activity: {error}</p>;
+  if (!items || items.length === 0) return <p className="text-[11px] text-stone-400">No activity on this date.</p>;
+
+  return (
+    <ol className="space-y-1.5">
+      {items.map((it, i) => {
+        const time = new Date(it.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+        const dot = ACTIVITY_KIND_DOT[it.kind] ?? "bg-stone-300";
+        const body = (
+          <>
+            <span className="text-[10px] tabular-nums text-stone-400 w-10 shrink-0">{time}</span>
+            <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${dot}`} />
+            <span className="text-xs text-stone-700">{it.summary}</span>
+          </>
+        );
+        return (
+          <li key={i} className="flex items-start gap-2">
+            {it.link
+              ? <Link href={it.link} className="flex items-start gap-2 hover:underline w-full">{body}</Link>
+              : <div className="flex items-start gap-2">{body}</div>}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

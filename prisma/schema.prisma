@@ -24,62 +24,66 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  accounts            Account[]
-  sessions            Session[]
-  goals               Goal[]
-  ownedPitstops       Pitstop[]                @relation("PitstopOwner")
-  programs            Program[]
-  messages            Message[]
-  mentions            Mention[]
-  goalFollows         GoalFollow[]
-  threadSubscriptions ThreadSubscription[]
-  notifications       Notification[]
-  pushSubscriptions   PushSubscription[]
-  createdEvents       PitstopEvent[]
-  eventAttendances    PitstopEventAttendee[]
-  leadZones           Zone[]                   @relation("ZoneLead")
-  rpClusters          Cluster[]                @relation("RPClusters")
-  eventFollowups      PitstopEventFollowup[]
-  planItems           PlanItem[]
+  accounts                  Account[]
+  sessions                  Session[]
+  goals                     Goal[]
+  ownedPitstops             Pitstop[]                      @relation("PitstopOwner")
+  programs                  Program[]
+  messages                  Message[]
+  mentions                  Mention[]
+  goalFollows               GoalFollow[]
+  threadSubscriptions       ThreadSubscription[]
+  notifications             Notification[]
+  pushSubscriptions         PushSubscription[]
+  createdEvents             PitstopEvent[]                 @relation("PitstopEventCreator")
+  lastUpdatedEvents         PitstopEvent[]                 @relation("PitstopEventLastUpdater")
+  completedEvents           PitstopEvent[]                 @relation("PitstopEventCompleter")
+  eventAttendances          PitstopEventAttendee[]
+  leadZones                 Zone[]                         @relation("ZoneLead")
+  rpClusters                Cluster[]                      @relation("RPClusters")
+  eventFollowups            PitstopEventFollowup[]
+  planItems                 PlanItem[]
   // Accountability
-  checkins            PitstopCheckin[]
-  retrospectives      Retrospective[]
-  standupLogs         StandupLog[]
+  checkins                  PitstopCheckin[]
+  retrospectives            Retrospective[]
+  standupLogs               StandupLog[]
   // Escalation
-  escalationsGiven    PitstopEscalation[]      @relation("EscalatedBy")
-  escalationsTaken    PitstopEscalation[]      @relation("EscalatedTo")
+  escalationsGiven          PitstopEscalation[]            @relation("EscalatedBy")
+  escalationsTaken          PitstopEscalation[]            @relation("EscalatedTo")
   // Co-ownership
-  pitstopCoOwners     PitstopCoOwner[]
-  goalCoOwners        GoalCoOwner[]
+  pitstopCoOwners           PitstopCoOwner[]
+  goalCoOwners              GoalCoOwner[]
   // Decisions, Audit, Risks
-  decisions           Decision[]
-  auditLogs           AuditLog[]
-  risks               Risk[]
+  decisions                 Decision[]
+  auditLogs                 AuditLog[]
+  risks                     Risk[]
   // Broadcasts & Metrics
-  broadcasts          GoalBroadcast[]
-  metricDataPoints    MetricDataPoint[]
+  broadcasts                GoalBroadcast[]
+  metricDataPoints          MetricDataPoint[]
   // Layer 2 indicator captures
-  indicatorCaptures   FacilityIndicatorPoint[] @relation("IndicatorCapture")
+  indicatorCaptures         FacilityIndicatorPoint[]       @relation("IndicatorCapture")
   // Layer 3 journey outcome captures
-  journeyOutcomeCaptures ProgrammeJourneyOutcomePoint[] @relation("JourneyOutcomeCapture")
-  closedJourneys         ProgrammeJourney[]             @relation("JourneyClosedBy")
+  journeyOutcomeCaptures    ProgrammeJourneyOutcomePoint[] @relation("JourneyOutcomeCapture")
+  closedJourneys            ProgrammeJourney[]             @relation("JourneyClosedBy")
   // Needs assessment
-  assessments         SettlementAssessment[]
+  assessments               SettlementAssessment[]
   // Reporting structure (for notification routing — not a hard gate)
-  preferredLang       String                   @default("en")
-  reportsToId         String?
-  reportsTo           User?                    @relation("UserReports", fields: [reportsToId], references: [id])
-  reports             User[]                   @relation("UserReports")
+  preferredLang             String                         @default("en")
+  reportsToId               String?
+  reportsTo                 User?                          @relation("UserReports", fields: [reportsToId], references: [id])
+  reports                   User[]                         @relation("UserReports")
   // City assignment (null = sees all cities)
-  cityId              String?
-  city                City?                    @relation("UserCity", fields: [cityId], references: [id], onDelete: SetNull)
+  cityId                    String?
+  city                      City?                          @relation("UserCity", fields: [cityId], references: [id], onDelete: SetNull)
   // Verification / confirmation
-  verifiedPitstops    Pitstop[]                @relation("PitstopVerifier")
-  confirmedGoals      Goal[]                   @relation("GoalConfirmer")
-  dateChanges         PitstopDateChange[]      @relation("DateChanger")
-  checklistItems      ChecklistItem[]          @relation("ChecklistItemAssignee")
-  loginEvents         UserLoginEvent[]
-  budgets             Budget[]                 @relation("BudgetPartner")
+  verifiedPitstops          Pitstop[]                      @relation("PitstopVerifier")
+  confirmedGoals            Goal[]                         @relation("GoalConfirmer")
+  dateChanges               PitstopDateChange[]            @relation("DateChanger")
+  checklistItems            ChecklistItem[]                @relation("ChecklistItemAssignee")
+  lastUpdatedChecklistItems ChecklistItem[]                @relation("ChecklistItemLastUpdater")
+  completedChecklistItems   ChecklistItem[]                @relation("ChecklistItemCompleter")
+  loginEvents               UserLoginEvent[]
+  budgets                   Budget[]                       @relation("BudgetPartner")
 }
 
 model Account {
@@ -149,7 +153,7 @@ model Goal {
   needsZoneId       String?
   needsCityId       String?
 
-  owner           User            @relation(fields: [ownerId], references: [id])
+  owner           User                    @relation(fields: [ownerId], references: [id])
   pitstops        Pitstop[]
   threads         Thread[]
   attachments     Attachment[]
@@ -167,11 +171,11 @@ model Goal {
   themes          GoalTheme[]
   quarters        GoalQuarter[]
   // Needs geography
-  needsSettlement Settlement?     @relation("GoalNeedsSettlement", fields: [needsSettlementId], references: [id])
-  needsCluster    Cluster?        @relation("GoalNeedsCluster", fields: [needsClusterId], references: [id])
-  needsZone       Zone?           @relation("GoalNeedsZone", fields: [needsZoneId], references: [id])
-  needsCity       City?           @relation("GoalNeedsCity", fields: [needsCityId], references: [id])
-  linkedFacility  LayerFeature?   @relation("GoalLinkedFacility", fields: [linkedFacilityId], references: [id], onDelete: SetNull)
+  needsSettlement Settlement?             @relation("GoalNeedsSettlement", fields: [needsSettlementId], references: [id])
+  needsCluster    Cluster?                @relation("GoalNeedsCluster", fields: [needsClusterId], references: [id])
+  needsZone       Zone?                   @relation("GoalNeedsZone", fields: [needsZoneId], references: [id])
+  needsCity       City?                   @relation("GoalNeedsCity", fields: [needsCityId], references: [id])
+  linkedFacility  LayerFeature?           @relation("GoalLinkedFacility", fields: [linkedFacilityId], references: [id], onDelete: SetNull)
   // Settlement-level outcome attribution on completion
   outcomes        GoalOutcome[]
   // Layer 3 programme journey phase (this goal fulfilling a phase)
@@ -251,28 +255,32 @@ model Pitstop {
 }
 
 model ChecklistItem {
-  id             String                  @id @default(cuid())
-  pitstopId      String
-  text           String
-  checked        Boolean                 @default(false)
-  status         ChecklistItemStatus     @default(NotStarted)
-  assigneeId     String?
-  notes          String?
-  completionType ChecklistCompletionType @default(Activity)
-  order          Int                     @default(0)
+  id              String                  @id @default(cuid())
+  pitstopId       String
+  text            String
+  checked         Boolean                 @default(false)
+  status          ChecklistItemStatus     @default(NotStarted)
+  assigneeId      String?
+  lastUpdatedById String?
+  completedById   String?
+  notes           String?
+  completionType  ChecklistCompletionType @default(Activity)
+  order           Int                     @default(0)
   // Stable binding identifier propagated from GoalTemplateDef checklist item.
   // Used with templateSlug to look up ActivityIndicatorBinding rows on completion.
-  key            String?
-  templateSlug   String?
-  completedAt    DateTime?
-  createdAt      DateTime                @default(now())
-  updatedAt      DateTime                @updatedAt
+  key             String?
+  templateSlug    String?
+  completedAt     DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
 
-  pitstop     Pitstop        @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
-  assignee    User?          @relation("ChecklistItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  activities  PitstopEvent[] @relation("ChecklistActivity")
-  threads     Thread[]
-  attachments Attachment[]
+  pitstop       Pitstop        @relation(fields: [pitstopId], references: [id], onDelete: Cascade)
+  assignee      User?          @relation("ChecklistItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  lastUpdatedBy User?          @relation("ChecklistItemLastUpdater", fields: [lastUpdatedById], references: [id])
+  completedBy   User?          @relation("ChecklistItemCompleter", fields: [completedById], references: [id])
+  activities    PitstopEvent[] @relation("ChecklistActivity")
+  threads       Thread[]
+  attachments   Attachment[]
 }
 
 enum ChecklistItemStatus {
@@ -1170,6 +1178,8 @@ model PitstopEvent {
   endsAt             DateTime?
   location           String?
   createdById        String
+  lastUpdatedById    String?
+  completedById      String?
   checklistItemId    String?
   rescheduledFrom    DateTime?
   rescheduleReason   String?
@@ -1179,7 +1189,9 @@ model PitstopEvent {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  createdBy     User                   @relation(fields: [createdById], references: [id])
+  createdBy     User                   @relation("PitstopEventCreator", fields: [createdById], references: [id])
+  lastUpdatedBy User?                  @relation("PitstopEventLastUpdater", fields: [lastUpdatedById], references: [id])
+  completedBy   User?                  @relation("PitstopEventCompleter", fields: [completedById], references: [id])
   checklistItem ChecklistItem?         @relation("ChecklistActivity", fields: [checklistItemId], references: [id], onDelete: SetNull)
   attendees     PitstopEventAttendee[]
   pitstops      PitstopEventPitstop[]
@@ -2008,15 +2020,15 @@ model LineTemplate {
 // apply. Phases form a DAG (linear by default; admin can rewire).
 
 model ProgrammeJourney {
-  id            String   @id @default(cuid())
+  id              String    @id @default(cuid())
   // Stable slug for ops + dedupe, e.g. "creche-munireddypalya"
-  key           String   @unique
-  label         String
+  key             String    @unique
+  label           String
   // Auto-linking dimension. Null when admin makes a cross-domain super-journey.
-  primaryDomain String?
-  settlementId  String
-  status        String   @default("Active") // Active | Paused | Closed
-  notes         String?
+  primaryDomain   String?
+  settlementId    String
+  status          String    @default("Active") // Active | Paused | Closed
+  notes           String?
   // Closure metadata
   closedAt        DateTime?
   closedReason    String?
@@ -2024,16 +2036,16 @@ model ProgrammeJourney {
   // Snapshot of final outcome values at closure time (JSON: { outcomeKey: value })
   outcomeSnapshot Json?
   // Optional pointer to a parent super-journey (cross-domain aggregation).
-  parentId      String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  parentId        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  settlement Settlement                 @relation(fields: [settlementId], references: [id], onDelete: Cascade)
-  parent     ProgrammeJourney?          @relation("ProgrammeJourneyChildren", fields: [parentId], references: [id], onDelete: SetNull)
-  children   ProgrammeJourney[]         @relation("ProgrammeJourneyChildren")
+  settlement Settlement                @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  parent     ProgrammeJourney?         @relation("ProgrammeJourneyChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children   ProgrammeJourney[]        @relation("ProgrammeJourneyChildren")
   phases     ProgrammeJourneyPhase[]
   outcomes   ProgrammeJourneyOutcome[]
-  closedBy   User?                      @relation("JourneyClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  closedBy   User?                     @relation("JourneyClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
 
   @@index([settlementId, primaryDomain])
   @@index([parentId])
@@ -2044,7 +2056,7 @@ model ProgrammeJourneyPhase {
   journeyId String
   // Layout hint only — real ordering is the DAG (edges)
   position  Int      @default(0)
-  label     String   // "Setup" | "Operations" | "Maintenance" | custom
+  label     String // "Setup" | "Operations" | "Maintenance" | custom
   // Canvas coordinates for the DAG view. Null = auto-layout.
   canvasX   Int?
   canvasY   Int?
@@ -2077,21 +2089,21 @@ model ProgrammeJourneyPhaseEdge {
 }
 
 model ProgrammeJourneyOutcome {
-  id          String  @id @default(cuid())
-  journeyId   String
-  key         String  // unique within journey
-  label       String
-  description String?
-  unit        String?
+  id                  String   @id @default(cuid())
+  journeyId           String
+  key                 String // unique within journey
+  label               String
+  description         String?
+  unit                String?
   // MANUAL_ADMIN | RP_ACTIVITY (mirrors FacilityIndicatorSource)
-  captureSource       String  @default("MANUAL_ADMIN")
+  captureSource       String   @default("MANUAL_ADMIN")
   // For RP_ACTIVITY: bind to a checklist key (one binding per outcome in v1)
   bindingTemplateSlug String?
   bindingChecklistKey String?
   targetValue         Float?
   targetCadence       String? // "annual" | "quarterly" | "monthly"
-  sortOrder           Int     @default(0)
-  isActive            Boolean @default(true)
+  sortOrder           Int      @default(0)
+  isActive            Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -2106,9 +2118,9 @@ model ProgrammeJourneyOutcomePoint {
   outcomeId    String
   value        Float
   capturedAt   DateTime
-  source       String   // MANUAL_ADMIN | RP_ACTIVITY
+  source       String // MANUAL_ADMIN | RP_ACTIVITY
   capturedById String?
-  sourceRefId  String?  // ChecklistItem.id for RP_ACTIVITY
+  sourceRefId  String? // ChecklistItem.id for RP_ACTIVITY
   note         String?
   createdAt    DateTime @default(now())
 
@@ -2142,20 +2154,20 @@ model ProgrammeJourneyOutcomeTemplate {
 // breaking schema change for now — a future migration can swap to an FK.
 
 model Role {
-  id          String           @id @default(cuid())
-  name        String           @unique // "super-admin" | "admin" | "member" | "viewer" | "budget-admin"
+  id          String   @id @default(cuid())
+  name        String   @unique // "super-admin" | "admin" | "member" | "viewer" | "budget-admin"
   description String?
-  isSystem    Boolean          @default(true) // System roles cannot be deleted from admin UI
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  isSystem    Boolean  @default(true) // System roles cannot be deleted from admin UI
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   permissions RolePermission[]
 }
 
 model Permission {
   id        String   @id @default(cuid())
-  resource  String   // "goal" | "pitstop" | "user" | "thread" | ...
-  action    String   // "list" | "read" | "create" | "update" | "delete" | special verbs
+  resource  String // "goal" | "pitstop" | "user" | "thread" | ...
+  action    String // "list" | "read" | "create" | "update" | "delete" | special verbs
   createdAt DateTime @default(now())
 
   roles RolePermission[]
@@ -2169,7 +2181,7 @@ model RolePermission {
   id           String   @id @default(cuid())
   roleId       String
   permissionId String
-  scopeRule    Json     // { kind: "all" | "self" | "own" | "team" | "city" | ... }
+  scopeRule    Json // { kind: "all" | "self" | "own" | "team" | "city" | ... }
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

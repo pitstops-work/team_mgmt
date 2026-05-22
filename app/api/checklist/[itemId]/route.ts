@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
 import { captureIndicatorPointsForChecklistItem, captureJourneyOutcomePointsForChecklistItem } from "@/lib/captureIndicatorPoints";
 import { viewerForbidden } from "@/lib/roleGuard";
+import { auditLog, auditLogMany, diffAudit } from "@/lib/auditLog";
 
 const VALID_STATUSES = [
   "NotStarted", "Scheduled", "InProgress", "Done", "Blocked", "Rescheduled", "Cancelled",
@@ -15,7 +16,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
   const veto = viewerForbidden(session); if (veto) return veto;
 
   const { itemId } = await params;
+  const actorId = session.user.id;
   const { checked, text, status, assigneeId, notes, indicatorValues } = await req.json();
+
+  // Snapshot existing values for audit diff
+  const existing = await prisma.checklistItem.findUnique({
+    where: { id: itemId },
+    select: { status: true, checked: true, text: true, assigneeId: true, notes: true },
+  });
 
   // Sync checked ↔ status
   let resolvedChecked = checked;
@@ -40,13 +48,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
         WHEN ${resolvedStatus !== undefined && resolvedStatus !== "Done"}::boolean THEN NULL
         ELSE "completedAt"
       END,
-      "assigneeId"  = CASE WHEN ${assigneeId !== undefined}::boolean THEN ${assigneeId ?? null}::text ELSE "assigneeId" END,
-      "notes"       = CASE WHEN ${notes !== undefined}::boolean THEN ${notes ?? null}::text ELSE "notes" END,
-      "updatedAt"   = NOW()
+      "completedById" = CASE
+        WHEN ${resolvedStatus === "Done"}::boolean THEN ${actorId}
+        WHEN ${resolvedStatus !== undefined && resolvedStatus !== "Done"}::boolean THEN NULL
+        ELSE "completedById"
+      END,
+      "assigneeId"      = CASE WHEN ${assigneeId !== undefined}::boolean THEN ${assigneeId ?? null}::text ELSE "assigneeId" END,
+      "notes"           = CASE WHEN ${notes !== undefined}::boolean THEN ${notes ?? null}::text ELSE "notes" END,
+      "lastUpdatedById" = ${actorId},
+      "updatedAt"       = NOW()
     WHERE id = ${itemId}
   `;
 
   if (!item) return Response.json({ error: "Not found" }, { status: 404 });
+
+  if (existing) {
+    auditLogMany(diffAudit("Checklist", itemId, actorId,
+      { status: existing.status, checked: existing.checked, text: existing.text, assigneeId: existing.assigneeId, notes: existing.notes },
+      { status: resolvedStatus, checked: resolvedChecked, text: text?.trim(), assigneeId: assigneeId !== undefined ? (assigneeId ?? null) : undefined, notes: notes !== undefined ? (notes ?? null) : undefined },
+    ));
+  }
 
   if (resolvedStatus === "Done") {
     await autoAdvancePitstopFromItem(itemId);
@@ -87,5 +108,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { itemId } = await params;
   await prisma.checklistItem.delete({ where: { id: itemId } });
+  auditLog({ entityType: "Checklist", entityId: itemId, userId: session.user.id, action: "deleted" });
   return Response.json({ ok: true });
 }
