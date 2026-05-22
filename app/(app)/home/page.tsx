@@ -112,6 +112,31 @@ export type RPHealthStat = {
   delayedPitstops: RPPitstopDetail[];
 };
 
+// RP cluster-deck: cluster geometry + settlements + facility pins. One per
+// cluster the RP is assigned to. Used by the playing-card style Today view.
+export type RPClusterDeckCluster = {
+  id: string;
+  name: string;
+  geometry: unknown | null; // GeoJSON Polygon / MultiPolygon
+  color: string | null;
+  settlements: {
+    id: string;
+    name: string;
+    polygon: unknown | null;
+    centroidLat: number | null;
+    centroidLng: number | null;
+  }[];
+  layerFeatures: {
+    id: string;
+    name: string;
+    layerKey: string;
+    lat: number;
+    lng: number;
+    settlementId: string | null;
+  }[];
+};
+export type FacilityLayerConfigLite = { layerKey: string; label: string; color: string };
+
 // Leader / Other: one entry per user in the leader's recursive reporting tree.
 export type LeaderTeamMember = {
   id: string;
@@ -359,7 +384,7 @@ export default async function HomePage() {
                 id: true, title: true, ownerId: true,
                 goal: {
                   select: {
-                    id: true, title: true, needsDomain: true,
+                    id: true, title: true, needsDomain: true, linkedFacilityId: true,
                     needsCluster:    { select: { id: true, name: true } },
                     needsSettlement: { select: { id: true, name: true } },
                     needsZone:       { select: { id: true, name: true } },
@@ -395,7 +420,7 @@ export default async function HomePage() {
                 id: true, title: true, ownerId: true,
                 goal: {
                   select: {
-                    id: true, title: true, needsDomain: true,
+                    id: true, title: true, needsDomain: true, linkedFacilityId: true,
                     needsCluster:    { select: { id: true, name: true } },
                     needsSettlement: { select: { id: true, name: true } },
                     needsZone:       { select: { id: true, name: true } },
@@ -433,7 +458,7 @@ export default async function HomePage() {
             id: true, title: true, targetDate: true, status: true,
             ownerId: true,
             owner: { select: { id: true, name: true } },
-            goal: { select: { id: true, title: true, needsDomain: true, needsCluster: { select: { id: true, name: true } } } },
+            goal: { select: { id: true, title: true, needsDomain: true, linkedFacilityId: true, needsCluster: { select: { id: true, name: true } }, needsSettlement: { select: { id: true, name: true } } } },
           },
         },
       },
@@ -455,7 +480,7 @@ export default async function HomePage() {
           : {}),
       },
       select: {
-        id: true, title: true, status: true, needsDomain: true,
+        id: true, title: true, status: true, needsDomain: true, linkedFacilityId: true,
         needsClusterId: true, needsZoneId: true,
         parameter: true, outcomeCount: true,
         targetDate: true,
@@ -511,7 +536,7 @@ export default async function HomePage() {
                     id: true, title: true, ownerId: true,
                     goal: {
                       select: {
-                        id: true, title: true, needsDomain: true,
+                        id: true, title: true, needsDomain: true, linkedFacilityId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
                         needsZone:       { select: { id: true, name: true } },
@@ -551,7 +576,7 @@ export default async function HomePage() {
                 id: true, title: true, ownerId: true,
                 goal: {
                   select: {
-                    id: true, title: true, needsDomain: true,
+                    id: true, title: true, needsDomain: true, linkedFacilityId: true,
                     needsCluster:    { select: { id: true, name: true } },
                     needsSettlement: { select: { id: true, name: true } },
                     needsZone:       { select: { id: true, name: true } },
@@ -585,7 +610,7 @@ export default async function HomePage() {
                 pitstop: {
                   select: {
                     ownerId: true, targetDate: true,
-                    goal: { select: { id: true, title: true, needsDomain: true, needsClusterId: true, needsCluster: { select: { id: true, name: true } }, needsSettlement: { select: { id: true, name: true } }, needsZone: { select: { id: true, name: true } } } },
+                    goal: { select: { id: true, title: true, needsDomain: true, linkedFacilityId: true, needsClusterId: true, needsCluster: { select: { id: true, name: true } }, needsSettlement: { select: { id: true, name: true } }, needsZone: { select: { id: true, name: true } } } },
                   },
                 },
               },
@@ -620,7 +645,7 @@ export default async function HomePage() {
                     ownerId: true, targetDate: true,
                     goal: {
                       select: {
-                        id: true, title: true, needsDomain: true, needsClusterId: true,
+                        id: true, title: true, needsDomain: true, linkedFacilityId: true, needsClusterId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
                         needsZone:       { select: { id: true, name: true } },
@@ -659,7 +684,7 @@ export default async function HomePage() {
                     id: true, title: true, ownerId: true,
                     goal: {
                       select: {
-                        id: true, title: true, needsDomain: true,
+                        id: true, title: true, needsDomain: true, linkedFacilityId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
                         needsZone:       { select: { id: true, name: true } },
@@ -698,7 +723,7 @@ export default async function HomePage() {
                     id: true, title: true, ownerId: true,
                     goal: {
                       select: {
-                        id: true, title: true, needsDomain: true,
+                        id: true, title: true, needsDomain: true, linkedFacilityId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
                         needsZone:       { select: { id: true, name: true } },
@@ -762,7 +787,7 @@ export default async function HomePage() {
                 id: true, title: true, ownerId: true,
                 goal: {
                   select: {
-                    id: true, title: true, needsDomain: true,
+                    id: true, title: true, needsDomain: true, linkedFacilityId: true,
                     needsCluster:    { select: { id: true, name: true } },
                     needsSettlement: { select: { id: true, name: true } },
                     needsZone:       { select: { id: true, name: true } },
@@ -823,6 +848,36 @@ export default async function HomePage() {
       overdueCount: overdueByUser.get(u.id) ?? 0,
       openChecklistCount: checklistByUser.get(u.id) ?? 0,
     }));
+  }
+
+  // ── RP: cluster-deck geometry ──────────────────────────────────────────────
+  // Map-card Today view shows one playing-card per assigned cluster with the
+  // cluster + settlement boundaries and facility pins. Only fetched for RPs.
+  let rpClusterDeck: RPClusterDeckCluster[] = [];
+  let facilityLayerConfigs: FacilityLayerConfigLite[] = [];
+  if (designation === "RP") {
+    const [clustersRaw, configsRaw] = await Promise.all([
+      prisma.cluster.findMany({
+        where: { deletedAt: null, rps: { some: { id: userId } } },
+        select: {
+          id: true, name: true, geometry: true, color: true,
+          settlements: {
+            where: { deletedAt: null },
+            select: { id: true, name: true, polygon: true, centroidLat: true, centroidLng: true },
+          },
+          layerFeatures: {
+            select: { id: true, name: true, layerKey: true, lat: true, lng: true, settlementId: true },
+          },
+        },
+        orderBy: { name: "asc" },
+      }),
+      prisma.facilityLayerConfig.findMany({
+        where: { isActive: true },
+        select: { layerKey: true, label: true, color: true },
+      }),
+    ]);
+    rpClusterDeck = clustersRaw as unknown as RPClusterDeckCluster[];
+    facilityLayerConfigs = configsRaw;
   }
 
   const domainLabels = Object.fromEntries(domainConfigs.map(d => [d.domain, d.label ?? d.domain]));
@@ -1088,7 +1143,7 @@ export default async function HomePage() {
                     ownerId: true, targetDate: true,
                     goal: {
                       select: {
-                        id: true, title: true, needsDomain: true, needsClusterId: true,
+                        id: true, title: true, needsDomain: true, linkedFacilityId: true, needsClusterId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
                         needsZone:       { select: { id: true, name: true } },
@@ -1171,7 +1226,7 @@ export default async function HomePage() {
         const [pmCGoals, pmCPitstops, pmCActivities, pmCChecklists] = await Promise.all([
           prisma.goal.findMany({
             where: { deletedAt: null, needsClusterId: { in: pmClusterIds } },
-            select: { needsDomain: true, needsClusterId: true, status: true, parameter: true, outcomeCount: true },
+            select: { needsDomain: true, linkedFacilityId: true, needsClusterId: true, status: true, parameter: true, outcomeCount: true },
           }),
           prisma.pitstop.findMany({
             where: { deletedAt: null, status: { in: ["Upcoming", "InProgress"] }, goal: { deletedAt: null, needsClusterId: { in: pmClusterIds } } },
@@ -1221,7 +1276,7 @@ export default async function HomePage() {
       const assignedClusterIds = assignedClusters.map(c => c.id);
       const clusterGoals = await prisma.goal.findMany({
         where: { deletedAt: null, needsClusterId: { in: assignedClusterIds } },
-        select: { needsDomain: true, needsClusterId: true, status: true, parameter: true, outcomeCount: true },
+        select: { needsDomain: true, linkedFacilityId: true, needsClusterId: true, status: true, parameter: true, outcomeCount: true },
       });
       rpClusterStats = assignedClusters.map(c => ({
         clusterId: c.id,
@@ -1241,7 +1296,7 @@ export default async function HomePage() {
     const [zoneGoals, clusterPitstops, clusterActivities, clusterChecklists] = await Promise.all([
       prisma.goal.findMany({
         where: { deletedAt: null, needsClusterId: { in: clusterIds } },
-        select: { needsDomain: true, needsClusterId: true, status: true, parameter: true, outcomeCount: true },
+        select: { needsDomain: true, linkedFacilityId: true, needsClusterId: true, status: true, parameter: true, outcomeCount: true },
       }),
       prisma.pitstop.findMany({
         where: {
@@ -1354,7 +1409,7 @@ export default async function HomePage() {
         where: { deletedAt: null },
         select: {
           id: true, title: true, status: true,
-          needsDomain: true, needsClusterId: true,
+          needsDomain: true, linkedFacilityId: true, needsClusterId: true,
           parameter: true, outcomeCount: true,
           ownerId: true,
           owner: { select: { id: true, name: true, designation: true } },
@@ -1742,6 +1797,8 @@ export default async function HomePage() {
       rpClusterStats={rpClusterStats}
       rpOverdueActivities={JSON.parse(JSON.stringify(rpOverdueActivities))}
       rpDoneActivities={JSON.parse(JSON.stringify(rpDoneActivities))}
+      rpClusterDeck={JSON.parse(JSON.stringify(rpClusterDeck))}
+      facilityLayerConfigs={facilityLayerConfigs}
       pastTeamDoneActivities={JSON.parse(JSON.stringify(pastTeamDoneActivities))}
       zlOverdueActivities={JSON.parse(JSON.stringify(zlOverdueActivities))}
       zlMyActivities={JSON.parse(JSON.stringify(zlMyActivities))}
