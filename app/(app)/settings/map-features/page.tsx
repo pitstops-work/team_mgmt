@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus, Pencil, Trash2, Check, X, MapPin, SquarePen, ClipboardList } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Check, X, MapPin, SquarePen, ClipboardList, Download } from "lucide-react";
 import { LAYERS } from "@/lib/layers";
 
 // Built-in NGO partners from LAYERS config (always show, even if MapPartner table is empty)
@@ -362,6 +362,28 @@ function SettForm({
   );
 }
 
+// ── Settlement export download (fetch+blob; survives mobile PWA + service workers) ──
+
+async function downloadExport(format: "geojson" | "xlsx", show: (text: string, ok?: boolean) => void) {
+  try {
+    const res = await fetch(`/api/admin/settlements/export?format=${format}`);
+    if (!res.ok) { show(`Export failed (${res.status})`, false); return; }
+    const blob = await res.blob();
+    const cd = res.headers.get("Content-Disposition") ?? "";
+    const m = cd.match(/filename="?([^";]+)"?/);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = m?.[1] ?? `settlements.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch {
+    show("Export failed. Please try again.", false);
+  }
+}
+
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export default function MapFeaturesSettingsPage() {
@@ -624,15 +646,31 @@ export default function MapFeaturesSettingsPage() {
       {/* ── SETTLEMENTS TAB ──────────────────────────────────────────────────── */}
       {tab === "settlements" && (
         <div>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
             <p className="text-sm text-slate-500">{settlements.length} settlements total</p>
-            <button
-              onClick={() => { setAddingSett(true); setEditingSett(null); }}
-              disabled={addingSett}
-              className="ml-auto btn-primary"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add settlement
-            </button>
+            <div className="ml-auto flex flex-wrap gap-2">
+              <button
+                onClick={() => downloadExport("geojson", show)}
+                className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700"
+                title="Download polygons + all properties as GeoJSON"
+              >
+                <Download className="w-3.5 h-3.5" /> GeoJSON
+              </button>
+              <button
+                onClick={() => downloadExport("xlsx", show)}
+                className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700"
+                title="Download as Excel (polygons as WKT)"
+              >
+                <Download className="w-3.5 h-3.5" /> Excel
+              </button>
+              <button
+                onClick={() => { setAddingSett(true); setEditingSett(null); }}
+                disabled={addingSett}
+                className="btn-primary"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add settlement
+              </button>
+            </div>
           </div>
 
           {addingSett && (
