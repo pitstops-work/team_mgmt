@@ -4,8 +4,6 @@ import GoalsDashboard from "./GoalsDashboard";
 import { goalCityFilter } from "@/lib/goalCityFilter";
 import { buildRbacContext, scopeWhere, getTeamIds } from "@/lib/rbac";
 
-const USE_RBAC = process.env.USE_RBAC === "1";
-
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -24,60 +22,18 @@ export default async function DashboardPage({
   const designation = me?.designation ?? "Other";
   const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
 
-  // Legacy scope vars. `cityFilter` is retained verbatim for the search query
-  // below (its semantics are intentionally narrower than the list scope —
-  // search sees city-wide, not team-restricted). `teamIds` and `isScoped`
-  // also feed user-list + workload + audit-feed queries that don't yet have
-  // RBAC scope builders.
-  let teamIds: string[] = [currentUserId];
-  if (designation === "ZL") {
-    const team = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
-    teamIds = [currentUserId, ...team.map(m => m.id)];
-  } else if (designation === "PM") {
-    const zls = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
-    const zlIds = zls.map(m => m.id);
-    const rps = zlIds.length > 0
-      ? await prisma.user.findMany({ where: { reportsToId: { in: zlIds } }, select: { id: true } })
-      : [];
-    teamIds = [currentUserId, ...zlIds, ...rps.map(m => m.id)];
-  }
-  let isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
-  const cityFilter = (isSuperAdmin || isScoped) ? {} : goalCityFilter(me?.cityId);
+  // `cityFilter` is retained for the search query below (city-wide, not
+  // team-restricted). `teamIds` and `isScoped` feed user-list + workload +
+  // audit-feed queries — derived from RBAC below.
+  const cityFilter = isSuperAdmin ? {} : goalCityFilter(me?.cityId);
 
-  // Phase 1c: list-query scopes. Under USE_RBAC=1, goal/pitstop scopes come
-  // from the central RBAC system; legacy path preserves prior behavior for the
-  // staging dual-run.
-  let goalWhere: Record<string, unknown>;
-  let pitstopWhere: Record<string, unknown>;
-  if (USE_RBAC) {
-    const ctx = await buildRbacContext(session);
-    const goalScope = ctx ? await scopeWhere(ctx, "goal", "list") : null;
-    const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
-    goalWhere = goalScope ?? {};
-    pitstopWhere = pitstopScope ?? {};
-    if (ctx) teamIds = await getTeamIds(ctx.userId);
-    isScoped = pitstopScope !== null && Object.keys(pitstopScope).length > 0;
-  } else {
-    // Co-owners are treated as owners for visibility purposes.
-    const goalOwnerFilter = isScoped
-      ? {
-          OR: [
-            { ownerId: { in: teamIds } },
-            { coOwners: { some: { userId: { in: teamIds } } } },
-          ],
-        }
-      : {};
-    const pitstopOwnerFilter = isScoped
-      ? {
-          OR: [
-            { ownerId: { in: teamIds } },
-            { coOwners: { some: { userId: { in: teamIds } } } },
-          ],
-        }
-      : {};
-    goalWhere = { ...cityFilter, ...goalOwnerFilter };
-    pitstopWhere = pitstopOwnerFilter;
-  }
+  const ctx = await buildRbacContext(session);
+  const goalScope = ctx ? await scopeWhere(ctx, "goal", "list") : null;
+  const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
+  const goalWhere: Record<string, unknown> = goalScope ?? {};
+  const pitstopWhere: Record<string, unknown> = pitstopScope ?? {};
+  const teamIds: string[] = ctx ? await getTeamIds(ctx.userId) : [currentUserId];
+  const isScoped = pitstopScope !== null && Object.keys(pitstopScope).length > 0;
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
     prisma.goal.findMany({

@@ -4,59 +4,16 @@ import { generateCalendarToken } from "@/lib/calendarToken";
 import { buildRbacContext, scopeWhere } from "@/lib/rbac";
 import EventsCalendar from "./EventsCalendar";
 
-const USE_RBAC = process.env.USE_RBAC === "1";
-
 export default async function ActivitiesPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const session = await auth();
   const sp = await searchParams;
   const inviteEventId = sp.invite ?? null;
-  const userId = session!.user!.id!;
 
-  let eventAttendeeFilter: Record<string, unknown>;
-  let pitstopOwnerFilter: Record<string, unknown>;
-
-  if (USE_RBAC) {
-    const ctx = await buildRbacContext(session);
-    const eventScope = ctx ? await scopeWhere(ctx, "pitstop_event", "list") : null;
-    const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
-    eventAttendeeFilter = eventScope ?? {};
-    pitstopOwnerFilter = pitstopScope ?? {};
-  } else {
-    const me = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { designation: true },
-    });
-    const designation = me?.designation ?? "Other";
-
-    // Scope events: RP sees own, ZL sees team, PM sees ZLs + their RPs, others see all.
-    // KNOWN GAP (fixed via RBAC path): Leader and Other see all here — see catalog sweep checklist.
-    let teamIds: string[] = [userId];
-    if (designation === "ZL") {
-      const team = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
-      teamIds = [userId, ...team.map(m => m.id)];
-    } else if (designation === "PM") {
-      const zls = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
-      const zlIds = zls.map(z => z.id);
-      const rps = zlIds.length > 0
-        ? await prisma.user.findMany({ where: { reportsToId: { in: zlIds } }, select: { id: true } })
-        : [];
-      teamIds = [userId, ...zlIds, ...rps.map(r => r.id)];
-    }
-
-    const isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
-    eventAttendeeFilter = isScoped
-      ? { attendees: { some: { userId: { in: teamIds } } } }
-      : {};
-    // Co-owners of a pitstop are treated as owners for visibility.
-    pitstopOwnerFilter = isScoped
-      ? {
-          OR: [
-            { ownerId: { in: teamIds } },
-            { coOwners: { some: { userId: { in: teamIds } } } },
-          ],
-        }
-      : {};
-  }
+  const ctx = await buildRbacContext(session);
+  const eventScope = ctx ? await scopeWhere(ctx, "pitstop_event", "list") : null;
+  const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
+  const eventAttendeeFilter: Record<string, unknown> = eventScope ?? {};
+  const pitstopOwnerFilter: Record<string, unknown> = pitstopScope ?? {};
 
   // All users shown in attendee picker — anyone can invite anyone
   const userFilter = {};

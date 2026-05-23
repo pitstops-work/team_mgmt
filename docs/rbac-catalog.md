@@ -1,7 +1,7 @@
 # Phase 1 RBAC Catalog
 
-**Status:** Locked 2026-05-19. Ambiguities resolved by product owner.
-**Source:** Derived from `docs/rbac-audit.md` plus the consolidation patches landed on 2026-05-19.
+**Status:** Locked 2026-05-19. Refreshed 2026-05-22 — new resources (rows 19–38) added, Programme `cityId` question resolved, Leader tab decision locked, sweep checklist updated.
+**Source:** Derived from `docs/rbac-audit.md` plus consolidation patches (2026-05-19) and the catalog-refresh audit (2026-05-22).
 
 ---
 
@@ -119,12 +119,12 @@ Each cell = role → scope. `—` = forbidden. `all` = unrestricted. Multiple ro
 
 | Action | super-admin | admin | member | viewer |
 |---|---|---|---|---|
-| `list`    | all | all | own (city filter deferred — see note) | read-only |
+| `list`    | all | all | own | read-only |
 | `create`  | all | all | own | — |
 | `update`  | all | all | own (owner) | — |
 | `delete`  | all | all | own (owner) | — |
 
-**Open question (parked):** Does `Program` have a `cityId` field? If not, the "city" scope rule can't apply to it; Programs would be globally scoped or `own`-only. Phase 1 should check the schema and decide.
+**Resolved 2026-05-22:** `Program` has no `cityId` field. Scope is strictly `own` — no city filter applies.
 
 ### 8. ProgrammeJourney (Layer 3) — settlement-scoped journey through phases
 
@@ -173,6 +173,7 @@ Each cell = role → scope. `—` = forbidden. `all` = unrestricted. Multiple ro
 | `create`/`update`/`delete` | all | all | — | — |
 
 *Patched today: previously some of these had no auth check at all.*
+*See also row 31 (`MapData`) for the broader read-only map endpoints — heatmaps, geojson layers, schools, health centres, cluster/zone summaries.*
 
 ### 13. Needs Schemes / Formulas
 
@@ -208,6 +209,202 @@ Separate realm. `budget-admin` + `super-admin` only. Don't mix into main RBAC ca
 
 ---
 
+# Catalog refresh — 2026-05-22
+
+Resources added after the 2026-05-19 lock. All scopes below are locked decisions from the 2026-05-22 product-owner pass.
+
+### 19. TeamMetrics — SLA, overdue, engagement panels
+
+Drives Leader Today tab + `/sla` page. Backed by `/api/team-sla`, `/api/team-sla/drill`, `/api/team-overdue`, `/api/engagement/activity-feed`.
+
+| Action | super-admin | admin | RP/ZL/PM | Leader | Other | viewer |
+|---|---|---|---|---|---|---|
+| `list`/`read` | all | all | team (recursive) | team (recursive) | own | all (read) |
+
+**Notes:** Anyone with reports sees their team's metrics. RP/Other see self only (effectively empty for metrics that aggregate reports). `/sla` page is currently gated `isAdminUser` — needs migration to use this row's scope instead.
+
+### 20. EffectsIndicator — Layer 1 outcomes
+
+Backed by `/api/effects/indicators`, `/api/effects/needs-progress`, `/effects` page.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `list`/`read` | all | all | all | all |
+| `create`/`update`/`delete` | all | all | — | — |
+
+**Locked 2026-05-22:** All-authenticated read. Geo-filtering happens in UI, not at the catalog layer. Mutations admin-only.
+
+### 21. ProgrammeJourney (Phase / Edge / Outcome / Attribution / Points) — Layer 3 internals
+
+Backed by `/api/programmes/[id]/phases/*`, `/edges/*`, `/outcomes/*`, `/outcomes/[outcomeId]/{attribution,points}`, `/api/programmes/[id]/{close,reopen,children,super}`.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `list`/`read` | all | all | all (city-filtered in UI) | all (read) |
+| `create`/`update`/`delete` | all | all | — | — |
+| `apply_pack` | all | all | — | — |
+
+**Locked 2026-05-22:** Member reads are NOT scoped by city at the catalog layer — the UI applies city filtering. (This supersedes catalog row 8's earlier `city` scope on the bare `ProgrammeJourney` resource; row 8 is retained for the journey list view, while row 21 covers the journey internals exposed via the programme detail UI.) All mutations admin-only.
+
+### 22. JourneyOutcomePack — admin-curated outcome templates
+
+Backed by `/api/admin/journey-outcome-packs/*`, `/api/programmes/[id]/apply-pack/[packId]`, `/settings/journey-outcome-packs` page.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `list`/`read` | all | all | all (when attached to a programme) | read-only |
+| `create`/`update`/`delete`/`apply` | all | all | — | — |
+
+### 23. Quarter
+
+Master quarter list. Backed by `/api/quarters`, `/quarters` page.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `list`/`read` | all | all | all | all |
+| `create`/`update`/`delete` | all | all | — | — |
+
+### 24. Theme
+
+Master theme list. Backed by `/api/themes`, `/themes` page.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `list`/`read` | all | all | all | all |
+| `create`/`update`/`delete` | all | all | — | — |
+
+### 25. Standup — daily/periodic standup entries
+
+Backed by `/api/standup`, `/standup` page.
+
+| Action | super-admin | admin | RP/ZL/PM | Leader | Other | viewer |
+|---|---|---|---|---|---|---|
+| `list`/`read` | all | all | team (recursive) | team (recursive) | own | all (read) |
+| `create` | all | all | own | own | own | — |
+| `update`/`delete` | all | all | own (creator) | own | own | — |
+
+### 26. Retrospective
+
+Backed by `/api/retrospectives`.
+
+| Action | super-admin | admin | RP/ZL/PM | Leader | Other | viewer |
+|---|---|---|---|---|---|---|
+| `list`/`read` | all | all | team (recursive) | team (recursive) | own | all (read) |
+| `create` | all | all | own | own | own | — |
+| `update`/`delete` | all | all | own (creator) | own | own | — |
+
+### 27. PlanItem — user-owned planner item
+
+Distinct from `ChecklistItem` (row 9). `PlanItem.userId` is the owner; optional pitstop links via `PlanItemPitstop`. Backed by `/api/plan-items/*`, `/api/planner-data`, `/planner` page.
+
+| Action | super-admin | admin | RP/ZL/PM | Leader | Other | viewer |
+|---|---|---|---|---|---|---|
+| `list`/`read` | all | all | team (recursive) | team (recursive) | own | all (read) |
+| `create` | all | all | own | own | own | — |
+| `update`/`delete` | all | all | own (creator) | own | own | — |
+
+### 28. ChecklistItem — pitstop-scoped checklist (clarifies row 9)
+
+Row 9 ("Plan Item / Checklist Item") is now split. `ChecklistItem.pitstopId` is the parent; scope inherits from the parent Pitstop. Backed by `/api/checklist/[itemId]/*`, `/api/checklist/reorder`, `/api/pitstops/[pitstopId]/checklist`.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `list`/`read`/`create`/`update`/`delete` | all | all | inherits Pitstop scope | read-only |
+
+### 29. Needs (Assessment / Scheme / Formula / Actuals / Gap / ProgressChecklist)
+
+Backed by `/api/needs/*`. Page: `/needs`, `/needs/settlement/[id]`.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `list`/`read` | all | all | all (geo-filtered in UI) | all (read) |
+| `create`/`update`/`delete` | all | all | — | — |
+
+### 30. MapData (read-only feeds beyond row 12)
+
+Catalog umbrella for the broader read-only map endpoints. Backed by `/api/map/cluster-activities`, `/cluster-needs`, `/cluster-pitstops`, `/geo-goals`, `/geojson/{clusters,zones,settlements,layer-features}`, `/health-centres`, `/health-clusters`, `/needs-heatmap`, `/progress-health`, `/my-goal-scope`, `/schools`, `/settlement-needs`, `/zone-needs`, `/api/clusters/summary`, `/api/zones/summary`, `/api/geography/*`.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `list`/`read` | all | all | all | all (read) |
+| `register_settlement` (`/api/map/register-settlement`) | all | all | — | — |
+| `retag_schools` (`/api/map/schools/retag`) | all | all | — | — |
+
+Row 12 still owns Map Notes / Map Partners / Layer Features mutations specifically.
+
+### 31. Calendar — user's own calendar
+
+Backed by `/api/calendar/feed.ics`, `/api/calendar/external`, `/api/account/external-calendar`.
+
+| Action | self | else |
+|---|---|---|
+| `read`/`subscribe` | self | — |
+
+### 32. Attachment / File / Audio / Upload
+
+Backed by `/api/attachments/*`, `/api/attachment/[id]`, `/api/files/[...filename]`, `/api/upload`, `/api/audio`.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `read` (via tokenised URL) | all | all | linked-record scope | linked-record scope |
+| `create` (upload) | all | all | any authenticated | — |
+| `delete` | all | all | own (uploader) | — |
+
+**Note:** `linked-record scope` = the attachment is readable iff the user can read the record it's attached to (pitstop, goal, thread message, etc.). Enforced at fetch time.
+
+### 33. Search
+
+Backed by `/api/search`.
+
+| Action | super-admin | admin | member | viewer |
+|---|---|---|---|---|
+| `execute` | all | all | all (results filtered through resource scopes) | all (read-only results) |
+
+### 34. Cron (system)
+
+Backed by `/api/cron/*` — `activity-followup`, `activity-morning-nudge`, `checkin-reminder`, `checkins`, `reminders`, `sync-chennai-demographics`, `sync-entitlements`, `sync-entitlements-chennai`, `sync-entitlements-survey`, `weekly-plan-nudge`.
+
+| Action | who |
+|---|---|
+| `execute` | system only (verified via `CRON_SECRET`; no user session) |
+
+### 35. AI Agent (chat assistant)
+
+Backed by `/api/agent`, `/api/ai`.
+
+| Action | super-admin | else |
+|---|---|---|
+| `agent.use` | super-admin | — |
+
+Already represented under "Special actions" but lifted here for visibility.
+
+### 36. Settings (`/settings/*` pages)
+
+| Page | who |
+|---|---|
+| `/settings/users` | admin + super-admin |
+| `/settings/roles`, `/settings/roles/[roleId]` | super-admin only |
+| `/settings/geography`, `/settings/templates`, `/settings/facility-indicators`, `/settings/facility-layers`, `/settings/map-features`, `/settings/journey-outcome-packs`, `/settings/mis-providers`, `/settings/needs` | admin + super-admin |
+| `/settings/language` | self (any authenticated) |
+| `/settings` (landing) | any authenticated (renders the subset of cards their role allows) |
+
+### 37. Admin sub-routes not previously enumerated
+
+Backed by `/api/admin/chennai-geo`, `/api/admin/seed-shwetha`, `/api/admin/template-checklist-keys`, `/api/admin/sync-civic`, `/api/admin/settings`.
+
+| Action | who |
+|---|---|
+| All CRUD | admin + super-admin (seed-shwetha and sync-civic: super-admin only) |
+
+### 38. Tabs — designation-driven navigation (`AppNav.tsx` + `HomeView.tsx`)
+
+**Locked 2026-05-22:** Leader uses **PM_TABS** (same set as PM). Today, This Week, Team SLA, Engagement, Past Load. This resolves the catalog sweep item "decide LEADER_TABS." Other continues to fall into single-Today.
+
+Pages reachable from nav that do NOT have their own auth gate beyond session:
+- `/people`, `/partners`, `/readiness`, `/report`, `/route`, `/timeline`, `/portal` — all authenticated, content scoped via the resources they read.
+
+---
+
 ## Special actions (non-CRUD)
 
 These don't fit the resource × action grid; they need their own permission keys.
@@ -221,6 +418,10 @@ These don't fit the resource × action grid; they need their own permission keys
 | `review_portal.access` | super-admin | Now audit-logged. |
 | `password.reset_other` | admin, super-admin | Admin can reset any non-super-admin. Super-admin can reset super-admins. |
 | `event.respond` (RSVP) | self | Separate from `event.update`. Attendee can RSVP without update perm. |
+| `programme.apply_pack` | admin, super-admin | Applies a JourneyOutcomePack to a programme. (Added 2026-05-22.) |
+| `cron.execute` | system (CRON_SECRET) | All `/api/cron/*` routes. No user session. (Added 2026-05-22.) |
+| `search.execute` | any authenticated | Results filtered through per-resource scopes downstream. (Added 2026-05-22.) |
+| `team.view_metrics` | any user with reports + admin | SLA, overdue, engagement panels. RP/Other see self only (effectively empty). (Added 2026-05-22.) |
 
 ---
 
@@ -230,10 +431,26 @@ These don't fit the resource × action grid; they need their own permission keys
 2. **Leader designation** — Pure reporting-hierarchy marker, NOT a permission elevation. Leader gets team-recursive scope (which often equals "everyone below them in the tree"), nothing more. Where current code grants Leader "all" (most notably `/threads`), Phase 1 must replace with team-recursive scope.
 3. **Other designation** — Last in the hierarchy. Demo/test/disabled credentials. Sees `own` only across all scoped resources (Goal, Pitstop, Activity, etc.). Threads is the one exception: `own + subscribed` (so they can follow conversations they're tagged into).
 4. **ProgrammeJourney mutation** — Admin-only for all mutations. Members read within city only.
-5. **`Program` city scope** — Parked. Phase 1 to check schema and decide.
+5. **`Program` city scope** — Parked. Phase 1 to check schema and decide. → *Resolved 2026-05-22: no `cityId` field exists; scope is strictly `own`.*
 6. **PitstopEvent RSVP** — Separate `event.respond` action. Attendee can change own attendance status without `update` permission.
 7. **Notification mark-as-read for viewers** — Keep blocking. Current behavior is intentional.
 8. **`Other` wildcard sweep** — See Phase 1 sweep checklist below.
+
+---
+
+## Locked decisions (2026-05-22)
+
+1. **TeamMetrics scope** — Anyone with reports sees their team's SLA/overdue/engagement panels (`team` recursive). RP/Other see self only. Admin sees all.
+2. **ProgrammeJourney member reads** — All-authenticated read; UI applies city filtering. Catalog does NOT enforce city scope on programme internals. Mutations remain admin-only.
+3. **Effects/Indicators** — All-authenticated read. Mutations admin-only.
+4. **Quarter / Theme** — Master lists; all-authenticated read, admin mutate.
+5. **Standup / Retrospective** — `team` scope for read (recursive). Entries are own-only on write/update/delete.
+6. **PlanItem vs ChecklistItem** — Distinct resources. PlanItem is user-owned (planner). ChecklistItem inherits scope from parent Pitstop. Row 9 "Plan Item / Checklist Item" is now split into rows 27 and 28.
+7. **LEADER_TABS** — Leader uses the same tab set as PM (`PM_TABS`). Resolves the `HomeView.tsx` sweep item.
+8. **Calendar** — Self-only across all calendar endpoints (ICS feed, external sync).
+9. **Attachments** — Read inherits the linked-record scope (you can read the attachment iff you can read its parent). Upload = any authenticated. Delete = own + admin.
+10. **Cron** — All `/api/cron/*` are system-only via `CRON_SECRET`. No user session is ever consulted.
+11. **`Program` cityId** — Resolved (no `cityId` field). Scope: `own`.
 
 ---
 
@@ -241,15 +458,28 @@ These don't fit the resource × action grid; they need their own permission keys
 
 These places currently rely on a wildcard `else` branch that produces incorrect scope for `Leader` and/or `Other`. Phase 1 must fix all of them when the central `scopeWhere()` API lands.
 
-| File | Resource | Current bug | Target |
+| File | Resource | Current state | Target |
 |---|---|---|---|
-| `app/api/goals/route.ts` | Goal list | `isScoped` only true for RP/ZL/PM; Leader/Other fall through and see all (subject to city filter) | Leader → team-recursive; Other → own only |
-| `app/(app)/home/page.tsx` | Goals/pitstops/activities team-fetch | Hardcoded ZL/PM branches; Leader/Other fall through to wildcard | Leader → team-recursive; Other → own only |
-| `app/(app)/dashboard/page.tsx` | Goals/pitstops dashboard data | Same pattern as `home/page.tsx` | Same |
-| `app/(app)/activities/page.tsx` | Activity list | `isScoped` only for RP/ZL/PM; Leader/Other unscoped | Leader → team-recursive; Other → own only |
-| `app/(app)/home/HomeView.tsx` | Tab selection (`RP_TABS` / `ZL_TABS` / `PM_TABS` / `OTHER_TABS`) | Leader currently falls into `OTHER_TABS` (single "today" tab) | Decide what tabs Leader should see — possibly same as PM_TABS, or new LEADER_TABS |
+| `app/api/goals/route.ts` | Goal list | **RBAC live** (2026-05-23). Legacy branch deleted; `USE_RBAC` gate removed. | Done. |
+| `app/(app)/home/page.tsx` | Goals/pitstops/activities team-fetch | **RBAC live** (2026-05-23). Legacy branch deleted. | Done. |
+| `app/(app)/dashboard/page.tsx` | Goals/pitstops dashboard data | **RBAC live** (2026-05-23). Legacy branch deleted. User-list, workload-detail, audit-feed queries still consume `isScoped + teamIds` derived from RBAC, but lack dedicated `user` / `audit_log` scope builders. | Add `user` + `audit_log` scope builders in `lib/rbac.ts`; migrate remaining ~5 query spots. |
+| `app/(app)/activities/page.tsx` | Activity list | **RBAC live** (2026-05-23). Legacy branch deleted. | Done. |
+| `app/(app)/threads/page.tsx` | Thread list | **RBAC live** (2026-05-23). Legacy branch deleted. | Done. |
+| `app/(app)/home/HomeView.tsx` | Tab selection | LEADER_TABS decision: **same as PM_TABS** (locked 2026-05-22). Code still maps Leader → OTHER_TABS. | Add Leader to PM_TABS branch in HomeView. |
+| `app/(app)/AppNav.tsx` | Tab visibility by designation | Hardcoded designation checks. | Refactor to use RBAC context (tabs resource); Leader = PM tab set. |
+| `app/api/programmes/route.ts` | Programme list (raw SQL) | Has its own city scoping. Not under RBAC. | Add SQL-friendly scope helper, then join the RBAC system. |
+| `app/api/team-sla/*`, `/api/team-overdue`, `/api/engagement/activity-feed` | TeamMetrics (row 19) | Session-only check; no RBAC scope. | Apply `team` recursive scope through `scopeWhere(user, "team_metrics")`. |
+| `/sla` page | TeamMetrics visibility | Gated `isAdminUser` — too restrictive vs new policy. | Replace with `can(user, "team_metrics", "read")`; allow ZL/PM/Leader to see their team. |
+| `/effects` page | EffectsIndicator (row 20) | Session-only. | Confirm all-authenticated read is correct (matches catalog) — no migration needed beyond stating it. |
+| `app/api/standup/route.ts` | Standup (row 25) | Session-only. | `team` scope read, `own` write. |
+| `app/api/retrospectives/route.ts` | Retrospective (row 26) | Session-only. | Same. |
+| `app/api/plan-items/*` + `/api/planner-data` | PlanItem (row 27) | Session-only; legacy team logic. | `team` scope read, `own` write. |
+| `app/api/programmes/[id]/phases/*`, `/edges/*`, `/outcomes/*` | ProgrammeJourney internals (row 21) | `isAdminUser` for mutations; mostly session-only for reads. | Confirm reads are all-authenticated (matches catalog); admin-only mutations stays as-is. |
+| `app/api/admin/journey-outcome-packs/*`, `/api/programmes/[id]/apply-pack/*` | JourneyOutcomePack (row 22) | `isAdminUser`. | Matches catalog; document under `programme.apply_pack` special action. |
+| `app/api/cron/*` | Cron (row 34) | Mixed: some routes check `CRON_SECRET`, some don't. | Audit each; enforce `CRON_SECRET` uniformly. |
+| Audit log admin UI | AuditLog (row 16) | Listed in catalog as Phase 1 deliverable; **never built**. | Build `/settings/audit` page (admin-only); back with scoped `/api/audit` reads. |
 
-**Recursion depth.** ZL = 1 level, PM = 2 levels, Leader = arbitrary (could be PM→ZL→RP). The current ad-hoc PM logic stops at 2 levels. Phase 1 should replace with a `WITH RECURSIVE` CTE on `reportsToId` so Leader (and any future deeper hierarchies) Just Work.
+**Recursion depth.** ZL = 1 level, PM = 2 levels, Leader = arbitrary (could be PM→ZL→RP). `lib/rbac.ts` already uses a `WITH RECURSIVE` CTE on `reportsToId` (added 2026-05-19) so Leader and any future deeper hierarchies Just Work.
 
 ---
 

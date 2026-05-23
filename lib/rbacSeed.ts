@@ -74,7 +74,7 @@ export const RESOURCE_ACTIONS: Record<string, readonly string[]> = {
   zone: [...STANDARD_ACTIONS],
   city: [...STANDARD_ACTIONS],
   programme: [...STANDARD_ACTIONS],
-  programme_journey: [...STANDARD_ACTIONS],
+  programme_journey: [...STANDARD_ACTIONS, "apply_pack"],
   plan_item: [...STANDARD_ACTIONS],
   checklist_item: [...STANDARD_ACTIONS],
   thread: [...STANDARD_ACTIONS, "post_message", "subscribe"],
@@ -82,8 +82,11 @@ export const RESOURCE_ACTIONS: Record<string, readonly string[]> = {
   map_note: [...STANDARD_ACTIONS],
   map_partner: [...STANDARD_ACTIONS],
   layer_feature: [...STANDARD_ACTIONS],
+  map_data: ["list", "read", "register_settlement", "retag_schools"],
   needs_scheme: [...STANDARD_ACTIONS],
   needs_formula: [...STANDARD_ACTIONS],
+  needs_assessment: [...STANDARD_ACTIONS],
+  needs_actual: [...STANDARD_ACTIONS],
   template: [...STANDARD_ACTIONS],
   facility_indicator: [...STANDARD_ACTIONS],
   facility_layer: [...STANDARD_ACTIONS],
@@ -94,6 +97,16 @@ export const RESOURCE_ACTIONS: Record<string, readonly string[]> = {
   audit_log: ["list", "read"],
   review_portal: ["access"],
   budget: [...STANDARD_ACTIONS],
+  // Catalog refresh 2026-05-22 — new resources.
+  team_metrics: ["list", "read"],
+  effects_indicator: [...STANDARD_ACTIONS],
+  quarter: [...STANDARD_ACTIONS],
+  theme: [...STANDARD_ACTIONS],
+  standup: [...STANDARD_ACTIONS],
+  retrospective: [...STANDARD_ACTIONS],
+  calendar: ["read", "subscribe"],
+  attachment: ["read", "create", "delete"],
+  search: ["execute"],
   system: ["agent_use", "seed_run", "geo_sync_civic"],
 };
 
@@ -117,6 +130,8 @@ const ADMIN_EXCLUDED = new Set<string>([
   "invite_code.rotate",
   "settlement.sync_civic_data",
   "budget.list", "budget.read", "budget.create", "budget.update", "budget.delete",
+  // Catalog refresh 2026-05-22 — admin still gets these via city/team scope at the
+  // role row; keeping admin = ALL for new resources unless we add exclusions later.
 ]);
 
 const ADMIN_GRANTS: RoleGrant = (() => {
@@ -182,16 +197,22 @@ const MEMBER_GRANTS: RoleGrant = {
   "programme.update": OWN,
   "programme.delete": OWN,
 
-  "programme_journey.list": CITY,
-  "programme_journey.read": CITY,
+  // Catalog refresh 2026-05-22 — member reads on programme_journey are all-authenticated;
+  // UI applies city filtering. Mutations + apply_pack stay admin-only.
+  "programme_journey.list": ALL,
+  "programme_journey.read": ALL,
 
-  "plan_item.list":      OWN,
-  "plan_item.read":      OWN,
+  // Catalog refresh 2026-05-22 — PlanItem is user-owned (planner) with team visibility
+  // for managers; mutations stay own-only.
+  "plan_item.list":      TEAM,
+  "plan_item.read":      TEAM,
   "plan_item.create":    OWN,
   "plan_item.update":    OWN,
   "plan_item.delete":    OWN,
-  "checklist_item.list":   OWN,
-  "checklist_item.read":   OWN,
+  // ChecklistItem inherits scope from parent Pitstop, so member reads use TEAM
+  // (same as pitstop). Writes stay own-only on the child.
+  "checklist_item.list":   TEAM,
+  "checklist_item.read":   TEAM,
   "checklist_item.create": OWN,
   "checklist_item.update": OWN,
   "checklist_item.delete": OWN,
@@ -225,6 +246,57 @@ const MEMBER_GRANTS: RoleGrant = {
   "journey_outcome_pack.read": ALL,
   "mis_provider.list":         ALL,
   "mis_provider.read":         ALL,
+
+  // ── Catalog refresh 2026-05-22 — new resources ─────────────────────────────
+  // TeamMetrics (SLA, overdue, engagement panels): anyone with reports sees their
+  // team's metrics. RP/Other see self only (effectively empty for aggregates).
+  "team_metrics.list":     TEAM,
+  "team_metrics.read":     TEAM,
+
+  // EffectsIndicator (Layer 1 outcomes): all-authenticated read, admin mutate.
+  "effects_indicator.list": ALL,
+  "effects_indicator.read": ALL,
+
+  // Master quarter + theme lists.
+  "quarter.list": ALL,
+  "quarter.read": ALL,
+  "theme.list":   ALL,
+  "theme.read":   ALL,
+
+  // Standup + Retrospective: team-recursive read; own writes.
+  "standup.list":          TEAM,
+  "standup.read":          TEAM,
+  "standup.create":        OWN,
+  "standup.update":        OWN,
+  "standup.delete":        OWN,
+  "retrospective.list":    TEAM,
+  "retrospective.read":    TEAM,
+  "retrospective.create":  OWN,
+  "retrospective.update":  OWN,
+  "retrospective.delete":  OWN,
+
+  // Needs assessment + actuals: all-authenticated read, admin mutate.
+  "needs_assessment.list": ALL,
+  "needs_assessment.read": ALL,
+  "needs_actual.list":     ALL,
+  "needs_actual.read":     ALL,
+
+  // MapData (read-only feeds): all read. Mutations admin-only — handled by ADMIN_GRANTS.
+  "map_data.list": ALL,
+  "map_data.read": ALL,
+
+  // Calendar is purely self-scoped.
+  "calendar.read":      SELF,
+  "calendar.subscribe": SELF,
+
+  // Attachment: read inherits parent record's scope (modelled as OWN here; the
+  // actual fetch-time check verifies access via the linked resource).
+  "attachment.read":   OWN,
+  "attachment.create": OWN,
+  "attachment.delete": OWN,
+
+  // Search: any authenticated user; results are filtered through per-resource scopes downstream.
+  "search.execute": ALL,
 };
 
 const VIEWER_GRANTS: RoleGrant = (() => {

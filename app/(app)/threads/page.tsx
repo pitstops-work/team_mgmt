@@ -4,8 +4,6 @@ import { isAdminUser } from "@/lib/roleGuard";
 import { buildRbacContext, scopeWhere } from "@/lib/rbac";
 import ThreadsList from "./ThreadsList";
 
-const USE_RBAC = process.env.USE_RBAC === "1";
-
 export default async function ThreadsPage({ searchParams }: { searchParams: Promise<{ thread?: string }> }) {
   const { thread: threadParam } = await searchParams;
   const session = await auth();
@@ -13,7 +11,7 @@ export default async function ThreadsPage({ searchParams }: { searchParams: Prom
   const userRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
   const isAdmin = isAdminUser(session);
 
-  // teamIds is used by both code paths (also by the goal-picker query below)
+  // teamIds feeds the goal-picker query below.
   const me = await prisma.user.findUnique({
     where: { id: userId },
     select: { designation: true, reportsToId: true },
@@ -42,60 +40,11 @@ export default async function ThreadsPage({ searchParams }: { searchParams: Prom
     teamIds = [userId, ...directIds, ...indirectReports.map(r => r.id)];
   }
 
-  let ownershipWhere: Record<string, unknown>;
-
-  if (USE_RBAC) {
-    const ctx = await buildRbacContext(session);
-    const scope = ctx ? await scopeWhere(ctx, "thread", "list") : null;
-    ownershipWhere = scope === null
-      ? { deletedAt: null, id: "__no_access__" } // empty result if no permission
-      : { deletedAt: null, ...scope };
-  } else {
-    // Admins and Leaders see all threads; everyone else is scoped to threads they
-    // own (via team for RP/ZL/PM, self for Other) or subscribe to.
-    const seesAll = isAdmin || designation === "Leader";
-
-    let ownedGoalIds: string[] = [];
-    let ownedPitstopIds: string[] = [];
-    if (!seesAll) {
-      // Co-owners are treated as owners for visibility.
-      const [gRows, pRows] = await Promise.all([
-        prisma.goal.findMany({
-          where: {
-            deletedAt: null,
-            OR: [
-              { ownerId: { in: teamIds } },
-              { coOwners: { some: { userId: { in: teamIds } } } },
-            ],
-          },
-          select: { id: true },
-        }),
-        prisma.pitstop.findMany({
-          where: {
-            deletedAt: null,
-            OR: [
-              { ownerId: { in: teamIds } },
-              { coOwners: { some: { userId: { in: teamIds } } } },
-            ],
-          },
-          select: { id: true },
-        }),
-      ]);
-      ownedGoalIds    = gRows.map(r => r.id);
-      ownedPitstopIds = pRows.map(r => r.id);
-    }
-
-    ownershipWhere = seesAll
-      ? { deletedAt: null }
-      : {
-          deletedAt: null,
-          OR: [
-            ...(ownedPitstopIds.length > 0 ? [{ pitstopId: { in: ownedPitstopIds } }] : []),
-            ...(ownedGoalIds.length    > 0 ? [{ goalId:    { in: ownedGoalIds    } }] : []),
-            { subscriptions: { some: { userId } } },
-          ],
-        };
-  }
+  const ctx = await buildRbacContext(session);
+  const scope = ctx ? await scopeWhere(ctx, "thread", "list") : null;
+  const ownershipWhere: Record<string, unknown> = scope === null
+    ? { deletedAt: null, id: "__no_access__" }
+    : { deletedAt: null, ...scope };
 
   // Validity filter: thread must be attached to a live pitstop/goal/event
   // (separate so it doesn't overwrite the OR in ownershipWhere)

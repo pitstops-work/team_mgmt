@@ -3,8 +3,6 @@ import prisma from "@/lib/prisma";
 import { buildRbacContext, scopeWhere, getTeamIds } from "@/lib/rbac";
 import HomeView from "./HomeView";
 
-const USE_RBAC = process.env.USE_RBAC === "1";
-
 function getWeekBounds(now: Date) {
   const s = new Date(now);
   const day = s.getDay();
@@ -300,10 +298,8 @@ export default async function HomePage() {
   const designation = me?.designation ?? "Other";
   const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
 
-  // Team IDs: ZL includes her reports; PM pre-fetches ZL+RP IDs so myGoals is correctly scoped.
-  // `teamMembers` (ZL roster with rpClusters) feeds ZL-specific UI further down — kept on the
-  // legacy path even under USE_RBAC=1; per-designation UI branching is out of Phase 1c scope.
-  let teamIds: string[] = [userId];
+  // `teamMembers` (ZL roster with rpClusters) feeds ZL-specific UI further down;
+  // per-designation UI branching is out of central-RBAC scope.
   let teamMembers: { id: string; name: string | null; image: string | null }[] = [];
   if (designation === "ZL") {
     teamMembers = await prisma.user.findMany({
@@ -313,23 +309,12 @@ export default async function HomePage() {
         rpClusters: { where: { deletedAt: null }, select: { id: true, name: true } },
       },
     });
-    teamIds = [userId, ...teamMembers.map(m => m.id)];
-  } else if (designation === "PM") {
-    const pmZLs = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
-    const zlIds = pmZLs.map(m => m.id);
-    const pmRPs = zlIds.length > 0
-      ? await prisma.user.findMany({ where: { reportsToId: { in: zlIds } }, select: { id: true } })
-      : [];
-    teamIds = [userId, ...zlIds, ...pmRPs.map(m => m.id)];
   }
-
-  let isScoped = designation === "RP" || designation === "ZL" || designation === "PM";
 
   const isLeader = !["RP", "ZL", "PM"].includes(designation);
 
-  // Leader / Other Today tab now shows a team breakdown of every user in
-  // their reporting tree (recursive descendants). Compute the team IDs once
-  // up-front so the queries below can scope to them.
+  // Leader / Other Today tab shows a team breakdown of every user in
+  // their reporting tree (recursive descendants).
   let leaderTeamIds: string[] = [];
   let leaderTeam: LeaderTeamMember[] = [];
   if (isLeader) {
@@ -337,17 +322,12 @@ export default async function HomePage() {
     leaderTeamIds = allDescendants.filter(id => id !== userId);
   }
 
-  // Phase 1c: USE_RBAC=1 replaces teamIds + isScoped with central RBAC derivation.
-  // WITH RECURSIVE expands the team to arbitrary depth, fixing the wildcard-else
-  // bug for Leader/Other (member role with pitstop.list = TEAM scope).
-  if (USE_RBAC) {
-    const ctx = await buildRbacContext(session);
-    if (ctx) {
-      const pitstopScope = await scopeWhere(ctx, "pitstop", "list");
-      teamIds = await getTeamIds(ctx.userId);
-      isScoped = pitstopScope !== null && Object.keys(pitstopScope).length > 0;
-    }
-  }
+  // teamIds + isScoped come from central RBAC. WITH RECURSIVE expands the
+  // team to arbitrary depth.
+  const ctx = await buildRbacContext(session);
+  const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
+  const teamIds: string[] = ctx ? await getTeamIds(ctx.userId) : [userId];
+  const isScoped = pitstopScope !== null && Object.keys(pitstopScope).length > 0;
 
   const [
     todayActivities,
