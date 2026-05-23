@@ -1,4 +1,4 @@
-const CACHE = "pitstop-v1";
+const CACHE = "pitstop-v2";
 const PRECACHE = ["/", "/home", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -22,7 +22,9 @@ self.addEventListener("fetch", (event) => {
     event.request.method !== "GET" ||
     url.origin !== self.location.origin ||
     url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/_next/")
+    url.pathname.startsWith("/_next/") ||
+    url.pathname.endsWith("/export") ||
+    url.pathname.includes("/export/")
   ) {
     return;
   }

@@ -169,10 +169,30 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
             className="text-sm border border-stone-300 px-3 py-1.5 rounded-lg hover:bg-stone-50 text-stone-700">
             Analysis
           </a>
-          <a href={`/budget/${budget.id}/export`} target="_blank"
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const res = await fetch(`/budget/${budget.id}/export`);
+                if (!res.ok) { alert(`Export failed (${res.status})`); return; }
+                const blob = await res.blob();
+                const cd = res.headers.get("Content-Disposition") ?? "";
+                const m = cd.match(/filename="?([^";]+)"?/);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = m?.[1] ?? `${budget.name}_budget.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              } catch {
+                alert("Export failed. Please try again.");
+              }
+            }}
             className="text-sm border border-stone-300 px-3 py-1.5 rounded-lg hover:bg-stone-50 text-stone-700">
             Export
-          </a>
+          </button>
           {budget.status === "draft" && (
             <button
               onClick={() => startTransition(() => finalizeBudget(budget.id))}
