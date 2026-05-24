@@ -1,13 +1,13 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { isWikiSteward } from "@/lib/wiki/auth";
+import { isWikiSteward, isWikiCurator } from "@/lib/wiki/auth";
 import WikiListView from "./WikiListView";
 
 export default async function WikiIndexPage() {
   const session = await auth();
   const userId = session?.user?.id ?? null;
 
-  const [pages, steward] = await Promise.all([
+  const [pages, steward, curator, ownedCount] = await Promise.all([
     prisma.wikiPage.findMany({
       where: { archivedAt: null, status: { not: "retired" } },
       orderBy: { lastEditedAt: "desc" },
@@ -32,6 +32,12 @@ export default async function WikiIndexPage() {
       take: 200,
     }),
     userId ? isWikiSteward(userId) : Promise.resolve(false),
+    userId ? isWikiCurator(userId) : Promise.resolve(false),
+    userId
+      ? prisma.wikiPage.count({
+          where: { ownerId: userId, archivedAt: null, status: { not: "retired" } },
+        })
+      : Promise.resolve(0),
   ]);
 
   const decorated = pages.map((p) => ({
@@ -44,6 +50,7 @@ export default async function WikiIndexPage() {
     <WikiListView
       initialPages={JSON.parse(JSON.stringify(decorated))}
       canCreate={steward}
+      hasDashboard={steward || curator || ownedCount > 0}
     />
   );
 }

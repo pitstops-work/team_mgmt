@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle, LayoutDashboard } from "lucide-react";
 
 type Tag = { tagType: string; tagValue: string };
 type Page = {
@@ -40,9 +40,11 @@ function fmtDate(iso: string | null): string {
 export default function WikiListView({
   initialPages,
   canCreate,
+  hasDashboard,
 }: {
   initialPages: Page[];
   canCreate: boolean;
+  hasDashboard: boolean;
 }) {
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("");
@@ -82,6 +84,15 @@ export default function WikiListView({
           <Link href="/wiki" className="text-stone-900 font-medium border-b-2 border-stone-900 pb-1">
             Pages
           </Link>
+          {hasDashboard && (
+            <Link
+              href="/wiki/dashboard"
+              className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              Dashboard
+            </Link>
+          )}
           <Link href="/wiki/circles" className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1">
             <Users className="w-3.5 h-3.5" />
             Circles
