@@ -51,6 +51,8 @@ export default async function WikiIndexPage() {
       initialPages={JSON.parse(JSON.stringify(decorated))}
       canCreate={steward}
       hasDashboard={steward || curator || ownedCount > 0}
+      isStaff={steward || curator}
+      isStewardOnly={steward}
     />
   );
 }

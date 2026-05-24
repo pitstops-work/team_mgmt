@@ -224,60 +224,106 @@ async function fetchStewardData(now: Date, in30d: Date) {
 }
 
 async function fetchCuratorData(dormantCutoff: Date) {
-  const [tagFreq, mostFlagged, dormant, orphanCount, totalCount, byType] =
-    await Promise.all([
-      prisma.wikiPageTag.groupBy({
-        by: ["tagType", "tagValue"],
-        _count: { _all: true },
-        orderBy: { _count: { tagValue: "desc" } },
-        take: 30,
-      }),
-      prisma.wikiPage.findMany({
-        where: {
-          archivedAt: null,
-          status: { not: "retired" },
-          flags: { some: { status: { not: "resolved" } } },
+  const [
+    tagFreq,
+    mostFlagged,
+    dormant,
+    orphanCount,
+    totalCount,
+    byType,
+    viewsLast30d,
+    mostViewedRows,
+    zeroViewPages,
+  ] = await Promise.all([
+    prisma.wikiPageTag.groupBy({
+      by: ["tagType", "tagValue"],
+      _count: { _all: true },
+      orderBy: { _count: { tagValue: "desc" } },
+      take: 30,
+    }),
+    prisma.wikiPage.findMany({
+      where: {
+        archivedAt: null,
+        status: { not: "retired" },
+        flags: { some: { status: { not: "resolved" } } },
+      },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        _count: {
+          select: { flags: { where: { status: { not: "resolved" } } } },
         },
-        select: {
-          id: true,
-          slug: true,
-          title: true,
-          _count: {
-            select: { flags: { where: { status: { not: "resolved" } } } },
-          },
-        },
-        take: 10,
-      }),
-      prisma.wikiPage.findMany({
-        where: {
-          archivedAt: null,
-          status: { not: "retired" },
-          lastEditedAt: { lt: dormantCutoff },
-        },
-        orderBy: { lastEditedAt: "asc" },
-        select: {
-          id: true,
-          slug: true,
-          title: true,
-          lastEditedAt: true,
-          owner: { select: { name: true } },
-        },
-        take: 20,
-      }),
-      prisma.wikiPage.count({
-        where: { archivedAt: null, status: "orphaned" },
-      }),
-      prisma.wikiPage.count({
-        where: { archivedAt: null, status: { not: "retired" } },
-      }),
-      prisma.wikiPage.groupBy({
-        by: ["type"],
-        where: { archivedAt: null, status: { not: "retired" } },
-        _count: { _all: true },
-      }),
-    ]);
+      },
+      take: 10,
+    }),
+    prisma.wikiPage.findMany({
+      where: {
+        archivedAt: null,
+        status: { not: "retired" },
+        lastEditedAt: { lt: dormantCutoff },
+      },
+      orderBy: { lastEditedAt: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        lastEditedAt: true,
+        owner: { select: { name: true } },
+      },
+      take: 20,
+    }),
+    prisma.wikiPage.count({
+      where: { archivedAt: null, status: "orphaned" },
+    }),
+    prisma.wikiPage.count({
+      where: { archivedAt: null, status: { not: "retired" } },
+    }),
+    prisma.wikiPage.groupBy({
+      by: ["type"],
+      where: { archivedAt: null, status: { not: "retired" } },
+      _count: { _all: true },
+    }),
+    prisma.wikiPageView.count({
+      where: { createdAt: { gte: dormantCutoff } },
+    }),
+    prisma.wikiPageView.groupBy({
+      by: ["pageId"],
+      where: { createdAt: { gte: dormantCutoff } },
+      _count: { _all: true },
+      orderBy: { _count: { pageId: "desc" } },
+      take: 10,
+    }),
+    // Pages live for ≥30 days with no views ever
+    prisma.$queryRaw<{ id: string; slug: string; title: string; createdAt: Date }[]>`
+      SELECT p.id, p.slug, p.title, p."createdAt"
+      FROM "WikiPage" p
+      LEFT JOIN "WikiPageView" v ON v."pageId" = p.id
+      WHERE p."archivedAt" IS NULL
+        AND p.status != 'retired'
+        AND p."createdAt" < ${dormantCutoff}
+        AND v.id IS NULL
+      ORDER BY p."createdAt" ASC
+      LIMIT 20
+    `,
+  ]);
 
-  // Sort mostFlagged client-side by flag count
+  // Resolve most-viewed page rows to title/slug
+  const viewedIds = mostViewedRows.map((r) => r.pageId);
+  const viewedDetails = viewedIds.length
+    ? await prisma.wikiPage.findMany({
+        where: { id: { in: viewedIds } },
+        select: { id: true, slug: true, title: true },
+      })
+    : [];
+  const viewedById = new Map(viewedDetails.map((p) => [p.id, p]));
+  const mostViewed = mostViewedRows
+    .map((r) => {
+      const p = viewedById.get(r.pageId);
+      return p ? { id: p.id, slug: p.slug, title: p.title, views: r._count._all } : null;
+    })
+    .filter(Boolean) as { id: string; slug: string; title: string; views: number }[];
+
   const flaggedSorted = mostFlagged
     .map((p) => ({ ...p, openFlagCount: p._count.flags }))
     .sort((a, b) => b.openFlagCount - a.openFlagCount)
@@ -291,5 +337,8 @@ async function fetchCuratorData(dormantCutoff: Date) {
     orphanCount,
     totalCount,
     byType: byType.map((b) => ({ type: b.type, count: b._count._all })),
+    viewsLast30d,
+    mostViewed,
+    zeroViewPages,
   };
 }

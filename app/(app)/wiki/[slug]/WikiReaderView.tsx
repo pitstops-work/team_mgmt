@@ -146,6 +146,7 @@ export default function WikiReaderView({
   const [reviewing, setReviewing] = useState(false);
   const [handoverOpen, setHandoverOpen] = useState(false);
   const [handoverBusy, setHandoverBusy] = useState(false);
+  const [mobileActivityOpen, setMobileActivityOpen] = useState(false);
 
   const isOwner = page.ownerId === currentUserId;
   const canEdit = isOwner || isSteward;
@@ -741,8 +742,8 @@ export default function WikiReaderView({
             )}
           </div>
 
-          {/* ─── Activity rail ───────────────────────────────────────────── */}
-          <aside className="mt-10 lg:mt-0">
+          {/* ─── Activity rail (desktop) ─────────────────────────────────── */}
+          <aside className="hidden lg:block mt-10 lg:mt-0">
             <ActivityPanel
               comments={comments}
               flags={flags}
@@ -758,6 +759,61 @@ export default function WikiReaderView({
           </aside>
         </div>
       </div>
+
+      {/* ─── Mobile activity sheet ──────────────────────────────────────── */}
+      <button
+        type="button"
+        onClick={() => setMobileActivityOpen(true)}
+        className="lg:hidden fixed bottom-20 right-4 z-40 inline-flex items-center gap-2 bg-stone-900 text-white rounded-full shadow-lg px-4 py-2 text-sm hover:bg-stone-800"
+      >
+        <MessageCircle className="w-4 h-4" />
+        Activity
+        {(unresolvedCommentCount + openFlagCount) > 0 && (
+          <span className="bg-white/20 px-1.5 py-0.5 rounded-full text-xs">
+            {unresolvedCommentCount + openFlagCount}
+          </span>
+        )}
+      </button>
+
+      {mobileActivityOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-50 bg-black/30 flex items-end"
+          onClick={() => setMobileActivityOpen(false)}
+        >
+          <div
+            className="bg-stone-50 w-full max-h-[80vh] rounded-t-2xl shadow-xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200">
+              <span className="text-sm font-semibold text-stone-800">Activity</span>
+              <button
+                type="button"
+                onClick={() => setMobileActivityOpen(false)}
+                className="text-stone-400 hover:text-stone-900"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4">
+              <ActivityPanel
+                comments={comments}
+                flags={flags}
+                currentUserId={currentUserId}
+                page={page}
+                isSteward={isSteward}
+                unresolvedCommentCount={unresolvedCommentCount}
+                openFlagCount={openFlagCount}
+                onResolveComment={resolveComment}
+                onSetFlagStatus={setFlagStatus}
+                onAddPageLevel={(kind) => {
+                  setMobileActivityOpen(false);
+                  openComposer(kind, null);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

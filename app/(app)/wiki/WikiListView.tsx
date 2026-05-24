@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle, LayoutDashboard } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle, LayoutDashboard, Languages, ClipboardCheck } from "lucide-react";
 
 type Tag = { tagType: string; tagValue: string };
 type Page = {
@@ -41,10 +41,14 @@ export default function WikiListView({
   initialPages,
   canCreate,
   hasDashboard,
+  isStaff,
+  isStewardOnly,
 }: {
   initialPages: Page[];
   canCreate: boolean;
   hasDashboard: boolean;
+  isStaff: boolean;
+  isStewardOnly: boolean;
 }) {
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("");
@@ -115,6 +119,18 @@ export default function WikiListView({
             <Handshake className="w-3.5 h-3.5" />
             Partner reviews
           </Link>
+          {isStaff && (
+            <Link href="/wiki/translation-queue" className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1">
+              <Languages className="w-3.5 h-3.5" />
+              Translations
+            </Link>
+          )}
+          {isStewardOnly && (
+            <Link href="/wiki/audit" className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1">
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              Audit
+            </Link>
+          )}
         </nav>
 
         <div className="flex flex-col sm:flex-row gap-2 mb-4">

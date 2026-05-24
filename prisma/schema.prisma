@@ -108,6 +108,7 @@ model User {
   handoversInitiated        WikiOwnerHandover[]            @relation("WikiHandoverFrom")
   handoversReceived         WikiOwnerHandover[]            @relation("WikiHandoverTo")
   wikiTranslationFlags      WikiTranslationFlag[]
+  wikiPageViews             WikiPageView[]
 }
 
 model Account {
@@ -2278,6 +2279,7 @@ model WikiPage {
   partnerReviewMeetings WikiPartnerReviewMeeting[] @relation("WikiPartnerReviewMeetingPages")
   handovers             WikiOwnerHandover[]
   translationFlags      WikiTranslationFlag[]
+  views                 WikiPageView[]
 
   @@index([status])
   @@index([type])
@@ -2502,4 +2504,21 @@ model WikiTranslationFlag {
 
   @@index([status])
   @@index([pageId, language])
+}
+
+// Per-user, per-page view record — written at most once per (user, page, day)
+// from the reader server page. Visible only to stewards and curators per spec
+// ("Do not show view counts or popularity to owners or readers — avoids vanity
+// dynamics distorting content").
+model WikiPageView {
+  id        String   @id @default(cuid())
+  pageId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  page WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, createdAt])
+  @@index([userId, createdAt])
 }

@@ -24,6 +24,23 @@ export default async function WikiPageReader({
   });
   if (!page || page.archivedAt) notFound();
 
+  // Record a view if the user hasn't viewed this page in the last 24 hours.
+  // Fire-and-forget — we don't want view tracking to gate the render.
+  void (async () => {
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recent = await prisma.wikiPageView.findFirst({
+        where: { pageId: page.id, userId, createdAt: { gte: since } },
+        select: { id: true },
+      });
+      if (!recent) {
+        await prisma.wikiPageView.create({ data: { pageId: page.id, userId } });
+      }
+    } catch {
+      // Best-effort.
+    }
+  })();
+
   const [me, steward, comments, flags, pendingReviews, pendingHandover] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Library, Tags, Flag, Moon } from "lucide-react";
+import { Library, Tags, Flag, Moon, Eye, EyeOff } from "lucide-react";
 
 type Data = {
   tagFreq: { tagType: string; tagValue: string; count: number }[];
@@ -15,6 +15,9 @@ type Data = {
   orphanCount: number;
   totalCount: number;
   byType: { type: string; count: number }[];
+  viewsLast30d: number;
+  mostViewed: { id: string; slug: string; title: string; views: number }[];
+  zeroViewPages: { id: string; slug: string; title: string }[];
 };
 
 function fmtDate(iso: string): string {
@@ -29,13 +32,14 @@ export default function CuratorDashboard({ data }: { data: Data }) {
         Corpus overview
       </h2>
 
-      <div className="grid sm:grid-cols-3 gap-3 mb-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <Stat label="Live pages" value={data.totalCount} />
         <Stat
           label="Orphan rate"
           value={`${data.orphanRate}%`}
           subtitle={`${data.orphanCount} of ${data.totalCount}`}
         />
+        <Stat label="Views (last 30d)" value={data.viewsLast30d} />
         <Stat
           label="By type"
           value={data.byType.map((t) => `${t.count} ${t.type}`).join(" · ")}
@@ -44,6 +48,39 @@ export default function CuratorDashboard({ data }: { data: Data }) {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
+        <Panel title="Most-viewed (last 30d)" icon={<Eye className="w-4 h-4 text-sky-700" />}>
+          {data.mostViewed.length === 0 ? (
+            <Empty>No views recorded yet.</Empty>
+          ) : (
+            <ul className="divide-y divide-stone-100">
+              {data.mostViewed.map((p) => (
+                <li key={p.id} className="px-3 py-2 flex items-center justify-between text-sm">
+                  <Link href={`/wiki/${p.slug}`} className="text-stone-900 hover:underline truncate">
+                    {p.title}
+                  </Link>
+                  <span className="text-xs text-sky-700">{p.views}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel title="Zero-view pages (live ≥30d)" icon={<EyeOff className="w-4 h-4 text-stone-500" />}>
+          {data.zeroViewPages.length === 0 ? (
+            <Empty>Every page has been read at least once.</Empty>
+          ) : (
+            <ul className="divide-y divide-stone-100 max-h-80 overflow-y-auto">
+              {data.zeroViewPages.map((p) => (
+                <li key={p.id} className="px-3 py-2 text-sm">
+                  <Link href={`/wiki/${p.slug}`} className="text-stone-900 hover:underline truncate block">
+                    {p.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
         <Panel title="Most-flagged pages" icon={<Flag className="w-4 h-4 text-amber-700" />}>
           {data.mostFlagged.length === 0 ? (
             <Empty>No open flags right now.</Empty>
