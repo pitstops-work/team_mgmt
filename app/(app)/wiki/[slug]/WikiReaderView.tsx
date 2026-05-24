@@ -19,6 +19,7 @@ import {
   CalendarCheck,
   Users,
   Handshake,
+  Send,
 } from "lucide-react";
 
 type User = { id: string; name: string | null; image: string | null };
@@ -144,6 +145,7 @@ export default function WikiReaderView({
   const [composerText, setComposerText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reviewing, setReviewing] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [handoverOpen, setHandoverOpen] = useState(false);
   const [handoverBusy, setHandoverBusy] = useState(false);
   const [mobileActivityOpen, setMobileActivityOpen] = useState(false);
@@ -243,6 +245,17 @@ export default function WikiReaderView({
       body: JSON.stringify({}),
     });
     setReviewing(false);
+    if (res.ok) router.refresh();
+  }
+
+  async function publishPage() {
+    if (publishing) return;
+    if (!confirm("Publish this page? It will be visible to everyone and start the review cycle.")) return;
+    setPublishing(true);
+    const res = await fetch(`/api/wiki/pages/${page.slug}/publish`, {
+      method: "POST",
+    });
+    setPublishing(false);
     if (res.ok) router.refresh();
   }
 
@@ -422,7 +435,19 @@ export default function WikiReaderView({
                     <Flag className="w-4 h-4" />
                     Flag
                   </button>
-                  {canReview && (
+                  {canReview && page.status === "draft" && (
+                    <button
+                      type="button"
+                      onClick={publishPage}
+                      disabled={publishing}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-emerald-300 bg-emerald-50 text-emerald-700 rounded-md text-sm hover:border-emerald-500 hover:bg-emerald-100 disabled:opacity-50"
+                      title="Publish this draft"
+                    >
+                      <Send className="w-4 h-4" />
+                      {publishing ? "Publishing…" : "Publish"}
+                    </button>
+                  )}
+                  {canReview && page.status !== "draft" && (
                     <button
                       type="button"
                       onClick={markReviewed}
