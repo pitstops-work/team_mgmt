@@ -48,6 +48,10 @@
     {
       "path": "/api/cron/wiki-circle-prompts",
       "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/api/cron/wiki-term-expiry",
+      "schedule": "30 4 * * *"
     }
   ],
   "framework": "nextjs"

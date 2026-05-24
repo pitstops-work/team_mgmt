@@ -8,6 +8,8 @@ export type WikiNotificationKind =
   | "wiki_review_steward_14d"
   | "wiki_review_steward_30d"
   | "wiki_owner_term_expiring"
+  | "wiki_owner_term_expired"
+  | "wiki_handover_proposed"
   | "wiki_circle_prompt";
 
 export type ChannelName = "push" | "inApp" | "whatsapp";
@@ -38,5 +40,7 @@ export const WIKI_KIND_TO_NOTIFICATION_TYPE: Record<
   wiki_review_steward_14d: "WikiReviewOverdue",
   wiki_review_steward_30d: "WikiReviewOverdue",
   wiki_owner_term_expiring: "WikiOwnerTermExpiring",
+  wiki_owner_term_expired: "WikiOwnerTermExpired",
+  wiki_handover_proposed: "WikiHandoverProposed",
   wiki_circle_prompt: "WikiCirclePrompt",
 };

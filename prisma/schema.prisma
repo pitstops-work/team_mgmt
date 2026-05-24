@@ -105,6 +105,8 @@ model User {
   facilitatedCircles        WikiPracticeCircle[]           @relation("WikiPracticeCircleFacilitator")
   attendedCircles           WikiPracticeCircle[]           @relation("WikiPracticeCircleAttendees")
   attendedPartnerReviews    WikiPartnerReviewMeeting[]     @relation("WikiPartnerReviewMeetingAttendees")
+  handoversInitiated        WikiOwnerHandover[]            @relation("WikiHandoverFrom")
+  handoversReceived         WikiOwnerHandover[]            @relation("WikiHandoverTo")
 }
 
 model Account {
@@ -462,7 +464,9 @@ enum NotificationType {
   WikiWeeklyDigest
   WikiReviewOverdue
   WikiOwnerTermExpiring
+  WikiOwnerTermExpired
   WikiCirclePrompt
+  WikiHandoverProposed
 }
 
 model Notification {
@@ -2271,11 +2275,13 @@ model WikiPage {
   notifLogs             WikiNotificationLog[]
   practiceCircles       WikiPracticeCircle[]       @relation("WikiPracticeCirclePages")
   partnerReviewMeetings WikiPartnerReviewMeeting[] @relation("WikiPartnerReviewMeetingPages")
+  handovers             WikiOwnerHandover[]
 
   @@index([status])
   @@index([type])
   @@index([nextReviewDue])
   @@index([ownerId])
+  @@index([ownerTermEnd])
 }
 
 model WikiPageTag {
@@ -2453,4 +2459,25 @@ model WikiPartnerReviewMeeting {
 
   @@index([scheduledFor])
   @@index([partnerOrgId])
+}
+
+// Pending or completed owner handover. The owner initiates by inserting a
+// pending row addressed to the proposed new owner; the proposed owner then
+// accepts (which flips WikiPage.ownerId + resets the term) or declines.
+model WikiOwnerHandover {
+  id           String    @id @default(cuid())
+  pageId       String
+  fromUserId   String
+  toUserId     String
+  handoverNote String?
+  status       String    @default("pending") // pending | accepted | declined
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  page     WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  fromUser User     @relation("WikiHandoverFrom", fields: [fromUserId], references: [id])
+  toUser   User     @relation("WikiHandoverTo", fields: [toUserId], references: [id])
+
+  @@index([pageId, status])
+  @@index([toUserId, status])
 }

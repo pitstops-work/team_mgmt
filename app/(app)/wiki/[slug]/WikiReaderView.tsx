@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -32,9 +32,17 @@ type Page = {
   canonicalContent: string;
   lastEditedAt: string;
   nextReviewDue: string | null;
+  ownerTermEnd: string | null;
   owner: User | null;
   ownerId: string | null;
   tags: { tagType: string; tagValue: string }[];
+};
+type PendingHandover = {
+  id: string;
+  handoverNote: string | null;
+  createdAt: string;
+  fromUser: { id: string; name: string | null };
+  toUser: { id: string; name: string | null };
 };
 type Comment = {
   id: string;
@@ -101,6 +109,7 @@ export default function WikiReaderView({
   initialComments,
   initialFlags,
   pendingReviews,
+  pendingHandover,
   currentUserId,
   isSteward,
 }: {
@@ -108,6 +117,7 @@ export default function WikiReaderView({
   initialComments: Comment[];
   initialFlags: Flag[];
   pendingReviews: PendingReview[];
+  pendingHandover: PendingHandover | null;
   currentUserId: string;
   isSteward: boolean;
 }) {
@@ -118,8 +128,11 @@ export default function WikiReaderView({
   const [composerText, setComposerText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reviewing, setReviewing] = useState(false);
+  const [handoverOpen, setHandoverOpen] = useState(false);
+  const [handoverBusy, setHandoverBusy] = useState(false);
 
-  const canEdit = page.ownerId === currentUserId || isSteward;
+  const isOwner = page.ownerId === currentUserId;
+  const canEdit = isOwner || isSteward;
   const canReview = canEdit;
   const reviewOverdueDays = useMemo(() => {
     if (!page.nextReviewDue) return 0;
@@ -127,6 +140,33 @@ export default function WikiReaderView({
     return diff <= 0 ? 0 : Math.floor(diff / (24 * 60 * 60 * 1000));
   }, [page.nextReviewDue]);
   const reviewOverdue = reviewOverdueDays > 0;
+
+  const daysToTermEnd = useMemo(() => {
+    if (!page.ownerTermEnd) return null;
+    const diff = new Date(page.ownerTermEnd).getTime() - Date.now();
+    return Math.ceil(diff / (24 * 60 * 60 * 1000));
+  }, [page.ownerTermEnd]);
+  const termEndingSoon = daysToTermEnd !== null && daysToTermEnd >= 0 && daysToTermEnd <= 30;
+
+  async function renewTerm() {
+    if (!confirm("Renew your owner term by 6 months?")) return;
+    setHandoverBusy(true);
+    const res = await fetch(`/api/wiki/pages/${page.slug}/renew-term`, { method: "POST" });
+    setHandoverBusy(false);
+    if (res.ok) router.refresh();
+  }
+
+  async function decideHandover(id: string, action: "accept" | "decline") {
+    if (action === "accept" && !confirm("Take over ownership of this page?")) return;
+    setHandoverBusy(true);
+    const res = await fetch(`/api/wiki/handovers/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    setHandoverBusy(false);
+    if (res.ok) router.refresh();
+  }
 
   async function markReviewed() {
     if (reviewing) return;
@@ -372,7 +412,105 @@ export default function WikiReaderView({
                   </div>
                 );
               })}
+
+              {page.status === "orphaned" && (
+                <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-300 text-amber-900 px-3 py-2 rounded text-sm">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    This page is orphaned — it needs an owner.
+                    {isSteward && (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          onClick={() => setHandoverOpen(true)}
+                          className="underline"
+                        >
+                          Assign an owner
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {pendingHandover && pendingHandover.toUser.id === currentUserId && (
+                <div className="mt-3 flex items-start gap-2 bg-sky-50 border border-sky-200 text-sky-900 px-3 py-2 rounded text-sm">
+                  <div className="flex-1">
+                    {pendingHandover.fromUser.name ?? "Someone"} is handing this page over to you.
+                    {pendingHandover.handoverNote && (
+                      <div className="mt-1 text-sky-800 italic">"{pendingHandover.handoverNote}"</div>
+                    )}
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => decideHandover(pendingHandover.id, "accept")}
+                        disabled={handoverBusy}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-700 text-white rounded text-xs hover:bg-emerald-800 disabled:opacity-50"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        Accept ownership
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => decideHandover(pendingHandover.id, "decline")}
+                        disabled={handoverBusy}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 border border-stone-300 rounded text-xs text-stone-700 hover:border-stone-500 disabled:opacity-50"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {pendingHandover &&
+                pendingHandover.toUser.id !== currentUserId &&
+                (isOwner || isSteward) && (
+                  <div className="mt-3 flex items-start gap-2 bg-stone-50 border border-stone-300 text-stone-700 px-3 py-2 rounded text-sm">
+                    <div className="flex-1">
+                      Handover pending: <strong>{pendingHandover.toUser.name ?? "user"}</strong> has been
+                      asked to take over. Waiting on their response.
+                    </div>
+                  </div>
+                )}
+
+              {termEndingSoon && isOwner && !pendingHandover && (
+                <div className="mt-3 flex items-start gap-2 bg-indigo-50 border border-indigo-200 text-indigo-900 px-3 py-2 rounded text-sm">
+                  <div className="flex-1">
+                    Your owner term ends in {daysToTermEnd} day{daysToTermEnd === 1 ? "" : "s"}.
+                    Renew or hand the page over so it doesn't get orphaned.
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={renewTerm}
+                        disabled={handoverBusy}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-700 text-white rounded text-xs hover:bg-indigo-800 disabled:opacity-50"
+                      >
+                        Renew 6 months
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHandoverOpen(true)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 border border-stone-300 rounded text-xs text-stone-700 hover:border-stone-500"
+                      >
+                        Hand over
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </header>
+
+            {handoverOpen && (
+              <HandoverDialog
+                pageSlug={page.slug}
+                currentUserId={currentUserId}
+                onClose={() => setHandoverOpen(false)}
+                onCreated={() => router.refresh()}
+              />
+            )}
 
             <article className="prose prose-stone max-w-none">
               <ReactMarkdown
@@ -668,3 +806,112 @@ function ActivityPanel({
     </div>
   );
 }
+
+function HandoverDialog({
+  pageSlug,
+  currentUserId,
+  onClose,
+  onCreated,
+}: {
+  pageSlug: string;
+  currentUserId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  type U = { id: string; name: string | null; email: string };
+  const [users, setUsers] = useState<U[] | null>(null);
+  const [toUserId, setToUserId] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((data: U[]) => setUsers(data.filter((u) => u.id !== currentUserId)));
+  }, [currentUserId]);
+
+  async function submit() {
+    if (!toUserId) return;
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/wiki/pages/${pageSlug}/handover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toUserId, handoverNote: note.trim() || null }),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Could not propose handover");
+      return;
+    }
+    onCreated();
+    onClose();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center px-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white border border-stone-200 rounded-lg shadow-xl max-w-md w-full p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-stone-900 mb-1">Hand over ownership</h2>
+        <p className="text-xs text-stone-500 mb-3">
+          The person you pick will be notified. Ownership only transfers if they accept.
+        </p>
+
+        <label className="block text-sm font-medium text-stone-700 mb-1">New owner</label>
+        <select
+          value={toUserId}
+          onChange={(e) => setToUserId(e.target.value)}
+          className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 mb-3"
+        >
+          <option value="">— Select —</option>
+          {users === null
+            ? <option disabled>Loading…</option>
+            : users.map((u) => (
+                <option key={u.id} value={u.id}>{u.name ?? u.email}</option>
+              ))}
+        </select>
+
+        <label className="block text-sm font-medium text-stone-700 mb-1">Note (optional)</label>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          placeholder="Why this person? Anything they should know?"
+          className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+        />
+
+        {error && (
+          <div className="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm text-stone-600 hover:text-stone-900"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy || !toUserId}
+            className="px-4 py-1.5 bg-stone-900 text-white rounded-md text-sm hover:bg-stone-800 disabled:opacity-50"
+          >
+            {busy ? "Sending…" : "Propose handover"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

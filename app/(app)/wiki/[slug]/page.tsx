@@ -24,7 +24,7 @@ export default async function WikiPageReader({
   });
   if (!page || page.archivedAt) notFound();
 
-  const [steward, comments, flags, pendingReviews] = await Promise.all([
+  const [steward, comments, flags, pendingReviews, pendingHandover] = await Promise.all([
     isWikiSteward(userId),
     prisma.wikiComment.findMany({
       where: { pageId: page.id },
@@ -59,6 +59,13 @@ export default async function WikiPageReader({
         },
       },
     }),
+    prisma.wikiOwnerHandover.findFirst({
+      where: { pageId: page.id, status: "pending" },
+      include: {
+        fromUser: { select: { id: true, name: true } },
+        toUser: { select: { id: true, name: true } },
+      },
+    }),
   ]);
 
   return (
@@ -67,6 +74,7 @@ export default async function WikiPageReader({
       initialComments={JSON.parse(JSON.stringify(comments))}
       initialFlags={JSON.parse(JSON.stringify(flags))}
       pendingReviews={JSON.parse(JSON.stringify(pendingReviews))}
+      pendingHandover={pendingHandover ? JSON.parse(JSON.stringify(pendingHandover)) : null}
       currentUserId={userId}
       isSteward={steward}
     />

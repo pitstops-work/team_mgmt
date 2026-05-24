@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle } from "lucide-react";
 
 type Tag = { tagType: string; tagValue: string };
 type Page = {
@@ -143,6 +143,15 @@ export default function WikiListView({
                         <h2 className="font-medium text-stone-900 truncate">{p.title}</h2>
                         {p.status === "draft" && (
                           <span className="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Draft</span>
+                        )}
+                        {p.status === "orphaned" && (
+                          <span className="text-xs text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5">
+                            <AlertCircle className="w-3 h-3" />
+                            Orphaned
+                          </span>
+                        )}
+                        {p.status === "under_review" && (
+                          <span className="text-xs text-red-700 bg-red-50 px-1.5 py-0.5 rounded">Under review</span>
                         )}
                         {p.openFlagCount > 0 && (
                           <span className="text-xs text-red-700 bg-red-50 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5">
