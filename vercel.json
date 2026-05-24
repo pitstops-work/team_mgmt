@@ -36,6 +36,10 @@
     {
       "path": "/api/cron/sync-entitlements-survey",
       "schedule": "0 3 1 * *"
+    },
+    {
+      "path": "/api/cron/wiki-weekly-digest",
+      "schedule": "30 3 * * 1"
     }
   ],
   "framework": "nextjs"

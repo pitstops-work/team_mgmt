@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { dispatchWikiNotificationSafe } from "@/lib/notify/dispatch";
 import type { NextRequest } from "next/server";
 
 export async function GET(
@@ -36,7 +37,7 @@ export async function POST(
   const { slug } = await params;
   const page = await prisma.wikiPage.findUnique({
     where: { slug },
-    select: { id: true },
+    select: { id: true, slug: true, title: true, ownerId: true },
   });
   if (!page) return Response.json({ error: "Not found" }, { status: 404 });
 
@@ -62,6 +63,18 @@ export async function POST(
     },
     include: { flagger: { select: { id: true, name: true, image: true } } },
   });
+
+  // Notify the page owner — but not if they flagged their own page.
+  if (page.ownerId && page.ownerId !== userId) {
+    await dispatchWikiNotificationSafe({
+      userId: page.ownerId,
+      kind: "wiki_flag_created",
+      pageId: page.id,
+      title: `Flag on "${page.title}"`,
+      body: reason.length > 140 ? reason.slice(0, 137) + "…" : reason,
+      link: `/wiki/${page.slug}`,
+    });
+  }
 
   return Response.json({ flag }, { status: 201 });
 }

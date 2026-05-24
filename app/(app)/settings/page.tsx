@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages, LayoutTemplate, Layers, Bell, BellOff, BellRing, Activity, Cloud, ScrollText } from "lucide-react";
+import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages, LayoutTemplate, Layers, Bell, BellOff, BellRing, Activity, Cloud, ScrollText, Phone } from "lucide-react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import { useSession } from "next-auth/react";
@@ -276,6 +276,28 @@ export default function SettingsPage() {
         {langSuccess && <p className="text-xs text-emerald-600 mt-3">Language preference saved.</p>}
       </section>
 
+      {/* Notification preferences (per-user) */}
+      <section className="mb-10">
+        <div className="flex items-center gap-2 mb-1">
+          <Bell className="w-4 h-4 text-stone-400" />
+          <h2 className="text-sm font-semibold text-stone-700">Notification Preferences</h2>
+        </div>
+        <p className="text-xs text-stone-500 mb-3">
+          Choose which channels deliver wiki digests, flag alerts, and review reminders.
+        </p>
+        <Link
+          href="/settings/notifications"
+          className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors max-w-sm"
+        >
+          <Bell className="w-4 h-4 text-stone-500" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-stone-800">My notifications</p>
+            <p className="text-xs text-stone-400">In-app · Browser push · WhatsApp opt-in</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-stone-300" />
+        </Link>
+      </section>
+
       {/* Push Notifications */}
       {notifPermission !== "unsupported" && (
         <section className="mb-10">
@@ -457,6 +479,17 @@ export default function SettingsPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-stone-800">Facility Layer Types</p>
                 <p className="text-xs text-stone-400">Manage facility types for goal creation wizard</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+            <Link
+              href="/settings/wiki-phones"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <Phone className="w-4 h-4 text-emerald-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">Wiki Phones</p>
+                <p className="text-xs text-stone-400">Bulk-import phone numbers for WhatsApp digests · stewards only</p>
               </div>
               <ChevronRight className="w-4 h-4 text-stone-300" />
             </Link>

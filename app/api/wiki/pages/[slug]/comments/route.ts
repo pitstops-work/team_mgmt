@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { dispatchWikiNotificationSafe } from "@/lib/notify/dispatch";
 import type { NextRequest } from "next/server";
 
 export async function GET(
@@ -39,7 +40,7 @@ export async function POST(
   const { slug } = await params;
   const page = await prisma.wikiPage.findUnique({
     where: { slug },
-    select: { id: true, canonicalLang: true },
+    select: { id: true, slug: true, title: true, canonicalLang: true, ownerId: true },
   });
   if (!page) return Response.json({ error: "Not found" }, { status: 404 });
 
@@ -79,6 +80,18 @@ export async function POST(
       resolvedBy: { select: { id: true, name: true } },
     },
   });
+
+  // Notify the page owner — but not if they commented on their own page.
+  if (page.ownerId && page.ownerId !== userId) {
+    await dispatchWikiNotificationSafe({
+      userId: page.ownerId,
+      kind: "wiki_comment_created",
+      pageId: page.id,
+      title: `Comment on "${page.title}"`,
+      body: text.length > 140 ? text.slice(0, 137) + "…" : text,
+      link: `/wiki/${page.slug}`,
+    });
+  }
 
   return Response.json({ comment }, { status: 201 });
 }

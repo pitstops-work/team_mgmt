@@ -101,6 +101,7 @@ model User {
   wikiFlags                 WikiFlag[]                     @relation("WikiFlagFlagger")
   wikiReviewCycles          WikiReviewCycle[]              @relation("WikiReviewCycleOwner")
   wikiStaff                 WikiStaff[]                    @relation("WikiStaffUser")
+  wikiNotificationLogs      WikiNotificationLog[]
 }
 
 model Account {
@@ -453,6 +454,12 @@ enum NotificationType {
   BroadcastUpdate
   PitstopVerified
   GoalConfirmed
+  WikiFlagCreated
+  WikiCommentCreated
+  WikiWeeklyDigest
+  WikiReviewOverdue
+  WikiOwnerTermExpiring
+  WikiCirclePrompt
 }
 
 model Notification {
@@ -2249,13 +2256,14 @@ model WikiPage {
   createdAt         DateTime  @default(now())
   archivedAt        DateTime?
 
-  owner      User?             @relation("WikiPageOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  lastEditor User?             @relation("WikiPageLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
+  owner      User?                 @relation("WikiPageOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  lastEditor User?                 @relation("WikiPageLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
   tags       WikiPageTag[]
   versions   WikiPageVersion[]
   comments   WikiComment[]
   flags      WikiFlag[]
   reviews    WikiReviewCycle[]
+  notifLogs  WikiNotificationLog[]
 
   @@index([status])
   @@index([type])
@@ -2358,4 +2366,27 @@ model WikiStaff {
 
   @@unique([userId, wikiRole])
   @@index([wikiRole])
+}
+
+// Notification dispatch audit log. Captures every intended wiki-related
+// notification (push / inApp / whatsapp) with status so we can debug why a
+// digest didn't fire, and so the WhatsApp adapter — currently a stub — leaves
+// a paper trail of "would have sent" intent until the provider is chosen.
+model WikiNotificationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  pageId    String?
+  kind      String // "wiki_flag_created" | "wiki_comment_created" | "wiki_weekly_digest" | ...
+  channel   String // "push" | "inApp" | "whatsapp"
+  status    String // "sent" | "skipped" | "failed" | "intended_no_adapter"
+  payload   Json
+  error     String?
+  createdAt DateTime @default(now())
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  page WikiPage? @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([pageId])
+  @@index([kind, createdAt])
 }
