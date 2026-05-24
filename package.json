@@ -66,6 +66,7 @@
     "react-leaflet": "^5.0.0",
     "react-markdown": "^10.1.0",
     "recharts": "^3.8.1",
+    "rehype-slug": "^6.0.0",
     "resend": "^6.12.0",
     "tailwindcss": "^4",
     "tiptap-markdown": "^0.9.0",

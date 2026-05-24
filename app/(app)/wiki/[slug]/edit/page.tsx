@@ -41,12 +41,27 @@ export default async function WikiEditPage({
     );
   }
 
+  const [openFlags, unresolvedComments] = await Promise.all([
+    prisma.wikiFlag.findMany({
+      where: { pageId: page.id, status: { not: "resolved" } },
+      orderBy: { createdAt: "asc" },
+      include: { flagger: { select: { id: true, name: true, image: true } } },
+    }),
+    prisma.wikiComment.findMany({
+      where: { pageId: page.id, resolvedAt: null },
+      orderBy: { createdAt: "asc" },
+      include: { author: { select: { id: true, name: true, image: true } } },
+    }),
+  ]);
+
   return (
     <WikiEditor
       slug={page.slug}
       initialTitle={page.title}
       initialContent={page.canonicalContent}
       type={page.type}
+      openFlags={JSON.parse(JSON.stringify(openFlags))}
+      unresolvedComments={JSON.parse(JSON.stringify(unresolvedComments))}
     />
   );
 }

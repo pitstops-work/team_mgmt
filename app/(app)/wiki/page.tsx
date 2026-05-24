@@ -22,15 +22,27 @@ export default async function WikiIndexPage() {
         nextReviewDue: true,
         owner: { select: { id: true, name: true, image: true } },
         tags: { select: { tagType: true, tagValue: true } },
+        _count: {
+          select: {
+            flags: { where: { status: { not: "resolved" } } },
+            comments: { where: { resolvedAt: null } },
+          },
+        },
       },
       take: 200,
     }),
     userId ? isWikiSteward(userId) : Promise.resolve(false),
   ]);
 
+  const decorated = pages.map((p) => ({
+    ...p,
+    openFlagCount: p._count.flags,
+    unresolvedCommentCount: p._count.comments,
+  }));
+
   return (
     <WikiListView
-      initialPages={JSON.parse(JSON.stringify(pages))}
+      initialPages={JSON.parse(JSON.stringify(decorated))}
       canCreate={steward}
     />
   );

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Plus, Search, Filter } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Flag, MessageCircle } from "lucide-react";
 
 type Tag = { tagType: string; tagValue: string };
 type Page = {
@@ -16,6 +16,8 @@ type Page = {
   nextReviewDue: string | null;
   owner: { id: string; name: string | null; image: string | null } | null;
   tags: Tag[];
+  openFlagCount: number;
+  unresolvedCommentCount: number;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -127,6 +129,18 @@ export default function WikiListView({
                         <h2 className="font-medium text-stone-900 truncate">{p.title}</h2>
                         {p.status === "draft" && (
                           <span className="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Draft</span>
+                        )}
+                        {p.openFlagCount > 0 && (
+                          <span className="text-xs text-red-700 bg-red-50 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5">
+                            <Flag className="w-3 h-3" />
+                            {p.openFlagCount}
+                          </span>
+                        )}
+                        {p.unresolvedCommentCount > 0 && (
+                          <span className="text-xs text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5">
+                            <MessageCircle className="w-3 h-3" />
+                            {p.unresolvedCommentCount}
+                          </span>
                         )}
                       </div>
                       {p.tags.length > 0 && (
