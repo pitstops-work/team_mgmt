@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle, LayoutDashboard } from "lucide-react";
 
@@ -48,18 +48,32 @@ export default function WikiListView({
 }) {
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [serverResults, setServerResults] = useState<Page[] | null>(null);
+  const [searching, setSearching] = useState(false);
 
+  // Cross-language search: when query is non-empty, hit the API which searches
+  // canonical + translated content. Debounced 300ms.
+  useEffect(() => {
+    const needle = q.trim();
+    if (!needle) {
+      setServerResults(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      setSearching(true);
+      const res = await fetch(`/api/wiki/pages?q=${encodeURIComponent(needle)}`);
+      setSearching(false);
+      if (!res.ok) return;
+      const data = await res.json();
+      setServerResults(data.pages ?? []);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [q]);
+
+  const sourcePages = serverResults ?? initialPages;
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return initialPages.filter((p) => {
-      if (typeFilter && p.type !== typeFilter) return false;
-      if (!needle) return true;
-      return (
-        p.title.toLowerCase().includes(needle) ||
-        p.tags.some((t) => t.tagValue.toLowerCase().includes(needle))
-      );
-    });
-  }, [initialPages, q, typeFilter]);
+    return sourcePages.filter((p) => (typeFilter ? p.type === typeFilter : true));
+  }, [sourcePages, typeFilter]);
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -110,9 +124,12 @@ export default function WikiListView({
               type="text"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by title or tag…"
-              className="w-full pl-8 pr-3 py-2 border border-stone-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+              placeholder="Search across all languages…"
+              className="w-full pl-8 pr-8 py-2 border border-stone-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
             />
+            {searching && (
+              <span className="absolute right-2.5 top-2 text-xs text-stone-400">…</span>
+            )}
           </div>
           <div className="relative">
             <Filter className="absolute left-2.5 top-2.5 w-4 h-4 text-stone-400 pointer-events-none" />

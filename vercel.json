@@ -52,6 +52,10 @@
     {
       "path": "/api/cron/wiki-term-expiry",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/wiki-translate",
+      "schedule": "*/15 * * * *"
     }
   ],
   "framework": "nextjs"

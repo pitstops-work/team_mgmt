@@ -19,19 +19,32 @@ export async function GET(req: NextRequest) {
   const tagValue = searchParams.get("tagValue");
   const q = searchParams.get("q")?.trim();
 
+  // Cross-language search: when q is set, also search through translatedContent
+  // JSON via raw SQL. We pre-resolve matching page IDs and use them as a filter
+  // on the regular findMany so the rest of the query (orderBy, select, count
+  // aggregates) keeps working unchanged.
+  let restrictIds: string[] | null = null;
+  if (q) {
+    const pattern = `%${q}%`;
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "WikiPage"
+      WHERE "archivedAt" IS NULL
+        AND title ILIKE ${pattern}
+        OR "canonicalContent" ILIKE ${pattern}
+        OR "translatedContent"::text ILIKE ${pattern}
+    `;
+    restrictIds = rows.map((r) => r.id);
+    if (restrictIds.length === 0) {
+      return Response.json({ pages: [] });
+    }
+  }
+
   const pages = await prisma.wikiPage.findMany({
     where: {
       archivedAt: null,
       ...(type ? { type } : {}),
       ...(status ? { status } : { status: { not: "retired" } }),
-      ...(q
-        ? {
-            OR: [
-              { title: { contains: q, mode: "insensitive" } },
-              { canonicalContent: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+      ...(restrictIds ? { id: { in: restrictIds } } : {}),
       ...(tagType && tagValue
         ? { tags: { some: { tagType, tagValue } } }
         : {}),
@@ -48,11 +61,34 @@ export async function GET(req: NextRequest) {
       nextReviewDue: true,
       owner: { select: { id: true, name: true, image: true } },
       tags: { select: { tagType: true, tagValue: true } },
+      _count: {
+        select: {
+          flags: { where: { status: { not: "resolved" } } },
+          comments: { where: { resolvedAt: null } },
+        },
+      },
     },
     take: 200,
   });
 
-  return Response.json({ pages });
+  // Project to the same decorated shape the server page uses, so the client
+  // search path doesn't have to re-derive flag/comment counts.
+  const decorated = pages.map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    type: p.type,
+    canonicalLang: p.canonicalLang,
+    status: p.status,
+    lastEditedAt: p.lastEditedAt,
+    nextReviewDue: p.nextReviewDue,
+    owner: p.owner,
+    tags: p.tags,
+    openFlagCount: p._count.flags,
+    unresolvedCommentCount: p._count.comments,
+  }));
+
+  return Response.json({ pages: decorated });
 }
 
 export async function POST(req: NextRequest) {

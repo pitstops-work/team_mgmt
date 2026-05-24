@@ -24,7 +24,11 @@ export default async function WikiPageReader({
   });
   if (!page || page.archivedAt) notFound();
 
-  const [steward, comments, flags, pendingReviews, pendingHandover] = await Promise.all([
+  const [me, steward, comments, flags, pendingReviews, pendingHandover] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredLang: true },
+    }),
     isWikiSteward(userId),
     prisma.wikiComment.findMany({
       where: { pageId: page.id },
@@ -77,6 +81,7 @@ export default async function WikiPageReader({
       pendingHandover={pendingHandover ? JSON.parse(JSON.stringify(pendingHandover)) : null}
       currentUserId={userId}
       isSteward={steward}
+      preferredLang={me?.preferredLang ?? "en"}
     />
   );
 }

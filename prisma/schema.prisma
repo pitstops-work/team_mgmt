@@ -107,6 +107,7 @@ model User {
   attendedPartnerReviews    WikiPartnerReviewMeeting[]     @relation("WikiPartnerReviewMeetingAttendees")
   handoversInitiated        WikiOwnerHandover[]            @relation("WikiHandoverFrom")
   handoversReceived         WikiOwnerHandover[]            @relation("WikiHandoverTo")
+  wikiTranslationFlags      WikiTranslationFlag[]
 }
 
 model Account {
@@ -2276,6 +2277,7 @@ model WikiPage {
   practiceCircles       WikiPracticeCircle[]       @relation("WikiPracticeCirclePages")
   partnerReviewMeetings WikiPartnerReviewMeeting[] @relation("WikiPartnerReviewMeetingPages")
   handovers             WikiOwnerHandover[]
+  translationFlags      WikiTranslationFlag[]
 
   @@index([status])
   @@index([type])
@@ -2480,4 +2482,24 @@ model WikiOwnerHandover {
 
   @@index([pageId, status])
   @@index([toUserId, status])
+}
+
+// Reader-flagged translation quality issue. Goes to a queue for human review.
+// Per-language so the same page can have flags against different translations
+// simultaneously.
+model WikiTranslationFlag {
+  id         String    @id @default(cuid())
+  pageId     String
+  language   String // target language code: ta | kn | ml | hi | bn | en
+  flaggerId  String
+  reason     String
+  status     String    @default("open") // open | resolved
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  page    WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  flagger User     @relation(fields: [flaggerId], references: [id])
+
+  @@index([status])
+  @@index([pageId, language])
 }

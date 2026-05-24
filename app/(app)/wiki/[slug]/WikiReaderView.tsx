@@ -29,7 +29,12 @@ type Page = {
   title: string;
   type: string;
   status: string;
+  canonicalLang: string;
   canonicalContent: string;
+  translatedContent: Record<
+    string,
+    { content: string; translatedAt: string; machineTranslated: boolean }
+  > | null;
   lastEditedAt: string;
   nextReviewDue: string | null;
   ownerTermEnd: string | null;
@@ -104,6 +109,15 @@ type ComposerState = {
   anchor: string | null;
 };
 
+const LANG_LABELS: Record<string, string> = {
+  en: "English",
+  ta: "தமிழ்",
+  kn: "ಕನ್ನಡ",
+  ml: "മലയാളം",
+  hi: "हिन्दी",
+  bn: "বাংলা",
+};
+
 export default function WikiReaderView({
   page,
   initialComments,
@@ -112,6 +126,7 @@ export default function WikiReaderView({
   pendingHandover,
   currentUserId,
   isSteward,
+  preferredLang,
 }: {
   page: Page;
   initialComments: Comment[];
@@ -120,6 +135,7 @@ export default function WikiReaderView({
   pendingHandover: PendingHandover | null;
   currentUserId: string;
   isSteward: boolean;
+  preferredLang: string;
 }) {
   const router = useRouter();
   const [comments, setComments] = useState<Comment[]>(initialComments);
@@ -147,6 +163,54 @@ export default function WikiReaderView({
     return Math.ceil(diff / (24 * 60 * 60 * 1000));
   }, [page.ownerTermEnd]);
   const termEndingSoon = daysToTermEnd !== null && daysToTermEnd >= 0 && daysToTermEnd <= 30;
+
+  // ── Translation state ─────────────────────────────────────────────────
+  const availableLangs = useMemo(() => {
+    const langs = [page.canonicalLang];
+    if (page.translatedContent) {
+      for (const lang of Object.keys(page.translatedContent)) {
+        if (lang !== page.canonicalLang && page.translatedContent[lang]?.content) {
+          langs.push(lang);
+        }
+      }
+    }
+    return langs;
+  }, [page.canonicalLang, page.translatedContent]);
+
+  const initialLang =
+    preferredLang !== page.canonicalLang && availableLangs.includes(preferredLang)
+      ? preferredLang
+      : page.canonicalLang;
+  const [activeLang, setActiveLang] = useState(initialLang);
+  const isTranslation = activeLang !== page.canonicalLang;
+  const activeTranslation = isTranslation ? page.translatedContent?.[activeLang] : null;
+  const displayContent = isTranslation
+    ? (activeTranslation?.content ?? page.canonicalContent)
+    : page.canonicalContent;
+
+  const [translationFlagOpen, setTranslationFlagOpen] = useState(false);
+  const [translationFlagReason, setTranslationFlagReason] = useState("");
+  const [translationFlagBusy, setTranslationFlagBusy] = useState(false);
+  const [translationFlagSubmitted, setTranslationFlagSubmitted] = useState(false);
+
+  async function submitTranslationFlag() {
+    if (!translationFlagReason.trim()) return;
+    setTranslationFlagBusy(true);
+    const res = await fetch(`/api/wiki/pages/${page.slug}/translation-flags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language: activeLang, reason: translationFlagReason.trim() }),
+    });
+    setTranslationFlagBusy(false);
+    if (res.ok) {
+      setTranslationFlagSubmitted(true);
+      setTranslationFlagReason("");
+      setTimeout(() => {
+        setTranslationFlagOpen(false);
+        setTranslationFlagSubmitted(false);
+      }, 1500);
+    }
+  }
 
   async function renewTerm() {
     if (!confirm("Renew your owner term by 6 months?")) return;
@@ -299,7 +363,7 @@ export default function WikiReaderView({
           {/* ─── Main column ─────────────────────────────────────────────── */}
           <div>
             <header className="mb-6">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <BookOpen className="w-4 h-4 text-stone-500" />
                 <span className="text-xs uppercase tracking-wide text-stone-500">
                   {TYPE_LABEL[page.type] ?? page.type}
@@ -313,7 +377,39 @@ export default function WikiReaderView({
                     {openFlagCount} open flag{openFlagCount === 1 ? "" : "s"}
                   </span>
                 )}
+                {availableLangs.length > 1 && (
+                  <select
+                    value={activeLang}
+                    onChange={(e) => setActiveLang(e.target.value)}
+                    className="ml-auto text-xs px-2 py-0.5 border border-stone-300 rounded bg-white"
+                    title="Language"
+                  >
+                    {availableLangs.map((l) => (
+                      <option key={l} value={l}>
+                        {LANG_LABELS[l] ?? l}
+                        {l === page.canonicalLang ? " (canonical)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
+              {isTranslation && activeTranslation && (
+                <div className="text-xs text-stone-500 mb-2 flex items-center gap-2 flex-wrap">
+                  <span>
+                    Machine-translated
+                    {activeTranslation.translatedAt
+                      ? ` · ${fmtDate(activeTranslation.translatedAt)}`
+                      : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTranslationFlagOpen(true)}
+                    className="underline hover:text-stone-900"
+                  >
+                    Flag translation
+                  </button>
+                </div>
+              )}
               <div className="flex items-start justify-between gap-4">
                 <h1 className="text-3xl font-semibold text-stone-900">{page.title}</h1>
                 <div className="flex items-center gap-2 shrink-0">
@@ -512,6 +608,59 @@ export default function WikiReaderView({
               />
             )}
 
+            {translationFlagOpen && (
+              <div
+                className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center px-4"
+                onClick={() => setTranslationFlagOpen(false)}
+              >
+                <div
+                  className="bg-white border border-stone-200 rounded-lg shadow-xl max-w-md w-full p-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h2 className="text-lg font-semibold text-stone-900 mb-1">
+                    Flag this translation
+                  </h2>
+                  <p className="text-xs text-stone-500 mb-3">
+                    Tell a steward what's wrong with the {LANG_LABELS[activeLang] ?? activeLang} translation.
+                    Goes to the translation queue.
+                  </p>
+                  {translationFlagSubmitted ? (
+                    <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded">
+                      Flag submitted. Thanks.
+                    </div>
+                  ) : (
+                    <>
+                      <textarea
+                        value={translationFlagReason}
+                        onChange={(e) => setTranslationFlagReason(e.target.value)}
+                        rows={4}
+                        placeholder="What's wrong with this translation?"
+                        autoFocus
+                        className="w-full px-3 py-2 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+                      />
+                      <div className="mt-3 flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setTranslationFlagOpen(false)}
+                          className="px-3 py-1.5 text-sm text-stone-600 hover:text-stone-900"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={submitTranslationFlag}
+                          disabled={translationFlagBusy || !translationFlagReason.trim()}
+                          className="px-4 py-1.5 bg-stone-900 text-white rounded-md text-sm hover:bg-stone-800 disabled:opacity-50"
+                        >
+                          {translationFlagBusy ? "Sending…" : "Send"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             <article className="prose prose-stone max-w-none">
               <ReactMarkdown
                 rehypePlugins={[rehypeSlug]}
@@ -520,7 +669,7 @@ export default function WikiReaderView({
                   h3: makeHeadingComponent(3),
                 }}
               >
-                {page.canonicalContent}
+                {displayContent}
               </ReactMarkdown>
             </article>
 
