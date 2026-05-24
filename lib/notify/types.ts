@@ -5,6 +5,8 @@ export type WikiNotificationKind =
   | "wiki_comment_created"
   | "wiki_weekly_digest"
   | "wiki_review_overdue"
+  | "wiki_review_steward_14d"
+  | "wiki_review_steward_30d"
   | "wiki_owner_term_expiring"
   | "wiki_circle_prompt";
 
@@ -33,6 +35,8 @@ export const WIKI_KIND_TO_NOTIFICATION_TYPE: Record<
   wiki_comment_created: "WikiCommentCreated",
   wiki_weekly_digest: "WikiWeeklyDigest",
   wiki_review_overdue: "WikiReviewOverdue",
+  wiki_review_steward_14d: "WikiReviewOverdue",
+  wiki_review_steward_30d: "WikiReviewOverdue",
   wiki_owner_term_expiring: "WikiOwnerTermExpiring",
   wiki_circle_prompt: "WikiCirclePrompt",
 };

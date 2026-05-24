@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { canEditPage, isWikiSteward } from "@/lib/wiki/auth";
+import { nextReviewFromNow } from "@/lib/wiki/review";
 import type { NextRequest } from "next/server";
 
 export async function GET(
@@ -35,7 +36,7 @@ export async function PATCH(
   const { slug } = await params;
   const page = await prisma.wikiPage.findUnique({
     where: { slug },
-    select: { id: true, ownerId: true, canonicalContent: true, canonicalLang: true, title: true },
+    select: { id: true, ownerId: true, canonicalContent: true, canonicalLang: true, title: true, status: true },
   });
   if (!page) return Response.json({ error: "Not found" }, { status: 404 });
 
@@ -59,15 +60,28 @@ export async function PATCH(
 
   const contentChanged = newContent !== null && newContent !== page.canonicalContent;
 
-  // Run page update + optional version snapshot in a transaction
+  const now = new Date();
+
+  // Run page update + optional version snapshot in a transaction. A content
+  // edit also counts as a review per spec — pushes nextReviewDue forward and
+  // clears under_review status if the page was sitting in escalation.
   const updated = await prisma.$transaction(async (tx) => {
     const page2 = await tx.wikiPage.update({
       where: { id: page.id },
       data: {
         ...(newTitle ? { title: newTitle } : {}),
         ...(newContent !== null ? { canonicalContent: newContent } : {}),
-        lastEditedAt: new Date(),
+        lastEditedAt: now,
         lastEditedById: userId,
+        ...(contentChanged
+          ? {
+              lastReviewedAt: now,
+              nextReviewDue: nextReviewFromNow(now),
+              // If the page was flipped to under_review by the enforcement
+              // cron, an actual edit takes it back to published.
+              status: page.status === "under_review" ? "published" : page.status,
+            }
+          : {}),
       },
       select: { id: true, slug: true, title: true, lastEditedAt: true },
     });

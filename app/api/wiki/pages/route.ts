@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { isWikiSteward } from "@/lib/wiki/auth";
 import { templateFor, WIKI_PAGE_TYPES, type WikiPageType } from "@/lib/wiki/templates";
 import { slugifyTitle } from "@/lib/wiki/slug";
+import { nextReviewFromNow } from "@/lib/wiki/review";
 import type { NextRequest } from "next/server";
 
 const SUPPORTED_LANGS = ["en", "ta", "kn", "ml", "hi", "bn"];
@@ -107,6 +108,8 @@ export async function POST(req: NextRequest) {
       ownerTermEnd: ownerId
         ? new Date(Date.now() + 1000 * 60 * 60 * 24 * 30 * 6) // 6 months
         : null,
+      // Review clock starts as soon as there's an owner.
+      nextReviewDue: ownerId ? nextReviewFromNow() : null,
       lastEditedById: userId,
       status: "draft",
       tags: {

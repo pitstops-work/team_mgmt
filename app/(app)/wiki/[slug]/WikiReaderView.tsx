@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ComponentProps } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
@@ -15,6 +16,7 @@ import {
   Check,
   X,
   CheckCircle2,
+  CalendarCheck,
 } from "lucide-react";
 
 type User = { id: string; name: string | null; image: string | null };
@@ -94,15 +96,35 @@ export default function WikiReaderView({
   currentUserId: string;
   isSteward: boolean;
 }) {
+  const router = useRouter();
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [flags, setFlags] = useState<Flag[]>(initialFlags);
   const [composer, setComposer] = useState<ComposerState | null>(null);
   const [composerText, setComposerText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
 
   const canEdit = page.ownerId === currentUserId || isSteward;
-  const reviewOverdue =
-    page.nextReviewDue && new Date(page.nextReviewDue) < new Date();
+  const canReview = canEdit;
+  const reviewOverdueDays = useMemo(() => {
+    if (!page.nextReviewDue) return 0;
+    const diff = Date.now() - new Date(page.nextReviewDue).getTime();
+    return diff <= 0 ? 0 : Math.floor(diff / (24 * 60 * 60 * 1000));
+  }, [page.nextReviewDue]);
+  const reviewOverdue = reviewOverdueDays > 0;
+
+  async function markReviewed() {
+    if (reviewing) return;
+    if (!confirm("Mark this page as reviewed (no changes)?")) return;
+    setReviewing(true);
+    const res = await fetch(`/api/wiki/pages/${page.slug}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    setReviewing(false);
+    if (res.ok) router.refresh();
+  }
 
   const openFlagCount = useMemo(
     () => flags.filter((f) => f.status !== "resolved").length,
@@ -248,6 +270,18 @@ export default function WikiReaderView({
                     <Flag className="w-4 h-4" />
                     Flag
                   </button>
+                  {canReview && (
+                    <button
+                      type="button"
+                      onClick={markReviewed}
+                      disabled={reviewing}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-stone-300 rounded-md text-sm text-stone-700 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-50"
+                      title="Mark reviewed without editing"
+                    >
+                      <CalendarCheck className="w-4 h-4" />
+                      {reviewing ? "Saving…" : "Mark reviewed"}
+                    </button>
+                  )}
                   {canEdit && (
                     <Link
                       href={`/wiki/${page.slug}/edit`}
@@ -271,7 +305,11 @@ export default function WikiReaderView({
               {reviewOverdue && (
                 <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
                   <AlertCircle className="w-4 h-4" />
-                  This page is overdue for review.
+                  {reviewOverdueDays >= 30
+                    ? `Over 30 days overdue — under steward review.`
+                    : reviewOverdueDays >= 14
+                      ? `${reviewOverdueDays} days overdue — stewards have been notified.`
+                      : `${reviewOverdueDays} day${reviewOverdueDays === 1 ? "" : "s"} overdue — please review or edit.`}
                 </div>
               )}
             </header>
