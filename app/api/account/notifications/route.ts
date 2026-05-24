@@ -8,15 +8,15 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { whatsappOptIn: true, phone: true },
+    select: { emailOptIn: true, email: true },
   });
   const pushSubs = await prisma.pushSubscription.count({
     where: { userId: session.user.id },
   });
 
   return Response.json({
-    whatsappOptIn: user?.whatsappOptIn ?? false,
-    phone: user?.phone ?? null,
+    emailOptIn: user?.emailOptIn ?? false,
+    email: user?.email ?? null,
     pushSubscribed: pushSubs > 0,
   });
 }
@@ -30,10 +30,8 @@ export async function PATCH(req: NextRequest) {
     return Response.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const data: { whatsappOptIn?: boolean; phone?: string | null } = {};
-  if (typeof body.whatsappOptIn === "boolean") data.whatsappOptIn = body.whatsappOptIn;
-  if (typeof body.phone === "string") data.phone = body.phone.trim() || null;
-  else if (body.phone === null) data.phone = null;
+  const data: { emailOptIn?: boolean } = {};
+  if (typeof body.emailOptIn === "boolean") data.emailOptIn = body.emailOptIn;
 
   if (Object.keys(data).length === 0) {
     return Response.json({ error: "no fields to update" }, { status: 400 });
@@ -42,7 +40,7 @@ export async function PATCH(req: NextRequest) {
   const user = await prisma.user.update({
     where: { id: session.user.id },
     data,
-    select: { whatsappOptIn: true, phone: true },
+    select: { emailOptIn: true },
   });
 
   return Response.json({ user });

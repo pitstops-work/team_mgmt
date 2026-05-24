@@ -2,32 +2,27 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bell, MessageSquare, Phone, Save } from "lucide-react";
+import { ArrowLeft, Bell, MessageSquare, Mail, Save } from "lucide-react";
 
 type Initial = {
-  whatsappOptIn: boolean;
-  phone: string | null;
+  emailOptIn: boolean;
+  email: string | null;
   pushSubscribed: boolean;
 };
 
 export default function NotificationsView({ initial }: { initial: Initial }) {
-  const [whatsappOptIn, setWhatsappOptIn] = useState(initial.whatsappOptIn);
-  const [phone, setPhone] = useState(initial.phone ?? "");
+  const [emailOptIn, setEmailOptIn] = useState(initial.emailOptIn);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
 
-  const dirty =
-    whatsappOptIn !== initial.whatsappOptIn || phone.trim() !== (initial.phone ?? "");
+  const dirty = emailOptIn !== initial.emailOptIn;
 
   async function save() {
     setSaving(true);
     const res = await fetch("/api/account/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        whatsappOptIn,
-        phone: phone.trim() || null,
-      }),
+      body: JSON.stringify({ emailOptIn }),
     });
     setSaving(false);
     if (res.ok) setSavedAt(new Date());
@@ -82,7 +77,7 @@ export default function NotificationsView({ initial }: { initial: Initial }) {
                 <p className="text-xs text-stone-500 mt-1">
                   {initial.pushSubscribed
                     ? "Enabled in this browser. Disable from your browser's site settings if you want to stop."
-                    : "Not enabled. Browser push activates automatically the next time you visit on a supported device."}
+                    : "Not enabled. Enable from Settings → Push Notifications."}
                 </p>
               </div>
               <span
@@ -97,40 +92,36 @@ export default function NotificationsView({ initial }: { initial: Initial }) {
             </div>
           </section>
 
-          {/* WhatsApp */}
+          {/* Email */}
           <section className="bg-white border border-stone-200 rounded-lg p-4">
             <h2 className="text-sm font-medium text-stone-800 mb-2 inline-flex items-center gap-1.5">
-              <Phone className="w-4 h-4 text-stone-500" />
-              WhatsApp
+              <Mail className="w-4 h-4 text-stone-500" />
+              Email
             </h2>
-            <div className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded px-3 py-2 mb-3">
-              WhatsApp delivery isn't wired up yet — the provider hasn't been picked.
-              You can save your number and preference now; once the channel ships, your
-              setting takes effect immediately.
-            </div>
+            {initial.email ? (
+              <p className="text-xs text-stone-500 mb-3">
+                Wiki notifications go to <span className="font-mono">{initial.email}</span>.
+              </p>
+            ) : (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-3">
+                No email address on your account — wiki emails will be skipped until you add one.
+              </p>
+            )}
 
-            <label className="block text-xs uppercase tracking-wide text-stone-500 mb-1">
-              Phone number (E.164)
-            </label>
-            <input
-              type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+919812345678"
-              className="w-full px-3 py-2 border border-stone-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
-            />
-
-            <label className="mt-3 flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={whatsappOptIn}
-                onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                checked={emailOptIn}
+                onChange={(e) => setEmailOptIn(e.target.checked)}
                 className="w-4 h-4"
               />
-              <span className="text-sm text-stone-800">
-                Send me WhatsApp digests once the channel is live
-              </span>
+              <span className="text-sm text-stone-800">Send me wiki emails</span>
             </label>
+            <p className="text-xs text-stone-500 mt-2 ml-6">
+              Covers weekly digest, flag/comment alerts, daily review reminders, term-expiry
+              warnings, steward escalations, and circle / partner-review prompts. Turn off here
+              to silence email entirely; in-app + push continue.
+            </p>
           </section>
         </div>
 

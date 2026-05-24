@@ -11,7 +11,7 @@ export default async function NotificationsSettingsPage() {
   const [user, pushSubs] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      select: { whatsappOptIn: true, phone: true },
+      select: { emailOptIn: true, email: true },
     }),
     prisma.pushSubscription.count({ where: { userId } }),
   ]);
@@ -19,8 +19,8 @@ export default async function NotificationsSettingsPage() {
   return (
     <NotificationsView
       initial={{
-        whatsappOptIn: user?.whatsappOptIn ?? false,
-        phone: user?.phone ?? null,
+        emailOptIn: user?.emailOptIn ?? false,
+        email: user?.email ?? null,
         pushSubscribed: pushSubs > 0,
       }}
     />

@@ -21,12 +21,17 @@ model User {
   weeklyCapacity      Float     @default(40)
   externalCalendarUrl String?
   lastSeenAt          DateTime?
-  // Tenancy + WhatsApp wiring (wiki module). Org is required logically but kept
-  // nullable here because the seed-wiki script backfills existing users to the
-  // "Pitstops Internal" org as a post-migration step.
+  // Tenancy (wiki module). Org is required logically but kept nullable here
+  // because the seed-wiki script backfills existing users to the "Pitstops
+  // Internal" org as a post-migration step.
   orgId               String?
-  phone               String? // E.164, populated by steward bulk-import
+  // Deprecated: previously used for the WhatsApp adapter, which we dropped
+  // in favour of email. Columns kept for data preservation — safe to drop in a
+  // future migration if confirmed unused.
+  phone               String?
   whatsappOptIn       Boolean   @default(true)
+  // Wiki email rhythm — opt-out by default. Toggle from /settings/notifications.
+  emailOptIn          Boolean   @default(true)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 

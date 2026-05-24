@@ -1,10 +1,10 @@
 import prisma from "@/lib/prisma";
 import { sendInApp } from "./adapters/inApp";
 import { sendPush } from "./adapters/push";
-import { sendWhatsApp } from "./adapters/whatsapp";
+import { sendEmail } from "./adapters/email";
 import type { AdapterResult, DispatchInput } from "./types";
 
-const ADAPTERS = [sendInApp, sendPush, sendWhatsApp] as const;
+const ADAPTERS = [sendInApp, sendPush, sendEmail] as const;
 
 /**
  * Dispatch a wiki-related notification through every available channel.

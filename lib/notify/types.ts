@@ -12,7 +12,7 @@ export type WikiNotificationKind =
   | "wiki_handover_proposed"
   | "wiki_circle_prompt";
 
-export type ChannelName = "push" | "inApp" | "whatsapp";
+export type ChannelName = "push" | "inApp" | "email";
 
 export interface DispatchInput {
   userId: string;
@@ -25,7 +25,7 @@ export interface DispatchInput {
 
 export interface AdapterResult {
   channel: ChannelName;
-  status: "sent" | "skipped" | "failed" | "intended_no_adapter";
+  status: "sent" | "skipped" | "failed";
   error?: string;
 }
 
