@@ -8,7 +8,7 @@ import {
   Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare,
   CalendarClock, MoreHorizontal, X, BookOpen, ClipboardList, MapPin,
   CalendarRange, HelpCircle, BarChart3, MessageSquare, LayoutGrid, Route, TrendingUp,
-  Layers,
+  Layers, Library,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
@@ -52,6 +52,7 @@ export default function AppNav({
     { href: "/planner",   icon: <BookOpen className="w-3.5 h-3.5" />,      label: "Planner"       },
     { href: "/quarters",  icon: <CalendarRange className="w-3.5 h-3.5" />, label: "Quarters"      },
     { href: "/standup",   icon: <ClipboardList className="w-3.5 h-3.5" />, label: "Field Notes"   },
+    { href: "/wiki",      icon: <Library className="w-3.5 h-3.5" />,       label: "Wiki"          },
     { href: settingsHref, icon: <Settings className="w-3.5 h-3.5" />,      label: "Settings"      },
     { href: "/help",      icon: <HelpCircle className="w-3.5 h-3.5" />,    label: "Manual"        },
   ];
@@ -69,6 +70,7 @@ export default function AppNav({
     { href: "/quarters",  icon: <CalendarRange className="w-3.5 h-3.5" />,    label: "Quarters"       },
     { href: "/people",    icon: <Users className="w-3.5 h-3.5" />,            label: "People"         },
     { href: "/standup",   icon: <ClipboardList className="w-3.5 h-3.5" />,    label: "Field Notes"    },
+    { href: "/wiki",      icon: <Library className="w-3.5 h-3.5" />,          label: "Wiki"           },
     { href: settingsHref, icon: <Settings className="w-3.5 h-3.5" />,         label: "Settings"       },
     { href: "/help",      icon: <HelpCircle className="w-3.5 h-3.5" />,       label: "Manual"         },
   ];

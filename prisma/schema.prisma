@@ -21,6 +21,12 @@ model User {
   weeklyCapacity      Float     @default(40)
   externalCalendarUrl String?
   lastSeenAt          DateTime?
+  // Tenancy + WhatsApp wiring (wiki module). Org is required logically but kept
+  // nullable here because the seed-wiki script backfills existing users to the
+  // "Pitstops Internal" org as a post-migration step.
+  orgId               String?
+  phone               String? // E.164, populated by steward bulk-import
+  whatsappOptIn       Boolean   @default(true)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -84,6 +90,17 @@ model User {
   completedChecklistItems   ChecklistItem[]                @relation("ChecklistItemCompleter")
   loginEvents               UserLoginEvent[]
   budgets                   Budget[]                       @relation("BudgetPartner")
+  // Tenancy
+  org                       Org?                           @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  // Wiki module
+  ownedWikiPages            WikiPage[]                     @relation("WikiPageOwner")
+  editedWikiPages           WikiPage[]                     @relation("WikiPageLastEditor")
+  wikiPageVersions          WikiPageVersion[]              @relation("WikiPageVersionEditor")
+  wikiComments              WikiComment[]                  @relation("WikiCommentAuthor")
+  wikiResolvedComments      WikiComment[]                  @relation("WikiCommentResolver")
+  wikiFlags                 WikiFlag[]                     @relation("WikiFlagFlagger")
+  wikiReviewCycles          WikiReviewCycle[]              @relation("WikiReviewCycleOwner")
+  wikiStaff                 WikiStaff[]                    @relation("WikiStaffUser")
 }
 
 model Account {
@@ -2190,4 +2207,155 @@ model RolePermission {
 
   @@unique([roleId, permissionId])
   @@index([roleId])
+}
+
+// ── Org ──────────────────────────────────────────────────────────────────────
+// Tenancy / partner identification. Internal staff share the "Pitstops
+// Internal" org seeded via prisma/seed-wiki.ts. Partner NGO orgs are added
+// later when partner-user onboarding ships.
+model Org {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  kind      String // "internal" | "partner"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+}
+
+// ── Wiki module ──────────────────────────────────────────────────────────────
+// Owner-driven knowledge/practice pages. Per-page owner sits on WikiPage.ownerId;
+// global steward/curator powers live in WikiStaff (decoupled from User.role).
+// Tag values are free strings under tagType taxonomies. Translations live in
+// translatedContent as { lang: { content, translatedAt } }.
+
+model WikiPage {
+  id                String    @id @default(cuid())
+  slug              String    @unique
+  title             String
+  type              String // "principle" | "playbook" | "runbook"
+  canonicalLang     String    @default("en") // en | ta | kn | ml | hi | bn
+  canonicalContent  String    @default("") // markdown serialised from Tiptap
+  translatedContent Json      @default("{}") // { ta: { content, translatedAt }, ... }
+  ownerId           String?
+  ownerTermStart    DateTime?
+  ownerTermEnd      DateTime?
+  nextReviewDue     DateTime?
+  lastReviewedAt    DateTime?
+  lastEditedAt      DateTime  @default(now())
+  lastEditedById    String?
+  status            String    @default("draft") // draft | published | under_review | orphaned | retired
+  createdAt         DateTime  @default(now())
+  archivedAt        DateTime?
+
+  owner      User?             @relation("WikiPageOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  lastEditor User?             @relation("WikiPageLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
+  tags       WikiPageTag[]
+  versions   WikiPageVersion[]
+  comments   WikiComment[]
+  flags      WikiFlag[]
+  reviews    WikiReviewCycle[]
+
+  @@index([status])
+  @@index([type])
+  @@index([nextReviewDue])
+  @@index([ownerId])
+}
+
+model WikiPageTag {
+  id       String @id @default(cuid())
+  pageId   String
+  tagType  String // "vertical" | "city" | "partner_org" | "activity_type"
+  tagValue String
+
+  page WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, tagType, tagValue])
+  @@index([tagType, tagValue])
+}
+
+model WikiPageVersion {
+  id              String   @id @default(cuid())
+  pageId          String
+  versionNumber   Int
+  contentSnapshot String // full markdown at this version
+  language        String // which language was edited
+  editedById      String
+  editedAt        DateTime @default(now())
+  changeNote      String?
+
+  page   WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  editor User     @relation("WikiPageVersionEditor", fields: [editedById], references: [id])
+
+  @@unique([pageId, versionNumber])
+  @@index([editedById])
+}
+
+model WikiComment {
+  id            String    @id @default(cuid())
+  pageId        String
+  authorId      String
+  sectionAnchor String?
+  body          String
+  language      String
+  createdAt     DateTime  @default(now())
+  resolvedAt    DateTime?
+  resolvedById  String?
+
+  page       WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  author     User     @relation("WikiCommentAuthor", fields: [authorId], references: [id])
+  resolvedBy User?    @relation("WikiCommentResolver", fields: [resolvedById], references: [id])
+
+  @@index([pageId])
+  @@index([authorId])
+}
+
+model WikiFlag {
+  id            String    @id @default(cuid())
+  pageId        String
+  flaggerId     String
+  sectionAnchor String?
+  reason        String
+  status        String    @default("open") // open | acknowledged | resolved
+  createdAt     DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  page    WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  flagger User     @relation("WikiFlagFlagger", fields: [flaggerId], references: [id])
+
+  @@index([pageId, status])
+  @@index([flaggerId])
+}
+
+model WikiReviewCycle {
+  id              String    @id @default(cuid())
+  pageId          String
+  ownerId         String
+  scheduledFor    DateTime
+  completedAt     DateTime?
+  completionNote  String?
+  type            String // quarterly | post_circle | post_partner_review
+  // Free string until PracticeCircle + PartnerReviewMeeting models land in PR5.
+  triggerSourceId String?
+  createdAt       DateTime  @default(now())
+
+  page  WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  owner User     @relation("WikiReviewCycleOwner", fields: [ownerId], references: [id])
+
+  @@index([pageId])
+  @@index([ownerId, completedAt])
+}
+
+model WikiStaff {
+  id        String   @id @default(cuid())
+  userId    String
+  wikiRole  String // "curator" | "steward"
+  scope     Json? // { cities: [...], verticals: [...] } — null = global
+  createdAt DateTime @default(now())
+
+  user User @relation("WikiStaffUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wikiRole])
+  @@index([wikiRole])
 }
