@@ -102,6 +102,16 @@ export async function PATCH(
           changeNote,
         },
       });
+
+      // Editing the content also resolves any pending post-event review prompts.
+      await tx.wikiReviewCycle.updateMany({
+        where: {
+          pageId: page.id,
+          completedAt: null,
+          type: { in: ["post_circle", "post_partner_review"] },
+        },
+        data: { completedAt: now, completionNote: changeNote },
+      });
     }
 
     return page2;

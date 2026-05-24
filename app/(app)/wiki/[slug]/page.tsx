@@ -24,7 +24,7 @@ export default async function WikiPageReader({
   });
   if (!page || page.archivedAt) notFound();
 
-  const [steward, comments, flags] = await Promise.all([
+  const [steward, comments, flags, pendingReviews] = await Promise.all([
     isWikiSteward(userId),
     prisma.wikiComment.findMany({
       where: { pageId: page.id },
@@ -39,6 +39,26 @@ export default async function WikiPageReader({
       orderBy: { createdAt: "asc" },
       include: { flagger: { select: { id: true, name: true, image: true } } },
     }),
+    prisma.wikiReviewCycle.findMany({
+      where: {
+        pageId: page.id,
+        completedAt: null,
+        type: { in: ["post_circle", "post_partner_review"] },
+      },
+      include: {
+        triggerCircle: {
+          select: { id: true, scheduledFor: true, completedAt: true },
+        },
+        triggerPartnerReviewMeeting: {
+          select: {
+            id: true,
+            scheduledFor: true,
+            completedAt: true,
+            partnerOrg: { select: { name: true } },
+          },
+        },
+      },
+    }),
   ]);
 
   return (
@@ -46,6 +66,7 @@ export default async function WikiPageReader({
       page={JSON.parse(JSON.stringify(page))}
       initialComments={JSON.parse(JSON.stringify(comments))}
       initialFlags={JSON.parse(JSON.stringify(flags))}
+      pendingReviews={JSON.parse(JSON.stringify(pendingReviews))}
       currentUserId={userId}
       isSteward={steward}
     />

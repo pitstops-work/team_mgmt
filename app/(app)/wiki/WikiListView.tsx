@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Plus, Search, Filter, Flag, MessageCircle } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake } from "lucide-react";
 
 type Tag = { tagType: string; tagValue: string };
 type Page = {
@@ -62,7 +62,7 @@ export default function WikiListView({
   return (
     <main className="min-h-screen bg-stone-50">
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <header className="flex items-center justify-between mb-6">
+        <header className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-stone-700" />
             <h1 className="text-2xl font-semibold text-stone-900">Wiki</h1>
@@ -77,6 +77,20 @@ export default function WikiListView({
             </Link>
           )}
         </header>
+
+        <nav className="flex items-center gap-4 mb-6 text-sm">
+          <Link href="/wiki" className="text-stone-900 font-medium border-b-2 border-stone-900 pb-1">
+            Pages
+          </Link>
+          <Link href="/wiki/circles" className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1">
+            <Users className="w-3.5 h-3.5" />
+            Circles
+          </Link>
+          <Link href="/wiki/partner-reviews" className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1">
+            <Handshake className="w-3.5 h-3.5" />
+            Partner reviews
+          </Link>
+        </nav>
 
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
           <div className="relative flex-1">

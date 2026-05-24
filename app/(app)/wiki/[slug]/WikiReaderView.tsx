@@ -17,6 +17,8 @@ import {
   X,
   CheckCircle2,
   CalendarCheck,
+  Users,
+  Handshake,
 } from "lucide-react";
 
 type User = { id: string; name: string | null; image: string | null };
@@ -53,6 +55,17 @@ type Flag = {
   resolvedAt: string | null;
   flagger: User;
 };
+type PendingReview = {
+  id: string;
+  type: string;
+  scheduledFor: string;
+  triggerCircle: { id: string; completedAt: string | null } | null;
+  triggerPartnerReviewMeeting: {
+    id: string;
+    completedAt: string | null;
+    partnerOrg: { name: string };
+  } | null;
+};
 
 const TYPE_LABEL: Record<string, string> = {
   principle: "Principle",
@@ -87,12 +100,14 @@ export default function WikiReaderView({
   page,
   initialComments,
   initialFlags,
+  pendingReviews,
   currentUserId,
   isSteward,
 }: {
   page: Page;
   initialComments: Comment[];
   initialFlags: Flag[];
+  pendingReviews: PendingReview[];
   currentUserId: string;
   isSteward: boolean;
 }) {
@@ -312,6 +327,51 @@ export default function WikiReaderView({
                       : `${reviewOverdueDays} day${reviewOverdueDays === 1 ? "" : "s"} overdue — please review or edit.`}
                 </div>
               )}
+
+              {pendingReviews.map((pr) => {
+                const isCircle = pr.type === "post_circle";
+                const eventLink = isCircle
+                  ? pr.triggerCircle
+                    ? `/wiki/circles/${pr.triggerCircle.id}`
+                    : null
+                  : pr.triggerPartnerReviewMeeting
+                    ? `/wiki/partner-reviews/${pr.triggerPartnerReviewMeeting.id}`
+                    : null;
+                const eventLabel = isCircle
+                  ? "a practice circle"
+                  : pr.triggerPartnerReviewMeeting
+                    ? `partner review with ${pr.triggerPartnerReviewMeeting.partnerOrg.name}`
+                    : "a partner review";
+                const completedAt =
+                  pr.triggerCircle?.completedAt ??
+                  pr.triggerPartnerReviewMeeting?.completedAt ??
+                  null;
+                return (
+                  <div
+                    key={pr.id}
+                    className="mt-3 flex items-start gap-2 bg-indigo-50 border border-indigo-200 text-indigo-800 px-3 py-2 rounded text-sm"
+                  >
+                    {isCircle ? (
+                      <Users className="w-4 h-4 mt-0.5 shrink-0" />
+                    ) : (
+                      <Handshake className="w-4 h-4 mt-0.5 shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      Discussed in {eventLabel}
+                      {completedAt && ` on ${fmtDate(completedAt)}`} — review and update or
+                      mark reviewed within 7 days.
+                      {eventLink && (
+                        <>
+                          {" "}
+                          <Link href={eventLink} className="underline">
+                            Open event
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </header>
 
             <article className="prose prose-stone max-w-none">
