@@ -12,6 +12,7 @@ interface Goal {
   description: string | null;
   status: "Active" | "Paused" | "Complete";
   recurrence: Recurrence;
+  startDate?: string | null;
   targetDate?: string | null;
   needsDomain?: string | null;
   parameter?: number | null;
@@ -45,6 +46,7 @@ export default function EditGoalModal({ goal, onClose, onUpdated, isAdmin = fals
   const [description, setDescription] = useState(goal.description ?? "");
   const [status, setStatus] = useState(goal.status);
   const [recurrence, setRecurrence] = useState<Recurrence>(goal.recurrence ?? "None");
+  const [startDate, setStartDate] = useState(toDateInput(goal.startDate));
   const [targetDate, setTargetDate] = useState(toDateInput(goal.targetDate));
   const [deadlineReason, setDeadlineReason] = useState("");
   const [outcomeCount, setOutcomeCount] = useState<string>(
@@ -86,7 +88,18 @@ export default function EditGoalModal({ goal, onClose, onUpdated, isAdmin = fals
   const [loadingScope, setLoadingScope] = useState(false);
 
   const originalDate = toDateInput(goal.targetDate);
+  const originalStartDate = toDateInput(goal.startDate);
   const deadlineChanged = !!originalDate && targetDate !== originalDate;
+  const startDateChanged = !!originalStartDate && startDate !== originalStartDate;
+  const datesChanged = deadlineChanged || startDateChanged;
+
+  // Which delta drives the cascade. Start wins when both move.
+  const cascadeDeltaDays = (() => {
+    if (!datesChanged) return 0;
+    const ref = startDateChanged ? { from: originalStartDate, to: startDate } : { from: originalDate, to: targetDate };
+    if (!ref.from || !ref.to) return 0;
+    return Math.round((new Date(ref.to).getTime() - new Date(ref.from).getTime()) / 86400000);
+  })();
 
   const isNeedsDomainGoal = !!editDomain;
   const completingNow = status === "Complete" && goal.status !== "Complete";
@@ -163,7 +176,9 @@ export default function EditGoalModal({ goal, onClose, onUpdated, isAdmin = fals
       description: description.trim() || null,
       status,
       recurrence,
+      startDate: startDate || null,
       targetDate,
+      ...(datesChanged && { cascadeDates: true }),
       ...(deadlineChanged && { deadlineChangeReason: deadlineReason.trim() }),
       ...(isNeedsDomainGoal ? { outcomeCount: parsedOutcome } : {}),
       needsDomain:    editDomain    || null,
@@ -197,6 +212,7 @@ export default function EditGoalModal({ goal, onClose, onUpdated, isAdmin = fals
         description: description.trim() || null,
         status,
         recurrence,
+        startDate: startDate || null,
         targetDate,
         ...(isNeedsDomainGoal ? { outcomeCount: parsedOutcome } : {}),
         needsDomain:    editDomain    || null,
@@ -242,6 +258,24 @@ export default function EditGoalModal({ goal, onClose, onUpdated, isAdmin = fals
 
           <div className="flex gap-3">
             <div className="flex-1">
+              <label className="block text-xs font-medium text-stone-600 mb-1">Start</label>
+              {isAdmin ? (
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 ${startDateChanged ? "border-amber-400 bg-amber-50" : "border-stone-200"}`}
+                />
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-2 text-sm bg-stone-50 border border-stone-200 rounded-lg text-stone-500">
+                  <Lock className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+                  {startDate || "Not set"}
+                  <span className="text-[10px] text-stone-400 ml-1">(admin only)</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1">
               <label className="block text-xs font-medium text-stone-600 mb-1 flex items-center gap-1">
                 Deadline <span className="text-red-400">*</span>
                 {originalDate && <Lock className="w-3 h-3 text-amber-500 ml-0.5" />}
@@ -276,6 +310,15 @@ export default function EditGoalModal({ goal, onClose, onUpdated, isAdmin = fals
               </select>
             </div>
           </div>
+
+          {isAdmin && datesChanged && cascadeDeltaDays !== 0 && (
+            <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800 leading-relaxed">
+              All <span className="font-semibold">incomplete pitstops</span> and{" "}
+              <span className="font-semibold">scheduled activities</span> on this goal will shift by{" "}
+              <span className="font-semibold">{cascadeDeltaDays > 0 ? `+${cascadeDeltaDays}` : cascadeDeltaDays} day{Math.abs(cascadeDeltaDays) === 1 ? "" : "s"}</span>.
+              Completed work is untouched. Recurring schedules are not changed.
+            </div>
+          )}
 
           {/* ── Outcome count — required when completing a domain goal ── */}
           {showOutcomeStep && (

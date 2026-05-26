@@ -63,6 +63,32 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
   const wasComplete = existing?.status === "Complete";
   const willBeComplete = data.status === "Complete";
 
+  // ── Cascade pre-compute: figure out the delta to shift pitstops/activities by ──
+  // delta = (new start - old start) if start changed; else (new target - old target).
+  // If only start was edited, also slide goal.targetDate by the same delta to keep
+  // the goal endpoints aligned (and honor the goal.targetDate >= MAX(pitstop.targetDate)
+  // invariant noted in memory).
+  const oldStart  = existing?.startDate  ?? null;
+  const oldTarget = existing?.targetDate ?? null;
+  const newStart  = data.startDate  ? new Date(data.startDate)  : oldStart;
+  const newTarget = data.targetDate ? new Date(data.targetDate) : oldTarget;
+  const startDelta  = oldStart  && newStart  ? newStart.getTime()  - oldStart.getTime()  : 0;
+  const targetDelta = oldTarget && newTarget ? newTarget.getTime() - oldTarget.getTime() : 0;
+  const startChanged  = startDelta  !== 0;
+  const targetChanged = targetDelta !== 0;
+  const cascadeDeltaMs = data.cascadeDates && (startChanged || targetChanged)
+    ? (startChanged ? startDelta : targetDelta)
+    : 0;
+  const goalTargetAutoShift =
+    cascadeDeltaMs !== 0 && startChanged && !targetChanged && oldTarget
+      ? new Date(oldTarget.getTime() + cascadeDeltaMs)
+      : null;
+
+  // The modal always sends targetDate in the body. If the user only moved the start,
+  // we override the sent target with the auto-shifted value so endpoints stay aligned.
+  const finalTargetDate = goalTargetAutoShift
+    ?? (data.targetDate ? new Date(data.targetDate) : undefined);
+
   const goal = await prisma.goal.update({
     where: { id: goalId },
     data: {
@@ -72,7 +98,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
       recurrence: data.recurrence,
       startDate: data.startDate ? new Date(data.startDate) : undefined,
-      targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
+      targetDate: finalTargetDate,
       ...(willBeComplete && !wasComplete ? { closedAt: new Date() } : {}),
       ...(!willBeComplete && wasComplete ? { closedAt: null } : {}),
       ...(data.outcomeCount !== undefined ? { outcomeCount: data.outcomeCount } : {}),
@@ -83,6 +109,63 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
     },
     include: { owner: { select: { id: true, name: true, image: true } }, pitstops: { select: { id: true, status: true } } },
   });
+
+  // ── Cascade: shift incomplete pitstops and scheduled activities by delta ──
+  if (cascadeDeltaMs !== 0) {
+    const incompletePitstops = await prisma.pitstop.findMany({
+      where: { goalId, deletedAt: null, status: { not: "Done" } },
+      select: { id: true, startDate: true, targetDate: true },
+    });
+    const pitstopIds = incompletePitstops.map(p => p.id);
+
+    const scheduledEvents = pitstopIds.length > 0
+      ? await prisma.pitstopEvent.findMany({
+          where: {
+            deletedAt: null,
+            status: "Scheduled",
+            OR: [
+              { pitstops: { some: { pitstopId: { in: pitstopIds } } } },
+              { checklistItem: { pitstopId: { in: pitstopIds } } },
+            ],
+          },
+          select: { id: true, scheduledAt: true, endsAt: true },
+        })
+      : [];
+
+    if (incompletePitstops.length > 0 || scheduledEvents.length > 0) {
+      await prisma.$transaction([
+        ...incompletePitstops.map(p =>
+          prisma.pitstop.update({
+            where: { id: p.id },
+            data: {
+              startDate:  p.startDate  ? new Date(p.startDate.getTime()  + cascadeDeltaMs) : undefined,
+              targetDate: p.targetDate ? new Date(p.targetDate.getTime() + cascadeDeltaMs) : undefined,
+            },
+          }),
+        ),
+        ...scheduledEvents.map(e =>
+          prisma.pitstopEvent.update({
+            where: { id: e.id },
+            data: {
+              scheduledAt: new Date(e.scheduledAt.getTime() + cascadeDeltaMs),
+              endsAt: e.endsAt ? new Date(e.endsAt.getTime() + cascadeDeltaMs) : undefined,
+            },
+          }),
+        ),
+      ]);
+    }
+
+    const deltaDays = Math.round(cascadeDeltaMs / 86400000);
+    auditLog({
+      entityType: "Goal",
+      entityId: goalId,
+      userId: session.user.id,
+      action: "cascade_dates",
+      field: startChanged ? "startDate" : "targetDate",
+      oldValue: null,
+      newValue: `${deltaDays > 0 ? "+" : ""}${deltaDays}d shifted ${incompletePitstops.length} pitstops + ${scheduledEvents.length} activities`,
+    });
+  }
 
   // ── GoalOutcome: write settlement attributions when marking a domain goal Complete ──
   // attributions = [{ settlementId, count }] sent from the completion modal.
@@ -128,7 +211,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
         ownerId: data.ownerId !== undefined ? (data.ownerId || null) : undefined,
         recurrence: data.recurrence,
         startDate: data.startDate ? new Date(data.startDate) : undefined,
-        targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
+        targetDate: finalTargetDate,
         needsDomain: "needsDomain"    in data ? (data.needsDomain    ?? null) : undefined,
         needsCityId: "needsCityId"    in data ? (data.needsCityId    ?? null) : undefined,
         needsZoneId: "needsZoneId"    in data ? (data.needsZoneId    ?? null) : undefined,
