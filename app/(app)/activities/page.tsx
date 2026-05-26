@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { generateCalendarToken } from "@/lib/calendarToken";
-import { buildRbacContext, scopeWhere } from "@/lib/rbac";
+import { buildRbacContext, scopeWhere, getScopeRule, getTeamIds } from "@/lib/rbac";
 import EventsCalendar from "./EventsCalendar";
 
 export default async function ActivitiesPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
@@ -14,6 +14,13 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
   const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
   const eventAttendeeFilter: Record<string, unknown> = eventScope ?? {};
   const pitstopOwnerFilter: Record<string, unknown> = pitstopScope ?? {};
+
+  // Who can this user mark done on behalf of others? Mirror the RBAC
+  // pitstop_event.update scope (super-admin/admin = "all", leaders = "team")
+  // so the completion button isn't limited to the user's own activities.
+  const eventUpdateRule = ctx ? await getScopeRule(ctx, "pitstop_event", "update") : null;
+  const eventUpdateScope = eventUpdateRule?.kind ?? "own";
+  const manageableTeamIds = ctx && eventUpdateScope === "team" ? await getTeamIds(ctx.userId) : [];
 
   // All users shown in attendee picker — anyone can invite anyone
   const userFilter = {};
@@ -87,6 +94,8 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
       pitstops={JSON.parse(JSON.stringify(pitstops))}
       users={JSON.parse(JSON.stringify(users))}
       currentUserId={session!.user!.id!}
+      eventUpdateScope={eventUpdateScope}
+      manageableTeamIds={manageableTeamIds}
       zones={JSON.parse(JSON.stringify(zones))}
       clusters={JSON.parse(JSON.stringify(clusters))}
       calendarToken={calendarToken}

@@ -495,10 +495,11 @@ function EventThreadPanel({ eventId, currentUserId, users }: { eventId: string; 
   );
 }
 
-function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users }: {
+function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, eventUpdateScope, manageableTeamIds }: {
   ev: PitstopEvent; onEdit: () => void; onDelete: () => void;
   onUpdated: (id: string, patch: Partial<PitstopEvent>) => void;
   currentUserId: string; users: User[];
+  eventUpdateScope: string; manageableTeamIds: string[];
 }) {
   const [showThreads, setShowThreads] = useState(false);
   const [showAction, setShowAction] = useState(false);
@@ -516,7 +517,17 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users }: {
   const isOwner = ev.pitstops.length > 0
     ? ev.pitstops.some(p => p.pitstop.owner.id === currentUserId)
     : ev.attendees.some(a => a.userId === currentUserId);
-  const canComplete = ev.status === "Scheduled" && isOwner;
+  // Leaders/admins may complete activities they don't own — mirror the RBAC
+  // pitstop_event.update scope rather than restricting to the current user.
+  const canManage =
+    eventUpdateScope === "all" ? true
+    : eventUpdateScope === "team"
+      ? ev.createdBy.id === currentUserId
+        || manageableTeamIds.includes(ev.createdBy.id)
+        || ev.attendees.some(a => manageableTeamIds.includes(a.userId))
+        || ev.pitstops.some(p => manageableTeamIds.includes(p.pitstop.owner.id))
+      : isOwner;
+  const canComplete = ev.status === "Scheduled" && canManage;
   const ctype = ev.checklistItem?.completionType ?? "Activity";
 
   async function markDone() {
@@ -712,11 +723,13 @@ function ExternalEventCard({ ev }: { ev: ExternalCalEvent }) {
 type ZoneGeo    = { id: string; name: string; goals: { goalId: string }[] };
 type ClusterGeo = { id: string; name: string; zone: { name: string }; goals: { goalId: string }[] };
 
-export default function EventsCalendar({ events: initialEvents, pitstops, users, currentUserId, zones = [], clusters = [], calendarToken = null, inviteEventId = null }: {
+export default function EventsCalendar({ events: initialEvents, pitstops, users, currentUserId, eventUpdateScope = "own", manageableTeamIds = [], zones = [], clusters = [], calendarToken = null, inviteEventId = null }: {
   events: PitstopEvent[];
   pitstops: PitstopRef[];
   users: User[];
   currentUserId: string;
+  eventUpdateScope?: string;
+  manageableTeamIds?: string[];
   zones?: ZoneGeo[];
   clusters?: ClusterGeo[];
   calendarToken?: string | null;
@@ -1211,7 +1224,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                   <p className="text-xs text-stone-400 text-center py-8">No activities. Tap Add to schedule one.</p>
                 ) : null}
                 {selectedDayEvents.map(ev => (
-                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} />
+                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} eventUpdateScope={eventUpdateScope} manageableTeamIds={manageableTeamIds} />
                 ))}
                 {(extEventMap.get(selectedDate) ?? []).map(ev => (
                   <ExternalEventCard key={ev.uid} ev={ev} />
@@ -1247,7 +1260,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                   {(dayEvs.length > 0 || extEvs.length > 0) && (
                     <div className="space-y-2">
                       {dayEvs.map(ev => (
-                        <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} />
+                        <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} eventUpdateScope={eventUpdateScope} manageableTeamIds={manageableTeamIds} />
                       ))}
                       {extEvs.map(ev => (
                         <ExternalEventCard key={ev.uid} ev={ev} />
@@ -1281,7 +1294,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
             ) : (
               <div className="space-y-3">
                 {dayEvents.map(ev => (
-                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} />
+                  <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} eventUpdateScope={eventUpdateScope} manageableTeamIds={manageableTeamIds} />
                 ))}
               </div>
             )}
