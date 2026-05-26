@@ -23,6 +23,7 @@ import type { DbTemplate, DbPitstop, DbChecklistItem, DbActivity } from "./templ
 import { slugifyChecklistText, normalizeActivities } from "./templateDb";
 import { snapToWeekday } from "./scheduleActivities";
 import { auditLog } from "./auditLog";
+import { sendPushToUsers } from "./push";
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -591,7 +592,34 @@ export async function applySync(
     try {
       const applied = await applyGoalChanges(template, goal, plan, applicable, actorId);
       changesApplied += applied;
-      if (applied > 0) goalsTouched += 1;
+      if (applied > 0) {
+        goalsTouched += 1;
+        // Heads-up to the goal owner (not the actor — they triggered it).
+        if (goal.ownerId && goal.ownerId !== actorId) {
+          const adds    = applicable.filter(c => c.kind === "add").length;
+          const edits   = applicable.filter(c => c.kind === "edit").length;
+          const removes = applicable.filter(c => c.kind === "remove").length;
+          const parts: string[] = [];
+          if (adds)    parts.push(`${adds} added`);
+          if (edits)   parts.push(`${edits} edited`);
+          if (removes) parts.push(`${removes} cancelled`);
+          const body = `Template "${template.name}" was updated: ${parts.join(", ")}.`;
+          await prisma.notification.create({
+            data: {
+              userId: goal.ownerId,
+              type: "BroadcastUpdate",
+              title: `"${goal.title}" updated from template`,
+              body,
+              link: `/goals/${goal.id}`,
+            },
+          }).catch(() => {});
+          sendPushToUsers([goal.ownerId], {
+            title: `"${goal.title}" updated from template`,
+            body,
+            link: `/goals/${goal.id}`,
+          });
+        }
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`goal ${plan.goalId}: ${msg}`);

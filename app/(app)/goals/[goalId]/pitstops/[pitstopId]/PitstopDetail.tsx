@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft, ChevronUp, ChevronDown, Plus, Paperclip, Upload, X, Bell, BellOff, Trash2, Calendar,
-  CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History, FileText, UserPlus, Mic, Square, Loader2,
+  CheckSquare, Lock, Unlock, RefreshCw, Pencil, ShieldCheck, History, FileText, UserPlus, Mic, Square, Loader2, CheckCircle2,
 } from "lucide-react";
 import { getTimelineInfo, timelineChip, fmtDate, toDateInput } from "@/lib/timeline";
 import { confirmManualChecklistTick } from "@/lib/checklistGate";
@@ -154,7 +154,7 @@ const STATUS_CFG: Record<ChecklistStatus, { label: string; cls: string }> = {
 
 function ChecklistItemRow({
   item, users, pitstopId, pitstopOwnerId, isFirst, isLast, canUpdateChecklist, canCompleteActivity,
-  onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onMove, onVoiceLogged, onAttachmentLogged, onAttachmentDeleted,
+  onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onActivityDone, onMove, onVoiceLogged, onAttachmentLogged, onAttachmentDeleted,
   bindings, indicatorValues, onIndicatorValueChange,
 }: {
   item: ChecklistItem;
@@ -171,6 +171,7 @@ function ChecklistItemRow({
   onUpdateNotes: (id: string, notes: string) => void;
   onDelete: (id: string) => void;
   onActivityCreated: (itemId: string, activity: ActivityRef) => void;
+  onActivityDone: (itemId: string, activityId: string) => void;
   onMove: (id: string, direction: "up" | "down") => void;
   onVoiceLogged: (id: string, notes: string) => void;
   onAttachmentLogged: (id: string, attachment: Attachment) => void;
@@ -411,27 +412,38 @@ function ChecklistItemRow({
               )}
             </div>
 
-            {/* Activity chips — title + date. Done activities render struck-through. */}
+            {/* Activity chips — title + date. Done activities render struck-through.
+                Chip stays a link to the calendar; a separate ✓ marks the activity done. */}
             {item.activities.map((act) => {
               const isDone = act.status === "Done";
               return (
-                <Link
-                  key={act.id}
-                  href={`/activities?date=${act.scheduledAt.slice(0, 10)}${pitstopOwnerId ? `&owner=${pitstopOwnerId}` : ""}`}
-                  className={`text-[10px] px-1.5 py-0.5 rounded inline-flex items-center gap-1 transition-colors max-w-[260px] ${
-                    isDone
-                      ? "text-stone-400 bg-stone-50 border border-stone-200 hover:bg-stone-100 line-through"
-                      : "text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100"
-                  }`}
-                  title={`${act.title} · ${new Date(act.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}${isDone ? " · Done" : ""}`}
-                >
-                  <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
-                  <span className="truncate">{act.title}</span>
-                  <span className={`flex-shrink-0 ${isDone ? "text-stone-400" : "text-sky-500"}`}>·</span>
-                  <span className={`flex-shrink-0 ${isDone ? "text-stone-400" : "text-sky-500"}`}>
-                    {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                  </span>
-                </Link>
+                <span key={act.id} className="inline-flex items-center gap-0.5">
+                  <Link
+                    href={`/activities?date=${act.scheduledAt.slice(0, 10)}${pitstopOwnerId ? `&owner=${pitstopOwnerId}` : ""}`}
+                    className={`text-[10px] px-1.5 py-0.5 rounded inline-flex items-center gap-1 transition-colors max-w-[260px] ${
+                      isDone
+                        ? "text-stone-400 bg-stone-50 border border-stone-200 hover:bg-stone-100 line-through"
+                        : "text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100"
+                    }`}
+                    title={`${act.title} · ${new Date(act.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}${isDone ? " · Done" : ""}`}
+                  >
+                    <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span className="truncate">{act.title}</span>
+                    <span className={`flex-shrink-0 ${isDone ? "text-stone-400" : "text-sky-500"}`}>·</span>
+                    <span className={`flex-shrink-0 ${isDone ? "text-stone-400" : "text-sky-500"}`}>
+                      {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                    </span>
+                  </Link>
+                  {canCompleteActivity && !isDone && (
+                    <button
+                      onClick={() => onActivityDone(item.id, act.id)}
+                      className="p-0.5 text-stone-300 hover:text-emerald-600 transition-colors flex-shrink-0"
+                      title="Mark this activity done"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </span>
               );
             })}
             {/* Attachment chips */}
@@ -922,6 +934,31 @@ export default function PitstopDetail({
         i.id === itemId ? { ...i, activities: [...i.activities, activity], status: "Scheduled" } : i
       ),
     }));
+  };
+
+  const handleActivityDone = async (itemId: string, activityId: string) => {
+    setPitstop((p) => {
+      const newItems = p.checklistItems.map((i) => {
+        if (i.id !== itemId) return i;
+        const activities = i.activities.map((a) => a.id === activityId ? { ...a, status: "Done" } : a);
+        // Mirror the server: only Activity-type items auto-advance off activity
+        // completion, and only once no sibling activity is still pending.
+        if ((i.completionType ?? "Activity") !== "Activity") return { ...i, activities };
+        const pending = activities.some((a) => a.status === "Scheduled" || a.status === "Rescheduled");
+        return pending
+          ? { ...i, activities, status: "InProgress" }
+          : { ...i, activities, checked: true, status: "Done" };
+      });
+      const allChecked = newItems.length > 0 && newItems.every((i) => i.checked);
+      const anyChecked = newItems.some((i) => i.checked);
+      const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
+      return { ...p, checklistItems: newItems, status: derived };
+    });
+    await fetch(`/api/pitstop-events/${activityId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Done" }),
+    });
   };
 
   const handleDeleteCheckItem = async (itemId: string) => {
@@ -1584,6 +1621,7 @@ export default function PitstopDetail({
                     onUpdateNotes={handleUpdateItemNotes}
                     onDelete={handleDeleteCheckItem}
                     onActivityCreated={handleActivityCreated}
+                    onActivityDone={handleActivityDone}
                     onMove={handleMoveItem}
                     onVoiceLogged={handleVoiceLogged}
                     onAttachmentLogged={handleAttachmentLogged}

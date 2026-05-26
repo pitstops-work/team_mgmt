@@ -634,12 +634,13 @@ export default function GoalDetail({
                 })()}
                 <div className="space-y-2">
                   {panelPitstop.checklistItems.map((item) => (
-                    <label key={item.id} className="flex items-start gap-2 cursor-pointer group">
+                    <label key={item.id} className={`flex items-start gap-2 group ${canUpdateChecklist ? "cursor-pointer" : "cursor-not-allowed"}`}>
                       <input
                         type="checkbox"
                         checked={item.checked}
+                        disabled={!canUpdateChecklist}
                         onChange={(e) => handlePanelCheckToggle(panelPitstop.id, item.id, e.target.checked)}
-                        className="mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0"
+                        className={`mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 flex-shrink-0 ${canUpdateChecklist ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
                       />
                       <span className={`text-xs leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>
                         {item.text}

@@ -6,10 +6,11 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   ChevronLeft, Plus, Trash2, ChevronUp, ChevronDown,
-  GripVertical, Save, AlertTriangle, CheckCircle, ChevronRight,
+  GripVertical, Save, AlertTriangle, CheckCircle, ChevronRight, RefreshCw,
 } from "lucide-react";
 import type { DbTemplate, DbPitstop, DbTemplateParam, DbActivity } from "@/lib/templateDb";
 import { normalizeActivities, slugifyChecklistText } from "@/lib/templateDb";
+import TemplateSyncModal from "./TemplateSyncModal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -494,6 +495,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const [activeSection, setActiveSection] = useState<"info" | "params" | "pitstops">("info");
   const [needsDomains, setNeedsDomains] = useState<{ domain: string; label: string }[]>([]);
   const [facilityLayerOptions, setFacilityLayerOptions] = useState<{ value: string; label: string }[]>([
@@ -714,6 +716,16 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
         </div>
 
         <div className="flex items-center gap-2">
+          {!isNew && isAdmin && (
+            <button
+              onClick={() => setShowSyncModal(true)}
+              title="Apply this template's current shape to existing goals created from it"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-sky-200 text-sky-700 rounded-lg hover:bg-sky-50 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Sync to goals
+            </button>
+          )}
           {!isNew && template.isActive && (
             <button
               onClick={handleDeactivate}
@@ -969,6 +981,14 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
             </button>
           </div>
         </div>
+      )}
+
+      {showSyncModal && !isNew && (
+        <TemplateSyncModal
+          templateId={id}
+          templateName={template.name ?? ""}
+          onClose={() => setShowSyncModal(false)}
+        />
       )}
     </div>
   );
