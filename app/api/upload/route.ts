@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { put } from "@vercel/blob";
 import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
+import { buildRbacContext, can } from "@/lib/rbac";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -15,6 +16,15 @@ export async function POST(req: NextRequest) {
   const checklistItemId = formData.get("checklistItemId") as string | null;
 
   if (!file) return Response.json({ error: "No file provided" }, { status: 400 });
+
+  // Attaching a file to a checklist item (and closing Upload-typed items)
+  // mutates the checklist — require checklist_item.update for that path.
+  if (checklistItemId) {
+    const ctx = await buildRbacContext(session);
+    if (!ctx || !(await can(ctx, "checklist_item", "update"))) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
 
   // Sanitise filename for use as Blob pathname
   const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;

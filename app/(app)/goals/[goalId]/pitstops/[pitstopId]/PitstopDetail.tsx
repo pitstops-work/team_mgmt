@@ -40,7 +40,7 @@ type Message = {
 };
 type Thread = { id: string; name: string; messages: Message[] };
 type User = { id: string; name: string | null; image: string | null };
-type ActivityRef = { id: string; title: string; scheduledAt: string };
+type ActivityRef = { id: string; title: string; scheduledAt: string; status?: string };
 type ChecklistItem = {
   id: string;
   text: string;
@@ -127,6 +127,7 @@ interface Props {
   currentUserId: string;
   currentUserName: string;
   currentUserRole?: string;
+  canUpdateChecklist?: boolean;
   subscribedThreadIds: string[];
   preferredLang: string;
 }
@@ -151,7 +152,7 @@ const STATUS_CFG: Record<ChecklistStatus, { label: string; cls: string }> = {
 // ── ChecklistItemRow ──────────────────────────────────────────────────────────
 
 function ChecklistItemRow({
-  item, users, pitstopId, isFirst, isLast,
+  item, users, pitstopId, isFirst, isLast, canUpdateChecklist,
   onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onMove, onVoiceLogged, onAttachmentLogged, onAttachmentDeleted,
   bindings, indicatorValues, onIndicatorValueChange,
 }: {
@@ -160,6 +161,7 @@ function ChecklistItemRow({
   pitstopId: string;
   isFirst: boolean;
   isLast: boolean;
+  canUpdateChecklist: boolean;
   onToggle: (id: string, checked: boolean) => void;
   onUpdateStatus: (id: string, status: string) => void;
   onUpdateAssignee: (id: string, assigneeId: string | null) => void;
@@ -298,8 +300,9 @@ function ChecklistItemRow({
         <input
           type="checkbox"
           checked={item.checked}
+          disabled={!canUpdateChecklist}
           onChange={(e) => onToggle(item.id, e.target.checked)}
-          className="mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0"
+          className={`mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 flex-shrink-0 ${canUpdateChecklist ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
         />
         <div className="flex-1 min-w-0 space-y-1">
           <p className={`text-xs leading-relaxed ${isFaded ? "line-through text-stone-400" : "text-stone-700"}`}>
@@ -336,15 +339,21 @@ function ChecklistItemRow({
             </div>
           )}
           <div className="flex items-center gap-1.5 flex-wrap">
-            {/* Status badge / picker */}
+            {/* Status badge / picker — picker only with checklist update permission */}
             <div className="relative">
-              <button
-                onClick={() => setShowStatusMenu((v) => !v)}
-                className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${cfg.cls}`}
-              >
-                {cfg.label}
-              </button>
-              {showStatusMenu && (
+              {canUpdateChecklist ? (
+                <button
+                  onClick={() => setShowStatusMenu((v) => !v)}
+                  className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${cfg.cls}`}
+                >
+                  {cfg.label}
+                </button>
+              ) : (
+                <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${cfg.cls}`}>
+                  {cfg.label}
+                </span>
+              )}
+              {canUpdateChecklist && showStatusMenu && (
                 <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-stone-200 rounded-lg shadow-lg py-1 min-w-28">
                   {CHECKLIST_STATUSES.map((s) => {
                     const sc = STATUS_CFG[s];
@@ -399,22 +408,29 @@ function ChecklistItemRow({
               )}
             </div>
 
-            {/* Activity chips — title + date */}
-            {item.activities.map((act) => (
-              <Link
-                key={act.id}
-                href={`/activities?date=${act.scheduledAt.slice(0, 10)}`}
-                className="text-[10px] text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded inline-flex items-center gap-1 hover:bg-sky-100 transition-colors max-w-[260px]"
-                title={`${act.title} · ${new Date(act.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`}
-              >
-                <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
-                <span className="truncate">{act.title}</span>
-                <span className="text-sky-500 flex-shrink-0">·</span>
-                <span className="text-sky-500 flex-shrink-0">
-                  {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                </span>
-              </Link>
-            ))}
+            {/* Activity chips — title + date. Done activities render struck-through. */}
+            {item.activities.map((act) => {
+              const isDone = act.status === "Done";
+              return (
+                <Link
+                  key={act.id}
+                  href={`/activities?date=${act.scheduledAt.slice(0, 10)}`}
+                  className={`text-[10px] px-1.5 py-0.5 rounded inline-flex items-center gap-1 transition-colors max-w-[260px] ${
+                    isDone
+                      ? "text-stone-400 bg-stone-50 border border-stone-200 hover:bg-stone-100 line-through"
+                      : "text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100"
+                  }`}
+                  title={`${act.title} · ${new Date(act.scheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}${isDone ? " · Done" : ""}`}
+                >
+                  <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span className="truncate">{act.title}</span>
+                  <span className={`flex-shrink-0 ${isDone ? "text-stone-400" : "text-sky-500"}`}>·</span>
+                  <span className={`flex-shrink-0 ${isDone ? "text-stone-400" : "text-sky-500"}`}>
+                    {new Date(act.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  </span>
+                </Link>
+              );
+            })}
             {/* Attachment chips */}
             {item.attachments?.map((att) => (
               <span key={att.id} className="flex items-center gap-0.5 text-[9px] text-stone-500 bg-stone-50 border border-stone-200 rounded max-w-[140px]">
@@ -453,7 +469,7 @@ function ChecklistItemRow({
             </button>
 
             {/* Voice log — only for Voice-typed items */}
-            {!isFaded && voiceState === "idle" && item.completionType === 'Voice' && (
+            {canUpdateChecklist && !isFaded && voiceState === "idle" && item.completionType === 'Voice' && (
               <button
                 onClick={startVoiceLog}
                 className="text-[9px] text-stone-400 hover:text-red-500 flex items-center gap-0.5 transition-colors"
@@ -465,7 +481,7 @@ function ChecklistItemRow({
             )}
 
             {/* Attach to mark done — only for Upload-typed items */}
-            {!isFaded && voiceState === "idle" && item.completionType === 'Upload' && (
+            {canUpdateChecklist && !isFaded && voiceState === "idle" && item.completionType === 'Upload' && (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
@@ -615,6 +631,7 @@ export default function PitstopDetail({
   currentUserId,
   currentUserName,
   currentUserRole = "member",
+  canUpdateChecklist = false,
   subscribedThreadIds: initialSubscribedThreadIds,
   preferredLang: initialPreferredLang,
 }: Props) {
@@ -1554,6 +1571,7 @@ export default function PitstopDetail({
                     pitstopId={pitstop.id}
                     isFirst={idx === 0}
                     isLast={idx === arr.length - 1}
+                    canUpdateChecklist={canUpdateChecklist}
                     onToggle={handleToggleCheck}
                     onUpdateStatus={handleUpdateItemStatus}
                     onUpdateAssignee={handleUpdateItemAssignee}

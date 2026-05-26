@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { buildRbacContext, can } from "@/lib/rbac";
 import PitstopDetail from "./PitstopDetail";
 
 export default async function PitstopPage({
@@ -111,17 +112,17 @@ export default async function PitstopPage({
     const ciMap = new Map(ciRows.map((r) => [r.id, r]));
 
     const activityRows = await prisma.$queryRaw<{
-      checklistItemId: string; id: string; title: string; scheduledAt: string;
+      checklistItemId: string; id: string; title: string; scheduledAt: string; status: string;
     }[]>`
-      SELECT "checklistItemId", id, title, "scheduledAt"::text
+      SELECT "checklistItemId", id, title, "scheduledAt"::text, status::text
       FROM "PitstopEvent"
       WHERE "checklistItemId" = ANY(${checklistIds}) AND "deletedAt" IS NULL
       ORDER BY "scheduledAt" ASC
     `;
-    const activityMap = new Map<string, { id: string; title: string; scheduledAt: string }[]>();
+    const activityMap = new Map<string, { id: string; title: string; scheduledAt: string; status: string }[]>();
     for (const r of activityRows) {
       const arr = activityMap.get(r.checklistItemId) ?? [];
-      arr.push({ id: r.id, title: r.title, scheduledAt: r.scheduledAt });
+      arr.push({ id: r.id, title: r.title, scheduledAt: r.scheduledAt, status: r.status });
       activityMap.set(r.checklistItemId, arr);
     }
 
@@ -152,6 +153,11 @@ export default async function PitstopPage({
 
   const currentUserRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
 
+  // Gates the direct checklist completion controls. Without this permission a
+  // user can still complete a checklist item via its linked activity.
+  const ctx = await buildRbacContext(session);
+  const canUpdateChecklist = ctx ? await can(ctx, "checklist_item", "update") : false;
+
   return (
     <PitstopDetail
       pitstop={JSON.parse(JSON.stringify(pitstop))}
@@ -160,6 +166,7 @@ export default async function PitstopPage({
       currentUserId={userId}
       currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
       currentUserRole={currentUserRole}
+      canUpdateChecklist={canUpdateChecklist}
       subscribedThreadIds={Array.from(subscribedThreadIds)}
       preferredLang={preferredLang}
     />

@@ -60,17 +60,42 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
           SELECT "completionType"::text FROM "ChecklistItem" WHERE id = ${current[0].checklistItemId}
         `;
         if (!ci || ci.completionType === 'Activity') {
-          await prisma.$executeRaw`
-            UPDATE "ChecklistItem"
-            SET status = 'Done'::"ChecklistItemStatus",
-                checked = TRUE,
-                "completedAt" = NOW(),
-                "completedById" = ${actorId},
-                "lastUpdatedById" = ${actorId},
-                "updatedAt" = NOW()
-            WHERE id = ${current[0].checklistItemId}
+          // Only auto-complete the parent ChecklistItem when no other activities
+          // on the same item are still pending. A checklist item may have multiple
+          // activities (e.g. "Hold 3 meetings") — completing one shouldn't close the
+          // whole row. Pending = Scheduled or Rescheduled. Cancelled/Done don't block.
+          const [{ pending }] = await prisma.$queryRaw<{ pending: bigint }[]>`
+            SELECT COUNT(*)::bigint AS pending
+            FROM "PitstopEvent"
+            WHERE "checklistItemId" = ${current[0].checklistItemId}
+              AND "deletedAt" IS NULL
+              AND id != ${eventId}
+              AND status IN ('Scheduled'::"PitstopEventStatus", 'Rescheduled'::"PitstopEventStatus")
           `;
-          await autoAdvancePitstopFromItem(current[0].checklistItemId);
+          if (Number(pending) === 0) {
+            await prisma.$executeRaw`
+              UPDATE "ChecklistItem"
+              SET status = 'Done'::"ChecklistItemStatus",
+                  checked = TRUE,
+                  "completedAt" = NOW(),
+                  "completedById" = ${actorId},
+                  "lastUpdatedById" = ${actorId},
+                  "updatedAt" = NOW()
+              WHERE id = ${current[0].checklistItemId}
+            `;
+            await autoAdvancePitstopFromItem(current[0].checklistItemId);
+          } else {
+            // Still pending siblings — keep the checklist item "InProgress" so the
+            // user can see progress, but don't close it.
+            await prisma.$executeRaw`
+              UPDATE "ChecklistItem"
+              SET status = 'InProgress'::"ChecklistItemStatus",
+                  "lastUpdatedById" = ${actorId},
+                  "updatedAt" = NOW()
+              WHERE id = ${current[0].checklistItemId}
+                AND status NOT IN ('Done'::"ChecklistItemStatus", 'Cancelled'::"ChecklistItemStatus")
+            `;
+          }
         }
       }
     } else if (status === "Cancelled") {

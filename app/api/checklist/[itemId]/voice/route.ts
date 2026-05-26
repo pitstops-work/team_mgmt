@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { uploadAudio, transcribeAudio, translateToAll } from "@/lib/voice";
 import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
+import { buildRbacContext, can } from "@/lib/rbac";
 
 export const maxDuration = 60;
 
@@ -12,6 +13,11 @@ export async function POST(
 ) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // A voice log marks the checklist item Done — requires checklist_item.update.
+  const ctx = await buildRbacContext(session);
+  if (!ctx || !(await can(ctx, "checklist_item", "update"))) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { itemId } = await params;
 

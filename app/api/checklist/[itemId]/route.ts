@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { autoAdvancePitstopFromItem } from "@/lib/autoAdvancePitstop";
 import { captureIndicatorPointsForChecklistItem, captureJourneyOutcomePointsForChecklistItem } from "@/lib/captureIndicatorPoints";
-import { viewerForbidden } from "@/lib/roleGuard";
+import { buildRbacContext, can } from "@/lib/rbac";
 import { auditLog, auditLogMany, diffAudit } from "@/lib/auditLog";
 
 const VALID_STATUSES = [
@@ -13,7 +13,13 @@ const VALID_STATUSES = [
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const veto = viewerForbidden(session); if (veto) return veto;
+  // Editing any field of a checklist item (incl. ticking it Done) requires the
+  // checklist_item.update permission. Completing the linked activity is a
+  // separate path governed by pitstop_event.update.
+  const ctx = await buildRbacContext(session);
+  if (!ctx || !(await can(ctx, "checklist_item", "update"))) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { itemId } = await params;
   const actorId = session.user.id;
@@ -104,7 +110,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const veto = viewerForbidden(session); if (veto) return veto;
+  const ctx = await buildRbacContext(session);
+  if (!ctx || !(await can(ctx, "checklist_item", "delete"))) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { itemId } = await params;
   await prisma.checklistItem.delete({ where: { id: itemId } });

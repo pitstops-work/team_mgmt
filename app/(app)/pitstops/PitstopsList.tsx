@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckSquare, X, Download } from "lucide-react";
+import { CheckSquare, X, Download, ListChecks } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge } from "@/components/StatusBadge";
 import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
 import MultiSelect from "@/components/MultiSelect";
+import PitstopQuickSheet from "./PitstopQuickSheet";
 
 type User = { id: string; name: string | null; image: string | null };
 type Goal = { id: string; title: string; needsZoneId: string | null; needsClusterId: string | null };
@@ -47,6 +48,7 @@ export default function PitstopsList({ pitstops, goals, users, initialStatus = "
   const [noDateOnly, setNoDateOnly] = useState(initialNoDate);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [quickSheetPitstop, setQuickSheetPitstop] = useState<Pitstop | null>(null);
   const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
   const [geoZones, setGeoZones] = useState<{ id: string; cityId: string | null }[]>([]);
   const [geoClusters, setGeoClusters] = useState<{ id: string; zoneId: string }[]>([]);
@@ -264,10 +266,27 @@ export default function PitstopsList({ pitstops, goals, users, initialStatus = "
                     </div>
                   </div>
                 </Link>
+                {total > 0 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setQuickSheetPitstop(p); }}
+                    title="Log work without leaving the list"
+                    className="flex items-center justify-center px-3 border-l border-stone-100 text-stone-400 hover:text-sky-600 hover:bg-sky-50 transition-colors rounded-r-xl"
+                  >
+                    <ListChecks className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
+      )}
+
+      {quickSheetPitstop && (
+        <PitstopQuickSheet
+          pitstop={quickSheetPitstop}
+          onClose={() => setQuickSheetPitstop(null)}
+          onChanged={() => router.refresh()}
+        />
       )}
     </div>
   );
