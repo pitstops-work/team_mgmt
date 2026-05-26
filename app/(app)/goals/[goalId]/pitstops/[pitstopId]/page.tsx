@@ -153,10 +153,12 @@ export default async function PitstopPage({
 
   const currentUserRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
 
-  // Gates the direct checklist completion controls. Without this permission a
-  // user can still complete a checklist item via its linked activity.
   const ctx = await buildRbacContext(session);
+  // Direct manual checklist edits (tick box, status dropdown) require this.
   const canUpdateChecklist = ctx ? await can(ctx, "checklist_item", "update") : false;
+  // Completing the linked activity (mark done / voice log / upload proof) is
+  // governed by the activity permission, which members keep.
+  const canCompleteActivity = ctx ? await can(ctx, "pitstop_event", "update") : false;
 
   return (
     <PitstopDetail
@@ -167,6 +169,7 @@ export default async function PitstopPage({
       currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
       currentUserRole={currentUserRole}
       canUpdateChecklist={canUpdateChecklist}
+      canCompleteActivity={canCompleteActivity}
       subscribedThreadIds={Array.from(subscribedThreadIds)}
       preferredLang={preferredLang}
     />

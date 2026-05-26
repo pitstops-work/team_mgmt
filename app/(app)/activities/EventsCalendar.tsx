@@ -751,7 +751,10 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editEvent, setEditEvent] = useState<PitstopEvent | null>(null);
-  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(() => {
+    const owner = searchParams.get("owner");
+    return owner ? new Set([owner]) : new Set();
+  });
   const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
   const [geoFilter, setGeoFilter] = useState<{ type: "zone" | "cluster"; id: string; name: string } | null>(null);
   const [showSubscribe, setShowSubscribe] = useState(false);

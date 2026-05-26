@@ -13,9 +13,11 @@ export async function POST(
 ) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  // A voice log marks the checklist item Done — requires checklist_item.update.
+  // A voice log completes the linked activity (its proof). Governed by
+  // pitstop_event.update — the permission to complete activities — NOT
+  // checklist_item.update, which only gates direct manual edits to the list.
   const ctx = await buildRbacContext(session);
-  if (!ctx || !(await can(ctx, "checklist_item", "update"))) {
+  if (!ctx || !(await can(ctx, "pitstop_event", "update"))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 

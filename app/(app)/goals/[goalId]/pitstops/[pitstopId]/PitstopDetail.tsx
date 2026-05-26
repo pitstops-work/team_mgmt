@@ -128,6 +128,7 @@ interface Props {
   currentUserName: string;
   currentUserRole?: string;
   canUpdateChecklist?: boolean;
+  canCompleteActivity?: boolean;
   subscribedThreadIds: string[];
   preferredLang: string;
 }
@@ -152,16 +153,18 @@ const STATUS_CFG: Record<ChecklistStatus, { label: string; cls: string }> = {
 // ── ChecklistItemRow ──────────────────────────────────────────────────────────
 
 function ChecklistItemRow({
-  item, users, pitstopId, isFirst, isLast, canUpdateChecklist,
+  item, users, pitstopId, pitstopOwnerId, isFirst, isLast, canUpdateChecklist, canCompleteActivity,
   onToggle, onUpdateStatus, onUpdateAssignee, onUpdateNotes, onDelete, onActivityCreated, onMove, onVoiceLogged, onAttachmentLogged, onAttachmentDeleted,
   bindings, indicatorValues, onIndicatorValueChange,
 }: {
   item: ChecklistItem;
   users: User[];
   pitstopId: string;
+  pitstopOwnerId: string | null;
   isFirst: boolean;
   isLast: boolean;
   canUpdateChecklist: boolean;
+  canCompleteActivity: boolean;
   onToggle: (id: string, checked: boolean) => void;
   onUpdateStatus: (id: string, status: string) => void;
   onUpdateAssignee: (id: string, assigneeId: string | null) => void;
@@ -414,7 +417,7 @@ function ChecklistItemRow({
               return (
                 <Link
                   key={act.id}
-                  href={`/activities?date=${act.scheduledAt.slice(0, 10)}`}
+                  href={`/activities?date=${act.scheduledAt.slice(0, 10)}${pitstopOwnerId ? `&owner=${pitstopOwnerId}` : ""}`}
                   className={`text-[10px] px-1.5 py-0.5 rounded inline-flex items-center gap-1 transition-colors max-w-[260px] ${
                     isDone
                       ? "text-stone-400 bg-stone-50 border border-stone-200 hover:bg-stone-100 line-through"
@@ -468,8 +471,8 @@ function ChecklistItemRow({
               + Activity
             </button>
 
-            {/* Voice log — only for Voice-typed items */}
-            {canUpdateChecklist && !isFaded && voiceState === "idle" && item.completionType === 'Voice' && (
+            {/* Voice log — completes the activity; gated by activity permission */}
+            {canCompleteActivity && !isFaded && voiceState === "idle" && item.completionType === 'Voice' && (
               <button
                 onClick={startVoiceLog}
                 className="text-[9px] text-stone-400 hover:text-red-500 flex items-center gap-0.5 transition-colors"
@@ -480,8 +483,8 @@ function ChecklistItemRow({
               </button>
             )}
 
-            {/* Attach to mark done — only for Upload-typed items */}
-            {canUpdateChecklist && !isFaded && voiceState === "idle" && item.completionType === 'Upload' && (
+            {/* Attach to mark done — completes the activity; gated by activity permission */}
+            {canCompleteActivity && !isFaded && voiceState === "idle" && item.completionType === 'Upload' && (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
@@ -632,6 +635,7 @@ export default function PitstopDetail({
   currentUserName,
   currentUserRole = "member",
   canUpdateChecklist = false,
+  canCompleteActivity = false,
   subscribedThreadIds: initialSubscribedThreadIds,
   preferredLang: initialPreferredLang,
 }: Props) {
@@ -1569,9 +1573,11 @@ export default function PitstopDetail({
                     item={item}
                     users={users}
                     pitstopId={pitstop.id}
+                    pitstopOwnerId={pitstop.ownerId ?? null}
                     isFirst={idx === 0}
                     isLast={idx === arr.length - 1}
                     canUpdateChecklist={canUpdateChecklist}
+                    canCompleteActivity={canCompleteActivity}
                     onToggle={handleToggleCheck}
                     onUpdateStatus={handleUpdateItemStatus}
                     onUpdateAssignee={handleUpdateItemAssignee}

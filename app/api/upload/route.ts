@@ -17,11 +17,12 @@ export async function POST(req: NextRequest) {
 
   if (!file) return Response.json({ error: "No file provided" }, { status: 400 });
 
-  // Attaching a file to a checklist item (and closing Upload-typed items)
-  // mutates the checklist — require checklist_item.update for that path.
+  // Uploading proof closes the linked activity (for Upload-typed items), so it
+  // is gated by pitstop_event.update — the permission to complete activities —
+  // not checklist_item.update, which only gates direct manual edits to the list.
   if (checklistItemId) {
     const ctx = await buildRbacContext(session);
-    if (!ctx || !(await can(ctx, "checklist_item", "update"))) {
+    if (!ctx || !(await can(ctx, "pitstop_event", "update"))) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
   }
