@@ -81,10 +81,12 @@ const DESKTOP_ZOOMS: Zoom[] = ["2m", "3m", "6m", "1y"];
 
 const ROW_H = 36;
 
-export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
+export default function GanttChart({ goals: initialGoals, checklistUpdatablePitstopIds = [] }: { goals: Goal[]; checklistUpdatablePitstopIds?: string[] }) {
   const [goals, setGoals] = useState(initialGoals);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [panel, setPanel] = useState<{ pitstop: Pitstop; goal: Goal } | null>(null);
+  // Pitstops whose checklist this user may tick (scope = own/team/all).
+  const canUpdateChecklistFor = (pitstopId: string) => checklistUpdatablePitstopIds.includes(pitstopId);
   const [labelW, setLabelW] = useState(220);
   const [isMobile, setIsMobile] = useState(false);
   const [geoFilter, setGeoFilter] = useState<GeoFilterValue>({ cityId: "", zoneId: "", clusterId: "" });
@@ -149,6 +151,7 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
 
   const handlePanelToggle = async (itemId: string, checked: boolean) => {
     if (!panel) return;
+    if (!canUpdateChecklistFor(panel.pitstop.id)) return;
     const targetItem = panel.pitstop.checklistItems.find((i) => i.id === itemId);
     if (!confirmManualChecklistTick(targetItem?.completionType, checked)) return;
     const pitstopId = panel.pitstop.id;
@@ -478,19 +481,23 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
                       );
                     })()}
                     <div className="space-y-2">
-                      {panel.pitstop.checklistItems.map((item) => (
-                        <label key={item.id} className="flex items-start gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={item.checked}
-                            onChange={(e) => handlePanelToggle(item.id, e.target.checked)}
-                            className="mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0"
-                          />
-                          <span className={`text-xs leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>
-                            {item.text}
-                          </span>
-                        </label>
-                      ))}
+                      {(() => {
+                        const panelCanUpdate = canUpdateChecklistFor(panel.pitstop.id);
+                        return panel.pitstop.checklistItems.map((item) => (
+                          <label key={item.id} className={`flex items-start gap-2 ${panelCanUpdate ? "cursor-pointer" : "cursor-not-allowed"}`}>
+                            <input
+                              type="checkbox"
+                              checked={item.checked}
+                              disabled={!panelCanUpdate}
+                              onChange={(e) => handlePanelToggle(item.id, e.target.checked)}
+                              className={`mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 flex-shrink-0 ${panelCanUpdate ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                            />
+                            <span className={`text-xs leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>
+                              {item.text}
+                            </span>
+                          </label>
+                        ));
+                      })()}
                     </div>
                   </>
                 )}
@@ -549,13 +556,16 @@ export default function GanttChart({ goals: initialGoals }: { goals: Goal[] }) {
                     );
                   })()}
                   <div className="space-y-3">
-                    {panel.pitstop.checklistItems.map((item) => (
-                      <label key={item.id} className="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" checked={item.checked} onChange={(e) => handlePanelToggle(item.id, e.target.checked)}
-                          className="mt-0.5 w-4 h-4 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer flex-shrink-0" />
-                        <span className={`text-sm leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>{item.text}</span>
-                      </label>
-                    ))}
+                    {(() => {
+                      const panelCanUpdate = canUpdateChecklistFor(panel.pitstop.id);
+                      return panel.pitstop.checklistItems.map((item) => (
+                        <label key={item.id} className={`flex items-start gap-3 ${panelCanUpdate ? "cursor-pointer" : "cursor-not-allowed"}`}>
+                          <input type="checkbox" checked={item.checked} disabled={!panelCanUpdate} onChange={(e) => handlePanelToggle(item.id, e.target.checked)}
+                            className={`mt-0.5 w-4 h-4 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 flex-shrink-0 ${panelCanUpdate ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`} />
+                          <span className={`text-sm leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>{item.text}</span>
+                        </label>
+                      ));
+                    })()}
                   </div>
                 </>
               )}

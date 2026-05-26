@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { buildRbacContext, can } from "@/lib/rbac";
+import { buildRbacContext, can, checklistUpdatablePitstopIds } from "@/lib/rbac";
 import PitstopDetail from "./PitstopDetail";
 
 export default async function PitstopPage({
@@ -154,8 +154,9 @@ export default async function PitstopPage({
   const currentUserRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
 
   const ctx = await buildRbacContext(session);
-  // Direct manual checklist edits (tick box, status dropdown) require this.
-  const canUpdateChecklist = ctx ? await can(ctx, "checklist_item", "update") : false;
+  // Direct manual checklist edits (tick box, status dropdown) require
+  // checklist_item.update, scoped to the parent pitstop (own/team/all).
+  const canUpdateChecklist = (await checklistUpdatablePitstopIds(ctx, [pitstop.id])).has(pitstop.id);
   // Completing the linked activity (mark done / voice log / upload proof) is
   // governed by the activity permission, which members keep.
   const canCompleteActivity = ctx ? await can(ctx, "pitstop_event", "update") : false;

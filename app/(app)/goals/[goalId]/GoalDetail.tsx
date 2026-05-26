@@ -14,8 +14,8 @@ import PitstopTypeBadge from "@/components/PitstopTypeBadge";
 import CreatePitstopModal from "./CreatePitstopModal";
 import EditGoalModal from "./EditGoalModal";
 import { getTimelineInfo, timelineChip, timelineNodeBorder, fmtDate, getPitstopHealth, HEALTH_DOT } from "@/lib/timeline";
-import { confirmManualChecklistTick } from "@/lib/checklistGate";
 import OwnerPicker from "@/components/OwnerPicker";
+import ChecklistCompletionList from "@/components/ChecklistCompletionList";
 import { qk } from "@/lib/query-keys";
 import { fetchGoal } from "@/lib/api-client";
 import MetricsSection from "./MetricsSection";
@@ -79,17 +79,22 @@ export default function GoalDetail({
   users,
   currentUserId,
   currentUserRole = "member",
-  canUpdateChecklist = false,
+  checklistUpdatablePitstopIds = [],
+  canCompleteActivity = false,
   isFollowing: initialIsFollowing,
 }: {
   goal: Goal;
   users: User[];
   currentUserId: string;
   currentUserRole?: string;
-  canUpdateChecklist?: boolean;
+  checklistUpdatablePitstopIds?: string[];
+  canCompleteActivity?: boolean;
   isFollowing: boolean;
 }) {
   const isAdmin = currentUserRole === "admin" || currentUserRole === "super-admin";
+  // Pitstops whose checklist this user may tick (scope = own/team/all). Drives
+  // the Route Map drill-down panel; mirrors the full pitstop page gate.
+  const canUpdateChecklistFor = (pitstopId: string) => checklistUpdatablePitstopIds.includes(pitstopId);
   const [showCreatePitstop, setShowCreatePitstop] = useState(false);
   const [showEditGoal, setShowEditGoal] = useState(false);
   const [deletingGoal, setDeletingGoal] = useState(false);
@@ -256,44 +261,6 @@ export default function GoalDetail({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderedIds: withNewOrder.map((p) => p.id) }),
     });
-  };
-
-  const handlePanelCheckToggle = async (pitstopId: string, itemId: string, checked: boolean) => {
-    if (!canUpdateChecklist) return;
-    const targetItem = goal!.pitstops.find((p) => p.id === pitstopId)?.checklistItems.find((i) => i.id === itemId);
-    if (!confirmManualChecklistTick(targetItem?.completionType, checked)) return;
-    updateGoal((g) => {
-      const pitstops = g.pitstops.map((p) => {
-        if (p.id !== pitstopId) return p;
-        const newItems = p.checklistItems.map((i) => i.id === itemId ? { ...i, checked } : i);
-        // Auto-derive status
-        const allChecked = newItems.every((i) => i.checked);
-        const anyChecked = newItems.some((i) => i.checked);
-        const derived = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
-        return { ...p, checklistItems: newItems, status: newItems.length > 0 ? derived : p.status };
-      });
-      return { ...g, pitstops };
-    });
-    const pitstop = goal!.pitstops.find((p) => p.id === pitstopId)!;
-    const newItems = pitstop.checklistItems.map((i) => i.id === itemId ? { ...i, checked } : i);
-    const allChecked = newItems.every((i) => i.checked);
-    const anyChecked = newItems.some((i) => i.checked);
-    const derived = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
-    const calls: Promise<Response>[] = [
-      fetch(`/api/checklist/${itemId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checked }),
-      }),
-    ];
-    if (newItems.length > 0 && derived !== pitstop.status) {
-      calls.push(fetch(`/api/pitstops/${pitstopId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: derived }),
-      }));
-    }
-    await Promise.all(calls);
   };
 
   const panelPitstop = panelPitstopId ? sortedPitstops.find((p) => p.id === panelPitstopId) ?? null : null;
@@ -613,43 +580,13 @@ export default function GoalDetail({
             </button>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-3">
-            {panelPitstop.checklistItems.length === 0 ? (
-              <p className="text-xs text-stone-400">No checklist items.</p>
-            ) : (
-              <>
-                {(() => {
-                  const done = panelPitstop.checklistItems.filter((i) => i.checked).length;
-                  const total = panelPitstop.checklistItems.length;
-                  return (
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
-                        <span className="flex items-center gap-1"><CheckSquare className="w-3.5 h-3.5" />{done}/{total}</span>
-                        <span>{Math.round((done / total) * 100)}%</span>
-                      </div>
-                      <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((done / total) * 100)}%` }} />
-                      </div>
-                    </div>
-                  );
-                })()}
-                <div className="space-y-2">
-                  {panelPitstop.checklistItems.map((item) => (
-                    <label key={item.id} className={`flex items-start gap-2 group ${canUpdateChecklist ? "cursor-pointer" : "cursor-not-allowed"}`}>
-                      <input
-                        type="checkbox"
-                        checked={item.checked}
-                        disabled={!canUpdateChecklist}
-                        onChange={(e) => handlePanelCheckToggle(panelPitstop.id, item.id, e.target.checked)}
-                        className={`mt-0.5 w-3.5 h-3.5 rounded border-stone-300 text-emerald-500 focus:ring-emerald-400 flex-shrink-0 ${canUpdateChecklist ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-                      />
-                      <span className={`text-xs leading-relaxed ${item.checked ? "line-through text-stone-400" : "text-stone-700"}`}>
-                        {item.text}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </>
-            )}
+            <ChecklistCompletionList
+              pitstopId={panelPitstop.id}
+              canUpdateChecklist={canUpdateChecklistFor(panelPitstop.id)}
+              canCompleteActivity={canCompleteActivity}
+              showProgress
+              onChanged={() => router.refresh()}
+            />
           </div>
           <div className="px-4 py-3 border-t border-stone-100">
             <Link

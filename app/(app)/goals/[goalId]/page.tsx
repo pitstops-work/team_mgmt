@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { buildRbacContext, can } from "@/lib/rbac";
+import { buildRbacContext, can, checklistUpdatablePitstopIds } from "@/lib/rbac";
 import GoalDetail from "./GoalDetail";
 
 export default async function GoalPage({ params }: { params: Promise<{ goalId: string }> }) {
@@ -42,9 +42,13 @@ export default async function GoalPage({ params }: { params: Promise<{ goalId: s
   const currentUserRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
 
   // Manual checklist ticks (incl. from the Route Map drill-down panel) require
-  // the checklist_item.update permission — mirror the full pitstop page gate.
+  // checklist_item.update, scoped to the parent pitstop (own/team/all). Resolve
+  // the gate per pitstop so the panel matches the full pitstop page exactly.
   const ctx = await buildRbacContext(session);
-  const canUpdateChecklist = ctx ? await can(ctx, "checklist_item", "update") : false;
+  const updatable = await checklistUpdatablePitstopIds(ctx, goal.pitstops.map((p) => p.id));
+  // Completing a linked activity (mark done / voice log / upload proof) is gated
+  // on pitstop_event.update — a flat check, matching the full pitstop page.
+  const canCompleteActivity = ctx ? await can(ctx, "pitstop_event", "update") : false;
 
   return (
     <GoalDetail
@@ -52,7 +56,8 @@ export default async function GoalPage({ params }: { params: Promise<{ goalId: s
       users={JSON.parse(JSON.stringify(users))}
       currentUserId={session!.user!.id!}
       currentUserRole={currentUserRole}
-      canUpdateChecklist={canUpdateChecklist}
+      checklistUpdatablePitstopIds={Array.from(updatable)}
+      canCompleteActivity={canCompleteActivity}
       isFollowing={isFollowing}
     />
   );

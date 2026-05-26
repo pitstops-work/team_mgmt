@@ -18,6 +18,20 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pit
       },
     },
   });
+
+  // completionType is an enum column Prisma's Lambda cache can silently drop;
+  // read it via raw SQL (same pattern as the pitstop detail page) and merge in.
+  const ids = items.map((i) => i.id);
+  if (ids.length > 0) {
+    const ctRows = await prisma.$queryRaw<{ id: string; completionType: string }[]>`
+      SELECT id, "completionType"::text FROM "ChecklistItem" WHERE id = ANY(${ids})
+    `;
+    const ctMap = new Map(ctRows.map((r) => [r.id, r.completionType]));
+    for (const it of items) {
+      (it as Record<string, unknown>).completionType = ctMap.get(it.id) ?? "Activity";
+    }
+  }
+
   return Response.json(items);
 }
 

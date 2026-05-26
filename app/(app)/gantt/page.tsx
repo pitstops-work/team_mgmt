@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { buildRbacContext, checklistUpdatablePitstopIds } from "@/lib/rbac";
 import GanttChart from "./GanttChart";
 
 export default async function GanttPage() {
@@ -51,5 +52,15 @@ export default async function GanttPage() {
     orderBy: { createdAt: "asc" },
   });
 
-  return <GanttChart goals={JSON.parse(JSON.stringify(goals))} />;
+  // Manual checklist ticks in the drill-down panel require checklist_item.update,
+  // scoped to the parent pitstop. Resolve the gate per pitstop for the panel.
+  const ctx = await buildRbacContext(session);
+  const updatable = await checklistUpdatablePitstopIds(ctx, goals.flatMap((g) => g.pitstops.map((p) => p.id)));
+
+  return (
+    <GanttChart
+      goals={JSON.parse(JSON.stringify(goals))}
+      checklistUpdatablePitstopIds={Array.from(updatable)}
+    />
+  );
 }

@@ -56,27 +56,31 @@ type ScopeRule = { kind: string; [k: string]: unknown };
 
 type RolePermissionsCache = Map<string, ScopeRule>; // "resource.action" → rule
 
-const ROLE_PERMS_CACHE = new Map<string, Promise<RolePermissionsCache>>();
+// Per-process cache. invalidateRbacCache() clears it on admin edits, but that
+// only reaches the one instance that served the request — other warm instances
+// keep stale perms. The TTL bounds that staleness without cross-instance coord.
+const ROLE_PERMS_TTL_MS = 60_000;
+const ROLE_PERMS_CACHE = new Map<string, { value: Promise<RolePermissionsCache>; expires: number }>();
 
 async function getRolePermissions(roleName: string): Promise<RolePermissionsCache> {
-  let entry = ROLE_PERMS_CACHE.get(roleName);
-  if (!entry) {
-    entry = (async () => {
-      const role = await prisma.role.findUnique({
-        where: { name: roleName },
-        include: { permissions: { include: { permission: true } } },
-      });
-      const map: RolePermissionsCache = new Map();
-      if (role) {
-        for (const rp of role.permissions) {
-          map.set(`${rp.permission.resource}.${rp.permission.action}`, rp.scopeRule as ScopeRule);
-        }
+  const cached = ROLE_PERMS_CACHE.get(roleName);
+  if (cached && cached.expires > Date.now()) return cached.value;
+
+  const value = (async () => {
+    const role = await prisma.role.findUnique({
+      where: { name: roleName },
+      include: { permissions: { include: { permission: true } } },
+    });
+    const map: RolePermissionsCache = new Map();
+    if (role) {
+      for (const rp of role.permissions) {
+        map.set(`${rp.permission.resource}.${rp.permission.action}`, rp.scopeRule as ScopeRule);
       }
-      return map;
-    })();
-    ROLE_PERMS_CACHE.set(roleName, entry);
-  }
-  return entry;
+    }
+    return map;
+  })();
+  ROLE_PERMS_CACHE.set(roleName, { value, expires: Date.now() + ROLE_PERMS_TTL_MS });
+  return value;
 }
 
 /** Wipe the in-process cache. Call after seeding or admin-UI edits. */
@@ -223,6 +227,32 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
       default: throw scopeUnsupported("pitstop_event", rule.kind);
     }
   },
+  // ChecklistItem inherits its scope from the parent Pitstop (owner / co-owners),
+  // mirroring the `pitstop` builder but nested through the `pitstop` relation.
+  checklist_item: ({ rule, ctx, teamIds }) => {
+    switch (rule.kind) {
+      case "all":  return {};
+      case "own":
+        return {
+          pitstop: {
+            OR: [
+              { ownerId: ctx.userId },
+              { coOwners: { some: { userId: ctx.userId } } },
+            ],
+          },
+        };
+      case "team":
+        return {
+          pitstop: {
+            OR: [
+              { ownerId: { in: teamIds } },
+              { coOwners: { some: { userId: { in: teamIds } } } },
+            ],
+          },
+        };
+      default: throw scopeUnsupported("checklist_item", rule.kind);
+    }
+  },
   programme_journey: ({ rule, ctx }) => {
     // Journey is settlement-scoped; settlement carries cityId directly.
     switch (rule.kind) {
@@ -307,4 +337,51 @@ export async function scopeWhere(
   const teamIds = needsTeam ? await getTeamIds(ctx.userId) : [];
 
   return builder({ rule, ctx, teamIds });
+}
+
+// ── ChecklistItem helpers ────────────────────────────────────────────────────
+
+/**
+ * Authoritative per-record gate for the checklist write routes. Resolves the
+ * caller's scope for `checklist_item.<action>` and confirms `itemId` falls in
+ * it. `false` when the role lacks the permission entirely or the item is out
+ * of scope (also covers a missing item — don't leak existence).
+ */
+export async function checklistItemInScope(
+  ctx: RbacContext | null,
+  itemId: string,
+  action: string,
+): Promise<boolean> {
+  if (!ctx) return false;
+  const scope = await scopeWhere(ctx, "checklist_item", action);
+  if (scope === null) return false;                 // no permission at all
+  if (Object.keys(scope).length === 0) return true; // scope = all
+  const hit = await prisma.checklistItem.findFirst({
+    where: { id: itemId, ...scope },
+    select: { id: true },
+  });
+  return hit !== null;
+}
+
+/**
+ * Of `pitstopIds`, which ones may the caller update checklist items on? The
+ * checklist_item scope is pitstop-derived, so the answer is uniform across a
+ * pitstop's items — letting the UI gate per pitstop with one query. Returns a
+ * Set for O(1) membership checks. The route remains the authoritative gate.
+ */
+export async function checklistUpdatablePitstopIds(
+  ctx: RbacContext | null,
+  pitstopIds: string[],
+): Promise<Set<string>> {
+  if (!ctx || pitstopIds.length === 0) return new Set();
+  const scope = await scopeWhere(ctx, "checklist_item", "update");
+  if (scope === null) return new Set();                            // no permission
+  if (Object.keys(scope).length === 0) return new Set(pitstopIds); // scope = all
+  const inner = (scope as { pitstop?: WhereFragment }).pitstop;
+  if (!inner) return new Set();                                    // non-pitstop scope → defer to server gate
+  const rows = await prisma.pitstop.findMany({
+    where: { id: { in: pitstopIds }, ...inner },
+    select: { id: true },
+  });
+  return new Set(rows.map((r) => r.id));
 }
