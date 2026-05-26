@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { buildRbacContext, can } from "@/lib/rbac";
 import GoalDetail from "./GoalDetail";
 
 export default async function GoalPage({ params }: { params: Promise<{ goalId: string }> }) {
@@ -40,12 +41,18 @@ export default async function GoalPage({ params }: { params: Promise<{ goalId: s
   const isFollowing = goal.followers.some((f) => f.userId === session!.user!.id);
   const currentUserRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
 
+  // Manual checklist ticks (incl. from the Route Map drill-down panel) require
+  // the checklist_item.update permission — mirror the full pitstop page gate.
+  const ctx = await buildRbacContext(session);
+  const canUpdateChecklist = ctx ? await can(ctx, "checklist_item", "update") : false;
+
   return (
     <GoalDetail
       goal={JSON.parse(JSON.stringify(goal))}
       users={JSON.parse(JSON.stringify(users))}
       currentUserId={session!.user!.id!}
       currentUserRole={currentUserRole}
+      canUpdateChecklist={canUpdateChecklist}
       isFollowing={isFollowing}
     />
   );

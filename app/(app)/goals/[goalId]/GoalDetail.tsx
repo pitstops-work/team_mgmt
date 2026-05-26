@@ -79,12 +79,14 @@ export default function GoalDetail({
   users,
   currentUserId,
   currentUserRole = "member",
+  canUpdateChecklist = false,
   isFollowing: initialIsFollowing,
 }: {
   goal: Goal;
   users: User[];
   currentUserId: string;
   currentUserRole?: string;
+  canUpdateChecklist?: boolean;
   isFollowing: boolean;
 }) {
   const isAdmin = currentUserRole === "admin" || currentUserRole === "super-admin";
@@ -257,6 +259,7 @@ export default function GoalDetail({
   };
 
   const handlePanelCheckToggle = async (pitstopId: string, itemId: string, checked: boolean) => {
+    if (!canUpdateChecklist) return;
     const targetItem = goal!.pitstops.find((p) => p.id === pitstopId)?.checklistItems.find((i) => i.id === itemId);
     if (!confirmManualChecklistTick(targetItem?.completionType, checked)) return;
     updateGoal((g) => {
