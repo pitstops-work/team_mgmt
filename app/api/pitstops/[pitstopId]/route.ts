@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { viewerForbidden } from "@/lib/roleGuard";
 import { auditLog } from "@/lib/auditLog";
+import { snapToWeekday } from "@/lib/scheduleActivities";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pitstopId: string }> }) {
   const session = await auth();
@@ -153,10 +154,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     const DAYS: Record<string, number> = { Weekly: 7, Monthly: 30, Quarterly: 91 };
     const shift = DAYS[recurrence] ?? 0;
     if (shift > 0 && existing?.startDate && existing?.targetDate) {
-      const newStart = new Date(existing.startDate);
-      newStart.setDate(newStart.getDate() + shift);
-      const newTarget = new Date(existing.targetDate);
-      newTarget.setDate(newTarget.getDate() + shift);
+      const rawNewStart = new Date(existing.startDate);
+      rawNewStart.setDate(rawNewStart.getDate() + shift);
+      const rawNewTarget = new Date(existing.targetDate);
+      rawNewTarget.setDate(rawNewTarget.getDate() + shift);
+      // Skip weekends on derived dates — recurring clones land on next Mon if shift lands on Sat/Sun.
+      const newStart  = snapToWeekday(rawNewStart);
+      const newTarget = snapToWeekday(rawNewTarget);
 
       const sibling = await prisma.pitstop.findFirst({
         where: { goalId: existing.goalId, deletedAt: null },
@@ -166,7 +170,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
 
       const cloneData = await prisma.pitstop.findUnique({
         where: { id: pitstopId },
-        select: { title: true, type: true, customType: true, notes: true, ownerId: true, ownerInherited: true, goalId: true },
+        select: { title: true, type: true, customType: true, notes: true, ownerId: true, ownerInherited: true, goalId: true, templateSlug: true, templateKey: true },
       });
 
       if (cloneData) {
@@ -181,7 +185,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
           },
         });
 
-        // Clone checklist items (unchecked)
+        // Clone checklist items (unchecked). Carry forward template identity
+        // so sync still recognises the new instance's items as template-owned.
         const items = await prisma.checklistItem.findMany({
           where: { pitstopId },
           orderBy: { order: "asc" },
@@ -193,6 +198,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
               text: item.text,
               order: item.order,
               checked: false,
+              key: item.key,
+              templateSlug: item.templateSlug,
+              completionType: item.completionType,
             })),
           });
         }

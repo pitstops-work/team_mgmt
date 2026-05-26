@@ -8,6 +8,7 @@ import {
   getWorkingDays,
   nearestWorkingDay,
   distributeAcrossDays,
+  snapToWeekday,
   pitstopTypeToEventType,
 } from "@/lib/scheduleActivities";
 import { auditLog } from "@/lib/auditLog";
@@ -121,17 +122,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       allInstances.push({
         pt,
         title: repeatCount > 1 ? `${pt.title} (${instanceLabel(pt.recurrence!, i)})` : pt.title,
-        pitstopStart,
-        pitstopTarget,
+        pitstopStart: snapToWeekday(pitstopStart),
+        pitstopTarget: snapToWeekday(pitstopTarget),
       });
     }
   }
 
-  const resolvedTargetDate = targetDate
-    ? new Date(targetDate)
-    : allInstances.length > 0
-      ? allInstances.reduce((max, inst) => inst.pitstopTarget > max ? inst.pitstopTarget : max, allInstances[0].pitstopTarget)
-      : (() => { const d = new Date(goalStart); d.setDate(d.getDate() + 365); return d; })();
+  const resolvedTargetDate = snapToWeekday(
+    targetDate
+      ? new Date(targetDate)
+      : allInstances.length > 0
+        ? allInstances.reduce((max, inst) => inst.pitstopTarget > max ? inst.pitstopTarget : max, allInstances[0].pitstopTarget)
+        : (() => { const d = new Date(goalStart); d.setDate(d.getDate() + 365); return d; })()
+  );
 
   const validTypes = [
     "Meeting", "Training", "SiteVisit", "Discussion",

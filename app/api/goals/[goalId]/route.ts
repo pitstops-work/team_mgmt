@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { viewerForbidden } from "@/lib/roleGuard";
 import { auditLog, auditLogMany, diffAudit } from "@/lib/auditLog";
+import { snapToWeekday } from "@/lib/scheduleActivities";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
@@ -81,7 +82,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
     : 0;
   const goalTargetAutoShift =
     cascadeDeltaMs !== 0 && startChanged && !targetChanged && oldTarget
-      ? new Date(oldTarget.getTime() + cascadeDeltaMs)
+      ? snapToWeekday(new Date(oldTarget.getTime() + cascadeDeltaMs))
       : null;
 
   // The modal always sends targetDate in the body. If the user only moved the start,
@@ -138,8 +139,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
           prisma.pitstop.update({
             where: { id: p.id },
             data: {
-              startDate:  p.startDate  ? new Date(p.startDate.getTime()  + cascadeDeltaMs) : undefined,
-              targetDate: p.targetDate ? new Date(p.targetDate.getTime() + cascadeDeltaMs) : undefined,
+              // Snap shifted dates to weekdays — never let cascade produce a Sat/Sun deadline.
+              startDate:  p.startDate  ? snapToWeekday(new Date(p.startDate.getTime()  + cascadeDeltaMs)) : undefined,
+              targetDate: p.targetDate ? snapToWeekday(new Date(p.targetDate.getTime() + cascadeDeltaMs)) : undefined,
             },
           }),
         ),
@@ -147,8 +149,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
           prisma.pitstopEvent.update({
             where: { id: e.id },
             data: {
-              scheduledAt: new Date(e.scheduledAt.getTime() + cascadeDeltaMs),
-              endsAt: e.endsAt ? new Date(e.endsAt.getTime() + cascadeDeltaMs) : undefined,
+              scheduledAt: snapToWeekday(new Date(e.scheduledAt.getTime() + cascadeDeltaMs)),
+              endsAt: e.endsAt ? snapToWeekday(new Date(e.endsAt.getTime() + cascadeDeltaMs)) : undefined,
             },
           }),
         ),

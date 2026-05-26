@@ -63,6 +63,19 @@ export function getWorkingDays(
   return days;
 }
 
+// Simple weekend skip — moves Sat → Mon, Sun → Mon, weekday unchanged.
+// Use for derived dates (template apply, recurring clone, cascade shifts) where we
+// want to guarantee no Sat/Sun deadlines but don't have full city/travel-week
+// schedule context loaded. For city-aware blocking use nearestWorkingDay.
+export function snapToWeekday<T extends Date | null | undefined>(date: T): T {
+  if (!date) return date;
+  const d = new Date(date);
+  const dow = d.getDay(); // 0 = Sun, 6 = Sat
+  if (dow === 6) d.setDate(d.getDate() + 2);
+  else if (dow === 0) d.setDate(d.getDate() + 1);
+  return d as T;
+}
+
 // Nearest working day at or after `date` (skips weekends + blocked days).
 // Used as fallback when SLA window has no working days.
 export function nearestWorkingDay(
