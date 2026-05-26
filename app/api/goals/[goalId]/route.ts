@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { viewerForbidden } from "@/lib/roleGuard";
 import { auditLog, auditLogMany, diffAudit } from "@/lib/auditLog";
-import { snapToWeekday } from "@/lib/scheduleActivities";
+import { snapToWeekday, dayDeltaUTC, addDaysUTC } from "@/lib/scheduleActivities";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
@@ -66,6 +66,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
 
   // ── Cascade pre-compute: figure out the delta to shift pitstops/activities by ──
   // delta = (new start - old start) if start changed; else (new target - old target).
+  // Computed in WHOLE UTC DAYS — not raw ms — because stored dates often carry a
+  // creation-time-of-day stamp (e.g. 12:43:55Z) while the modal sends "YYYY-MM-DD"
+  // which Node parses as UTC midnight. Comparing in ms would treat that as a
+  // "changed" date (delta ±X hours) and either suppress the goal-target auto-shift
+  // (bug #2) or shift pitstops by partial days that snapToWeekday then nudges
+  // across midnight unpredictably (bug #1 — "random dates").
+  //
   // If only start was edited, also slide goal.targetDate by the same delta to keep
   // the goal endpoints aligned (and honor the goal.targetDate >= MAX(pitstop.targetDate)
   // invariant noted in memory).
@@ -73,16 +80,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
   const oldTarget = existing?.targetDate ?? null;
   const newStart  = data.startDate  ? new Date(data.startDate)  : oldStart;
   const newTarget = data.targetDate ? new Date(data.targetDate) : oldTarget;
-  const startDelta  = oldStart  && newStart  ? newStart.getTime()  - oldStart.getTime()  : 0;
-  const targetDelta = oldTarget && newTarget ? newTarget.getTime() - oldTarget.getTime() : 0;
-  const startChanged  = startDelta  !== 0;
-  const targetChanged = targetDelta !== 0;
-  const cascadeDeltaMs = data.cascadeDates && (startChanged || targetChanged)
-    ? (startChanged ? startDelta : targetDelta)
+  const startDeltaDays  = oldStart  && newStart  ? dayDeltaUTC(oldStart,  newStart)  : 0;
+  const targetDeltaDays = oldTarget && newTarget ? dayDeltaUTC(oldTarget, newTarget) : 0;
+  const startChanged  = startDeltaDays  !== 0;
+  const targetChanged = targetDeltaDays !== 0;
+  const cascadeDeltaDays = data.cascadeDates && (startChanged || targetChanged)
+    ? (startChanged ? startDeltaDays : targetDeltaDays)
     : 0;
   const goalTargetAutoShift =
-    cascadeDeltaMs !== 0 && startChanged && !targetChanged && oldTarget
-      ? snapToWeekday(new Date(oldTarget.getTime() + cascadeDeltaMs))
+    cascadeDeltaDays !== 0 && startChanged && !targetChanged && oldTarget
+      ? snapToWeekday(addDaysUTC(oldTarget, cascadeDeltaDays))
       : null;
 
   // The modal always sends targetDate in the body. If the user only moved the start,
@@ -112,7 +119,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
   });
 
   // ── Cascade: shift incomplete pitstops and scheduled activities by delta ──
-  if (cascadeDeltaMs !== 0) {
+  if (cascadeDeltaDays !== 0) {
     const incompletePitstops = await prisma.pitstop.findMany({
       where: { goalId, deletedAt: null, status: { not: "Done" } },
       select: { id: true, startDate: true, targetDate: true },
@@ -140,8 +147,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
             where: { id: p.id },
             data: {
               // Snap shifted dates to weekdays — never let cascade produce a Sat/Sun deadline.
-              startDate:  p.startDate  ? snapToWeekday(new Date(p.startDate.getTime()  + cascadeDeltaMs)) : undefined,
-              targetDate: p.targetDate ? snapToWeekday(new Date(p.targetDate.getTime() + cascadeDeltaMs)) : undefined,
+              startDate:  p.startDate  ? snapToWeekday(addDaysUTC(p.startDate,  cascadeDeltaDays)) : undefined,
+              targetDate: p.targetDate ? snapToWeekday(addDaysUTC(p.targetDate, cascadeDeltaDays)) : undefined,
             },
           }),
         ),
@@ -149,15 +156,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
           prisma.pitstopEvent.update({
             where: { id: e.id },
             data: {
-              scheduledAt: snapToWeekday(new Date(e.scheduledAt.getTime() + cascadeDeltaMs)),
-              endsAt: e.endsAt ? snapToWeekday(new Date(e.endsAt.getTime() + cascadeDeltaMs)) : undefined,
+              scheduledAt: snapToWeekday(addDaysUTC(e.scheduledAt, cascadeDeltaDays)),
+              endsAt: e.endsAt ? snapToWeekday(addDaysUTC(e.endsAt, cascadeDeltaDays)) : undefined,
             },
           }),
         ),
       ]);
     }
 
-    const deltaDays = Math.round(cascadeDeltaMs / 86400000);
     auditLog({
       entityType: "Goal",
       entityId: goalId,
@@ -165,7 +171,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ go
       action: "cascade_dates",
       field: startChanged ? "startDate" : "targetDate",
       oldValue: null,
-      newValue: `${deltaDays > 0 ? "+" : ""}${deltaDays}d shifted ${incompletePitstops.length} pitstops + ${scheduledEvents.length} activities`,
+      newValue: `${cascadeDeltaDays > 0 ? "+" : ""}${cascadeDeltaDays}d shifted ${incompletePitstops.length} pitstops + ${scheduledEvents.length} activities`,
     });
   }
 

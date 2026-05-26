@@ -67,13 +67,36 @@ export function getWorkingDays(
 // Use for derived dates (template apply, recurring clone, cascade shifts) where we
 // want to guarantee no Sat/Sun deadlines but don't have full city/travel-week
 // schedule context loaded. For city-aware blocking use nearestWorkingDay.
+//
+// Uses UTC methods so that dates stored with a creation-time stamp (e.g.
+// 12:43:55Z) behave the same as clean UTC-midnight dates. Mixing local-time
+// getDay() with UTC-stored dates was causing the cascade to nudge pitstops
+// across midnight unpredictably.
 export function snapToWeekday<T extends Date | null | undefined>(date: T): T {
   if (!date) return date;
   const d = new Date(date);
-  const dow = d.getDay(); // 0 = Sun, 6 = Sat
-  if (dow === 6) d.setDate(d.getDate() + 2);
-  else if (dow === 0) d.setDate(d.getDate() + 1);
+  const dow = d.getUTCDay(); // 0 = Sun, 6 = Sat
+  if (dow === 6) d.setUTCDate(d.getUTCDate() + 2);
+  else if (dow === 0) d.setUTCDate(d.getUTCDate() + 1);
   return d as T;
+}
+
+// Whole-UTC-day delta between two dates. Strips time-of-day so that a stored
+// "2026-07-23T12:43:55Z" compared to user-entered "2026-07-23" (parsed as
+// 2026-07-23T00:00:00Z) is 0, not -12.7 hours.
+export function dayDeltaUTC(from: Date, to: Date): number {
+  const fromMid = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate());
+  const toMid   = Date.UTC(to.getUTCFullYear(),   to.getUTCMonth(),   to.getUTCDate());
+  return Math.round((toMid - fromMid) / 86400000);
+}
+
+// Shift a date by N whole days (UTC). Preserves the original time-of-day stamp
+// so existing dirty rows with non-midnight times don't get their time component
+// dropped or doubled.
+export function addDaysUTC(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
 }
 
 // Nearest working day at or after `date` (skips weekends + blocked days).
