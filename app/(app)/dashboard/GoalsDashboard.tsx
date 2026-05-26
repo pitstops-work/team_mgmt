@@ -1172,8 +1172,12 @@ function DrillDownPanel({
           <div className="flex items-center gap-3 mb-3">
             <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-semibold ${colors.pill}`}>{drill.tag}</span>
             <span className="text-xs text-stone-400">{filtered.length} pitstop{filtered.length !== 1 ? "s" : ""}</span>
-            <button onClick={onClose} className="ml-auto p-1 text-stone-400 hover:text-stone-700 transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            <button
+              onClick={onClose}
+              aria-label="Close panel"
+              className="ml-auto p-1.5 rounded-md text-stone-600 bg-stone-100 hover:bg-stone-200 hover:text-stone-900 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
           {/* Filters */}
