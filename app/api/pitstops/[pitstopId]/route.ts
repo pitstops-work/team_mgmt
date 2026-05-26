@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { sendPushToUsers } from "@/lib/push";
 import { viewerForbidden } from "@/lib/roleGuard";
 import { auditLog } from "@/lib/auditLog";
-import { snapToWeekday } from "@/lib/scheduleActivities";
+import { cloneRecurringPitstopOnDone } from "@/lib/recurringPitstop";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pitstopId: string }> }) {
   const session = await auth();
@@ -148,79 +148,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     });
   }
 
-  // Recurring pitstop — clone with next window when marked Done
-  const recurrence = data.recurrence ?? existing?.recurrence ?? "None";
-  if (data.status === "Done" && recurrence !== "None" && existing?.status !== "Done") {
-    const DAYS: Record<string, number> = { Weekly: 7, Monthly: 30, Quarterly: 91 };
-    const shift = DAYS[recurrence] ?? 0;
-    if (shift > 0 && existing?.startDate && existing?.targetDate) {
-      const rawNewStart = new Date(existing.startDate);
-      rawNewStart.setDate(rawNewStart.getDate() + shift);
-      const rawNewTarget = new Date(existing.targetDate);
-      rawNewTarget.setDate(rawNewTarget.getDate() + shift);
-      // Skip weekends on derived dates — recurring clones land on next Mon if shift lands on Sat/Sun.
-      const newStart  = snapToWeekday(rawNewStart);
-      const newTarget = snapToWeekday(rawNewTarget);
-
-      const sibling = await prisma.pitstop.findFirst({
-        where: { goalId: existing.goalId, deletedAt: null },
-        orderBy: { order: "desc" },
-        select: { order: true },
-      });
-
-      const cloneData = await prisma.pitstop.findUnique({
-        where: { id: pitstopId },
-        select: { title: true, type: true, customType: true, notes: true, ownerId: true, ownerInherited: true, goalId: true, templateSlug: true, templateKey: true },
-      });
-
-      if (cloneData) {
-        const clone = await prisma.pitstop.create({
-          data: {
-            ...cloneData,
-            status: "Upcoming",
-            recurrence,
-            startDate: newStart,
-            targetDate: newTarget,
-            order: (sibling?.order ?? 0) + 1,
-          },
-        });
-
-        // Clone checklist items (unchecked). Carry forward template identity
-        // so sync still recognises the new instance's items as template-owned.
-        const items = await prisma.checklistItem.findMany({
-          where: { pitstopId },
-          orderBy: { order: "asc" },
-        });
-        if (items.length > 0) {
-          await prisma.checklistItem.createMany({
-            data: items.map((item) => ({
-              pitstopId: clone.id,
-              text: item.text,
-              order: item.order,
-              checked: false,
-              key: item.key,
-              templateSlug: item.templateSlug,
-              completionType: item.completionType,
-            })),
-          });
-        }
-
-        // Extend the goal's targetDate when this recurring clone pushes past
-        // it. Goal targetDate is initialised to max(pitstop targetDates) at
-        // template-apply time; recurring pitstops keep generating later
-        // instances, so the goal deadline must track the latest pitstop.
-        const parentGoal = await prisma.goal.findUnique({
-          where: { id: existing.goalId },
-          select: { targetDate: true },
-        });
-        if (parentGoal && (!parentGoal.targetDate || newTarget > parentGoal.targetDate)) {
-          await prisma.goal.update({
-            where: { id: existing.goalId },
-            data: { targetDate: newTarget },
-          });
-        }
-      }
-    }
+  if (data.status === "Done" && existing?.status) {
+    await cloneRecurringPitstopOnDone(pitstopId, existing.status);
   }
 
   // Notify goal followers when pitstop status changes

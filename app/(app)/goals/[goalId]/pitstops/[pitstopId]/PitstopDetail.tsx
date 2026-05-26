@@ -120,6 +120,21 @@ type Pitstop = {
 };
 type SiblingPitstop = { id: string; title: string; status: string };
 
+// Mirror server-side forward-only auto-advance: items can push a pitstop from
+// Upcoming → InProgress → Done, but never back. Keeps optimistic UI in sync
+// with what the API will actually persist (see lib/autoAdvancePitstop.ts).
+function forwardAdvance(
+  current: Pitstop["status"],
+  items: Array<{ checked?: boolean; status?: string }>,
+): Pitstop["status"] {
+  if (current !== "Upcoming" && current !== "InProgress") return current;
+  if (items.length === 0) return current;
+  const anyOpen = items.some((i) => i.status !== "Done" && i.status !== "Cancelled");
+  if (!anyOpen) return "Done";
+  if (current === "Upcoming" && items.some((i) => i.checked || i.status === "Done")) return "InProgress";
+  return current;
+}
+
 interface Props {
   pitstop: Pitstop;
   users: User[];
@@ -823,30 +838,20 @@ export default function PitstopDetail({
     const newItems = pitstop.checklistItems.map((i) =>
       i.id === itemId ? { ...i, checked, status: checked ? "Done" : "NotStarted" } : i
     );
+    // Optimistic pitstop status (forward-only — matches server autoAdvance).
     let newStatus: Pitstop["status"] | null = null;
-    if (newItems.length > 0) {
-      const allChecked = newItems.every((i) => i.checked);
-      const anyChecked = newItems.some((i) => i.checked);
-      const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
-      if (derived !== pitstop.status) newStatus = derived;
+    if (newItems.length > 0 && (pitstop.status === "Upcoming" || pitstop.status === "InProgress")) {
+      const anyOpen = newItems.some((i) => i.status !== "Done" && i.status !== "Cancelled");
+      if (!anyOpen) newStatus = "Done";
+      else if (pitstop.status === "Upcoming" && newItems.some((i) => i.checked)) newStatus = "InProgress";
     }
     setPitstop((p) => ({ ...p, checklistItems: newItems, ...(newStatus ? { status: newStatus } : {}) }));
     const indicatorPayload = checked ? collectIndicatorPayload(itemId) : undefined;
-    const calls: Promise<Response>[] = [
-      fetch(`/api/checklist/${itemId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checked, ...(indicatorPayload ? { indicatorValues: indicatorPayload } : {}) }),
-      }),
-    ];
-    if (newStatus) {
-      calls.push(fetch(`/api/pitstops/${pitstop.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      }));
-    }
-    await Promise.all(calls);
+    await fetch(`/api/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ checked, ...(indicatorPayload ? { indicatorValues: indicatorPayload } : {}) }),
+    });
   };
 
   const handleUpdateItemStatus = async (itemId: string, status: string) => {
@@ -892,10 +897,7 @@ export default function PitstopDetail({
     const newItems = pitstop.checklistItems.map((i) =>
       i.id === itemId ? { ...i, checked: true, status: "Done" as const, notes } : i
     );
-    const allChecked = newItems.every((i) => i.checked);
-    const anyChecked = newItems.some((i) => i.checked);
-    const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
-    setPitstop((p) => ({ ...p, checklistItems: newItems, status: derived }));
+    setPitstop((p) => ({ ...p, checklistItems: newItems, status: forwardAdvance(p.status, newItems) }));
   };
 
   const handleAttachmentLogged = (itemId: string, attachment: Attachment) => {
@@ -904,10 +906,7 @@ export default function PitstopDetail({
         ? { ...i, checked: true, status: "Done" as const, attachments: [...(i.attachments ?? []), attachment] }
         : i
     );
-    const allChecked = newItems.every((i) => i.checked);
-    const anyChecked = newItems.some((i) => i.checked);
-    const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
-    setPitstop((p) => ({ ...p, checklistItems: newItems, status: derived }));
+    setPitstop((p) => ({ ...p, checklistItems: newItems, status: forwardAdvance(p.status, newItems) }));
   };
 
   const handleAttachmentDeleted = (itemId: string, attachmentId: string) => {
@@ -921,10 +920,8 @@ export default function PitstopDetail({
         ...(resetDone ? { checked: false, status: "NotStarted" as const } : {}),
       };
     });
-    const allChecked = newItems.every((i) => i.checked);
-    const anyChecked = newItems.some((i) => i.checked);
-    const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
-    setPitstop((p) => ({ ...p, checklistItems: newItems, status: derived }));
+    // Server never demotes on item un-completion — keep local UI in sync with that.
+    setPitstop((p) => ({ ...p, checklistItems: newItems }));
   };
 
   const handleActivityCreated = (itemId: string, activity: ActivityRef) => {
@@ -949,10 +946,7 @@ export default function PitstopDetail({
           ? { ...i, activities, status: "InProgress" }
           : { ...i, activities, checked: true, status: "Done" };
       });
-      const allChecked = newItems.length > 0 && newItems.every((i) => i.checked);
-      const anyChecked = newItems.some((i) => i.checked);
-      const derived: Pitstop["status"] = allChecked ? "Done" : anyChecked ? "InProgress" : "Upcoming";
-      return { ...p, checklistItems: newItems, status: derived };
+      return { ...p, checklistItems: newItems, status: forwardAdvance(p.status, newItems) };
     });
     await fetch(`/api/pitstop-events/${activityId}`, {
       method: "PATCH",

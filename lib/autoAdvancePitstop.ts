@@ -1,29 +1,56 @@
 import prisma from "@/lib/prisma";
+import { cloneRecurringPitstopOnDone } from "@/lib/recurringPitstop";
 
 /**
- * After a checklist item is marked Done, auto-advance its pitstop from
- * Upcoming → InProgress if this is the first completed item.
- * No-op if pitstop is already InProgress/Done/etc.
+ * After a checklist item changes, recompute pitstop status (forward-only):
+ *   Upcoming   → InProgress  when ≥1 item is Done
+ *   InProgress → Done        when ≥1 item exists and all non-Cancelled items are Done
+ * Never demotes an explicitly-set Done. Triggers the recurring clone when it
+ * flips a recurring pitstop to Done.
  */
 export async function autoAdvancePitstopFromItem(itemId: string): Promise<void> {
-  const rows = await prisma.$queryRaw<{ pitstopId: string; pitstopStatus: string }[]>`
-    SELECT ci."pitstopId", p.status::text AS "pitstopStatus"
-    FROM "ChecklistItem" ci
-    JOIN "Pitstop" p ON p.id = ci."pitstopId"
-    WHERE ci.id = ${itemId}
-    LIMIT 1
+  const rows = await prisma.$queryRaw<{ pitstopId: string }[]>`
+    SELECT "pitstopId" FROM "ChecklistItem" WHERE id = ${itemId} LIMIT 1
   `;
-  if (!rows[0] || rows[0].pitstopStatus !== "Upcoming") return;
-
-  await prisma.pitstop.updateMany({
-    where: { id: rows[0].pitstopId, status: "Upcoming" },
-    data: { status: "InProgress" },
-  });
+  if (!rows[0]) return;
+  await autoAdvancePitstopById(rows[0].pitstopId);
 }
 
 export async function autoAdvancePitstopById(pitstopId: string): Promise<void> {
-  await prisma.pitstop.updateMany({
-    where: { id: pitstopId, status: "Upcoming" },
-    data: { status: "InProgress" },
-  });
+  const [pitstop] = await prisma.$queryRaw<{ status: string }[]>`
+    SELECT status::text FROM "Pitstop" WHERE id = ${pitstopId} LIMIT 1
+  `;
+  if (!pitstop) return;
+  // Only forward-advance from these two states. Done/Cancelled/etc. are owned by the user.
+  if (pitstop.status !== "Upcoming" && pitstop.status !== "InProgress") return;
+
+  const [stats] = await prisma.$queryRaw<{ total: bigint; done: bigint; open: bigint }[]>`
+    SELECT
+      COUNT(*) FILTER (WHERE status <> 'Cancelled'::"ChecklistItemStatus")::bigint AS total,
+      COUNT(*) FILTER (WHERE status = 'Done'::"ChecklistItemStatus")::bigint AS done,
+      COUNT(*) FILTER (
+        WHERE status NOT IN ('Done'::"ChecklistItemStatus", 'Cancelled'::"ChecklistItemStatus")
+      )::bigint AS open
+    FROM "ChecklistItem"
+    WHERE "pitstopId" = ${pitstopId}
+  `;
+  const total = Number(stats?.total ?? 0);
+  const done  = Number(stats?.done  ?? 0);
+  const open  = Number(stats?.open  ?? 0);
+
+  if (total > 0 && open === 0) {
+    await prisma.pitstop.updateMany({
+      where: { id: pitstopId, status: { in: ["Upcoming", "InProgress"] } },
+      data: { status: "Done", completedAt: new Date() },
+    });
+    await cloneRecurringPitstopOnDone(pitstopId, pitstop.status);
+    return;
+  }
+
+  if (pitstop.status === "Upcoming" && done > 0) {
+    await prisma.pitstop.updateMany({
+      where: { id: pitstopId, status: "Upcoming" },
+      data: { status: "InProgress" },
+    });
+  }
 }
