@@ -277,6 +277,17 @@ function PitstopEditor({
             </Field>
           </div>
 
+          {/* Stable key — used by template-sync to match this slot across goals */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-stone-400 shrink-0">Key</span>
+            <input
+              className="flex-1 px-2 py-0.5 text-[11px] font-mono border border-stone-200 rounded bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
+              value={pitstop.key ?? ""}
+              onChange={(e) => update({ key: e.target.value.replace(/\s/g, "") })}
+              placeholder={slugifyChecklistText(pitstop.title) || "auto-derived from title on save"}
+            />
+          </div>
+
           {/* SLA + Recurrence + Phase */}
           <div className="grid grid-cols-4 gap-3">
             <Field label="Start (days after goal start)">
@@ -404,28 +415,39 @@ function PitstopEditor({
                         <p className="text-[11px] text-stone-300 italic">No activities — item completes as checkbox</p>
                       )}
                       {activities.map((act, ai) => (
-                        <div key={ai} className="flex items-center gap-1.5">
-                          <input
-                            className="flex-1 px-2 py-1 text-xs border border-stone-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-stone-300"
-                            value={act.title}
-                            onChange={(e) => updateActivity(i, ai, { title: e.target.value })}
-                            placeholder="Activity title (supports {paramKey})"
-                          />
-                          <select
-                            className="px-1.5 py-1 text-xs border border-stone-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-stone-300 shrink-0"
-                            value={act.completionType}
-                            onChange={(e) => updateActivity(i, ai, { completionType: e.target.value })}
-                          >
-                            {COMPLETION_TYPES.filter(ct => ct.value !== "").map(ct => (
-                              <option key={ct.value} value={ct.value}>{ct.label}</option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => removeActivity(i, ai)}
-                            className="p-0.5 hover:bg-red-50 rounded text-stone-300 hover:text-red-400 transition-colors shrink-0"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                        <div key={ai} className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              className="flex-1 px-2 py-1 text-xs border border-stone-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-stone-300"
+                              value={act.title}
+                              onChange={(e) => updateActivity(i, ai, { title: e.target.value })}
+                              placeholder="Activity title (supports {paramKey})"
+                            />
+                            <select
+                              className="px-1.5 py-1 text-xs border border-stone-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-stone-300 shrink-0"
+                              value={act.completionType}
+                              onChange={(e) => updateActivity(i, ai, { completionType: e.target.value })}
+                            >
+                              {COMPLETION_TYPES.filter(ct => ct.value !== "").map(ct => (
+                                <option key={ct.value} value={ct.value}>{ct.label}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => removeActivity(i, ai)}
+                              className="p-0.5 hover:bg-red-50 rounded text-stone-300 hover:text-red-400 transition-colors shrink-0"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1.5 pl-1">
+                            <span className="text-[9px] uppercase tracking-wider text-stone-400 shrink-0">Key</span>
+                            <input
+                              className="flex-1 px-2 py-0.5 text-[10px] font-mono border border-stone-200 rounded bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                              value={act.key ?? ""}
+                              onChange={(e) => updateActivity(i, ai, { key: e.target.value.replace(/\s/g, "") })}
+                              placeholder={slugifyChecklistText(act.title) || "auto-derived from title on save"}
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -579,16 +601,28 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
     setSaving(true);
     setStatus("idle");
 
-    // Auto-fill missing checklist keys (slugify the text). Trim explicit keys.
+    // Auto-fill missing pitstop / checklist / activity keys (slugify the title or text).
+    // Trim explicit keys. Sync needs these populated to match template slots → instance rows.
     const payload = {
       ...template,
-      pitstops: (template.pitstops ?? []).map((p) => ({
-        ...p,
-        checklist: p.checklist.map((item) => {
-          const trimmed = (item.key ?? "").trim();
-          return { ...item, key: trimmed || slugifyChecklistText(item.text) };
-        }),
-      })),
+      pitstops: (template.pitstops ?? []).map((p) => {
+        const pTrimmed = (p.key ?? "").trim();
+        return {
+          ...p,
+          key: pTrimmed || slugifyChecklistText(p.title),
+          checklist: p.checklist.map((item) => {
+            const trimmed = (item.key ?? "").trim();
+            return {
+              ...item,
+              key: trimmed || slugifyChecklistText(item.text),
+              activities: (item.activities ?? []).map((act) => {
+                const aTrimmed = (act.key ?? "").trim();
+                return { ...act, key: aTrimmed || slugifyChecklistText(act.title) };
+              }),
+            };
+          }),
+        };
+      }),
     };
 
     try {

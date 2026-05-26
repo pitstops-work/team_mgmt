@@ -3,6 +3,10 @@
 export interface DbActivity {
   title: string;
   completionType: string; // "" | "Activity" | "Voice" | "Upload"
+  // Stable identifier within the parent checklist item, used by template-sync
+  // to match template activities to existing PitstopEvent rows. Auto-derived
+  // by slugifying title on first save; admin may override.
+  key?: string;
 }
 
 export interface DbChecklistItem {
@@ -41,6 +45,10 @@ export interface DbPitstop {
   recurrence?: string;
   repeatCount?: number;  // how many instances to generate for recurring pitstops (default: 1)
   progressTag?: string;
+  // Stable identifier for this pitstop slot, used by template-sync to match
+  // template pitstops to existing Pitstop rows on goals. Auto-derived from
+  // title via slugify on first save; admin may override.
+  key?: string;
   checklist: DbChecklistItem[];
 }
 

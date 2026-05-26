@@ -163,6 +163,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             ? inst.pt.recurrence
             : "None";
 
+          const pitstopTemplateKey = (inst.pt.key ?? "").trim() || slugifyChecklistText(inst.pt.title);
           return {
             title: inst.title,
             type: pitstopType as any,
@@ -173,6 +174,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             recurrence: recurrence as any,
             startDate: inst.pitstopStart,
             targetDate: inst.pitstopTarget,
+            templateSlug: id,
+            templateKey: pitstopTemplateKey || null,
             checklistItems: {
               create: inst.pt.checklist.map((item, itemIdx) => {
                 const itemActivities = item.activities ?? [];
@@ -287,12 +290,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const scheduledAt = scheduledDates[dateIdx++];
         if (!dbId || !scheduledAt) continue;
 
+        const activityTemplateKey = (act.key ?? "").trim() || slugifyChecklistText(act.title);
+
         const event = await prisma.pitstopEvent.create({
           data: {
             title: act.title,
             type: eventType as any,
             scheduledAt,
             createdById: session.user.id,
+            templateKey: activityTemplateKey || null,
             pitstops: { create: [{ pitstopId: pitstop.id }] },
             attendees: { create: [{ userId: goalOwnerId }] },
           },

@@ -258,6 +258,13 @@ model Pitstop {
   needsClusterId    String?
   needsZoneId       String?
 
+  // Template provenance — propagated from GoalTemplateDef on apply. Used by
+  // the template-sync engine to identify which slot a pitstop maps to so
+  // template edits can be retroactively merged into existing goals.
+  // Both null = manually created pitstop (sync leaves alone).
+  templateSlug String?
+  templateKey  String?
+
   goal            Goal                  @relation(fields: [goalId], references: [id], onDelete: Cascade)
   owner           User?                 @relation("PitstopOwner", fields: [ownerId], references: [id])
   verifiedBy      User?                 @relation("PitstopVerifier", fields: [verifiedById], references: [id])
@@ -282,6 +289,8 @@ model Pitstop {
   needsSettlement Settlement?           @relation("PitstopNeedsSettlement", fields: [needsSettlementId], references: [id])
   needsCluster    Cluster?              @relation("PitstopNeedsCluster", fields: [needsClusterId], references: [id])
   needsZone       Zone?                 @relation("PitstopNeedsZone", fields: [needsZoneId], references: [id])
+
+  @@index([templateSlug])
 }
 
 model ChecklistItem {
@@ -1227,6 +1236,11 @@ model PitstopEvent {
   deletedAt          DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+
+  // Template provenance — slugified from the template activity's title.
+  // templateSlug rides on the parent ChecklistItem (no need to duplicate).
+  // Null = manually scheduled activity (sync leaves alone).
+  templateKey String?
 
   createdBy     User                   @relation("PitstopEventCreator", fields: [createdById], references: [id])
   lastUpdatedBy User?                  @relation("PitstopEventLastUpdater", fields: [lastUpdatedById], references: [id])
