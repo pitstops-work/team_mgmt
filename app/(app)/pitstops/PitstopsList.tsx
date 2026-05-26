@@ -41,7 +41,7 @@ function downloadCsv(pitstops: Pitstop[]) {
   URL.revokeObjectURL(url);
 }
 
-export default function PitstopsList({ pitstops, goals, users, initialStatus = "", initialNoDate = false }: { pitstops: Pitstop[]; goals: Goal[]; users: User[]; initialStatus?: string; initialNoDate?: boolean }) {
+export default function PitstopsList({ pitstops, goals, users, initialStatus = "", initialNoDate = false, checklistUpdatablePitstopIds = [], canCompleteActivity = false }: { pitstops: Pitstop[]; goals: Goal[]; users: User[]; initialStatus?: string; initialNoDate?: boolean; checklistUpdatablePitstopIds?: string[]; canCompleteActivity?: boolean }) {
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState(initialStatus);
@@ -284,6 +284,8 @@ export default function PitstopsList({ pitstops, goals, users, initialStatus = "
       {quickSheetPitstop && (
         <PitstopQuickSheet
           pitstop={quickSheetPitstop}
+          canUpdateChecklist={checklistUpdatablePitstopIds.includes(quickSheetPitstop.id)}
+          canCompleteActivity={canCompleteActivity}
           onClose={() => setQuickSheetPitstop(null)}
           onChanged={() => router.refresh()}
         />

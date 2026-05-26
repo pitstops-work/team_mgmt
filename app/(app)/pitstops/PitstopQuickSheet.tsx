@@ -10,11 +10,15 @@ interface Props {
     title: string;
     goal: { id: string; title: string };
   };
+  /** Gates the manual tick box — checklist_item.update scoped to this pitstop. */
+  canUpdateChecklist?: boolean;
+  /** Gates completing the linked activity (mark done / voice / upload). */
+  canCompleteActivity?: boolean;
   onClose: () => void;
   onChanged: () => void;
 }
 
-export default function PitstopQuickSheet({ pitstop, onClose, onChanged }: Props) {
+export default function PitstopQuickSheet({ pitstop, canUpdateChecklist = false, canCompleteActivity = false, onClose, onChanged }: Props) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm"
@@ -41,7 +45,12 @@ export default function PitstopQuickSheet({ pitstop, onClose, onChanged }: Props
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          <ChecklistCompletionList pitstopId={pitstop.id} onChanged={onChanged} />
+          <ChecklistCompletionList
+            pitstopId={pitstop.id}
+            canUpdateChecklist={canUpdateChecklist}
+            canCompleteActivity={canCompleteActivity}
+            onChanged={onChanged}
+          />
         </div>
       </div>
     </div>

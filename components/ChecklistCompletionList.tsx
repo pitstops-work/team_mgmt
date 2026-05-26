@@ -219,6 +219,15 @@ function ActivityControls({
     });
   };
 
+  const undoDone = async (actId: string) => {
+    onActivityPatch(actId, { status: "Scheduled", completedAt: null });
+    await fetch(`/api/pitstop-events/${actId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Scheduled" }),
+    });
+  };
+
   const handleAdd = async () => {
     if (!date) return;
     setSaving(true);
@@ -270,6 +279,15 @@ function ActivityControls({
                 {new Date(a.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
               </span>
             </button>
+            {done && canCompleteActivity && (
+              <button
+                onClick={() => undoDone(a.id)}
+                title="Re-open this activity"
+                className="text-[9px] text-stone-400 hover:text-sky-600 underline underline-offset-2 flex-shrink-0"
+              >
+                Undo
+              </button>
+            )}
           </div>
         );
       })}

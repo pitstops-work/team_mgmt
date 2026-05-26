@@ -528,6 +528,7 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
         || ev.pitstops.some(p => manageableTeamIds.includes(p.pitstop.owner.id))
       : isOwner;
   const canComplete = ev.status === "Scheduled" && canManage;
+  const canUndo = (isDone || isCancelled) && canManage;
   const ctype = ev.checklistItem?.completionType ?? "Activity";
 
   async function markDone() {
@@ -539,6 +540,17 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
     });
     setBusy(false);
     if (res.ok) { onUpdated(ev.id, await res.json()); setShowAction(false); }
+  }
+
+  async function undoComplete() {
+    setBusy(true);
+    const res = await fetch(`/api/pitstop-events/${ev.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Scheduled" }),
+    });
+    setBusy(false);
+    if (res.ok) onUpdated(ev.id, await res.json());
   }
 
   async function startVoice() {
@@ -584,6 +596,16 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
             {isDone && <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Done</span>}
             {isFlagged && <span className="text-[10px] font-medium text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">Flagged</span>}
             {isCancelled && <span className="text-[10px] font-medium text-stone-400 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-full">Cancelled</span>}
+            {canUndo && (
+              <button
+                onClick={undoComplete}
+                disabled={busy}
+                title={isDone ? "Re-open this activity" : "Restore this cancelled activity"}
+                className="text-[10px] font-medium text-stone-500 bg-white border border-stone-200 hover:bg-stone-50 hover:text-stone-700 px-1.5 py-0.5 rounded-full transition-colors disabled:opacity-50"
+              >
+                {busy ? "…" : "Undo"}
+              </button>
+            )}
           </div>
           <p className="text-xs opacity-70 mt-0.5">
             {ev.endsAt

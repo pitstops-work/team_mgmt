@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { buildRbacContext, can, checklistUpdatablePitstopIds } from "@/lib/rbac";
 import PitstopsList from "./PitstopsList";
 
 export default async function PitstopsPage({
@@ -7,7 +8,7 @@ export default async function PitstopsPage({
 }: {
   searchParams: Promise<{ status?: string; noDate?: string }>;
 }) {
-  await auth();
+  const session = await auth();
   const { status, noDate } = await searchParams;
 
   const [pitstops, goals, users] = await Promise.all([
@@ -26,6 +27,12 @@ export default async function PitstopsPage({
     prisma.user.findMany({ select: { id: true, name: true, image: true }, orderBy: { name: "asc" } }),
   ]);
 
+  // Per-pitstop checklist-tick gate (scope = own/team/all) + flat activity-completion
+  // gate, threaded to the quick sheet so it matches the full pitstop page.
+  const ctx = await buildRbacContext(session);
+  const updatable = await checklistUpdatablePitstopIds(ctx, pitstops.map((p) => p.id));
+  const canCompleteActivity = ctx ? await can(ctx, "pitstop_event", "update") : false;
+
   return (
     <PitstopsList
       pitstops={JSON.parse(JSON.stringify(pitstops))}
@@ -33,6 +40,8 @@ export default async function PitstopsPage({
       users={JSON.parse(JSON.stringify(users))}
       initialStatus={status ?? ""}
       initialNoDate={noDate === "1"}
+      checklistUpdatablePitstopIds={Array.from(updatable)}
+      canCompleteActivity={canCompleteActivity}
     />
   );
 }

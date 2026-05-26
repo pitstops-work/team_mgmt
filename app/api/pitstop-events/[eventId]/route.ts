@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
 
   // ── Lifecycle shortcuts ──────────────────────────────────────────────────────
 
-  if (status === "Done" || status === "Cancelled" || reschedule) {
+  if (status === "Done" || status === "Cancelled" || status === "Scheduled" || reschedule) {
     // Fetch current event for rescheduledFrom + checklistItemId
     const current = await prisma.$queryRaw<{
       scheduledAt: Date; checklistItemId: string | null;
@@ -94,6 +94,60 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
                   "updatedAt" = NOW()
               WHERE id = ${current[0].checklistItemId}
                 AND status NOT IN ('Done'::"ChecklistItemStatus", 'Cancelled'::"ChecklistItemStatus")
+            `;
+          }
+        }
+      }
+    } else if (status === "Scheduled") {
+      // Undo path — re-open a Done or Cancelled event. Clears completion stamp
+      // and snaps it back to Scheduled. Parent ChecklistItem follows: if any
+      // sibling is still Done, the item stays InProgress; otherwise back to
+      // Scheduled (the activity is still on the calendar, just not finished).
+      await prisma.$executeRaw`
+        UPDATE "PitstopEvent"
+        SET status = 'Scheduled'::"PitstopEventStatus",
+            "completedAt" = NULL,
+            "completedById" = NULL,
+            "cancellationReason" = NULL,
+            "lastUpdatedById" = ${actorId},
+            "updatedAt" = NOW()
+        WHERE id = ${eventId}
+      `;
+      auditLog({ entityType: "Activity", entityId: eventId, userId: actorId, action: "status_change", field: "status", newValue: "Scheduled" });
+      if (current[0].checklistItemId) {
+        const [ci] = await prisma.$queryRaw<{ completionType: string }[]>`
+          SELECT "completionType"::text FROM "ChecklistItem" WHERE id = ${current[0].checklistItemId}
+        `;
+        if (!ci || ci.completionType === 'Activity') {
+          const [{ doneSiblings }] = await prisma.$queryRaw<{ doneSiblings: bigint }[]>`
+            SELECT COUNT(*)::bigint AS "doneSiblings"
+            FROM "PitstopEvent"
+            WHERE "checklistItemId" = ${current[0].checklistItemId}
+              AND "deletedAt" IS NULL
+              AND id != ${eventId}
+              AND status = 'Done'::"PitstopEventStatus"
+          `;
+          if (Number(doneSiblings) === 0) {
+            await prisma.$executeRaw`
+              UPDATE "ChecklistItem"
+              SET status = 'Scheduled'::"ChecklistItemStatus",
+                  checked = FALSE,
+                  "completedAt" = NULL,
+                  "completedById" = NULL,
+                  "lastUpdatedById" = ${actorId},
+                  "updatedAt" = NOW()
+              WHERE id = ${current[0].checklistItemId}
+            `;
+          } else {
+            await prisma.$executeRaw`
+              UPDATE "ChecklistItem"
+              SET status = 'InProgress'::"ChecklistItemStatus",
+                  checked = FALSE,
+                  "completedAt" = NULL,
+                  "completedById" = NULL,
+                  "lastUpdatedById" = ${actorId},
+                  "updatedAt" = NOW()
+              WHERE id = ${current[0].checklistItemId}
             `;
           }
         }
