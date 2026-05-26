@@ -132,29 +132,32 @@ async function main() {
     console.log(`    will shift ${pitstops.length} pitstop${pitstops.length === 1 ? "" : "s"} + ${events.length} activit${events.length === 1 ? "y" : "ies"}` + (needsGoalTargetExtend ? `, extend goal target ${fmt(g.goalTarget)} → ${fmt(newGoalTarget)}` : ""));
 
     if (APPLY) {
-      await prisma.$transaction([
-        ...pitstops.map(p =>
-          prisma.pitstop.update({
+      // Interactive transaction form — needed to bump the timeout past the
+      // 5s default (some goals have 80+ activities so the batch can take
+      // longer over a remote Neon connection).
+      await prisma.$transaction(async (tx) => {
+        for (const p of pitstops) {
+          await tx.pitstop.update({
             where: { id: p.id },
             data: {
               startDate:  p.startDate  ? snapToWeekday(addDaysUTC(p.startDate,  shiftDays)) : undefined,
               targetDate: p.targetDate ? snapToWeekday(addDaysUTC(p.targetDate, shiftDays)) : undefined,
             },
-          }),
-        ),
-        ...events.map(e =>
-          prisma.pitstopEvent.update({
+          });
+        }
+        for (const e of events) {
+          await tx.pitstopEvent.update({
             where: { id: e.id },
             data: {
               scheduledAt: snapToWeekday(addDaysUTC(e.scheduledAt, shiftDays)),
               endsAt: e.endsAt ? snapToWeekday(addDaysUTC(e.endsAt, shiftDays)) : undefined,
             },
-          }),
-        ),
-        ...(needsGoalTargetExtend
-          ? [prisma.goal.update({ where: { id: g.goalId }, data: { targetDate: newGoalTarget } })]
-          : []),
-      ]);
+          });
+        }
+        if (needsGoalTargetExtend) {
+          await tx.goal.update({ where: { id: g.goalId }, data: { targetDate: newGoalTarget } });
+        }
+      }, { timeout: 60000, maxWait: 10000 });
     }
 
     totalPitstopsShifted += pitstops.length;
