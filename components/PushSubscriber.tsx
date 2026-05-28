@@ -120,14 +120,18 @@ export default function PushSubscriber() {
         const cutoff = Date.now() - 24 * 60 * 60 * 1000;
         const recent = notifications.filter((n) => new Date(n.createdAt).getTime() > cutoff);
 
-        // Mark all as read immediately so they don't re-appear next open
-        if (notifications.length > 0) {
-          fetch("/api/notifications/read-all", { method: "POST" }).catch(() => {});
-        }
-
         // Queue banners for each missed notification (most recent first, max 3)
-        recent.slice(0, 3).reverse().forEach((n) => {
+        const banners = recent.slice(0, 3);
+        [...banners].reverse().forEach((n) => {
           enqueue({ title: n.title, body: n.body ?? "", link: n.link ?? "/" });
+        });
+
+        // Mark only the surfaced banners as read — leave the rest for the
+        // user to act on from /notifications. (Previously we marked ALL
+        // unread as read here, which left the notifications page blank
+        // while the nav badge — frozen in the layout — still showed a count.)
+        banners.forEach((n) => {
+          fetch(`/api/notifications/${n.id}`, { method: "PATCH" }).catch(() => {});
         });
       } catch {
         // Non-critical — silently ignore
