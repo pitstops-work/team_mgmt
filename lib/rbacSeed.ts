@@ -147,8 +147,13 @@ const ADMIN_GRANTS: RoleGrant = (() => {
 })();
 
 const MEMBER_GRANTS: RoleGrant = {
-  "user.list":                SELF,
-  "user.read":                SELF,
+  // user.list/read = TEAM so Leader/PM/ZL see their team directory (the
+  // dashboard Team tab, /people, workload panels). RP/Other collapse to [self]
+  // via the recursive team CTE. Mutation stays self-only.
+  // (Catalog row 1 updated 2026-05-29 — was SELF, but live UIs already showed
+  // team data via hardcoded `isScoped + teamIds`; locking the rule here.)
+  "user.list":                TEAM,
+  "user.read":                TEAM,
   "user.update":              SELF,
   "user.change_own_password": SELF,
 

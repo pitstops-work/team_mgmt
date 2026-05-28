@@ -154,6 +154,18 @@ type ScopeArgs = {
 type WhereFragment = Record<string, unknown>;
 
 const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
+  // `user` resource — directory/listing of User rows. Self/own both reduce to
+  // "just me" (a user is their own owner). Team uses the recursive descendants
+  // CTE, which naturally collapses to `[self]` for RP/Other.
+  user: ({ rule, ctx, teamIds }) => {
+    switch (rule.kind) {
+      case "all":  return {};
+      case "self": return { id: ctx.userId };
+      case "own":  return { id: ctx.userId };
+      case "team": return { id: { in: teamIds } };
+      default: throw scopeUnsupported("user", rule.kind);
+    }
+  },
   goal: ({ rule, ctx, teamIds }) => {
     // Co-owners are treated like owners for visibility purposes.
     switch (rule.kind) {
@@ -337,6 +349,43 @@ export async function scopeWhere(
   const teamIds = needsTeam ? await getTeamIds(ctx.userId) : [];
 
   return builder({ rule, ctx, teamIds });
+}
+
+// ── User-id filter (for foreign-key columns on other tables) ─────────────────
+
+/**
+ * Resolves the `user.<action>` scope into a filter you can drop on ANY user-id
+ * column (e.g. `Pitstop.ownerId`, `AuditLog.userId`) without rewriting the
+ * `user` builder's `id` to your column name. Returns:
+ *
+ *   - `null`     — caller has no permission at all; treat as empty result set.
+ *   - `undefined`— scope = all; do not add a filter.
+ *   - `{ equals: string }` — self/own; exact id match.
+ *   - `{ in: string[] }`   — team; one of these ids.
+ *
+ * Usage:
+ *   const f = await userIdFilter(ctx, "list");
+ *   if (f === null) return [];
+ *   prisma.pitstop.findMany({ where: { ...(f ? { ownerId: f } : {}) } });
+ */
+export async function userIdFilter(
+  ctx: RbacContext | null,
+  action: string,
+): Promise<{ equals: string } | { in: string[] } | undefined | null> {
+  if (!ctx) return null;
+  const rule = await getScopeRule(ctx, "user", action);
+  if (!rule) return null;
+  switch (rule.kind) {
+    case "all":  return undefined;
+    case "self":
+    case "own":  return { equals: ctx.userId };
+    case "team": {
+      const teamIds = await getTeamIds(ctx.userId);
+      return { in: teamIds };
+    }
+    default:
+      throw new Error(`[rbac] userIdFilter: unsupported rule kind "${rule.kind}"`);
+  }
 }
 
 // ── ChecklistItem helpers ────────────────────────────────────────────────────

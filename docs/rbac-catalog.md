@@ -54,8 +54,8 @@ Each cell = role → scope. `—` = forbidden. `all` = unrestricted. Multiple ro
 
 | Action | super-admin | admin | member | viewer | Notes |
 |---|---|---|---|---|---|
-| `list`    | all | all (non-admin only) | self | — | Admin list excludes admin/super-admin entries. |
-| `read`    | all | all | self | self | |
+| `list`    | all | all (non-admin only) | team | — | Admin list excludes admin/super-admin entries. Member list = recursive team (Leader = full subtree, PM = ZLs+RPs, ZL = RPs, RP/Other = self). **Updated 2026-05-29** — was `self`; the dashboard Team tab and `/people` both relied on team-scoped directory access. |
+| `read`    | all | all | team | self | Same as `list`. |
 | `create`  | all | non-admin only | — | — | Granting `admin` requires super-admin. |
 | `update`  | all | non-admin only | self (name/password/lang/calendar) | self (lang only) | Admin can't promote to admin (super-admin gate). |
 | `delete`  | all | non-admin only | — | — | Can't self-delete. |
