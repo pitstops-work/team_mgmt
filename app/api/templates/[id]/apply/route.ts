@@ -7,7 +7,7 @@ import {
   buildScheduleConfig,
   getWorkingDays,
   nearestWorkingDay,
-  distributeAcrossDays,
+  scheduleActivitiesInWindow,
   snapToWeekday,
   pitstopTypeToEventType,
 } from "@/lib/scheduleActivities";
@@ -248,6 +248,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const schedConfig = buildScheduleConfig(appSettings);
   const cityName = await resolveCityName(needsCityId, needsZoneId, needsClusterId, needsSettlementId);
 
+  const offsetClamps: Array<{ pitstopTitle: string; activityTitle: string; requestedOffset: number; appliedDate: string }> = [];
+
   for (let piIdx = 0; piIdx < allInstances.length; piIdx++) {
     const pitstop = pitstopsOrdered[piIdx];
     const inst = allInstances[piIdx];
@@ -279,7 +281,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ? workingDays
       : [nearestWorkingDay(pitstopWindowEnd, cityName, schedConfig)];
 
-    const scheduledDates = distributeAcrossDays(totalActivities, effectiveDays);
+    // Flatten activities in checklist-order to match the date stream
+    const flatActivities = itemsWithActivities.flatMap(({ activities }) => activities);
+    const { dates: scheduledDates, clamps } = scheduleActivitiesInWindow(
+      flatActivities.map(a => ({ dayOffset: a.dayOffset })),
+      pitstopWindowStart,
+      effectiveDays,
+    );
+    for (const c of clamps) {
+      offsetClamps.push({
+        pitstopTitle: inst.title,
+        activityTitle: flatActivities[c.index]?.title ?? "",
+        requestedOffset: c.requestedOffset,
+        appliedDate: c.appliedDate.toISOString(),
+      });
+    }
     const eventType = pitstopTypeToEventType(pt.type);
 
     const ciIds = await prisma.$queryRaw<{ id: string }[]>`
@@ -333,5 +349,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     console.error("[templates/apply] programme journey attach failed:", e);
   }
 
-  return Response.json(goal, { status: 201 });
+  return Response.json({ ...goal, offsetClamps }, { status: 201 });
 }

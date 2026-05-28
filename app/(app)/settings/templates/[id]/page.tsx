@@ -440,14 +440,30 @@ function PitstopEditor({
                               <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
-                          <div className="flex items-center gap-1.5 pl-1">
-                            <span className="text-[9px] uppercase tracking-wider text-stone-400 shrink-0">Key</span>
-                            <input
-                              className="flex-1 px-2 py-0.5 text-[10px] font-mono border border-stone-200 rounded bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
-                              value={act.key ?? ""}
-                              onChange={(e) => updateActivity(i, ai, { key: e.target.value.replace(/\s/g, "") })}
-                              placeholder={slugifyChecklistText(act.title) || "auto-derived from title on save"}
-                            />
+                          <div className="flex items-center gap-3 pl-1">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] uppercase tracking-wider text-stone-400 shrink-0">Day</span>
+                              <input
+                                type="number"
+                                className="w-14 px-1.5 py-0.5 text-[11px] border border-stone-200 rounded bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                                value={act.dayOffset ?? ""}
+                                onChange={(e) => {
+                                  const v = e.target.value.trim();
+                                  updateActivity(i, ai, { dayOffset: v === "" ? undefined : Number(v) });
+                                }}
+                                placeholder="auto"
+                                title="Days after pitstop start. Leave blank to evenly space with other unscheduled activities. Clamped to SLA window."
+                              />
+                            </div>
+                            <div className="flex items-center gap-1 flex-1 min-w-0">
+                              <span className="text-[9px] uppercase tracking-wider text-stone-400 shrink-0">Key</span>
+                              <input
+                                className="flex-1 px-2 py-0.5 text-[10px] font-mono border border-stone-200 rounded bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                                value={act.key ?? ""}
+                                onChange={(e) => updateActivity(i, ai, { key: e.target.value.replace(/\s/g, "") })}
+                                placeholder={slugifyChecklistText(act.title) || "auto-derived from title on save"}
+                              />
+                            </div>
                           </div>
                         </div>
                       ))}

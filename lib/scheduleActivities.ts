@@ -134,6 +134,82 @@ export function distributeAcrossDays(count: number, days: Date[]): Date[] {
   return Array.from({ length: count }, (_, i) => days[i % days.length]);
 }
 
+export interface ActivityScheduleInput {
+  // Days from pitstop start. Undefined → schedule evenly across remaining days.
+  dayOffset?: number;
+}
+
+export interface ActivityScheduleClamp {
+  index: number;
+  requestedOffset: number;
+  appliedDate: Date;
+  reason: "before-window" | "after-window";
+}
+
+export interface ActivityScheduleResult {
+  dates: Date[];
+  clamps: ActivityScheduleClamp[];
+}
+
+// Pick the working day whose date matches `target` exactly, or the nearest one.
+// If `target` falls outside [days[0], days[last]], clamp to the boundary and
+// flag it so callers can warn.
+function nearestInList(
+  target: Date,
+  days: Date[],
+): { date: Date; clamped: false } | { date: Date; clamped: true; reason: "before-window" | "after-window" } {
+  if (target < days[0]) return { date: days[0], clamped: true, reason: "before-window" };
+  if (target > days[days.length - 1]) return { date: days[days.length - 1], clamped: true, reason: "after-window" };
+  let best = days[0];
+  let bestDiff = Math.abs(target.getTime() - best.getTime());
+  for (let i = 1; i < days.length; i++) {
+    const diff = Math.abs(target.getTime() - days[i].getTime());
+    if (diff < bestDiff) { best = days[i]; bestDiff = diff; }
+  }
+  return { date: best, clamped: false };
+}
+
+// Schedule a sequence of activities inside a pitstop SLA window.
+//   * Items with `dayOffset` pin to `pitstopStart + dayOffset`, snapped to the
+//     nearest working day. Offsets outside the working-day window are clamped
+//     to the boundary and recorded in `clamps`.
+//   * Items without `dayOffset` fill the remaining slots via
+//     `distributeAcrossDays`, evenly spaced across the full working-day list.
+export function scheduleActivitiesInWindow(
+  activities: ActivityScheduleInput[],
+  pitstopStart: Date,
+  workingDays: Date[],
+): ActivityScheduleResult {
+  if (activities.length === 0 || workingDays.length === 0) {
+    return { dates: [], clamps: [] };
+  }
+
+  const dates = new Array<Date | null>(activities.length).fill(null);
+  const clamps: ActivityScheduleClamp[] = [];
+
+  const unpinned: number[] = [];
+  for (let i = 0; i < activities.length; i++) {
+    const off = activities[i]?.dayOffset;
+    if (!Number.isFinite(off)) {
+      unpinned.push(i);
+      continue;
+    }
+    const target = addDaysUTC(pitstopStart, off as number);
+    const hit = nearestInList(target, workingDays);
+    dates[i] = hit.date;
+    if (hit.clamped) {
+      clamps.push({ index: i, requestedOffset: off as number, appliedDate: hit.date, reason: hit.reason });
+    }
+  }
+
+  if (unpinned.length > 0) {
+    const fillerDates = distributeAcrossDays(unpinned.length, workingDays);
+    unpinned.forEach((idx, k) => { dates[idx] = fillerDates[k]; });
+  }
+
+  return { dates: dates as Date[], clamps };
+}
+
 // Maps pitstop type string → PitstopEventType enum value
 export function pitstopTypeToEventType(pitstopType: string): "Meeting" | "Visit" | "Event" {
   if (pitstopType === "SiteVisit" || pitstopType === "Research") return "Visit";

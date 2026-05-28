@@ -7,6 +7,10 @@ export interface DbActivity {
   // to match template activities to existing PitstopEvent rows. Auto-derived
   // by slugifying title on first save; admin may override.
   key?: string;
+  // Optional explicit position within the pitstop SLA window, in days from
+  // pitstop start (0 = start day). When unset, the activity is evenly spread
+  // across remaining working days. Values outside the window are clamped.
+  dayOffset?: number;
 }
 
 export interface DbChecklistItem {

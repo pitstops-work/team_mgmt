@@ -21,7 +21,7 @@
 import prisma from "./prisma";
 import type { DbTemplate, DbPitstop, DbChecklistItem, DbActivity } from "./templateDb";
 import { slugifyChecklistText, normalizeActivities } from "./templateDb";
-import { snapToWeekday } from "./scheduleActivities";
+import { snapToWeekday, addDaysUTC, dayDeltaUTC } from "./scheduleActivities";
 import { auditLog } from "./auditLog";
 import { sendPushToUsers } from "./push";
 
@@ -95,6 +95,7 @@ type DbActivityInstance = {
   templateKey: string | null;
   title: string;
   status: string;
+  scheduledAt: Date | null;
 };
 
 type GoalSnapshot = {
@@ -114,6 +115,25 @@ function effectiveKey(explicit: string | null | undefined, fallback: string): st
 
 function isDoneOrCancelled(status: string): boolean {
   return status === "Done" || status === "Cancelled";
+}
+
+// Compute the scheduledAt for an activity given a pitstop window + optional
+// dayOffset. Clamps to [start, end] when both are known. Falls back to start
+// when offset is unset.
+function offsetScheduledAt(
+  start: Date | null | undefined,
+  end: Date | null | undefined,
+  dayOffset: number | undefined,
+): Date {
+  const base = start ?? new Date();
+  if (!Number.isFinite(dayOffset)) return snapToWeekday(base);
+  const raw = addDaysUTC(base, dayOffset as number);
+  let snapped = snapToWeekday(raw);
+  const startSnap = snapToWeekday(base);
+  const endSnap = end ? snapToWeekday(end) : null;
+  if (snapped < startSnap) snapped = startSnap;
+  else if (endSnap && snapped > endSnap) snapped = endSnap;
+  return snapped;
 }
 
 // ── Diff: template vs one goal snapshot ─────────────────────────────────────
@@ -379,6 +399,42 @@ function diffActivities(
           : {}),
       });
     }
+
+    // Schedule (dayOffset) diff — only when template specifies an offset and
+    // we know the parent pitstop's start date.
+    if (Number.isFinite(a.dayOffset) && inst.startDate) {
+      const rawTarget = addDaysUTC(inst.startDate, a.dayOffset as number);
+      let target = snapToWeekday(rawTarget);
+      let clamped: "before" | "after" | null = null;
+      const snappedStart = snapToWeekday(inst.startDate);
+      const snappedEnd = inst.targetDate ? snapToWeekday(inst.targetDate) : null;
+      if (target < snappedStart) { target = snappedStart; clamped = "before"; }
+      else if (snappedEnd && target > snappedEnd) { target = snappedEnd; clamped = "after"; }
+
+      const sameDay = ev.scheduledAt && dayDeltaUTC(ev.scheduledAt, target) === 0;
+      if (!sameDay) {
+        const clampNote = clamped === "after"
+          ? ` (offset day ${a.dayOffset} clamped to SLA end)`
+          : clamped === "before"
+          ? ` (offset day ${a.dayOffset} clamped to SLA start)`
+          : "";
+        changes.push({
+          kind: "edit",
+          entity: "activity",
+          templateKey: k,
+          parentTemplateKey: instItem.key!,
+          instanceId: ev.id,
+          pitstopInstanceId: inst.id,
+          field: "scheduledAt",
+          oldValue: ev.scheduledAt ? ev.scheduledAt.toISOString() : null,
+          newValue: target.toISOString(),
+          description: `Reschedule "${ev.title}" to day ${a.dayOffset} of pitstop${clampNote}`,
+          ...(evBlocked
+            ? { blocked: true, blockedReason: `Activity is ${ev.status}` }
+            : {}),
+        });
+      }
+    }
   }
 
   // REMOVE activities
@@ -481,9 +537,9 @@ async function loadGoalSnapshots(templateSlug: string): Promise<GoalSnapshot[]> 
   if (checklistIds.length > 0) {
     const events = await prisma.$queryRaw<{
       id: string; checklistItemId: string; templateKey: string | null;
-      title: string; status: string;
+      title: string; status: string; scheduledAt: Date | null;
     }[]>`
-      SELECT id, "checklistItemId", "templateKey", title, status::text AS status
+      SELECT id, "checklistItemId", "templateKey", title, status::text AS status, "scheduledAt"
       FROM "PitstopEvent"
       WHERE "checklistItemId" = ANY(${checklistIds}) AND "deletedAt" IS NULL
     `;
@@ -728,7 +784,7 @@ async function applyGoalChanges(
             await prisma.pitstopEvent.create({
               data: {
                 title: act.title,
-                scheduledAt: snapToWeekday(created.startDate ?? new Date()),
+                scheduledAt: offsetScheduledAt(created.startDate, created.targetDate, act.dayOffset),
                 createdById: actorId,
                 templateKey: ak,
                 pitstops: { create: [{ pitstopId: created.id }] },
@@ -776,7 +832,7 @@ async function applyGoalChanges(
           const ev = await prisma.pitstopEvent.create({
             data: {
               title: act.title,
-              scheduledAt: snapToWeekday(parentPt.startDate ?? new Date()),
+              scheduledAt: offsetScheduledAt(parentPt.startDate, parentPt.targetDate, act.dayOffset),
               createdById: actorId,
               templateKey: ak,
               pitstops: { create: [{ pitstopId: parentPt.id }] },
@@ -797,12 +853,18 @@ async function applyGoalChanges(
         if (!parentCi) continue;
         const parent = await prisma.pitstop.findUnique({
           where: { id: ch.pitstopInstanceId },
-          select: { id: true, startDate: true },
+          select: { id: true, startDate: true, targetDate: true, templateKey: true },
         });
+        // Resolve the template-side activity to read its dayOffset (if any)
+        const tplPtForAct = template.pitstops.find(p => effectiveKey(p.key, p.title) === parent?.templateKey);
+        const tplItemForAct = tplPtForAct?.checklist.find(i => effectiveKey(i.key, i.text) === ch.parentTemplateKey);
+        const tplActForAct = tplItemForAct
+          ? normalizeActivities(tplItemForAct).find(a => effectiveKey(a.key, a.title) === ch.templateKey)
+          : undefined;
         const ev = await prisma.pitstopEvent.create({
           data: {
             title: ch.newValue ?? "Activity",
-            scheduledAt: snapToWeekday(parent?.startDate ?? new Date()),
+            scheduledAt: offsetScheduledAt(parent?.startDate, parent?.targetDate, tplActForAct?.dayOffset),
             createdById: actorId,
             templateKey: ch.templateKey,
             pitstops: { create: [{ pitstopId: ch.pitstopInstanceId }] },
@@ -836,10 +898,18 @@ async function applyGoalChanges(
           auditLog({ entityType: "Checklist", entityId: ch.instanceId, userId: actorId, action: "template_sync_edit", field: ch.field, oldValue: ch.oldValue ?? null, newValue: ch.newValue ?? null });
           applied += 1;
         } else if (ch.entity === "activity") {
-          await prisma.pitstopEvent.update({
-            where: { id: ch.instanceId },
-            data: { [ch.field as "title"]: ch.newValue ?? "" } as never,
-          });
+          if (ch.field === "scheduledAt") {
+            if (!ch.newValue) continue;
+            await prisma.pitstopEvent.update({
+              where: { id: ch.instanceId },
+              data: { scheduledAt: new Date(ch.newValue) },
+            });
+          } else {
+            await prisma.pitstopEvent.update({
+              where: { id: ch.instanceId },
+              data: { [ch.field as "title"]: ch.newValue ?? "" } as never,
+            });
+          }
           auditLog({ entityType: "Activity", entityId: ch.instanceId, userId: actorId, action: "template_sync_edit", field: ch.field, oldValue: ch.oldValue ?? null, newValue: ch.newValue ?? null });
           applied += 1;
         }
