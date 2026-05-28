@@ -82,9 +82,10 @@ export default async function QuartersPage() {
       targetDate: g.targetDate?.toISOString() ?? null,
       needsDomain: g.needsDomain,
       owner: { id: g.owner.id, name: g.owner.name },
-      needsCity:    effectiveCity    ? { id: effectiveCity.id,    name: effectiveCity.name    } : null,
-      needsZone:    effectiveZone    ? { id: effectiveZone.id,    name: effectiveZone.name    } : null,
-      needsCluster: effectiveCluster ? { id: effectiveCluster.id, name: effectiveCluster.name } : null,
+      needsCity:       effectiveCity    ? { id: effectiveCity.id,    name: effectiveCity.name    } : null,
+      needsZone:       effectiveZone    ? { id: effectiveZone.id,    name: effectiveZone.name    } : null,
+      needsCluster:    effectiveCluster ? { id: effectiveCluster.id, name: effectiveCluster.name } : null,
+      needsSettlement: g.needsSettlement ? { id: g.needsSettlement.id, name: g.needsSettlement.name } : null,
       pitstops: g.pitstops.map(p => ({
         id: p.id, title: p.title, status: p.status as string,
         targetDate: p.targetDate?.toISOString() ?? null,
