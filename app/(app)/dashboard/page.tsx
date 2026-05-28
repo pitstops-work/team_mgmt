@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import GoalsDashboard from "./GoalsDashboard";
 import { goalCityFilter } from "@/lib/goalCityFilter";
-import { buildRbacContext, scopeWhere, getTeamIds } from "@/lib/rbac";
+import { buildRbacContext, scopeWhere, userIdFilter } from "@/lib/rbac";
 
 export default async function DashboardPage({
   searchParams,
@@ -22,18 +22,22 @@ export default async function DashboardPage({
   const designation = me?.designation ?? "Other";
   const isSuperAdmin = (session as { user?: { role?: string } } | null)?.user?.role === "super-admin";
 
-  // `cityFilter` is retained for the search query below (city-wide, not
-  // team-restricted). `teamIds` and `isScoped` feed user-list + workload +
-  // audit-feed queries — derived from RBAC below.
+  // `cityFilter` is retained only for the search query below (city-wide, not
+  // team-restricted). Everything else flows from RBAC ctx.
   const cityFilter = isSuperAdmin ? {} : goalCityFilter(me?.cityId);
 
   const ctx = await buildRbacContext(session);
-  const goalScope = ctx ? await scopeWhere(ctx, "goal", "list") : null;
+  const goalScope    = ctx ? await scopeWhere(ctx, "goal",    "list") : null;
   const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
-  const goalWhere: Record<string, unknown> = goalScope ?? {};
+  const userScope    = ctx ? await scopeWhere(ctx, "user",    "list") : null;
+  const goalWhere:    Record<string, unknown> = goalScope    ?? {};
   const pitstopWhere: Record<string, unknown> = pitstopScope ?? {};
-  const teamIds: string[] = ctx ? await getTeamIds(ctx.userId) : [currentUserId];
-  const isScoped = pitstopScope !== null && Object.keys(pitstopScope).length > 0;
+  const userWhere:    Record<string, unknown> = userScope    ?? {};
+
+  // Filter to apply on Pitstop.ownerId / AuditLog.userId etc. — resolves
+  // `user.list` scope into a Prisma StringFilter without rewriting field names.
+  // `undefined` = no filter (admin/super-admin); `null` = no permission.
+  const ownerIdFilter = await userIdFilter(ctx, "list");
 
   const [goals, users, programs, threads, myPitstops, overviewData] = await Promise.all([
     prisma.goal.findMany({
@@ -50,7 +54,7 @@ export default async function DashboardPage({
       orderBy: { updatedAt: "desc" },
     }),
     prisma.user.findMany({
-      where: isScoped ? { id: { in: teamIds } } : {},
+      where: userWhere,
       select: { id: true, name: true, image: true, designation: true, reportsToId: true },
       orderBy: { name: "asc" },
     }),
@@ -161,11 +165,12 @@ export default async function DashboardPage({
         take: 30,
       }),
 
-      // Pitstop workload detail per user — replaces groupBy, enables drill-down + stalled detection
+      // Pitstop workload detail per user — replaces groupBy, enables drill-down + stalled detection.
+      // ownerId scoped via `user.list` (team/self/all) so the per-user chart matches the directory.
       prisma.pitstop.findMany({
         where: {
           deletedAt: null,
-          ownerId: isScoped ? { in: teamIds } : { not: null },
+          ownerId: ownerIdFilter ?? { not: null },
           status: { in: ["Upcoming", "InProgress"] },
           goal: { deletedAt: null },
         },
@@ -209,12 +214,12 @@ export default async function DashboardPage({
         },
       }),
 
-      // Recent activity feed — scoped to team for RP/ZL
+      // Recent activity feed — same user-scope as the directory above.
       prisma.auditLog.findMany({
         where: {
           action: "status_change",
           entityType: "Pitstop",
-          ...(isScoped ? { userId: { in: teamIds } } : {}),
+          ...(ownerIdFilter ? { userId: ownerIdFilter } : {}),
         },
         orderBy: { createdAt: "desc" },
         take: 15,
@@ -224,8 +229,8 @@ export default async function DashboardPage({
         },
       }),
 
-      // Checklist items completed this week per pitstop owner.
-      // Co-owners of a pitstop are treated as owners for scope.
+      // Checklist items completed this week per pitstop owner. Reuses the
+      // pitstop scope (which already accounts for co-owners).
       prisma.checklistItem.findMany({
         where: {
           checked: true,
@@ -233,14 +238,7 @@ export default async function DashboardPage({
           pitstop: {
             deletedAt: null,
             goal: { deletedAt: null },
-            ...(isScoped
-              ? {
-                  OR: [
-                    { ownerId: { in: teamIds } },
-                    { coOwners: { some: { userId: { in: teamIds } } } },
-                  ],
-                }
-              : {}),
+            ...pitstopWhere,
           },
         },
         select: { pitstop: { select: { ownerId: true } } },
