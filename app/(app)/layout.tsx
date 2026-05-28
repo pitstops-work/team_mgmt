@@ -13,6 +13,8 @@ import AgentPanel from "@/components/AgentPanel";
 import BfcacheRefresh from "@/components/BfcacheRefresh";
 import prisma from "@/lib/prisma";
 import { isAdminUser, isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
+import { buildRbacContext } from "@/lib/rbac";
+import { computeAllowedNavHrefs } from "./navGates";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -28,10 +30,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const [unreadCount, me] = await Promise.all([
+  const [unreadCount, me, ctx, directReportsCount] = await Promise.all([
     prisma.notification.count({ where: { userId: session.user.id!, read: false } }),
     prisma.user.findUnique({ where: { id: session.user.id! }, select: { designation: true } }),
+    buildRbacContext(session),
+    prisma.user.count({ where: { reportsToId: session.user.id! } }),
   ]);
+
+  const isAdmin = isAdminUser(session);
+  const allowedNavHrefs = await computeAllowedNavHrefs(ctx, {
+    hasReports: directReportsCount > 0,
+    isAdmin,
+  });
 
   return (
     <SessionProvider>
@@ -43,7 +53,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <SearchShortcut />
       <KeyboardShortcuts />
       <div className="flex h-screen overflow-hidden">
-        <AppNav user={session.user} unreadCount={unreadCount} isAdmin={isAdminUser(session)} isViewer={session.user.role === "viewer"} designation={me?.designation ?? "Other"} />
+        <AppNav
+          user={session.user}
+          unreadCount={unreadCount}
+          isAdmin={isAdmin}
+          isViewer={session.user.role === "viewer"}
+          designation={me?.designation ?? "Other"}
+          allowedNavHrefs={Array.from(allowedNavHrefs)}
+        />
         <main className="relative flex-1 overflow-y-auto pb-16 sm:pb-0">{children}</main>
         <PWAInstallBanner />
         {isSuperAdmin(session) && <AgentPanel />}

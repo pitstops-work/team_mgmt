@@ -24,17 +24,24 @@ interface User {
 }
 
 export default function AppNav({
-  user, unreadCount: initialUnreadCount, isAdmin, isViewer, designation,
+  user, unreadCount: initialUnreadCount, isAdmin, isViewer, designation, allowedNavHrefs,
 }: {
   user: User;
   unreadCount: number;
   isAdmin?: boolean;
   isViewer?: boolean;
   designation?: string;
+  /**
+   * Hrefs the user is allowed to see in the Setup-mode sidebar. Computed
+   * server-side in `app/(app)/layout.tsx` via `computeAllowedNavHrefs()`.
+   * Empty array = no nav items (effectively logged-out). Operations-mode
+   * nav (home/activities/threads/notifications) is universal and not gated.
+   */
+  allowedNavHrefs?: string[];
 }) {
-  const isRP = designation === "RP";
-  const isZL = designation === "ZL";
+  void isAdmin; void designation; // reserved for future per-tier UI hints
   const pathname = usePathname();
+  const allowedSet = new Set(allowedNavHrefs ?? []);
   const [showMore, setShowMore] = useState(false);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
 
@@ -60,39 +67,33 @@ export default function AppNav({
   const isOperations = OPERATIONS_ROUTES.includes(pathname);
   const settingsHref = isViewer ? "/settings/language" : "/settings";
 
-  // ── Setup nav items (RP) ───────────────────────────────────────────────────
-  const setupNavRP = [
-    { href: "/dashboard", icon: <Target className="w-3.5 h-3.5" />,        label: "Goals"         },
-    { href: "/map",       icon: <MapPin className="w-3.5 h-3.5" />,        label: "Programme Map" },
-    { href: "/route",     icon: <Route className="w-3.5 h-3.5" />,          label: "Route Planner" },
-    { href: "/gantt",     icon: <GanttChartSquare className="w-3.5 h-3.5" />, label: "Gantt"      },
-    { href: "/planner",   icon: <BookOpen className="w-3.5 h-3.5" />,      label: "Planner"       },
-    { href: "/quarters",  icon: <CalendarRange className="w-3.5 h-3.5" />, label: "Quarters"      },
-    { href: "/standup",   icon: <ClipboardList className="w-3.5 h-3.5" />, label: "Field Notes"   },
-    { href: "/wiki",      icon: <Library className="w-3.5 h-3.5" />,       label: "Wiki"          },
-    { href: settingsHref, icon: <Settings className="w-3.5 h-3.5" />,      label: "Settings"      },
-    { href: "/help",      icon: <HelpCircle className="w-3.5 h-3.5" />,    label: "Manual"        },
+  // ── Setup nav items ────────────────────────────────────────────────────────
+  // Single ordered list — visibility is decided by `allowedNavHrefs` (computed
+  // server-side via RBAC `can()` + has-reports check; see `navGates.ts`).
+  // Add a new entry here AND add its gate in `navGates.ts`.
+  const SETUP_NAV: Array<{ href: string; icon: React.ReactNode; label: string }> = [
+    { href: "/dashboard",  icon: <Target className="w-3.5 h-3.5" />,           label: "Goals"          },
+    { href: "/needs",      icon: <BarChart3 className="w-3.5 h-3.5" />,        label: "Field Coverage" },
+    { href: "/effects",    icon: <TrendingUp className="w-3.5 h-3.5" />,       label: "Effects"        },
+    { href: "/programmes", icon: <Layers className="w-3.5 h-3.5" />,           label: "Programmes"     },
+    { href: "/map",        icon: <MapPin className="w-3.5 h-3.5" />,           label: "Programme Map"  },
+    { href: "/route",      icon: <Route className="w-3.5 h-3.5" />,            label: "Route Planner"  },
+    { href: "/gantt",      icon: <GanttChartSquare className="w-3.5 h-3.5" />, label: "Gantt"          },
+    { href: "/planner",    icon: <BookOpen className="w-3.5 h-3.5" />,         label: "Planner"        },
+    { href: "/quarters",   icon: <CalendarRange className="w-3.5 h-3.5" />,    label: "Quarters"       },
+    { href: "/people",     icon: <Users className="w-3.5 h-3.5" />,            label: "People"         },
+    { href: "/standup",    icon: <ClipboardList className="w-3.5 h-3.5" />,    label: "Field Notes"    },
+    { href: "/wiki",       icon: <Library className="w-3.5 h-3.5" />,          label: "Wiki"           },
+    { href: settingsHref,  icon: <Settings className="w-3.5 h-3.5" />,         label: "Settings"       },
+    { href: "/help",       icon: <HelpCircle className="w-3.5 h-3.5" />,       label: "Manual"         },
   ];
-
-  // ── Setup nav items (ZL) — adds Field Coverage and People ─────────────────
-  const setupNavZL = [
-    { href: "/dashboard", icon: <Target className="w-3.5 h-3.5" />,           label: "Goals"          },
-    { href: "/needs",     icon: <BarChart3 className="w-3.5 h-3.5" />,        label: "Field Coverage" },
-    { href: "/effects",    icon: <TrendingUp className="w-3.5 h-3.5" />,       label: "Effects"         },
-    { href: "/programmes", icon: <Layers className="w-3.5 h-3.5" />,           label: "Programmes"      },
-    { href: "/map",       icon: <MapPin className="w-3.5 h-3.5" />,           label: "Programme Map"  },
-    { href: "/route",     icon: <Route className="w-3.5 h-3.5" />,            label: "Route Planner"  },
-    { href: "/gantt",     icon: <GanttChartSquare className="w-3.5 h-3.5" />, label: "Gantt"          },
-    { href: "/planner",   icon: <BookOpen className="w-3.5 h-3.5" />,         label: "Planner"        },
-    { href: "/quarters",  icon: <CalendarRange className="w-3.5 h-3.5" />,    label: "Quarters"       },
-    { href: "/people",    icon: <Users className="w-3.5 h-3.5" />,            label: "People"         },
-    { href: "/standup",   icon: <ClipboardList className="w-3.5 h-3.5" />,    label: "Field Notes"    },
-    { href: "/wiki",      icon: <Library className="w-3.5 h-3.5" />,          label: "Wiki"           },
-    { href: settingsHref, icon: <Settings className="w-3.5 h-3.5" />,         label: "Settings"       },
-    { href: "/help",      icon: <HelpCircle className="w-3.5 h-3.5" />,       label: "Manual"         },
-  ];
-
-  const setupNav = (isAdmin || isZL) ? setupNavZL : setupNavRP;
+  // Filter by RBAC-resolved allowed set. If the server didn't pass one (e.g.
+  // during error states), fall back to showing the universal subset so the
+  // user is never stranded without a way out.
+  const UNIVERSAL_HREFS = new Set(["/wiki", settingsHref, "/help"]);
+  const setupNav = allowedSet.size > 0
+    ? SETUP_NAV.filter(item => allowedSet.has(item.href))
+    : SETUP_NAV.filter(item => UNIVERSAL_HREFS.has(item.href));
 
   // ── Operations nav items ───────────────────────────────────────────────────
   const operationsNav = [
