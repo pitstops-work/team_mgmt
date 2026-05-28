@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare,
   CalendarClock, MoreHorizontal, X, BookOpen, ClipboardList, MapPin,
@@ -24,7 +24,7 @@ interface User {
 }
 
 export default function AppNav({
-  user, unreadCount, isAdmin, isViewer, designation,
+  user, unreadCount: initialUnreadCount, isAdmin, isViewer, designation,
 }: {
   user: User;
   unreadCount: number;
@@ -36,6 +36,23 @@ export default function AppNav({
   const isZL = designation === "ZL";
   const pathname = usePathname();
   const [showMore, setShowMore] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
+
+  // Layout is preserved across soft navigation, so the server-rendered
+  // unreadCount goes stale once the user marks notifications read. Refresh
+  // it whenever the notifications subsystem dispatches `pitstop:notifications-changed`.
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const r = await fetch("/api/notifications/unread-count");
+        if (!r.ok) return;
+        const data = await r.json();
+        if (typeof data?.count === "number") setUnreadCount(data.count);
+      } catch {}
+    };
+    window.addEventListener("pitstop:notifications-changed", refresh);
+    return () => window.removeEventListener("pitstop:notifications-changed", refresh);
+  }, []);
 
   // No nav on the portal landing page
   if (pathname === "/portal") return null;

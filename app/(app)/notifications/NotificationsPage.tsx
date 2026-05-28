@@ -141,11 +141,13 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
   const markRead = async (id: string) => {
     await fetch(`/api/notifications/${id}`, { method: "PATCH" });
     setNotifications((ns) => ns.filter((n) => n.id !== id));
+    window.dispatchEvent(new Event("pitstop:notifications-changed"));
   };
 
   const markAllRead = async () => {
     await fetch("/api/notifications/read-all", { method: "POST" });
     setNotifications([]);
+    window.dispatchEvent(new Event("pitstop:notifications-changed"));
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -204,6 +206,7 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
                       onResponded={() => {
                         fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
                         setNotifications((ns) => ns.filter((x) => x.id !== n.id));
+                        window.dispatchEvent(new Event("pitstop:notifications-changed"));
                       }}
                     />
                   )}
@@ -213,6 +216,7 @@ export default function NotificationsPage({ initialNotifications }: { initialNot
                       onResponded={() => {
                         fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
                         setNotifications((ns) => ns.filter((x) => x.id !== n.id));
+                        window.dispatchEvent(new Event("pitstop:notifications-changed"));
                       }}
                     />
                   )}

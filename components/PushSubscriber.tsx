@@ -130,9 +130,14 @@ export default function PushSubscriber() {
         // user to act on from /notifications. (Previously we marked ALL
         // unread as read here, which left the notifications page blank
         // while the nav badge — frozen in the layout — still showed a count.)
-        banners.forEach((n) => {
-          fetch(`/api/notifications/${n.id}`, { method: "PATCH" }).catch(() => {});
-        });
+        if (banners.length > 0) {
+          await Promise.all(
+            banners.map((n) =>
+              fetch(`/api/notifications/${n.id}`, { method: "PATCH" }).catch(() => {})
+            )
+          );
+          window.dispatchEvent(new Event("pitstop:notifications-changed"));
+        }
       } catch {
         // Non-critical — silently ignore
       }
