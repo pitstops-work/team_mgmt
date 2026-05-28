@@ -60,7 +60,12 @@ export default function QuartersView({ goals }: { goals: GoalData[] }) {
   const fyFromUrl = Number(searchParams.get("fy"));
   const fyYear = Number.isFinite(fyFromUrl) && fyFromUrl > 0 ? fyFromUrl : currentQ.fyYear;
   const qParam = parseQ(searchParams.get("q"));
-  const mParam = (() => { const m = Number(searchParams.get("m")); return Number.isFinite(m) && m >= 0 && m <= 2 ? m : null; })();
+  const mParam = (() => {
+    const raw = searchParams.get("m");
+    if (raw === null) return null;
+    const m = Number(raw);
+    return Number.isFinite(m) && m >= 0 && m <= 2 ? m : null;
+  })();
   const overallParam = searchParams.get("overall") === "1";
 
   const filters: FilterState = useMemo(() => ({
