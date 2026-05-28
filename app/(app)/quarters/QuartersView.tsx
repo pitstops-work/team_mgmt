@@ -8,6 +8,7 @@ import type { GoalData } from "./lib";
 import {
   fyQuarter, quarterBounds, quarterMonths, qKey, Q_LABELS,
   goalsInRange, goalsTargetingRange, slaMix,
+  fmtDayMonth, fmtDayMonthYear, fmtMonthYearLong,
 } from "./lib";
 import { QuarterTile, MonthTile, OverallQuarterTile } from "./tiles";
 import GoalsThisQuarterStrip from "./GoalsThisQuarterStrip";
@@ -96,7 +97,7 @@ export default function QuartersView({ goals }: { goals: GoalData[] }) {
     if (mParam !== null) {
       const months = quarterMonths(y, q);
       const m = months[mParam];
-      const monthName = m.start.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+      const monthName = fmtMonthYearLong(m.start);
       return (
         <QuarterListView
           goals={goals}
@@ -121,7 +122,7 @@ export default function QuartersView({ goals }: { goals: GoalData[] }) {
         start={start}
         end={end}
         title={`Q${q} Review · FY${y}–${String(y + 1).slice(2)}`}
-        subtitle={`${Q_LABELS[q - 1]} · ${start.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
+        subtitle={`${Q_LABELS[q - 1]} · ${fmtDayMonth(start)} – ${fmtDayMonthYear(end)}`}
         backHref={buildHref(pathname, searchParams, { m: null, overall: null })}
         groupBy={groupBy}
         onGroupByChange={setGroupBy}
@@ -161,7 +162,7 @@ export default function QuartersView({ goals }: { goals: GoalData[] }) {
           )}
         </div>
         <p className="text-xs text-stone-400 mb-6">
-          {Q_LABELS[q - 1]} · {start.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – {end.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+          {Q_LABELS[q - 1]} · {fmtDayMonth(start)} – {fmtDayMonthYear(end)}
         </p>
 
         {/* 3 month tiles + overall tile */}
@@ -171,12 +172,12 @@ export default function QuartersView({ goals }: { goals: GoalData[] }) {
             const mix = slaMix(items.flatMap(i => i.pitstops), today);
             const monthIsCurrent = today >= m.start && today <= m.end;
             const monthIsPast = m.end < today;
-            const monthFull = m.start.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+            const monthFull = fmtMonthYearLong(m.start);
             return (
               <MonthTile
                 key={idx}
                 title={monthFull}
-                subtitle={`${m.start.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${m.end.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`}
+                subtitle={`${fmtDayMonth(m.start)} – ${fmtDayMonth(m.end)}`}
                 mix={mix}
                 goalCount={items.length}
                 isCurrent={monthIsCurrent}
@@ -248,7 +249,7 @@ export default function QuartersView({ goals }: { goals: GoalData[] }) {
           <QuarterTile
             key={t.q}
             title={`Q${t.q} · ${Q_LABELS[t.q - 1]}`}
-            subtitle={`${t.start.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${t.end.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
+            subtitle={`${fmtDayMonth(t.start)} – ${fmtDayMonthYear(t.end)}`}
             mix={t.mix}
             goalCount={t.goalCount}
             isCurrent={t.isCurrent}

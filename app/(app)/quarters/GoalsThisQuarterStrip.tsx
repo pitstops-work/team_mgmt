@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Target, AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { GoalData } from "./lib";
+import { fmtDayMonth } from "./lib";
 
 // Secondary lane on L2: goals whose own targetDate falls in the quarter.
 // Different signal from "pitstops scheduled in the quarter" — these are
@@ -50,7 +51,7 @@ export default function GoalsThisQuarterStrip({
               )}
               {g.targetDate && (
                 <span className={`text-[10px] flex-shrink-0 tabular-nums ${overdue ? "text-red-500 font-semibold" : "text-stone-400"}`}>
-                  {new Date(g.targetDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  {fmtDayMonth(new Date(g.targetDate))}
                 </span>
               )}
               {overdue && <AlertTriangle className="w-3 h-3 text-red-500 flex-shrink-0" />}

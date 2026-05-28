@@ -54,7 +54,7 @@ export function quarterMonths(fyYear: number, q: number): { idx: number; start: 
       idx: i,
       start,
       end,
-      label: start.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
+      label: fmtMonthShortYear2(start),
     });
   }
   return out;
@@ -63,6 +63,27 @@ export function quarterMonths(fyYear: number, q: number): { idx: number; start: 
 export const Q_LABELS = ["Apr–Jun", "Jul–Sep", "Oct–Dec", "Jan–Mar"];
 export function qKey(fyYear: number, q: number)     { return `${fyYear}-${q}`; }
 export function qSortKey(fyYear: number, q: number) { return q === 4 ? (fyYear + 1) * 10 : fyYear * 10 + q; }
+
+// ── Locale-independent date formatters ─────────────────────────────────────
+// toLocaleDateString("en-IN", { month: "short" }) renders "Sept" on some Node
+// ICU builds and "Sep" in some browsers, causing SSR hydration mismatches.
+// These helpers use a fixed lookup table so server and client agree.
+
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_LONG  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+export function fmtDayMonth(d: Date): string {
+  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+}
+export function fmtDayMonthYear(d: Date): string {
+  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+}
+export function fmtMonthYearLong(d: Date): string {
+  return `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
+}
+export function fmtMonthShortYear2(d: Date): string {
+  return `${MONTHS_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+}
 
 // ── SLA bucketing ──────────────────────────────────────────────────────────
 

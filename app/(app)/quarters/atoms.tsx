@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { ActivityData, ChecklistItemData, PitstopData, GoalData } from "./lib";
+import { fmtDayMonth } from "./lib";
 
 const PHASE_COLORS: Record<string, string> = {
   Planning:    "bg-sky-50 text-sky-600 border-sky-100",
@@ -26,7 +27,7 @@ export function ActivityRow({ a }: { a: ActivityData }) {
       <span className={`flex-1 truncate ${isDone ? "text-stone-400 line-through" : "text-stone-600"}`}>{a.title}</span>
       <span className="text-stone-300 flex-shrink-0">{a.type}</span>
       <span className={`flex-shrink-0 tabular-nums ${isDone ? "text-emerald-500" : "text-stone-400"}`}>
-        {new Date(a.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+        {fmtDayMonth(new Date(a.scheduledAt))}
       </span>
     </div>
   );
@@ -95,7 +96,7 @@ export function PitstopCard({ p, today }: { p: PitstopData; today: Date }) {
             )}
             {p.targetDate && (
               <span className={`text-[9px] flex-shrink-0 ${isOverdue ? "text-red-500 font-semibold" : "text-stone-400"}`}>
-                {new Date(p.targetDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                {fmtDayMonth(new Date(p.targetDate))}
               </span>
             )}
           </div>
