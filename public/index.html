@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pitstops · Urban Programme Platform</title>
+<meta name="description" content="Pitstops — the field-ops platform for urban settlement programmes in Bangalore and Chennai. About the platform, the May 2026 team workshop, and the always-on training hub."/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);color:#fff;min-height:100vh}
+.wrap{max-width:1180px;margin:0 auto;padding:80px 32px 96px}
+header{margin-bottom:64px;text-align:center}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#a78bfa;margin-bottom:18px}
+h1{font-size:64px;font-weight:800;letter-spacing:-2px;line-height:1.05;margin-bottom:20px;background:linear-gradient(135deg,#fff 0%,#cbd5e1 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.tagline{font-size:19px;color:#cbd5e1;max-width:680px;margin:0 auto;line-height:1.6}
+.where{margin-top:28px;display:inline-flex;align-items:center;gap:10px;padding:8px 18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:50px;font-size:13px;color:#94a3b8}
+.where strong{color:#cbd5e1;font-weight:600}
+.dot{width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 12px rgba(16,185,129,.6)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:24px}
+.tile{position:relative;display:flex;flex-direction:column;padding:36px 32px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:20px;text-decoration:none;color:inherit;transition:all .25s ease;min-height:300px}
+.tile:hover{background:rgba(255,255,255,.07);border-color:rgba(167,139,250,.5);transform:translateY(-4px);box-shadow:0 16px 48px rgba(99,102,241,.18)}
+.tile-icon{font-size:54px;margin-bottom:24px;line-height:1}
+.tile-strap{display:inline-flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#a78bfa;margin-bottom:10px}
+.tile-strap.seasonal{color:#fbbf24}
+.tile-strap.always{color:#34d399}
+.tile-title{font-size:26px;font-weight:700;color:#fff;letter-spacing:-0.5px;line-height:1.15;margin-bottom:12px}
+.tile-sub{font-size:14px;color:#94a3b8;line-height:1.55;flex:1}
+.tile-arrow{margin-top:24px;display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#a78bfa}
+.tile-arrow span{transition:transform .2s}
+.tile:hover .tile-arrow span{transform:translateX(4px)}
+.seasonal-dot{width:8px;height:8px;border-radius:50%;background:#fbbf24;box-shadow:0 0 10px rgba(251,191,36,.7);animation:pulse 2.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.foot{margin-top:80px;padding-top:40px;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:24px}
+.foot-left{font-size:13px;color:#64748b}
+.foot-links{display:flex;gap:8px;flex-wrap:wrap}
+.foot-links a{font-size:13px;color:#94a3b8;text-decoration:none;padding:8px 14px;border:1px solid rgba(255,255,255,.08);border-radius:50px;transition:all .18s}
+.foot-links a:hover{color:#fff;border-color:rgba(167,139,250,.4);background:rgba(255,255,255,.04)}
+@media (max-width:880px){
+  .wrap{padding:48px 20px 64px}
+  h1{font-size:42px;letter-spacing:-1px}
+  .tagline{font-size:16px}
+  .tiles{grid-template-columns:1fr;gap:16px}
+  .tile{min-height:auto;padding:28px 24px}
+  .tile-title{font-size:22px}
+  .tile-icon{font-size:42px;margin-bottom:18px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">pitstops.work</div>
+    <h1>The field is where the work is.</h1>
+    <p class="tagline">Pitstops is the daily-ops platform for urban settlement programmes — creches, learning centres, elderly care, food, water, sanitation, welfare rights — across Bangalore and Chennai.</p>
+    <div class="where"><span class="dot"></span><span>Bangalore + Chennai</span><span>·</span><span><strong>~36k</strong> people served weekly</span></div>
+  </header>
+
+  <div class="tiles">
+    <a href="/pitstops-presentation.html" class="tile">
+      <div class="tile-icon">🏁</div>
+      <div class="tile-strap always">Always-on · 8 min read</div>
+      <div class="tile-title">About Pitstops</div>
+      <div class="tile-sub">The platform overview — what it is, how it works, why we built it. Start here if it's your first time.</div>
+      <div class="tile-arrow">Read the deck <span>→</span></div>
+    </a>
+
+    <a href="/workshop-agenda.html" class="tile">
+      <div class="tile-icon">📅</div>
+      <div class="tile-strap seasonal"><span class="seasonal-dot"></span>Seasonal · May 2026</div>
+      <div class="tile-title">Team Workshop · BLR + MAA</div>
+      <div class="tile-sub">Two days, nine sessions. Why we're here, how we think, how we work — and the goals each of us will run this year.</div>
+      <div class="tile-arrow">Open the agenda <span>→</span></div>
+    </a>
+
+    <a href="/pitstops-training.html" class="tile">
+      <div class="tile-icon">📚</div>
+      <div class="tile-strap always">Always-on · For RPs & partners</div>
+      <div class="tile-title">Training Hub</div>
+      <div class="tile-sub">Domain training modules per programme — Food, Water, Sanitation, Creches and more. Plus the operational deck for every goal we run.</div>
+      <div class="tile-arrow">Enter the hub <span>→</span></div>
+    </a>
+  </div>
+
+  <div class="foot">
+    <div class="foot-left">Pitstops · An APSA initiative · Bangalore + Chennai</div>
+    <div class="foot-links">
+      <a href="/home">App home</a>
+      <a href="/models">Operating models</a>
+      <a href="/login">Sign in</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

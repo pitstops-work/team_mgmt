@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Module 3 · Kitchen Staff — Food Programme Training</title>
+<link rel="stylesheet" href="/training/modules/food-programme/_module.css"/>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="crumb">
+    <a href="/index.html">⌂ pitstops.work</a>
+    <span class="sep">›</span>
+    <a href="/pitstops-training.html">Training</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/food-programme.html">Food Programme</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/food-programme/03-kitchen.html">Module 3</a>
+  </nav>
+
+  <header class="mod-head">
+    <div class="mod-num">Module 3 · 120 minutes</div>
+    <h1 class="mod-title">Kitchen Staff — Production, Fill &amp; Dispatch</h1>
+    <div class="mod-meta">
+      <span class="chip chip-kitchen">Kitchen</span>
+      <span class="dur">Cooks · helpers · loaders · kitchen manager</span>
+    </div>
+    <p class="lede">The kitchen is where roughly 95% of failure modes start: late food, wrong temperature, undercooked, contaminated, wrong quantity. Every container that leaves wrong, leaves wrong for eight hours. Your shift locks in the day's promise.</p>
+  </header>
+
+  <section>
+    <h2 class="sec"><span class="num">3.1</span>Stores &amp; procurement at day-start (02:00–04:00)</h2>
+    <ul class="check">
+      <li>Day's menu posted on the board and matching the weekly menu calendar</li>
+      <li>Raw materials visible in the cook line — rice, dal, oil, vegetables, masala</li>
+      <li>Buffer stock for tomorrow visible in dry store — at least one day's rice, dal, and oil</li>
+      <li>Vegetable lot checked — no rot, no foul smell (reject criteria below)</li>
+      <li>Oil from a single batch, freshly opened or partly used — not visibly dark</li>
+      <li>Cold-chain items within use-by and stored at or below 5°C</li>
+    </ul>
+
+    <h3 class="sub">Goods-receipt reject criteria — know these by heart</h3>
+    <table class="t">
+      <thead><tr><th>Item</th><th>Reject if…</th></tr></thead>
+      <tbody>
+        <tr><td>Rice</td><td>More than 2% broken, visible weevils, or off-smell</td></tr>
+        <tr><td>Dal</td><td>More than 3% impurity or weevils</td></tr>
+        <tr><td>Oil</td><td>Turbid, off-smell, or dark colour (not freshly transparent)</td></tr>
+        <tr><td>Vegetables</td><td>More than 10% rot or wilt, foul smell, or water-logged</td></tr>
+        <tr><td>Any item</td><td>Past its visible "fresh" window — return at supplier cost</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">3.2</span>Hygiene gate-walk</h2>
+    <ul class="check">
+      <li>Floor washed; no standing water in the cook area</li>
+      <li>All cooks in apron, headcap, and closed footwear; no jewellery on hands</li>
+      <li>Handwash station stocked — soap, water, and drying paper or cloth</li>
+      <li>No mobile phones at the cook line</li>
+      <li>Pest-control log signed for the previous night — rat-traps, fly-screens, drain covers</li>
+      <li>Previous shift's garbage cleared; no overflow</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">3.3</span>Filling &amp; sealing — the lock-in moment (04:00–04:30)</h2>
+    <p>For each container — roughly six per truck, twelve a day at launch:</p>
+    <ul class="check">
+      <li>Inner lining inspected — no dents, chips, or stale smell</li>
+      <li>Container weighed empty on the kitchen scale, witnessed</li>
+      <li>Filled to planned grams — units planned × 400g, plus a 5% buffer</li>
+      <li>Weighed full — <code>filledKg</code> entered in the <code>food_app</code> Kitchen screen</li>
+      <li>Lid seal tight; locking latch engaged</li>
+      <li>QR scanned → status <code>FILLED</code> (event row created)</li>
+      <li>Photo captured per container</li>
+      <li>Labelled with DP name and truck number — laminated card in the latch loop</li>
+    </ul>
+
+    <h3 class="sub">Temperature spot-check (random 3 containers a day)</h3>
+    <ul class="check">
+      <li>Thermometer probe at the container core</li>
+      <li>Reading ≥ 65°C at fill — otherwise back to the cook line for re-heat</li>
+      <li>Reading logged in the temperature log</li>
+    </ul>
+
+    <div class="hard">
+      <div class="head">Reject-and-replace protocol</div>
+      <p>If a container fails temperature, seal, or visible quality at fill, dispatch may be delayed by <strong>up to 20 minutes — a hard 05:20 cutoff</strong>. Beyond that, the container is dropped from the route and the affected DP is told by WhatsApp before 05:30, with the reason and tomorrow's ETA.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">3.4</span>Handing off to FILO loading (04:30–05:00)</h2>
+    <ul class="check">
+      <li>Containers staged in the bay in reverse-DP order — last DP first</li>
+      <li>Each container scanned <code>LOADED</code> (<code>FILLED</code> → <code>LOADED</code>)</li>
+      <li>Kit items per DP confirmed against the master list and handed to the driver</li>
+      <li>Bay clean and dry before any container goes in</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">3.5</span>Weigh-back &amp; clean (09:30–10:15)</h2>
+    <ul class="check">
+      <li>Each returned container scanned <code>RETURNED</code> and weighed — <code>returnedKg</code> entered</li>
+      <li>Containers washed within 30 minutes of return</li>
+      <li>Kit items returned and counted against load-out; losses or damage noted</li>
+      <li>Kitchen left clean and stores secured</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">3.6</span>Kitchen Manager additions</h2>
+    <ul class="check">
+      <li>Owns the 04:30 readiness gate: nothing leaves until all kits are weighed, sealed, and scanned <code>FILLED</code></li>
+      <li>Allots the RP a covered two-wheeler parking slot during launch onboarding</li>
+      <li>Keeps FSSAI / FoSCoS licence visible and within validity; files procurement bills daily</li>
+      <li>Is the first escalation point if the kitchen is not ready by 04:30</li>
+    </ul>
+  </section>
+
+  <div class="check-yu">
+    <div class="head">Check your understanding</div>
+    <h3>Three questions — answer before you move on</h3>
+    <ol>
+      <li>A rice sack shows roughly 4% broken grains. Accept or reject? Why?</li>
+      <li>Walk through every step of filling and sealing one container, in order.</li>
+      <li>A container reads 60°C at fill at 04:25. What happens, and by when must it be resolved?</li>
+    </ol>
+  </div>
+
+  <nav class="foot-nav">
+    <a href="/training/modules/food-programme/02-dignity-app.html">← Module 2</a>
+    <a href="/training/modules/food-programme/04-driver.html" class="next-mod">Module 4 · Driver →</a>
+  </nav>
+
+</div>
+</body>
+</html>

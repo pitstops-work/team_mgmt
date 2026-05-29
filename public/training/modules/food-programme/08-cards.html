@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Module 8 · Quick-Reference Cards — Food Programme Training</title>
+<link rel="stylesheet" href="/training/modules/food-programme/_module.css"/>
+<style>
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px}
+.card{padding:22px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:14px;page-break-inside:avoid;break-inside:avoid}
+.card.kitchen{border-left:4px solid #fb923c}
+.card.driver{border-left:4px solid #0ea5e9}
+.card.dp{border-left:4px solid #34d399}
+.card.rp{border-left:4px solid #a855f7}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.08)}
+.card-role{font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#fff}
+.card.kitchen .card-role{color:#fdba74}
+.card.driver .card-role{color:#7dd3fc}
+.card.dp .card-role{color:#6ee7b7}
+.card.rp .card-role{color:#d8b4fe}
+.card-when{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px}
+.card ul{list-style:none;padding:0;margin:0}
+.card ul li{padding:6px 0 6px 22px;position:relative;font-size:12.5px;color:#cbd5e1;line-height:1.45;border-bottom:1px solid rgba(255,255,255,.03)}
+.card ul li::before{content:'☐';position:absolute;left:0;top:5px;color:#64748b;font-size:14px}
+.card ul li:last-child{border-bottom:none}
+.print-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.4);border-radius:50px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:all .18s;font-family:inherit}
+.print-btn:hover{background:rgba(167,139,250,.3)}
+@media print{
+  .cards{grid-template-columns:1fr 1fr;gap:12px}
+  .card{background:#fff;border:1px solid #000;color:#000;padding:14px}
+  .card-head{border-color:#000}
+  .card-role,.card-when{color:#000}
+  .card ul li{color:#000;border-color:rgba(0,0,0,.08)}
+  .card ul li::before{color:#000}
+}
+@media (max-width:760px){
+  .cards{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="crumb">
+    <a href="/index.html">⌂ pitstops.work</a>
+    <span class="sep">›</span>
+    <a href="/pitstops-training.html">Training</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/food-programme.html">Food Programme</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/food-programme/08-cards.html">Module 8</a>
+  </nav>
+
+  <header class="mod-head">
+    <div class="mod-num">Module 8</div>
+    <h1 class="mod-title">Quick-Reference Cards · Print &amp; Laminate</h1>
+    <div class="mod-meta">
+      <span class="chip chip-all">All roles</span>
+      <span class="dur">One card per role · keep at the site of use</span>
+    </div>
+    <p class="lede">Print one card per role, laminate, and keep at the kitchen, in the cab, and at each DP. These are the SOP's checklists compressed to a single glance.</p>
+    <div style="margin-top:14px"><a href="javascript:window.print()" class="print-btn">🖨 Print all four cards</a></div>
+  </header>
+
+  <div class="cards">
+
+    <div class="card kitchen">
+      <div class="card-head">
+        <span class="card-role">Kitchen</span>
+        <span class="card-when">Before dispatch</span>
+      </div>
+      <ul>
+        <li>Menu posted; raw materials &amp; 1-day buffer present</li>
+        <li>Veg / rice / dal pass reject criteria; oil clean; cold-chain ≤ 5°C</li>
+        <li>Cooks in apron + headcap; handwash stocked; no phones</li>
+        <li>Each container: lining clean, weighed empty, filled to grams + 5%, weighed full → <code>filledKg</code></li>
+        <li>Core temp ≥ 65°C (3 random); seal + latch; QR → <code>FILLED</code>; photo; labelled</li>
+        <li>Staged reverse-DP order; readiness gate cleared by 04:30</li>
+      </ul>
+    </div>
+
+    <div class="card driver">
+      <div class="card-head">
+        <span class="card-role">Driver</span>
+        <span class="card-when">Every route</span>
+      </div>
+      <ul>
+        <li>FILO load: last DP first, matches route sheet; each scanned <code>LOADED</code></li>
+        <li>Phone ≥ 80%, data on, GPS logger ON; dispatch stamped by 05:00</li>
+        <li>Drop: two-person offload, on table / tarp, seal intact, scan <code>DELIVERED</code>, capture <code>droppedKg</code> + photo</li>
+        <li>Drive smooth — no spills; no stops, no passengers, no deviation</li>
+        <li>Collect 45–60 min after drop, service ended; scan <code>PICKED_UP</code>; site swept clean</li>
+        <li>Broken seal / spill / absent staff / fight → photo + Exception NOW</li>
+      </ul>
+    </div>
+
+    <div class="card dp">
+      <div class="card-head">
+        <span class="card-role">DP</span>
+        <span class="card-when">Setup to close</span>
+      </div>
+      <ul>
+        <li>Both staff in apron + headcap + gloves; site 5m from drains</li>
+        <li>Cap chalked; queue marked; in/out paths don't cross; 400g bowl ready</li>
+        <li>Seal checked intact on receipt; scan acknowledged</li>
+        <li>400g bowl every plate; one per person; greet &amp; thank; priority for elderly/disabled/pregnant</li>
+        <li>Short on food → announce, close, apologise — NEVER shrink the portion</li>
+        <li>Headcount honest; site swept to zero litter; report incidents</li>
+      </ul>
+    </div>
+
+    <div class="card rp">
+      <div class="card-head">
+        <span class="card-role">RP</span>
+        <span class="card-when">Daily spine</span>
+      </div>
+      <ul>
+        <li>01:30 cab to kitchen (never a 2W before sunrise)</li>
+        <li>02:00 day-start audit · 04:00 fill + temp · 04:30 FILO + brief</li>
+        <li>05:00 truck-follow (2W, or cab if rain) · 07:30 DP rounds (other truck)</li>
+        <li>09:30 weigh-back — run: <code>returnedKg ≈ filledKg − (headcount × 0.4kg)</code></li>
+        <li>10:45 WhatsApp to ZL: delivered/planned, wastage %, exceptions, anything red</li>
+        <li>Phone-call (not WhatsApp): food-poisoning, altercation, police, accident-with-injury</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <nav class="foot-nav">
+    <a href="/training/modules/food-programme/07-assessment.html">← Module 7</a>
+    <a href="/training/modules/food-programme/09-trainer-guide.html" class="next-mod">Module 9 · Trainer's Guide →</a>
+  </nav>
+
+</div>
+</body>
+</html>

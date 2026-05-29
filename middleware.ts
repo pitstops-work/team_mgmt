@@ -17,6 +17,13 @@ const PUBLIC_PREFIXES = [
   "/sw.js",
   "/.well-known/",
   "/data/",
+  "/index.html",
+  "/welcome.html",
+  "/workshop-agenda.html",
+  "/pitstops-training.html",
+  "/pitstops-presentation.html",
+  "/workshop/",
+  "/training/",
 ];
 
 export default async function middleware(req: NextRequest) {

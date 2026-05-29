@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Module 0 · Induction — Food Programme Training</title>
+<link rel="stylesheet" href="/training/modules/food-programme/_module.css"/>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="crumb">
+    <a href="/index.html">⌂ pitstops.work</a>
+    <span class="sep">›</span>
+    <a href="/pitstops-training.html">Training</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/food-programme.html">Food Programme</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/food-programme/00-induction.html">Module 0</a>
+  </nav>
+
+  <header class="mod-head">
+    <div class="mod-num">Module 0 · 60 minutes</div>
+    <h1 class="mod-title">Induction — The Programme and the Promise</h1>
+    <div class="mod-meta">
+      <span class="chip chip-all">All roles</span>
+      <span class="dur">Foundation · run this for the whole intake together</span>
+    </div>
+    <p class="lede">Everyone in this programme is handling food that someone will depend on for the day. The chain is only as strong as its weakest link: food cooked correctly but served with contempt fails; food served with dignity but cold or late fails. This module sets the floor.</p>
+  </header>
+
+  <section>
+    <h2 class="sec"><span class="num">0.1</span>What this programme is</h2>
+    <p>We serve a hot, dignified meal to people in labour <em>addas</em>, shelters, and settlements across Bangalore. At launch that is roughly <strong>1,500 meals a day from one kitchen across five distribution points</strong>; the design scales to roughly <strong>15,000–20,000 meals a day across about sixty points</strong>. The food is produced by a certified vendor, moved by a small truck fleet, and served at fixed points by trained personnel.</p>
+
+    <table class="t">
+      <tr><th>Programme</th><td>Sampark × Ramani Food (scaling to CFAR × Wipro Canteen)</td></tr>
+      <tr><th>Model</th><td>Drop → Serve → Collect · FILO loading · TATA Ace fleet</td></tr>
+      <tr><th>Launch scope</th><td>1,500 units/day · 1 kitchen · 2 trucks · 5 DPs · 6 months</td></tr>
+      <tr><th>Companion app</th><td><code>food_app</code> — Kitchen / Driver / DP / Manager roles · QR-tracked containers</td></tr>
+      <tr><th>Governing doc</th><td>Food Programme — Resource Person Field SOP &amp; Checklists</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">0.2</span>The chain — and where you sit in it</h2>
+    <p>Learn this sequence. It is the spine of everything that follows.</p>
+    <ul class="check">
+      <li><strong>Cook</strong> — the kitchen produces and fills containers to weight and temperature.</li>
+      <li><strong>Fill &amp; seal</strong> — each container is weighed, sealed, QR-scanned <code>FILLED</code>, and photographed.</li>
+      <li><strong>Load (FILO)</strong> — the truck is loaded last-DP-first so the first stop comes off first.</li>
+      <li><strong>Drop</strong> — the truck delivers a sealed container to each DP; scanned <code>DELIVERED</code>.</li>
+      <li><strong>Serve</strong> — DP staff serve one 400g portion per person, with dignity, in a managed queue.</li>
+      <li><strong>Collect</strong> — the truck returns 45–60 minutes later, packs the kit, leaves no trace; scanned <code>PICKED_UP</code>.</li>
+      <li><strong>Reconcile</strong> — the kitchen weighs back; wastage and headcount are recorded; the day is closed.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">0.3</span>The daily clock</h2>
+    <p>Every role works to one shared clock. Memorise your own rows; recognise the others.</p>
+    <table class="t">
+      <thead><tr><th>Time</th><th>Where</th><th>Who</th><th>What</th></tr></thead>
+      <tbody>
+        <tr><td>02:00</td><td>Kitchen</td><td>Ramani + RP</td><td>Procurement check-in; first-batch prep; RP day-start audit</td></tr>
+        <tr><td>04:00</td><td>Kitchen</td><td>Ramani</td><td>Food ready, containers filled, kits staged</td></tr>
+        <tr><td>04:30</td><td>Kitchen</td><td>Ramani + Driver</td><td>Readiness gate — all kits weighed, sealed, QR-scanned <code>FILLED</code></td></tr>
+        <tr><td>04:30–05:00</td><td>Bay</td><td>Driver + loaders</td><td>FILO loading, last-DP-first; scanned <code>LOADED</code></td></tr>
+        <tr><td>05:00</td><td>Gate</td><td>Driver</td><td>Dispatch (<code>Route.dispatchedAt</code> stamped)</td></tr>
+        <tr><td>05:30</td><td>DP 1</td><td>DP staff + Driver</td><td>Setup, serve start; scanned <code>DELIVERED</code></td></tr>
+        <tr><td>06:00</td><td>DP 2</td><td>DP staff + Driver</td><td>Serve start</td></tr>
+        <tr><td>06:30</td><td>DP 3</td><td>Driver</td><td>Driver serves personally if DP is a shelter</td></tr>
+        <tr><td>07:30</td><td>DP 1</td><td>Driver</td><td>Pickup loop begins; scanned <code>PICKED_UP</code></td></tr>
+        <tr><td>08:30</td><td>DP 3</td><td>Driver</td><td>Last pickup</td></tr>
+        <tr><td>10:00</td><td>Kitchen</td><td>Driver</td><td>Return (<code>Route.arrivedAt</code> stamped)</td></tr>
+        <tr><td>10:15</td><td>Kitchen</td><td>Kitchen + RP</td><td>Weigh-back, clean, store; <code>RETURNED</code></td></tr>
+        <tr><td>10:30</td><td>system</td><td>Cron</td><td>Reconciliation row auto-generated</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">0.4</span>The non-negotiables — every role, every day</h2>
+
+    <div class="hard">
+      <div class="head">Hard rules</div>
+      <p>One plate per person per day. <strong>No re-serves. No exceptions.</strong></p>
+      <p>The full 400g bowl is used to serve — never an estimate by hand, never a different size by appearance.</p>
+      <p>No ID, ration card, or proof is ever asked. The programme is unconditional.</p>
+      <p>No photography of beneficiary faces, ever.</p>
+      <p>Food is served, not dumped or thrown. Beneficiaries are guests, not subjects.</p>
+      <p>No money changes hands at any point in the field chain.</p>
+    </div>
+
+    <div class="info">
+      <div class="head">The one rule above all others</div>
+      <p>We own this programme. Vendor risk sits with Sampark contractually, but quality risk sits with us. "The vendor was late" is never an answer — noticing it, escalating it, and writing down what we learn is the job.</p>
+    </div>
+
+    <h3 class="sub">Status language — used everywhere</h3>
+    <p>Train these three words until they are reflex. They appear on every checklist and every report.</p>
+    <div class="status">
+      <span><b class="s-green">GREEN</b> on plan, no action</span>
+      <span><b class="s-amber">AMBER</b> drifting, watch and note</span>
+      <span><b class="s-red">RED</b> stop, fix, or escalate now</span>
+    </div>
+
+    <h3 class="sub">Glyph legend used in this module</h3>
+    <p>The <strong>☐</strong> open box marks a check the trainee performs and ticks. Every checklist in this module mirrors the live checklist in the SOP and in <code>food_app</code>.</p>
+  </section>
+
+  <div class="check-yu">
+    <div class="head">Check your understanding</div>
+    <h3>Three questions — answer before you move on</h3>
+    <ol>
+      <li>Name the seven steps of the chain in order.</li>
+      <li>A beneficiary asks for a second plate for a relative who could not come. What do you do?</li>
+      <li>What does <b class="s-amber">AMBER</b> mean, and what are you required to do when you see it?</li>
+    </ol>
+  </div>
+
+  <nav class="foot-nav">
+    <a href="/training/modules/food-programme.html">← Back to hub</a>
+    <a href="/training/modules/food-programme/01-food-safety.html" class="next-mod">Module 1 · Food Safety →</a>
+  </nav>
+
+</div>
+</body>
+</html>

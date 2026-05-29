@@ -7,11 +7,14 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);color:#fff;min-height:100vh}
-.wrap{max-width:1280px;margin:0 auto;padding:64px 32px 96px}
+.wrap{max-width:1280px;margin:0 auto;padding:48px 32px 96px}
+.crumb{display:flex;align-items:center;gap:10px;margin-bottom:28px;font-size:13px}
+.crumb a{color:#94a3b8;text-decoration:none;padding:6px 12px;border:1px solid rgba(255,255,255,.08);border-radius:50px;transition:all .18s}
+.crumb a:hover{color:#fff;border-color:rgba(167,139,250,.4);background:rgba(255,255,255,.04)}
 header{margin-bottom:48px;text-align:center}
 .eyebrow{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#a78bfa;margin-bottom:16px}
 h1{font-size:54px;font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px;background:linear-gradient(135deg,#fff 0%,#cbd5e1 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.tagline{font-size:18px;color:#cbd5e1;max-width:680px;margin:0 auto;line-height:1.6}
+.tagline{font-size:18px;color:#cbd5e1;max-width:760px;margin:0 auto;line-height:1.6}
 .stats{margin-top:32px;display:flex;gap:32px;justify-content:center;flex-wrap:wrap}
 .stat{display:flex;flex-direction:column;align-items:center}
 .stat-num{font-size:28px;font-weight:800;color:#fff;line-height:1}
@@ -20,18 +23,9 @@ section{margin-top:56px}
 .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)}
 .sec-title{font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.3px}
 .sec-count{font-size:13px;color:#94a3b8}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
-.tile{display:flex;align-items:center;gap:16px;padding:18px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;text-decoration:none;color:inherit;transition:all .18s ease;position:relative}
-.tile:hover{background:rgba(255,255,255,.07);border-color:rgba(167,139,250,.4);transform:translateY(-2px)}
-.tile-icon{font-size:32px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border-radius:12px;flex-shrink:0}
-.tile-body{flex:1;min-width:0}
-.tile-title{font-size:15px;font-weight:600;color:#fff;line-height:1.3;margin-bottom:4px}
-.tile-sub{font-size:12px;color:#94a3b8}
-.tile-arrow{font-size:18px;color:#475569;transition:all .18s;flex-shrink:0}
-.tile:hover .tile-arrow{color:#a78bfa;transform:translateX(4px)}
-.badge{position:absolute;top:8px;right:34px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:8px}
-.badge-authored{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)}
-.badge-skeleton{background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.2)}
+.sec-lede{font-size:14px;color:#94a3b8;margin-bottom:18px;line-height:1.55;max-width:780px}
+
+/* Intro tile — Start here */
 .intro-tile{display:flex;align-items:center;gap:24px;padding:32px;background:linear-gradient(135deg,rgba(99,102,241,.12) 0%,rgba(168,85,247,.12) 100%);border:1px solid rgba(167,139,250,.3);border-radius:18px;text-decoration:none;color:inherit;transition:all .2s}
 .intro-tile:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(99,102,241,.2)}
 .intro-icon{font-size:48px;width:80px;height:80px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:18px;flex-shrink:0}
@@ -39,19 +33,75 @@ section{margin-top:56px}
 .intro-title{font-size:22px;font-weight:700;color:#fff;margin-bottom:6px}
 .intro-sub{font-size:14px;color:#cbd5e1;line-height:1.5}
 .intro-arrow{font-size:24px;color:#a78bfa}
+
+/* Domain module tiles — chunky, primary */
+.module-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px}
+.module-tile{position:relative;display:flex;flex-direction:column;padding:28px 26px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:18px;text-decoration:none;color:inherit;transition:all .22s ease;min-height:230px}
+.module-tile.live:hover{background:rgba(255,255,255,.07);border-color:rgba(167,139,250,.5);transform:translateY(-3px);box-shadow:0 12px 36px rgba(99,102,241,.18)}
+.module-tile.soon{opacity:.55;cursor:default}
+.module-icon{font-size:38px;margin-bottom:18px;line-height:1}
+.module-strap{display:inline-flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.module-strap.live{color:#34d399}
+.module-strap.soon{color:#64748b}
+.module-strap .dot{width:6px;height:6px;border-radius:50%}
+.module-strap.live .dot{background:#10b981;box-shadow:0 0 8px rgba(16,185,129,.6)}
+.module-strap.soon .dot{background:#475569}
+.module-title{font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.3px;line-height:1.2;margin-bottom:10px}
+.module-sub{font-size:13px;color:#94a3b8;line-height:1.55;flex:1}
+.module-meta{margin-top:18px;display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#64748b}
+.module-meta span{display:inline-flex;align-items:center;gap:4px}
+.module-meta b{color:#cbd5e1;font-weight:600}
+
+/* Goal-template decks — de-emphasized */
+.decks-intro{margin-bottom:24px}
+.deck-section{margin-top:32px}
+.deck-section-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.deck-section-title{font-size:14px;font-weight:600;color:#cbd5e1;letter-spacing:-0.2px}
+.deck-section-count{font-size:11px;color:#64748b}
+.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
+.deck-tile{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:10px;text-decoration:none;color:inherit;transition:all .15s}
+.deck-tile:hover{background:rgba(255,255,255,.05);border-color:rgba(167,139,250,.25)}
+.deck-icon{font-size:18px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.04);border-radius:7px;flex-shrink:0}
+.deck-body{flex:1;min-width:0}
+.deck-title{font-size:13px;font-weight:500;color:#cbd5e1;line-height:1.25}
+.deck-sub{font-size:10px;color:#64748b;margin-top:2px}
+.deck-arrow{font-size:12px;color:#475569}
+
+details.decks{margin-top:24px}
+details.decks summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:14px 20px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:12px;font-size:13px;color:#cbd5e1;transition:all .18s}
+details.decks summary::-webkit-details-marker{display:none}
+details.decks summary:hover{background:rgba(255,255,255,.04);border-color:rgba(167,139,250,.25)}
+details.decks summary::before{content:'▸';color:#64748b;transition:transform .2s}
+details.decks[open] summary::before{transform:rotate(90deg)}
+details.decks summary strong{color:#fff;font-weight:600}
+details.decks summary .meta{color:#64748b;font-size:11px;margin-left:auto}
+
 footer{margin-top:80px;padding-top:32px;border-top:1px solid rgba(255,255,255,.06);text-align:center;color:#64748b;font-size:13px}
+footer code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px;font-size:12px}
+@media (max-width:880px){
+  .wrap{padding:32px 18px 64px}
+  h1{font-size:38px}
+  .tagline{font-size:15px}
+  .intro-tile{padding:22px;gap:16px}
+  .intro-icon{width:56px;height:56px;font-size:32px}
+  .intro-title{font-size:18px}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="crumb">
+    <a href="/index.html">← pitstops.work</a>
+  </div>
+
   <header>
     <div class="eyebrow">Pitstops · Training Hub</div>
-    <h1>Every goal we run, walked through step by step</h1>
-    <p class="tagline">Interactive decks that explain the pitstops, the checklists, the activities — and why each one matters for the urban slum communities we serve.</p>
+    <h1>Train for the field, not the conference room</h1>
+    <p class="tagline">Domain-deep training modules for partner staff and our RPs — plus the operational deck for every goal we run on the Pitstops app. Each checklist exists because a previous project failed without it.</p>
     <div class="stats">
-      <div class="stat"><div class="stat-num">25</div><div class="stat-lbl">Goal templates</div></div>
-      <div class="stat"><div class="stat-num">158</div><div class="stat-lbl">Total pitstops</div></div>
-      <div class="stat"><div class="stat-num">25</div><div class="stat-lbl">Hand-authored</div></div>
+      <div class="stat"><div class="stat-num">1</div><div class="stat-lbl">Live module</div></div>
+      <div class="stat"><div class="stat-num">8</div><div class="stat-lbl">More queued</div></div>
+      <div class="stat"><div class="stat-num">25</div><div class="stat-lbl">App walkthrough decks</div></div>
     </div>
   </header>
 
@@ -70,271 +120,153 @@ footer{margin-top:80px;padding-top:32px;border-top:1px solid rgba(255,255,255,.0
     </a>
   </section>
 
-  
-      <section>
-        <div class="sec-head">
-          <div class="sec-title">Community Programs</div>
-          <div class="sec-count">16 decks</div>
+  <section>
+    <div class="sec-head">
+      <div class="sec-title">Domain Training Modules</div>
+      <div class="sec-count">Field operations · role-tagged · for partners + RPs</div>
+    </div>
+    <p class="sec-lede">Each domain has a single training module that runs everyone — kitchen staff, drivers, distribution staff, RPs — through the foundations, then splits into role-specific tracks, then closes with assessment and quick-reference cards. These teach the operation. The app walkthroughs below teach the Pitstops checklists for managing it.</p>
+
+    <div class="module-grid">
+
+      <a href="/training/modules/food-programme.html" class="module-tile live">
+        <div class="module-icon">🍱</div>
+        <div class="module-strap live"><span class="dot"></span>Live · 10 modules</div>
+        <div class="module-title">Food Distribution Programme</div>
+        <div class="module-sub">Kitchen → truck → distribution point → reconciliation. Foundations for everyone, then role tracks for Kitchen, Driver, DP staff, and RP.</div>
+        <div class="module-meta">
+          <span>👥 <b>4 roles</b></span>
+          <span>⏱ <b>9 hours</b></span>
+          <span>📄 <b>Printable cards</b></span>
         </div>
-        <div class="grid">
-          
-    <a href="/training/creche-program.html" class="tile">
-      <div class="tile-icon">🏠</div>
-      <div class="tile-body">
-        <div class="tile-title">Creche Programme</div>
-        <div class="tile-sub">11 pitstops</div>
+      </a>
+
+      <div class="module-tile soon">
+        <div class="module-icon">💧</div>
+        <div class="module-strap soon"><span class="dot"></span>Drafting</div>
+        <div class="module-title">Water ATM / RO Plant</div>
+        <div class="module-sub">Plant operator, water quality, billing reconciliation, community pricing — partner-staff training plus RP supervision.</div>
+        <div class="module-meta"><span>Coming next</span></div>
       </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/creche-program-existing.html" class="tile">
-      <div class="tile-icon">🏠</div>
-      <div class="tile-body">
-        <div class="tile-title">Creche Programme (Existing)</div>
-        <div class="tile-sub">2 pitstops</div>
+
+      <div class="module-tile soon">
+        <div class="module-icon">🚽</div>
+        <div class="module-strap soon"><span class="dot"></span>Drafting</div>
+        <div class="module-title">Community Sanitation Complex</div>
+        <div class="module-sub">Caretaker shifts, cleaning protocol, user-fee discipline, drainage and water reliability, complaint handling.</div>
+        <div class="module-meta"><span>Coming next</span></div>
       </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/welfare-rights.html" class="tile">
-      <div class="tile-icon">⚖️</div>
-      <div class="tile-body">
-        <div class="tile-title">Welfare Rights Programme</div>
-        <div class="tile-sub">11 pitstops</div>
+
+      <div class="module-tile soon">
+        <div class="module-icon">🏠</div>
+        <div class="module-strap soon"><span class="dot"></span>Planned</div>
+        <div class="module-title">Creche Programme</div>
+        <div class="module-sub">Centre staff, child safety, nutrition, parent engagement, government linkage — full day of care, every day.</div>
+        <div class="module-meta"><span>After Sanitation</span></div>
       </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/children-learning-centre.html" class="tile">
-      <div class="tile-icon">📚</div>
-      <div class="tile-body">
-        <div class="tile-title">Children Learning Centre</div>
-        <div class="tile-sub">10 pitstops</div>
+
+      <div class="module-tile soon">
+        <div class="module-icon">📚</div>
+        <div class="module-strap soon"><span class="dot"></span>Planned</div>
+        <div class="module-title">Children Learning Centre</div>
+        <div class="module-sub">After-school learning, foundational literacy + numeracy, parent meetings, school-linkage drives.</div>
+        <div class="module-meta"><span>After Creche</span></div>
       </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/children-learning-centre-existing.html" class="tile">
-      <div class="tile-icon">📚</div>
-      <div class="tile-body">
-        <div class="tile-title">Children Learning Centre (Existing)</div>
-        <div class="tile-sub">3 pitstops</div>
+
+      <div class="module-tile soon">
+        <div class="module-icon">🌱</div>
+        <div class="module-strap soon"><span class="dot"></span>Planned</div>
+        <div class="module-title">Youth Resource Centre</div>
+        <div class="module-sub">Skilling, job placement, mentorship, peer cohort design, employer linkages.</div>
+        <div class="module-meta"><span>After CLC</span></div>
       </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/youth-resource-centre.html" class="tile">
-      <div class="tile-icon">🌱</div>
-      <div class="tile-body">
-        <div class="tile-title">Youth Resource Centre</div>
-        <div class="tile-sub">12 pitstops</div>
+
+      <div class="module-tile soon">
+        <div class="module-icon">🏥</div>
+        <div class="module-strap soon"><span class="dot"></span>Planned</div>
+        <div class="module-title">Elderly Care &amp; Kitchen</div>
+        <div class="module-sub">Day-care centre, kitchen ops, outreach to home-bound elders, health-camp coordination, dignity-first service.</div>
+        <div class="module-meta"><span>After Youth</span></div>
       </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/youth-resource-centre-existing.html" class="tile">
-      <div class="tile-icon">🌱</div>
-      <div class="tile-body">
-        <div class="tile-title">Youth Resource Centre (Existing)</div>
-        <div class="tile-sub">2 pitstops</div>
+
+      <div class="module-tile soon">
+        <div class="module-icon">⚖️</div>
+        <div class="module-strap soon"><span class="dot"></span>Planned</div>
+        <div class="module-title">Welfare Rights &amp; Scheme Linkage</div>
+        <div class="module-sub">Entitlements, documentation, public office navigation, grievance redressal — the rights-not-charity track.</div>
+        <div class="module-meta"><span>After Elderly</span></div>
       </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/water-atm.html" class="tile">
-      <div class="tile-icon">💧</div>
-      <div class="tile-body">
-        <div class="tile-title">Water ATM / RO Plant</div>
-        <div class="tile-sub">6 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/water-atm-existing.html" class="tile">
-      <div class="tile-icon">💧</div>
-      <div class="tile-body">
-        <div class="tile-title">Water ATM / RO Plant (Existing)</div>
-        <div class="tile-sub">1 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/elderly-kitchen.html" class="tile">
-      <div class="tile-icon">🍲</div>
-      <div class="tile-body">
-        <div class="tile-title">Elderly Community Kitchen</div>
-        <div class="tile-sub">6 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/elderly-kitchen-existing.html" class="tile">
-      <div class="tile-icon">🍲</div>
-      <div class="tile-body">
-        <div class="tile-title">Elderly Community Kitchen (Existing)</div>
-        <div class="tile-sub">1 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/elderly-centre.html" class="tile">
-      <div class="tile-icon">🏥</div>
-      <div class="tile-body">
-        <div class="tile-title">Elderly Care Centre &amp; Outreach</div>
-        <div class="tile-sub">21 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/elderly-centre-existing.html" class="tile">
-      <div class="tile-icon">🏥</div>
-      <div class="tile-body">
-        <div class="tile-title">Elderly Care Centre &amp; Outreach (Existing)</div>
-        <div class="tile-sub">2 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/scheme-linkage-drive.html" class="tile">
-      <div class="tile-icon">📋</div>
-      <div class="tile-body">
-        <div class="tile-title">Scheme Linkage &amp; Entitlements Drive</div>
-        <div class="tile-sub">10 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/community-toilet.html" class="tile">
-      <div class="tile-icon">🚽</div>
-      <div class="tile-body">
-        <div class="tile-title">Community Sanitation Complex</div>
-        <div class="tile-sub">9 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/community-toilet-existing.html" class="tile">
-      <div class="tile-icon">🚽</div>
-      <div class="tile-body">
-        <div class="tile-title">Community Sanitation Complex (Existing)</div>
-        <div class="tile-sub">2 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-title">App walkthrough decks</div>
+      <div class="sec-count">25 hand-authored · one per goal template</div>
+    </div>
+    <p class="sec-lede">The operational side of every goal we run on Pitstops — what each pitstop is, what its checklists mean, how the activities sequence. Use these when planning a goal, onboarding an RP to a domain, or troubleshooting a stuck pitstop. Grouped by area below.</p>
+
+    <details class="decks">
+      <summary><strong>Community Programmes</strong> · centres, water, sanitation, kitchens<span class="meta">16 decks</span></summary>
+      <div class="deck-section">
+        <div class="deck-grid">
+          <a href="/training/creche-program.html" class="deck-tile"><div class="deck-icon">🏠</div><div class="deck-body"><div class="deck-title">Creche Programme</div><div class="deck-sub">11 pitstops · new</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/creche-program-existing.html" class="deck-tile"><div class="deck-icon">🏠</div><div class="deck-body"><div class="deck-title">Creche Programme</div><div class="deck-sub">2 pitstops · existing</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/children-learning-centre.html" class="deck-tile"><div class="deck-icon">📚</div><div class="deck-body"><div class="deck-title">Children Learning Centre</div><div class="deck-sub">10 pitstops · new</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/children-learning-centre-existing.html" class="deck-tile"><div class="deck-icon">📚</div><div class="deck-body"><div class="deck-title">Children Learning Centre</div><div class="deck-sub">3 pitstops · existing</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/youth-resource-centre.html" class="deck-tile"><div class="deck-icon">🌱</div><div class="deck-body"><div class="deck-title">Youth Resource Centre</div><div class="deck-sub">12 pitstops · new</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/youth-resource-centre-existing.html" class="deck-tile"><div class="deck-icon">🌱</div><div class="deck-body"><div class="deck-title">Youth Resource Centre</div><div class="deck-sub">2 pitstops · existing</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/elderly-centre.html" class="deck-tile"><div class="deck-icon">🏥</div><div class="deck-body"><div class="deck-title">Elderly Care Centre &amp; Outreach</div><div class="deck-sub">21 pitstops · new</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/elderly-centre-existing.html" class="deck-tile"><div class="deck-icon">🏥</div><div class="deck-body"><div class="deck-title">Elderly Care Centre &amp; Outreach</div><div class="deck-sub">2 pitstops · existing</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/elderly-kitchen.html" class="deck-tile"><div class="deck-icon">🍲</div><div class="deck-body"><div class="deck-title">Elderly Community Kitchen</div><div class="deck-sub">6 pitstops · new</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/elderly-kitchen-existing.html" class="deck-tile"><div class="deck-icon">🍲</div><div class="deck-body"><div class="deck-title">Elderly Community Kitchen</div><div class="deck-sub">1 pitstop · existing</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/water-atm.html" class="deck-tile"><div class="deck-icon">💧</div><div class="deck-body"><div class="deck-title">Water ATM / RO Plant</div><div class="deck-sub">6 pitstops · new</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/water-atm-existing.html" class="deck-tile"><div class="deck-icon">💧</div><div class="deck-body"><div class="deck-title">Water ATM / RO Plant</div><div class="deck-sub">1 pitstop · existing</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/community-toilet.html" class="deck-tile"><div class="deck-icon">🚽</div><div class="deck-body"><div class="deck-title">Community Sanitation Complex</div><div class="deck-sub">9 pitstops · new</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/community-toilet-existing.html" class="deck-tile"><div class="deck-icon">🚽</div><div class="deck-body"><div class="deck-title">Community Sanitation Complex</div><div class="deck-sub">2 pitstops · existing</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/scheme-linkage-drive.html" class="deck-tile"><div class="deck-icon">📋</div><div class="deck-body"><div class="deck-title">Scheme Linkage &amp; Entitlements Drive</div><div class="deck-sub">10 pitstops</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/welfare-rights.html" class="deck-tile"><div class="deck-icon">⚖️</div><div class="deck-body"><div class="deck-title">Welfare Rights Programme</div><div class="deck-sub">11 pitstops</div></div><div class="deck-arrow">→</div></a>
         </div>
-      </section>
-      <section>
-        <div class="sec-head">
-          <div class="sec-title">Food Programme</div>
-          <div class="sec-count">3 decks</div>
+      </div>
+    </details>
+
+    <details class="decks">
+      <summary><strong>Food Programme</strong> · launch, monthly ops, new DP activation<span class="meta">3 decks</span></summary>
+      <div class="deck-section">
+        <div class="deck-grid">
+          <a href="/training/food-distribution-launch.html" class="deck-tile"><div class="deck-icon">🍱</div><div class="deck-body"><div class="deck-title">Food Distribution — Launch</div><div class="deck-sub">7 pitstops · one-time setup</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/food-distribution-monthly.html" class="deck-tile"><div class="deck-icon">🍱</div><div class="deck-body"><div class="deck-title">Food Distribution — Monthly Ops Review</div><div class="deck-sub">5 pitstops · recurring</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/food-distribution-new-dp.html" class="deck-tile"><div class="deck-icon">📍</div><div class="deck-body"><div class="deck-title">Food Distribution — New DP Activation</div><div class="deck-sub">5 pitstops · per-DP</div></div><div class="deck-arrow">→</div></a>
         </div>
-        <div class="grid">
-          
-    <a href="/training/food-distribution-launch.html" class="tile">
-      <div class="tile-icon">🍱</div>
-      <div class="tile-body">
-        <div class="tile-title">Food Distribution — Launch &amp; Operationalisation</div>
-        <div class="tile-sub">7 pitstops</div>
       </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/food-distribution-monthly.html" class="tile">
-      <div class="tile-icon">🍱</div>
-      <div class="tile-body">
-        <div class="tile-title">Food Distribution — Monthly Operations Review</div>
-        <div class="tile-sub">5 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/food-distribution-new-dp.html" class="tile">
-      <div class="tile-icon">📍</div>
-      <div class="tile-body">
-        <div class="tile-title">Food Distribution — New DP Activation</div>
-        <div class="tile-sub">5 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
+    </details>
+
+    <details class="decks">
+      <summary><strong>Programmes</strong> · seeding<span class="meta">1 deck</span></summary>
+      <div class="deck-section">
+        <div class="deck-grid">
+          <a href="/training/seeding-programme.html" class="deck-tile"><div class="deck-icon">🌱</div><div class="deck-body"><div class="deck-title">Seeding Programme</div><div class="deck-sub">8 pitstops</div></div><div class="deck-arrow">→</div></a>
         </div>
-      </section>
-      <section>
-        <div class="sec-head">
-          <div class="sec-title">Programmes</div>
-          <div class="sec-count">1 deck</div>
+      </div>
+    </details>
+
+    <details class="decks">
+      <summary><strong>Zonal Leadership</strong> · review cadence, grants, partner management<span class="meta">5 decks</span></summary>
+      <div class="deck-section">
+        <div class="deck-grid">
+          <a href="/training/zone-review.html" class="deck-tile"><div class="deck-icon">📊</div><div class="deck-body"><div class="deck-title">Zone Review Cadence</div><div class="deck-sub">5 pitstops</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/grant-proposal.html" class="deck-tile"><div class="deck-icon">📝</div><div class="deck-body"><div class="deck-title">Grant &amp; Proposal Management</div><div class="deck-sub">5 pitstops · new</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/grant-proposal-renewal.html" class="deck-tile"><div class="deck-icon">📝</div><div class="deck-body"><div class="deck-title">Grant &amp; Proposal Management</div><div class="deck-sub">5 pitstops · renewal</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/partner-management.html" class="deck-tile"><div class="deck-icon">🤝</div><div class="deck-body"><div class="deck-title">Partner Relationship Management</div><div class="deck-sub">6 pitstops · new</div></div><div class="deck-arrow">→</div></a>
+          <a href="/training/partner-management-existing.html" class="deck-tile"><div class="deck-icon">🤝</div><div class="deck-body"><div class="deck-title">Partner Relationship Management</div><div class="deck-sub">3 pitstops · existing</div></div><div class="deck-arrow">→</div></a>
         </div>
-        <div class="grid">
-          
-    <a href="/training/seeding-programme.html" class="tile">
-      <div class="tile-icon">🌱</div>
-      <div class="tile-body">
-        <div class="tile-title">Seeding Programme</div>
-        <div class="tile-sub">8 pitstops</div>
       </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-        </div>
-      </section>
-      <section>
-        <div class="sec-head">
-          <div class="sec-title">Zonal Leadership</div>
-          <div class="sec-count">5 decks</div>
-        </div>
-        <div class="grid">
-          
-    <a href="/training/zone-review.html" class="tile">
-      <div class="tile-icon">📊</div>
-      <div class="tile-body">
-        <div class="tile-title">Zone Review Cadence</div>
-        <div class="tile-sub">5 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/grant-proposal.html" class="tile">
-      <div class="tile-icon">📝</div>
-      <div class="tile-body">
-        <div class="tile-title">Grant &amp; Proposal Management</div>
-        <div class="tile-sub">5 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/grant-proposal-renewal.html" class="tile">
-      <div class="tile-icon">📝</div>
-      <div class="tile-body">
-        <div class="tile-title">Grant &amp; Proposal Management (Renewal)</div>
-        <div class="tile-sub">5 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/partner-management.html" class="tile">
-      <div class="tile-icon">🤝</div>
-      <div class="tile-body">
-        <div class="tile-title">Partner Relationship Management</div>
-        <div class="tile-sub">6 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-    <a href="/training/partner-management-existing.html" class="tile">
-      <div class="tile-icon">🤝</div>
-      <div class="tile-body">
-        <div class="tile-title">Partner Relationship Management (Existing)</div>
-        <div class="tile-sub">3 pitstops</div>
-      </div>
-      <div class="badge badge-authored">Authored</div>
-      <div class="tile-arrow">→</div>
-    </a>
-        </div>
-      </section>
+    </details>
+  </section>
 
   <footer>
-    Generated from <code>GoalTemplateDef</code>. Re-run <code>scripts/gen-training-deck.mjs --hub</code> after adding or editing templates.
+    App walkthroughs generated from <code>GoalTemplateDef</code>. Re-run <code>scripts/gen-training-deck.mjs --hub</code> after adding or editing templates. Domain modules are hand-authored from field SOPs.
   </footer>
 </div>
 </body>
