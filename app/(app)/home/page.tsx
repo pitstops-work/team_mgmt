@@ -346,6 +346,7 @@ export default async function HomePage() {
     zlMyActivities,
     leaderOverdueActivities,
     leaderMyActivities,
+    rpOverdueTotal,
   ] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: {
@@ -500,7 +501,11 @@ export default async function HomePage() {
         })
       : Promise.resolve(null),
 
-    // RP only: past-due events still in Scheduled status
+    // RP only: past-due events still in Scheduled status.
+    // `take: 200` bounds the page payload — the badge total comes from the
+    // separate _count below, so completing one of the 200 surfaces the
+    // 201st correctly in the rendered list (slot-fill) but the badge always
+    // reflects the true number of overdue items the RP actually has.
     designation === "RP"
       ? prisma.pitstopEvent.findMany({
           where: {
@@ -536,7 +541,7 @@ export default async function HomePage() {
             },
           },
           orderBy: { scheduledAt: "asc" },
-          take: 20,
+          take: 200,
         })
       : Promise.resolve([]),
 
@@ -744,6 +749,24 @@ export default async function HomePage() {
           take: 100,
         })
       : Promise.resolve([]),
+
+    // True overdue total for the RP cockpit's ProgressChip badge — independent
+    // of the `take: 200` cap on the list above. Without this the badge could
+    // stay stuck on 20/200 even as the RP completes activities, because the
+    // server keeps backfilling the rendered list from the longer tail.
+    designation === "RP"
+      ? prisma.pitstopEvent.count({
+          where: {
+            deletedAt: null,
+            status: "Scheduled",
+            scheduledAt: { lt: todayStart },
+            OR: [
+              { attendees: { some: { userId } } },
+              { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
+            ],
+          },
+        })
+      : Promise.resolve(0),
   ]);
 
   // ── Past tab: team done activities (last 30 days) for ZL / PM / Leader.
@@ -1829,6 +1852,7 @@ export default async function HomePage() {
       myGoals={JSON.parse(JSON.stringify(myGoals))}
       rpClusterStats={rpClusterStats}
       rpOverdueActivities={JSON.parse(JSON.stringify(rpOverdueActivities))}
+      rpOverdueTotal={rpOverdueTotal}
       rpDoneActivities={JSON.parse(JSON.stringify(rpDoneActivities))}
       rpClusterDeck={JSON.parse(JSON.stringify(rpClusterDeck))}
       facilityLayerConfigs={facilityLayerConfigs}

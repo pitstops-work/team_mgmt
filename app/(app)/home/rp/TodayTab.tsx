@@ -31,12 +31,19 @@ import { useSessionDoneIds } from "../_shared/useSessionDoneIds";
 export function RPTodayTab({
   userId,
   overdueActivities,
+  overdueTotal,
   todayActivities,
   weekActivities,
   weekChecklists,
 }: {
   userId: string;
   overdueActivities: Activity[];
+  /**
+   * True overdue total from the server (independent of the `take` cap on
+   * `overdueActivities`). When the rendered list is paginated, the badge
+   * still shows the real number.
+   */
+  overdueTotal: number;
   todayActivities: Activity[];
   weekActivities: Activity[];
   weekChecklists: ChecklistItem[];
@@ -96,7 +103,15 @@ export function RPTodayTab({
 
   const todayDoneCount = filteredToday.filter(a => a.status === "Done" || doneEventIds.has(a.id)).length;
   const todayTotal = filteredToday.length;
-  const overdueCount = filteredOverdue.length;
+  // True overdue count = server-side total - items we've optimistically marked
+  // done in this session that the server hasn't reflected back yet. Bounded
+  // below by 0 in case the server has already caught up (would otherwise show
+  // a negative on the first frame after refresh).
+  const optimisticallyDoneVisible = overdueActivities.reduce(
+    (n, a) => (doneEventIds.has(a.id) ? n + 1 : n),
+    0,
+  );
+  const overdueCount = Math.max(0, overdueTotal - optimisticallyDoneVisible);
 
   // Now divider index for the un-grouped layout.
   const nowMs = Date.now();

@@ -90,7 +90,7 @@ const OTHER_TABS = [
 export default function HomeView({
   userId, userName, designation, greeting, todayLabel,
   todayActivities, weekActivities, weekChecklists, myGoals,
-  rpClusterStats, rpOverdueActivities, rpDoneActivities, rpClusterDeck, facilityLayerConfigs, pastTeamDoneActivities, zlOverdueActivities, zlMyActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers, rpTeamHealth,
+  rpClusterStats, rpOverdueActivities, rpOverdueTotal, rpDoneActivities, rpClusterDeck, facilityLayerConfigs, pastTeamDoneActivities, zlOverdueActivities, zlMyActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers, rpTeamHealth,
   pmZLMembers, pmRPMembers, pmZLHealth, pmRPHealth, pmZLOverdueActivities, pmZLChecklists, pmMyActivities, pmRPOverdueActivities, pmRPChecklists, pmZoneClusterMap, pmClusterStats, pmClusterStatus,
   leaderOverdueActivities, leaderMyActivities, leaderTeam,
   adminDash,
@@ -106,6 +106,7 @@ export default function HomeView({
   myGoals: Goal[];
   rpClusterStats: ClusterStat[];
   rpOverdueActivities: HomeActivity[];
+  rpOverdueTotal: number;
   rpDoneActivities: HomeActivity[];
   rpClusterDeck: RPClusterDeckCluster[];
   facilityLayerConfigs: FacilityLayerConfigLite[];
@@ -201,6 +202,7 @@ export default function HomeView({
           <RPTodayTab
             userId={userId}
             overdueActivities={rpOverdueActivities}
+            overdueTotal={rpOverdueTotal}
             todayActivities={todayActivities}
             weekActivities={weekActivities}
             weekChecklists={weekChecklists}
