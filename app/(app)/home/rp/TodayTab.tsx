@@ -58,7 +58,12 @@ export function RPTodayTab({
   const { ids: doneEventIds, add: addDoneEventId } = useSessionDoneIds(`rp-${userId}-done-events`);
   const { ids: doneChecklistIds, add: addDoneChecklistId } = useSessionDoneIds(`rp-${userId}-done-checklists`);
   const [showWeek, setShowWeek] = useState(false);
-  const [showOverdue, setShowOverdue] = useState(false);
+  // Overdue expands by default. The earlier "collapsed to keep the cockpit
+  // short" default surfaced the count in the ProgressChip but hid the items
+  // themselves behind a small amber expander that RPs were missing — they
+  // could see "3 overdue" in the badge but had no idea where to click to act
+  // on them. ZL TodayTab already renders this list expanded; we match.
+  const [showOverdue, setShowOverdue] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [batchCluster, setBatchCluster] = useState<{ id: string; name: string } | null>(null);
   const onRescheduled = () => router.refresh();
@@ -240,8 +245,9 @@ export function RPTodayTab({
           ))
       ) : (
         <>
-          {/* Overdue (only when un-grouped + >0) — collapsed by default to keep
-              the cockpit short; count is already visible in the ProgressChip. */}
+          {/* Overdue (only when un-grouped + >0) — expanded by default; the
+              ProgressChip badge alone wasn't surfacing the items enough. The
+              RP can still collapse via the chevron when the cockpit is busy. */}
           {overdueCount > 0 && (
             <section>
               <button
