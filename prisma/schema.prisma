@@ -117,6 +117,8 @@ model User {
   wikiPracticeGapsFiled     WikiPracticeGap[]              @relation("WikiPracticeGapFiler")
   wikiPracticeGapsAssigned  WikiPracticeGap[]              @relation("WikiPracticeGapAssignee")
   wikiPracticeGapsTriaged   WikiPracticeGap[]              @relation("WikiPracticeGapTriager")
+  wikiObservationsRecorded  WikiPracticeObservation[]      @relation("WikiPracticeObservationObserver")
+  wikiObservationsAbout     WikiPracticeObservation[]      @relation("WikiPracticeObservationObserved")
 }
 
 model Account {
@@ -486,6 +488,10 @@ enum NotificationType {
   WikiOwnerTermExpired
   WikiCirclePrompt
   WikiHandoverProposed
+  WikiGapAssigned
+  WikiGapResolved
+  WikiGapPublished
+  WikiShadowRecorded
   ActivityRescheduled
 }
 
@@ -2274,6 +2280,7 @@ model Org {
   users                 User[]
   partnerReviewMeetings WikiPartnerReviewMeeting[] @relation("WikiPartnerReviewMeetingOrg")
   wikiPracticeGaps      WikiPracticeGap[]          @relation("WikiPracticeGapPartnerOrg")
+  wikiObservations      WikiPracticeObservation[]  @relation("WikiPracticeObservationPartnerOrg")
 }
 
 // ── Wiki module ──────────────────────────────────────────────────────────────
@@ -2315,6 +2322,7 @@ model WikiPage {
   translationFlags      WikiTranslationFlag[]
   views                 WikiPageView[]
   practiceGaps          WikiPracticeGap[]          @relation("WikiPracticeGapLinkedPage")
+  observations          WikiPracticeObservation[]  @relation("WikiPracticeObservationPrimaryPage")
 
   @@index([status])
   @@index([type])
@@ -2595,6 +2603,41 @@ model WikiPracticeGap {
   @@index([assignedOwnerId, status])
   @@index([filerId])
   @@index([createdAt])
+}
+
+// Field shadow visits and new-CO onboarding sessions. Shared model with a
+// `kind` discriminator — both observations capture the same shape: an observer
+// (owner / RP), an observed person (CO), a partner / vertical / city, notes,
+// optional drift flag, optional primary page touched. See module 6 of the
+// practice-documentation training.
+model WikiPracticeObservation {
+  id             String   @id @default(cuid())
+  kind           String // "shadow" | "onboarding"
+  observerId     String
+  observedUserId String?
+  partnerOrgId   String?
+  vertical       String
+  city           String?
+  happenedAt     DateTime
+  notes          String   @default("")
+  openQuestions  String?
+  // True when the observation revealed drift between page and practice — the
+  // observer also files a flag against the page. Useful for the dashboard.
+  driftFlagged   Boolean  @default(false)
+  // Single page this observation primarily touched. Nullable: onboarding may
+  // span many pages, shadow visits may touch none yet (gap incoming).
+  primaryPageId  String?
+  createdAt      DateTime @default(now())
+
+  observer    User      @relation("WikiPracticeObservationObserver", fields: [observerId], references: [id], onDelete: Restrict)
+  observed    User?     @relation("WikiPracticeObservationObserved", fields: [observedUserId], references: [id], onDelete: SetNull)
+  partnerOrg  Org?      @relation("WikiPracticeObservationPartnerOrg", fields: [partnerOrgId], references: [id], onDelete: SetNull)
+  primaryPage WikiPage? @relation("WikiPracticeObservationPrimaryPage", fields: [primaryPageId], references: [id], onDelete: SetNull)
+
+  @@index([kind, happenedAt])
+  @@index([observerId, happenedAt])
+  @@index([partnerOrgId, kind])
+  @@index([vertical, happenedAt])
 }
 
 // ─── Operating Models (parametric unit-economics engine) ─────────────────────

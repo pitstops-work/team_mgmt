@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle, LayoutDashboard, Languages, ClipboardCheck, Inbox } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle, LayoutDashboard, Languages, ClipboardCheck, Inbox, Eye } from "lucide-react";
 
 type Tag = { tagType: string; tagValue: string };
 type Page = {
@@ -122,6 +122,10 @@ export default function WikiListView({
           <Link href="/wiki/gaps" className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1">
             <Inbox className="w-3.5 h-3.5" />
             Gaps
+          </Link>
+          <Link href="/wiki/observations" className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1">
+            <Eye className="w-3.5 h-3.5" />
+            Shadows
           </Link>
           {isStaff && (
             <Link href="/wiki/translation-queue" className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1">

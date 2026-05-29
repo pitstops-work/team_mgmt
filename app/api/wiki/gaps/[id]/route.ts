@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isWikiCurator } from "@/lib/wiki/auth";
 import { isGapStatus, DRAFTING_WINDOW_DAYS } from "@/lib/wiki/gaps";
+import { dispatchWikiNotificationSafe } from "@/lib/notify/dispatch";
 import type { NextRequest } from "next/server";
 
 /**
@@ -73,6 +74,30 @@ export async function PATCH(
           draftingDeadline: deadline,
         },
       });
+
+      // Filer + owner both want to know. See module 5 of the training.
+      const verticalShort = gap.vertical;
+      const link = "/wiki/gaps";
+      const deadlineText = deadline.toLocaleDateString("en-IN", {
+        month: "short",
+        day: "numeric",
+      });
+      await Promise.all([
+        dispatchWikiNotificationSafe({
+          userId: gap.filerId,
+          kind: "wiki_gap_assigned",
+          title: `Your gap was picked up — ${verticalShort}`,
+          body: `A curator routed your gap to an owner. Draft due ${deadlineText}.`,
+          link,
+        }),
+        dispatchWikiNotificationSafe({
+          userId: ownerId,
+          kind: "wiki_gap_assigned",
+          title: `Gap assigned to you — ${verticalShort}`,
+          body: gap.oneLineNeed.slice(0, 200),
+          link,
+        }),
+      ]);
       return Response.json({ gap: updated });
     }
 
@@ -96,6 +121,20 @@ export async function PATCH(
           resolvedAt: now,
         },
       });
+      const mergedInto = await prisma.wikiPage.findUnique({
+        where: { id: linkedPageId },
+        select: { slug: true, title: true },
+      });
+      await dispatchWikiNotificationSafe({
+        userId: gap.filerId,
+        kind: "wiki_gap_resolved",
+        pageId: linkedPageId,
+        title: `Your gap was merged into an existing page`,
+        body: mergedInto?.title
+          ? `Merged into "${mergedInto.title}". File a flag if it still does not cover your case.`
+          : "Merged into an existing page.",
+        link: mergedInto?.slug ? `/wiki/${mergedInto.slug}` : "/wiki/gaps",
+      });
       return Response.json({ gap: updated });
     }
 
@@ -118,6 +157,13 @@ export async function PATCH(
           triagedAt: now,
           resolvedAt: now,
         },
+      });
+      await dispatchWikiNotificationSafe({
+        userId: gap.filerId,
+        kind: "wiki_gap_resolved",
+        title: `Your gap was declined`,
+        body: declineReason,
+        link: "/wiki/gaps",
       });
       return Response.json({ gap: updated });
     }
@@ -155,6 +201,20 @@ export async function PATCH(
           linkedPageId,
           resolvedAt: now,
         },
+      });
+      const newPage = await prisma.wikiPage.findUnique({
+        where: { id: linkedPageId },
+        select: { slug: true, title: true },
+      });
+      await dispatchWikiNotificationSafe({
+        userId: gap.filerId,
+        kind: "wiki_gap_published",
+        pageId: linkedPageId,
+        title: `The page from your gap is live`,
+        body: newPage?.title
+          ? `"${newPage.title}" is now published — take a look.`
+          : "The page is published.",
+        link: newPage?.slug ? `/wiki/${newPage.slug}` : "/wiki/gaps",
       });
       return Response.json({ gap: updated });
     }

@@ -10,7 +10,12 @@ export type WikiNotificationKind =
   | "wiki_owner_term_expiring"
   | "wiki_owner_term_expired"
   | "wiki_handover_proposed"
-  | "wiki_circle_prompt";
+  | "wiki_circle_prompt"
+  | "wiki_gap_assigned"
+  | "wiki_gap_resolved"
+  | "wiki_gap_published"
+  | "wiki_shadow_recorded"
+  | "wiki_page_orphaned";
 
 export type ChannelName = "push" | "inApp" | "email";
 
@@ -43,4 +48,9 @@ export const WIKI_KIND_TO_NOTIFICATION_TYPE: Record<
   wiki_owner_term_expired: "WikiOwnerTermExpired",
   wiki_handover_proposed: "WikiHandoverProposed",
   wiki_circle_prompt: "WikiCirclePrompt",
+  wiki_gap_assigned: "WikiGapAssigned",
+  wiki_gap_resolved: "WikiGapResolved",
+  wiki_gap_published: "WikiGapPublished",
+  wiki_shadow_recorded: "WikiShadowRecorded",
+  wiki_page_orphaned: "WikiReviewOverdue",
 };
