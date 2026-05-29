@@ -173,15 +173,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
         `;
       }
     } else if (reschedule && scheduledAt) {
+      try {
       const newDate = new Date(scheduledAt);
       const oldDate = current[0].scheduledAt;
-      const reason: string = rescheduleReason ?? null;
+      const reason: string | null = rescheduleReason ?? null;
       const reasonCode: string | null = rescheduleReasonCode ?? null;
 
       // Resolve activity owner + their manager up front so the notify policy
-      // has all the inputs it needs after the update lands.
+      // has all the inputs it needs after the update lands. The "manager" is
+      // the user the owner reports to — schema column is `reportsToId`.
       const [ownerRow] = await prisma.$queryRaw<{ ownerId: string | null; managerId: string | null }[]>`
-        SELECT p."ownerId", u."managerId"
+        SELECT p."ownerId", u."reportsToId" AS "managerId"
         FROM "PitstopEvent" pe
         LEFT JOIN "PitstopEventPitstop" pep ON pep."eventId" = pe.id
         LEFT JOIN "Pitstop" p ON p.id = pep."pitstopId" AND p."deletedAt" IS NULL
@@ -278,6 +280,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
           },
         });
         sendPushToUsers([ownerRow.managerId], { title, body, link: `/activities?event=${eventId}` });
+      }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("Reschedule failed:", msg);
+        return Response.json({ error: `Reschedule failed: ${msg}` }, { status: 500 });
       }
     }
 
