@@ -2,8 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
-import type { Activity } from "../_lib/types";
 import { fmtDate, fmtTime } from "../_lib/helpers";
+
+/**
+ * Minimal shape this sheet needs. Looser than the full `Activity` so the
+ * calendar's `PitstopEvent` can be passed in directly without an adapter.
+ */
+export type RescheduleSheetTarget = {
+  id: string;
+  title: string;
+  scheduledAt: string;
+};
 
 /**
  * Reschedule sheet — opens from the ActivityCard kebab. Mirrors `FilterSheet`'s
@@ -29,29 +38,35 @@ const REASON_CHIPS: { code: RescheduleReasonCode; label: string; hint?: string }
 ];
 
 export function RescheduleSheet({
-  open, onClose, activity, onRescheduled,
+  open, onClose, activity, onRescheduled, initialScheduledAt,
 }: {
   open: boolean;
   onClose: () => void;
-  activity: Activity;
+  activity: RescheduleSheetTarget;
   onRescheduled: () => void;
+  /**
+   * Override the default proposal (`activity.scheduledAt + 1 day`). The
+   * calendar drag-to-reschedule uses this to seed the picker with the
+   * dragged-onto time slot.
+   */
+  initialScheduledAt?: string;
 }) {
-  const defaultDate = computeDefault(activity.scheduledAt);
+  const defaultDate = computeDefault(initialScheduledAt ?? activity.scheduledAt, !initialScheduledAt);
   const [scheduledAt, setScheduledAt] = useState(defaultDate);
   const [reasonCode, setReasonCode] = useState<RescheduleReasonCode | null>(null);
   const [reasonText, setReasonText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset whenever the sheet re-opens for a different activity.
+  // Reset whenever the sheet re-opens for a different activity / drop slot.
   useEffect(() => {
     if (open) {
-      setScheduledAt(computeDefault(activity.scheduledAt));
+      setScheduledAt(computeDefault(initialScheduledAt ?? activity.scheduledAt, !initialScheduledAt));
       setReasonCode(null);
       setReasonText("");
       setError(null);
     }
-  }, [open, activity.id, activity.scheduledAt]);
+  }, [open, activity.id, activity.scheduledAt, initialScheduledAt]);
 
   // Close on Esc.
   useEffect(() => {
@@ -203,11 +218,12 @@ export function RescheduleSheet({
   );
 }
 
-// Default new date: existing schedule + 1 day, same hour/minute. Encoded as
-// the local "YYYY-MM-DDTHH:mm" string the datetime-local input wants.
-function computeDefault(scheduledAt: string): string {
+// Encode a date as the local "YYYY-MM-DDTHH:mm" string the datetime-local
+// input wants. `shift` = true ➜ add 1 day (the default behaviour when the
+// caller didn't supply a specific target slot).
+function computeDefault(scheduledAt: string, shift: boolean): string {
   const d = new Date(scheduledAt);
-  d.setDate(d.getDate() + 1);
+  if (shift) d.setDate(d.getDate() + 1);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

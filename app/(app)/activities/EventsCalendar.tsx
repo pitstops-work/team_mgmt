@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, MessageSquare, Send, Mic, Paperclip, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, MessageSquare, Send, Mic, Paperclip, Loader2, RotateCcw } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PitstopMultiPicker from "@/components/PitstopMultiPicker";
+import { RescheduleSheet } from "../home/_shared/RescheduleSheet";
 
 type User = { id: string; name: string | null; image: string | null };
 type PitstopOwner = { id: string; name: string | null; image: string | null };
@@ -21,7 +22,7 @@ type PitstopEvent = {
   title: string;
   description: string | null;
   type: "Meeting" | "Visit" | "Event";
-  status: "Scheduled" | "Done" | "Cancelled" | "Flagged";
+  status: "Scheduled" | "Done" | "Cancelled" | "Flagged" | "Rescheduled";
   scheduledAt: string;
   endsAt: string | null;
   location: string | null;
@@ -29,6 +30,10 @@ type PitstopEvent = {
   createdBy: User;
   attendees: Attendee[];
   checklistItem?: ChecklistItemRef | null;
+  /* Phase 3 reschedule provenance — drives the badge on EventCard and the
+     drag-to-reschedule flow that opens the shared RescheduleSheet. */
+  rescheduleCount?: number;
+  rescheduleReasonCode?: string | null;
 };
 type ViewMode = "day" | "week" | "month";
 type ExternalCalEvent = {
@@ -513,6 +518,8 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
   const isCancelled = ev.status === "Cancelled";
   const isDone = ev.status === "Done";
   const isFlagged = ev.status === "Flagged";
+  const isRescheduled = ev.status === "Rescheduled";
+  const rescheduleCount = ev.rescheduleCount ?? 0;
 
   const isOwner = ev.pitstops.length > 0
     ? ev.pitstops.some(p => p.pitstop.owner.id === currentUserId)
@@ -529,6 +536,7 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
       : isOwner;
   const canComplete = ev.status === "Scheduled" && canManage;
   const canUndo = (isDone || isCancelled) && canManage;
+  const canDrag = !isCancelled && !isDone && canManage;
   const ctype = ev.checklistItem?.completionType ?? "Activity";
 
   async function markDone() {
@@ -588,7 +596,18 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
   }
 
   return (
-    <div className={`px-3 py-2.5 rounded-xl border ${isCancelled ? "bg-stone-50 border-stone-200 opacity-60" : TYPE_COLORS[ev.type]}`}>
+    <div
+      className={`px-3 py-2.5 rounded-xl border ${isCancelled ? "bg-stone-50 border-stone-200 opacity-60" : TYPE_COLORS[ev.type]} ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
+      draggable={canDrag}
+      onDragStart={(e) => {
+        if (!canDrag) return;
+        // The parent calendar reads these on drop to know which event moved
+        // and what time-of-day to preserve in the new slot.
+        e.dataTransfer.setData("application/x-pitstop-event-id", ev.id);
+        e.dataTransfer.setData("application/x-pitstop-event-time", ev.scheduledAt.slice(11, 16));
+        e.dataTransfer.effectAllowed = "move";
+      }}
+    >
       <div className="flex items-start justify-between gap-1">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -596,6 +615,13 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
             {isDone && <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Done</span>}
             {isFlagged && <span className="text-[10px] font-medium text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">Flagged</span>}
             {isCancelled && <span className="text-[10px] font-medium text-stone-400 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-full">Cancelled</span>}
+            {isRescheduled && <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">Rescheduled</span>}
+            {rescheduleCount >= 2 && (
+              <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                <RotateCcw className="w-2.5 h-2.5" />
+                {rescheduleCount}×
+              </span>
+            )}
             {canUndo && (
               <button
                 onClick={undoComplete}
@@ -767,9 +793,16 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
     }
     return today;
   })();
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [anchorDate, setAnchorDate] = useState(initialDate);
   const [events, setEvents] = useState(initialEvents);
+  // Drag-to-reschedule target. Populated when an EventCard is dropped on a
+  // different day's drop zone; opens the shared RescheduleSheet with the new
+  // slot pre-filled so the user picks a reason and the API still owns the
+  // notify policy.
+  const [rescheduleTarget, setRescheduleTarget] = useState<{ event: PitstopEvent; newScheduledAt: string } | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editEvent, setEditEvent] = useState<PitstopEvent | null>(null);
@@ -867,6 +900,23 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   const year = anchorDate.getFullYear();
   const month = anchorDate.getMonth();
   const todayYMD = toYMD(today);
+
+  // Drop handler for week-view day blocks. Reads the dragged event's id +
+  // original time-of-day from dataTransfer, builds a new scheduledAt for
+  // the target day, and opens the reschedule sheet. Same-day drops are
+  // no-ops — the user can use the sheet's date/time picker for fine moves.
+  function handleDayDrop(targetYMD: string, e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragOverDay(null);
+    const id = e.dataTransfer.getData("application/x-pitstop-event-id");
+    const hhmm = e.dataTransfer.getData("application/x-pitstop-event-time") || "09:00";
+    if (!id) return;
+    const ev = events.find(x => x.id === id);
+    if (!ev) return;
+    if (ev.scheduledAt.slice(0, 10) === targetYMD) return;
+    const newScheduledAt = `${targetYMD}T${hhmm}:00`;
+    setRescheduleTarget({ event: ev, newScheduledAt });
+  }
 
   const navigate = (dir: -1 | 1) => {
     setAnchorDate(prev => {
@@ -1269,13 +1319,25 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
               const dayEvs = (eventMap.get(ymd) ?? []).sort((a,b) => a.scheduledAt.localeCompare(b.scheduledAt));
               const extEvs = (extEventMap.get(ymd) ?? []).sort((a,b) => a.start.localeCompare(b.start));
               const isToday = ymd === todayYMD;
+              const isDropOver = dragOverDay === ymd;
               return (
-                <div key={ymd}>
+                <div
+                  key={ymd}
+                  onDragOver={(e) => {
+                    if (!e.dataTransfer.types.includes("application/x-pitstop-event-id")) return;
+                    e.preventDefault();
+                    if (dragOverDay !== ymd) setDragOverDay(ymd);
+                  }}
+                  onDragLeave={() => { if (dragOverDay === ymd) setDragOverDay(null); }}
+                  onDrop={(e) => handleDayDrop(ymd, e)}
+                  className={`${isDropOver ? "rounded-lg bg-sky-50/60 ring-2 ring-sky-300 ring-offset-2 transition-colors" : "transition-colors"}`}
+                >
                   <div className={`flex items-center gap-2 mb-2 pb-1.5 border-b ${isToday ? "border-sky-200" : "border-stone-100"}`}>
                     <span className={`text-xs font-semibold uppercase tracking-wider ${isToday ? "text-sky-600" : "text-stone-500"}`}>
                       {d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
                     </span>
                     {isToday && <span className="text-[10px] bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded-full font-medium">Today</span>}
+                    {isDropOver && <span className="text-[10px] bg-sky-500 text-white px-1.5 py-0.5 rounded-full font-medium">Drop to reschedule</span>}
                     <button onClick={() => { setSelectedDate(ymd); setShowCreate(true); }}
                       className="ml-auto text-[11px] text-stone-400 hover:text-sky-600 flex items-center gap-0.5 transition-colors">
                       <Plus className="w-3 h-3" /> Add
@@ -1335,6 +1397,23 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
           defaultDate={selectedDate ?? (viewMode === "day" ? dayYMD : undefined)}
           onClose={() => { setShowCreate(false); setEditEvent(null); }}
           onSaved={handleSaved}
+        />
+      )}
+
+      {/* Drag-to-reschedule sheet — opens when an EventCard is dropped on a
+          different day's drop zone. Unified with the home cockpit's flow so
+          the reason chips + manager pattern-alert policy live in one place. */}
+      {rescheduleTarget && (
+        <RescheduleSheet
+          open={true}
+          onClose={() => setRescheduleTarget(null)}
+          activity={{
+            id: rescheduleTarget.event.id,
+            title: rescheduleTarget.event.title,
+            scheduledAt: rescheduleTarget.event.scheduledAt,
+          }}
+          initialScheduledAt={rescheduleTarget.newScheduledAt}
+          onRescheduled={() => router.refresh()}
         />
       )}
     </div>
