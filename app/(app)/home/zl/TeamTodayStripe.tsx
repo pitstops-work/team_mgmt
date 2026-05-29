@@ -10,6 +10,7 @@ import { fmtDomain, daysAgo } from "../_lib/helpers";
 import { ACTIVITY_TYPE_STYLE } from "../_lib/constants";
 import { ActivityCard } from "../_shared/ActivityCard";
 import { EmptyState } from "../_shared/Primitives";
+import { useSessionDoneIds } from "../_shared/useSessionDoneIds";
 
 /**
  * Per-reportee summary cards for the ZL Today supervisory cockpit.
@@ -40,7 +41,7 @@ export function TeamTodayStripe({
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [doneEventIds, setDoneEventIds] = useState<Set<string>>(new Set());
+  const { ids: doneEventIds, add: addDoneEventId } = useSessionDoneIds("zl-team-done-events");
 
   if (teamMembers.length === 0) {
     return <EmptyState message="No reportees yet." />;
@@ -71,7 +72,7 @@ export function TeamTodayStripe({
   }
 
   function handleCompleted(eventId: string) {
-    setDoneEventIds(prev => new Set(prev).add(eventId));
+    addDoneEventId(eventId);
     router.refresh();
   }
   const onRescheduled = () => router.refresh();

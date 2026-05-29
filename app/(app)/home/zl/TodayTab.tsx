@@ -15,6 +15,7 @@ import { useTodayFilters, type GroupBy } from "../_shared/useTodayFilters";
 import { TeamSlaPanel, TeamOverduePanel } from "../TeamPerformance";
 import { TeamTodayStripe } from "./TeamTodayStripe";
 import { RescheduleAlertsPanel } from "./RescheduleAlertsPanel";
+import { useSessionDoneIds } from "../_shared/useSessionDoneIds";
 import type { RPHealthStat } from "../page";
 
 /**
@@ -45,8 +46,8 @@ export function ZLTodayTab({
   rpTeamHealth?: RPHealthStat[];
 }) {
   const router = useRouter();
-  const [doneEventIds, setDoneEventIds] = useState<Set<string>>(new Set());
-  const [doneChecklistIds, setDoneChecklistIds] = useState<Set<string>>(new Set());
+  const { ids: doneEventIds, add: addDoneEventId } = useSessionDoneIds(`zl-${userId}-done-events`);
+  const { ids: doneChecklistIds, add: addDoneChecklistId } = useSessionDoneIds(`zl-${userId}-done-checklists`);
   const [showWeek, setShowWeek] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -109,9 +110,8 @@ export function ZLTodayTab({
   }, [myToday, nowMs]);
 
   function handleCompleted(eventId: string, checklistItemId?: string) {
-    setDoneEventIds(prev => new Set(prev).add(eventId));
-    if (checklistItemId) setDoneChecklistIds(prev => new Set(prev).add(checklistItemId));
-    // Keep server props in sync; same reasoning as rp/TodayTab.
+    addDoneEventId(eventId);
+    if (checklistItemId) addDoneChecklistId(checklistItemId);
     router.refresh();
   }
   const onRescheduled = () => router.refresh();

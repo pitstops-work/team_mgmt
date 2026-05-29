@@ -13,6 +13,7 @@ import { NowDivider } from "../_shared/NowDivider";
 import { EmptyState, SectionTitle } from "../_shared/Primitives";
 import { FilterSheet } from "../_shared/FilterSheet";
 import { useTodayFilters, type GroupBy } from "../_shared/useTodayFilters";
+import { useSessionDoneIds } from "../_shared/useSessionDoneIds";
 
 /**
  * RP Today — time-first cockpit. Replaces the cluster-first playing-card deck.
@@ -45,8 +46,8 @@ export function RPTodayTab({
   facilityLayerConfigs?: FacilityLayerConfigLite[];
 }) {
   const router = useRouter();
-  const [doneEventIds, setDoneEventIds] = useState<Set<string>>(new Set());
-  const [doneChecklistIds, setDoneChecklistIds] = useState<Set<string>>(new Set());
+  const { ids: doneEventIds, add: addDoneEventId } = useSessionDoneIds(`rp-${userId}-done-events`);
+  const { ids: doneChecklistIds, add: addDoneChecklistId } = useSessionDoneIds(`rp-${userId}-done-checklists`);
   const [showWeek, setShowWeek] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const onRescheduled = () => router.refresh();
@@ -105,11 +106,10 @@ export function RPTodayTab({
   }, [filteredToday, nowMs]);
 
   function handleCompleted(eventId: string, checklistItemId?: string) {
-    setDoneEventIds(prev => new Set(prev).add(eventId));
-    if (checklistItemId) setDoneChecklistIds(prev => new Set(prev).add(checklistItemId));
-    // Re-fetch server-rendered data so server-side counts stay truthful when
-    // the user navigates away and back. The optimistic Set above keeps the
-    // row hidden in this instant; router.refresh syncs the source of truth.
+    // Persist optimistic completion in sessionStorage so it survives both the
+    // router.refresh below and a navigate-away/back. The hook handles storage.
+    addDoneEventId(eventId);
+    if (checklistItemId) addDoneChecklistId(checklistItemId);
     router.refresh();
   }
 
