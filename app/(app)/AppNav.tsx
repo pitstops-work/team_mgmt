@@ -8,7 +8,7 @@ import {
   Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare,
   CalendarClock, MoreHorizontal, X, BookOpen, ClipboardList, MapPin,
   CalendarRange, HelpCircle, BarChart3, MessageSquare, LayoutGrid, Route, TrendingUp,
-  Layers, Library, Calculator,
+  Layers, Library, Calculator, GraduationCap,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
@@ -71,7 +71,7 @@ export default function AppNav({
   // Single ordered list — visibility is decided by `allowedNavHrefs` (computed
   // server-side via RBAC `can()` + has-reports check; see `navGates.ts`).
   // Add a new entry here AND add its gate in `navGates.ts`.
-  const SETUP_NAV: Array<{ href: string; icon: React.ReactNode; label: string }> = [
+  const SETUP_NAV: Array<{ href: string; icon: React.ReactNode; label: string; external?: boolean }> = [
     { href: "/dashboard",  icon: <Target className="w-3.5 h-3.5" />,           label: "Goals"          },
     { href: "/needs",      icon: <BarChart3 className="w-3.5 h-3.5" />,        label: "Field Coverage" },
     { href: "/effects",    icon: <TrendingUp className="w-3.5 h-3.5" />,       label: "Effects"        },
@@ -85,13 +85,14 @@ export default function AppNav({
     { href: "/people",     icon: <Users className="w-3.5 h-3.5" />,            label: "People"         },
     { href: "/standup",    icon: <ClipboardList className="w-3.5 h-3.5" />,    label: "Field Notes"    },
     { href: "/wiki",       icon: <Library className="w-3.5 h-3.5" />,          label: "Wiki"           },
+    { href: "/pitstops-training.html", icon: <GraduationCap className="w-3.5 h-3.5" />, label: "Training", external: true },
     { href: settingsHref,  icon: <Settings className="w-3.5 h-3.5" />,         label: "Settings"       },
     { href: "/help",       icon: <HelpCircle className="w-3.5 h-3.5" />,       label: "Manual"         },
   ];
   // Filter by RBAC-resolved allowed set. If the server didn't pass one (e.g.
   // during error states), fall back to showing the universal subset so the
   // user is never stranded without a way out.
-  const UNIVERSAL_HREFS = new Set(["/wiki", settingsHref, "/help"]);
+  const UNIVERSAL_HREFS = new Set(["/wiki", "/pitstops-training.html", settingsHref, "/help"]);
   const setupNav = allowedSet.size > 0
     ? SETUP_NAV.filter(item => allowedSet.has(item.href))
     : SETUP_NAV.filter(item => UNIVERSAL_HREFS.has(item.href));
@@ -161,8 +162,8 @@ export default function AppNav({
             </>
           ) : (
             <>
-              {setupNav.map(({ href, icon, label }) => (
-                <NavLink key={href} href={href} active={pathname === href || pathname.startsWith(href + "/")}>
+              {setupNav.map(({ href, icon, label, external }) => (
+                <NavLink key={href} href={href} active={pathname === href || pathname.startsWith(href + "/")} external={external}>
                   <span className="text-stone-500">{icon}</span>
                   {label}
                 </NavLink>
@@ -274,19 +275,26 @@ export default function AppNav({
               <button onClick={() => setShowMore(false)} className="p-1 text-stone-400"><X className="w-5 h-5" /></button>
             </div>
             <div className="overflow-y-auto px-3 py-2 pb-8 space-y-0.5">
-              {setupNav.map(({ href, icon, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setShowMore(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                    pathname.startsWith(href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"
-                  }`}
-                >
-                  <span className="text-stone-400">{icon}</span>
-                  {label}
-                </Link>
-              ))}
+              {setupNav.map(({ href, icon, label, external }) => {
+                const cn = `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  pathname.startsWith(href) ? "bg-sky-50 text-sky-700" : "text-stone-700 hover:bg-stone-50"
+                }`;
+                const inner = (
+                  <>
+                    <span className="text-stone-400">{icon}</span>
+                    {label}
+                  </>
+                );
+                return external ? (
+                  <a key={href} href={href} onClick={() => setShowMore(false)} className={cn}>
+                    {inner}
+                  </a>
+                ) : (
+                  <Link key={href} href={href} onClick={() => setShowMore(false)} className={cn}>
+                    {inner}
+                  </Link>
+                );
+              })}
               <div className="h-px bg-stone-100 my-2" />
               <Link
                 href="/portal"
@@ -314,14 +322,21 @@ export default function AppNav({
   );
 }
 
-function NavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+function NavLink({ href, active, external, children }: { href: string; active: boolean; external?: boolean; children: React.ReactNode }) {
+  const className = `flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors ${
+    active ? "bg-sky-50 text-sky-700 font-medium" : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+  }`;
+  // Static / public assets (e.g. /pitstops-training.html) — use a plain anchor
+  // so we leave the App Router shell cleanly and avoid prefetching the file.
+  if (external) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
   return (
-    <Link
-      href={href}
-      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors ${
-        active ? "bg-sky-50 text-sky-700 font-medium" : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
-      }`}
-    >
+    <Link href={href} className={className}>
       {children}
     </Link>
   );

@@ -46,6 +46,7 @@ export const NAV_GATES: Record<string, NavGate> = {
   "/models":     { resource: "operating_model",  action: "list" },
   // Universal items — appear for every authenticated user.
   "/wiki":       { resource: null,               action: "" },
+  "/pitstops-training.html": { resource: null,   action: "" }, // static — public hub of training modules
   "/settings":   { resource: null,               action: "" },
   "/settings/language": { resource: null,        action: "" }, // viewer-only settings entry
   "/help":       { resource: null,               action: "" },

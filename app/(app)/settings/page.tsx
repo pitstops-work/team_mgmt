@@ -472,6 +472,17 @@ export default function SettingsPage() {
               <ChevronRight className="w-4 h-4 text-stone-300" />
             </Link>
             <Link
+              href="/settings/wiki-staff"
+              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4 text-pink-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800">Wiki Staff</p>
+                <p className="text-xs text-stone-400">Designate curators &amp; stewards — per city or global</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-300" />
+            </Link>
+            <Link
               href="/settings/facility-layers"
               className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
             >
