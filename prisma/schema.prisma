@@ -1218,27 +1218,27 @@ enum PitstopEventType {
 }
 
 model PitstopEvent {
-  id                 String             @id @default(cuid())
-  title              String
-  description        String?
-  type               PitstopEventType   @default(Meeting)
-  status             PitstopEventStatus @default(Scheduled)
-  scheduledAt        DateTime
-  endsAt             DateTime?
-  location           String?
-  createdById        String
-  lastUpdatedById    String?
-  completedById      String?
-  checklistItemId    String?
-  rescheduledFrom    DateTime?
-  rescheduleReason   String?
+  id                   String             @id @default(cuid())
+  title                String
+  description          String?
+  type                 PitstopEventType   @default(Meeting)
+  status               PitstopEventStatus @default(Scheduled)
+  scheduledAt          DateTime
+  endsAt               DateTime?
+  location             String?
+  createdById          String
+  lastUpdatedById      String?
+  completedById        String?
+  checklistItemId      String?
+  rescheduledFrom      DateTime?
+  rescheduleReason     String?
   rescheduleReasonCode String?
-  rescheduleCount    Int                @default(0)
-  cancellationReason String?
-  completedAt        DateTime?
-  deletedAt          DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  rescheduleCount      Int                @default(0)
+  cancellationReason   String?
+  completedAt          DateTime?
+  deletedAt            DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   // Template provenance — slugified from the template activity's title.
   // templateSlug rides on the parent ChecklistItem (no need to duplicate).
@@ -2543,4 +2543,121 @@ model WikiPageView {
 
   @@index([pageId, createdAt])
   @@index([userId, createdAt])
+}
+
+// ─── Operating Models (parametric unit-economics engine) ─────────────────────
+// Templates are *data*, not code. Same pattern as GoalTemplateDef.
+// See memory/operating_models.md for the full design.
+
+model ModelTemplate {
+  id          String   @id @default(cuid())
+  key         String   @unique // e.g. "ro_water"
+  name        String
+  description String   @default("")
+  // Time bases this template uses, e.g. [{key:"monthly",length:60},{key:"annual",length:5}].
+  // Author-defined; nodes bind to one of these keys (or "scalar").
+  horizons    Json     @default("[]")
+  // Optional ordering hint for /models lists
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  groups    ModelGroup[]
+  nodes     ModelNode[]
+  outputs   ModelOutput[]
+  instances ModelInstance[]
+}
+
+// UI grouping for inputs in the play surface (e.g. "Site & Population", "Pricing").
+model ModelGroup {
+  id         String        @id @default(cuid())
+  templateId String
+  template   ModelTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  key        String // unique within a template
+  label      String
+  order      Int           @default(0)
+  createdAt  DateTime      @default(now())
+
+  nodes ModelNode[]
+
+  @@unique([templateId, key])
+  @@index([templateId, order])
+}
+
+// A node in the model graph: input cell, formula cell, constant, or table.
+// shape encodes whether it's a scalar or vector tied to a template horizon.
+// shape examples: {kind:"scalar"} | {kind:"vector", horizon:"monthly"}
+model ModelNode {
+  id          String        @id @default(cuid())
+  templateId  String
+  template    ModelTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  groupId     String?
+  group       ModelGroup?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  key         String // unique within a template; referenced by formulas
+  label       String
+  notes       String?
+  unit        String? // free text: "INR/litre", "%", "kWh/1000L"
+  kind        String // "input" | "formula" | "constant"
+  dataType    String // "number" | "percent" | "currency" | "int" | "boolean" | "enum"
+  shape       Json          @default("{\"kind\":\"scalar\"}")
+  // Default value for input/constant nodes. For vectors, may be a single number
+  // (broadcast) or an array. Formulas ignore this.
+  defaultJson Json?
+  // For formula nodes: the expression source. Null for inputs/constants.
+  formula     String?
+  // For enum dataType: array of allowed values.
+  enumValues  Json?
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([templateId, key])
+  @@index([templateId, order])
+  @@index([groupId])
+}
+
+// Author-defined outputs to render: KPI cards, time-series, sensitivity grids,
+// scenario comparisons, budget exports. kind drives the renderer; config is
+// renderer-specific.
+model ModelOutput {
+  id         String        @id @default(cuid())
+  templateId String
+  template   ModelTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  key        String
+  label      String
+  // "kpi" | "series" | "table" | "sensitivity" | "scenarioGrid" | "budgetExport"
+  kind       String
+  config     Json          @default("{}")
+  order      Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([templateId, key])
+  @@index([templateId, order])
+}
+
+// A saved set of input overrides for a template. Nullable pitstopId supports
+// standalone-first then attach-later. parentInstanceId links scenario siblings.
+model ModelInstance {
+  id               String          @id @default(cuid())
+  templateId       String
+  template         ModelTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name             String
+  pitstopId        String?
+  // For scenarios: Conservative/Base/Optimistic share parentInstanceId.
+  parentInstanceId String?
+  parent           ModelInstance?  @relation("ModelInstanceScenarios", fields: [parentInstanceId], references: [id], onDelete: SetNull)
+  scenarios        ModelInstance[] @relation("ModelInstanceScenarios")
+  scenarioName     String?
+  // Sparse: only the nodes the user has overridden vs. node defaults.
+  // Shape: { [nodeKey]: number | number[] | boolean | string }
+  inputsJson       Json            @default("{}")
+  createdById      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([templateId, updatedAt])
+  @@index([pitstopId])
+  @@index([parentInstanceId])
 }

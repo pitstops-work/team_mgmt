@@ -43,6 +43,7 @@ export const NAV_GATES: Record<string, NavGate> = {
   "/quarters":   { resource: "quarter",          action: "list" },
   "/people":     { resource: "user",             action: "list", requiresReports: true },
   "/standup":    { resource: "standup",          action: "list" },
+  "/models":     { resource: "operating_model",  action: "list" },
   // Universal items — appear for every authenticated user.
   "/wiki":       { resource: null,               action: "" },
   "/settings":   { resource: null,               action: "" },

@@ -108,6 +108,9 @@ export const RESOURCE_ACTIONS: Record<string, readonly string[]> = {
   attachment: ["read", "create", "delete"],
   search: ["execute"],
   system: ["agent_use", "seed_run", "geo_sync_civic"],
+  // Operating Models (/models) — instances are the play surface; templates are the author layer.
+  operating_model:          [...STANDARD_ACTIONS, "promote_to_budget"],
+  operating_model_template: [...STANDARD_ACTIONS],
 };
 
 export type RoleGrant = Record<string, ScopeRule>; // "resource.action" → rule
@@ -302,6 +305,19 @@ const MEMBER_GRANTS: RoleGrant = {
 
   // Search: any authenticated user; results are filtered through per-resource scopes downstream.
   "search.execute": ALL,
+
+  // Operating Models — anyone authenticated can browse/play instances (the
+  // funder-dashboard framing is internal-only across roles). Mutations on
+  // instances are OWN (you can edit/delete what you created). Template
+  // authoring is reserved for admin via ADMIN_GRANTS (no member rows here).
+  "operating_model.list":              ALL,
+  "operating_model.read":              ALL,
+  "operating_model.create":            ALL,
+  "operating_model.update":            OWN,
+  "operating_model.delete":            OWN,
+  "operating_model.promote_to_budget": OWN,
+  "operating_model_template.list":     ALL,
+  "operating_model_template.read":     ALL,
 };
 
 const VIEWER_GRANTS: RoleGrant = (() => {

@@ -8,7 +8,7 @@ import {
   Target, Search, LogOut, Bell, Settings, Users, GanttChartSquare,
   CalendarClock, MoreHorizontal, X, BookOpen, ClipboardList, MapPin,
   CalendarRange, HelpCircle, BarChart3, MessageSquare, LayoutGrid, Route, TrendingUp,
-  Layers, Library,
+  Layers, Library, Calculator,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
@@ -81,6 +81,7 @@ export default function AppNav({
     { href: "/gantt",      icon: <GanttChartSquare className="w-3.5 h-3.5" />, label: "Gantt"          },
     { href: "/planner",    icon: <BookOpen className="w-3.5 h-3.5" />,         label: "Planner"        },
     { href: "/quarters",   icon: <CalendarRange className="w-3.5 h-3.5" />,    label: "Quarters"       },
+    { href: "/models",     icon: <Calculator className="w-3.5 h-3.5" />,       label: "Models"         },
     { href: "/people",     icon: <Users className="w-3.5 h-3.5" />,            label: "People"         },
     { href: "/standup",    icon: <ClipboardList className="w-3.5 h-3.5" />,    label: "Field Notes"    },
     { href: "/wiki",       icon: <Library className="w-3.5 h-3.5" />,          label: "Wiki"           },
