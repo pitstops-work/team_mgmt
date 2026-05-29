@@ -82,6 +82,8 @@ export function TeamTodayStripe({
         const overdueActs = overdueByRpId.get(rp.id) ?? [];
         const overdueCount = overdueActs.length;
         const delayedPitstops = h?.overduePitstops ?? 0;
+        const todayDone  = h?.todayDone  ?? 0;
+        const todayTotal = h?.todayTotal ?? 0;
         // "Chronic slippage" sweep — any activity in the RP's overdue list
         // has been rescheduled twice or more.
         const chronicCount = overdueActs.filter(a => (a as ZLTeamActivity & { rescheduleCount?: number }).rescheduleCount && (a as ZLTeamActivity & { rescheduleCount?: number }).rescheduleCount! >= 2).length;
@@ -96,6 +98,7 @@ export function TeamTodayStripe({
               aria-expanded={isOpen}
             >
               <Avatar name={rp.name} image={rp.image} size="sm" />
+              <TodayDonut done={todayDone} total={todayTotal} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-stone-800 truncate">{rp.name ?? "Unknown"}</p>
                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
@@ -181,4 +184,51 @@ function toActivity(a: ZLTeamActivity): Activity {
     }] : [],
     rescheduleCount: (a as ZLTeamActivity & { rescheduleCount?: number }).rescheduleCount,
   };
+}
+
+/**
+ * Compact "X / Y" progress donut for the per-reportee Team-today row. Empty
+ * (total === 0) renders a muted ring so the column stays aligned without
+ * implying anything ominous about an RP who simply has no work scheduled
+ * today.
+ */
+function TodayDonut({ done, total }: { done: number; total: number }) {
+  const SIZE = 36;
+  const STROKE = 4;
+  const R = (SIZE - STROKE) / 2;
+  const C = 2 * Math.PI * R;
+  const pct = total > 0 ? Math.min(1, done / total) : 0;
+  const dash = `${C * pct} ${C}`;
+  const allDone = total > 0 && done === total;
+  const empty = total === 0;
+  return (
+    <div className="relative flex-shrink-0" style={{ width: SIZE, height: SIZE }} aria-label={`Today ${done} of ${total}`}>
+      <svg width={SIZE} height={SIZE} className="-rotate-90">
+        <circle
+          cx={SIZE / 2} cy={SIZE / 2} r={R}
+          stroke={empty ? "#e7e5e4" : "#f5f5f4"}
+          strokeWidth={STROKE} fill="none"
+        />
+        {!empty && (
+          <circle
+            cx={SIZE / 2} cy={SIZE / 2} r={R}
+            stroke={allDone ? "#10b981" : "#0ea5e9"}
+            strokeWidth={STROKE} fill="none"
+            strokeDasharray={dash}
+            strokeLinecap="round"
+            className="transition-all"
+          />
+        )}
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        {empty ? (
+          <span className="text-[9px] text-stone-300 tabular-nums">—</span>
+        ) : (
+          <span className={`text-[10px] tabular-nums font-semibold ${allDone ? "text-emerald-700" : "text-stone-700"}`}>
+            {done}/{total}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
