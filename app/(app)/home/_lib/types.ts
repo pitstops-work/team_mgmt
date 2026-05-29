@@ -19,6 +19,16 @@ export type Activity = {
   location: string | null; status: string;
   attendees?: { user: { id: string; name: string | null } }[];
   pitstops?: { pitstop: { id: string; title: string; ownerId: string; goal: ActivityGoal } }[];
+  /* Optional Done-log enrichment — present on `rpDoneActivities` from the
+     page loader so the Done-log feed can render proof + completion time. */
+  completedAt?: string | null;
+  completedBy?: { id: string; name: string | null } | null;
+  checklistItem?: {
+    id: string;
+    notes: string | null;
+    completionType: "Activity" | "Voice" | "Upload";
+    attachments: { id: string; url: string; name: string; mimeType: string | null }[];
+  } | null;
 };
 
 export type ChecklistItem = {

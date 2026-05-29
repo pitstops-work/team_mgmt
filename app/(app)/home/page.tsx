@@ -548,6 +548,8 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        completedAt: true,
+        completedBy: { select: { id: true, name: true } },
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
           select: {
@@ -567,8 +569,20 @@ export default async function HomePage() {
           },
           take: 1,
         },
+        // Linked checklist gives us the proof: voice transcription (notes) and
+        // uploaded files (attachments). Used by the RP Done-log to render
+        // thumbnail previews + inline transcripts.
+        checklistItem: {
+          select: {
+            id: true, notes: true, completionType: true,
+            attachments: {
+              select: { id: true, url: true, name: true, mimeType: true },
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        },
       },
-      orderBy: { scheduledAt: "desc" },
+      orderBy: { completedAt: "desc" },
       take: 200,
     }),
 

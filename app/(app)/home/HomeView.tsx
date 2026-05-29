@@ -38,12 +38,13 @@ import { AdminPipelineTab } from "./admin/PipelineTab";
 import { AdminCoverageTab } from "./admin/CoverageTab";
 import { PastTab } from "./_shared/PastTab";
 import { GoalsTab } from "./_shared/GoalsTab";
+import { DoneLog } from "./rp/DoneLog";
 
 // ── Tab catalogs ──────────────────────────────────────────────────────────────
 
 const RP_TABS = [
-  { key: "today", label: "Today", icon: CalendarClock },
-  { key: "past",  label: "Past",  icon: CheckCircle2 },
+  { key: "today", label: "Today",    icon: CalendarClock },
+  { key: "past",  label: "Done log", icon: CheckCircle2 },
 ] as const;
 
 const ZL_TABS = [
@@ -209,7 +210,10 @@ export default function HomeView({
           />
         )}
 
-        {activeTab === "past" && (
+        {activeTab === "past" && designation === "RP" && (
+          <DoneLog userId={userId} doneActivities={rpDoneActivities} />
+        )}
+        {activeTab === "past" && designation !== "RP" && (
           <PastTab
             userId={userId}
             ownDoneActivities={rpDoneActivities}
