@@ -15,14 +15,19 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // iOS home-screen PWAs keep a separate cookie jar from Safari, so the
+    // iPad home-screen PWAs keep a separate cookie jar from Safari, so the
     // Google OAuth round-trip can't return a session to the standalone window.
+    // iPhone standalone PWAs do not have this issue, so only gate on iPad.
+    // iPadOS 13+ reports as MacIntel with touch, so detect that too.
     const nav = navigator as Navigator & { standalone?: boolean };
     const standalone =
       nav.standalone === true ||
       window.matchMedia("(display-mode: standalone)").matches;
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    setIosStandalone(standalone && isIos);
+    const ua = navigator.userAgent;
+    const isIpad =
+      /iPad/.test(ua) ||
+      (nav.platform === "MacIntel" && typeof nav.maxTouchPoints === "number" && nav.maxTouchPoints > 1);
+    setIosStandalone(standalone && isIpad);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
