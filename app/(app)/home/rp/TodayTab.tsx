@@ -56,6 +56,7 @@ export function RPTodayTab({
   const { ids: doneEventIds, add: addDoneEventId } = useSessionDoneIds(`rp-${userId}-done-events`);
   const { ids: doneChecklistIds, add: addDoneChecklistId } = useSessionDoneIds(`rp-${userId}-done-checklists`);
   const [showWeek, setShowWeek] = useState(false);
+  const [showOverdue, setShowOverdue] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const onRescheduled = () => router.refresh();
 
@@ -214,25 +215,35 @@ export function RPTodayTab({
           ))
       ) : (
         <>
-          {/* Overdue (only when un-grouped + >0) */}
+          {/* Overdue (only when un-grouped + >0) — collapsed by default to keep
+              the cockpit short; count is already visible in the ProgressChip. */}
           {overdueCount > 0 && (
             <section>
-              <SectionTitle>
-                <span className="text-amber-700">Overdue ({overdueCount})</span>
-              </SectionTitle>
-              <div className="space-y-2">
-                {filteredOverdue.map(a => (
-                  <ActivityCard
-                    key={a.id}
-                    activity={a}
-                    linkedChecklist={activityChecklistMap.get(a.id) ?? null}
-                    onCompleted={handleCompleted}
-                    onRescheduled={onRescheduled}
-                    isOverdue
-                    variant="card"
-                  />
-                ))}
-              </div>
+              <button
+                onClick={() => setShowOverdue(v => !v)}
+                className="w-full flex items-center justify-between gap-2 py-2 text-left"
+                aria-expanded={showOverdue}
+              >
+                <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">
+                  Overdue ({overdueCount})
+                </span>
+                {showOverdue ? <ChevronUp className="w-3.5 h-3.5 text-amber-700" /> : <ChevronDown className="w-3.5 h-3.5 text-amber-700" />}
+              </button>
+              {showOverdue && (
+                <div className="space-y-2">
+                  {filteredOverdue.map(a => (
+                    <ActivityCard
+                      key={a.id}
+                      activity={a}
+                      linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                      onCompleted={handleCompleted}
+                      onRescheduled={onRescheduled}
+                      isOverdue
+                      variant="card"
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
