@@ -540,9 +540,15 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
   // displayDate state — same rule as home/ActivityCard. The Activities
   // calendar still places the event on its scheduledAt date; this controls
   // the badge + the toggle button only.
+  //
+  // Match in local time, not by string-slicing the ISO. The optimistic
+  // patch writes `new Date().toISOString()` (UTC), so during IST early
+  // morning (00:00–05:30) the UTC date is yesterday's and a UTC-string
+  // comparison silently misses — badge never appears, button looks
+  // unresponsive. Matches the home/ActivityCard `isToday()` helper.
   const todayYMD = toYMD(new Date());
-  const scheduledTodayYMD = ev.scheduledAt.slice(0, 10) === todayYMD;
-  const pulledTodayYMD = !!ev.displayDate && ev.displayDate.slice(0, 10) === todayYMD;
+  const scheduledTodayYMD = toYMD(new Date(ev.scheduledAt)) === todayYMD;
+  const pulledTodayYMD = !!ev.displayDate && toYMD(new Date(ev.displayDate)) === todayYMD;
   const pulledToToday = pulledTodayYMD && !scheduledTodayYMD;
 
   const isOwner = ev.pitstops.length > 0
@@ -619,12 +625,24 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
     if (res.ok) await markDone();
   }
 
+  const [todayBusy, setTodayBusy] = useState(false);
   async function toggleDisplayToday() {
-    const method = pulledToToday ? "DELETE" : "POST";
-    const res = await fetch(`/api/pitstop-events/${ev.id}/display-today`, { method });
-    if (res.ok) {
-      // Optimistic patch so the badge flips without waiting for a server-render.
-      onUpdated(ev.id, { displayDate: pulledToToday ? null : new Date().toISOString() });
+    if (todayBusy) return;
+    setTodayBusy(true);
+    try {
+      const method = pulledToToday ? "DELETE" : "POST";
+      const res = await fetch(`/api/pitstop-events/${ev.id}/display-today`, { method });
+      if (res.ok) {
+        // Optimistic patch so the badge flips without waiting for a server-render.
+        onUpdated(ev.id, { displayDate: pulledToToday ? null : new Date().toISOString() });
+      } else {
+        const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        alert(body.error || `Could not ${pulledToToday ? "remove from" : "add to"} today.`);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Network error.");
+    } finally {
+      setTodayBusy(false);
     }
   }
   const canToggleDisplayToday = canManage && !isCancelled && !isDone && (pulledToToday || !scheduledTodayYMD);
@@ -726,10 +744,11 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
           {canToggleDisplayToday && (
             <button
               onClick={toggleDisplayToday}
+              disabled={todayBusy}
               title={pulledToToday ? "Remove from today" : "Add to today"}
-              className={`p-1 transition-all rounded ${pulledToToday ? "bg-sky-100 text-sky-600" : "opacity-50 hover:opacity-100 hover:text-sky-600"}`}
+              className={`p-1 transition-all rounded ${todayBusy ? "opacity-40" : pulledToToday ? "bg-sky-100 text-sky-600" : "opacity-50 hover:opacity-100 hover:text-sky-600"}`}
             >
-              <CalendarPlus className="w-3.5 h-3.5" />
+              {todayBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarPlus className="w-3.5 h-3.5" />}
             </button>
           )}
           <button onClick={() => setShowThreads(v => !v)}
