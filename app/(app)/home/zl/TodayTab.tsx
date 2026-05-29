@@ -14,6 +14,7 @@ import { FilterSheet } from "../_shared/FilterSheet";
 import { useTodayFilters, type GroupBy } from "../_shared/useTodayFilters";
 import { TeamSlaPanel, TeamOverduePanel } from "../TeamPerformance";
 import { TeamTodayStripe } from "./TeamTodayStripe";
+import { RescheduleAlertsPanel } from "./RescheduleAlertsPanel";
 import type { RPHealthStat } from "../page";
 
 /**
@@ -289,6 +290,9 @@ export function ZLTodayTab({
         </div>
       </section>
 
+      {/* ── Reschedule alerts (Phase 4.3) ───────────────────────────────── */}
+      <RescheduleAlertsPanel />
+
       {/* ── Team today stripe (Phase 4.2) ───────────────────────────────── */}
       <section>
         <SectionTitle>Team today</SectionTitle>
@@ -310,8 +314,6 @@ export function ZLTodayTab({
         <TeamOverduePanel />
       </section>
 
-      {/* TODO Phase 4.3: Reschedule alerts panel pulling recent
-               ActivityRescheduled notifications for this ZL. */}
     </div>
   );
 }
