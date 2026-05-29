@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Activity, ActivityGoal } from "../_lib/types";
 import { fmtDomain } from "../_lib/helpers";
 
@@ -54,8 +55,25 @@ function unique<T extends { id: string; name: string } | null | undefined>(items
 }
 
 export function useTodayFilters(allActivities: Activity[]) {
-  const [filters, setFilters] = useState<TodayFilters>(EMPTY_FILTERS);
-  const [groupBy, setGroupBy] = useState<GroupBy>("none");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Read initial state from URL once. After that the hook owns state and
+  // mirrors back to the URL via router.replace — URL stays a deep-link, not
+  // a controlled source.
+  const [filters, setFilters] = useState<TodayFilters>(() => readFilters(searchParams));
+  const [groupBy, setGroupBy] = useState<GroupBy>(() => readGroupBy(searchParams));
+
+  // Mirror state → URL. router.replace keeps history clean (no back-button
+  // stack entry for every filter tap). scroll: false avoids jumping to top.
+  useEffect(() => {
+    const next = encodeParams(searchParams, filters, groupBy);
+    const current = searchParams.toString();
+    if (next === current) return;
+    const qs = next ? `?${next}` : "";
+    router.replace(`${pathname}${qs}`, { scroll: false });
+  }, [filters, groupBy, pathname, router, searchParams]);
 
   const setFilter = useCallback(<K extends keyof TodayFilters>(key: K, value: TodayFilters[K]) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -139,3 +157,47 @@ export function useTodayFilters(allActivities: Activity[]) {
     groupKey,
   };
 }
+
+// ── URL ⇄ state plumbing ────────────────────────────────────────────────────
+// Param schema: ?zone=<id>&cluster=<id>&settl=<id>&goal=<id,id>&type=<v,v>&group=<key>
+// The cockpit owns these params; unrelated params on the same page (search
+// state, etc.) are preserved untouched by `encodeParams`.
+
+function readFilters(sp: ReturnType<typeof useSearchParams>): TodayFilters {
+  const csv = (k: string) => {
+    const v = sp.get(k);
+    return v ? v.split(",").filter(Boolean) : [];
+  };
+  return {
+    zoneId:       sp.get("zone")    ?? "",
+    clusterId:    sp.get("cluster") ?? "",
+    settlementId: sp.get("settl")   ?? "",
+    goalIds:      csv("goal"),
+    types:        csv("type"),
+  };
+}
+
+function readGroupBy(sp: ReturnType<typeof useSearchParams>): GroupBy {
+  const v = sp.get("group");
+  const allowed: GroupBy[] = ["none","cluster","settlement","goal","domain","type","sla"];
+  return (allowed as readonly string[]).includes(v ?? "") ? (v as GroupBy) : "none";
+}
+
+function encodeParams(
+  sp: ReturnType<typeof useSearchParams>,
+  filters: TodayFilters,
+  groupBy: GroupBy,
+): string {
+  const params = new URLSearchParams(sp.toString());
+  const setOrDelete = (key: string, value: string) => {
+    if (value) params.set(key, value); else params.delete(key);
+  };
+  setOrDelete("zone",    filters.zoneId);
+  setOrDelete("cluster", filters.clusterId);
+  setOrDelete("settl",   filters.settlementId);
+  setOrDelete("goal",    filters.goalIds.join(","));
+  setOrDelete("type",    filters.types.join(","));
+  setOrDelete("group",   groupBy === "none" ? "" : groupBy);
+  return params.toString();
+}
+
