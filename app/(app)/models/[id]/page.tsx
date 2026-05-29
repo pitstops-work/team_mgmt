@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { buildRbacContext, can } from "@/lib/rbac";
+import { isSuperAdmin } from "@/lib/roleGuard";
 import { forbidden, notFound } from "next/navigation";
 import { toEngineTemplate } from "@/lib/models/fromPrisma";
 import type { InstanceInputs } from "@/lib/models/types";
@@ -12,6 +13,10 @@ export default async function ModelPlayPage({ params }: { params: Promise<{ id: 
   if (!session?.user) return null;
   const ctx = await buildRbacContext(session);
   if (!(await can(ctx, "operating_model", "read"))) forbidden();
+
+  // Leadership audience can toggle between dashboard (read-mostly, big KPIs)
+  // and editor (current full input rail). Leader = designation OR super-admin.
+  const canSeeDashboard = ctx?.designation === "Leader" || isSuperAdmin(session);
 
   const instance = await prisma.modelInstance.findUnique({
     where: { id },
@@ -77,6 +82,7 @@ export default async function ModelPlayPage({ params }: { params: Promise<{ id: 
       siblings={siblings.length > 1 ? siblings : null}
       headId={headId}
       attachedPitstop={attachedPitstop}
+      canSeeDashboard={canSeeDashboard}
     />
   );
 }
