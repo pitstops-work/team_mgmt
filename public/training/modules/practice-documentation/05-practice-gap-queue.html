@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Module 5 · Practice Gap Queue — Practice Documentation Training</title>
+<link rel="stylesheet" href="/training/modules/practice-documentation/_module.css"/>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="crumb">
+    <a href="/index.html">⌂ pitstops.work</a>
+    <span class="sep">›</span>
+    <a href="/pitstops-training.html">Training</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/practice-documentation.html">Practice Documentation</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/practice-documentation/05-practice-gap-queue.html">Module 5</a>
+  </nav>
+
+  <header class="mod-head">
+    <div class="mod-num">Module 5 · 60 minutes</div>
+    <h1 class="mod-title">The Practice Gap Queue — Filing, Routing, Triage</h1>
+    <div class="mod-meta">
+      <span class="chip chip-co">CO</span>
+      <span class="chip chip-rp">RP</span>
+      <span class="chip chip-owner">Owner</span>
+      <span class="chip chip-curator">Curator</span>
+      <span class="dur">Front-door process for "there is no page for this"</span>
+    </div>
+    <p class="lede">A practice gap is a one-line note from the field: "I am doing something today that has no page." It is the cheapest, fastest, most-used upstream signal the wiki has — and the easiest to lose. This module sets the rule for how gaps are filed, where they go, who triages them, and how they become pages.</p>
+  </header>
+
+  <section>
+    <h2 class="sec"><span class="num">5.1</span>Gap versus flag — the distinction matters</h2>
+    <p>Two different signals, two different queues. Mixing them clogs both.</p>
+
+    <div class="compare">
+      <div>
+        <h4 style="color:#fde68a">Flag</h4>
+        <ul>
+          <li>"This page is wrong."</li>
+          <li>Filed against an existing page.</li>
+          <li>Routed to the page owner.</li>
+          <li>Triaged inside the page's review cycle.</li>
+          <li>Covered in Module 7.</li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="color:#6ee7b7">Gap</h4>
+        <ul>
+          <li>"There is no page for the thing I am doing today."</li>
+          <li>Filed without a page reference.</li>
+          <li>Routed by vertical to the relevant owner — or to a curator if no owner exists.</li>
+          <li>Triaged weekly by the curator.</li>
+          <li>This module.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info">
+      <div class="head">The "is there a page?" check</div>
+      <p>Before filing a gap, search the wiki for one minute. If a page exists but is wrong, file a flag. If no page exists, file a gap. The filing UI asks the question and routes accordingly — but the discipline of the check belongs to the filer.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">5.2</span>How to file a gap — what good looks like</h2>
+    <p>A gap is one line. Resist the urge to write a paragraph. The point is to flag the absence; the owner who picks it up will get the detail later.</p>
+
+    <h3 class="sub">A good gap entry</h3>
+    <ul class="plain">
+      <li><strong>Vertical</strong> — required. Food, sanitation, creche, etc.</li>
+      <li><strong>One-line need</strong> — "How do I handle a household where the eldest is on a ventilator and cannot come to the centre?"</li>
+      <li><strong>Suggested title</strong> — optional. The owner may rename.</li>
+      <li><strong>City and partner</strong> — if relevant. Often the gap is universal; sometimes it is partner-specific.</li>
+    </ul>
+
+    <div class="good">
+      <div class="head">Examples of well-filed gaps</div>
+      <p>"Welfare-rights · Chennai · No page for what to do when a death certificate has the wrong father's name."</p>
+      <p>"Creche · Bangalore · How to handle a parent who refuses to enrol their second child."</p>
+      <p>"Sanitation · all · No page for the night-shift caretaker handover."</p>
+    </div>
+
+    <div class="amber">
+      <div class="head">Common bad fillings</div>
+      <p>"There is no page for sanitation." — too broad.</p>
+      <p>"The page for ration cards is unclear." — that is a flag, not a gap.</p>
+      <p>"We need more training on dignity." — that is a training ask, not a documentation gap.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">5.3</span>Where gaps come from</h2>
+    <p>The filing UI surfaces from multiple entry points so the friction of filing is near-zero.</p>
+
+    <ul class="plain">
+      <li><strong>From the wiki itself.</strong> "File a gap" button on the home page and on every vertical index.</li>
+      <li><strong>From a pitstop runtime.</strong> If a checklist fails and the CO does not know the correct next step, a "file a gap" link appears.</li>
+      <li><strong>From a practice circle.</strong> The synthesis step routinely produces gaps — they are filed at the close.</li>
+      <li><strong>From a CO onboarding session.</strong> Every "I don't get X" question from a new CO is a candidate gap.</li>
+      <li><strong>From a shadow visit.</strong> When the owner walks alongside a CO and finds the playbook silent on a step.</li>
+      <li><strong>Direct from anyone</strong> — RP, ZL, partner staff, even a beneficiary translated by a CO.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">5.4</span>Routing — who the gap goes to</h2>
+    <p>A gap is routed automatically by vertical. The system finds the relevant page owner for that vertical — or, if multiple owners exist for the vertical (one per partner, one shared), it routes by partner tag if present, otherwise to the lead owner for that vertical.</p>
+
+    <p>If no owner exists yet for the vertical, the gap routes to the city curator. The curator either assigns it to an owner, opens a new page directly, or declines it with a one-line reason.</p>
+
+    <table class="t">
+      <thead><tr><th>Routing case</th><th>Goes to</th></tr></thead>
+      <tbody>
+        <tr><td>Vertical has one owner</td><td>That owner.</td></tr>
+        <tr><td>Vertical has multiple owners (one per partner)</td><td>The owner for the tagged partner; if no partner tag, the vertical's lead owner.</td></tr>
+        <tr><td>Vertical has no owner yet</td><td>City curator.</td></tr>
+        <tr><td>Cross-vertical gap (rare)</td><td>City curator. They split or assign.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">5.5</span>Triage — the curator's weekly walk</h2>
+    <p>Every week, on the same day, the curator walks the gap queue. The walk is 30 minutes for a healthy queue, longer if it has backed up.</p>
+
+    <h3 class="sub">For each open gap, one of three outcomes</h3>
+    <ol style="padding-left:22px;color:#cbd5e1;line-height:1.7">
+      <li><strong>Assigned to draft.</strong> An owner is named. Status flips to <code>drafted</code>. A drafting deadline is set — typically two weeks for a playbook, one week for a runbook.</li>
+      <li><strong>Merged into an existing page.</strong> The curator realised an existing page covers this. The gap closes; a flag is filed on that existing page asking for the section to be clarified. The filer is notified.</li>
+      <li><strong>Declined with one-line reason.</strong> The gap is out of scope (e.g., a training ask, a tech issue, a duplicate). The filer is notified with the reason. Declines are rare; honest gaps are usually real.</li>
+    </ol>
+
+    <h3 class="sub">Health metrics on the queue</h3>
+    <ul class="plain">
+      <li><strong>Queue depth</strong> — count of open gaps. Healthy is &lt; 20 per city.</li>
+      <li><strong>Median age of open gap</strong> — target &lt; 14 days.</li>
+      <li><strong>Gap-to-publish median</strong> — target &lt; 45 days from file to page-published.</li>
+      <li><strong>Decline rate</strong> — target &lt; 15%. Higher means filers do not understand what a gap is for.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">5.6</span>From gap to page — the drafting path</h2>
+    <p>Once a gap is assigned, the owner has the drafting window agreed at triage. The path:</p>
+
+    <ul class="check">
+      <li>Owner reads the gap. Calls the filer for context — 5 minutes by phone is enough.</li>
+      <li>Owner runs a shadow visit or pulls a recent case before drafting. Do not draft a page from imagination.</li>
+      <li>Draft created with type (principle / playbook / runbook) and tags. The drafting deadline is met.</li>
+      <li>Draft circulates to the filer + 2 other COs for a quick line-edit, 48 hours.</li>
+      <li>Publish. Version note links the gap ID.</li>
+      <li>Gap status flips to <code>published</code>. Filer is notified the page is live.</li>
+    </ul>
+
+    <div class="info">
+      <div class="head">The filer-loop</div>
+      <p>The CO who filed the gap is the first reviewer of the draft and the first notified when the page publishes. This loop is what makes the gap queue feel real to filers. If it breaks — gaps disappear into the queue and never come back — filers stop filing. The whole channel goes dark.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">5.7</span>The curator role — short notes</h2>
+    <p>One curator per city. Designated by leadership, not elected. The curator is not an owner of any specific page; their job is cross-page hygiene and the weekly gap-queue walk.</p>
+
+    <ul class="plain">
+      <li><strong>Weekly gap-queue walk</strong> — 30 minutes, same day each week.</li>
+      <li><strong>Stale-page sweep</strong> — pages past 90 days without review get a nudge to the owner; past 180 days they go <code>orphaned</code> and the curator finds a new owner.</li>
+      <li><strong>Flag triage assistance</strong> — when an owner is unresponsive for &gt; 7 days, the curator escalates.</li>
+      <li><strong>Cross-page consistency</strong> — when two pages contradict each other, the curator brings it to the next circle as a case.</li>
+    </ul>
+
+    <p>The curator role is not content-authoritative. They never edit a page without the owner's consent.</p>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">5.8</span>Anti-patterns</h2>
+    <table class="t">
+      <thead><tr><th>Anti-pattern</th><th>Smell</th><th>Correction</th></tr></thead>
+      <tbody>
+        <tr><td>The growing queue</td><td>Queue depth climbing past 30; median age past 30 days.</td><td>Curator escalates to ZL. Owners are not pulling their gaps.</td></tr>
+        <tr><td>Gap-as-flag</td><td>Many gaps reference an existing page.</td><td>UI improvement; training reinforcement. Re-route them as flags.</td></tr>
+        <tr><td>Decline drift</td><td>Decline rate creeps past 25%.</td><td>Curator wrote up "what a good gap looks like" and shares with filers.</td></tr>
+        <tr><td>Phantom drafts</td><td>Gap status flips to <code>drafted</code> but no draft appears.</td><td>Drafting deadline missed; curator reassigns or returns to queue.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="check-yu">
+    <div class="head">Check your understanding</div>
+    <h3>Three questions — answer before you move on</h3>
+    <ol>
+      <li>A CO files a gap that reads: "The ration card runbook does not explain what to do when the citizen has lost their original POI." Is this a gap or a flag? What happens to it?</li>
+      <li>The gap queue depth has climbed from 12 to 28 over six weeks; median age has crossed 21 days. What is the most likely root cause, and what does the curator do?</li>
+      <li>A gap is assigned to an owner. Two weeks pass, no draft. Three weeks. What is the sequence of corrections — and who runs each one?</li>
+    </ol>
+  </div>
+
+  <nav class="foot-nav">
+    <a href="/training/modules/practice-documentation/04-partner-review-meetings.html">← Module 4 · Partner Reviews</a>
+    <a href="/training/modules/practice-documentation/06-field-shadows-onboarding.html" class="next-mod">Module 6 · Shadows &amp; Onboarding →</a>
+  </nav>
+
+</div>
+</body>
+</html>

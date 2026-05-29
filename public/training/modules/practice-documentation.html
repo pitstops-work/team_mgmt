@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<!-- HAND_AUTHORED: do not regenerate via gen-training-deck.mjs -->
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Practice Documentation — Training Module</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#a78bfa,#34d399);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.05;letter-spacing:-1.5px}
+h2.title{font-size:38px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.15}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.65;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:50px;font-size:12px;font-weight:600;text-decoration:none}
+.chip-all{background:rgba(167,139,250,.18);color:#c4b5fd;border:1px solid rgba(167,139,250,.32)}
+.chip-owner{background:rgba(251,146,60,.18);color:#fdba74;border:1px solid rgba(251,146,60,.32)}
+.chip-co{background:rgba(52,211,153,.18);color:#6ee7b7;border:1px solid rgba(52,211,153,.32)}
+.chip-rp{background:rgba(168,85,247,.18);color:#d8b4fe;border:1px solid rgba(168,85,247,.32)}
+.chip-zl{background:rgba(14,165,233,.18);color:#7dd3fc;border:1px solid rgba(14,165,233,.32)}
+.chip-curator{background:rgba(244,114,182,.18);color:#f9a8d4;border:1px solid rgba(244,114,182,.32)}
+.chip-trainer{background:rgba(251,191,36,.18);color:#fde68a;border:1px solid rgba(251,191,36,.32)}
+.status-strap{display:inline-flex;gap:12px;align-items:center;padding:8px 16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:50px;font-size:12px;font-weight:600}
+.status-strap b{padding:3px 8px;border-radius:6px;letter-spacing:1px}
+.s-green{background:rgba(16,185,129,.2);color:#6ee7b7}
+.s-amber{background:rgba(251,191,36,.2);color:#fde68a}
+.s-red{background:rgba(239,68,68,.2);color:#fca5a5}
+.hard-rule{padding:18px 22px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-left:4px solid #ef4444;border-radius:10px}
+.hard-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fca5a5;margin-bottom:6px}
+.hard-rule p{font-size:15px;color:#fecaca;line-height:1.55}
+
+.module-card{display:flex;flex-direction:column;padding:28px 32px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:18px;height:100%;text-decoration:none;color:inherit;transition:all .2s}
+.module-card:hover{border-color:rgba(167,139,250,.5);transform:translateY(-3px);box-shadow:0 12px 40px rgba(168,85,247,.18);background:rgba(255,255,255,.08)}
+.module-num{font-size:13px;font-weight:700;letter-spacing:3px;color:#a78bfa;margin-bottom:8px}
+.module-title{font-size:24px;font-weight:700;color:#fff;letter-spacing:-0.3px;line-height:1.2;margin-bottom:10px}
+.module-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.module-sub{font-size:14px;color:#cbd5e1;line-height:1.55;margin-bottom:16px;flex:1}
+.module-bullets{list-style:none;padding:0;margin:0 0 18px 0}
+.module-bullets li{font-size:13px;color:#94a3b8;line-height:1.5;padding-left:14px;position:relative;margin-bottom:4px}
+.module-bullets li::before{content:'›';color:#a78bfa;position:absolute;left:0;font-weight:700}
+.module-cta{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.4);border-radius:50px;color:#fff;font-size:13px;font-weight:600;align-self:flex-start;transition:all .2s}
+.module-card:hover .module-cta{background:rgba(167,139,250,.3);border-color:rgba(167,139,250,.6)}
+
+.chain{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-top:20px}
+.chain-step{padding:14px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;text-align:center}
+.chain-step .n{font-size:11px;font-weight:700;color:#a78bfa;letter-spacing:1.5px;margin-bottom:6px}
+.chain-step .w{font-size:13px;font-weight:600;color:#fff;line-height:1.2}
+
+.scrollable{overflow-y:auto;flex:1}
+
+@media (max-width:880px){
+  .slide{padding:32px 24px}
+  h1.hero{font-size:36px}
+  h2.title{font-size:28px}
+  .chain{grid-template-columns:1fr 1fr}
+}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+
+<!-- 1 · Title -->
+<div class="slide bg-navy active" id="s1">
+  <div style="margin:auto;max-width:980px;text-align:center">
+    <div style="font-size:88px;margin-bottom:20px">📓</div>
+    <div class="label" style="color:#a78bfa">Wiki backend · Practice Documentation</div>
+    <h1 class="hero" style="margin-bottom:18px">Keep the Practice Alive<br/>After the Person Leaves</h1>
+    <p class="body" style="font-size:19px;color:#cbd5e1;max-width:780px;margin:0 auto 32px">The operational protocol for documenting how we work — practice circles, partner reviews, the gap queue, field shadows, flag triage, quarterly review, six-month handover. For RPs, partner owners, ZLs, COs, and curators.</p>
+    <div style="display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-bottom:36px">
+      <div class="stat-pill"><span class="num">10</span><span class="lbl">modules</span></div>
+      <div class="stat-pill"><span class="num">5</span><span class="lbl">audiences</span></div>
+      <div class="stat-pill"><span class="num">~7.5 hrs</span><span class="lbl">classroom</span></div>
+      <div class="stat-pill"><span class="num">2 days</span><span class="lbl">workshop</span></div>
+    </div>
+    <p class="body" style="font-size:13px;color:#94a3b8;font-style:italic">Delivered alongside the wiki itself — the protocols here are kept current by the same processes they describe.</p>
+  </div>
+</div>
+
+<!-- 2 · The water sources -->
+<div class="slide bg-dark" id="s2">
+  <div class="label" style="color:#a78bfa">THE EIGHT WATER SOURCES</div>
+  <h2 class="title">A page only stays alive if multiple streams keep flowing into it.</h2>
+  <h3 class="sub">If one channel goes dark, the page silently rots. The curriculum teaches each channel as its own discipline.</h3>
+
+  <div class="chain">
+    <div class="chain-step"><div class="n">01</div><div class="w">Practice circles</div></div>
+    <div class="chain-step"><div class="n">02</div><div class="w">Partner reviews</div></div>
+    <div class="chain-step"><div class="n">03</div><div class="w">Gap queue</div></div>
+    <div class="chain-step"><div class="n">04</div><div class="w">Shadow visits</div></div>
+    <div class="chain-step"><div class="n">05</div><div class="w">CO onboarding</div></div>
+    <div class="chain-step"><div class="n">06</div><div class="w">Flags &amp; comments</div></div>
+    <div class="chain-step"><div class="n">07</div><div class="w">Quarterly review</div></div>
+    <div class="chain-step"><div class="n">08</div><div class="w">6-month handover</div></div>
+  </div>
+
+  <div style="margin-top:36px;display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div style="padding:20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px">
+      <div class="label" style="color:#a78bfa">STATUS LANGUAGE — EVERY PAGE</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <span class="status-strap"><b class="s-green">GREEN</b> reviewed in window, no open flags</span>
+        <span class="status-strap"><b class="s-amber">AMBER</b> review due or open flags &lt; 30 days</span>
+        <span class="status-strap"><b class="s-red">RED</b> stale &gt; 90 days or open flags &gt; 30 days</span>
+      </div>
+      <p class="body" style="font-size:13px;margin-top:14px">The same three words used everywhere in our operations. The dashboard surfaces every page in one of these states.</p>
+    </div>
+
+    <div class="hard-rule">
+      <div class="head">THE ONE RULE ABOVE ALL OTHERS</div>
+      <p>The wiki is downstream of the field. If the page disagrees with what good COs actually do today, <b>the page is wrong, not the COs.</b> The owner's job is to keep the page in lockstep with the practice — not to police the practice into matching the page.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 3 · The five players -->
+<div class="slide bg-indigo" id="s3">
+  <div class="label" style="color:#a78bfa">FIVE PLAYERS — KNOW WHICH ONE YOU ARE</div>
+  <h2 class="title">Owner, CO, RP, ZL, Curator. Each touches the page differently.</h2>
+  <h3 class="sub">The owner has editorial authority on one page. Everyone else feeds the owner. The curator handles cross-page hygiene only.</h3>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px">
+    <div style="padding:20px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(251,146,60,.25);border-radius:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span class="chip chip-owner">Owner</span></div>
+      <p class="body" style="font-size:14px">Owns one page. Drafts edits, runs the practice circle (months 1–3), accepts handover. 6-month term. Partner senior staff or our RP.</p>
+    </div>
+
+    <div style="padding:20px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(52,211,153,.25);border-radius:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span class="chip chip-co">CO</span></div>
+      <p class="body" style="font-size:14px">Partner field staff. Reads pages, flags errors, files gaps, attends circles. The room where practice meets documentation.</p>
+    </div>
+
+    <div style="padding:20px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(168,85,247,.25);border-radius:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span class="chip chip-rp">RP</span></div>
+      <p class="body" style="font-size:14px">Resource Person. Owns pages for our directly-run programmes; attends circles and partner reviews; runs shadow visits across partners.</p>
+    </div>
+
+    <div style="padding:20px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(14,165,233,.25);border-radius:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span class="chip chip-zl">ZL</span></div>
+      <p class="body" style="font-size:14px">Zonal Leader. Watches the dashboard. Notices stale pages, missed circles, gaps that have not moved. Intervenes when the rhythm breaks.</p>
+    </div>
+
+    <div style="padding:20px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(244,114,182,.25);border-radius:12px;grid-column:span 2">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span class="chip chip-curator">Curator</span></div>
+      <p class="body" style="font-size:14px">One per city. Designated, not elected. Cross-page consistency. Weekly gap-queue walk. Weekly stale-page sweep. Triages translation flags. Never edits content without the owner's consent.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 4 · Curriculum overview -->
+<div class="slide bg-indigo" id="s4">
+  <div class="label" style="color:#a78bfa">THE CURRICULUM IN ONE PAGE</div>
+  <h2 class="title">Three foundations, four channel-specific modules, then the long-cycle disciplines, then the trainer guide.</h2>
+  <h3 class="sub">A new owner needs Modules 0–3 and 8. A CO who will attend circles needs 0, 1, 3, 5, 7. A curator needs all of them.</h3>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px">
+    <div style="padding:20px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(167,139,250,.25);border-radius:12px">
+      <div class="label" style="color:#a78bfa">FOUNDATIONS · all audiences</div>
+      <p class="body" style="margin-top:6px"><b>Module 0</b> · Induction — why we document, the five players<br/>
+      <b>Module 1</b> · Page types — principle, playbook, runbook<br/>
+      <b>Module 2</b> · Being an owner — term, accountability, drafting</p>
+    </div>
+
+    <div style="padding:20px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(167,139,250,.25);border-radius:12px">
+      <div class="label" style="color:#a78bfa">UPSTREAM CHANNELS</div>
+      <p class="body" style="margin-top:6px"><b>Module 3</b> · Practice circles — the densest module<br/>
+      <b>Module 4</b> · Partner review meetings<br/>
+      <b>Module 5</b> · Practice gap queue<br/>
+      <b>Module 6</b> · Field shadows &amp; onboarding</p>
+    </div>
+
+    <div style="padding:20px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(167,139,250,.25);border-radius:12px">
+      <div class="label" style="color:#a78bfa">REACTIVE &amp; LONG-CYCLE</div>
+      <p class="body" style="margin-top:6px"><b>Module 7</b> · Flags, comments, translation triage<br/>
+      <b>Module 8</b> · Quarterly review and 6-month handover</p>
+    </div>
+
+    <div style="padding:20px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(167,139,250,.25);border-radius:12px">
+      <div class="label" style="color:#a78bfa">TRAINER'S GUIDE</div>
+      <p class="body" style="margin-top:6px"><b>Module 9</b> · How to run this curriculum as a two-day workshop. Mock circle exercise, live gap-queue walk, role-by-role depth guide.</p>
+    </div>
+  </div>
+
+  <p class="body" style="margin-top:24px;font-size:14px;color:#94a3b8;font-style:italic;text-align:center">Tap any module card below to open the full chapter. Each is scrollable, printable, with check-your-understanding questions at the end.</p>
+</div>
+
+<!-- 5 · Module 0 -->
+<div class="slide bg-indigo" id="s5">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/00-induction.html" class="module-card">
+      <div class="module-num">MODULE 0 · 60 MIN</div>
+      <div class="module-title">Induction — Why We Document Practice</div>
+      <div class="module-meta">
+        <span class="chip chip-all">All audiences</span>
+      </div>
+      <p class="module-sub">The problem we are solving. The wiki as antidote. The five players and what each one does. The eight water sources. The non-negotiables every audience honours.</p>
+      <ul class="module-bullets">
+        <li>The problem · institutional memory loss</li>
+        <li>The five players · owner, CO, RP, ZL, curator</li>
+        <li>The eight water sources · planned, reactive, observation, lifecycle</li>
+        <li>Check your understanding · 3 questions</li>
+      </ul>
+      <span class="module-cta">Open Module 0 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 6 · Module 1 -->
+<div class="slide bg-violet" id="s6">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/01-page-types.html" class="module-card">
+      <div class="module-num">MODULE 1 · 45 MIN</div>
+      <div class="module-title">The Three Page Types — Principle, Playbook, Runbook</div>
+      <div class="module-meta">
+        <span class="chip chip-all">All audiences</span>
+      </div>
+      <p class="module-sub">Putting the wrong content in the wrong shape is the most common new-owner mistake. This module fixes that — the three shapes, who owns each, what tags they carry, the slug rule.</p>
+      <ul class="module-bullets">
+        <li>Principle · why · annual-ish review</li>
+        <li>Playbook · how · monthly circle-driven</li>
+        <li>Runbook · external mechanics · fast updates</li>
+        <li>Tagging, naming, the decision tree</li>
+        <li>Check your understanding · 3 questions</li>
+      </ul>
+      <span class="module-cta">Open Module 1 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 7 · Module 2 -->
+<div class="slide bg-amber" id="s7">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/02-being-an-owner.html" class="module-card">
+      <div class="module-num">MODULE 2 · 75 MIN</div>
+      <div class="module-title">Being an Owner — Term, Accountability, Drafting</div>
+      <div class="module-meta">
+        <span class="chip chip-owner">Owner</span>
+        <span class="chip chip-rp">RP</span>
+      </div>
+      <p class="module-sub">A small commitment with a sharp edge. The five things you are accountable for. The six-month rhythm. The 48-hour drafting SLA. The owner's anti-patterns to watch for in yourself.</p>
+      <ul class="module-bullets">
+        <li>Five accountabilities · current page, circle on time, flags closed, quarterly walk, real handover</li>
+        <li>The 6-month rhythm month by month</li>
+        <li>The 48-hour draft, the change note, the reviewer list</li>
+        <li>The four anti-patterns</li>
+        <li>Check your understanding · 4 questions</li>
+      </ul>
+      <span class="module-cta">Open Module 2 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 8 · Module 3 -->
+<div class="slide bg-rose" id="s8">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/03-practice-circles.html" class="module-card">
+      <div class="module-num">MODULE 3 · 150 MIN · THE DENSEST</div>
+      <div class="module-title">Practice Circles — Composition, Cadence, Run-of-Show</div>
+      <div class="module-meta">
+        <span class="chip chip-owner">Owner</span>
+        <span class="chip chip-co">CO</span>
+        <span class="chip chip-rp">RP</span>
+      </div>
+      <p class="module-sub">The single biggest source of edits to a playbook. Also the easiest thing in this curriculum to get wrong. The full protocol — cross-partner default, monthly cadence, owner facilitates first 3 months then rotates, vernacular default, 90-minute structure, capture, output contract.</p>
+      <ul class="module-bullets">
+        <li>Composition · cross-partner default, in-partner only as addition</li>
+        <li>Cadence · monthly, third week, cancel-do-not-postpone</li>
+        <li>Facilitation · owner months 1–3, then rotation among COs</li>
+        <li>Vernacular default · translation pipeline produces English</li>
+        <li>Pre-read, run-of-show, scribe, power dynamics, anti-patterns</li>
+        <li>Health metrics, sunset criteria, what circles are NOT for</li>
+        <li>Check your understanding · 5 questions</li>
+      </ul>
+      <span class="module-cta">Open Module 3 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 9 · Module 4 -->
+<div class="slide bg-sky" id="s9">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/04-partner-review-meetings.html" class="module-card">
+      <div class="module-num">MODULE 4 · 75 MIN</div>
+      <div class="module-title">Partner Review Meetings — Quarterly with Leadership</div>
+      <div class="module-meta">
+        <span class="chip chip-owner">Owner</span>
+        <span class="chip chip-rp">RP</span>
+        <span class="chip chip-zl">ZL</span>
+      </div>
+      <p class="module-sub">Circles catch the field. Partner reviews catch leadership decisions. Quarterly. Per partner. The two-page pre-read, the 90-minute run-of-show, the practice-changes-noted capture, the beneficiary feedback fold-in.</p>
+      <ul class="module-bullets">
+        <li>What it is, what it is not — separate from finance, contract, grievance</li>
+        <li>Cadence · booked one year ahead, RP holds the calendar</li>
+        <li>Two-page pre-read · both sides write</li>
+        <li>The practice-changes-noted capture in partner's own words</li>
+        <li>Beneficiary feedback · 5 households per active programme</li>
+        <li>Check your understanding · 3 questions</li>
+      </ul>
+      <span class="module-cta">Open Module 4 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 10 · Module 5 -->
+<div class="slide bg-emerald" id="s10">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/05-practice-gap-queue.html" class="module-card">
+      <div class="module-num">MODULE 5 · 60 MIN</div>
+      <div class="module-title">The Practice Gap Queue — Filing, Routing, Triage</div>
+      <div class="module-meta">
+        <span class="chip chip-co">CO</span>
+        <span class="chip chip-rp">RP</span>
+        <span class="chip chip-owner">Owner</span>
+        <span class="chip chip-curator">Curator</span>
+      </div>
+      <p class="module-sub">The cheapest, fastest, most-used upstream signal the wiki has — and the easiest to lose. The gap-vs-flag distinction, where gaps come from, the routing rules, the curator's weekly walk, the filer-loop.</p>
+      <ul class="module-bullets">
+        <li>Gap vs flag · two queues, different signals</li>
+        <li>What a good gap looks like · one line, vertical-tagged</li>
+        <li>Entry points · from wiki, pitstops runtime, circles, onboarding, shadows</li>
+        <li>Routing · by vertical → owner → curator fallback</li>
+        <li>Triage · assign / merge / decline, 30 minutes weekly</li>
+        <li>The filer-loop · the CO who filed sees the page publish</li>
+        <li>Check your understanding · 3 questions</li>
+      </ul>
+      <span class="module-cta">Open Module 5 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 11 · Module 6 -->
+<div class="slide bg-violet" id="s11">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/06-field-shadows-onboarding.html" class="module-card">
+      <div class="module-num">MODULE 6 · 90 MIN</div>
+      <div class="module-title">Field Shadows, CO Onboarding &amp; the Surprise Log</div>
+      <div class="module-meta">
+        <span class="chip chip-owner">Owner</span>
+        <span class="chip chip-rp">RP</span>
+        <span class="chip chip-co">CO</span>
+      </div>
+      <p class="module-sub">Circles catch what people remember; shadows catch what is happening. Onboarding catches what is missing; the surprise log catches what would be forgotten in three days. Five small processes, together they double the wiki's signal.</p>
+      <ul class="module-bullets">
+        <li>Shadow visits · monthly cadence, the shadow protocol, page-is-wrong rule</li>
+        <li>New-CO onboarding · 2 hours per joiner, why the owner runs it</li>
+        <li>Surprise log · one-line capture, weekly triage</li>
+        <li>Cross-partner exchange · once a quarter</li>
+        <li>Goal-closeout reviews · 30 min, feeds the next circle</li>
+        <li>Check your understanding · 4 questions</li>
+      </ul>
+      <span class="module-cta">Open Module 6 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 12 · Module 7 -->
+<div class="slide bg-amber" id="s12">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/07-flags-comments-translation.html" class="module-card">
+      <div class="module-num">MODULE 7 · 60 MIN</div>
+      <div class="module-title">Flags, Comments &amp; Translation — Reader-Raised Triage</div>
+      <div class="module-meta">
+        <span class="chip chip-owner">Owner</span>
+        <span class="chip chip-curator">Curator</span>
+        <span class="chip chip-co">CO</span>
+      </div>
+      <p class="module-sub">The async reader channels. If the response is slow, readers stop filing. The 7-day acknowledge / 30-day resolve SLA. The owner's weekly flag triage. The translation queue. Audit comparison as a systematic flag source.</p>
+      <ul class="module-bullets">
+        <li>Flag vs comment vs translation flag · three signals, three routes</li>
+        <li>What a good flag looks like vs a poor flag</li>
+        <li>Owner's weekly triage · 20 minutes, same day each week</li>
+        <li>Comments as community memory · vitality signal</li>
+        <li>Audit-driven and pitstop-runtime-driven flags</li>
+        <li>Check your understanding · 3 questions</li>
+      </ul>
+      <span class="module-cta">Open Module 7 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 13 · Module 8 -->
+<div class="slide bg-teal" id="s13">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/08-quarterly-reviews-handover.html" class="module-card">
+      <div class="module-num">MODULE 8 · 75 MIN</div>
+      <div class="module-title">Quarterly Reviews &amp; the 6-Month Handover</div>
+      <div class="module-meta">
+        <span class="chip chip-owner">Owner</span>
+        <span class="chip chip-zl">ZL</span>
+        <span class="chip chip-curator">Curator</span>
+      </div>
+      <p class="module-sub">The slowest rhythms. Easiest to skip; most load-bearing. The 90-day walk in five questions. Page-type cadence variants. The stale-page sweep. The six-step handover. Staggering principle terms to avoid the cliff.</p>
+      <ul class="module-bullets">
+        <li>The 90-day walk · five questions, clean reviews count</li>
+        <li>Cadence by page type · playbook, runbook, principle batched</li>
+        <li>Stale-page sweep · GREEN / AMBER / RED / orphaned</li>
+        <li>Six-step handover · signal, propose, write, walk, accept, step back</li>
+        <li>Staggering · the cliff problem and how to fix it</li>
+        <li>Check your understanding · 4 questions</li>
+      </ul>
+      <span class="module-cta">Open Module 8 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 14 · Module 9 -->
+<div class="slide bg-dark" id="s14">
+  <div style="max-width:1080px;width:100%;margin:auto">
+    <a href="/training/modules/practice-documentation/09-trainer-guide.html" class="module-card">
+      <div class="module-num">MODULE 9</div>
+      <div class="module-title">Trainer's Guide</div>
+      <div class="module-meta">
+        <span class="chip chip-rp">RP</span>
+        <span class="chip chip-zl">ZL</span>
+        <span class="chip chip-trainer">Anyone delivering this</span>
+      </div>
+      <p class="module-sub">The two-day workshop format. Audience-by-audience module requirements. The mock-circle exercise — the single most important 45 minutes. The live gap-queue walk for curators. Where to spend the most time, per audience. Refresh cadence.</p>
+      <ul class="module-bullets">
+        <li>Audience matrix · who needs which modules</li>
+        <li>Day 1 and Day 2 agendas with timing</li>
+        <li>The mock-circle exercise — feel the protocol in the body</li>
+        <li>The live gap-queue walk for curators</li>
+        <li>Where to spend the most time, per audience</li>
+        <li>Refresh cadence · when to update this module</li>
+      </ul>
+      <span class="module-cta">Open Module 9 →</span>
+    </a>
+  </div>
+</div>
+
+<!-- 15 · Close -->
+<div class="slide bg-navy" id="s15">
+  <div style="margin:auto;max-width:920px;text-align:center">
+    <div style="font-size:72px;margin-bottom:18px">📓</div>
+    <div class="label" style="color:#a78bfa">END OF MODULE INDEX · GO TO THE FIELD</div>
+    <h1 class="hero" style="font-size:42px;margin-bottom:18px">This module teaches the protocol.<br/>The wiki is where the protocol lives.</h1>
+    <p class="body" style="font-size:18px;color:#cbd5e1;max-width:760px;margin:0 auto 28px">Read the chapters. Run a mock circle. File a real gap. Walk a real page. The curriculum is held to the same standards as every wiki page — 90-day review, 6-month owner term, flags and comments welcome.</p>
+
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:32px">
+      <a href="/training/modules/practice-documentation/00-induction.html" style="padding:14px 28px;background:rgba(167,139,250,.2);border:1px solid rgba(167,139,250,.45);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">Start at Module 0 →</a>
+      <a href="/training/modules/practice-documentation/10-cards.html" style="padding:14px 28px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">Print the cards 🖨</a>
+      <a href="/wiki" style="padding:14px 28px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">Go to the wiki →</a>
+      <a href="/pitstops-training.html" style="padding:14px 28px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:50px;color:#fff;text-decoration:none;font-weight:600">← Training hub</a>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div id="nav">
+  <a href="/pitstops-training.html" title="Back to training hub">⌂ Hub</a>
+  <button onclick="go(-1)" id="prev">←</button>
+  <span id="slide-counter">1 / 15</span>
+  <button onclick="go(1)" id="next">→</button>
+</div>
+
+<script>
+const total=15;
+let cur=1;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('s'+n);
+  if(!el)return;
+  el.classList.add('active');
+  el.scrollTop=0;
+  cur=n;
+  document.getElementById('slide-counter').textContent=n+' / '+total;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  document.getElementById('prev').disabled=(n===1);
+  document.getElementById('next').disabled=(n===total);
+  location.hash='s'+n;
+}
+function go(d){show(Math.max(1,Math.min(total,cur+d)))}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(1);
+  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
+  else if(e.key==='Home')show(1);
+  else if(e.key==='End')show(total);
+});
+const initial=parseInt(location.hash.replace('#s',''))||1;
+if(initial>=1&&initial<=total)show(initial);
+else show(1);
+</script>
+</body>
+</html>

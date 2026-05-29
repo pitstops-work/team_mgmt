@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Module 8 · Quarterly Reviews &amp; Handover — Practice Documentation Training</title>
+<link rel="stylesheet" href="/training/modules/practice-documentation/_module.css"/>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="crumb">
+    <a href="/index.html">⌂ pitstops.work</a>
+    <span class="sep">›</span>
+    <a href="/pitstops-training.html">Training</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/practice-documentation.html">Practice Documentation</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/practice-documentation/08-quarterly-reviews-handover.html">Module 8</a>
+  </nav>
+
+  <header class="mod-head">
+    <div class="mod-num">Module 8 · 75 minutes</div>
+    <h1 class="mod-title">Quarterly Reviews &amp; the 6-Month Handover</h1>
+    <div class="mod-meta">
+      <span class="chip chip-owner">Owner</span>
+      <span class="chip chip-zl">ZL</span>
+      <span class="chip chip-curator">Curator</span>
+      <span class="dur">The long-cycle disciplines · most-skipped, most-load-bearing</span>
+    </div>
+    <p class="lede">The processes earlier in this curriculum operate on monthly and weekly rhythms. This module covers the two slower rhythms: the 90-day owner review, and the 180-day owner handover. They are the easiest disciplines to skip because nothing acute happens when you skip them — until six months later, when the page is silently wrong.</p>
+  </header>
+
+  <section>
+    <h2 class="sec"><span class="num">8.1</span>The 90-day review — what "walking the page" means</h2>
+    <p>Every 90 days, the owner walks the page. Even if nothing has changed. Even if no flags arrived. The walk is not a ceremony; it is five concrete questions in order — the same five from Module 2, repeated here because they matter.</p>
+
+    <ol style="padding-left:22px;color:#cbd5e1;line-height:1.75">
+      <li><strong>Is the opening sentence still true?</strong></li>
+      <li><strong>Does the core flow match what a good CO actually does today?</strong></li>
+      <li><strong>Have the common failure modes shifted?</strong></li>
+      <li><strong>Are the related-pages links still right?</strong></li>
+      <li><strong>Are there flags, comments, gaps that should now be closed?</strong></li>
+    </ol>
+
+    <div class="info">
+      <div class="head">Recording a clean review</div>
+      <p>If nothing needed to change, you still record the review with a one-line note: <em>"No changes; current as of MM/YYYY."</em> The point is provable freshness, not forced edits. A page with five consecutive "no changes" review records is a healthy mature page, not a dead one — provided the comment thread and flag queue are also alive.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">8.2</span>Cadence by page type</h2>
+    <p>The 90-day default applies to playbooks and runbooks. Principles get a different rhythm, and runbooks may need faster review if external rules shift.</p>
+
+    <table class="t">
+      <thead><tr><th>Page type</th><th>Default review cadence</th><th>Modifier</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Playbook</strong></td><td>90 days</td><td>If domain is high-velocity (food, water), review may piggyback on monthly circles — no separate quarterly walk needed.</td></tr>
+        <tr><td><strong>Runbook</strong></td><td>90 days</td><td>Faster if the external scheme changed. Trigger a same-day "Recent changes" edit; full review within 2 weeks.</td></tr>
+        <tr><td><strong>Principle</strong></td><td>90 days, batched</td><td>Owner walks all owned principles in one sitting once per quarter. 90 minutes for 12 principles is right.</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub">Batching principle reviews</h3>
+    <p>If you own multiple principle pages — for example, all twelve working principles — review them together once a quarter. Sit with them as a set. Ask: are these still our principles? Has anything we have done this quarter contradicted any of them? Has any of them stopped being load-bearing?</p>
+
+    <p>Most quarters the answer is "no changes." Record it that way. The discipline of asking the question is what matters.</p>
+
+    <div class="amber">
+      <div class="head">The principle that gets edited every quarter is no longer a principle</div>
+      <p>If a principle page has had edits in three consecutive quarterly reviews, the page may not be a principle — it may be a playbook in disguise. The next handover conversation is a good place to ask whether the page should be restructured.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">8.3</span>The stale-page sweep — when the owner misses a review</h2>
+    <p>The system tracks <code>lastReviewedAt</code> on every page. The curator runs an automated stale-page sweep weekly.</p>
+
+    <table class="t">
+      <thead><tr><th>Page age since last review</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>0–90 days</td><td><b class="s-green">GREEN</b>. Normal.</td></tr>
+        <tr><td>90–120 days</td><td><b class="s-amber">AMBER</b>. Owner gets a nudge. Curator notes on the dashboard.</td></tr>
+        <tr><td>120–180 days</td><td><b class="s-red">RED</b>. Owner gets a second nudge. ZL is copied.</td></tr>
+        <tr><td>&gt; 180 days</td><td>Page marked <code>orphaned</code>. Visible to readers. Curator finds a new owner; existing owner term ends early.</td></tr>
+      </tbody>
+    </table>
+
+    <p>An orphaned page is not retired — it is just visibly without an active owner. Readers see the orphan banner; they know to treat the page with extra caution until a new owner is named.</p>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">8.4</span>The 6-month handover — six steps in order</h2>
+    <p>The handover protocol from Module 2, restated and expanded. Even if you intend to renew, the steps are mandatory.</p>
+
+    <h3 class="sub">Step 1 · Renewal signal — 6 weeks before</h3>
+    <p>You tell leadership privately whether you intend to renew for another term. No drama, no committee. A one-line signal: "I'd like to renew" or "I won't be renewing."</p>
+
+    <h3 class="sub">Step 2 · Successor proposal — 4 weeks before</h3>
+    <p>If not renewing, you propose a successor by name. Leadership can override but rarely does. If renewing, you skip this step.</p>
+
+    <h3 class="sub">Step 3 · Handover note — 3 weeks before</h3>
+    <p>You write a one-page handover note. Three sections:</p>
+    <ul class="plain">
+      <li><strong>What shifted this term.</strong> The 3–5 most consequential edits to the page, with the why.</li>
+      <li><strong>What is still open.</strong> Live flags, unfinished gaps, conversations not yet resolved.</li>
+      <li><strong>What I would not change.</strong> Things that look ripe for change but you have learned should not be touched. Most valuable section.</li>
+    </ul>
+
+    <h3 class="sub">Step 4 · Listen-tour with the successor — 2 weeks before</h3>
+    <p>You walk the successor through the page in one sitting. In person. Not over chat. They take their own notes; you do not hand them yours. They ask; you answer.</p>
+
+    <p>Separately, the successor is encouraged to do their own listen-tour: one conversation with two COs, one with the curator, one with a peer owner of an adjacent page. This is not optional — it is how the successor starts their term with the room, not on top of the room.</p>
+
+    <h3 class="sub">Step 5 · Acceptance — handover day</h3>
+    <p>The successor accepts in the system. The page <code>ownerId</code> flips; <code>ownerTermStart</code> resets to today; <code>ownerTermEnd</code> = today + 6 months. Your handover note attaches to the page version history.</p>
+
+    <h3 class="sub">Step 6 · Stepping back — the first month after</h3>
+    <p>You attend the next circle as a regular participant. You do not reassert "I used to own this." You do not jump in when a flag arrives — let the new owner handle it. If you see something going wrong, you raise it privately to them, not in the room.</p>
+
+    <div class="hard">
+      <div class="head">Hand back, do not hand off mid-term</div>
+      <p>If you realise mid-term you cannot do this work — busy season, changed role, lost interest — hand back to leadership immediately. Do not let the page degrade for three months waiting for the natural term-end. The next owner needs the page in a workable state, not a state needing recovery.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">8.5</span>Staggering principle terms — the cliff problem</h2>
+    <p>If a single owner holds many principle pages, all their terms expire on the same day. That is a cliff. Even if the owner re-ups, the renewal becomes a rubber-stamp batch — which defeats the term-limit's purpose of forcing fresh attention.</p>
+
+    <p>The fix is mechanical and one-time: at first creation, stagger the term-end dates across the calendar. Twelve principles spread across six months means one renewal every two weeks rather than twelve on one day.</p>
+
+    <ul class="plain">
+      <li>Same approach for any owner who finds themselves holding more than three pages of the same type.</li>
+      <li>The curator runs the stagger calculation at page-creation time; the owner does not have to think about it.</li>
+      <li>After the first cycle, terms naturally stay staggered.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">8.6</span>The post-handover surface — what new owners should not have to figure out</h2>
+    <p>The new owner walks in. The page exists, the handover note exists, the listen-tour happened. What else makes their first month easier?</p>
+
+    <ul class="check">
+      <li>A list of open flags, gaps, comments, with status and age.</li>
+      <li>The previous owner's review notes from the last 90-day walk.</li>
+      <li>The last three circle minutes for this page's domain.</li>
+      <li>The last partner review meeting record for partners this page covers.</li>
+      <li>A note from the curator on cross-page consistency issues affecting this page.</li>
+      <li>Translation status by language, with any open flags.</li>
+    </ul>
+
+    <p>All of this is generated automatically from the wiki state at handover. The new owner does not have to ask for it; the dashboard surfaces it.</p>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">8.7</span>Anti-patterns</h2>
+    <table class="t">
+      <thead><tr><th>Anti-pattern</th><th>Smell</th><th>Correction</th></tr></thead>
+      <tbody>
+        <tr><td>The silent renewal</td><td>Owner renews without a handover note.</td><td>Curator blocks the renewal until the note is filed. Even self-handovers need a note.</td></tr>
+        <tr><td>The mass term-end</td><td>Multiple owned pages all expire on the same day.</td><td>Stagger at creation; if missed, fix during a transition.</td></tr>
+        <tr><td>The ghost successor</td><td>Successor is named but never accepts.</td><td>Two-week acceptance deadline. After that, curator finds another.</td></tr>
+        <tr><td>The shadow owner</td><td>Outgoing owner keeps jumping in to "help" after handover.</td><td>One-month no-touch rule. ZL polices it gently.</td></tr>
+        <tr><td>The chronic orphan</td><td>Page sits orphaned for &gt; 60 days.</td><td>The page should likely be retired, merged, or fundamentally restructured. Curator brings to leadership.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="check-yu">
+    <div class="head">Check your understanding</div>
+    <h3>Four questions — answer before you move on</h3>
+    <ol>
+      <li>It is your 90-day review day. The page has had no flags, no comments, no shadow-visit notes since the last review. You walk it; nothing needs to change. What do you record?</li>
+      <li>Your principle page has been edited in three consecutive quarterly reviews. What conversation does that trigger, with whom?</li>
+      <li>Two weeks before your term ends, your proposed successor accepts and then withdraws after one shadow visit. The clock is ticking. What is your sequence?</li>
+      <li>You walk into a page you are taking over. The dashboard shows 12 open flags, 4 stale comments, and a translation flag in Tamil. Where do you start?</li>
+    </ol>
+  </div>
+
+  <nav class="foot-nav">
+    <a href="/training/modules/practice-documentation/07-flags-comments-translation.html">← Module 7 · Flags &amp; Comments</a>
+    <a href="/training/modules/practice-documentation/09-trainer-guide.html" class="next-mod">Module 9 · Trainer's Guide →</a>
+  </nav>
+
+</div>
+</body>
+</html>

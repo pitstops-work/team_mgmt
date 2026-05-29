@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Quick-Reference Cards — Practice Documentation Training</title>
+<link rel="stylesheet" href="/training/modules/practice-documentation/_module.css"/>
+<style>
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px}
+.card{padding:22px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:14px;page-break-inside:avoid;break-inside:avoid}
+.card.owner{border-left:4px solid #fb923c}
+.card.co{border-left:4px solid #34d399}
+.card.rp{border-left:4px solid #a855f7}
+.card.zl{border-left:4px solid #0ea5e9}
+.card.curator{border-left:4px solid #f472b6}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.08)}
+.card-role{font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#fff}
+.card.owner .card-role{color:#fdba74}
+.card.co .card-role{color:#6ee7b7}
+.card.rp .card-role{color:#d8b4fe}
+.card.zl .card-role{color:#7dd3fc}
+.card.curator .card-role{color:#f9a8d4}
+.card-when{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px}
+.card h4{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;margin:10px 0 6px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.06)}
+.card h4:first-of-type{margin-top:4px;border-top:none;padding-top:0}
+.card ul{list-style:none;padding:0;margin:0}
+.card ul li{padding:5px 0 5px 22px;position:relative;font-size:12.5px;color:#cbd5e1;line-height:1.45;border-bottom:1px solid rgba(255,255,255,.03)}
+.card ul li::before{content:'☐';position:absolute;left:0;top:4px;color:#64748b;font-size:14px}
+.card ul li:last-child{border-bottom:none}
+.card .sla{display:inline-block;margin:4px 0 0 0;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;background:rgba(167,139,250,.15);color:#c4b5fd;border:1px solid rgba(167,139,250,.3)}
+.card .sla.red{background:rgba(239,68,68,.12);color:#fca5a5;border-color:rgba(239,68,68,.3)}
+.card .sla.green{background:rgba(16,185,129,.12);color:#6ee7b7;border-color:rgba(16,185,129,.3)}
+.print-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.4);border-radius:50px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:all .18s;font-family:inherit}
+.print-btn:hover{background:rgba(167,139,250,.3)}
+@media print{
+  .cards{grid-template-columns:1fr 1fr;gap:12px}
+  .card{background:#fff;border:1px solid #000;color:#000;padding:14px}
+  .card-head{border-color:#000}
+  .card-role,.card-when{color:#000}
+  .card h4{color:#000;border-color:rgba(0,0,0,.2)}
+  .card ul li{color:#000;border-color:rgba(0,0,0,.08)}
+  .card ul li::before{color:#000}
+  .card .sla{background:#fff;color:#000;border-color:#000}
+  .print-btn{display:none}
+}
+@media (max-width:760px){
+  .cards{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="crumb">
+    <a href="/index.html">⌂ pitstops.work</a>
+    <span class="sep">›</span>
+    <a href="/pitstops-training.html">Training</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/practice-documentation.html">Practice Documentation</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/practice-documentation/10-cards.html">Cards</a>
+  </nav>
+
+  <header class="mod-head">
+    <div class="mod-num">Quick-Reference Cards</div>
+    <h1 class="mod-title">Print &amp; Keep · One Card per Audience</h1>
+    <div class="mod-meta">
+      <span class="chip chip-all">All audiences</span>
+      <span class="dur">Print on A4, fold, laminate · or keep as a phone wallpaper</span>
+    </div>
+    <p class="lede">The curriculum compressed to a single glance, one card per audience. Owner, CO, RP, ZL, Curator. Each card carries the five accountabilities, the SLAs, and the anti-patterns to watch for. Use when in doubt; refer back to the full chapter when wrestling with a specific call.</p>
+    <div style="margin-top:14px">
+      <button type="button" class="print-btn" onclick="window.print()">🖨 Print these cards</button>
+    </div>
+  </header>
+
+  <div class="cards">
+
+    <!-- ─── Owner card ─────────────────────────────────────────────── -->
+    <div class="card owner">
+      <div class="card-head">
+        <div class="card-role">Owner</div>
+        <div class="card-when">6-month term · 1 page</div>
+      </div>
+
+      <h4>Five accountabilities</h4>
+      <ul>
+        <li>The page is current — reflects what good COs do today.</li>
+        <li>The practice circle happens on its date, even after rotation.</li>
+        <li>Flags acknowledged in <b>7 days</b>, resolved in <b>30</b>.</li>
+        <li>90-day review is on the calendar and gets done.</li>
+        <li>6-month handover is real — listen-tour, note, conversations.</li>
+      </ul>
+
+      <h4>The clock</h4>
+      <ul>
+        <li>Months 1–3: you facilitate the circle.</li>
+        <li>Month 4+: rotation among COs. You scribe.</li>
+        <li>Month 3 &amp; 6: quarterly page walk.</li>
+        <li>Month 6: handover steps in order.</li>
+      </ul>
+
+      <h4>SLAs</h4>
+      <span class="sla">48h trigger → draft</span>
+      <span class="sla">7d acknowledge flag</span>
+      <span class="sla red">30d resolve flag</span>
+      <span class="sla">14d respond to comment</span>
+
+      <h4>Anti-patterns — watch for in yourself</h4>
+      <ul>
+        <li>The silent term — no circles, no edits, no flags handled.</li>
+        <li>The owner monologue — you explain instead of comparing.</li>
+        <li>Aspiration drift — edits describe what <em>should</em> be.</li>
+        <li>The bunker — declining flags without bringing them to the circle.</li>
+      </ul>
+
+      <h4>One rule</h4>
+      <ul>
+        <li>If the page disagrees with what good COs actually do — the page is wrong, not the COs.</li>
+      </ul>
+    </div>
+
+    <!-- ─── CO card ───────────────────────────────────────────────── -->
+    <div class="card co">
+      <div class="card-head">
+        <div class="card-role">CO</div>
+        <div class="card-when">In the room · in the field</div>
+      </div>
+
+      <h4>What you bring</h4>
+      <ul>
+        <li>The field, into the room. Compare what your partner does to others.</li>
+        <li>One surprise per month to the surprise log.</li>
+        <li>A flag whenever the page is wrong, missing, or unclear.</li>
+        <li>A gap whenever no page exists for what you are doing.</li>
+      </ul>
+
+      <h4>Gap vs flag</h4>
+      <ul>
+        <li><b>Flag</b> = "this page is wrong." File <em>on</em> a page.</li>
+        <li><b>Gap</b> = "no page covers this." File without a page.</li>
+        <li>If unsure: search 1 minute first, then decide.</li>
+      </ul>
+
+      <h4>In the circle</h4>
+      <ul>
+        <li>Open round — your one surprise this month.</li>
+        <li>Case discussion — say how your partner does it; disagree politely.</li>
+        <li>Synthesis — agree, push back, or sharpen the proposed edit.</li>
+        <li>Vernacular default — don't switch to English for senior people.</li>
+      </ul>
+
+      <h4>What is not yours</h4>
+      <ul>
+        <li>Drafting the page (owner does that).</li>
+        <li>Closing flags (owner does that).</li>
+        <li>Translating the page (translation queue handles it).</li>
+        <li>Apologising for raising a flag.</li>
+      </ul>
+    </div>
+
+    <!-- ─── RP card ───────────────────────────────────────────────── -->
+    <div class="card rp">
+      <div class="card-head">
+        <div class="card-role">RP · Resource Person</div>
+        <div class="card-when">Our staff · across partners</div>
+      </div>
+
+      <h4>Monthly rhythm</h4>
+      <ul>
+        <li>≥ 1 shadow visit per partner per quarter.</li>
+        <li>Attend every practice circle for your verticals.</li>
+        <li>Run new-CO onboarding sessions for partners you cover.</li>
+        <li>Hold the partner-review calendar — quarterly per partner.</li>
+      </ul>
+
+      <h4>Shadow visit protocol</h4>
+      <ul>
+        <li>Tell the CO: "I am here to watch how it actually runs."</li>
+        <li>Walk the full activity end to end.</li>
+        <li>Note three columns: playbook says · CO did · why differ.</li>
+        <li>Do not correct in the moment unless dignity / safety.</li>
+        <li>48h: draft edit or gap entry.</li>
+      </ul>
+
+      <h4>If you own a page</h4>
+      <ul>
+        <li>Same five accountabilities as the Owner card.</li>
+        <li>Months 1–3 you facilitate the circle yourself.</li>
+        <li>Stagger your principle term-ends across the calendar.</li>
+      </ul>
+
+      <h4>Red flags to watch</h4>
+      <ul>
+        <li>A vertical with no circle in 2+ months.</li>
+        <li>A partner where the review meeting has been postponed twice.</li>
+        <li>A shadow visit that produced no edit — was it a social visit?</li>
+      </ul>
+    </div>
+
+    <!-- ─── ZL card ───────────────────────────────────────────────── -->
+    <div class="card zl">
+      <div class="card-head">
+        <div class="card-role">ZL · Zonal Leader</div>
+        <div class="card-when">Dashboard · weekly check</div>
+      </div>
+
+      <h4>What you watch</h4>
+      <ul>
+        <li>Owners with flags &gt; 30 days unresolved.</li>
+        <li>Pages stale &gt; 90 days (AMBER) or &gt; 180 days (RED / orphaned).</li>
+        <li>Circles that did not run two cycles in a row.</li>
+        <li>Gap-queue depth crossing 20; median age crossing 14 days.</li>
+        <li>Facilitator rotation index &lt; 3 after the owner's 3-month period.</li>
+      </ul>
+
+      <h4>When you intervene</h4>
+      <ul>
+        <li>Silent owner past 30d → conversation, possibly early term-end.</li>
+        <li>Repeat circle cancellation → check with owner; merge or sunset.</li>
+        <li>Curator escalation → resolve within a week.</li>
+      </ul>
+
+      <h4>What you do NOT do</h4>
+      <ul>
+        <li>Edit pages directly. Pull the owner in.</li>
+        <li>Attend every circle. Read the minutes.</li>
+        <li>Triage gaps. Curator does.</li>
+        <li>Translate. Translation queue.</li>
+      </ul>
+
+      <h4>Once a month</h4>
+      <ul>
+        <li>File any audit-comparison flags from pitstop-runtime patterns.</li>
+        <li>Confirm next month's circles and partner reviews are on calendars.</li>
+      </ul>
+    </div>
+
+    <!-- ─── Curator card ──────────────────────────────────────────── -->
+    <div class="card curator">
+      <div class="card-head">
+        <div class="card-role">Curator</div>
+        <div class="card-when">1 per city · same day each week</div>
+      </div>
+
+      <h4>Weekly walks (~ 30 min each)</h4>
+      <ul>
+        <li><b>Gap queue.</b> For each open gap: assign · merge · decline.</li>
+        <li><b>Stale-page sweep.</b> Nudge AMBER owners; flip 180-day rows to orphaned.</li>
+        <li><b>Flag triage.</b> When owner is silent &gt; 7d, escalate to ZL.</li>
+        <li><b>Translation queue.</b> Assign open translation flags to translators.</li>
+      </ul>
+
+      <h4>Gap triage decisions</h4>
+      <ul>
+        <li><b>Assign</b> → owner + deadline (runbook 7d, playbook 14d).</li>
+        <li><b>Merge</b> → into an existing page; file a flag for clarification.</li>
+        <li><b>Decline</b> → with a one-line reason; filer is notified.</li>
+        <li>Default to assign. Decline rate ≤ 15%.</li>
+      </ul>
+
+      <h4>What you never do</h4>
+      <ul>
+        <li>Edit a page without the owner's consent.</li>
+        <li>Delete a comment. Resolve with a visible summary.</li>
+        <li>Skip the weekly walk. Stale pages compound silently.</li>
+      </ul>
+
+      <h4>Health targets</h4>
+      <ul>
+        <li>Open gaps &lt; 20.</li>
+        <li>Median gap age &lt; 14 days.</li>
+        <li>Gap-to-publish median &lt; 45 days.</li>
+        <li>Orphaned pages &lt; 5% of corpus.</li>
+      </ul>
+    </div>
+
+    <!-- ─── Trainer (filler 6th tile for clean 2-up grid) ──────────── -->
+    <div class="card" style="border-left:4px solid #fbbf24">
+      <div class="card-head">
+        <div class="card-role" style="color:#fde68a">Trainer · Workshop</div>
+        <div class="card-when">Day 1 + Day 2</div>
+      </div>
+
+      <h4>Two days, ~ 4 hours each</h4>
+      <ul>
+        <li>Day 1 — Foundations + Practice Circles (the mock circle exercise).</li>
+        <li>Day 2 — Other channels + long-cycle disciplines + commitments.</li>
+        <li>Working lunch both days. Owners read their assigned pages.</li>
+      </ul>
+
+      <h4>The mock circle</h4>
+      <ul>
+        <li>45 min, real recent anonymisable case.</li>
+        <li>Facilitator: a CO, never the most senior person.</li>
+        <li>You sit at the back. Take notes. Do not intervene.</li>
+        <li>15 min debrief at the end — what worked, what bent.</li>
+      </ul>
+
+      <h4>The live gap-queue walk</h4>
+      <ul>
+        <li>For curators specifically.</li>
+        <li>Open the queue projector; walk five real gaps.</li>
+        <li>Decide live: assign · merge · decline. Capture rationale aloud.</li>
+      </ul>
+
+      <h4>Close the workshop with a commitment</h4>
+      <ul>
+        <li>Each attendee names one circle they will run in 30 days.</li>
+        <li>And one shadow visit they will make in 30 days.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <p style="margin-top:36px;font-size:13px;color:#94a3b8;text-align:center;font-style:italic">
+    Cards designed for A4 portrait; print 2-up to get pocket-sized after folding once.
+    Lamination optional. Treat as a living artefact — re-print after major protocol changes.
+  </p>
+
+  <nav class="foot-nav">
+    <a href="/training/modules/practice-documentation/09-trainer-guide.html">← Module 9 · Trainer's Guide</a>
+    <a href="/training/modules/practice-documentation.html" class="next-mod">Back to module index →</a>
+  </nav>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Module 7 · Flags, Comments &amp; Translation — Practice Documentation Training</title>
+<link rel="stylesheet" href="/training/modules/practice-documentation/_module.css"/>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="crumb">
+    <a href="/index.html">⌂ pitstops.work</a>
+    <span class="sep">›</span>
+    <a href="/pitstops-training.html">Training</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/practice-documentation.html">Practice Documentation</a>
+    <span class="sep">›</span>
+    <a href="/training/modules/practice-documentation/07-flags-comments-translation.html">Module 7</a>
+  </nav>
+
+  <header class="mod-head">
+    <div class="mod-num">Module 7 · 60 minutes</div>
+    <h1 class="mod-title">Flags, Comments &amp; Translation Flags — Reader-Raised Triage</h1>
+    <div class="mod-meta">
+      <span class="chip chip-owner">Owner</span>
+      <span class="chip chip-curator">Curator</span>
+      <span class="chip chip-co">CO</span>
+      <span class="dur">The reactive channel · weekly cadence</span>
+    </div>
+    <p class="lede">Practice circles and partner reviews are convened. Shadow visits and onboarding sessions are scheduled. Flags, comments and translation flags are different — they arrive on the reader's schedule, from the field, asynchronously. If the response is slow, readers stop filing. This module is the protocol that keeps the channel alive.</p>
+  </header>
+
+  <section>
+    <h2 class="sec"><span class="num">7.1</span>The three reader signals</h2>
+    <table class="t">
+      <thead><tr><th>Signal</th><th>Means</th><th>Routed to</th><th>SLA</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Flag</strong></td><td>"This page is wrong, missing, or contradicted by practice."</td><td>Page owner</td><td>Acknowledged in 7 days, resolved in 30.</td></tr>
+        <tr><td><strong>Comment</strong></td><td>"I have a question, observation, or suggestion on this page."</td><td>Page owner (visible to all readers)</td><td>Responded in 14 days.</td></tr>
+        <tr><td><strong>Translation flag</strong></td><td>"The translation of this page into &lt;language&gt; is wrong."</td><td>Translation queue (city curator)</td><td>Acknowledged in 7 days, fixed in 21.</td></tr>
+      </tbody>
+    </table>
+
+    <p style="margin-top:10px">All three are async. None of them should pull the owner into a conversation in the moment. The owner handles them on their weekly triage day; the curator on theirs.</p>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">7.2</span>Flags — the protocol</h2>
+    <h3 class="sub">When to file a flag</h3>
+    <ul class="plain">
+      <li><strong>Wrong:</strong> the page contradicts what good COs actually do today.</li>
+      <li><strong>Missing:</strong> the page has a gap that needs filling on this page (not a separate page — that is a gap).</li>
+      <li><strong>Out of date:</strong> something external has changed and the page has not caught up.</li>
+      <li><strong>Unclear:</strong> the page is technically correct but unusable in the field.</li>
+    </ul>
+
+    <h3 class="sub">What a good flag looks like</h3>
+    <p>A flag is two to four sentences. Concrete, with a section reference if possible.</p>
+
+    <div class="good">
+      <div class="head">A clean flag</div>
+      <p>"Section 3.2 of the creche playbook says the nutrition check is monthly. Since last quarter, three of four partners do it weekly because of the Anganwadi schedule. The page should be updated."</p>
+    </div>
+
+    <div class="amber">
+      <div class="head">A poor flag</div>
+      <p>"This page is unclear." (No section reference, no detail, nothing for the owner to act on.)</p>
+    </div>
+
+    <h3 class="sub">Owner's weekly flag triage</h3>
+    <ul class="check">
+      <li>Same day each week. 20 minutes for a healthy queue.</li>
+      <li>For each open flag: acknowledge with one line in the comment thread. Even "saw this, will respond in 14 days" counts.</li>
+      <li>Within 30 days: resolve — either edit the page (preferred), bring as a case to the next practice circle, or decline with a one-line reason.</li>
+      <li>A declined flag is rare and explained. "We considered this and the page is correct because X." Readers see the decline and the reason.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">7.3</span>Comments — softer than flags</h2>
+    <p>A comment is a question, observation, or suggestion. It is not "the page is wrong." It is "I am reading this and wondering about X." Comments are visible to all readers; the discussion they spark is often more useful than the page edit they may produce.</p>
+
+    <ul class="plain">
+      <li><strong>Owner responds within 14 days.</strong> A response is enough — not every comment requires a page edit.</li>
+      <li><strong>Threads stay open</strong> while the topic is live. They are resolved when the owner closes them with a summary line.</li>
+      <li><strong>A comment can be promoted to a flag</strong> if the discussion reveals the page is actually wrong. The owner does the promotion.</li>
+    </ul>
+
+    <div class="info">
+      <div class="head">Comments as community memory</div>
+      <p>Healthy comment threads are a sign of an engaged readership. A page with steady comments is being read; a page with no comments may be dead even if the version count is high. The dashboard shows comments-per-quarter as a vitality signal.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">7.4</span>Translation flags — per-language quality</h2>
+    <p>Pages have a canonical language (usually English or Hindi for principles; vernacular for partner-specific playbooks). Every other language is translated — initially by machine, optionally line-edited by a human. Translation flags are reader-raised: "the translation of this page into Tamil is wrong."</p>
+
+    <p>Translation flags are per-language. The same page can have an open Tamil flag and a clean Kannada translation at the same time.</p>
+
+    <h3 class="sub">Where they go</h3>
+    <p>To the translation queue, visible at <code>/wiki/translation-queue</code>. The city curator triages weekly; they assign to a human translator (us, or a partner staff member fluent in both languages) and the fixed translation publishes.</p>
+
+    <h3 class="sub">The page does not freeze while the translation is fixed</h3>
+    <p>An open translation flag does not block edits to the canonical page. The canonical content moves forward; translations catch up. Readers in the affected language see a small banner: "translation has an open quality flag from MM/DD."</p>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">7.5</span>The audit comparison — where flags come from systematically</h2>
+    <p>Beyond reader-filed flags, two systematic flag sources exist.</p>
+
+    <ul class="plain">
+      <li><strong>Partner audit comparison.</strong> When a partner review meeting (Module 4) surfaces discrepancies between observed practice and documented playbook, those discrepancies are filed as flags — by the owner, on behalf of the partner. The partner gets credit; the flag carries the partner review ID.</li>
+      <li><strong>Pitstop-runtime mismatch.</strong> When a pitstop checklist fails repeatedly across multiple settlements, the failure pattern is itself a flag — the practice as documented may be unrealistic. The ZL files these monthly during the zone review.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">7.6</span>Health metrics — the reader-channel dashboard</h2>
+    <ul class="plain">
+      <li><strong>Open flags older than 7 days unacknowledged</strong> — should be zero.</li>
+      <li><strong>Open flags older than 30 days unresolved</strong> — should be zero. Each one is a notification to the ZL.</li>
+      <li><strong>Comment response time median</strong> — target ≤ 14 days.</li>
+      <li><strong>Translation flag queue age</strong> — target median ≤ 14 days.</li>
+      <li><strong>Decline rate on flags</strong> — target ≤ 10%. Higher means the page-owner is bunkering or the filers do not understand what a flag is for.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="sec"><span class="num">7.7</span>Anti-patterns</h2>
+    <table class="t">
+      <thead><tr><th>Anti-pattern</th><th>Smell</th><th>Correction</th></tr></thead>
+      <tbody>
+        <tr><td>The silent owner</td><td>Flags age past 30 days unacknowledged.</td><td>Curator escalates to ZL. Owner term may need to end early.</td></tr>
+        <tr><td>The serial decliner</td><td>Decline rate &gt; 25%.</td><td>Bunker behaviour. ZL conversation; flags brought to a circle as cases.</td></tr>
+        <tr><td>The chat-thread response</td><td>Flag receives a long private chat reply; the page never changes.</td><td>Every flag closes either with a page edit, an explicit decline reason, or a circle-case promotion. Visible to readers.</td></tr>
+        <tr><td>Comment archaeology</td><td>Owner deletes uncomfortable comments.</td><td>Hard rule: comments are never deleted, only resolved with a visible summary. Curator audits.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="check-yu">
+    <div class="head">Check your understanding</div>
+    <h3>Three questions — answer before you move on</h3>
+    <ol>
+      <li>A CO files a flag saying "this page is wrong" without specifying section or reason. You are the owner. What do you do?</li>
+      <li>A reader files a translation flag against the Tamil version of a page that just got a major canonical-content edit yesterday. What is the right next step, and what does the reader see in the meantime?</li>
+      <li>An owner has six open flags older than 30 days. The curator has nudged twice. What is the third intervention, and who runs it?</li>
+    </ol>
+  </div>
+
+  <nav class="foot-nav">
+    <a href="/training/modules/practice-documentation/06-field-shadows-onboarding.html">← Module 6 · Shadows &amp; Onboarding</a>
+    <a href="/training/modules/practice-documentation/08-quarterly-reviews-handover.html" class="next-mod">Module 8 · Reviews &amp; Handover →</a>
+  </nav>
+
+</div>
+</body>
+</html>

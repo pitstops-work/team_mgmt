@@ -1,0 +1,143 @@
+/* Practice Documentation · per-module shared styles
+   Visually consistent with the Food Programme module; chip palette renamed
+   to the audiences for this curriculum: Owners, COs, RPs, ZLs / Curators. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);color:#e2e8f0;min-height:100vh;line-height:1.55}
+.wrap{max-width:920px;margin:0 auto;padding:32px 28px 96px}
+
+/* Top crumb / module nav */
+.crumb{display:flex;align-items:center;gap:8px;margin-bottom:24px;font-size:12px;flex-wrap:wrap}
+.crumb a{color:#94a3b8;text-decoration:none;padding:5px 11px;border:1px solid rgba(255,255,255,.08);border-radius:50px;transition:all .18s}
+.crumb a:hover{color:#fff;border-color:rgba(167,139,250,.4);background:rgba(255,255,255,.04)}
+.crumb .sep{color:#475569}
+
+/* Module header */
+.mod-head{margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,.08)}
+.mod-num{display:inline-block;font-size:11px;font-weight:700;letter-spacing:3px;color:#a78bfa;text-transform:uppercase;margin-bottom:10px}
+h1.mod-title{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1.15;color:#fff;margin-bottom:14px}
+.mod-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:50px;font-size:11px;font-weight:600;letter-spacing:0.3px}
+.chip-all{background:rgba(167,139,250,.18);color:#c4b5fd;border:1px solid rgba(167,139,250,.32)}
+.chip-owner{background:rgba(251,146,60,.18);color:#fdba74;border:1px solid rgba(251,146,60,.32)}
+.chip-co{background:rgba(52,211,153,.18);color:#6ee7b7;border:1px solid rgba(52,211,153,.32)}
+.chip-rp{background:rgba(168,85,247,.18);color:#d8b4fe;border:1px solid rgba(168,85,247,.32)}
+.chip-zl{background:rgba(14,165,233,.18);color:#7dd3fc;border:1px solid rgba(14,165,233,.32)}
+.chip-curator{background:rgba(244,114,182,.18);color:#f9a8d4;border:1px solid rgba(244,114,182,.32)}
+.chip-trainer{background:rgba(251,191,36,.18);color:#fde68a;border:1px solid rgba(251,191,36,.32)}
+.dur{font-size:12px;color:#94a3b8}
+.lede{font-size:16px;color:#cbd5e1;line-height:1.65;margin-top:6px}
+
+/* Sections */
+section{margin-top:40px}
+h2.sec{font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.3px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06);scroll-margin-top:24px}
+h2.sec .num{color:#a78bfa;font-weight:700;margin-right:8px;font-variant-numeric:tabular-nums}
+h3.sub{font-size:16px;font-weight:600;color:#cbd5e1;margin-top:20px;margin-bottom:10px}
+p{font-size:15px;color:#cbd5e1;margin-bottom:12px}
+p.intro{font-size:16px;color:#e2e8f0;font-style:italic;border-left:3px solid rgba(167,139,250,.4);padding-left:14px;margin-bottom:16px}
+em{color:#e9d5ff;font-style:italic}
+strong{color:#f1f5f9}
+
+/* Checklist */
+ul.check{list-style:none;padding:0;margin:14px 0}
+ul.check li{padding:9px 0 9px 28px;border-bottom:1px solid rgba(255,255,255,.04);position:relative;font-size:14px;color:#cbd5e1;line-height:1.55}
+ul.check li::before{content:'☐';position:absolute;left:0;top:9px;color:#64748b;font-size:18px;line-height:1.2}
+ul.check li:last-child{border-bottom:none}
+
+/* Plain bullet list (when not a checklist) */
+ul.plain{list-style:none;padding:0;margin:10px 0}
+ul.plain li{padding:6px 0 6px 18px;position:relative;font-size:14px;color:#cbd5e1;line-height:1.6}
+ul.plain li::before{content:'›';position:absolute;left:0;top:6px;color:#a78bfa;font-weight:700}
+
+/* Hard rule callout */
+.hard{margin:18px 0;padding:18px 22px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.22);border-left:4px solid #ef4444;border-radius:10px}
+.hard .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fca5a5;margin-bottom:8px}
+.hard p{font-size:14px;color:#fecaca;line-height:1.6;margin-bottom:0}
+.hard p + p{margin-top:8px}
+
+/* Amber callout (caution / soft rule) */
+.amber{margin:18px 0;padding:18px 22px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.22);border-left:4px solid #fbbf24;border-radius:10px}
+.amber .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fde68a;margin-bottom:8px}
+.amber p{font-size:14px;color:#fde68a;line-height:1.6;margin-bottom:0}
+
+/* Info / standing callout */
+.info{margin:18px 0;padding:18px 22px;background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.22);border-left:4px solid #a78bfa;border-radius:10px}
+.info .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#c4b5fd;margin-bottom:8px}
+.info p{font-size:14px;color:#e9d5ff;line-height:1.6;margin-bottom:0}
+
+/* Green callout (good practice / success signal) */
+.good{margin:18px 0;padding:18px 22px;background:rgba(16,185,129,.06);border:1px solid rgba(52,211,153,.22);border-left:4px solid #10b981;border-radius:10px}
+.good .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6ee7b7;margin-bottom:8px}
+.good p{font-size:14px;color:#a7f3d0;line-height:1.6;margin-bottom:0}
+
+/* Tables */
+table.t{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden}
+table.t th,table.t td{padding:10px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06)}
+table.t th{background:rgba(255,255,255,.04);color:#94a3b8;font-weight:600;font-size:11px;letter-spacing:1.5px;text-transform:uppercase}
+table.t td{color:#cbd5e1;vertical-align:top}
+table.t tr:last-child td{border-bottom:none}
+table.t tr:hover td{background:rgba(255,255,255,.02)}
+
+/* Two-column compare grid */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+.compare > div{padding:16px 18px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}
+.compare h4{font-size:13px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;color:#cbd5e1}
+.compare ul{list-style:none;padding:0}
+.compare li{font-size:13px;color:#cbd5e1;padding:4px 0 4px 14px;position:relative;line-height:1.55}
+.compare li::before{content:'·';position:absolute;left:2px;color:#94a3b8}
+
+/* Run-of-show / agenda table */
+.agenda{display:grid;grid-template-columns:70px 1fr;gap:0;margin:14px 0;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;font-size:13px}
+.agenda .cell{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06)}
+.agenda .cell.t{color:#a78bfa;font-weight:600;font-variant-numeric:tabular-nums;background:rgba(167,139,250,.04);border-right:1px solid rgba(255,255,255,.06)}
+.agenda .cell.w{color:#cbd5e1}
+.agenda .cell:nth-last-child(-n+2){border-bottom:none}
+
+/* Status language */
+.status{display:inline-flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.status b{padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:1px}
+.s-green{background:rgba(16,185,129,.2);color:#6ee7b7}
+.s-amber{background:rgba(251,191,36,.2);color:#fde68a}
+.s-red{background:rgba(239,68,68,.2);color:#fca5a5}
+
+/* Check your understanding */
+.check-yu{margin-top:36px;padding:24px 28px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px}
+.check-yu .head{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#a78bfa;margin-bottom:14px}
+.check-yu h3{font-size:18px;font-weight:700;color:#fff;margin-bottom:16px;letter-spacing:-0.2px}
+.check-yu ol{padding-left:22px;color:#cbd5e1}
+.check-yu li{margin-bottom:10px;font-size:14px;line-height:1.6}
+.check-yu li::marker{color:#a78bfa;font-weight:700}
+
+/* Inline code */
+code{background:rgba(167,139,250,.12);color:#c4b5fd;padding:1px 6px;border-radius:4px;font-size:90%;font-family:'SF Mono',Consolas,monospace}
+
+/* Foot nav */
+.foot-nav{margin-top:64px;padding-top:24px;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.foot-nav a{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:50px;color:#cbd5e1;text-decoration:none;font-size:13px;font-weight:600;transition:all .18s}
+.foot-nav a:hover{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.4);color:#fff}
+.foot-nav a.disabled{opacity:.35;pointer-events:none}
+.foot-nav .next-mod{background:rgba(167,139,250,.18);border-color:rgba(167,139,250,.4);color:#fff}
+
+/* Print friendly */
+@media print {
+  body{background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .wrap{max-width:none;padding:0}
+  .crumb, .foot-nav, .mod-meta .chip, .check-yu{display:none}
+  h1.mod-title{color:#000;font-size:24pt}
+  h2.sec{color:#000;border-color:#000;page-break-after:avoid}
+  p,ul.check li,table.t td,.compare li{color:#000}
+  ul.check li::before{color:#000}
+  .hard,.amber,.info,.good{background:#fff;border-color:#000;color:#000}
+  .hard *,.amber *,.info *,.good *{color:#000}
+  .compare > div{border-color:#000;background:#fff}
+  .agenda .cell.t{background:#fff;color:#000;border-color:#000}
+  .agenda .cell.w{color:#000}
+}
+@media (max-width:640px){
+  .wrap{padding:24px 16px 56px}
+  h1.mod-title{font-size:28px}
+  h2.sec{font-size:18px}
+  table.t{font-size:12px}
+  table.t th,table.t td{padding:8px 10px}
+  .compare{grid-template-columns:1fr}
+  .agenda{grid-template-columns:60px 1fr;font-size:12px}
+}
