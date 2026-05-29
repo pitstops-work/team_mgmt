@@ -233,6 +233,7 @@ export default function HomeView({
             zlOverdueActivities={zlOverdueActivities}
             zlMyActivities={zlMyActivities}
             clusterStatus={clusterStatus}
+            rpTeamHealth={rpTeamHealth}
           />
         )}
 

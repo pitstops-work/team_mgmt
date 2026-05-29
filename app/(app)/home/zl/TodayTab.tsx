@@ -13,6 +13,8 @@ import { EmptyState, SectionTitle } from "../_shared/Primitives";
 import { FilterSheet } from "../_shared/FilterSheet";
 import { useTodayFilters, type GroupBy } from "../_shared/useTodayFilters";
 import { TeamSlaPanel, TeamOverduePanel } from "../TeamPerformance";
+import { TeamTodayStripe } from "./TeamTodayStripe";
+import type { RPHealthStat } from "../page";
 
 /**
  * ZL Today — supervisory cockpit. Phase 4.1 lands the "My today" stripe (the
@@ -31,6 +33,7 @@ export function ZLTodayTab({
   zlOverdueActivities,
   zlMyActivities,
   clusterStatus,
+  rpTeamHealth = [],
 }: {
   userId: string;
   teamMembers: TeamMember[];
@@ -38,6 +41,7 @@ export function ZLTodayTab({
   zlOverdueActivities: ZLTeamActivity[];
   zlMyActivities: ZLTeamActivity[];
   clusterStatus: ClusterStatus[];
+  rpTeamHealth?: RPHealthStat[];
 }) {
   const router = useRouter();
   const [doneEventIds, setDoneEventIds] = useState<Set<string>>(new Set());
@@ -285,7 +289,17 @@ export function ZLTodayTab({
         </div>
       </section>
 
-      {/* ── Team rollups (Phase 4.1 minimum) ─────────────────────────────── */}
+      {/* ── Team today stripe (Phase 4.2) ───────────────────────────────── */}
+      <section>
+        <SectionTitle>Team today</SectionTitle>
+        <TeamTodayStripe
+          teamMembers={teamMembers}
+          rpTeamHealth={rpTeamHealth}
+          teamOverdueActivities={zlOverdueActivities}
+        />
+      </section>
+
+      {/* ── Team rollups ─────────────────────────────────────────────────── */}
       <section>
         <SectionTitle>Team SLA</SectionTitle>
         <TeamSlaPanel />
@@ -296,8 +310,7 @@ export function ZLTodayTab({
         <TeamOverduePanel />
       </section>
 
-      {/* TODO Phase 4.2: per-reportee Team today stripe with progress donut.
-          TODO Phase 4.3: Reschedule alerts panel pulling recent
+      {/* TODO Phase 4.3: Reschedule alerts panel pulling recent
                ActivityRescheduled notifications for this ZL. */}
     </div>
   );
