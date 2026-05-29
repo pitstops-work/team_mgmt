@@ -1,19 +1,29 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import Link from "next/link";
-import { CalendarClock, CheckSquare, Target, MapPin, BarChart3, ChevronRight, ChevronLeft, LayoutDashboard, Users, TrendingUp, AlertTriangle, CheckCircle2, Clock, Filter, ChevronDown, ChevronUp, Mic, Square, Loader2, Paperclip } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
-import Avatar from "@/components/Avatar";
-import type { ActivityGoal, Activity, ChecklistItem, Goal, TeamMember, ZLTeamActivity, TabKey } from "../_lib/types";
-import { fmtTime, fmtDate, fmtDateShort, isToday, daysDiff, daysAgo, activityMeta, groupByDay, fmtDomain, groupBySla, slaHeaderLabel, engLevel, istTodayStr, shiftIstDate } from "../_lib/helpers";
-import { STATUS_BADGE, STATUS_DOT, CHECKLIST_STATUS_DOT, EVENT_TYPE_COLOR, ACTIVITY_TYPE_STYLE, DESIGNATION_ORDER, DESIGNATION_COLOR, PITSTOP_STATUS_COLOR } from "../_lib/constants";
-import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat, RPPitstopDetail, AdminDash, AdminGoal, AdminUser, AdminZone, OverduePitstop, AdminPersonHealth, AdminDelayedPitstop, AdminOverdueActivity, AdminEngagementStat, AdminCityCoverage, LeaderTeamMember, RPClusterDeckCluster, FacilityLayerConfigLite } from "../page";
-import { ClusterTodayView } from "../_shared/ClusterTodayView";
-import { EmptyState, SectionTitle, WeekCard } from "../_shared/Primitives";
-import { RPChecklistRow } from "../_shared/RPChecklistRow";
-import { ZLOverdueCarousel, ZLTodayCarousel } from "../_shared/ZLOverdue";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronUp, Filter } from "lucide-react";
+import type { Activity, ChecklistItem, TeamMember, ZLTeamActivity } from "../_lib/types";
+import { isToday } from "../_lib/helpers";
+import type { ClusterStatus } from "../page";
+import { ActivityCard } from "../_shared/ActivityCard";
+import { ProgressChip } from "../_shared/ProgressChip";
+import { NowDivider } from "../_shared/NowDivider";
+import { EmptyState, SectionTitle } from "../_shared/Primitives";
+import { FilterSheet } from "../_shared/FilterSheet";
+import { useTodayFilters, type GroupBy } from "../_shared/useTodayFilters";
+import { TeamSlaPanel, TeamOverduePanel } from "../TeamPerformance";
 
+/**
+ * ZL Today — supervisory cockpit. Phase 4.1 lands the "My today" stripe (the
+ * ZL's own activities, rendered through the same time-first cockpit as RP)
+ * plus the TeamSlaPanel / TeamOverduePanel rollups previously gated to
+ * Leader / Other only.
+ *
+ * Phase 4.2 will add the per-reportee Team today stripe (donut + slip counts,
+ * expandable inline). Phase 4.3 will add the Reschedule alerts panel reading
+ * recent ActivityRescheduled notifications.
+ */
 export function ZLTodayTab({
   userId,
   teamMembers,
@@ -29,342 +39,300 @@ export function ZLTodayTab({
   zlMyActivities: ZLTeamActivity[];
   clusterStatus: ClusterStatus[];
 }) {
-  const [expandedAttentionIds, setExpandedAttentionIds] = useState<Set<string>>(new Set());
-  const [expandedChecklistIds, setExpandedChecklistIds] = useState<Set<string>>(new Set());
-  const [completedActivityIds, setCompletedActivityIds] = useState<Set<string>>(new Set());
-  const [completedChecklistIds, setCompletedChecklistIds] = useState<Set<string>>(new Set());
-  const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
-  const [weekExpanded, setWeekExpanded] = useState(false);
+  const router = useRouter();
+  const [doneEventIds, setDoneEventIds] = useState<Set<string>>(new Set());
+  const [doneChecklistIds, setDoneChecklistIds] = useState<Set<string>>(new Set());
+  const [showWeek, setShowWeek] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
-  function toggleId(id: string, setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
-    setter(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  }
-
-  async function handleDone(activityId: string) {
-    setLoadingDoneId(activityId);
-    await fetch(`/api/pitstop-events/${activityId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Done" }),
-    });
-    setCompletedActivityIds(prev => new Set([...prev, activityId]));
-    setLoadingDoneId(null);
-  }
-
-  function getClusterName(clusterId: string | null | undefined) {
-    if (!clusterId) return null;
-    return clusterStatus.find(c => c.clusterId === clusterId)?.name ?? null;
-  }
-
-  // ZL's own activities
-  const myOverdue = zlOverdueActivities.filter(
-    a => a.pitstops[0]?.pitstop.ownerId === userId && !completedActivityIds.has(a.id)
-  );
-  const myToday = zlMyActivities.filter(
-    a => isToday(a.scheduledAt) && !completedActivityIds.has(a.id)
-  );
-  const myWeek = zlMyActivities.filter(
-    a => !isToday(a.scheduledAt) && !completedActivityIds.has(a.id)
+  // ── ZL's own activities — split out from the team views ─────────────────
+  // The `zlMyActivities` prop covers a whole week of activities the ZL is
+  // personally attached to (as owner or attendee). We bucket on the client
+  // so the time-first sections stay in sync with optimistic completion state.
+  const myAll: Activity[] = useMemo(
+    () => [
+      ...zlMyActivities.filter(a => a.pitstops[0]?.pitstop.ownerId === userId).map(toActivity),
+      // Also include team-overdue rows where the ZL is the owner — they live
+      // on the overdue list, not zlMyActivities.
+      ...zlOverdueActivities.filter(a => a.pitstops[0]?.pitstop.ownerId === userId).map(toActivity),
+    ],
+    [zlMyActivities, zlOverdueActivities, userId]
   );
 
-  // Per-RP overdue map (excluding ZL's own)
-  const rpOverdueMap = useMemo(() => {
-    const map = new Map<string, ZLTeamActivity[]>();
-    for (const a of zlOverdueActivities) {
-      if (completedActivityIds.has(a.id)) continue;
-      const ownerId = a.pitstops[0]?.pitstop.ownerId;
-      if (!ownerId || ownerId === userId) continue;
-      if (!map.has(ownerId)) map.set(ownerId, []);
-      map.get(ownerId)!.push(a);
-    }
-    return map;
-  }, [zlOverdueActivities, completedActivityIds, userId]);
+  const {
+    filters, setFilter, clearFilters, activeCount,
+    groupBy, setGroupBy,
+    matches, options, groupKey,
+  } = useTodayFilters(myAll);
 
-  // Per-RP checklist map (excluding ZL's own)
-  const rpChecklistMap = useMemo(() => {
-    const map = new Map<string, ChecklistItem[]>();
+  // Linked checklist lookup (same pattern as RP).
+  const activityChecklistMap = useMemo(() => {
+    const m = new Map<string, ChecklistItem>();
     for (const ci of weekChecklists) {
-      if (completedChecklistIds.has(ci.id) || ci.pitstop.ownerId === userId) continue;
-      if (!map.has(ci.pitstop.ownerId)) map.set(ci.pitstop.ownerId, []);
-      map.get(ci.pitstop.ownerId)!.push(ci);
+      if (doneChecklistIds.has(ci.id)) continue;
+      for (const a of ci.activities) m.set(a.id, ci);
     }
-    return map;
-  }, [weekChecklists, completedChecklistIds, userId]);
+    return m;
+  }, [weekChecklists, doneChecklistIds]);
 
-  const attentionRPs = teamMembers
-    .filter(rp => (rpOverdueMap.get(rp.id)?.length ?? 0) > 0)
-    .sort((a, b) => (rpOverdueMap.get(b.id)?.length ?? 0) - (rpOverdueMap.get(a.id)?.length ?? 0));
+  const nowMs = Date.now();
+  const myOverdue = useMemo(
+    () => myAll.filter(a => new Date(a.scheduledAt).getTime() < dayStart() && a.status !== "Done" && !doneEventIds.has(a.id) && matches(a)),
+    [myAll, doneEventIds, matches]
+  );
+  const myToday = useMemo(
+    () => myAll
+      .filter(a => isToday(a.scheduledAt))
+      .filter(matches)
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
+    [myAll, matches]
+  );
+  const myWeek = useMemo(
+    () => myAll
+      .filter(a => new Date(a.scheduledAt).getTime() >= dayEnd() && new Date(a.scheduledAt).getTime() < dayEnd() + 7 * 86_400_000)
+      .filter(matches)
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
+    [myAll, matches]
+  );
 
-  const checklistRPs = teamMembers.filter(rp => (rpChecklistMap.get(rp.id)?.length ?? 0) > 0);
+  const todayDoneCount = myToday.filter(a => a.status === "Done" || doneEventIds.has(a.id)).length;
+  const todayTotal = myToday.length;
 
-  const allClear = attentionRPs.length === 0 && myOverdue.length === 0 && myToday.length === 0 && checklistRPs.length === 0;
+  const nowIdx = useMemo(() => {
+    const i = myToday.findIndex(a => new Date(a.scheduledAt).getTime() >= nowMs);
+    return i === -1 ? myToday.length : i;
+  }, [myToday, nowMs]);
 
-  // Inline activity row for ZL's own overdue/today
-  function ZLActivityRow({ a, isOverdue }: { a: ZLTeamActivity; isOverdue: boolean }) {
-    const goal = a.pitstops[0]?.pitstop.goal;
-    const isOwner = a.pitstops[0]?.pitstop.ownerId === userId;
-    const isAttendee = !isOwner && a.attendees.some(at => at.user.id === userId);
-    const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
-    const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
-    return (
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
-        isOverdue ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-white"
-      }`}>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-            {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-            {isOwner && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-violet-100 text-violet-700">Owner</span>}
-            {isAttendee && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 bg-sky-100 text-sky-700">Attendee</span>}
-          </div>
-          <p className={`text-xs ${isOverdue ? "text-amber-700" : "text-stone-400"}`}>
-            {isOverdue ? `${daysAgo(a.scheduledAt)}d ago` : fmtTime(a.scheduledAt)}
-            {a.location ? ` · ${a.location}` : ""}
-          </p>
-          {(goal?.title || domain || geo) && (
-            <p className="text-[11px] text-stone-400 truncate mt-0.5">
-              {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
-            </p>
-          )}
-        </div>
-        <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-          className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex-shrink-0">
-          {loadingDoneId === a.id ? "…" : "Done"}
-        </button>
-      </div>
-    );
+  function handleCompleted(eventId: string, checklistItemId?: string) {
+    setDoneEventIds(prev => new Set(prev).add(eventId));
+    if (checklistItemId) setDoneChecklistIds(prev => new Set(prev).add(checklistItemId));
   }
+  const onRescheduled = () => router.refresh();
 
-  // ZL's own work as cluster cards. Filter overdue/today/week down to items
-  // whose pitstop is owned by this ZL, then hand off to ClusterTodayView for
-  // the same layout RPs see. Team breakdown sections render below.
-  const myOwnOverdue = zlOverdueActivities.filter(
-    a => a.pitstops[0]?.pitstop.ownerId === userId && !completedActivityIds.has(a.id)
-  );
-  const myOwnToday = zlMyActivities.filter(
-    a => isToday(a.scheduledAt)
-      && a.pitstops[0]?.pitstop.ownerId === userId
-      && !completedActivityIds.has(a.id)
-  );
-  const myOwnWeek = zlMyActivities.filter(
-    a => !isToday(a.scheduledAt)
-      && a.pitstops[0]?.pitstop.ownerId === userId
-      && !completedActivityIds.has(a.id)
-  );
-  const myOwnChecklists = weekChecklists.filter(
-    ci => ci.pitstop.ownerId === userId && !completedChecklistIds.has(ci.id)
-  );
+  const groupedItems = useMemo(() => {
+    if (groupBy === "none") return null;
+    const all = [...myOverdue, ...myToday, ...myWeek];
+    const groups = new Map<string, { label: string; items: Activity[] }>();
+    for (const a of all) {
+      const { key, label } = groupKey(a, nowMs);
+      if (!groups.has(key)) groups.set(key, { label, items: [] });
+      groups.get(key)!.items.push(a);
+    }
+    const entries = [...groups.entries()];
+    if (groupBy === "sla") entries.sort(([a], [b]) => a.localeCompare(b));
+    else entries.sort(([, a], [, b]) => a.label.localeCompare(b.label));
+    return entries.map(([key, g]) => ({
+      key, label: g.label,
+      items: g.items.slice().sort((x, y) => new Date(x.scheduledAt).getTime() - new Date(y.scheduledAt).getTime()),
+    }));
+  }, [groupBy, myOverdue, myToday, myWeek, groupKey, nowMs]);
 
   return (
     <div className="space-y-8">
-
-      {/* My work — cluster-card view (same layout as the RP Today tab). */}
-      <ClusterTodayView
-        userId={userId}
-        overdueActivities={myOwnOverdue as unknown as Activity[]}
-        todayActivities={myOwnToday as unknown as Activity[]}
-        weekActivities={myOwnWeek as unknown as Activity[]}
-        weekChecklists={myOwnChecklists}
-      />
-
-      {/* Team attention — RPs with overdue activities */}
-      {attentionRPs.length > 0 && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-3">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-            <SectionTitle>Team attention</SectionTitle>
-          </div>
-          <div className="space-y-2">
-            {attentionRPs.map(rp => {
-              const items = rpOverdueMap.get(rp.id) ?? [];
-              const oldestDays = Math.max(...items.map(a => daysAgo(a.scheduledAt)));
-              const expanded = expandedAttentionIds.has(rp.id);
-              return (
-                <div key={rp.id} className="rounded-xl border border-amber-200 overflow-hidden">
-                  <button
-                    onClick={() => toggleId(rp.id, setExpandedAttentionIds)}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 hover:bg-amber-100/70 transition-colors text-left"
-                  >
-                    <Avatar name={rp.name} size="xs" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-stone-800 truncate">{rp.name}</p>
-                      <p className="text-xs text-stone-400 truncate">{(rp.rpClusters ?? []).map(c => c.name).join(", ") || "No cluster"}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs font-semibold text-amber-700">{items.length} overdue</span>
-                      {oldestDays > 0 && (
-                        <span className="text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">oldest {oldestDays}d</span>
-                      )}
-                      {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
-                    </div>
-                  </button>
-                  {expanded && (
-                    <div className="divide-y divide-stone-100 bg-white">
-                      {items.map(a => {
-                        const goal = a.pitstops[0]?.pitstop.goal;
-                        const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
-                        const geo = goal?.needsSettlement?.name ?? goal?.needsCluster?.name ?? goal?.needsZone?.name ?? null;
-                        return (
-                          <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                <p className="text-sm font-medium text-stone-800 truncate">{a.title}</p>
-                                {a.type && <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${ACTIVITY_TYPE_STYLE[a.type] ?? "bg-stone-100 text-stone-600"}`}>{a.type}</span>}
-                              </div>
-                              <p className="text-xs text-amber-700">{daysAgo(a.scheduledAt)}d ago</p>
-                              {(goal?.title || domain || geo) && (
-                                <p className="text-[11px] text-stone-400 truncate mt-0.5">
-                                  {[goal?.title, domain, geo].filter(Boolean).join(" · ")}
-                                </p>
-                              )}
-                            </div>
-                            <button onClick={() => handleDone(a.id)} disabled={loadingDoneId === a.id}
-                              className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg font-medium flex-shrink-0 transition-colors">
-                              {loadingDoneId === a.id ? "…" : "Done"}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ZL's own overdue — carousel on mobile, list on desktop */}
-      {myOverdue.length > 0 && (
-        <>
-          {/* Mobile carousel */}
-          <div className="sm:hidden">
-            <ZLOverdueCarousel items={myOverdue} loadingDoneId={loadingDoneId} onDone={handleDone} />
-          </div>
-          {/* Desktop list */}
-          <div className="hidden sm:block">
-            <div className="flex items-center gap-1.5 mb-3">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-              <SectionTitle>Your update needed</SectionTitle>
-            </div>
-            <div className="space-y-2">
-              {myOverdue.map(a => <ZLActivityRow key={a.id} a={a} isOverdue />)}
+      {/* ── My today stripe ──────────────────────────────────────────────── */}
+      <section>
+        <div className="sticky top-0 z-20 -mx-5 sm:-mx-8 px-5 sm:px-8 py-3 bg-white/95 backdrop-blur border-b border-stone-100">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <ProgressChip done={todayDoneCount} total={todayTotal} overdueCount={myOverdue.length} />
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setSheetOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                  activeCount > 0
+                    ? "bg-sky-50 border-sky-200 text-sky-700"
+                    : "bg-white border-stone-200 text-stone-600 hover:border-stone-300"
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                Filter{activeCount > 0 ? ` · ${activeCount}` : ""}
+              </button>
+              <select
+                value={groupBy}
+                onChange={e => setGroupBy(e.target.value as GroupBy)}
+                className="text-xs border border-stone-200 rounded-full px-2.5 py-1.5 bg-white text-stone-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                aria-label="Group by"
+              >
+                <option value="none">Group: None</option>
+                <option value="cluster">Group: Cluster</option>
+                <option value="settlement">Group: Settlement</option>
+                <option value="goal">Group: Goal</option>
+                <option value="domain">Group: Domain</option>
+                <option value="type">Group: Type</option>
+                <option value="sla">Group: SLA bucket</option>
+              </select>
             </div>
           </div>
-        </>
-      )}
-
-      {/* ZL's today */}
-      {myToday.length === 0 ? (
-        <div>
-          <SectionTitle>Today</SectionTitle>
-          <EmptyState message={myOverdue.length > 0 || attentionRPs.length > 0 ? "Nothing else scheduled for today." : "Nothing scheduled for today."} />
         </div>
-      ) : (
-        <>
-          {/* Mobile carousel */}
-          <div className="sm:hidden">
-            <ZLTodayCarousel items={myToday} loadingDoneId={loadingDoneId} onDone={handleDone} />
-          </div>
-          {/* Desktop list */}
-          <div className="hidden sm:block">
-            <SectionTitle>Today</SectionTitle>
-            <div className="space-y-2 mt-3">
-              {myToday.map(a => <ZLActivityRow key={a.id} a={a} isOverdue={false} />)}
-            </div>
-          </div>
-        </>
-      )}
 
-      {/* Team checklists */}
-      {checklistRPs.length > 0 && (
-        <div>
-          <SectionTitle>Team checklists</SectionTitle>
-          <div className="space-y-2">
-            {checklistRPs.map(rp => {
-              const items = rpChecklistMap.get(rp.id) ?? [];
-              const overdueCount = items.filter(ci => {
-                const ms = ci.pitstop.targetDate ? new Date(ci.pitstop.targetDate).getTime() : null;
-                return ms !== null && ms < Date.now();
-              }).length;
-              const expanded = expandedChecklistIds.has(rp.id);
-              return (
-                <div key={rp.id} className="rounded-xl border border-stone-200 overflow-hidden">
-                  <button
-                    onClick={() => toggleId(rp.id, setExpandedChecklistIds)}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-stone-50 hover:bg-stone-100/70 transition-colors text-left"
-                  >
-                    <Avatar name={rp.name} size="xs" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-stone-800 truncate">{rp.name}</p>
-                      <p className="text-xs text-stone-400 truncate">{(rp.rpClusters ?? []).map(c => c.name).join(", ") || "No cluster"}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs font-medium text-violet-700">{items.length} open</span>
-                      {overdueCount > 0 && (
-                        <span className="text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{overdueCount} overdue</span>
-                      )}
-                      {expanded ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
-                    </div>
-                  </button>
-                  {expanded && (
-                    <div className="divide-y divide-stone-100 bg-white">
-                      {items.map(ci => (
-                        <RPChecklistRow key={ci.id} item={ci}
-                          onCompleted={id => setCompletedChecklistIds(prev => new Set([...prev, id]))} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        <FilterSheet
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          filters={filters}
+          setFilter={setFilter}
+          clearFilters={clearFilters}
+          options={options}
+          activeCount={activeCount}
+        />
 
-      {/* All clear */}
-      {allClear && <EmptyState message="All caught up — no overdue items for you or your team." />}
+        <div className="mt-4">
+          <SectionTitle>My today</SectionTitle>
 
-      {/* Coming up this week */}
-      {myWeek.length > 0 && (
-        <div>
-          <button
-            onClick={() => setWeekExpanded(e => !e)}
-            className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-400 uppercase tracking-wider hover:text-stone-600 transition-colors mb-2"
-          >
-            Coming up this week ({myWeek.length})
-            {weekExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-          {weekExpanded && (
-            <div className="space-y-5">
-              {groupByDay(myWeek, a => a.scheduledAt).map(({ label, items }) => (
-                <div key={label}>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">{label}</p>
-                  <div className="space-y-2">
-                    {items.map(a => {
-                      const ps = a.pitstops[0]?.pitstop;
-                      const g = ps?.goal;
-                      const domain = g?.needsDomain ? fmtDomain(g.needsDomain) : null;
-                      const geo = g?.needsSettlement?.name ?? g?.needsCluster?.name ?? g?.needsZone?.name ?? null;
-                      const isOwner = ps?.ownerId === userId;
-                      const isAttendee = !isOwner && a.attendees.some(at => at.user.id === userId);
-                      const role = isOwner ? "Owner" : isAttendee ? "Attendee" : null;
-                      return <WeekCard key={a.id} title={a.title} type={a.type} scheduledAt={a.scheduledAt} location={a.location} goalTitle={g?.title} domain={domain} geo={geo} role={role} />;
+          {groupedItems ? (
+            groupedItems.length === 0
+              ? <EmptyState message="No activities match these filters." />
+              : groupedItems.map(g => (
+                <section key={g.key} className="mt-4">
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <h3 className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">{g.label || "—"}</h3>
+                    <span className="text-[10px] text-stone-400">{g.items.length}</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {g.items.map(a => {
+                      const done = a.status === "Done" || doneEventIds.has(a.id);
+                      const over = new Date(a.scheduledAt).getTime() < dayStart() && !done;
+                      return (
+                        <ActivityCard
+                          key={a.id}
+                          activity={a}
+                          linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                          onCompleted={handleCompleted}
+                          onRescheduled={onRescheduled}
+                          isOverdue={over}
+                          isDone={done}
+                        />
+                      );
                     })}
                   </div>
+                </section>
+              ))
+          ) : (
+            <>
+              {myOverdue.length > 0 && (
+                <div className="mt-2">
+                  <h4 className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider mb-2">
+                    Overdue ({myOverdue.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {myOverdue.map(a => (
+                      <ActivityCard
+                        key={a.id}
+                        activity={a}
+                        linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                        onCompleted={handleCompleted}
+                        onRescheduled={onRescheduled}
+                        isOverdue
+                        variant="card"
+                      />
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+
+              <div className="mt-4">
+                <h4 className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2">Today</h4>
+                {myToday.length === 0 ? (
+                  <EmptyState message={activeCount > 0 ? "No activities match these filters." : "Nothing scheduled for today."} />
+                ) : (
+                  <div className="space-y-1.5">
+                    {myToday.map((a, i) => {
+                      const done = a.status === "Done" || doneEventIds.has(a.id);
+                      const showDivider = i === nowIdx && nowIdx > 0 && nowIdx < myToday.length;
+                      return (
+                        <div key={a.id}>
+                          {showDivider && <NowDivider />}
+                          <ActivityCard
+                            activity={a}
+                            linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                            onCompleted={handleCompleted}
+                            onRescheduled={onRescheduled}
+                            isDone={done}
+                          />
+                        </div>
+                      );
+                    })}
+                    {nowIdx === myToday.length && myToday.length > 0 && <NowDivider />}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4">
+                <button onClick={() => setShowWeek(v => !v)} className="w-full flex items-center gap-2 py-2 text-left">
+                  <span className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
+                    Next 7 days ({myWeek.length})
+                  </span>
+                  {showWeek ? <ChevronUp className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                </button>
+                {showWeek && (
+                  myWeek.length === 0 ? (
+                    <EmptyState message="No upcoming activities this week." />
+                  ) : (
+                    <div className="space-y-1.5">
+                      {myWeek.map(a => (
+                        <ActivityCard
+                          key={a.id}
+                          activity={a}
+                          linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                          onCompleted={handleCompleted}
+                          onRescheduled={onRescheduled}
+                        />
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
+            </>
           )}
         </div>
-      )}
+      </section>
 
+      {/* ── Team rollups (Phase 4.1 minimum) ─────────────────────────────── */}
+      <section>
+        <SectionTitle>Team SLA</SectionTitle>
+        <TeamSlaPanel />
+      </section>
+
+      <section>
+        <SectionTitle>Team overdue</SectionTitle>
+        <TeamOverduePanel />
+      </section>
+
+      {/* TODO Phase 4.2: per-reportee Team today stripe with progress donut.
+          TODO Phase 4.3: Reschedule alerts panel pulling recent
+               ActivityRescheduled notifications for this ZL. */}
     </div>
   );
 }
 
-// ── RP Today tab — flat priority list ────────────────────────────────────────
+/**
+ * Convert a `ZLTeamActivity` (the leaner team shape) into the `Activity` shape
+ * `ActivityCard` consumes. The few missing fields (`pitstop.id`, `pitstop.title`)
+ * we synthesize so the row still links / labels sensibly; falls back to "—" if
+ * upstream gives us nothing.
+ */
+function toActivity(a: ZLTeamActivity): Activity {
+  const ps = a.pitstops[0]?.pitstop;
+  return {
+    id: a.id,
+    title: a.title,
+    type: a.type,
+    scheduledAt: a.scheduledAt,
+    location: a.location ?? null,
+    status: a.status,
+    attendees: a.attendees,
+    pitstops: ps ? [{
+      pitstop: {
+        id: "",          // ZL team query omits pitstop.id; row hides the link when empty
+        title: "",
+        ownerId: ps.ownerId,
+        goal: ps.goal as Activity["pitstops"] extends (infer P)[] ? P extends { pitstop: { goal: infer G } } ? G : never : never,
+      },
+    }] : [],
+  };
+}
 
-const PITSTOP_STATUS_PRIORITY: Record<string, number> = {
-  InProgress: 0, Upcoming: 1, Blocked: 2,
-};
-
+function dayStart() {
+  const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime();
+}
+function dayEnd() {
+  const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime();
+}
