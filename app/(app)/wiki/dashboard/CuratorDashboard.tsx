@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Library, Tags, Flag, Moon, Eye, EyeOff } from "lucide-react";
+import { Library, Tags, Flag, Moon, Eye, EyeOff, Users, Inbox, AlertTriangle } from "lucide-react";
 
 type Data = {
   tagFreq: { tagType: string; tagValue: string; count: number }[];
@@ -18,6 +18,21 @@ type Data = {
   viewsLast30d: number;
   mostViewed: { id: string; slug: string; title: string; views: number }[];
   zeroViewPages: { id: string; slug: string; title: string }[];
+  circles: {
+    last30d: number;
+    last6mo: number;
+    withEditsLast30d: number;
+    uniqueFacilitatorsLast6mo: number;
+  };
+  gaps: {
+    openCount: number;
+    oldestOpenAgeDays: number | null;
+    publishedLast90d: number;
+    declinedLast90d: number;
+    publishMedianDays: number | null;
+  };
+  flagsBreaching30d: number;
+  observationsLast30d: number;
 };
 
 function fmtDate(iso: string): string {
@@ -44,6 +59,72 @@ export default function CuratorDashboard({ data }: { data: Data }) {
           label="By type"
           value={data.byType.map((t) => `${t.count} ${t.type}`).join(" · ")}
           textValue
+        />
+      </div>
+
+      {/* ── Practice circles health ────────────────────────────────────── */}
+      <h2 className="text-lg font-semibold text-stone-900 mb-3 inline-flex items-center gap-2">
+        <Users className="w-4 h-4 text-stone-600" />
+        Practice circles &amp; observations
+      </h2>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <Stat
+          label="Circles last 30d"
+          value={data.circles.last30d}
+          subtitle={`${data.circles.last6mo} in last 6 months`}
+        />
+        <Stat
+          label="… with page edits"
+          value={data.circles.withEditsLast30d}
+          subtitle={
+            data.circles.last30d > 0
+              ? `${Math.round((data.circles.withEditsLast30d / data.circles.last30d) * 100)}% — target ≥ 80%`
+              : "no circles yet"
+          }
+        />
+        <Stat
+          label="Unique facilitators (6mo)"
+          value={data.circles.uniqueFacilitatorsLast6mo}
+          subtitle="target ≥ 3 after owner months 1–3"
+        />
+        <Stat
+          label="Observations last 30d"
+          value={data.observationsLast30d}
+          subtitle="shadows + onboarding"
+        />
+      </div>
+
+      {/* ── Gap queue + flag SLA ───────────────────────────────────────── */}
+      <h2 className="text-lg font-semibold text-stone-900 mb-3 inline-flex items-center gap-2">
+        <Inbox className="w-4 h-4 text-stone-600" />
+        Gap queue &amp; SLA
+      </h2>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <Stat
+          label="Open gaps"
+          value={data.gaps.openCount}
+          subtitle={
+            data.gaps.openCount === 0
+              ? "—"
+              : data.gaps.openCount > 20
+              ? "above target (≤ 20)"
+              : "within target"
+          }
+        />
+        <Stat
+          label="Oldest open age"
+          value={data.gaps.oldestOpenAgeDays === null ? "—" : `${data.gaps.oldestOpenAgeDays}d`}
+          subtitle="target ≤ 14d"
+        />
+        <Stat
+          label="Gap→publish median"
+          value={data.gaps.publishMedianDays === null ? "—" : `${data.gaps.publishMedianDays}d`}
+          subtitle={`${data.gaps.publishedLast90d} published, ${data.gaps.declinedLast90d} declined (90d)`}
+        />
+        <Stat
+          label="Flags &gt; 30d unresolved"
+          value={data.flagsBreaching30d}
+          subtitle={data.flagsBreaching30d === 0 ? "clean" : <span className="text-rose-700 font-medium">SLA breached</span>}
         />
       </div>
 
@@ -148,7 +229,7 @@ function Stat({
 }: {
   label: string;
   value: number | string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   textValue?: boolean;
 }) {
   return (

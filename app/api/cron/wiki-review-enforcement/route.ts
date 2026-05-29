@@ -4,6 +4,9 @@
 //   * Days 1–7 overdue:  daily reminder to the owner (idempotent ~22h window).
 //   * Day 14 overdue:    one-shot escalation to every steward.
 //   * Day 30+ overdue:   one-shot escalation + auto-flip status to under_review.
+//   * Day 90+ overdue:   one-shot flip to "orphaned" + notify steward & curator.
+//                        Maps to the 180-day-since-last-review threshold in
+//                        module 8 of the practice-documentation training.
 //
 // Idempotency is enforced by querying WikiNotificationLog before each send.
 
@@ -41,11 +44,19 @@ export async function GET(req: NextRequest) {
     return Response.json({ ok: true, overdue: 0 });
   }
 
-  const stewards = await prisma.wikiStaff.findMany({
-    where: { wikiRole: "steward" },
-    select: { userId: true },
-  });
+  const [stewards, curators] = await Promise.all([
+    prisma.wikiStaff.findMany({
+      where: { wikiRole: "steward" },
+      select: { userId: true },
+    }),
+    prisma.wikiStaff.findMany({
+      where: { wikiRole: "curator" },
+      select: { userId: true },
+    }),
+  ]);
   const stewardIds = stewards.map((s) => s.userId);
+  const curatorIds = curators.map((c) => c.userId);
+  const stewardAndCuratorIds = Array.from(new Set([...stewardIds, ...curatorIds]));
 
   const counts = {
     overdue: overduePages.length,
@@ -53,6 +64,7 @@ export async function GET(req: NextRequest) {
     stewardEscalations14d: 0,
     stewardEscalations30d: 0,
     autoFlipped: 0,
+    orphaned: 0,
   };
 
   for (const page of overduePages) {
@@ -105,7 +117,7 @@ export async function GET(req: NextRequest) {
     }
 
     // ── 30-day auto-flip + steward escalation (one-shot per page) ───
-    if (overdue >= 30) {
+    if (overdue >= 30 && overdue < 90) {
       const already = await prisma.wikiNotificationLog.findFirst({
         where: { pageId: page.id, kind: "wiki_review_steward_30d" },
         select: { id: true },
@@ -129,6 +141,36 @@ export async function GET(req: NextRequest) {
           });
         }
         counts.stewardEscalations30d++;
+      }
+    }
+
+    // ── 90-day orphan flip (one-shot per page) ──────────────────────
+    // 90 days past nextReviewDue ≈ 180 days since last review (default 90d
+    // review window). Per module 8 we flip status to "orphaned" so readers
+    // see the banner and the curator picks up the rehoming.
+    if (overdue >= 90) {
+      const already = await prisma.wikiNotificationLog.findFirst({
+        where: { pageId: page.id, kind: "wiki_page_orphaned" },
+        select: { id: true },
+      });
+      if (!already) {
+        if (page.status !== "orphaned") {
+          await prisma.wikiPage.update({
+            where: { id: page.id },
+            data: { status: "orphaned" },
+          });
+          counts.orphaned++;
+        }
+        for (const recipientId of stewardAndCuratorIds) {
+          await dispatchWikiNotificationSafe({
+            userId: recipientId,
+            kind: "wiki_page_orphaned",
+            pageId: page.id,
+            title: `Page orphaned: "${page.title}"`,
+            body: `${overdue} days past review (≈ 180d since last walked). Rehome to a new owner.`,
+            link,
+          });
+        }
       }
     }
   }

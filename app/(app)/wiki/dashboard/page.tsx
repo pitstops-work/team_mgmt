@@ -224,6 +224,11 @@ async function fetchStewardData(now: Date, in30d: Date) {
 }
 
 async function fetchCuratorData(dormantCutoff: Date) {
+  const now = new Date();
+  const DAY = 24 * 60 * 60 * 1000;
+  const last30 = new Date(now.getTime() - 30 * DAY);
+  const last6mo = new Date(now.getTime() - 180 * DAY);
+
   const [
     tagFreq,
     mostFlagged,
@@ -234,6 +239,20 @@ async function fetchCuratorData(dormantCutoff: Date) {
     viewsLast30d,
     mostViewedRows,
     zeroViewPages,
+    // ── Practice circle health ────────────────────────────────────────
+    circlesLast30d,
+    circlesLast6mo,
+    circlesWithEditsLast30d,
+    facilitatorsLast6mo,
+    // ── Gap queue health ──────────────────────────────────────────────
+    openGapCount,
+    oldestOpenGap,
+    publishedGapsLast90d,
+    declinedGapsLast90d,
+    // ── Flag SLA ──────────────────────────────────────────────────────
+    staleFlags,
+    // ── Observation activity ──────────────────────────────────────────
+    observationsLast30d,
   ] = await Promise.all([
     prisma.wikiPageTag.groupBy({
       by: ["tagType", "tagValue"],
@@ -306,6 +325,49 @@ async function fetchCuratorData(dormantCutoff: Date) {
       ORDER BY p."createdAt" ASC
       LIMIT 20
     `,
+    // Circle health
+    prisma.wikiPracticeCircle.count({
+      where: { completedAt: { gte: last30 } },
+    }),
+    prisma.wikiPracticeCircle.count({
+      where: { completedAt: { gte: last6mo } },
+    }),
+    prisma.wikiPracticeCircle.count({
+      where: {
+        completedAt: { gte: last30 },
+        linkedPages: { some: {} },
+      },
+    }),
+    prisma.wikiPracticeCircle.findMany({
+      where: { completedAt: { gte: last6mo } },
+      select: { facilitatorId: true },
+      distinct: ["facilitatorId"],
+    }),
+    // Gap queue
+    prisma.wikiPracticeGap.count({ where: { status: "open" } }),
+    prisma.wikiPracticeGap.findFirst({
+      where: { status: "open" },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+    prisma.wikiPracticeGap.findMany({
+      where: { status: "published", resolvedAt: { gte: new Date(now.getTime() - 90 * DAY) } },
+      select: { createdAt: true, resolvedAt: true },
+    }),
+    prisma.wikiPracticeGap.count({
+      where: { status: "declined", resolvedAt: { gte: new Date(now.getTime() - 90 * DAY) } },
+    }),
+    // Flag SLA
+    prisma.wikiFlag.count({
+      where: {
+        status: { not: "resolved" },
+        createdAt: { lt: new Date(now.getTime() - 30 * DAY) },
+      },
+    }),
+    // Observation activity
+    prisma.wikiPracticeObservation.count({
+      where: { happenedAt: { gte: last30 } },
+    }),
   ]);
 
   // Resolve most-viewed page rows to title/slug
@@ -329,6 +391,19 @@ async function fetchCuratorData(dormantCutoff: Date) {
     .sort((a, b) => b.openFlagCount - a.openFlagCount)
     .slice(0, 10);
 
+  // Gap-to-publish median in days, over the last 90 days of published gaps.
+  const gapTtpDays = publishedGapsLast90d
+    .filter((g) => g.resolvedAt)
+    .map((g) => Math.round((g.resolvedAt!.getTime() - g.createdAt.getTime()) / DAY));
+  gapTtpDays.sort((a, b) => a - b);
+  const gapPublishMedianDays = gapTtpDays.length
+    ? gapTtpDays[Math.floor(gapTtpDays.length / 2)]
+    : null;
+
+  const oldestOpenGapAgeDays = oldestOpenGap
+    ? Math.round((now.getTime() - oldestOpenGap.createdAt.getTime()) / DAY)
+    : null;
+
   return {
     tagFreq: tagFreq.map((t) => ({ tagType: t.tagType, tagValue: t.tagValue, count: t._count._all })),
     mostFlagged: flaggedSorted,
@@ -340,5 +415,20 @@ async function fetchCuratorData(dormantCutoff: Date) {
     viewsLast30d,
     mostViewed,
     zeroViewPages,
+    circles: {
+      last30d: circlesLast30d,
+      last6mo: circlesLast6mo,
+      withEditsLast30d: circlesWithEditsLast30d,
+      uniqueFacilitatorsLast6mo: facilitatorsLast6mo.length,
+    },
+    gaps: {
+      openCount: openGapCount,
+      oldestOpenAgeDays: oldestOpenGapAgeDays,
+      publishedLast90d: publishedGapsLast90d.length,
+      declinedLast90d: declinedGapsLast90d,
+      publishMedianDays: gapPublishMedianDays,
+    },
+    flagsBreaching30d: staleFlags,
+    observationsLast30d,
   };
 }
