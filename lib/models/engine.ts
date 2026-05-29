@@ -9,7 +9,7 @@
 // Built-ins:
 //   SUM(a, b, ...) | SUM(vec) | SUM(vec, start, len)
 //   MAX/MIN(a, b, ...) | MAX(vec) | MIN(vec)
-//   ROUND(x, decimals) | ABS(x)
+//   ROUND(x, decimals) | ABS(x) | CEIL/CEILING(x) | FLOOR(x) | TRUNC(x)
 //   IF(cond, then, else)
 //   IFERROR(expr, fallback)
 //   AT(vec, i)               — element access (1-based or 0-based? we use 0-based)
@@ -438,6 +438,10 @@ function callBuiltin(name: string, args: Expr[], ctx: Ctx): NodeValue {
       return upper === "MAX" ? Math.max(...vals) : Math.min(...vals);
     }
     case "ABS": return Math.abs(asNumber(evalExpr(args[0], ctx)));
+    case "CEIL":
+    case "CEILING": return Math.ceil(asNumber(evalExpr(args[0], ctx)));
+    case "FLOOR": return Math.floor(asNumber(evalExpr(args[0], ctx)));
+    case "TRUNC": return Math.trunc(asNumber(evalExpr(args[0], ctx)));
     case "ROUND": {
       const x = asNumber(evalExpr(args[0], ctx));
       const d = args[1] ? Math.trunc(asNumber(evalExpr(args[1], ctx))) : 0;

@@ -189,6 +189,9 @@ export default function PlayWorkbench({ instanceId, instanceName, scenarioName, 
       {template.outputs.filter(o => o.kind === "series").map(o => (
         <SeriesChart key={o.key} output={o} values={result.values} template={template} large={mode === "dashboard"} />
       ))}
+      {template.outputs.filter(o => o.kind === "seriesGroup").map(o => (
+        <SeriesGroupChart key={o.key} output={o} values={result.values} template={template} large={mode === "dashboard"} />
+      ))}
       {template.outputs.filter(o => o.kind === "sensitivity").map(o => (
         <SensitivityGrid key={o.key} output={o} template={template} inputs={inputs} />
       ))}
@@ -610,38 +613,177 @@ function SensitivityGrid({ output, template, inputs }: { output: ModelOutput; te
   );
 }
 
+// ── Chart helpers (shared by SeriesChart + SeriesGroupChart) ─────────────────
+
+/** Build readable x-axis ticks. Monthly horizon: dense in Y1+Y2 (M1/M3/M6/M9/
+ *  M12/M18/M24), then yearly (Y3/Y4/Y5). Annual horizon: every period (Y1..YN).
+ *  Anything else: ~7 evenly spaced labels. */
+function buildAxisTicks(horizon: string | undefined, length: number): { idx: number; label: string }[] {
+  if (horizon === "monthly" && length >= 24) {
+    const monthlyIdx = [0, 2, 5, 8, 11, 17, 23]; // M1, M3, M6, M9, M12, M18, M24
+    const out: { idx: number; label: string }[] = monthlyIdx
+      .filter(i => i < length)
+      .map(i => ({ idx: i, label: `M${i + 1}` }));
+    for (let y = 3; y * 12 <= length; y++) {
+      out.push({ idx: y * 12 - 1, label: `Y${y}` });
+    }
+    return out;
+  }
+  if (horizon === "annual") {
+    return Array.from({ length }, (_, i) => ({ idx: i, label: `Y${i + 1}` }));
+  }
+  const step = Math.max(1, Math.ceil(length / 7));
+  const out: { idx: number; label: string }[] = [];
+  for (let i = 0; i < length; i += step) out.push({ idx: i, label: String(i + 1) });
+  if (out[out.length - 1].idx !== length - 1) out.push({ idx: length - 1, label: String(length) });
+  return out;
+}
+
+/** Format the per-period label used in tooltips ("M7", "Y3"). */
+function periodLabel(horizon: string | undefined, idx: number): string {
+  if (horizon === "annual") return `Y${idx + 1}`;
+  return `M${idx + 1}`;
+}
+
+function AxisLabels({ ticks, length }: { ticks: { idx: number; label: string }[]; length: number }) {
+  return (
+    <div className="relative mt-2 h-4 text-xs text-stone-400 select-none">
+      {ticks.map(t => (
+        <span
+          key={t.idx}
+          className="absolute -translate-x-1/2 tabular-nums"
+          style={{ left: `${((t.idx + 0.5) / length) * 100}%` }}
+        >
+          {t.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function SeriesChart({ output, values, template, large }: { output: ModelOutput; values: Record<string, NodeValue>; template: ModelTemplate; large?: boolean }) {
   const cfg = output.config as { nodeKey?: string; horizon?: string; format?: string };
   const v = cfg.nodeKey ? values[cfg.nodeKey] : undefined;
+  const [hover, setHover] = useState<{ period: number; value: number } | null>(null);
   if (!Array.isArray(v) || v.length === 0) {
     return <div className="text-xs text-stone-400">{output.label}: no data</div>;
   }
   const horizon = template.horizons.find(h => h.key === cfg.horizon);
   const max = Math.max(...v.map(Math.abs));
+  const ticks = buildAxisTicks(cfg.horizon, v.length);
   return (
     <div className={`bg-white border border-stone-200 rounded-xl ${large ? "p-6" : "p-4"}`}>
       <div className="flex items-baseline justify-between mb-3">
         <h3 className={`font-medium text-stone-900 ${large ? "text-lg" : ""}`}>{output.label}</h3>
         <span className="text-xs text-stone-400">{horizon?.key ?? ""}</span>
       </div>
-      <div className={`flex items-end gap-px ${large ? "h-48" : "h-32"}`}>
-        {v.map((n, i) => {
-          const pct = max === 0 ? 0 : (Math.abs(n) / max) * 100;
-          const positive = n >= 0;
-          return (
+      <div className="relative">
+        {hover && (
+          <div
+            className={`absolute -top-2 -translate-y-full -translate-x-1/2 z-10 rounded-md bg-stone-900 text-white shadow-lg pointer-events-none ${large ? "text-xs px-3 py-2" : "text-[11px] px-2 py-1.5"}`}
+            style={{ left: `${((hover.period + 0.5) / v.length) * 100}%` }}
+          >
+            <div className="font-semibold opacity-80 mb-0.5">{periodLabel(cfg.horizon, hover.period)}</div>
+            <div className="tabular-nums">{formatScalar(hover.value, cfg.format)}</div>
+          </div>
+        )}
+        <div className={`flex items-end gap-px ${large ? "h-48" : "h-32"}`} onMouseLeave={() => setHover(null)}>
+          {v.map((n, i) => {
+            const pct = max === 0 ? 0 : (Math.abs(n) / max) * 100;
+            const positive = n >= 0;
+            const isHovered = hover?.period === i;
+            return (
+              <div
+                key={i}
+                onMouseEnter={() => setHover({ period: i, value: n })}
+                className={`flex-1 cursor-default ${positive ? "bg-sky-400" : "bg-rose-400"} ${isHovered ? "opacity-100 ring-1 ring-stone-700" : "opacity-90 hover:opacity-100"} rounded-t`}
+                style={{ height: `${pct}%` }}
+              />
+            );
+          })}
+        </div>
+      </div>
+      <AxisLabels ticks={ticks} length={v.length} />
+    </div>
+  );
+}
+
+function SeriesGroupChart({ output, values, template, large }: { output: ModelOutput; values: Record<string, NodeValue>; template: ModelTemplate; large?: boolean }) {
+  const cfg = output.config as { horizon?: string; format?: string; series?: { nodeKey: string; label: string; color: string }[] };
+  const seriesDefs = cfg.series ?? [];
+  const [hover, setHover] = useState<{ period: number } | null>(null);
+  if (seriesDefs.length === 0) {
+    return <div className="text-xs text-stone-400">{output.label}: no series configured</div>;
+  }
+  // Resolve each declared series to its vector; drop missing ones with a warning.
+  const resolved = seriesDefs
+    .map(s => ({ ...s, vec: values[s.nodeKey] }))
+    .filter((s): s is typeof s & { vec: number[] } => Array.isArray(s.vec) && s.vec.length > 0);
+  if (resolved.length === 0) {
+    return <div className="text-xs text-stone-400">{output.label}: no data</div>;
+  }
+  const length = Math.max(...resolved.map(s => s.vec.length));
+  const max = Math.max(...resolved.flatMap(s => s.vec.map(Math.abs)));
+  const horizon = template.horizons.find(h => h.key === cfg.horizon);
+  const ticks = buildAxisTicks(cfg.horizon, length);
+  // Heuristic: when there are many periods (e.g. 60 months), thin the bar gap
+  // to almost nothing so 3-bar groups don't overflow their column.
+  const dense = length > 24;
+  return (
+    <div className={`bg-white border border-stone-200 rounded-xl ${large ? "p-6" : "p-4"}`}>
+      <div className="flex items-baseline justify-between mb-3">
+        <h3 className={`font-medium text-stone-900 ${large ? "text-lg" : ""}`}>{output.label}</h3>
+        <span className="text-xs text-stone-400">{horizon?.key ?? ""}</span>
+      </div>
+      <div className="relative">
+        {hover && (
+          <div
+            className={`absolute -top-2 -translate-y-full -translate-x-1/2 z-10 rounded-md bg-stone-900 text-white shadow-lg pointer-events-none whitespace-nowrap ${large ? "text-xs px-3 py-2" : "text-[11px] px-2 py-1.5"}`}
+            style={{ left: `${((hover.period + 0.5) / length) * 100}%` }}
+          >
+            <div className="font-semibold opacity-80 mb-0.5">{periodLabel(cfg.horizon, hover.period)}</div>
+            <div className="space-y-0.5">
+              {resolved.map(s => (
+                <div key={s.nodeKey} className="flex items-center gap-2 tabular-nums">
+                  <span className="inline-block w-2 h-2 rounded-sm shrink-0" style={{ background: s.color }} />
+                  <span className="opacity-80 mr-3">{s.label}</span>
+                  <span className="ml-auto">{formatScalar(s.vec[hover.period] ?? 0, cfg.format)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className={`flex items-end gap-px ${large ? "h-48" : "h-32"}`} onMouseLeave={() => setHover(null)}>
+          {Array.from({ length }).map((_, i) => (
             <div
               key={i}
-              title={`${i}: ${formatScalar(n, cfg.format)}`}
-              className={`flex-1 ${positive ? "bg-sky-400" : "bg-rose-400"} rounded-t`}
-              style={{ height: `${pct}%` }}
-            />
-          );
-        })}
+              onMouseEnter={() => setHover({ period: i })}
+              className={`flex-1 flex items-end h-full ${dense ? "gap-0" : "gap-0.5"} cursor-default`}
+            >
+              {resolved.map(s => {
+                const n = s.vec[i] ?? 0;
+                const pct = max === 0 ? 0 : (Math.abs(n) / max) * 100;
+                const isHovered = hover?.period === i;
+                return (
+                  <div
+                    key={s.nodeKey}
+                    className={`flex-1 rounded-t ${isHovered ? "opacity-100 ring-1 ring-stone-700" : "opacity-90"} ${n < 0 ? "outline outline-1 outline-rose-400 outline-offset-[-1px]" : ""}`}
+                    style={{ height: `${pct}%`, background: s.color }}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="mt-2 flex justify-between text-xs text-stone-400">
-        <span>{formatScalar(v[0], cfg.format)}</span>
-        <span>{formatScalar(v[Math.floor(v.length / 2)], cfg.format)}</span>
-        <span>{formatScalar(v[v.length - 1], cfg.format)}</span>
+      <AxisLabels ticks={ticks} length={length} />
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-600">
+        {resolved.map(s => (
+          <div key={s.nodeKey} className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: s.color }} />
+            <span>{s.label}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

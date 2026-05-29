@@ -15,7 +15,7 @@ type Tab = "nodes" | "outputs" | "horizons" | "groups" | "danger";
 
 const KINDS: NodeKind[] = ["input", "formula", "constant"];
 const DATATYPES: DataType[] = ["number", "percent", "currency", "int", "boolean", "enum"];
-const OUTPUT_KINDS: OutputKind[] = ["kpi", "series", "table", "sensitivity", "scenarioGrid", "budgetExport"];
+const OUTPUT_KINDS: OutputKind[] = ["kpi", "series", "seriesGroup", "table", "sensitivity", "scenarioGrid", "budgetExport"];
 
 type EditableNode = ModelNode & { _id: string };
 type EditableGroup = ModelGroup & { _id: string };

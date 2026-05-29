@@ -47,10 +47,19 @@ export type ModelGroup = { key: string; label: string; order?: number };
 export type OutputKind =
   | "kpi"
   | "series"
+  | "seriesGroup"
   | "table"
   | "sensitivity"
   | "scenarioGrid"
   | "budgetExport";
+
+/** Config shape for `seriesGroup` outputs: N node-series plotted as grouped
+ *  bars over the same horizon. Each entry is one bar-color in the group. */
+export type SeriesGroupConfig = {
+  horizon: string;
+  format?: string;
+  series: { nodeKey: string; label: string; color: string }[];
+};
 
 export type ModelOutput = {
   key: string;

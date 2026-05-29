@@ -297,12 +297,29 @@ async function main() {
     { key: "kpi_y3_oss",          label: "Year-3 OSS ratio",       kind: "kpi", order: 6,  config: { nodeKey: "oss_ratio_annual", index: 2, format: "number" } },
     { key: "kpi_npv",             label: "5-Year NPV",             kind: "kpi", order: 7,  config: { nodeKey: "npv_5yr", format: "currency" } },
 
-    // Time-series charts
-    { key: "series_revenue_m",    label: "Monthly Revenue",   kind: "series", order: 10, config: { nodeKey: "revenue_monthly",   horizon: "monthly", format: "currency" } },
-    { key: "series_ebitda_m",     label: "Monthly EBITDA",    kind: "series", order: 11, config: { nodeKey: "ebitda_monthly",    horizon: "monthly", format: "currency" } },
-    { key: "series_revenue_y",    label: "Annual Revenue",    kind: "series", order: 12, config: { nodeKey: "revenue_annual",    horizon: "annual",  format: "currency" } },
-    { key: "series_ebitda_y",     label: "Annual EBITDA",     kind: "series", order: 13, config: { nodeKey: "ebitda_annual",     horizon: "annual",  format: "currency" } },
-    { key: "series_oss_y",        label: "OSS Ratio by Year", kind: "series", order: 14, config: { nodeKey: "oss_ratio_annual",  horizon: "annual",  format: "number"  } },
+    // Time-series charts — Revenue vs Opex vs EBITDA on one chart (monthly + annual),
+    // OSS standalone. Colors: revenue green, opex amber, EBITDA blue.
+    { key: "series_pnl_m", label: "Monthly P&L — Revenue vs Opex vs EBITDA", kind: "seriesGroup", order: 10,
+      config: {
+        horizon: "monthly", format: "currency",
+        series: [
+          { nodeKey: "revenue_monthly",    label: "Revenue", color: "#10b981" },
+          { nodeKey: "opex_total_monthly", label: "Opex",    color: "#f59e0b" },
+          { nodeKey: "ebitda_monthly",     label: "EBITDA",  color: "#2563eb" },
+        ],
+      },
+    },
+    { key: "series_pnl_y", label: "Annual P&L — Revenue vs Opex vs EBITDA", kind: "seriesGroup", order: 11,
+      config: {
+        horizon: "annual", format: "currency",
+        series: [
+          { nodeKey: "revenue_annual", label: "Revenue", color: "#10b981" },
+          { nodeKey: "opex_annual",    label: "Opex",    color: "#f59e0b" },
+          { nodeKey: "ebitda_annual",  label: "EBITDA",  color: "#2563eb" },
+        ],
+      },
+    },
+    { key: "series_oss_y", label: "OSS Ratio by Year", kind: "series", order: 12, config: { nodeKey: "oss_ratio_annual", horizon: "annual", format: "number" } },
 
     // Sensitivity grid (engine impl in next phase will read this config)
     { key: "sens_ebitda_y3",
