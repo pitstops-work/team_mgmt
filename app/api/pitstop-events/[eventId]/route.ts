@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
   const {
     title, description, type, scheduledAt, endsAt, location, pitstopIds, attendeeIds,
     // Lifecycle fields
-    status, cancellationReason, rescheduleReason, reschedule,
+    status, cancellationReason, rescheduleReason, rescheduleReasonCode, reschedule,
   } = await req.json();
 
   // ── Lifecycle shortcuts ──────────────────────────────────────────────────────
@@ -176,12 +176,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
       const newDate = new Date(scheduledAt);
       const oldDate = current[0].scheduledAt;
       const reason: string = rescheduleReason ?? null;
+      const reasonCode: string | null = rescheduleReasonCode ?? null;
+
+      // Resolve activity owner + their manager up front so the notify policy
+      // has all the inputs it needs after the update lands.
+      const [ownerRow] = await prisma.$queryRaw<{ ownerId: string | null; managerId: string | null }[]>`
+        SELECT p."ownerId", u."managerId"
+        FROM "PitstopEvent" pe
+        LEFT JOIN "PitstopEventPitstop" pep ON pep."eventId" = pe.id
+        LEFT JOIN "Pitstop" p ON p.id = pep."pitstopId" AND p."deletedAt" IS NULL
+        LEFT JOIN "User" u ON u.id = p."ownerId"
+        WHERE pe.id = ${eventId}
+        LIMIT 1
+      `;
+
       await prisma.$executeRaw`
         UPDATE "PitstopEvent"
         SET status = 'Rescheduled'::"PitstopEventStatus",
             "scheduledAt" = ${newDate},
             "rescheduledFrom" = ${oldDate},
             "rescheduleReason" = ${reason},
+            "rescheduleReasonCode" = ${reasonCode},
+            "rescheduleCount" = "rescheduleCount" + 1,
             "lastUpdatedById" = ${actorId},
             "updatedAt" = NOW()
         WHERE id = ${eventId}
@@ -199,6 +215,69 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
               "updatedAt" = NOW()
           WHERE id = ${current[0].checklistItemId}
         `;
+      }
+
+      // ── Notify the RP's ZL on the pattern-alert policy ─────────────────────
+      // Per-reason policy:
+      //   - other         → always
+      //   - double_booked → always
+      //   - desk_work     → ≥2 occurrences by same RP in trailing 7 days
+      //   - team_meeting  → suppress unless delayDays > 2 OR rescheduleCount ≥ 2
+      //   - weather       → suppress unless rescheduleCount ≥ 2 on same activity
+      // Overlays (always trigger regardless of reason):
+      //   - delayDays > 2
+      //   - rescheduleCount ≥ 2 after this PATCH (3rd+ slip on same activity)
+      //   - activity was already overdue when rescheduled
+      const [countRow] = await prisma.$queryRaw<{ rescheduleCount: number }[]>`
+        SELECT "rescheduleCount" FROM "PitstopEvent" WHERE id = ${eventId} LIMIT 1
+      `;
+      const newCount = countRow?.rescheduleCount ?? 0;
+      const nowMs = Date.now();
+      const delayDays = (newDate.getTime() - oldDate.getTime()) / 86_400_000;
+      const wasAlreadyOverdue = oldDate.getTime() < nowMs;
+      const overlay = delayDays > 2 || newCount >= 2 || wasAlreadyOverdue;
+
+      let trigger = overlay;
+      if (!trigger) {
+        if (reasonCode === "other" || reasonCode === "double_booked") {
+          trigger = true;
+        } else if (reasonCode === "desk_work") {
+          const weekAgo = new Date(nowMs - 7 * 86_400_000);
+          const [{ ct }] = await prisma.$queryRaw<{ ct: bigint }[]>`
+            SELECT COUNT(*)::bigint AS ct
+            FROM "PitstopEvent"
+            WHERE "lastUpdatedById" = ${actorId}
+              AND "rescheduleReasonCode" = 'desk_work'
+              AND "updatedAt" > ${weekAgo}
+          `;
+          trigger = Number(ct) >= 2;
+        }
+        // team_meeting + weather: only escalate via overlay, handled above.
+      }
+
+      if (trigger && ownerRow?.managerId && ownerRow.managerId !== actorId) {
+        const dateLabel = newDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+        const codeLabel: Record<string, string> = {
+          desk_work:     "Desk work pending",
+          double_booked: "Double booked",
+          weather:       "Weather",
+          team_meeting:  "Team meeting",
+          other:         "Other",
+        };
+        const reasonLabel = reasonCode ? (codeLabel[reasonCode] ?? reasonCode) : "Unspecified";
+        const slipBadge = newCount >= 2 ? ` (${newCount}× slipped)` : "";
+        const title = `Activity rescheduled to ${dateLabel}${slipBadge}`;
+        const detail = reasonCode === "other" && reason ? `: ${reason}` : "";
+        const body = `${reasonLabel}${detail}`;
+        await prisma.notification.create({
+          data: {
+            userId: ownerRow.managerId,
+            type: "ActivityRescheduled" as const,
+            title, body,
+            link: `/activities?event=${eventId}`,
+          },
+        });
+        sendPushToUsers([ownerRow.managerId], { title, body, link: `/activities?event=${eventId}` });
       }
     }
 

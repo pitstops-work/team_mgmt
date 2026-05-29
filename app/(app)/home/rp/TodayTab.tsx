@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Filter, MapPin } from "lucide-react";
 import type { Activity, ChecklistItem } from "../_lib/types";
 import { isToday } from "../_lib/helpers";
@@ -43,10 +44,12 @@ export function RPTodayTab({
   rpClusterDeck?: RPClusterDeckCluster[];
   facilityLayerConfigs?: FacilityLayerConfigLite[];
 }) {
+  const router = useRouter();
   const [doneEventIds, setDoneEventIds] = useState<Set<string>>(new Set());
   const [doneChecklistIds, setDoneChecklistIds] = useState<Set<string>>(new Set());
   const [showWeek, setShowWeek] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const onRescheduled = () => router.refresh();
 
   // All activities feed the filter universe so the filter chrome is stable
   // even after a section is exhausted.
@@ -181,6 +184,7 @@ export function RPTodayTab({
                       activity={a}
                       linkedChecklist={activityChecklistMap.get(a.id) ?? null}
                       onCompleted={handleCompleted}
+                      onRescheduled={onRescheduled}
                       isOverdue={isOver}
                       isDone={done}
                     />
@@ -204,6 +208,7 @@ export function RPTodayTab({
                     activity={a}
                     linkedChecklist={activityChecklistMap.get(a.id) ?? null}
                     onCompleted={handleCompleted}
+                    onRescheduled={onRescheduled}
                     isOverdue
                     variant="card"
                   />
@@ -229,6 +234,7 @@ export function RPTodayTab({
                         activity={a}
                         linkedChecklist={activityChecklistMap.get(a.id) ?? null}
                         onCompleted={handleCompleted}
+                        onRescheduled={onRescheduled}
                         isDone={done}
                       />
                     </div>
@@ -258,6 +264,7 @@ export function RPTodayTab({
                       activity={a}
                       linkedChecklist={activityChecklistMap.get(a.id) ?? null}
                       onCompleted={handleCompleted}
+                      onRescheduled={onRescheduled}
                     />
                   ))}
                 </div>

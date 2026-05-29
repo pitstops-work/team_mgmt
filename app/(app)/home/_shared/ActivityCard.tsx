@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Loader2, MapPin, Mic, MoreHorizontal, Paperclip, Square } from "lucide-react";
+import { CalendarClock, Check, Loader2, MapPin, Mic, MoreHorizontal, Paperclip, RotateCcw, Square } from "lucide-react";
 import type { Activity, ChecklistItem } from "../_lib/types";
 import { daysAgo, fmtDomain, fmtTime } from "../_lib/helpers";
 import { ACTIVITY_TYPE_STYLE } from "../_lib/constants";
+import { RescheduleSheet } from "./RescheduleSheet";
 
 /**
  * The unified activity row used across the new RP/ZL Today cockpits.
@@ -22,6 +23,8 @@ type Props = {
   activity: Activity;
   linkedChecklist?: ChecklistItem | null;
   onCompleted: (eventId: string, checklistItemId?: string) => void;
+  /** Called after a successful reschedule so the parent can refresh data. */
+  onRescheduled?: () => void;
   variant?: "row" | "card";
   /** Overdue badge + amber tint at the front of the row. */
   isOverdue?: boolean;
@@ -30,13 +33,28 @@ type Props = {
 };
 
 export function ActivityCard({
-  activity, linkedChecklist, onCompleted,
+  activity, linkedChecklist, onCompleted, onRescheduled,
   variant = "row", isOverdue = false, isDone = false,
 }: Props) {
   const [busy, setBusy] = useState<null | "done" | "voice-recording" | "voice-processing" | "upload">(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to dismiss the kebab menu.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [menuOpen]);
+
+  const rescheduleCount = activity.rescheduleCount ?? 0;
 
   const completionType = linkedChecklist?.completionType ?? "Activity";
   const ps = activity.pitstops?.[0]?.pitstop;
@@ -173,13 +191,28 @@ export function ActivityCard({
                   {domain}
                 </span>
               )}
+              {rescheduleCount >= 2 && (
+                <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  Rescheduled {rescheduleCount}×
+                </span>
+              )}
             </div>
           </div>
-          <button className="p-1 text-stone-400 hover:text-stone-600 flex-shrink-0" aria-label="More actions">
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
+          <KebabMenu
+            innerRef={menuRef}
+            open={menuOpen}
+            setOpen={setMenuOpen}
+            onReschedule={() => { setMenuOpen(false); setRescheduleOpen(true); }}
+          />
         </div>
         <div className="flex items-center justify-end gap-1.5">{action}</div>
+        <RescheduleSheet
+          open={rescheduleOpen}
+          onClose={() => setRescheduleOpen(false)}
+          activity={activity}
+          onRescheduled={() => onRescheduled?.()}
+        />
       </div>
     );
   }
@@ -218,9 +251,15 @@ export function ActivityCard({
             </span>
           )}
         </div>
-        {(domain || cluster || settlement) && (
-          <p className="text-[11px] text-stone-400 mt-0.5 truncate">
-            {[settlement, cluster, domain].filter(Boolean).join(" · ")}
+        {(domain || cluster || settlement || rescheduleCount >= 2) && (
+          <p className="text-[11px] text-stone-400 mt-0.5 truncate flex items-center gap-1.5">
+            <span className="truncate">{[settlement, cluster, domain].filter(Boolean).join(" · ")}</span>
+            {rescheduleCount >= 2 && (
+              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1 py-px rounded font-medium flex items-center gap-0.5 flex-shrink-0">
+                <RotateCcw className="w-2.5 h-2.5" />
+                {rescheduleCount}×
+              </span>
+            )}
           </p>
         )}
       </div>
@@ -228,10 +267,53 @@ export function ActivityCard({
       {/* Action */}
       <div className="flex-shrink-0 flex items-center gap-1.5">
         {action}
-        <button className="p-1 text-stone-400 hover:text-stone-600 rounded-md hover:bg-stone-100" aria-label="More actions">
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
+        <KebabMenu
+          innerRef={menuRef}
+          open={menuOpen}
+          setOpen={setMenuOpen}
+          onReschedule={() => { setMenuOpen(false); setRescheduleOpen(true); }}
+        />
       </div>
+
+      <RescheduleSheet
+        open={rescheduleOpen}
+        onClose={() => setRescheduleOpen(false)}
+        activity={activity}
+        onRescheduled={() => onRescheduled?.()}
+      />
+    </div>
+  );
+}
+
+function KebabMenu({
+  innerRef, open, setOpen, onReschedule,
+}: {
+  innerRef: React.RefObject<HTMLDivElement | null>;
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  onReschedule: () => void;
+}) {
+  return (
+    <div ref={innerRef} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="p-1 text-stone-400 hover:text-stone-600 rounded-md hover:bg-stone-100"
+        aria-label="More actions"
+        aria-expanded={open}
+      >
+        <MoreHorizontal className="w-4 h-4" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-30 min-w-[160px] bg-white rounded-lg shadow-lg border border-stone-200 py-1 text-sm">
+          <button
+            onClick={onReschedule}
+            className="w-full px-3 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2"
+          >
+            <CalendarClock className="w-3.5 h-3.5 text-stone-400" />
+            Reschedule
+          </button>
+        </div>
+      )}
     </div>
   );
 }

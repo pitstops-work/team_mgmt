@@ -356,6 +356,7 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        rescheduleCount: true, rescheduleReasonCode: true,
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
           select: {
@@ -392,6 +393,7 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        rescheduleCount: true, rescheduleReasonCode: true,
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
           select: {
@@ -508,6 +510,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               select: {
@@ -597,6 +600,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               where: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: teamIds } }, { coOwners: { some: { userId: { in: teamIds } } } }] } },
@@ -630,6 +634,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               where: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } },
@@ -670,6 +675,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               select: {
@@ -709,6 +715,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               select: {
@@ -773,6 +780,7 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        rescheduleCount: true, rescheduleReasonCode: true,
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
           select: {
@@ -1087,6 +1095,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               where: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: zlIds } }, { coOwners: { some: { userId: { in: zlIds } } } }] } },
@@ -1128,6 +1137,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               where: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } },

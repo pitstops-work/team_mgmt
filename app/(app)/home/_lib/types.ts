@@ -19,6 +19,10 @@ export type Activity = {
   location: string | null; status: string;
   attendees?: { user: { id: string; name: string | null } }[];
   pitstops?: { pitstop: { id: string; title: string; ownerId: string; goal: ActivityGoal } }[];
+  /* Reschedule provenance — propagated when the page-level loader selects
+     them. UI uses `rescheduleCount` to badge chronic slippage. */
+  rescheduleCount?: number;
+  rescheduleReasonCode?: string | null;
   /* Optional Done-log enrichment — present on `rpDoneActivities` from the
      page loader so the Done-log feed can render proof + completion time. */
   completedAt?: string | null;

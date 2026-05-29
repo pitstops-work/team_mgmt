@@ -483,6 +483,7 @@ enum NotificationType {
   WikiOwnerTermExpired
   WikiCirclePrompt
   WikiHandoverProposed
+  ActivityRescheduled
 }
 
 model Notification {
@@ -1231,6 +1232,8 @@ model PitstopEvent {
   checklistItemId    String?
   rescheduledFrom    DateTime?
   rescheduleReason   String?
+  rescheduleReasonCode String?
+  rescheduleCount    Int                @default(0)
   cancellationReason String?
   completedAt        DateTime?
   deletedAt          DateTime?
