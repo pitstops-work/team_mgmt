@@ -188,7 +188,24 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const veto = viewerForbidden(session); if (veto) return veto;
 
   const { pitstopId } = await params;
-  await prisma.pitstop.update({ where: { id: pitstopId }, data: { deletedAt: new Date() } });
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.pitstop.update({ where: { id: pitstopId }, data: { deletedAt: now } }),
+    // Cascade: soft-delete the pitstop's PitstopEvent rows so they stop
+    // surfacing on RP/ZL/Leader Today tabs. Cover both linkage shapes —
+    // many-to-many via PitstopEventPitstop, and the direct ChecklistItem
+    // → PitstopEvent relation.
+    prisma.pitstopEvent.updateMany({
+      where: {
+        deletedAt: null,
+        OR: [
+          { pitstops: { some: { pitstopId } } },
+          { checklistItem: { pitstopId } },
+        ],
+      },
+      data: { deletedAt: now },
+    }),
+  ]);
   auditLog({ entityType: "Pitstop", entityId: pitstopId, userId: session.user.id, action: "deleted" });
   return Response.json({ ok: true });
 }

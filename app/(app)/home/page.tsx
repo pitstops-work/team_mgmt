@@ -351,7 +351,10 @@ export default async function HomePage() {
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
+        status: { not: "Cancelled" },
         scheduledAt: { gte: todayStart, lte: todayEnd },
+        // Drop events whose parent goal/pitstop has been deleted.
+        pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
         ...(isScoped ? {
           OR: [
             { attendees: { some: { userId } } },
@@ -388,7 +391,9 @@ export default async function HomePage() {
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
+        status: { not: "Cancelled" },
         scheduledAt: { gte: weekStart, lte: weekEnd },
+        pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
         ...(isScoped ? {
           OR: [
             { attendees: { some: { userId: { in: teamIds } } } },
@@ -512,6 +517,7 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { lt: todayStart },
+            pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
               { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
@@ -553,6 +559,7 @@ export default async function HomePage() {
         deletedAt: null,
         status: "Done",
         scheduledAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
         OR: [
           { attendees: { some: { userId } } },
           { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
@@ -605,7 +612,7 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { lt: todayStart },
-            pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: teamIds } }, { coOwners: { some: { userId: { in: teamIds } } } }] } } },
+            pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: teamIds } }, { coOwners: { some: { userId: { in: teamIds } } } }] } } },
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
@@ -636,6 +643,7 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { gte: todayStart, lte: weekEnd },
+            pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
               { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
@@ -677,6 +685,7 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { lt: todayStart },
+            pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
               { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
@@ -717,6 +726,7 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { gte: todayStart, lte: weekEnd },
+            pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
               { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
@@ -760,6 +770,7 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { lt: todayStart },
+            pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
               { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
@@ -803,7 +814,7 @@ export default async function HomePage() {
         deletedAt: null,
         status: "Done",
         scheduledAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: pastTeamScopeIds } }, { coOwners: { some: { userId: { in: pastTeamScopeIds } } } }] } } },
+        pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: pastTeamScopeIds } }, { coOwners: { some: { userId: { in: pastTeamScopeIds } } } }] } } },
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
@@ -942,7 +953,7 @@ export default async function HomePage() {
           deletedAt: null,
           scheduledAt: { gte: todayStart, lte: todayEnd },
           status: { not: "Cancelled" },
-          pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: rpIds } }, { coOwners: { some: { userId: { in: rpIds } } } }] } } },
+          pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: rpIds } }, { coOwners: { some: { userId: { in: rpIds } } } }] } } },
         },
         select: {
           status: true,
@@ -1057,7 +1068,7 @@ export default async function HomePage() {
               where: {
                 deletedAt: null, status: "Scheduled",
                 scheduledAt: { lt: todayStart },
-                pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: allRpIds } }, { coOwners: { some: { userId: { in: allRpIds } } } }] } } },
+                pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: allRpIds } }, { coOwners: { some: { userId: { in: allRpIds } } } }] } } },
               },
               select: {
                 id: true,
@@ -1140,7 +1151,7 @@ export default async function HomePage() {
         prisma.pitstopEvent.findMany({
           where: {
             deletedAt: null, status: "Scheduled", scheduledAt: { lt: todayStart },
-            pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: zlIds } }, { coOwners: { some: { userId: { in: zlIds } } } }] } } },
+            pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: zlIds } }, { coOwners: { some: { userId: { in: zlIds } } } }] } } },
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
@@ -1182,7 +1193,7 @@ export default async function HomePage() {
           where: {
             deletedAt: null, status: "Scheduled",
             scheduledAt: { gte: todayStart, lte: weekEnd },
-            pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } },
+            pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } },
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
@@ -1224,7 +1235,7 @@ export default async function HomePage() {
           ? prisma.pitstopEvent.findMany({
               where: {
                 deletedAt: null, status: "Scheduled", scheduledAt: { lt: todayStart },
-                pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: allRpIds } }, { coOwners: { some: { userId: { in: allRpIds } } } }] } } },
+                pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: allRpIds } }, { coOwners: { some: { userId: { in: allRpIds } } } }] } } },
               },
               select: {
                 id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
@@ -1286,7 +1297,7 @@ export default async function HomePage() {
             select: { id: true, goal: { select: { needsClusterId: true } } },
           }),
           prisma.pitstopEvent.findMany({
-            where: { deletedAt: null, scheduledAt: { gte: weekStart, lte: weekEnd }, pitstops: { some: { pitstop: { goal: { needsClusterId: { in: pmClusterIds } } } } } },
+            where: { deletedAt: null, status: { not: "Cancelled" }, scheduledAt: { gte: weekStart, lte: weekEnd }, pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null, needsClusterId: { in: pmClusterIds } } } } } },
             select: { id: true, pitstops: { select: { pitstop: { select: { goal: { select: { needsClusterId: true } } } } } } },
           }),
           prisma.checklistItem.findMany({
@@ -1362,8 +1373,9 @@ export default async function HomePage() {
       prisma.pitstopEvent.findMany({
         where: {
           deletedAt: null,
+          status: { not: "Cancelled" },
           scheduledAt: { gte: weekStart, lte: weekEnd },
-          pitstops: { some: { pitstop: { goal: { needsClusterId: { in: clusterIds } } } } },
+          pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null, needsClusterId: { in: clusterIds } } } } },
         },
         select: {
           id: true,
@@ -1435,7 +1447,14 @@ export default async function HomePage() {
       prisma.pitstop.groupBy({ by: ["status"], _count: { id: true }, where: { deletedAt: null } }),
       prisma.pitstop.count({ where: { deletedAt: null, targetDate: { lt: todayStart }, status: { in: ["Upcoming", "InProgress"] } } }),
       prisma.pitstop.count({ where: { deletedAt: null, completedAt: { gte: monthStart } } }),
-      prisma.pitstopEvent.count({ where: { deletedAt: null, scheduledAt: { gte: weekStart, lte: weekEnd } } }),
+      prisma.pitstopEvent.count({
+        where: {
+          deletedAt: null,
+          status: { not: "Cancelled" },
+          scheduledAt: { gte: weekStart, lte: weekEnd },
+          pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
+        },
+      }),
       prisma.user.count(),
       prisma.zone.findMany({
         where: { deletedAt: null },
@@ -1496,7 +1515,10 @@ export default async function HomePage() {
         take: 20,
       }),
       prisma.pitstopEvent.findMany({
-        where: { deletedAt: null, scheduledAt: { gte: todayStart, lte: in14Days }, status: "Scheduled" },
+        where: {
+          deletedAt: null, scheduledAt: { gte: todayStart, lte: in14Days }, status: "Scheduled",
+          pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
+        },
         select: {
           id: true, title: true, type: true, scheduledAt: true, location: true,
           attendees: { select: { user: { select: { name: true } } } },
@@ -1516,7 +1538,10 @@ export default async function HomePage() {
       }),
       // All overdue activities with pitstop owner info
       prisma.pitstopEvent.findMany({
-        where: { deletedAt: null, status: "Scheduled", scheduledAt: { lt: todayStart } },
+        where: {
+          deletedAt: null, status: "Scheduled", scheduledAt: { lt: todayStart },
+          pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
+        },
         select: {
           id: true, title: true, type: true, scheduledAt: true,
           pitstops: {
