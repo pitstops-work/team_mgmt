@@ -781,10 +781,12 @@ async function applyGoalChanges(
           for (const act of normalizeActivities(tplItem)) {
             const ak = effectiveKey(act.key, act.title);
             if (!ak) continue;
+            const actScheduledAt = offsetScheduledAt(created.startDate, created.targetDate, act.dayOffset);
             await prisma.pitstopEvent.create({
               data: {
                 title: act.title,
-                scheduledAt: offsetScheduledAt(created.startDate, created.targetDate, act.dayOffset),
+                scheduledAt: actScheduledAt,
+                originalScheduledAt: actScheduledAt,
                 createdById: actorId,
                 templateKey: ak,
                 pitstops: { create: [{ pitstopId: created.id }] },
@@ -829,10 +831,12 @@ async function applyGoalChanges(
         for (const act of normalizeActivities(tplItem)) {
           const ak = effectiveKey(act.key, act.title);
           if (!ak) continue;
+          const actScheduledAt = offsetScheduledAt(parentPt.startDate, parentPt.targetDate, act.dayOffset);
           const ev = await prisma.pitstopEvent.create({
             data: {
               title: act.title,
-              scheduledAt: offsetScheduledAt(parentPt.startDate, parentPt.targetDate, act.dayOffset),
+              scheduledAt: actScheduledAt,
+              originalScheduledAt: actScheduledAt,
               createdById: actorId,
               templateKey: ak,
               pitstops: { create: [{ pitstopId: parentPt.id }] },
@@ -861,10 +865,12 @@ async function applyGoalChanges(
         const tplActForAct = tplItemForAct
           ? normalizeActivities(tplItemForAct).find(a => effectiveKey(a.key, a.title) === ch.templateKey)
           : undefined;
+        const newActScheduledAt = offsetScheduledAt(parent?.startDate, parent?.targetDate, tplActForAct?.dayOffset);
         const ev = await prisma.pitstopEvent.create({
           data: {
             title: ch.newValue ?? "Activity",
-            scheduledAt: offsetScheduledAt(parent?.startDate, parent?.targetDate, tplActForAct?.dayOffset),
+            scheduledAt: newActScheduledAt,
+            originalScheduledAt: newActScheduledAt,
             createdById: actorId,
             templateKey: ch.templateKey,
             pitstops: { create: [{ pitstopId: ch.pitstopInstanceId }] },

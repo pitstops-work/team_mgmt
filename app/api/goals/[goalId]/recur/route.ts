@@ -113,6 +113,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ go
     for (const junction of p.events) {
       const ev = junction.event;
       const newEventId = randomUUID();
+      const newScheduledAt = new Date(ev.scheduledAt.getTime() + shiftMs);
       await prisma.pitstopEvent.create({
         data: {
           id: newEventId,
@@ -120,7 +121,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ go
           description: ev.description,
           type: ev.type,
           status: "Scheduled",
-          scheduledAt: new Date(ev.scheduledAt.getTime() + shiftMs),
+          scheduledAt: newScheduledAt,
+          originalScheduledAt: newScheduledAt,
           endsAt: ev.endsAt ? new Date(ev.endsAt.getTime() + shiftMs) : null,
           location: ev.location,
           createdById: ev.createdById,

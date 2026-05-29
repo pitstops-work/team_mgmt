@@ -23,6 +23,13 @@ export type Activity = {
      them. UI uses `rescheduleCount` to badge chronic slippage. */
   rescheduleCount?: number;
   rescheduleReasonCode?: string | null;
+  /* Add-to-today override. When set to today's start, this activity also
+     surfaces on today's list regardless of where scheduledAt actually lives. */
+  displayDate?: string | null;
+  /* Lifetime count of add_to_today AuditLog actions for this event. Drives
+     the "Pulled N×" chip — surfaces patterns of repeated pull-ins even when
+     the activity isn't currently pulled. Populated by the home loader. */
+  addedToTodayCount?: number;
   /* Optional Done-log enrichment — present on `rpDoneActivities` from the
      page loader so the Done-log feed can render proof + completion time. */
   completedAt?: string | null;

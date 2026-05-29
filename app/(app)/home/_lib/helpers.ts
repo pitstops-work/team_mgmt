@@ -25,6 +25,16 @@ export function daysAgo(iso: string) {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
+/**
+ * Cluster an activity belongs to. One activity = one cluster (a hard rule of
+ * the data model — even though the schema allows M2M event→pitstop). Returns
+ * null only when the activity has no pitstop or its goal has no cluster set;
+ * the banner buckets those under "No cluster" so they're still visible.
+ */
+export function getActivityCluster(a: Activity): { id: string; name: string } | null {
+  return a.pitstops?.[0]?.pitstop?.goal?.needsCluster ?? null;
+}
+
 export function activityMeta(a: Activity, uid: string) {
   const ps = a.pitstops?.[0]?.pitstop;
   const goal = ps?.goal;

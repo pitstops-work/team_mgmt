@@ -429,10 +429,12 @@ const agentTools = {
       title: string; type?: "Meeting" | "Visit" | "Event"; scheduledAt: string; endsAt?: string; location?: string; description?: string; attendeeIds?: string[];
     }) => {
       const session = await auth();
+      const agentScheduledAt = new Date(scheduledAt);
       const event = await prisma.pitstopEvent.create({
         data: {
           title, type: (type ?? "Visit") as "Visit",
-          scheduledAt: new Date(scheduledAt),
+          scheduledAt: agentScheduledAt,
+          originalScheduledAt: agentScheduledAt,
           endsAt: endsAt ? new Date(endsAt) : null,
           location: location ?? null,
           description: description ?? null,

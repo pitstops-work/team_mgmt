@@ -316,6 +316,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             title: act.title,
             type: eventType as any,
             scheduledAt,
+            originalScheduledAt: scheduledAt,
             createdById: session.user.id,
             templateKey: activityTemplateKey || null,
             pitstops: { create: [{ pitstopId: pitstop.id }] },

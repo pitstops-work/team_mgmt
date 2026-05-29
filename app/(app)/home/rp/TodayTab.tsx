@@ -5,13 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Filter, MapPin } from "lucide-react";
 import type { Activity, ChecklistItem } from "../_lib/types";
-import { isToday } from "../_lib/helpers";
+import { isToday, getActivityCluster } from "../_lib/helpers";
 import type { RPClusterDeckCluster, FacilityLayerConfigLite } from "../page";
 import { ActivityCard } from "../_shared/ActivityCard";
 import { ProgressChip } from "../_shared/ProgressChip";
 import { NowDivider } from "../_shared/NowDivider";
 import { EmptyState, SectionTitle } from "../_shared/Primitives";
 import { FilterSheet } from "../_shared/FilterSheet";
+import { ClusterSplitBanner } from "../_shared/ClusterSplitBanner";
+import { ClusterBatchRescheduleSheet } from "../_shared/ClusterBatchRescheduleSheet";
 import { useTodayFilters, type GroupBy } from "../_shared/useTodayFilters";
 import { useSessionDoneIds } from "../_shared/useSessionDoneIds";
 
@@ -58,6 +60,7 @@ export function RPTodayTab({
   const [showWeek, setShowWeek] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [batchCluster, setBatchCluster] = useState<{ id: string; name: string } | null>(null);
   const onRescheduled = () => router.refresh();
 
   // All activities feed the filter universe so the filter chrome is stable
@@ -183,6 +186,28 @@ export function RPTodayTab({
         options={options}
         activeCount={activeCount}
       />
+
+      {/* Cluster-split heads-up: when today's activities span 2+ clusters,
+          surface the breakdown so the RP sees the travel implication up front.
+          Reflects filteredToday so it disappears when the RP narrows to one
+          cluster intentionally. Tapping a pill opens the batch reschedule
+          sheet for that cluster's events. */}
+      <ClusterSplitBanner
+        clusters={filteredToday.map(getActivityCluster)}
+        onMoveCluster={setBatchCluster}
+      />
+
+      {batchCluster && (
+        <ClusterBatchRescheduleSheet
+          open
+          onClose={() => setBatchCluster(null)}
+          clusterName={batchCluster.name}
+          events={filteredToday
+            .filter(a => getActivityCluster(a)?.id === batchCluster.id)
+            .map(a => ({ id: a.id, title: a.title, scheduledAt: a.scheduledAt }))}
+          onRescheduled={onRescheduled}
+        />
+      )}
 
       {/* Grouped view */}
       {groupedItems ? (

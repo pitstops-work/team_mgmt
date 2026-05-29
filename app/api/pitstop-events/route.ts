@@ -54,12 +54,14 @@ export async function POST(req: NextRequest) {
   // Only the creator is auto-accepted; everyone else (owners + tagged) needs to confirm
   const allInvitedIds = Array.from(new Set([...ownerIds, ...attendeeIds])).filter(id => id !== creatorId);
 
+  const newScheduledAt = new Date(scheduledAt);
   const event = await prisma.pitstopEvent.create({
     data: {
       title,
       description: description || null,
       type: type ?? "Meeting",
-      scheduledAt: new Date(scheduledAt),
+      scheduledAt: newScheduledAt,
+      originalScheduledAt: newScheduledAt,
       endsAt: endsAt ? new Date(endsAt) : null,
       location: location || null,
       createdById: creatorId,

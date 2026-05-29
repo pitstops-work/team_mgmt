@@ -1224,6 +1224,14 @@ model PitstopEvent {
   type                 PitstopEventType   @default(Meeting)
   status               PitstopEventStatus @default(Scheduled)
   scheduledAt          DateTime
+  // Frozen at creation, never mutated by reschedule. Delay/SLA are always
+  // computed from this date so reschedule cannot launder lateness.
+  originalScheduledAt  DateTime
+  // Transient "also show this activity on this day's Today list" override.
+  // Set by Add-to-today (overdue or future pull-forward). Never changes
+  // scheduledAt — purely additive for list visibility. Old values are harmless
+  // because the Today query only matches when displayDate equals today.
+  displayDate          DateTime?
   endsAt               DateTime?
   location             String?
   createdById          String

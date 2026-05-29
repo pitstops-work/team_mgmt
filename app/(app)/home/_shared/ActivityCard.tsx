@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarClock, Check, Loader2, MapPin, Mic, MoreHorizontal, Paperclip, RotateCcw, Square } from "lucide-react";
+import { CalendarClock, CalendarPlus, Check, Loader2, MapPin, Mic, MoreHorizontal, Paperclip, RotateCcw, Square, X } from "lucide-react";
 import type { Activity, ChecklistItem } from "../_lib/types";
-import { daysAgo, fmtDomain, fmtTime } from "../_lib/helpers";
+import { daysAgo, fmtDomain, fmtTime, isToday } from "../_lib/helpers";
 import { ACTIVITY_TYPE_STYLE } from "../_lib/constants";
 import { RescheduleSheet } from "./RescheduleSheet";
 
@@ -55,6 +55,19 @@ export function ActivityCard({
   }, [menuOpen]);
 
   const rescheduleCount = activity.rescheduleCount ?? 0;
+
+  // displayDate-pulled-to-today logic. "Pulled" = the card is appearing on
+  // today's list because of the displayDate override rather than its actual
+  // scheduledAt. Drives the "Pulled to today" badge and the menu's Remove/Add
+  // toggle. We only show the badge when the activity isn't natively scheduled
+  // today, so a same-day double doesn't look weird.
+  const scheduledToday = isToday(activity.scheduledAt);
+  const pulledToToday = !!activity.displayDate && isToday(activity.displayDate) && !scheduledToday;
+  const canAddToToday = !isDone && !scheduledToday && !pulledToToday && activity.status !== "Cancelled" && activity.status !== "Done";
+  // Lifetime pull-in count (from auditLog). ≥2 means the RP has been
+  // intending to do this on multiple days — surface the pattern.
+  const addCount = activity.addedToTodayCount ?? 0;
+  const showAddPatternChip = addCount >= 2;
 
   const completionType = linkedChecklist?.completionType ?? "Activity";
   const ps = activity.pitstops?.[0]?.pitstop;
@@ -113,6 +126,15 @@ export function ActivityCard({
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) onCompleted(activity.id, linkedChecklist.id);
     setBusy(null);
+  }
+
+  async function addToToday() {
+    const res = await fetch(`/api/pitstop-events/${activity.id}/display-today`, { method: "POST" });
+    if (res.ok) onRescheduled?.();
+  }
+  async function removeFromToday() {
+    const res = await fetch(`/api/pitstop-events/${activity.id}/display-today`, { method: "DELETE" });
+    if (res.ok) onRescheduled?.();
   }
 
   // ── Action button ─────────────────────────────────────────────────────────
@@ -197,6 +219,18 @@ export function ActivityCard({
                   Rescheduled {rescheduleCount}×
                 </span>
               )}
+              {pulledToToday && (
+                <span className="text-[10px] text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
+                  <CalendarPlus className="w-2.5 h-2.5" />
+                  Pulled to today
+                </span>
+              )}
+              {showAddPatternChip && (
+                <span className="text-[10px] text-sky-800 bg-sky-100 border border-sky-300 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
+                  <CalendarPlus className="w-2.5 h-2.5" />
+                  Pulled {addCount}×
+                </span>
+              )}
             </div>
           </div>
           <KebabMenu
@@ -204,6 +238,8 @@ export function ActivityCard({
             open={menuOpen}
             setOpen={setMenuOpen}
             onReschedule={() => { setMenuOpen(false); setRescheduleOpen(true); }}
+            onAddToToday={canAddToToday ? () => { setMenuOpen(false); addToToday(); } : undefined}
+            onRemoveFromToday={pulledToToday ? () => { setMenuOpen(false); removeFromToday(); } : undefined}
           />
         </div>
         <div className="flex items-center justify-end gap-1.5">{action}</div>
@@ -251,13 +287,25 @@ export function ActivityCard({
             </span>
           )}
         </div>
-        {(domain || cluster || settlement || rescheduleCount >= 2) && (
+        {(domain || cluster || settlement || rescheduleCount >= 2 || pulledToToday || showAddPatternChip) && (
           <p className="text-[11px] text-stone-400 mt-0.5 truncate flex items-center gap-1.5">
             <span className="truncate">{[settlement, cluster, domain].filter(Boolean).join(" · ")}</span>
             {rescheduleCount >= 2 && (
               <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1 py-px rounded font-medium flex items-center gap-0.5 flex-shrink-0">
                 <RotateCcw className="w-2.5 h-2.5" />
                 {rescheduleCount}×
+              </span>
+            )}
+            {pulledToToday && (
+              <span className="text-[10px] text-sky-700 bg-sky-50 border border-sky-200 px-1 py-px rounded font-medium flex items-center gap-0.5 flex-shrink-0">
+                <CalendarPlus className="w-2.5 h-2.5" />
+                Pulled
+              </span>
+            )}
+            {showAddPatternChip && (
+              <span className="text-[10px] text-sky-800 bg-sky-100 border border-sky-300 px-1 py-px rounded font-medium flex items-center gap-0.5 flex-shrink-0">
+                <CalendarPlus className="w-2.5 h-2.5" />
+                {addCount}×
               </span>
             )}
           </p>
@@ -286,12 +334,14 @@ export function ActivityCard({
 }
 
 function KebabMenu({
-  innerRef, open, setOpen, onReschedule,
+  innerRef, open, setOpen, onReschedule, onAddToToday, onRemoveFromToday,
 }: {
   innerRef: React.RefObject<HTMLDivElement | null>;
   open: boolean;
   setOpen: (v: boolean) => void;
   onReschedule: () => void;
+  onAddToToday?: () => void;
+  onRemoveFromToday?: () => void;
 }) {
   return (
     <div ref={innerRef} className="relative">
@@ -304,7 +354,25 @@ function KebabMenu({
         <MoreHorizontal className="w-4 h-4" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-30 min-w-[160px] bg-white rounded-lg shadow-lg border border-stone-200 py-1 text-sm">
+        <div className="absolute right-0 top-full mt-1 z-30 min-w-[170px] bg-white rounded-lg shadow-lg border border-stone-200 py-1 text-sm">
+          {onAddToToday && (
+            <button
+              onClick={onAddToToday}
+              className="w-full px-3 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2"
+            >
+              <CalendarPlus className="w-3.5 h-3.5 text-stone-400" />
+              Add to today
+            </button>
+          )}
+          {onRemoveFromToday && (
+            <button
+              onClick={onRemoveFromToday}
+              className="w-full px-3 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2"
+            >
+              <X className="w-3.5 h-3.5 text-stone-400" />
+              Remove from today
+            </button>
+          )}
           <button
             onClick={onReschedule}
             className="w-full px-3 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2"

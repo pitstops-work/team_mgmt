@@ -35,7 +35,13 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
               select: {
                 id: true, title: true,
                 owner: { select: { id: true, name: true, image: true } },
-                goal: { select: { id: true, title: true } },
+                goal: {
+                  select: {
+                    id: true, title: true,
+                    // Powers the day-level cluster-split banner in EventsCalendar.
+                    needsCluster: { select: { id: true, name: true } },
+                  },
+                },
               },
             },
           },
@@ -74,6 +80,26 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
       select: { id: true, needsZoneId: true, needsClusterId: true },
     }),
   ]);
+
+  // Pulled-to-today history per event — fed into EventCard's "Pulled N×"
+  // chip. One groupBy across every event in scope so the JSON serialisation
+  // below carries the count without a second client-side fetch.
+  if (events.length > 0) {
+    const rows = await prisma.auditLog.groupBy({
+      by: ["entityId"],
+      where: {
+        entityType: "Activity",
+        action: "add_to_today",
+        entityId: { in: events.map(e => e.id) },
+      },
+      _count: { _all: true },
+    });
+    const addCountMap = new Map(rows.map(r => [r.entityId, r._count._all]));
+    for (const ev of events) {
+      const n = addCountMap.get(ev.id);
+      if (n) (ev as { addedToTodayCount?: number }).addedToTodayCount = n;
+    }
+  }
 
   // Build the same { goals: { goalId }[] } shape EventsCalendar expects,
   // now derived from direct FK fields instead of the removed M2M tables.

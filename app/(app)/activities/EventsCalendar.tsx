@@ -3,17 +3,19 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, MessageSquare, Send, Mic, Paperclip, Loader2, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, CalendarPlus, MessageSquare, Send, Mic, Paperclip, Loader2, RotateCcw } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 import { RescheduleSheet } from "../home/_shared/RescheduleSheet";
+import { ClusterSplitBanner } from "../home/_shared/ClusterSplitBanner";
+import { ClusterBatchRescheduleSheet } from "../home/_shared/ClusterBatchRescheduleSheet";
 
 type User = { id: string; name: string | null; image: string | null };
 type PitstopOwner = { id: string; name: string | null; image: string | null };
 type PitstopRef = {
   id: string; title: string;
   owner: PitstopOwner;
-  goal: { id: string; title: string };
+  goal: { id: string; title: string; needsCluster: { id: string; name: string } | null };
 };
 type Attendee = { id: string; userId: string; status: string; user: User };
 type ChecklistItemRef = { id: string; completionType: string; text: string };
@@ -34,6 +36,13 @@ type PitstopEvent = {
      drag-to-reschedule flow that opens the shared RescheduleSheet. */
   rescheduleCount?: number;
   rescheduleReasonCode?: string | null;
+  /* Add-to-today override. Same semantics as the home loader: pulling an
+     event to today sets displayDate=today; the activity stays on its
+     scheduledAt date in the calendar but gains a "Pulled to today" badge. */
+  displayDate?: string | null;
+  /* Lifetime add_to_today count from AuditLog. ≥2 surfaces a "Pulled N×"
+     chip — repeated pull-ins are a deferral pattern worth seeing. */
+  addedToTodayCount?: number;
 };
 type ViewMode = "day" | "week" | "month";
 type ExternalCalEvent = {
@@ -76,6 +85,13 @@ function fmtTime(iso: string) {
 }
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// One activity = one cluster (data-model invariant — see home/_lib helpers).
+// Null when the event has no pitstop or its goal isn't cluster-tagged; the
+// banner handles those in a separate "No cluster" bucket.
+function getEventCluster(ev: PitstopEvent): { id: string; name: string } | null {
+  return ev.pitstops?.[0]?.pitstop?.goal?.needsCluster ?? null;
 }
 
 function AvatarSmall({ user, size = 5 }: { user: User; size?: number }) {
@@ -521,6 +537,14 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
   const isRescheduled = ev.status === "Rescheduled";
   const rescheduleCount = ev.rescheduleCount ?? 0;
 
+  // displayDate state — same rule as home/ActivityCard. The Activities
+  // calendar still places the event on its scheduledAt date; this controls
+  // the badge + the toggle button only.
+  const todayYMD = toYMD(new Date());
+  const scheduledTodayYMD = ev.scheduledAt.slice(0, 10) === todayYMD;
+  const pulledTodayYMD = !!ev.displayDate && ev.displayDate.slice(0, 10) === todayYMD;
+  const pulledToToday = pulledTodayYMD && !scheduledTodayYMD;
+
   const isOwner = ev.pitstops.length > 0
     ? ev.pitstops.some(p => p.pitstop.owner.id === currentUserId)
     : ev.attendees.some(a => a.userId === currentUserId);
@@ -595,6 +619,16 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
     if (res.ok) await markDone();
   }
 
+  async function toggleDisplayToday() {
+    const method = pulledToToday ? "DELETE" : "POST";
+    const res = await fetch(`/api/pitstop-events/${ev.id}/display-today`, { method });
+    if (res.ok) {
+      // Optimistic patch so the badge flips without waiting for a server-render.
+      onUpdated(ev.id, { displayDate: pulledToToday ? null : new Date().toISOString() });
+    }
+  }
+  const canToggleDisplayToday = canManage && !isCancelled && !isDone && (pulledToToday || !scheduledTodayYMD);
+
   return (
     <div
       className={`px-3 py-2.5 rounded-xl border ${isCancelled ? "bg-stone-50 border-stone-200 opacity-60" : TYPE_COLORS[ev.type]} ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
@@ -620,6 +654,18 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
               <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                 <RotateCcw className="w-2.5 h-2.5" />
                 {rescheduleCount}×
+              </span>
+            )}
+            {pulledToToday && (
+              <span className="text-[10px] font-medium text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                <CalendarPlus className="w-2.5 h-2.5" />
+                On today
+              </span>
+            )}
+            {(ev.addedToTodayCount ?? 0) >= 2 && (
+              <span className="text-[10px] font-medium text-sky-800 bg-sky-100 border border-sky-300 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                <CalendarPlus className="w-2.5 h-2.5" />
+                Pulled {ev.addedToTodayCount}×
               </span>
             )}
             {canUndo && (
@@ -675,6 +721,15 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
               className={`p-1 transition-all rounded ${showAction ? "bg-emerald-100 text-emerald-600" : "opacity-50 hover:opacity-100 hover:text-emerald-600"}`}
             >
               <Check className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {canToggleDisplayToday && (
+            <button
+              onClick={toggleDisplayToday}
+              title={pulledToToday ? "Remove from today" : "Add to today"}
+              className={`p-1 transition-all rounded ${pulledToToday ? "bg-sky-100 text-sky-600" : "opacity-50 hover:opacity-100 hover:text-sky-600"}`}
+            >
+              <CalendarPlus className="w-3.5 h-3.5" />
             </button>
           )}
           <button onClick={() => setShowThreads(v => !v)}
@@ -802,6 +857,10 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   // slot pre-filled so the user picks a reason and the API still owns the
   // notify policy.
   const [rescheduleTarget, setRescheduleTarget] = useState<{ event: PitstopEvent; newScheduledAt: string } | null>(null);
+  // Day + cluster identifying which batch of events the cluster-split banner
+  // is currently moving. One state covers all three view mounts (day, week
+  // per-day, month selected-day) by scoping events to `ymd` on resolve.
+  const [batchClusterTarget, setBatchClusterTarget] = useState<{ ymd: string; cluster: { id: string; name: string } } | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -1298,6 +1357,11 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                 {selectedDayEvents.length === 0 && (extEventMap.get(selectedDate) ?? []).length === 0 ? (
                   <p className="text-xs text-stone-400 text-center py-8">No activities. Tap Add to schedule one.</p>
                 ) : null}
+                <ClusterSplitBanner
+                  clusters={selectedDayEvents.map(getEventCluster)}
+                  label="Day spans"
+                  onMoveCluster={cluster => selectedDate && setBatchClusterTarget({ ymd: selectedDate, cluster })}
+                />
                 {selectedDayEvents.map(ev => (
                   <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} eventUpdateScope={eventUpdateScope} manageableTeamIds={manageableTeamIds} />
                 ))}
@@ -1346,6 +1410,11 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
                   </div>
                   {(dayEvs.length > 0 || extEvs.length > 0) && (
                     <div className="space-y-2">
+                      <ClusterSplitBanner
+                        clusters={dayEvs.map(getEventCluster)}
+                        label={`${d.toLocaleDateString("en-US",{weekday:"short"})} spans`}
+                        onMoveCluster={cluster => setBatchClusterTarget({ ymd, cluster })}
+                      />
                       {dayEvs.map(ev => (
                         <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} eventUpdateScope={eventUpdateScope} manageableTeamIds={manageableTeamIds} />
                       ))}
@@ -1380,6 +1449,11 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
               </div>
             ) : (
               <div className="space-y-3">
+                <ClusterSplitBanner
+                  clusters={dayEvents.map(getEventCluster)}
+                  label={`${fmtDate(dayYMD)} spans`}
+                  onMoveCluster={cluster => setBatchClusterTarget({ ymd: dayYMD, cluster })}
+                />
                 {dayEvents.map(ev => (
                   <EventCard key={ev.id} ev={ev} onEdit={() => setEditEvent(ev)} onDelete={() => handleDelete(ev.id)} onUpdated={handleEventUpdate} currentUserId={currentUserId} users={users} eventUpdateScope={eventUpdateScope} manageableTeamIds={manageableTeamIds} />
                 ))}
@@ -1413,6 +1487,21 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
             scheduledAt: rescheduleTarget.event.scheduledAt,
           }}
           initialScheduledAt={rescheduleTarget.newScheduledAt}
+          onRescheduled={() => router.refresh()}
+        />
+      )}
+
+      {/* Cluster-batch reschedule — opens from a cluster pill on the day's
+          banner. Scopes events by the captured ymd + cluster so the same
+          state covers day/week/month-detail mounts. */}
+      {batchClusterTarget && (
+        <ClusterBatchRescheduleSheet
+          open
+          onClose={() => setBatchClusterTarget(null)}
+          clusterName={batchClusterTarget.cluster.name}
+          events={(eventMap.get(batchClusterTarget.ymd) ?? [])
+            .filter(ev => getEventCluster(ev)?.id === batchClusterTarget.cluster.id)
+            .map(ev => ({ id: ev.id, title: ev.title, scheduledAt: ev.scheduledAt }))}
           onRescheduled={() => router.refresh()}
         />
       )}

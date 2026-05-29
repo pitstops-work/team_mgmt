@@ -587,13 +587,15 @@ export async function GET(req: Request) {
   // and PlanItems (shown in Planner)
   for (const act of ACTIVITIES_DATA) {
     const eventType = act.type === "Visit" ? "Visit" : "Meeting";
+    const seedScheduledAt = new Date(act.start);
     const event = await prisma.pitstopEvent.create({
       data: {
         title: `W${act.week}: ${act.title}`,
         description: `Focus: ${act.focus}\n\n${act.summary}`,
         type: eventType as "Visit" | "Meeting" | "Event",
         status: "Scheduled",
-        scheduledAt: new Date(act.start),
+        scheduledAt: seedScheduledAt,
+        originalScheduledAt: seedScheduledAt,
         endsAt: new Date(act.end),
         createdById: shwetha.id,
       },

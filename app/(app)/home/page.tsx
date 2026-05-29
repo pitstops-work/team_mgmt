@@ -352,7 +352,15 @@ export default async function HomePage() {
       where: {
         deletedAt: null,
         status: { not: "Cancelled" },
-        scheduledAt: { gte: todayStart, lte: todayEnd },
+        // Today bucket: scheduled today OR pulled to today via displayDate.
+        // Wrapped in AND so it composes with the access-scope OR below without
+        // colliding at the top level (Prisma collapses sibling ORs).
+        AND: [{
+          OR: [
+            { scheduledAt: { gte: todayStart, lte: todayEnd } },
+            { displayDate: { gte: todayStart, lte: todayEnd } },
+          ],
+        }],
         // Drop events whose parent goal/pitstop has been deleted.
         pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
         ...(isScoped ? {
@@ -364,6 +372,7 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        displayDate: true,
         rescheduleCount: true, rescheduleReasonCode: true,
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
@@ -393,6 +402,11 @@ export default async function HomePage() {
         deletedAt: null,
         status: { not: "Cancelled" },
         scheduledAt: { gte: weekStart, lte: weekEnd },
+        // Skip activities the RP pulled into today — they're already in the
+        // today bucket above, and showing them again in "Next 7 days" would
+        // double-count. The activity still belongs to its original day for
+        // every other view; this NOT only affects this loader's week list.
+        NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
         pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
         ...(isScoped ? {
           OR: [
@@ -403,6 +417,7 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        displayDate: true,
         rescheduleCount: true, rescheduleReasonCode: true,
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
@@ -517,6 +532,10 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { lt: todayStart },
+            // An overdue activity the RP has pulled into today isn't "stuck"
+            // anymore — it's actively on today's list. Drop it from overdue
+            // so the badge + section count don't double-claim it.
+            NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
             pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
@@ -525,6 +544,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            displayDate: true,
             rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
@@ -612,6 +632,9 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { lt: todayStart },
+            // RP-pulled-to-today drops out of the ZL's overdue sweep too —
+            // it's actively in flight, not stuck waiting for a nudge.
+            NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
             pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: teamIds } }, { coOwners: { some: { userId: { in: teamIds } } } }] } } },
           },
           select: {
@@ -685,6 +708,9 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { lt: todayStart },
+            // Same treatment as RP/ZL overdue: skip the ones already pulled
+            // into today so they don't appear stuck from a leader's seat.
+            NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
             pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
@@ -770,6 +796,9 @@ export default async function HomePage() {
             deletedAt: null,
             status: "Scheduled",
             scheduledAt: { lt: todayStart },
+            // Must mirror the list query above so badge ↔ rendered count
+            // stay consistent when an activity is pulled to today.
+            NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
             pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
@@ -779,6 +808,52 @@ export default async function HomePage() {
         })
       : Promise.resolve(0),
   ]);
+
+  // ── Pulled-to-today history: count add_to_today AuditLog actions per event ──
+  // One groupBy across every active list on this page, then merge a small
+  // `addedToTodayCount` onto each activity. The "Pulled N×" chip uses it to
+  // surface pattern-deferral even when the activity isn't currently pulled.
+  // Done activities are excluded — once an activity is completed the history
+  // chip is no longer actionable signal.
+  const activeActivityIds = [
+    ...todayActivities,
+    ...weekActivities,
+    ...rpOverdueActivities,
+    ...zlOverdueActivities,
+    ...zlMyActivities,
+    ...leaderOverdueActivities,
+    ...leaderMyActivities,
+  ].map(a => a.id);
+  const addCountMap = new Map<string, number>();
+  if (activeActivityIds.length > 0) {
+    const rows = await prisma.auditLog.groupBy({
+      by: ["entityId"],
+      where: {
+        entityType: "Activity",
+        action: "add_to_today",
+        entityId: { in: activeActivityIds },
+      },
+      _count: { _all: true },
+    });
+    for (const r of rows) addCountMap.set(r.entityId, r._count._all);
+  }
+  // Mutate-in-place: attach `addedToTodayCount` directly onto each row's
+  // object. The Prisma result types don't know about it (no shape change
+  // there) but the downstream JSX reads via the lib `Activity` type which
+  // declares the field optional, so the runtime read works cleanly.
+  function attachAddCount(list: { id: string }[]) {
+    for (const a of list) {
+      const n = addCountMap.get(a.id);
+      if (n) (a as { addedToTodayCount?: number }).addedToTodayCount = n;
+    }
+  }
+  attachAddCount(todayActivities);
+  attachAddCount(weekActivities);
+  attachAddCount(rpOverdueActivities);
+  attachAddCount(zlOverdueActivities);
+  attachAddCount(zlMyActivities);
+  attachAddCount(leaderOverdueActivities);
+  attachAddCount(leaderMyActivities);
 
   // ── Past tab: team done activities (last 30 days) for ZL / PM / Leader.
   // RPs only see their own (rpDoneActivities above). For ZL/PM the scope is
