@@ -111,6 +111,8 @@ export function ZLTodayTab({
   function handleCompleted(eventId: string, checklistItemId?: string) {
     setDoneEventIds(prev => new Set(prev).add(eventId));
     if (checklistItemId) setDoneChecklistIds(prev => new Set(prev).add(checklistItemId));
+    // Keep server props in sync; same reasoning as rp/TodayTab.
+    router.refresh();
   }
   const onRescheduled = () => router.refresh();
 

@@ -107,6 +107,10 @@ export function RPTodayTab({
   function handleCompleted(eventId: string, checklistItemId?: string) {
     setDoneEventIds(prev => new Set(prev).add(eventId));
     if (checklistItemId) setDoneChecklistIds(prev => new Set(prev).add(checklistItemId));
+    // Re-fetch server-rendered data so server-side counts stay truthful when
+    // the user navigates away and back. The optimistic Set above keeps the
+    // row hidden in this instant; router.refresh syncs the source of truth.
+    router.refresh();
   }
 
   // ── Grouped view (all sections collapse into one keyed list) ────────────────

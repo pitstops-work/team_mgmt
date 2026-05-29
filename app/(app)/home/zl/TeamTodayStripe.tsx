@@ -72,6 +72,7 @@ export function TeamTodayStripe({
 
   function handleCompleted(eventId: string) {
     setDoneEventIds(prev => new Set(prev).add(eventId));
+    router.refresh();
   }
   const onRescheduled = () => router.refresh();
 
