@@ -36,10 +36,32 @@ export async function POST(
   const mimeType = audioFile.type || "audio/webm";
   const buffer = Buffer.from(await audioFile.arrayBuffer());
 
+  // Persist the blob URL as an Attachment so the Done log can replay the
+  // recording later. Previously we threw the URL away after transcription —
+  // the transcript landed in ChecklistItem.notes but the audio was orphaned.
+  let audioUrl: string | null = null;
   try {
-    await uploadAudio(buffer, mimeType, itemId);
+    audioUrl = await uploadAudio(buffer, mimeType, itemId);
   } catch {
     return Response.json({ error: "Audio upload failed" }, { status: 500 });
+  }
+
+  if (audioUrl) {
+    const aid = crypto.randomUUID().replace(/-/g, "");
+    const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
+    await prisma.$executeRaw`
+      INSERT INTO "Attachment" (id, name, type, url, size, "mimeType", "checklistItemId", "createdAt")
+      VALUES (
+        ${aid},
+        ${`voice-log.${ext}`},
+        'File'::"AttachmentType",
+        ${audioUrl},
+        ${buffer.byteLength}::int,
+        ${mimeType},
+        ${itemId},
+        NOW()
+      )
+    `;
   }
 
   let notes = "";

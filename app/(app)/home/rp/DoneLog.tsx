@@ -112,10 +112,14 @@ function DoneEntry({
   const settlement = goal?.needsSettlement?.name;
   const completionType = ci?.completionType ?? "Activity";
 
-  const photos = (ci?.attachments ?? []).filter(
+  const attachments = ci?.attachments ?? [];
+  const photos = attachments.filter(
     a => a.mimeType?.startsWith("image/") || /\.(png|jpe?g|gif|webp|heic|heif)$/i.test(a.name)
   );
-  const files = (ci?.attachments ?? []).filter(a => !photos.includes(a));
+  const audios = attachments.filter(
+    a => a.mimeType?.startsWith("audio/") || /\.(webm|ogg|mp3|mp4|m4a|wav)$/i.test(a.name)
+  );
+  const files = attachments.filter(a => !photos.includes(a) && !audios.includes(a));
 
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-3 flex gap-3">
@@ -158,10 +162,15 @@ function DoneEntry({
           </p>
         )}
 
-        {/* Voice transcription */}
-        {ci?.notes && (
-          <div className="mt-2 p-2 rounded-lg bg-sky-50/50 border border-sky-100">
-            <p className="text-xs text-stone-700 whitespace-pre-wrap">{ci.notes}</p>
+        {/* Voice playback + transcription */}
+        {(audios.length > 0 || ci?.notes) && (
+          <div className="mt-2 p-2 rounded-lg bg-sky-50/50 border border-sky-100 space-y-2">
+            {audios.map(a => (
+              <audio key={a.id} controls preload="metadata" src={a.url} className="w-full h-8" />
+            ))}
+            {ci?.notes && (
+              <p className="text-xs text-stone-700 whitespace-pre-wrap">{ci.notes}</p>
+            )}
           </div>
         )}
 
