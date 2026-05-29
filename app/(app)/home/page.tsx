@@ -108,6 +108,10 @@ export type RPHealthStat = {
   totalChecklists: number;
   doneChecklists: number;
   delayedPitstops: RPPitstopDetail[];
+  /* Today rollup for the ZL Team-today donut. Done = activities the RP has
+     completed today; total = activities scheduled today (open + done). */
+  todayDone: number;
+  todayTotal: number;
 };
 
 // RP cluster-deck: cluster geometry + settlements + facility pins. One per
@@ -356,6 +360,7 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        rescheduleCount: true, rescheduleReasonCode: true,
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
           select: {
@@ -392,6 +397,7 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        rescheduleCount: true, rescheduleReasonCode: true,
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
           select: {
@@ -508,6 +514,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               select: {
@@ -548,6 +555,8 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        completedAt: true,
+        completedBy: { select: { id: true, name: true } },
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
           select: {
@@ -567,8 +576,20 @@ export default async function HomePage() {
           },
           take: 1,
         },
+        // Linked checklist gives us the proof: voice transcription (notes) and
+        // uploaded files (attachments). Used by the RP Done-log to render
+        // thumbnail previews + inline transcripts.
+        checklistItem: {
+          select: {
+            id: true, notes: true, completionType: true,
+            attachments: {
+              select: { id: true, url: true, name: true, mimeType: true },
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        },
       },
-      orderBy: { scheduledAt: "desc" },
+      orderBy: { completedAt: "desc" },
       take: 200,
     }),
 
@@ -583,6 +604,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               where: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: teamIds } }, { coOwners: { some: { userId: { in: teamIds } } } }] } },
@@ -616,6 +638,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               where: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } },
@@ -656,6 +679,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               select: {
@@ -695,6 +719,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               select: {
@@ -759,6 +784,7 @@ export default async function HomePage() {
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+        rescheduleCount: true, rescheduleReasonCode: true,
         attendees: { select: { user: { select: { id: true, name: true } } } },
         pitstops: {
           select: {
@@ -868,7 +894,7 @@ export default async function HomePage() {
     const rpIds = teamMembers.map(m => m.id);
     const todayMs = todayStart.getTime();
 
-    const [rpPitstopsRaw, allRpChecklists] = await Promise.all([
+    const [rpPitstopsRaw, allRpChecklists, rpTodayActs] = await Promise.all([
       prisma.pitstop.findMany({
         where: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: rpIds } }, { coOwners: { some: { userId: { in: rpIds } } } }] },
         select: {
@@ -884,6 +910,21 @@ export default async function HomePage() {
       prisma.checklistItem.findMany({
         where: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: rpIds } }, { coOwners: { some: { userId: { in: rpIds } } } }] } },
         select: { status: true, pitstop: { select: { ownerId: true } } },
+      }),
+      // Today rollup per RP for the ZL Team-today donut. Lightweight: only
+      // status + owner are needed; status=Cancelled is excluded from the
+      // donut totals (cancelled work shouldn't drag a person's progress).
+      prisma.pitstopEvent.findMany({
+        where: {
+          deletedAt: null,
+          scheduledAt: { gte: todayStart, lte: todayEnd },
+          status: { not: "Cancelled" },
+          pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: rpIds } }, { coOwners: { some: { userId: { in: rpIds } } } }] } } },
+        },
+        select: {
+          status: true,
+          pitstops: { select: { pitstop: { select: { ownerId: true } } }, take: 1 },
+        },
       }),
     ]);
 
@@ -925,6 +966,8 @@ export default async function HomePage() {
         totalChecklists: rpCls.length,
         doneChecklists: rpCls.filter(ci => ci.status === "Done").length,
         delayedPitstops,
+        todayTotal: rpTodayActs.filter(a => a.pitstops[0]?.pitstop.ownerId === rp.id).length,
+        todayDone:  rpTodayActs.filter(a => a.pitstops[0]?.pitstop.ownerId === rp.id && a.status === "Done").length,
       };
     });
   }
@@ -1040,6 +1083,11 @@ export default async function HomePage() {
           totalChecklists: rpCls.length,
           doneChecklists: rpCls.filter(ci => ci.status === "Done").length,
           delayedPitstops,
+          // PM path doesn't fetch per-RP today rollup yet; donut on the PM
+          // Team-today screen is a separate follow-up. Default to 0/0 so
+          // RPHealthStat stays a uniform shape.
+          todayTotal: 0,
+          todayDone: 0,
         };
       });
 
@@ -1073,6 +1121,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               where: { pitstop: { deletedAt: null, OR: [{ ownerId: { in: zlIds } }, { coOwners: { some: { userId: { in: zlIds } } } }] } },
@@ -1114,6 +1163,7 @@ export default async function HomePage() {
           },
           select: {
             id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
+            rescheduleCount: true, rescheduleReasonCode: true,
             attendees: { select: { user: { select: { id: true, name: true } } } },
             pitstops: {
               where: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } },
