@@ -114,6 +114,9 @@ model User {
   handoversReceived         WikiOwnerHandover[]            @relation("WikiHandoverTo")
   wikiTranslationFlags      WikiTranslationFlag[]
   wikiPageViews             WikiPageView[]
+  wikiPracticeGapsFiled     WikiPracticeGap[]              @relation("WikiPracticeGapFiler")
+  wikiPracticeGapsAssigned  WikiPracticeGap[]              @relation("WikiPracticeGapAssignee")
+  wikiPracticeGapsTriaged   WikiPracticeGap[]              @relation("WikiPracticeGapTriager")
 }
 
 model Account {
@@ -2270,6 +2273,7 @@ model Org {
 
   users                 User[]
   partnerReviewMeetings WikiPartnerReviewMeeting[] @relation("WikiPartnerReviewMeetingOrg")
+  wikiPracticeGaps      WikiPracticeGap[]          @relation("WikiPracticeGapPartnerOrg")
 }
 
 // ── Wiki module ──────────────────────────────────────────────────────────────
@@ -2310,6 +2314,7 @@ model WikiPage {
   handovers             WikiOwnerHandover[]
   translationFlags      WikiTranslationFlag[]
   views                 WikiPageView[]
+  practiceGaps          WikiPracticeGap[]          @relation("WikiPracticeGapLinkedPage")
 
   @@index([status])
   @@index([type])
@@ -2551,6 +2556,45 @@ model WikiPageView {
 
   @@index([pageId, createdAt])
   @@index([userId, createdAt])
+}
+
+// Practice gap queue: "there is no page for the thing I am doing today."
+// Distinct from WikiFlag (which targets an existing page). A gap has no
+// pageId at file time. The curator's weekly walk routes it to an owner who
+// drafts a page; the gap closes when the page publishes, with linkedPageId
+// pointing back at it. See public/training/modules/practice-documentation/
+// 05-practice-gap-queue.html for the protocol.
+model WikiPracticeGap {
+  id               String    @id @default(cuid())
+  vertical         String // e.g. "food", "creche", "welfare-rights"
+  oneLineNeed      String // the gap, in one sentence
+  suggestedTitle   String? // optional — owner may rename
+  city             String? // bangalore | chennai | null (universal)
+  partnerOrgId     String? // optional partner scope
+  filerId          String
+  status           String    @default("open") // open | assigned | drafted | merged | published | declined
+  assignedOwnerId  String?
+  curatorTriagerId String?
+  triagedAt        DateTime?
+  draftingDeadline DateTime?
+  // When status flips to merged/published, points at the page that absorbed
+  // or fulfilled the gap. Allows the filer-loop notification + cross-link.
+  linkedPageId     String?
+  declineReason    String?
+  createdAt        DateTime  @default(now())
+  resolvedAt       DateTime?
+
+  filer          User      @relation("WikiPracticeGapFiler", fields: [filerId], references: [id])
+  assignedOwner  User?     @relation("WikiPracticeGapAssignee", fields: [assignedOwnerId], references: [id], onDelete: SetNull)
+  curatorTriager User?     @relation("WikiPracticeGapTriager", fields: [curatorTriagerId], references: [id], onDelete: SetNull)
+  partnerOrg     Org?      @relation("WikiPracticeGapPartnerOrg", fields: [partnerOrgId], references: [id], onDelete: SetNull)
+  linkedPage     WikiPage? @relation("WikiPracticeGapLinkedPage", fields: [linkedPageId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([vertical, status])
+  @@index([assignedOwnerId, status])
+  @@index([filerId])
+  @@index([createdAt])
 }
 
 // ─── Operating Models (parametric unit-economics engine) ─────────────────────
