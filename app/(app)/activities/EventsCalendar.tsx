@@ -71,6 +71,16 @@ const MONTHS = ["January","February","March","April","May","June","July","August
 function toYMD(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
+// Local-time YYYY-MM-DD / HH:mm extractors from an ISO string. Replaces
+// the `iso.slice(0,10)` / `iso.slice(11,16)` shortcuts that read UTC and
+// silently mis-bin events near midnight IST (e.g. 9 AM IST = 03:30 UTC →
+// the "0,10" slice gives the *previous* UTC date, so the event lands on
+// yesterday's cell instead of today's). Mirror the home `isToday()` helper.
+function ymdFromIso(iso: string) { return toYMD(new Date(iso)); }
+function hhmmFromIso(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
 function addDays(d: Date, n: number) {
   const r = new Date(d); r.setDate(r.getDate() + n); return r;
 }
@@ -180,10 +190,10 @@ function EventModal({ pitstops, users, initial, defaultDate, onClose, onSaved }:
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [type, setType] = useState<"Meeting"|"Visit"|"Event">(initial?.type ?? "Meeting");
-  const [date, setDate] = useState(initial ? initial.scheduledAt.slice(0,10) : (defaultDate ?? ""));
-  const [time, setTime] = useState(initial ? initial.scheduledAt.slice(11,16) : "09:00");
+  const [date, setDate] = useState(initial ? ymdFromIso(initial.scheduledAt) : (defaultDate ?? ""));
+  const [time, setTime] = useState(initial ? hhmmFromIso(initial.scheduledAt) : "09:00");
   const [isMultiDay, setIsMultiDay] = useState(!!(initial?.endsAt));
-  const [endDate, setEndDate] = useState(initial?.endsAt ? initial.endsAt.slice(0,10) : "");
+  const [endDate, setEndDate] = useState(initial?.endsAt ? ymdFromIso(initial.endsAt) : "");
   const [location, setLocation] = useState(initial?.location ?? "");
 
   // Checklist-item cascade: Goal → Pitstop → ChecklistItem
@@ -656,7 +666,7 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
         // The parent calendar reads these on drop to know which event moved
         // and what time-of-day to preserve in the new slot.
         e.dataTransfer.setData("application/x-pitstop-event-id", ev.id);
-        e.dataTransfer.setData("application/x-pitstop-event-time", ev.scheduledAt.slice(11, 16));
+        e.dataTransfer.setData("application/x-pitstop-event-time", hhmmFromIso(ev.scheduledAt));
         e.dataTransfer.effectAllowed = "move";
       }}
     >
@@ -963,14 +973,14 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
 
   const eventMap = new Map<string, PitstopEvent[]>();
   for (const ev of filteredEvents) {
-    const ymd = ev.scheduledAt.slice(0, 10);
+    const ymd = ymdFromIso(ev.scheduledAt);
     if (!eventMap.has(ymd)) eventMap.set(ymd, []);
     eventMap.get(ymd)!.push(ev);
   }
 
   const extEventMap = new Map<string, ExternalCalEvent[]>();
   for (const ev of externalEvents) {
-    const ymd = ev.start.slice(0, 10);
+    const ymd = ymdFromIso(ev.start);
     if (!extEventMap.has(ymd)) extEventMap.set(ymd, []);
     extEventMap.get(ymd)!.push(ev);
   }
@@ -991,7 +1001,7 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
     if (!id) return;
     const ev = events.find(x => x.id === id);
     if (!ev) return;
-    if (ev.scheduledAt.slice(0, 10) === targetYMD) return;
+    if (ymdFromIso(ev.scheduledAt) === targetYMD) return;
     const newScheduledAt = `${targetYMD}T${hhmm}:00`;
     setRescheduleTarget({ event: ev, newScheduledAt });
   }

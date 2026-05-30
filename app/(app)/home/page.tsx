@@ -3,14 +3,15 @@ import prisma from "@/lib/prisma";
 import { buildRbacContext, scopeWhere, getTeamIds } from "@/lib/rbac";
 import HomeView from "./HomeView";
 
+// Rolling 7-day window starting at today's midnight. The previous version
+// returned Monday → Sunday of the *current* calendar week, which on any day
+// later in the week (Thu/Fri/Sat) silently dropped most of the actual next
+// 7 days from the loader — so an overdue activity rescheduled to next
+// Monday vanished from "Next 7 days" because next Monday sat past Sunday's
+// weekEnd. The Today bucket overlaps today; TodayTab dedupes on the client.
 function getWeekBounds(now: Date) {
-  const s = new Date(now);
-  const day = s.getDay();
-  s.setDate(s.getDate() - (day + 6) % 7);
-  s.setHours(0, 0, 0, 0);
-  const e = new Date(s);
-  e.setDate(e.getDate() + 6);
-  e.setHours(23, 59, 59, 999);
+  const s = new Date(now); s.setHours(0, 0, 0, 0);
+  const e = new Date(s); e.setDate(e.getDate() + 6); e.setHours(23, 59, 59, 999);
   return { weekStart: s, weekEnd: e };
 }
 

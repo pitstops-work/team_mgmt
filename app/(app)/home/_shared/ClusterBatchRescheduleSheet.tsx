@@ -56,7 +56,14 @@ export function ClusterBatchRescheduleSheet({
 
   if (!open) return null;
 
-  const originalYmd = events[0]?.scheduledAt.slice(0, 10) ?? "";
+  // Local-date YMD so the "is the picker still on the same day?" guard
+  // compares apples to apples. `slice(0,10)` here yielded a UTC date, which
+  // disagreed with the local-time `<input type=date>` value near midnight
+  // IST — the same-day check then either flagged a real move as a no-op or
+  // let a no-op submit through.
+  const originalYmd = events[0]?.scheduledAt
+    ? (() => { const d = new Date(events[0].scheduledAt); const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; })()
+    : "";
   const canSubmit = !submitting && targetDate !== "" && targetDate !== originalYmd && events.length > 0;
 
   async function submit() {
