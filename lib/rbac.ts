@@ -232,7 +232,21 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
   pitstop_event: ({ rule, ctx, teamIds }) => {
     switch (rule.kind) {
       case "all":  return {};
-      case "own":  return { createdById: ctx.userId };
+      case "own":
+        // "My activity" = I'm an attendee, OR I own / co-own its pitstop, OR
+        // I created the event. The literal `createdById` we had before was
+        // too narrow: events authored by an admin or materialised by template
+        // apply carry the creator's id, not the RP's — so an RP couldn't
+        // update their own activities through routes that actually check
+        // scope (display-today, batch-reschedule). Matches the home loader's
+        // own notion of "mine".
+        return {
+          OR: [
+            { createdById: ctx.userId },
+            { attendees: { some: { userId: ctx.userId } } },
+            { pitstops: { some: { pitstop: { OR: [{ ownerId: ctx.userId }, { coOwners: { some: { userId: ctx.userId } } }] } } } },
+          ],
+        };
       case "self": return { attendees: { some: { userId: ctx.userId } } };
       case "team":
         return { attendees: { some: { userId: { in: teamIds } } } };

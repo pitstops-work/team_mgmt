@@ -128,14 +128,30 @@ export function ActivityCard({
     setBusy(null);
   }
 
-  async function addToToday() {
-    const res = await fetch(`/api/pitstop-events/${activity.id}/display-today`, { method: "POST" });
-    if (res.ok) onRescheduled?.();
+  // Single in-flight guard for both directions of the toggle. Mirrors the
+  // Activities-page fix (d9e8796): the prior version swallowed non-2xx, so a
+  // 403 or 5xx looked identical to a successful click and the menu just
+  // closed. Surface the server's error so the RP knows why nothing happened.
+  const [todayBusy, setTodayBusy] = useState(false);
+  async function toggleDisplayToday(method: "POST" | "DELETE") {
+    if (todayBusy) return;
+    setTodayBusy(true);
+    try {
+      const res = await fetch(`/api/pitstop-events/${activity.id}/display-today`, { method });
+      if (res.ok) {
+        onRescheduled?.();
+      } else {
+        const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        alert(body.error || `Could not ${method === "POST" ? "add to" : "remove from"} today.`);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Network error.");
+    } finally {
+      setTodayBusy(false);
+    }
   }
-  async function removeFromToday() {
-    const res = await fetch(`/api/pitstop-events/${activity.id}/display-today`, { method: "DELETE" });
-    if (res.ok) onRescheduled?.();
-  }
+  const addToToday      = () => toggleDisplayToday("POST");
+  const removeFromToday = () => toggleDisplayToday("DELETE");
 
   // ── Action button ─────────────────────────────────────────────────────────
   const isBusy = busy !== null;
