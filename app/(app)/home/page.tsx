@@ -291,6 +291,24 @@ export default async function HomePage() {
   const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
   const { weekStart, weekEnd } = getWeekBounds(now);
 
+  // "Event hasn't been pulled into today via displayDate." The plain
+  // `NOT: { displayDate: { gte, lte } }` we used here before silently dropped
+  // every NULL-displayDate row — SQL's NOT over a NULL expression is NULL,
+  // which doesn't match WHERE — which is the vast majority of events, since
+  // only pulled-to-today rows carry a displayDate. Fold the negation into a
+  // NULL-tolerant OR. AND-wrapped so spreading it into a query that already
+  // has a top-level `OR` (access-scope) doesn't collide with Prisma's
+  // sibling-OR collapse.
+  const notPulledIntoToday = {
+    AND: [{
+      OR: [
+        { displayDate: null },
+        { displayDate: { lt: todayStart } },
+        { displayDate: { gt: todayEnd } },
+      ],
+    }],
+  };
+
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const todayLabel = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -405,8 +423,8 @@ export default async function HomePage() {
         // Skip activities the RP pulled into today — they're already in the
         // today bucket above, and showing them again in "Next 7 days" would
         // double-count. The activity still belongs to its original day for
-        // every other view; this NOT only affects this loader's week list.
-        NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
+        // every other view; this only affects this loader's week list.
+        ...notPulledIntoToday,
         pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
         ...(isScoped ? {
           OR: [
@@ -535,7 +553,7 @@ export default async function HomePage() {
             // An overdue activity the RP has pulled into today isn't "stuck"
             // anymore — it's actively on today's list. Drop it from overdue
             // so the badge + section count don't double-claim it.
-            NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
+            ...notPulledIntoToday,
             pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
@@ -571,14 +589,17 @@ export default async function HomePage() {
         })
       : Promise.resolve([]),
 
-    // Past tab data — done activities from the last 30 days for the user's
-    // OWN pitstops (every designation gets this). Includes goal/cluster info
-    // so the Past tab can cluster-bucket like Today.
+    // Past tab data — activities completed in the last 30 days for the user's
+    // OWN pitstops (every designation gets this). Filtered/sorted on
+    // completedAt so an event scheduled months ago that was just marked done
+    // still surfaces — scheduledAt-window misses the catch-up-on-overdue case
+    // entirely. Includes goal/cluster info so the Past tab can cluster-bucket
+    // like Today.
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
         status: "Done",
-        scheduledAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        completedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
         pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
         OR: [
           { attendees: { some: { userId } } },
@@ -634,7 +655,7 @@ export default async function HomePage() {
             scheduledAt: { lt: todayStart },
             // RP-pulled-to-today drops out of the ZL's overdue sweep too —
             // it's actively in flight, not stuck waiting for a nudge.
-            NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
+            ...notPulledIntoToday,
             pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null }, OR: [{ ownerId: { in: teamIds } }, { coOwners: { some: { userId: { in: teamIds } } } }] } } },
           },
           select: {
@@ -710,7 +731,7 @@ export default async function HomePage() {
             scheduledAt: { lt: todayStart },
             // Same treatment as RP/ZL overdue: skip the ones already pulled
             // into today so they don't appear stuck from a leader's seat.
-            NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
+            ...notPulledIntoToday,
             pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
@@ -798,7 +819,7 @@ export default async function HomePage() {
             scheduledAt: { lt: todayStart },
             // Must mirror the list query above so badge ↔ rendered count
             // stay consistent when an activity is pulled to today.
-            NOT: { displayDate: { gte: todayStart, lte: todayEnd } },
+            ...notPulledIntoToday,
             pitstops: { some: { pitstop: { deletedAt: null, goal: { deletedAt: null } } } },
             OR: [
               { attendees: { some: { userId } } },
