@@ -249,7 +249,24 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
         };
       case "self": return { attendees: { some: { userId: ctx.userId } } };
       case "team":
-        return { attendees: { some: { userId: { in: teamIds } } } };
+        // Mirror the `own` union, scaled to teamIds. Attendees-only here let
+        // template-materialised activities (createdById = admin, owner not
+        // listed as attendee) escape /activities for the pitstop owner — even
+        // though the home loader rendered them, because home's own OR includes
+        // pitstop ownership. For RPs without subordinates teamIds = [self], so
+        // this collapses to the same set home shows. For ZL/PM it extends to
+        // every team member's owned + attended + created activities — matching
+        // what `team` was meant to mean.
+        return {
+          OR: [
+            { createdById: { in: teamIds } },
+            { attendees: { some: { userId: { in: teamIds } } } },
+            { pitstops: { some: { pitstop: { OR: [
+              { ownerId: { in: teamIds } },
+              { coOwners: { some: { userId: { in: teamIds } } } },
+            ] } } } },
+          ],
+        };
       default: throw scopeUnsupported("pitstop_event", rule.kind);
     }
   },
