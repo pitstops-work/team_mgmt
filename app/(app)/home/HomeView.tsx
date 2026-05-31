@@ -286,7 +286,7 @@ export default function HomeView({
           <AdminOverviewTab dash={adminDash} todayActivities={todayActivities} onTabSwitch={onTabSwitch} />
         )}
         {activeTab === "attention" && adminDash && <AdminAttentionTab dash={adminDash} />}
-        {activeTab === "team-health" && adminDash && <AdminTeamHealthTab personHealth={adminDash.personHealth} />}
+        {activeTab === "team-health" && adminDash && <AdminTeamHealthTab personHealth={adminDash.personHealth} overdueActivities={adminDash.overdueActivitiesList} />}
         {activeTab === "engagement" && adminDash && <AdminEngagementTab engagement={adminDash.engagement} />}
         {activeTab === "goals" && adminDash && (
           <AdminGoalsTab goals={adminDash.goals} domainConfigs={adminDash.domainConfigs} initialStatusFilter={goalInitialStatus} />

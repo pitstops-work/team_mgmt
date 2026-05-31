@@ -12,16 +12,56 @@ import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat
 import { PitstopDetailCard } from "../_shared/PitstopDetailCard";
 import { EmptyState, SectionTitle, HealthBar } from "../_shared/Primitives";
 
-export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPersonHealth[] }) {
+export function AdminTeamHealthTab({ personHealth, overdueActivities = [] }: {
+  personHealth: AdminPersonHealth[];
+  /** Flat overdue-activity list from `adminDash.overdueActivitiesList`. Used
+   *  to drive the per-person overdue-activities drill-down. Optional so the
+   *  component still mounts cleanly if a caller forgets to pass it. */
+  overdueActivities?: AdminOverdueActivity[];
+}) {
   const [expandedPMs, setExpandedPMs] = useState<Set<string>>(new Set());
   const [expandedZLs, setExpandedZLs] = useState<Set<string>>(new Set());
   const [expandedDelayedRP, setExpandedDelayedRP] = useState<string | null>(null);
   const [expandedDelayedZL, setExpandedDelayedZL] = useState<string | null>(null);
   const [expandedDelayedPM, setExpandedDelayedPM] = useState<string | null>(null);
+  const [expandedOverdueRP, setExpandedOverdueRP] = useState<string | null>(null);
+  const [expandedOverdueZL, setExpandedOverdueZL] = useState<string | null>(null);
+  const [expandedOverduePM, setExpandedOverduePM] = useState<string | null>(null);
 
   const pms = personHealth.filter(p => p.designation === "PM");
   const zls = personHealth.filter(p => p.designation === "ZL");
   const rps = personHealth.filter(p => p.designation === "RP");
+
+  // Index overdue activities by ownerId once so each card lookup is O(1).
+  const overdueByOwner = useMemo(() => {
+    const m = new Map<string, AdminOverdueActivity[]>();
+    for (const a of overdueActivities) {
+      if (!a.ownerId) continue;
+      const list = m.get(a.ownerId);
+      if (list) list.push(a); else m.set(a.ownerId, [a]);
+    }
+    return m;
+  }, [overdueActivities]);
+
+  function rpOverdueActs(rp: AdminPersonHealth): AdminOverdueActivity[] {
+    return overdueByOwner.get(rp.userId) ?? [];
+  }
+  function zlAllOverdueActs(zl: AdminPersonHealth): AdminOverdueActivity[] {
+    const zlRPs = rps.filter(r => r.reportsToId === zl.userId);
+    return [
+      ...(overdueByOwner.get(zl.userId) ?? []),
+      ...zlRPs.flatMap(r => overdueByOwner.get(r.userId) ?? []),
+    ];
+  }
+  function pmAllOverdueActs(pm: AdminPersonHealth): AdminOverdueActivity[] {
+    const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
+    const pmRPs = rps.filter(r => pmZLs.some(z => z.userId === r.reportsToId));
+    return [
+      ...(overdueByOwner.get(pm.userId) ?? []),
+      ...pmZLs.flatMap(z => overdueByOwner.get(z.userId) ?? []),
+      ...pmRPs.flatMap(r => overdueByOwner.get(r.userId) ?? []),
+    ];
+  }
 
   function togglePM(id: string) { setExpandedPMs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; }); }
   function toggleZL(id: string) { setExpandedZLs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; }); }
@@ -75,8 +115,10 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
 
   function RPCard({ rp }: { rp: AdminPersonHealth }) {
     const isDelayedOpen = expandedDelayedRP === rp.userId;
+    const isOverdueOpen = expandedOverdueRP === rp.userId;
     const dot = rp.overduePitstops > 0 ? "bg-red-500" : rp.overdueActivities > 0 ? "bg-amber-400" : "bg-emerald-500";
     const clPct = rp.totalChecklists > 0 ? Math.round(rp.doneChecklists / rp.totalChecklists * 100) : null;
+    const rpActs = rpOverdueActs(rp);
     return (
       <div className="bg-white border border-stone-200 rounded-lg p-2.5">
         <div className="flex items-center gap-2 mb-1.5">
@@ -101,9 +143,10 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
             </button>
           ) : <span className="text-[10px] text-stone-300">0 delayed</span>}
           {rp.overdueActivities > 0 && (
-            <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">
-              {rp.overdueActivities} overdue
-            </span>
+            <button type="button" onClick={() => setExpandedOverdueRP(isOverdueOpen ? null : rp.userId)}
+              className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded hover:bg-amber-100 flex items-center gap-0.5">
+              {rp.overdueActivities} overdue {isOverdueOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+            </button>
           )}
         </div>
         {isDelayedOpen && rp.delayedPitstops.length > 0 && (
@@ -111,6 +154,12 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
             {(rp.delayedPitstops as RPPitstopDetail[]).map(p => (
               <PitstopDetailCard key={p.id} p={p} />
             ))}
+          </div>
+        )}
+        {isOverdueOpen && rpActs.length > 0 && (
+          <div className="mt-2 space-y-1 border-t border-stone-100 pt-2">
+            <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Overdue Activities</p>
+            {rpActs.map(a => <OverdueActivityCard key={a.id} a={a} showOwner={false} />)}
           </div>
         )}
       </div>
@@ -132,6 +181,8 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
         const clPct = agg.clTotal > 0 ? Math.round(agg.clDone / agg.clTotal * 100) : null;
         const pmDelayed = pmAllDelayed(pm);
         const isPMDelayedOpen = expandedDelayedPM === pm.userId;
+        const pmActs = pmAllOverdueActs(pm);
+        const isPMOverdueOpen = expandedOverduePM === pm.userId;
         return (
           <div key={pm.userId} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
             <div className="flex items-center gap-3 px-4 pt-4 pb-3">
@@ -149,7 +200,11 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
                   </button>
                 )}
                 {agg.overdueActs > 0 && (
-                  <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">{agg.overdueActs} overdue</span>
+                  <button type="button" onClick={() => setExpandedOverduePM(isPMOverdueOpen ? null : pm.userId)}
+                    className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded hover:bg-amber-100 flex items-center gap-0.5">
+                    {agg.overdueActs} overdue
+                    {isPMOverdueOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  </button>
                 )}
                 <span className={`w-2 h-2 rounded-full ${dot}`} />
               </div>
@@ -158,6 +213,12 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
               <div className="px-4 pb-3 pt-2 space-y-1.5 border-t border-red-50">
                 <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Delayed Pitstops</p>
                 {pmDelayed.map(p => <PitstopDetailCard key={`${pm.userId}-${p.id}`} p={p} ownerName={p.ownerName} />)}
+              </div>
+            )}
+            {isPMOverdueOpen && pmActs.length > 0 && (
+              <div className="px-4 pb-3 pt-2 space-y-1 border-t border-amber-50">
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Overdue Activities</p>
+                {pmActs.map(a => <OverdueActivityCard key={`${pm.userId}-${a.id}`} a={a} showOwner />)}
               </div>
             )}
             {clPct !== null && (
@@ -186,6 +247,8 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
                   const zClPct = zAgg.clTotal > 0 ? Math.round(zAgg.clDone / zAgg.clTotal * 100) : null;
                   const zlDelayed = zlAllDelayed(zl);
                   const isZLDelayedOpen = expandedDelayedZL === zl.userId;
+                  const zlActs = zlAllOverdueActs(zl);
+                  const isZLOverdueOpen = expandedOverdueZL === zl.userId;
                   return (
                     <div key={zl.userId} className="bg-white border border-stone-200 rounded-lg overflow-hidden">
                       <div className="flex items-center gap-2.5 px-3 py-2.5">
@@ -206,7 +269,11 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
                             </button>
                           )}
                           {zAgg.overdueActs > 0 && (
-                            <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1 py-0.5 rounded">{zAgg.overdueActs} overdue</span>
+                            <button type="button" onClick={() => setExpandedOverdueZL(isZLOverdueOpen ? null : zl.userId)}
+                              className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1 py-0.5 rounded hover:bg-amber-100 flex items-center gap-0.5">
+                              {zAgg.overdueActs} overdue
+                              {isZLOverdueOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                            </button>
                           )}
                           <span className={`w-1.5 h-1.5 rounded-full ${zDot}`} />
                         </div>
@@ -215,6 +282,12 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
                         <div className="px-3 py-2 space-y-1.5 border-t border-red-50">
                           <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Delayed Pitstops</p>
                           {zlDelayed.map(p => <PitstopDetailCard key={`${zl.userId}-${p.id}`} p={p} ownerName={p.ownerName} />)}
+                        </div>
+                      )}
+                      {isZLOverdueOpen && zlActs.length > 0 && (
+                        <div className="px-3 py-2 space-y-1 border-t border-amber-50">
+                          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Overdue Activities</p>
+                          {zlActs.map(a => <OverdueActivityCard key={`${zl.userId}-${a.id}`} a={a} showOwner />)}
                         </div>
                       )}
                       {zlRPs.length > 0 && (
@@ -250,6 +323,8 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
               const dot = zAgg.delayed > 0 ? "bg-red-500" : zAgg.overdueActs > 0 ? "bg-amber-400" : "bg-emerald-500";
               const zlDelayed = zlAllDelayed(zl);
               const isZLDelayedOpen = expandedDelayedZL === zl.userId;
+              const zlActs = zlAllOverdueActs(zl);
+              const isZLOverdueOpen = expandedOverdueZL === zl.userId;
               return (
                 <div key={zl.userId} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
                   <div className="flex items-center gap-2.5 px-4 py-3">
@@ -266,7 +341,13 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
                           {isZLDelayedOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         </button>
                       )}
-                      {zAgg.overdueActs > 0 && <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">{zAgg.overdueActs} overdue</span>}
+                      {zAgg.overdueActs > 0 && (
+                        <button type="button" onClick={() => setExpandedOverdueZL(isZLOverdueOpen ? null : zl.userId)}
+                          className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded hover:bg-amber-100 flex items-center gap-0.5">
+                          {zAgg.overdueActs} overdue
+                          {isZLOverdueOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                      )}
                       <span className={`w-2 h-2 rounded-full ${dot}`} />
                     </div>
                   </div>
@@ -274,6 +355,12 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
                     <div className="px-4 py-2 space-y-1.5 border-t border-red-50">
                       <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Delayed Pitstops</p>
                       {zlDelayed.map(p => <PitstopDetailCard key={`${zl.userId}-${p.id}`} p={p} ownerName={p.ownerName} />)}
+                    </div>
+                  )}
+                  {isZLOverdueOpen && zlActs.length > 0 && (
+                    <div className="px-4 py-2 space-y-1 border-t border-amber-50">
+                      <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-1">Overdue Activities</p>
+                      {zlActs.map(a => <OverdueActivityCard key={`${zl.userId}-${a.id}`} a={a} showOwner />)}
                     </div>
                   )}
                   {zlRPs.length > 0 && (
@@ -304,6 +391,38 @@ export function AdminTeamHealthTab({ personHealth }: { personHealth: AdminPerson
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Inline row for the per-person overdue-activity drill-down. Matches the
+// flat row used in AdminAttentionTab so the visual reads the same across
+// surfaces. `showOwner` is off when the row sits under an RP card (the
+// card itself already names the person) and on at PM/ZL levels where the
+// row could belong to any of the team members aggregated under that pill.
+function OverdueActivityCard({ a, showOwner }: { a: AdminOverdueActivity; showOwner: boolean }) {
+  return (
+    <div className="bg-white border border-amber-100 rounded-lg px-2.5 py-1.5 flex items-center gap-2">
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${EVENT_TYPE_COLOR[a.type] ?? "bg-stone-300"}`} />
+      <div className="flex-1 min-w-0">
+        {a.goalId ? (
+          <Link href={`/goals/${a.goalId}`} className="text-xs font-medium text-stone-800 hover:text-sky-700 truncate block">{a.title}</Link>
+        ) : (
+          <p className="text-xs font-medium text-stone-800 truncate">{a.title}</p>
+        )}
+        {a.goalTitle && <p className="text-[10px] text-stone-400 truncate">{a.goalTitle}</p>}
+        {showOwner && a.ownerName && (
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[10px] text-stone-500">{a.ownerName}</span>
+            {a.ownerDesignation && (
+              <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${DESIGNATION_COLOR[a.ownerDesignation] ?? "bg-stone-100 text-stone-500"}`}>
+                {a.ownerDesignation}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      <span className="text-[10px] font-medium text-amber-700 flex-shrink-0">{fmtDateShort(a.scheduledAt)}</span>
     </div>
   );
 }
