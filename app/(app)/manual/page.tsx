@@ -86,7 +86,7 @@ export default async function ManualListPage({ searchParams }: { searchParams: S
         </header>
 
         <p className="text-sm text-stone-600 mb-6 max-w-2xl">
-          A growing library of response modules — one per care-plan response. Each module is built on
+          A growing library of response modules — one per response. Each module is built on
           the shared eight-section template and grows by accretion from practice circles, partner
           reviews, and shadow visits.
         </p>

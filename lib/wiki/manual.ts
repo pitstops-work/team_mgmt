@@ -46,7 +46,7 @@ export type SectionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export const SECTION_NUMBERS: SectionNumber[] = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export const SECTION_LABELS: Record<SectionNumber, string> = {
-  1: "The need, in the elder's words",
+  1: "The need, in their own words",
   2: 'What "done" actually means here',
   3: "The standard path",
   4: "Entering: the relational opening",
@@ -75,11 +75,11 @@ export const SECTION_STABILITY: Record<SectionNumber, Stability> = {
 // Light prompts shown in the capture UI when a user has picked this section
 // as the destination. Kept short — the writer should not feel taxonomised.
 export const SECTION_INTAKE_HINT: Record<SectionNumber, string> = {
-  1: "How did the elder actually phrase the need? In which language?",
+  1: "How was the need actually phrased? In which language?",
   2: "What did 'done' look like here? Or what got called done but wasn't?",
   3: "Did the standard steps need adjusting? Where?",
   4: "How did you arrive? What worked, what backfired?",
-  5: "What was different about this elder or this household?",
+  5: "What was different about this person or household?",
   6: "Where did it get stuck? What was tried?",
   7: "Follow-up cadence — what got checked, what got missed?",
   8: "When did the standard turn out to be the wrong call?",
