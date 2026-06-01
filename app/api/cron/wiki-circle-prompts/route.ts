@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   const [circles, meetings] = await Promise.all([
     prisma.wikiPracticeCircle.findMany({
-      where: { completedAt: { gte: since } },
+      where: { archivedAt: null, completedAt: { gte: since } },
       select: {
         id: true,
         completedAt: true,
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       },
     }),
     prisma.wikiPartnerReviewMeeting.findMany({
-      where: { completedAt: { gte: since } },
+      where: { archivedAt: null, completedAt: { gte: since } },
       select: {
         id: true,
         completedAt: true,

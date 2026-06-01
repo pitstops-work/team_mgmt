@@ -37,3 +37,13 @@ export function requireSteward(steward: boolean): Response | null {
   if (!steward) return Response.json({ error: "Forbidden" }, { status: 403 });
   return null;
 }
+
+/**
+ * Page archive (soft-delete) authz. Spec: stewards + curators only; owners and
+ * editors cannot remove their own pages. City-scoping on curator is not yet
+ * enforced here — deferred until the WikiStaff.cityId scope is wired into a
+ * cityCanArchive() helper.
+ */
+export function canArchivePage(steward: boolean, curator: boolean): boolean {
+  return steward || curator;
+}

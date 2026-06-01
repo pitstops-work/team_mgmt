@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Inbox, ListFilter } from "lucide-react";
+import { ArrowLeft, Plus, Inbox, ListFilter, Trash2 } from "lucide-react";
 
 type Gap = {
   id: string;
@@ -24,6 +24,7 @@ type Gap = {
 
 type Org = { id: string; name: string; slug: string };
 type Owner = { id: string; name: string | null; email: string | null };
+type ND = { domain: string; label: string };
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -45,13 +46,17 @@ export default function GapsView({
   gaps: initialGaps,
   partnerOrgs,
   candidateOwners,
+  needsDomains,
 }: {
   viewerIsCurator: boolean;
   viewerId: string;
   gaps: Gap[];
   partnerOrgs: Org[];
   candidateOwners: Owner[];
+  needsDomains: ND[];
 }) {
+  // Old free-text rows may not match a domain key; fall back to raw value.
+  const verticalLabel = new Map(needsDomains.map((d) => [d.domain, d.label]));
   const router = useRouter();
   const [gaps, setGaps] = useState<Gap[]>(initialGaps);
   const [showForm, setShowForm] = useState(false);
@@ -120,6 +125,19 @@ export default function GapsView({
     router.refresh();
   }
 
+  async function archive(g: Gap) {
+    if (!confirm(`Archive this gap (${g.oneLineNeed.slice(0, 80)}…)? It will disappear from the queue.`)) return;
+    setBusy(g.id);
+    const res = await fetch(`/api/wiki/gaps/${g.id}`, { method: "DELETE" });
+    setBusy(null);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(j.error || "Archive failed.");
+      return;
+    }
+    setGaps((prev) => prev.filter((x) => x.id !== g.id));
+  }
+
   const visible = statusFilter === "all" ? gaps : gaps.filter((g) => g.status === statusFilter);
   const queueDepth = gaps.filter((g) => g.status === "open").length;
   const myAssigned = gaps.filter((g) => g.assignedOwner?.id === viewerId && g.status !== "published" && g.status !== "declined").length;
@@ -180,13 +198,16 @@ export default function GapsView({
             <div className="grid sm:grid-cols-2 gap-4">
               <label className="block text-sm">
                 <span className="text-stone-700 font-medium">Vertical *</span>
-                <input
-                  type="text"
+                <select
                   value={vertical}
                   onChange={(e) => setVertical(e.target.value)}
-                  placeholder="e.g. creche, welfare-rights, food"
-                  className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2 text-sm"
-                />
+                  className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2 text-sm bg-white"
+                >
+                  <option value="">— pick a needs domain —</option>
+                  {needsDomains.map((d) => (
+                    <option key={d.domain} value={d.domain}>{d.label}</option>
+                  ))}
+                </select>
               </label>
               <label className="block text-sm">
                 <span className="text-stone-700 font-medium">City</span>
@@ -264,7 +285,10 @@ export default function GapsView({
               {statusFilter === "all" ? "No gaps yet." : `No ${statusFilter} gaps.`}
             </li>
           )}
-          {visible.map((g) => (
+          {visible.map((g) => {
+            // Filer can archive only while the gap is still open; curator any time.
+            const canArchive = viewerIsCurator || (g.filer.id === viewerId && g.status === "open");
+            return (
             <li key={g.id} className="p-4 bg-white border border-stone-200 rounded-lg">
               <div className="flex items-start gap-3">
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded border ${STATUS_COLOURS[g.status] || "bg-stone-100 text-stone-700 border-stone-300"}`}>
@@ -272,7 +296,7 @@ export default function GapsView({
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-stone-500">
-                    <span><b className="text-stone-700">{g.vertical}</b></span>
+                    <span><b className="text-stone-700">{verticalLabel.get(g.vertical) ?? g.vertical}</b></span>
                     {g.city && <span>· {g.city}</span>}
                     {g.partnerOrg && <span>· {g.partnerOrg.name}</span>}
                     <span>· filed {fmtDate(g.createdAt)} by {g.filer.name || "—"}</span>
@@ -314,9 +338,21 @@ export default function GapsView({
                       <PublishControls busy={busy === g.id} onPublish={(slug) => triage(g.id, { action: "publish", linkedPageId: slug })} />
                   )}
                 </div>
+                {canArchive && (
+                  <button
+                    type="button"
+                    disabled={busy === g.id}
+                    onClick={() => archive(g)}
+                    className="shrink-0 p-1.5 text-stone-400 hover:text-red-600 rounded disabled:opacity-50"
+                    title={viewerIsCurator ? "Archive gap (curator)" : "Archive gap (filer, open only)"}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </div>
     </main>

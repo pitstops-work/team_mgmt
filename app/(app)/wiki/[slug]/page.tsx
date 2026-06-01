@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { isWikiSteward } from "@/lib/wiki/auth";
+import { canArchivePage, isWikiCurator, isWikiSteward } from "@/lib/wiki/auth";
 import { notFound } from "next/navigation";
 import WikiReaderView from "./WikiReaderView";
 
@@ -41,12 +41,13 @@ export default async function WikiPageReader({
     }
   })();
 
-  const [me, steward, comments, flags, pendingReviews, pendingHandover] = await Promise.all([
+  const [me, steward, curator, comments, flags, pendingReviews, pendingHandover] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { preferredLang: true },
     }),
     isWikiSteward(userId),
+    isWikiCurator(userId),
     prisma.wikiComment.findMany({
       where: { pageId: page.id },
       orderBy: { createdAt: "asc" },
@@ -98,6 +99,7 @@ export default async function WikiPageReader({
       pendingHandover={pendingHandover ? JSON.parse(JSON.stringify(pendingHandover)) : null}
       currentUserId={userId}
       isSteward={steward}
+      canArchive={canArchivePage(steward, curator)}
       preferredLang={me?.preferredLang ?? "en"}
     />
   );

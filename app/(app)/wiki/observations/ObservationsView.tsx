@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye, Plus, Filter } from "lucide-react";
+import { ArrowLeft, Eye, Plus, Filter, Trash2 } from "lucide-react";
 
 type Obs = {
   id: string;
@@ -22,6 +22,7 @@ type Obs = {
 
 type Org = { id: string; name: string };
 type Page = { id: string; slug: string; title: string; type: string };
+type ND = { domain: string; label: string };
 
 function fmt(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
@@ -29,20 +30,40 @@ function fmt(iso: string): string {
 
 export default function ObservationsView({
   viewerId,
+  viewerIsCurator,
   observations: initial,
   partnerOrgs,
   pageOptions,
+  needsDomains,
 }: {
   viewerId: string;
+  viewerIsCurator: boolean;
   observations: Obs[];
   partnerOrgs: Org[];
   pageOptions: Page[];
+  needsDomains: ND[];
 }) {
+  // Old free-text rows may not match a domain key; fall back to raw value.
+  const verticalLabel = new Map(needsDomains.map((d) => [d.domain, d.label]));
   const router = useRouter();
-  const [observations] = useState<Obs[]>(initial);
+  const [observations, setObservations] = useState<Obs[]>(initial);
   const [showForm, setShowForm] = useState(false);
   const [kindFilter, setKindFilter] = useState<string>("all");
   const [busy, setBusy] = useState(false);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+
+  async function archive(o: Obs) {
+    if (!confirm("Archive this observation? It will disappear from the list and dashboards.")) return;
+    setArchivingId(o.id);
+    const res = await fetch(`/api/wiki/observations/${o.id}`, { method: "DELETE" });
+    setArchivingId(null);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(j.error || "Archive failed.");
+      return;
+    }
+    setObservations((prev) => prev.filter((x) => x.id !== o.id));
+  }
 
   // Form state
   const [kind, setKind] = useState<"shadow" | "onboarding">("shadow");
@@ -159,13 +180,16 @@ export default function ObservationsView({
               </label>
               <label className="block text-sm">
                 <span className="text-stone-700 font-medium">Vertical *</span>
-                <input
-                  type="text"
+                <select
                   value={vertical}
                   onChange={(e) => setVertical(e.target.value)}
-                  placeholder="e.g. creche, food, welfare-rights"
-                  className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2 text-sm"
-                />
+                  className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2 text-sm bg-white"
+                >
+                  <option value="">— pick a needs domain —</option>
+                  {needsDomains.map((d) => (
+                    <option key={d.domain} value={d.domain}>{d.label}</option>
+                  ))}
+                </select>
               </label>
               <label className="block text-sm">
                 <span className="text-stone-700 font-medium">When *</span>
@@ -273,7 +297,9 @@ export default function ObservationsView({
               No observations yet.
             </li>
           )}
-          {visible.map((o) => (
+          {visible.map((o) => {
+            const canArchive = viewerIsCurator || o.observer.id === viewerId;
+            return (
             <li key={o.id} className="p-4 bg-white border border-stone-200 rounded-lg">
               <div className="flex items-start gap-3">
                 <span
@@ -287,7 +313,7 @@ export default function ObservationsView({
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-stone-500">
-                    <span><b className="text-stone-700">{o.vertical}</b></span>
+                    <span><b className="text-stone-700">{verticalLabel.get(o.vertical) ?? o.vertical}</b></span>
                     {o.city && <span>· {o.city}</span>}
                     {o.partnerOrg && <span>· {o.partnerOrg.name}</span>}
                     <span>· {fmt(o.happenedAt)}</span>
@@ -307,9 +333,21 @@ export default function ObservationsView({
                     <p className="mt-1 text-xs text-stone-600 italic">Open: {o.openQuestions}</p>
                   )}
                 </div>
+                {canArchive && (
+                  <button
+                    type="button"
+                    disabled={archivingId === o.id}
+                    onClick={() => archive(o)}
+                    className="shrink-0 p-1.5 text-stone-400 hover:text-red-600 rounded disabled:opacity-50"
+                    title={viewerIsCurator ? "Archive observation (curator)" : "Archive observation (observer)"}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </div>
     </main>

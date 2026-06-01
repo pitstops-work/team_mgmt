@@ -14,9 +14,12 @@ export default async function WikiGapsPage() {
   // Curators see every open + assigned + drafted gap.
   // Non-curators see gaps they filed or were assigned, plus a "file new" form.
   const gaps = await prisma.wikiPracticeGap.findMany({
-    where: curator
-      ? { resolvedAt: null }
-      : { OR: [{ filerId: userId }, { assignedOwnerId: userId }] },
+    where: {
+      archivedAt: null,
+      ...(curator
+        ? { resolvedAt: null }
+        : { OR: [{ filerId: userId }, { assignedOwnerId: userId }] }),
+    },
     orderBy: { createdAt: "desc" },
     take: 200,
     include: {
@@ -29,20 +32,29 @@ export default async function WikiGapsPage() {
 
   // For curator triage: dropdown of partner orgs + dropdown of potential owners
   // (= anyone who already owns a wiki page; cheap proxy for "wiki-active user").
-  const [partnerOrgs, candidateOwners] = curator
-    ? await Promise.all([
-        prisma.org.findMany({
+  const [partnerOrgs, candidateOwners, needsDomains] = await Promise.all([
+    curator
+      ? prisma.org.findMany({
           where: { kind: "partner" },
           orderBy: { name: "asc" },
           select: { id: true, name: true, slug: true },
-        }),
-        prisma.user.findMany({
+        })
+      : Promise.resolve([] as { id: string; name: string; slug: string }[]),
+    curator
+      ? prisma.user.findMany({
           where: { ownedWikiPages: { some: { archivedAt: null } } },
           orderBy: { name: "asc" },
           select: { id: true, name: true, email: true },
-        }),
-      ])
-    : [[], []];
+        })
+      : Promise.resolve([] as { id: string; name: string | null; email: string | null }[]),
+    prisma.needsFormulaConfig.findMany({
+      where: { isActive: true },
+      select: { domain: true, label: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
+  // Coalesce nullable label so downstream form props stay non-null.
+  const domainOptions = needsDomains.map((d) => ({ domain: d.domain, label: d.label ?? d.domain }));
 
   return (
     <GapsView
@@ -51,6 +63,7 @@ export default async function WikiGapsPage() {
       gaps={JSON.parse(JSON.stringify(gaps))}
       partnerOrgs={partnerOrgs}
       candidateOwners={candidateOwners}
+      needsDomains={domainOptions}
     />
   );
 }

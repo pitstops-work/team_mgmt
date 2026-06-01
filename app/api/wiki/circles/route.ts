@@ -8,6 +8,7 @@ export async function GET() {
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const circles = await prisma.wikiPracticeCircle.findMany({
+    where: { archivedAt: null },
     orderBy: { scheduledFor: "desc" },
     take: 200,
     select: {

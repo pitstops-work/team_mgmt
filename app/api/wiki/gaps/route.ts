@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
 
   const gaps = await prisma.wikiPracticeGap.findMany({
     where: {
+      archivedAt: null,
       ...(status && isGapStatus(status) ? { status } : {}),
       ...(vertical ? { vertical } : {}),
       ...(mine

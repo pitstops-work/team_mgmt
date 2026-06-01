@@ -18,7 +18,7 @@ export default async function NewCirclePage() {
     );
   }
 
-  const [users, zones, pages] = await Promise.all([
+  const [users, zones, pages, needsDomains] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
@@ -33,13 +33,21 @@ export default async function NewCirclePage() {
       select: { id: true, slug: true, title: true },
       orderBy: { title: "asc" },
     }),
+    prisma.needsFormulaConfig.findMany({
+      where: { isActive: true },
+      select: { domain: true, label: true },
+      orderBy: { sortOrder: "asc" },
+    }),
   ]);
+  // Coalesce nullable label so downstream form props stay non-null.
+  const domainOptions = needsDomains.map((d) => ({ domain: d.domain, label: d.label ?? d.domain }));
 
   return (
     <CircleNewForm
       users={JSON.parse(JSON.stringify(users))}
       zones={JSON.parse(JSON.stringify(zones))}
       pages={JSON.parse(JSON.stringify(pages))}
+      needsDomains={domainOptions}
       defaultFacilitatorId={userId}
     />
   );

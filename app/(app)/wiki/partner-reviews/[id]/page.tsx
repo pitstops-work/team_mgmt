@@ -22,14 +22,17 @@ export default async function PartnerReviewDetailPage({
       linkedPages: { select: { id: true, slug: true, title: true, status: true } },
     },
   });
-  if (!meeting) notFound();
+  if (!meeting || meeting.archivedAt) notFound();
 
   const steward = await isWikiSteward(userId);
+  // Archive permission matches the API: any attendee OR steward.
+  const canArchive = steward || meeting.attendees.some((a) => a.id === userId);
 
   return (
     <PartnerReviewDetailView
       meeting={JSON.parse(JSON.stringify(meeting))}
       canModify={steward}
+      canArchive={canArchive}
     />
   );
 }

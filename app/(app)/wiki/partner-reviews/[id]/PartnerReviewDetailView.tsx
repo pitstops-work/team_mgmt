@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Save, Handshake, FileText } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Save, Handshake, FileText, Trash2 } from "lucide-react";
 
 type User = { id: string; name: string | null; image: string | null };
 type LinkedPage = { id: string; slug: string; title: string; status: string };
@@ -27,14 +27,31 @@ function fmtDate(iso: string | null): string {
 export default function PartnerReviewDetailView({
   meeting,
   canModify,
+  canArchive,
 }: {
   meeting: Meeting;
   canModify: boolean;
+  canArchive: boolean;
 }) {
   const router = useRouter();
   const [notes, setNotes] = useState(meeting.notes ?? "");
   const [practiceChangesNoted, setPracticeChangesNoted] = useState(meeting.practiceChangesNoted ?? "");
   const [saving, setSaving] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+
+  async function archive() {
+    if (archiving) return;
+    if (!confirm(`Archive this partner review with ${meeting.partnerOrg.name}? It will disappear from lists and dashboards.`)) return;
+    setArchiving(true);
+    const res = await fetch(`/api/wiki/partner-reviews/${meeting.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(j.error || "Archive failed");
+      setArchiving(false);
+      return;
+    }
+    router.push("/wiki/partner-reviews");
+  }
 
   async function save(opts: { markCompleted?: boolean } = {}) {
     setSaving(true);
@@ -72,7 +89,21 @@ export default function PartnerReviewDetailView({
               <span className="text-xs bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">Scheduled</span>
             )}
           </div>
-          <h1 className="text-2xl font-semibold text-stone-900">{meeting.partnerOrg.name}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl font-semibold text-stone-900">{meeting.partnerOrg.name}</h1>
+            {canArchive && (
+              <button
+                type="button"
+                onClick={archive}
+                disabled={archiving}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-stone-300 rounded-md text-xs text-stone-600 hover:border-red-400 hover:text-red-700 disabled:opacity-50"
+                title="Archive partner review (attendee / steward only)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {archiving ? "Archiving…" : "Archive"}
+              </button>
+            )}
+          </div>
           <div className="mt-2 text-sm text-stone-500">Scheduled: {fmtDate(meeting.scheduledFor)}</div>
         </header>
 

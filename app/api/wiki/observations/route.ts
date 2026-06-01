@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
 
   const rows = await prisma.wikiPracticeObservation.findMany({
     where: {
+      archivedAt: null,
       ...(kind && isKind(kind) ? { kind } : {}),
       ...(vertical ? { vertical } : {}),
       ...(mine ? { observerId: userId } : {}),

@@ -15,8 +15,9 @@ export default async function CirclesListPage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
-  const [circles, steward] = await Promise.all([
+  const [circles, steward, needsDomains] = await Promise.all([
     prisma.wikiPracticeCircle.findMany({
+      where: { archivedAt: null },
       orderBy: { scheduledFor: "desc" },
       take: 200,
       select: {
@@ -31,7 +32,13 @@ export default async function CirclesListPage() {
       },
     }),
     isWikiSteward(userId),
+    prisma.needsFormulaConfig.findMany({
+      select: { domain: true, label: true },
+    }),
   ]);
+  // Resolve the stored camelCase domain key to its current label.
+  // Falls back to the raw value for older free-text rows (pre-dropdown).
+  const verticalLabel = new Map(needsDomains.map((d) => [d.domain, d.label]));
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -82,7 +89,7 @@ export default async function CirclesListPage() {
                           <span className="text-xs bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">Scheduled</span>
                         )}
                         {c.zone && <span className="text-xs text-stone-500">{c.zone.name}</span>}
-                        {c.vertical && <span className="text-xs text-stone-500">· {c.vertical}</span>}
+                        {c.vertical && <span className="text-xs text-stone-500">· {verticalLabel.get(c.vertical) ?? c.vertical}</span>}
                       </div>
                       {c.caseDiscussed && (
                         <p className="text-sm text-stone-700 mt-1 truncate">{c.caseDiscussed}</p>

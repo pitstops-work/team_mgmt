@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Save, Users, FileText } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Save, Users, FileText, Trash2 } from "lucide-react";
 
 type User = { id: string; name: string | null; image: string | null };
 type LinkedPage = { id: string; slug: string; title: string; status: string };
@@ -30,14 +30,31 @@ function fmtDate(iso: string | null): string {
 export default function CircleDetailView({
   circle,
   canModify,
+  verticalLabel,
 }: {
   circle: Circle;
   canModify: boolean;
+  verticalLabel: string | null;
 }) {
   const router = useRouter();
   const [notes, setNotes] = useState(circle.notes ?? "");
   const [recordingUrl, setRecordingUrl] = useState(circle.recordingUrl ?? "");
   const [saving, setSaving] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+
+  async function archive() {
+    if (archiving) return;
+    if (!confirm(`Archive this circle (${fmtDate(circle.scheduledFor)})? It will disappear from lists and dashboards. Linked review prompts and attendees are preserved.`)) return;
+    setArchiving(true);
+    const res = await fetch(`/api/wiki/circles/${circle.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(j.error || "Archive failed");
+      setArchiving(false);
+      return;
+    }
+    router.push("/wiki/circles");
+  }
 
   async function save(opts: { markCompleted?: boolean } = {}) {
     setSaving(true);
@@ -75,11 +92,25 @@ export default function CircleDetailView({
               <span className="text-xs bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">Scheduled</span>
             )}
           </div>
-          <h1 className="text-2xl font-semibold text-stone-900">{fmtDate(circle.scheduledFor)}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl font-semibold text-stone-900">{fmtDate(circle.scheduledFor)}</h1>
+            {canModify && (
+              <button
+                type="button"
+                onClick={archive}
+                disabled={archiving}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-stone-300 rounded-md text-xs text-stone-600 hover:border-red-400 hover:text-red-700 disabled:opacity-50"
+                title="Archive circle (facilitator / steward only)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {archiving ? "Archiving…" : "Archive"}
+              </button>
+            )}
+          </div>
           <div className="mt-2 text-sm text-stone-500 flex flex-wrap gap-x-4 gap-y-1">
             <span>Facilitator: {circle.facilitator.name}</span>
             {circle.zone && <span>Zone: {circle.zone.name}</span>}
-            {circle.vertical && <span>Vertical: {circle.vertical}</span>}
+            {circle.vertical && <span>Vertical: {verticalLabel ?? circle.vertical}</span>}
           </div>
         </header>
 

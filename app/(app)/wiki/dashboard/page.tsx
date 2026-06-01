@@ -327,35 +327,36 @@ async function fetchCuratorData(dormantCutoff: Date) {
     `,
     // Circle health
     prisma.wikiPracticeCircle.count({
-      where: { completedAt: { gte: last30 } },
+      where: { archivedAt: null, completedAt: { gte: last30 } },
     }),
     prisma.wikiPracticeCircle.count({
-      where: { completedAt: { gte: last6mo } },
+      where: { archivedAt: null, completedAt: { gte: last6mo } },
     }),
     prisma.wikiPracticeCircle.count({
       where: {
+        archivedAt: null,
         completedAt: { gte: last30 },
         linkedPages: { some: {} },
       },
     }),
     prisma.wikiPracticeCircle.findMany({
-      where: { completedAt: { gte: last6mo } },
+      where: { archivedAt: null, completedAt: { gte: last6mo } },
       select: { facilitatorId: true },
       distinct: ["facilitatorId"],
     }),
     // Gap queue
-    prisma.wikiPracticeGap.count({ where: { status: "open" } }),
+    prisma.wikiPracticeGap.count({ where: { archivedAt: null, status: "open" } }),
     prisma.wikiPracticeGap.findFirst({
-      where: { status: "open" },
+      where: { archivedAt: null, status: "open" },
       orderBy: { createdAt: "asc" },
       select: { createdAt: true },
     }),
     prisma.wikiPracticeGap.findMany({
-      where: { status: "published", resolvedAt: { gte: new Date(now.getTime() - 90 * DAY) } },
+      where: { archivedAt: null, status: "published", resolvedAt: { gte: new Date(now.getTime() - 90 * DAY) } },
       select: { createdAt: true, resolvedAt: true },
     }),
     prisma.wikiPracticeGap.count({
-      where: { status: "declined", resolvedAt: { gte: new Date(now.getTime() - 90 * DAY) } },
+      where: { archivedAt: null, status: "declined", resolvedAt: { gte: new Date(now.getTime() - 90 * DAY) } },
     }),
     // Flag SLA
     prisma.wikiFlag.count({
@@ -366,7 +367,7 @@ async function fetchCuratorData(dormantCutoff: Date) {
     }),
     // Observation activity
     prisma.wikiPracticeObservation.count({
-      where: { happenedAt: { gte: last30 } },
+      where: { archivedAt: null, happenedAt: { gte: last30 } },
     }),
   ]);
 

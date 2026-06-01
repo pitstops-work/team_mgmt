@@ -223,3 +223,36 @@ export async function PATCH(
       return Response.json({ error: "Unknown action" }, { status: 400 });
   }
 }
+
+// Soft-delete (archive). Filer (only while still open + unassigned) OR curator.
+// Once a gap has been triaged or resolved, only the curator can archive — the
+// filer-loop notifications have already gone out and a stray retraction would
+// break the audit trail of "this gap was raised."
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const gap = await prisma.wikiPracticeGap.findUnique({
+    where: { id },
+    select: { id: true, filerId: true, status: true, archivedAt: true },
+  });
+  if (!gap) return Response.json({ error: "Not found" }, { status: 404 });
+  if (gap.archivedAt) return Response.json({ error: "Already archived" }, { status: 409 });
+
+  const curator = await isWikiCurator(userId);
+  const filerCanArchive = gap.filerId === userId && gap.status === "open";
+  if (!filerCanArchive && !curator) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  await prisma.wikiPracticeGap.update({
+    where: { id: gap.id },
+    data: { archivedAt: new Date(), archivedById: userId },
+  });
+  return Response.json({ ok: true });
+}

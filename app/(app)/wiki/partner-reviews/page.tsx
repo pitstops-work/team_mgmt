@@ -17,6 +17,7 @@ export default async function PartnerReviewsListPage() {
 
   const [meetings, steward] = await Promise.all([
     prisma.wikiPartnerReviewMeeting.findMany({
+      where: { archivedAt: null },
       orderBy: { scheduledFor: "desc" },
       take: 200,
       select: {

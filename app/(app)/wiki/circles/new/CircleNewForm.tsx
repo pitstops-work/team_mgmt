@@ -8,16 +8,19 @@ import { ArrowLeft, Plus } from "lucide-react";
 type U = { id: string; name: string | null; email: string };
 type Z = { id: string; name: string };
 type P = { id: string; slug: string; title: string };
+type ND = { domain: string; label: string };
 
 export default function CircleNewForm({
   users,
   zones,
   pages,
+  needsDomains,
   defaultFacilitatorId,
 }: {
   users: U[];
   zones: Z[];
   pages: P[];
+  needsDomains: ND[];
   defaultFacilitatorId: string;
 }) {
   const router = useRouter();
@@ -112,13 +115,16 @@ export default function CircleNewForm({
             </div>
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Vertical (optional)</label>
-              <input
-                type="text"
+              <select
                 value={vertical}
                 onChange={(e) => setVertical(e.target.value)}
-                placeholder="e.g. livelihoods"
                 className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
-              />
+              >
+                <option value="">—</option>
+                {needsDomains.map((d) => (
+                  <option key={d.domain} value={d.domain}>{d.label}</option>
+                ))}
+              </select>
             </div>
           </div>
 

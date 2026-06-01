@@ -14,24 +14,32 @@ export default async function CircleDetailPage({
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
-  const circle = await prisma.wikiPracticeCircle.findUnique({
-    where: { id },
-    include: {
-      facilitator: { select: { id: true, name: true, image: true } },
-      zone: { select: { id: true, name: true } },
-      attendees: { select: { id: true, name: true, image: true } },
-      linkedPages: { select: { id: true, slug: true, title: true, status: true } },
-    },
-  });
-  if (!circle) notFound();
+  const [circle, needsDomains] = await Promise.all([
+    prisma.wikiPracticeCircle.findUnique({
+      where: { id },
+      include: {
+        facilitator: { select: { id: true, name: true, image: true } },
+        zone: { select: { id: true, name: true } },
+        attendees: { select: { id: true, name: true, image: true } },
+        linkedPages: { select: { id: true, slug: true, title: true, status: true } },
+      },
+    }),
+    prisma.needsFormulaConfig.findMany({ select: { domain: true, label: true } }),
+  ]);
+  if (!circle || circle.archivedAt) notFound();
 
   const steward = await isWikiSteward(userId);
   const canModify = circle.facilitatorId === userId || steward;
+  const verticalLabel =
+    circle.vertical
+      ? (needsDomains.find((d) => d.domain === circle.vertical)?.label ?? circle.vertical)
+      : null;
 
   return (
     <CircleDetailView
       circle={JSON.parse(JSON.stringify(circle))}
       canModify={canModify}
+      verticalLabel={verticalLabel}
     />
   );
 }

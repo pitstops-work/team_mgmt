@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { canEditPage, isWikiSteward } from "@/lib/wiki/auth";
+import { canArchivePage, canEditPage, isWikiCurator, isWikiSteward } from "@/lib/wiki/auth";
 import { nextReviewFromNow } from "@/lib/wiki/review";
 import type { NextRequest } from "next/server";
 
@@ -118,4 +118,36 @@ export async function PATCH(
   });
 
   return Response.json({ page: updated });
+}
+
+// Soft-delete (archive). Stewards + curators only — see canArchivePage.
+// Sets archivedAt so the page disappears from lists, dashboards, search, and
+// the stale-page sweep cron. Versions, comments, flags, and review cycles are
+// preserved for audit.
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ slug: string }> },
+) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { slug } = await params;
+  const page = await prisma.wikiPage.findUnique({
+    where: { slug },
+    select: { id: true, archivedAt: true },
+  });
+  if (!page) return Response.json({ error: "Not found" }, { status: 404 });
+  if (page.archivedAt) return Response.json({ error: "Already archived" }, { status: 409 });
+
+  const [steward, curator] = await Promise.all([isWikiSteward(userId), isWikiCurator(userId)]);
+  if (!canArchivePage(steward, curator)) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  await prisma.wikiPage.update({
+    where: { id: page.id },
+    data: { archivedAt: new Date(), archivedById: userId },
+  });
+  return Response.json({ ok: true });
 }

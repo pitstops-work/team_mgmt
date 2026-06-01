@@ -74,3 +74,32 @@ export async function PATCH(
 
   return Response.json({ circle: updated });
 }
+
+// Soft-delete (archive). Facilitator OR steward.
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const circle = await prisma.wikiPracticeCircle.findUnique({
+    where: { id },
+    select: { id: true, facilitatorId: true, archivedAt: true },
+  });
+  if (!circle) return Response.json({ error: "Not found" }, { status: 404 });
+  if (circle.archivedAt) return Response.json({ error: "Already archived" }, { status: 409 });
+
+  const steward = await isWikiSteward(userId);
+  if (circle.facilitatorId !== userId && !steward) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  await prisma.wikiPracticeCircle.update({
+    where: { id: circle.id },
+    data: { archivedAt: new Date(), archivedById: userId },
+  });
+  return Response.json({ ok: true });
+}

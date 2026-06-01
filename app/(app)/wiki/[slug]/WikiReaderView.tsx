@@ -20,6 +20,7 @@ import {
   Users,
   Handshake,
   Send,
+  Trash2,
 } from "lucide-react";
 
 type User = { id: string; name: string | null; image: string | null };
@@ -127,6 +128,7 @@ export default function WikiReaderView({
   pendingHandover,
   currentUserId,
   isSteward,
+  canArchive,
   preferredLang,
 }: {
   page: Page;
@@ -136,6 +138,7 @@ export default function WikiReaderView({
   pendingHandover: PendingHandover | null;
   currentUserId: string;
   isSteward: boolean;
+  canArchive: boolean;
   preferredLang: string;
 }) {
   const router = useRouter();
@@ -146,6 +149,7 @@ export default function WikiReaderView({
   const [submitting, setSubmitting] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [handoverOpen, setHandoverOpen] = useState(false);
   const [handoverBusy, setHandoverBusy] = useState(false);
   const [mobileActivityOpen, setMobileActivityOpen] = useState(false);
@@ -257,6 +261,20 @@ export default function WikiReaderView({
     });
     setPublishing(false);
     if (res.ok) router.refresh();
+  }
+
+  async function archivePage() {
+    if (archiving) return;
+    if (!confirm(`Archive "${page.title}"? It will disappear from lists, search, and the review cycle. Versions, comments, and flags are preserved.`)) return;
+    setArchiving(true);
+    const res = await fetch(`/api/wiki/pages/${page.slug}`, { method: "DELETE" });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(j.error || "Archive failed");
+      setArchiving(false);
+      return;
+    }
+    router.push("/wiki");
   }
 
   const openFlagCount = useMemo(
@@ -467,6 +485,18 @@ export default function WikiReaderView({
                       <Pencil className="w-4 h-4" />
                       Edit
                     </Link>
+                  )}
+                  {canArchive && (
+                    <button
+                      type="button"
+                      onClick={archivePage}
+                      disabled={archiving}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-stone-300 rounded-md text-sm text-stone-600 hover:border-red-400 hover:text-red-700 disabled:opacity-50"
+                      title="Archive page (steward / curator only)"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {archiving ? "Archiving…" : "Archive"}
+                    </button>
                   )}
                 </div>
               </div>

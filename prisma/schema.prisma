@@ -2307,6 +2307,7 @@ model WikiPage {
   status            String    @default("draft") // draft | published | under_review | orphaned | retired
   createdAt         DateTime  @default(now())
   archivedAt        DateTime?
+  archivedById      String?
 
   owner                 User?                      @relation("WikiPageOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   lastEditor            User?                      @relation("WikiPageLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
@@ -2473,6 +2474,9 @@ model WikiPracticeCircle {
   notes         String?
   recordingUrl  String?
   language      String    @default("en")
+  // Soft-delete. Lists, dashboards, crons all filter archivedAt: null.
+  archivedAt    DateTime?
+  archivedById  String?
   createdAt     DateTime  @default(now())
 
   zone         Zone?             @relation(fields: [zoneId], references: [id], onDelete: SetNull)
@@ -2484,6 +2488,7 @@ model WikiPracticeCircle {
   @@index([scheduledFor])
   @@index([facilitatorId])
   @@index([zoneId])
+  @@index([archivedAt])
 }
 
 // Partner review meeting: scheduled session with a partner NGO where the team
@@ -2497,6 +2502,9 @@ model WikiPartnerReviewMeeting {
   practiceChangesNoted String?
   notes                String?
   language             String    @default("en")
+  // Soft-delete. Lists, dashboards, crons all filter archivedAt: null.
+  archivedAt           DateTime?
+  archivedById         String?
   createdAt            DateTime  @default(now())
 
   partnerOrg   Org               @relation("WikiPartnerReviewMeetingOrg", fields: [partnerOrgId], references: [id])
@@ -2506,6 +2514,7 @@ model WikiPartnerReviewMeeting {
 
   @@index([scheduledFor])
   @@index([partnerOrgId])
+  @@index([archivedAt])
 }
 
 // Pending or completed owner handover. The owner initiates by inserting a
@@ -2589,6 +2598,9 @@ model WikiPracticeGap {
   // or fulfilled the gap. Allows the filer-loop notification + cross-link.
   linkedPageId     String?
   declineReason    String?
+  // Soft-delete (distinct from resolvedAt, which is a triage outcome).
+  archivedAt       DateTime?
+  archivedById     String?
   createdAt        DateTime  @default(now())
   resolvedAt       DateTime?
 
@@ -2603,6 +2615,7 @@ model WikiPracticeGap {
   @@index([assignedOwnerId, status])
   @@index([filerId])
   @@index([createdAt])
+  @@index([archivedAt])
 }
 
 // Field shadow visits and new-CO onboarding sessions. Shared model with a
@@ -2627,6 +2640,9 @@ model WikiPracticeObservation {
   // Single page this observation primarily touched. Nullable: onboarding may
   // span many pages, shadow visits may touch none yet (gap incoming).
   primaryPageId  String?
+  // Soft-delete. Lists, dashboards, crons all filter archivedAt: null.
+  archivedAt     DateTime?
+  archivedById   String?
   createdAt      DateTime @default(now())
 
   observer    User      @relation("WikiPracticeObservationObserver", fields: [observerId], references: [id], onDelete: Restrict)
@@ -2638,6 +2654,7 @@ model WikiPracticeObservation {
   @@index([observerId, happenedAt])
   @@index([partnerOrgId, kind])
   @@index([vertical, happenedAt])
+  @@index([archivedAt])
 }
 
 // ─── Operating Models (parametric unit-economics engine) ─────────────────────
