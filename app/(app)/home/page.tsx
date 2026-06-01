@@ -1006,6 +1006,84 @@ export default async function HomePage() {
     }));
   }
 
+  // ── Leader: Activity-created tracker ───────────────────────────────────────
+  // Sourced from AuditLog `Activity / created` rows over the last 90 days
+  // (client trims to 7d / 30d / 90d windows). Template-applied activities
+  // don't emit these rows, so this naturally captures only ad-hoc / modal
+  // creates. We bulk-fetch the underlying PitstopEvent for title/goal/cluster.
+  let leaderActivityCreated: {
+    auditId: string; createdAt: string;
+    activityId: string; title: string; type: string; scheduledAt: string;
+    creator: { id: string; name: string | null; image: string | null };
+    goal: {
+      id: string; title: string; needsDomain: string | null;
+      needsCluster:    { id: string; name: string } | null;
+      needsSettlement: { id: string; name: string } | null;
+    } | null;
+  }[] = [];
+  if (isLeader) {
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const trackedUserIds = [userId, ...leaderTeamIds];
+    const audits = await prisma.auditLog.findMany({
+      where: {
+        entityType: "Activity",
+        action: "created",
+        userId: { in: trackedUserIds },
+        createdAt: { gte: ninetyDaysAgo },
+      },
+      include: { user: { select: { id: true, name: true, image: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+    if (audits.length > 0) {
+      const eventIds = audits.map(a => a.entityId);
+      const events = await prisma.pitstopEvent.findMany({
+        where: { id: { in: eventIds }, deletedAt: null },
+        select: {
+          id: true, title: true, type: true, scheduledAt: true,
+          pitstops: {
+            select: {
+              pitstop: {
+                select: {
+                  goal: {
+                    select: {
+                      id: true, title: true, needsDomain: true,
+                      needsCluster:    { select: { id: true, name: true } },
+                      needsSettlement: { select: { id: true, name: true } },
+                    },
+                  },
+                },
+              },
+            },
+            take: 1,
+          },
+        },
+      });
+      const eventMap = new Map(events.map(e => [e.id, e]));
+      for (const a of audits) {
+        const ev = eventMap.get(a.entityId);
+        if (!ev || !a.user) continue;
+        const goal = ev.pitstops[0]?.pitstop.goal ?? null;
+        leaderActivityCreated.push({
+          auditId: a.id,
+          createdAt: a.createdAt.toISOString(),
+          activityId: ev.id,
+          title: ev.title,
+          type: ev.type,
+          scheduledAt: ev.scheduledAt.toISOString(),
+          creator: { id: a.user.id, name: a.user.name, image: a.user.image },
+          goal: goal ? {
+            id: goal.id,
+            title: goal.title,
+            needsDomain: goal.needsDomain,
+            needsCluster: goal.needsCluster,
+            needsSettlement: goal.needsSettlement,
+          } : null,
+        });
+      }
+    }
+  }
+
   // ── RP: cluster-deck geometry ──────────────────────────────────────────────
   // Map-card Today view shows one playing-card per assigned cluster with the
   // cluster + settlement boundaries and facility pins. Only fetched for RPs.
@@ -2020,6 +2098,7 @@ export default async function HomePage() {
       leaderOverdueActivities={JSON.parse(JSON.stringify(leaderOverdueActivities))}
       leaderMyActivities={JSON.parse(JSON.stringify(leaderMyActivities))}
       leaderTeam={leaderTeam}
+      leaderActivityCreated={leaderActivityCreated}
       adminDash={adminDash}
       addActivityPitstops={JSON.parse(JSON.stringify(addActivityPitstops))}
       addActivityUsers={JSON.parse(JSON.stringify(addActivityUsers))}

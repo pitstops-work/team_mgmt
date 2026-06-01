@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   CalendarClock, CheckCircle2, Target, MapPin, BarChart3,
-  LayoutDashboard, Users, TrendingUp, AlertTriangle, Activity,
+  LayoutDashboard, Users, TrendingUp, AlertTriangle, Activity, ListTree,
 } from "lucide-react";
 import type {
   DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat,
@@ -14,9 +14,11 @@ import type {
 } from "./page";
 import type {
   Activity as HomeActivity, ChecklistItem, Goal, TeamMember, ZLTeamActivity, TabKey,
+  LeaderActivityCreated,
 } from "./_lib/types";
 
 import { TodayTab as LeaderTodayTab } from "./leader/TodayTab";
+import { LeaderActivityTab } from "./leader/ActivityTab";
 import { RPTodayTab } from "./rp/TodayTab";
 import { RPCoverageTab } from "./rp/CoverageTab";
 import { ZLTodayTab } from "./zl/TodayTab";
@@ -81,9 +83,10 @@ const PM_TABS = [
 ] as const;
 
 const OTHER_TABS = [
-  { key: "today", label: "Today", icon: CalendarClock },
-  { key: "past",  label: "Past",  icon: CheckCircle2 },
-  { key: "goals", label: "Goals", icon: Target },
+  { key: "today",    label: "Today",        icon: CalendarClock },
+  { key: "past",     label: "Past",         icon: CheckCircle2 },
+  { key: "activity", label: "Activity log", icon: ListTree },
+  { key: "goals",    label: "Goals",        icon: Target },
 ] as const;
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────
@@ -94,6 +97,7 @@ export default function HomeView({
   rpClusterStats, rpOverdueActivities, rpOverdueTotal, rpDoneActivities, rpClusterDeck, facilityLayerConfigs, pastTeamDoneActivities, zlOverdueActivities, zlMyActivities, zlZoneName, zlClusterStats, clusterStatus, teamMembers, rpTeamHealth,
   pmZLMembers, pmRPMembers, pmZLHealth, pmRPHealth, pmZLOverdueActivities, pmZLChecklists, pmMyActivities, pmRPOverdueActivities, pmRPChecklists, pmZoneClusterMap, pmClusterStats, pmClusterStatus,
   leaderOverdueActivities, leaderMyActivities, leaderTeam,
+  leaderActivityCreated,
   adminDash,
   addActivityPitstops, addActivityUsers,
 }: {
@@ -135,6 +139,7 @@ export default function HomeView({
   leaderOverdueActivities: HomeActivity[];
   leaderMyActivities: HomeActivity[];
   leaderTeam: LeaderTeamMember[];
+  leaderActivityCreated: LeaderActivityCreated[];
   adminDash: AdminDash | null;
   addActivityPitstops: ActivityModalPitstopRef[];
   addActivityUsers: ActivityModalUser[];
@@ -284,6 +289,10 @@ export default function HomeView({
             addActivityPitstops={addActivityPitstops}
             addActivityUsers={addActivityUsers}
           />
+        )}
+
+        {activeTab === "activity" && !isAdmin && designation !== "RP" && designation !== "ZL" && designation !== "PM" && (
+          <LeaderActivityTab activities={leaderActivityCreated} />
         )}
 
         {activeTab === "coverage" && designation === "RP" && <RPCoverageTab clusterStats={rpClusterStats} />}

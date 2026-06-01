@@ -3,7 +3,31 @@
 export type TabKey =
   | "today" | "past" | "health" | "zl-health" | "rp-health" | "coverage"
   | "clusters" | "goals" | "overview" | "geography" | "team" | "pipeline"
-  | "attention" | "team-health" | "engagement";
+  | "attention" | "team-health" | "engagement" | "activity";
+
+/**
+ * Each row is one AuditLog "Activity / created" entry joined back to the
+ * PitstopEvent it created. Powers the Leader's Activity tab. Soft-deleted
+ * activities are filtered out at the server.
+ */
+export type LeaderActivityCreated = {
+  auditId: string;
+  /** When the create action happened — the natural "day" bucket. */
+  createdAt: string;
+  /** Activity (PitstopEvent) id — null if the underlying activity was deleted. */
+  activityId: string;
+  title: string;
+  type: "Meeting" | "Visit" | "Event" | string;
+  scheduledAt: string;
+  creator: { id: string; name: string | null; image: string | null };
+  goal: {
+    id: string;
+    title: string;
+    needsDomain: string | null;
+    needsCluster: { id: string; name: string } | null;
+    needsSettlement: { id: string; name: string } | null;
+  } | null;
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
