@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
-import { CalendarClock, CheckSquare, Target, MapPin, BarChart3, ChevronRight, ChevronLeft, LayoutDashboard, Users, TrendingUp, AlertTriangle, CheckCircle2, Clock, Filter, ChevronDown, ChevronUp, Mic, Square, Loader2, Paperclip } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CalendarClock, CheckSquare, Target, MapPin, BarChart3, ChevronRight, ChevronLeft, LayoutDashboard, Users, TrendingUp, AlertTriangle, CheckCircle2, Clock, Filter, ChevronDown, ChevronUp, Mic, Square, Loader2, Paperclip, Plus } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
 import Avatar from "@/components/Avatar";
 import type { ActivityGoal, Activity, ChecklistItem, Goal, TeamMember, ZLTeamActivity, TabKey } from "../_lib/types";
@@ -13,6 +14,12 @@ import { ClusterTodayView } from "../_shared/ClusterTodayView";
 import { EmptyState, SectionTitle, WeekCard } from "../_shared/Primitives";
 import { RPChecklistRow } from "../_shared/RPChecklistRow";
 import { ZLOverdueCarousel, ZLTodayCarousel } from "../_shared/ZLOverdue";
+import AddActivityModal, { type ActivityModalPitstopRef, type ActivityModalUser } from "../_shared/AddActivityModal";
+
+function todayYMD() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 type PMTeamMember = { id: string; name: string | null; image: string | null; reportsToId: string | null };
 type PMDrillDown =
@@ -31,6 +38,8 @@ export function PMTodayTab({
   pmMyActivities,
   pmRPOverdueActivities,
   pmRPChecklists,
+  addActivityPitstops,
+  addActivityUsers,
 }: {
   userId: string;
   zlMembers: PMTeamMember[];
@@ -40,7 +49,11 @@ export function PMTodayTab({
   pmMyActivities: ZLTeamActivity[];
   pmRPOverdueActivities: ZLTeamActivity[];
   pmRPChecklists: ChecklistItem[];
+  addActivityPitstops: ActivityModalPitstopRef[];
+  addActivityUsers: ActivityModalUser[];
 }) {
+  const router = useRouter();
+  const [showAddActivity, setShowAddActivity] = useState(false);
   const [completedActivityIds, setCompletedActivityIds] = useState<Set<string>>(new Set());
   const [completedChecklistIds, setCompletedChecklistIds] = useState<Set<string>>(new Set());
   const [loadingDoneId, setLoadingDoneId] = useState<string | null>(null);
@@ -131,6 +144,16 @@ export function PMTodayTab({
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-8">
+
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowAddActivity(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          New activity
+        </button>
+      </div>
 
       {/* PM's own work as cluster cards. */}
       <ClusterTodayView
@@ -462,6 +485,16 @@ export function PMTodayTab({
 
       {/* All clear */}
       {allClear && <EmptyState message="All caught up — no overdue items for you or your team." />}
+
+      {showAddActivity && (
+        <AddActivityModal
+          pitstops={addActivityPitstops}
+          users={addActivityUsers}
+          defaultDate={todayYMD()}
+          onClose={() => setShowAddActivity(false)}
+          onSaved={() => { setShowAddActivity(false); router.refresh(); }}
+        />
+      )}
 
       {/* Coming up this week */}
       {myWeek.length > 0 && (

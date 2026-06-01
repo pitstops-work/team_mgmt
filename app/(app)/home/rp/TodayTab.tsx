@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, Filter, MapPin } from "lucide-react";
+import { ChevronDown, ChevronUp, Filter, MapPin, Plus } from "lucide-react";
 import type { Activity, ChecklistItem } from "../_lib/types";
 import { isToday, getActivityCluster } from "../_lib/helpers";
 import type { RPClusterDeckCluster, FacilityLayerConfigLite } from "../page";
@@ -16,6 +16,12 @@ import { ClusterSplitBanner } from "../_shared/ClusterSplitBanner";
 import { ClusterBatchRescheduleSheet } from "../_shared/ClusterBatchRescheduleSheet";
 import { useTodayFilters, type GroupBy } from "../_shared/useTodayFilters";
 import { useSessionDoneIds } from "../_shared/useSessionDoneIds";
+import AddActivityModal, { type ActivityModalPitstopRef, type ActivityModalUser } from "../_shared/AddActivityModal";
+
+function todayYMD() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 /**
  * RP Today — time-first cockpit. Replaces the cluster-first playing-card deck.
@@ -37,6 +43,8 @@ export function RPTodayTab({
   todayActivities,
   weekActivities,
   weekChecklists,
+  addActivityPitstops,
+  addActivityUsers,
 }: {
   userId: string;
   overdueActivities: Activity[];
@@ -53,6 +61,8 @@ export function RPTodayTab({
   doneActivities?: Activity[];
   rpClusterDeck?: RPClusterDeckCluster[];
   facilityLayerConfigs?: FacilityLayerConfigLite[];
+  addActivityPitstops: ActivityModalPitstopRef[];
+  addActivityUsers: ActivityModalUser[];
 }) {
   const router = useRouter();
   const { ids: doneEventIds, add: addDoneEventId } = useSessionDoneIds(`rp-${userId}-done-events`);
@@ -66,6 +76,7 @@ export function RPTodayTab({
   const [showOverdue, setShowOverdue] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [batchCluster, setBatchCluster] = useState<{ id: string; name: string } | null>(null);
+  const [showAddActivity, setShowAddActivity] = useState(false);
   const onRescheduled = () => router.refresh();
 
   // All activities feed the filter universe so the filter chrome is stable
@@ -166,6 +177,13 @@ export function RPTodayTab({
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <ProgressChip done={todayDoneCount} total={todayTotal} overdueCount={overdueCount} />
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowAddActivity(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New activity
+            </button>
             <button
               onClick={() => setSheetOpen(true)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
@@ -345,6 +363,16 @@ export function RPTodayTab({
           Calendar view
         </Link>
       </div>
+
+      {showAddActivity && (
+        <AddActivityModal
+          pitstops={addActivityPitstops}
+          users={addActivityUsers}
+          defaultDate={todayYMD()}
+          onClose={() => setShowAddActivity(false)}
+          onSaved={() => { setShowAddActivity(false); router.refresh(); }}
+        />
+      )}
     </div>
   );
 }

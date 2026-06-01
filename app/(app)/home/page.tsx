@@ -366,6 +366,8 @@ export default async function HomePage() {
     leaderOverdueActivities,
     leaderMyActivities,
     rpOverdueTotal,
+    addActivityPitstops,
+    addActivityUsers,
   ] = await Promise.all([
     prisma.pitstopEvent.findMany({
       where: {
@@ -829,6 +831,23 @@ export default async function HomePage() {
           },
         })
       : Promise.resolve(0),
+
+    // Feeds the "+ New activity" modal on each role's Today tab — same
+    // RBAC-scoped pitstop set + user list the /activities page loads.
+    prisma.pitstop.findMany({
+      where: { deletedAt: null, goal: { deletedAt: null }, ...(pitstopScope ?? {}) },
+      select: {
+        id: true,
+        title: true,
+        owner: { select: { id: true, name: true, image: true } },
+        goal: { select: { id: true, title: true } },
+      },
+      orderBy: [{ goal: { title: "asc" } }, { order: "asc" }],
+    }),
+    prisma.user.findMany({
+      select: { id: true, name: true, image: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   // ── Pulled-to-today history: count add_to_today AuditLog actions per event ──
@@ -2002,6 +2021,8 @@ export default async function HomePage() {
       leaderMyActivities={JSON.parse(JSON.stringify(leaderMyActivities))}
       leaderTeam={leaderTeam}
       adminDash={adminDash}
+      addActivityPitstops={JSON.parse(JSON.stringify(addActivityPitstops))}
+      addActivityUsers={JSON.parse(JSON.stringify(addActivityUsers))}
     />
   );
 }

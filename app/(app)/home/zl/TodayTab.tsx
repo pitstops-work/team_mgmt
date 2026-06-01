@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, Filter } from "lucide-react";
+import { ChevronDown, ChevronUp, Filter, Plus } from "lucide-react";
 import type { Activity, ChecklistItem, TeamMember, ZLTeamActivity } from "../_lib/types";
 import { isToday } from "../_lib/helpers";
 import type { ClusterStatus } from "../page";
@@ -17,6 +17,12 @@ import { TeamTodayStripe } from "./TeamTodayStripe";
 import { RescheduleAlertsPanel } from "./RescheduleAlertsPanel";
 import { useSessionDoneIds } from "../_shared/useSessionDoneIds";
 import type { RPHealthStat } from "../page";
+import AddActivityModal, { type ActivityModalPitstopRef, type ActivityModalUser } from "../_shared/AddActivityModal";
+
+function todayYMD() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 /**
  * ZL Today — supervisory cockpit. Phase 4.1 lands the "My today" stripe (the
@@ -36,6 +42,8 @@ export function ZLTodayTab({
   zlMyActivities,
   clusterStatus,
   rpTeamHealth = [],
+  addActivityPitstops,
+  addActivityUsers,
 }: {
   userId: string;
   teamMembers: TeamMember[];
@@ -44,12 +52,15 @@ export function ZLTodayTab({
   zlMyActivities: ZLTeamActivity[];
   clusterStatus: ClusterStatus[];
   rpTeamHealth?: RPHealthStat[];
+  addActivityPitstops: ActivityModalPitstopRef[];
+  addActivityUsers: ActivityModalUser[];
 }) {
   const router = useRouter();
   const { ids: doneEventIds, add: addDoneEventId } = useSessionDoneIds(`zl-${userId}-done-events`);
   const { ids: doneChecklistIds, add: addDoneChecklistId } = useSessionDoneIds(`zl-${userId}-done-checklists`);
   const [showWeek, setShowWeek] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [showAddActivity, setShowAddActivity] = useState(false);
 
   // ── ZL's own activities — split out from the team views ─────────────────
   // The `zlMyActivities` prop covers a whole week of activities the ZL is
@@ -142,6 +153,13 @@ export function ZLTodayTab({
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <ProgressChip done={todayDoneCount} total={todayTotal} overdueCount={myOverdue.length} />
             <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setShowAddActivity(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500 hover:bg-sky-600 text-white text-xs font-medium transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                New activity
+              </button>
               <button
                 onClick={() => setSheetOpen(true)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
@@ -316,6 +334,15 @@ export function ZLTodayTab({
         <TeamOverduePanel />
       </section>
 
+      {showAddActivity && (
+        <AddActivityModal
+          pitstops={addActivityPitstops}
+          users={addActivityUsers}
+          defaultDate={todayYMD()}
+          onClose={() => setShowAddActivity(false)}
+          onSaved={() => { setShowAddActivity(false); router.refresh(); }}
+        />
+      )}
     </div>
   );
 }

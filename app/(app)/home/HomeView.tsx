@@ -39,6 +39,7 @@ import { AdminCoverageTab } from "./admin/CoverageTab";
 import { PastTab } from "./_shared/PastTab";
 import { GoalsTab } from "./_shared/GoalsTab";
 import { DoneLog } from "./rp/DoneLog";
+import type { ActivityModalPitstopRef, ActivityModalUser } from "./_shared/AddActivityModal";
 
 // ── Tab catalogs ──────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ export default function HomeView({
   pmZLMembers, pmRPMembers, pmZLHealth, pmRPHealth, pmZLOverdueActivities, pmZLChecklists, pmMyActivities, pmRPOverdueActivities, pmRPChecklists, pmZoneClusterMap, pmClusterStats, pmClusterStatus,
   leaderOverdueActivities, leaderMyActivities, leaderTeam,
   adminDash,
+  addActivityPitstops, addActivityUsers,
 }: {
   userId: string;
   userName: string;
@@ -134,6 +136,8 @@ export default function HomeView({
   leaderMyActivities: HomeActivity[];
   leaderTeam: LeaderTeamMember[];
   adminDash: AdminDash | null;
+  addActivityPitstops: ActivityModalPitstopRef[];
+  addActivityUsers: ActivityModalUser[];
 }) {
   const isAdmin = !!adminDash;
   const tabs = isAdmin ? ADMIN_TABS
@@ -209,6 +213,8 @@ export default function HomeView({
             doneActivities={rpDoneActivities}
             rpClusterDeck={rpClusterDeck}
             facilityLayerConfigs={facilityLayerConfigs}
+            addActivityPitstops={addActivityPitstops}
+            addActivityUsers={addActivityUsers}
           />
         )}
 
@@ -236,6 +242,8 @@ export default function HomeView({
             zlMyActivities={zlMyActivities}
             clusterStatus={clusterStatus}
             rpTeamHealth={rpTeamHealth}
+            addActivityPitstops={addActivityPitstops}
+            addActivityUsers={addActivityUsers}
           />
         )}
 
@@ -249,6 +257,8 @@ export default function HomeView({
             pmMyActivities={pmMyActivities}
             pmRPOverdueActivities={pmRPOverdueActivities}
             pmRPChecklists={pmRPChecklists}
+            addActivityPitstops={addActivityPitstops}
+            addActivityUsers={addActivityUsers}
           />
         )}
         {activeTab === "zl-health" && designation === "PM" && (
@@ -271,6 +281,8 @@ export default function HomeView({
             myActivities={leaderMyActivities}
             weekChecklists={weekChecklists}
             leaderTeam={leaderTeam}
+            addActivityPitstops={addActivityPitstops}
+            addActivityUsers={addActivityUsers}
           />
         )}
 
