@@ -119,6 +119,10 @@ model User {
   wikiPracticeGapsTriaged   WikiPracticeGap[]              @relation("WikiPracticeGapTriager")
   wikiObservationsRecorded  WikiPracticeObservation[]      @relation("WikiPracticeObservationObserver")
   wikiObservationsAbout     WikiPracticeObservation[]      @relation("WikiPracticeObservationObserved")
+  // Response Manual (wiki manual subtype)
+  manualSectionsEdited      WikiManualSection[]            @relation("WikiManualSectionEditor")
+  manualEntriesObserved     WikiPracticeEntry[]            @relation("WikiPracticeEntryObserver")
+  manualEntriesPromoted     WikiPracticeEntry[]            @relation("WikiPracticeEntryPromoter")
 }
 
 model Account {
@@ -2281,6 +2285,7 @@ model Org {
   partnerReviewMeetings WikiPartnerReviewMeeting[] @relation("WikiPartnerReviewMeetingOrg")
   wikiPracticeGaps      WikiPracticeGap[]          @relation("WikiPracticeGapPartnerOrg")
   wikiObservations      WikiPracticeObservation[]  @relation("WikiPracticeObservationPartnerOrg")
+  wikiPracticeEntries   WikiPracticeEntry[]        @relation("WikiPracticeEntryPartnerOrg")
 }
 
 // ── Wiki module ──────────────────────────────────────────────────────────────
@@ -2293,9 +2298,17 @@ model WikiPage {
   id                String    @id @default(cuid())
   slug              String    @unique
   title             String
-  type              String // "principle" | "playbook" | "runbook"
+  type              String // "principle" | "playbook" | "runbook" | "manual"
+  // Manual subtype: ground-truth density signal. NULL for non-manual pages.
+  // "mostly_theory" | "emerging" | "seasoned". Orthogonal to status — status
+  // tracks editorial state; maturity tracks how field-tested the content is.
+  maturity          String?
+  // Restricted-handling flag (e.g. mental health, GBV modules). When true the
+  // reader shows a sensitive banner; field-level RBAC gating is layered later.
+  isSensitive       Boolean   @default(false)
+  sensitiveNote     String? // restricted-handling instruction shown on the reader
   canonicalLang     String    @default("en") // en | ta | kn | ml | hi | bn
-  canonicalContent  String    @default("") // markdown serialised from Tiptap
+  canonicalContent  String    @default("") // markdown serialised from Tiptap (unused for manual subtype — see WikiManualSection)
   translatedContent Json      @default("{}") // { ta: { content, translatedAt }, ... }
   ownerId           String?
   ownerTermStart    DateTime?
@@ -2324,9 +2337,15 @@ model WikiPage {
   views                 WikiPageView[]
   practiceGaps          WikiPracticeGap[]          @relation("WikiPracticeGapLinkedPage")
   observations          WikiPracticeObservation[]  @relation("WikiPracticeObservationPrimaryPage")
+  // Manual subtype
+  manualSections        WikiManualSection[]
+  practiceEntries       WikiPracticeEntry[]
+  boundariesFrom        WikiManualBoundary[]       @relation("WikiManualBoundaryFrom")
+  boundariesTo          WikiManualBoundary[]       @relation("WikiManualBoundaryTo")
 
   @@index([status])
   @@index([type])
+  @@index([type, maturity])
   @@index([nextReviewDue])
   @@index([ownerId])
   @@index([ownerTermEnd])
@@ -2479,11 +2498,12 @@ model WikiPracticeCircle {
   archivedById  String?
   createdAt     DateTime  @default(now())
 
-  zone         Zone?             @relation(fields: [zoneId], references: [id], onDelete: SetNull)
-  facilitator  User              @relation("WikiPracticeCircleFacilitator", fields: [facilitatorId], references: [id])
-  attendees    User[]            @relation("WikiPracticeCircleAttendees")
-  linkedPages  WikiPage[]        @relation("WikiPracticeCirclePages")
-  reviewCycles WikiReviewCycle[]
+  zone            Zone?               @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  facilitator     User                @relation("WikiPracticeCircleFacilitator", fields: [facilitatorId], references: [id])
+  attendees       User[]              @relation("WikiPracticeCircleAttendees")
+  linkedPages     WikiPage[]          @relation("WikiPracticeCirclePages")
+  reviewCycles    WikiReviewCycle[]
+  practiceEntries WikiPracticeEntry[] @relation("WikiPracticeEntryCircle")
 
   @@index([scheduledFor])
   @@index([facilitatorId])
@@ -2655,6 +2675,88 @@ model WikiPracticeObservation {
   @@index([partnerOrgId, kind])
   @@index([vertical, happenedAt])
   @@index([archivedAt])
+}
+
+// ─── Response Manual (wiki manual subtype) ───────────────────────────────────
+// A manual is a WikiPage with type="manual". Its content is sectioned (8 fixed
+// sections, see lib/wiki/manual.ts) rather than the free-form Tiptap blob in
+// WikiPage.canonicalContent. Spine sections (S2/S3/S7) are owner-edited; living
+// sections (S4/S6/S8) grow primarily through WikiPracticeEntry append-only
+// captures fed by practice circles, partner reviews, and shadow visits.
+
+// One row per (manual, sectionNumber). Section content is markdown, matching
+// WikiPage.canonicalContent conventions so the same renderer applies.
+model WikiManualSection {
+  id              String   @id @default(cuid())
+  pageId          String
+  sectionNumber   Int // 1..8, see lib/wiki/manual.ts SECTION_LABELS
+  content         String   @default("") // markdown (canonical lang of the parent page)
+  lastEditedAt    DateTime @default(now())
+  lastEditedById  String?
+
+  page       WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  lastEditor User?    @relation("WikiManualSectionEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
+
+  @@unique([pageId, sectionNumber])
+  @@index([pageId])
+}
+
+// Append-only practice-circle feed targeting a specific manual section.
+// Default destination is section 6 ("where it gets stuck") — most circle output
+// is failures/workarounds. Editors promote recurring entries to a standard
+// branch in section 5 by stamping promotedToSectionNumber + promotedById.
+model WikiPracticeEntry {
+  id                      String    @id @default(cuid())
+  pageId                  String // the manual
+  sectionNumber           Int // which slot, 1..8
+  body                    String
+  observerId              String // CO / RP / facilitator who captured this
+  settlement              String? // free-text location (e.g. "Semmancherry")
+  partnerOrgId            String?
+  happenedAt              DateTime
+  status                  String    @default("raw") // raw | reviewed | promoted
+  promotedToSectionNumber Int? // typically 5, when promoted from S6 anecdote
+  promotedById            String?
+  promotedAt              DateTime?
+  // Optional source — when the entry was captured inside a circle session.
+  circleId                String?
+  // Soft-delete (entries are otherwise immutable for shelf-life integrity).
+  archivedAt              DateTime?
+  archivedById            String?
+  createdAt               DateTime  @default(now())
+
+  page        WikiPage            @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  observer    User                @relation("WikiPracticeEntryObserver", fields: [observerId], references: [id], onDelete: Restrict)
+  partnerOrg  Org?                @relation("WikiPracticeEntryPartnerOrg", fields: [partnerOrgId], references: [id], onDelete: SetNull)
+  promoter    User?               @relation("WikiPracticeEntryPromoter", fields: [promotedById], references: [id], onDelete: SetNull)
+  circle      WikiPracticeCircle? @relation("WikiPracticeEntryCircle", fields: [circleId], references: [id], onDelete: SetNull)
+
+  @@index([pageId, sectionNumber])
+  @@index([pageId, status])
+  @@index([observerId, happenedAt])
+  @@index([status, createdAt])
+  @@index([circleId])
+  @@index([archivedAt])
+}
+
+// Typed module-to-module edge. "hands_off" = a hard handoff the CO must take
+// (e.g. Mental Health → Safety Pathway on self-harm risk). "draws_on" = shared
+// content / cross-reference. Both endpoints must be WikiPage rows with
+// type="manual"; not enforced at the DB level (cheap to check in the app).
+model WikiManualBoundary {
+  id         String   @id @default(cuid())
+  fromPageId String
+  toPageId   String
+  kind       String // "hands_off" | "draws_on"
+  note       String? // e.g. "trigger: any expression of self-harm risk"
+  createdAt  DateTime @default(now())
+
+  fromPage WikiPage @relation("WikiManualBoundaryFrom", fields: [fromPageId], references: [id], onDelete: Cascade)
+  toPage   WikiPage @relation("WikiManualBoundaryTo", fields: [toPageId], references: [id], onDelete: Cascade)
+
+  @@unique([fromPageId, toPageId, kind])
+  @@index([fromPageId])
+  @@index([toPageId])
 }
 
 // ─── Operating Models (parametric unit-economics engine) ─────────────────────

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle, LayoutDashboard, Languages, ClipboardCheck, Inbox, Eye } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Flag, MessageCircle, Users, Handshake, AlertCircle, LayoutDashboard, Languages, ClipboardCheck, Inbox, Eye, Sprout } from "lucide-react";
 
 type Tag = { tagType: string; tagValue: string };
 type Page = {
@@ -87,20 +87,33 @@ export default function WikiListView({
             <BookOpen className="w-6 h-6 text-stone-700" />
             <h1 className="text-2xl font-semibold text-stone-900">Wiki</h1>
           </div>
-          {canCreate && (
+          <div className="flex items-center gap-2">
             <Link
-              href="/wiki/new"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 text-white rounded-md text-sm hover:bg-stone-800"
+              href="/wiki/capture"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700"
             >
               <Plus className="w-4 h-4" />
-              New page
+              Capture
             </Link>
-          )}
+            {canCreate && (
+              <Link
+                href="/wiki/new"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 text-white rounded-md text-sm hover:bg-stone-800"
+              >
+                <Plus className="w-4 h-4" />
+                New page
+              </Link>
+            )}
+          </div>
         </header>
 
         <nav className="flex items-center gap-4 mb-6 text-sm">
           <Link href="/wiki" className="text-stone-900 font-medium border-b-2 border-stone-900 pb-1">
             Pages
+          </Link>
+          <Link href="/manual" className="text-stone-500 hover:text-stone-900 inline-flex items-center gap-1 pb-1">
+            <Sprout className="w-3.5 h-3.5" />
+            Manual
           </Link>
           {hasDashboard && (
             <Link
