@@ -13,6 +13,7 @@ import {
   Lock,
   Layers,
   Plus,
+  Pencil,
 } from "lucide-react";
 import {
   SECTION_NUMBERS,
@@ -93,7 +94,7 @@ const STABILITY_CHIP: Record<string, { label: string; cls: string }> = {
   living: { label: "Living", cls: "bg-amber-50 text-amber-700 border-amber-200" },
 };
 
-export default function ManualReaderView({ page }: { page: Page; currentUserId: string }) {
+export default function ManualReaderView({ page, canEdit }: { page: Page; currentUserId: string; canEdit: boolean }) {
   const sectionsByNumber = new Map<number, Section>();
   page.manualSections.forEach((s) => sectionsByNumber.set(s.sectionNumber, s));
 
@@ -231,7 +232,7 @@ export default function ManualReaderView({ page }: { page: Page; currentUserId: 
             {page.canonicalContent}
           </div>
         )}
-        <div className="mb-8">
+        <div className="mb-8 flex items-center gap-2">
           <Link
             href={`/wiki/capture?manual=${page.slug}`}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white text-sm rounded-md hover:bg-amber-700"
@@ -239,6 +240,15 @@ export default function ManualReaderView({ page }: { page: Page; currentUserId: 
             <Plus className="w-4 h-4" />
             Add what we learned
           </Link>
+          {canEdit && (
+            <Link
+              href={`/manual/${page.slug}/edit`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-stone-300 text-stone-700 text-sm rounded-md hover:bg-stone-100"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit module
+            </Link>
+          )}
         </div>
 
         {/* Body: TOC sidebar + sections */}

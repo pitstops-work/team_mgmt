@@ -2,7 +2,8 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, ArrowLeft, Lock, Sprout, Layers, ArrowRight } from "lucide-react";
+import { BookOpen, ArrowLeft, Lock, Sprout, Layers, ArrowRight, Plus } from "lucide-react";
+import { isWikiSteward } from "@/lib/wiki/auth";
 import {
   MANUAL_TYPE,
   MATURITY_VALUES,
@@ -21,12 +22,15 @@ function fmtDate(iso: Date | string | null): string {
 
 export default async function ManualListPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await auth();
-  if (!session?.user?.id) notFound();
+  const userId = session?.user?.id;
+  if (!userId) notFound();
 
   const { maturity: maturityParam } = await searchParams;
   const maturityFilter: Maturity | null = isValidMaturity(maturityParam ?? null)
     ? (maturityParam as Maturity)
     : null;
+
+  const steward = await isWikiSteward(userId);
 
   const manuals = await prisma.wikiPage.findMany({
     where: {
@@ -70,6 +74,15 @@ export default async function ManualListPage({ searchParams }: { searchParams: S
             <BookOpen className="w-6 h-6 text-stone-700" />
             <h1 className="text-2xl font-semibold text-stone-900">Response Manual</h1>
           </div>
+          {steward && (
+            <Link
+              href="/manual/new"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 text-white rounded-md text-sm hover:bg-stone-800"
+            >
+              <Plus className="w-4 h-4" />
+              New module
+            </Link>
+          )}
         </header>
 
         <p className="text-sm text-stone-600 mb-6 max-w-2xl">

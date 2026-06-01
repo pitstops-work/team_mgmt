@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { MANUAL_TYPE } from "@/lib/wiki/manual";
+import { canEditPage, isWikiSteward } from "@/lib/wiki/auth";
 import ManualReaderView from "./ManualReaderView";
 
 export default async function ManualReaderPage({
@@ -44,10 +45,14 @@ export default async function ManualReaderPage({
 
   if (!page || page.archivedAt || page.type !== MANUAL_TYPE) notFound();
 
+  const steward = await isWikiSteward(userId);
+  const canEdit = canEditPage(page, session, steward);
+
   return (
     <ManualReaderView
       page={JSON.parse(JSON.stringify(page))}
       currentUserId={userId}
+      canEdit={canEdit}
     />
   );
 }
