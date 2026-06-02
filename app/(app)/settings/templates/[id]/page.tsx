@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { DbTemplate, DbPitstop, DbTemplateParam, DbActivity } from "@/lib/templateDb";
 import { normalizeActivities, slugifyChecklistText } from "@/lib/templateDb";
+import { PROGRESS_TAGS } from "@/lib/progressTags";
 import TemplateSyncModal from "./TemplateSyncModal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -19,7 +20,6 @@ const PITSTOP_TYPES = [
   "AppDevelopment", "Budgeting", "Proposal", "Research", "Review", "Custom", "Milestone",
 ];
 const RECURRENCES = ["None", "Weekly", "Monthly", "Quarterly"];
-const PROGRESS_TAGS = ["Planning", "Mobilisation", "Setup", "Capacity", "Engagement", "Delivery", "Monitoring"];
 const PARAM_TYPES = ["number", "text", "choice"] as const;
 const CATEGORIES = ["Community Programs", "Programmes", "Field Programmes", "Zonal Leadership"];
 const COMPLETION_TYPES = [

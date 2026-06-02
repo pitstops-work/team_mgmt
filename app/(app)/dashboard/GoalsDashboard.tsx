@@ -17,6 +17,7 @@ import { fetchGoal, fetchGoals } from "@/lib/api-client";
 import OrgOverview, { type OverviewData } from "./OrgOverview";
 import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
 import MultiSelect from "@/components/MultiSelect";
+import { orderProgressTags, progressTagColor } from "@/lib/progressTags";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -107,20 +108,7 @@ function dueDelta(dueDate: string | null, isDone: boolean, completedAt: string |
   return { label: `${days}d overdue`, cls: "text-red-600" };
 }
 
-type DrillState = { tag: PhaseTag; seedGoalId?: string } | null;
-
-const PHASE_TAGS = ["Team", "Baseline", "Permissions", "Infrastructure", "Training", "Live", "Monitoring"] as const;
-type PhaseTag = typeof PHASE_TAGS[number];
-
-const PHASE_COLORS: Record<PhaseTag, { pill: string; filled: string }> = {
-  Team:           { pill: "bg-stone-50 text-stone-700 border-stone-200",   filled: "bg-stone-500" },
-  Baseline:       { pill: "bg-sky-50 text-sky-700 border-sky-200",         filled: "bg-sky-500" },
-  Permissions:    { pill: "bg-amber-50 text-amber-700 border-amber-200",   filled: "bg-amber-500" },
-  Infrastructure: { pill: "bg-violet-50 text-violet-700 border-violet-200", filled: "bg-violet-500" },
-  Training:       { pill: "bg-teal-50 text-teal-700 border-teal-200",      filled: "bg-teal-500" },
-  Live:           { pill: "bg-emerald-50 text-emerald-700 border-emerald-200", filled: "bg-emerald-500" },
-  Monitoring:     { pill: "bg-rose-50 text-rose-700 border-rose-200",      filled: "bg-rose-500" },
-};
+type DrillState = { tag: string; seedGoalId?: string } | null;
 
 interface Props {
   initialGoals: Goal[];
@@ -1158,7 +1146,7 @@ function DrillDownPanel({
     }
   };
 
-  const colors = PHASE_COLORS[drill.tag];
+  const colors = progressTagColor(drill.tag);
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end" onClick={onClose}>
@@ -1300,10 +1288,12 @@ function PhaseMatrix({
     overdueCount: number; atRiskCount: number;
   };
 
-  const tagMap = new Map<string, Map<PhaseTag, CellData>>();
+  const tagMap = new Map<string, Map<string, CellData>>();
+  const allTags = new Set<string>();
   for (const row of phaseData) {
-    const tag = row.progressTag as PhaseTag | null;
-    if (!tag || !PHASE_TAGS.includes(tag as PhaseTag)) continue;
+    const tag = row.progressTag;
+    if (!tag) continue;
+    allTags.add(tag);
     if (!tagMap.has(row.goalId)) tagMap.set(row.goalId, new Map());
     const gMap = tagMap.get(row.goalId)!;
     const cur = gMap.get(tag) ?? { total: 0, done: 0, checklistTotal: 0, checklistDone: 0, activityTotal: 0, activityDone: 0, overdueCount: 0, atRiskCount: 0 };
@@ -1321,6 +1311,7 @@ function PhaseMatrix({
     gMap.set(tag, cur);
   }
 
+  const phaseTags = orderProgressTags(allTags);
   const visibleGoals = goals.filter((g) => tagMap.has(g.id));
 
   // Derive zone/cluster options from visibleGoals (no extra API call)
@@ -1508,7 +1499,7 @@ function PhaseMatrix({
               <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
                 {group.goals.map((goal) => {
                   const gMap = tagMap.get(goal.id) ?? new Map();
-                  const activePhaseTags = PHASE_TAGS.filter(tag => gMap.has(tag));
+                  const activePhaseTags = phaseTags.filter(tag => gMap.has(tag));
                   return (
                     <div key={goal.id} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 bg-white p-4 flex-shrink-0">
                       <Link href={`/goals/${goal.id}`} className="text-sm font-semibold text-stone-800 hover:text-sky-600 block mb-1 line-clamp-2 leading-snug">
@@ -1528,7 +1519,7 @@ function PhaseMatrix({
                               onClick={() => setDrill(d => d?.tag === tag && d.seedGoalId === goal.id ? null : { tag, seedGoalId: goal.id })}
                             >
                               <div className="flex items-center gap-2 mb-1.5">
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${PHASE_COLORS[tag].pill}`}>{tag}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${progressTagColor(tag).pill}`}>{tag}</span>
                                 {healthDot(cell)}
                                 <span className={`text-[10px] tabular-nums ml-auto ${cell.done === cell.total ? "text-emerald-600 font-medium" : "text-stone-500"}`}>
                                   {cell.done}/{cell.total}
@@ -1564,10 +1555,10 @@ function PhaseMatrix({
                 <thead>
                   <tr>
                     <th className="text-left py-2 pr-4 font-medium text-stone-500 whitespace-nowrap min-w-[180px]">Goal</th>
-                    {PHASE_TAGS.map((tag) => (
+                    {phaseTags.map((tag) => (
                       <th key={tag} className="py-2 px-1 text-center font-medium whitespace-nowrap">
                         <button
-                          className={`inline-block px-2 py-0.5 rounded border text-[10px] hover:opacity-80 transition-opacity cursor-pointer ${PHASE_COLORS[tag].pill} ${drill?.tag === tag && !drill.seedGoalId ? "ring-2 ring-offset-1 ring-stone-400" : ""}`}
+                          className={`inline-block px-2 py-0.5 rounded border text-[10px] hover:opacity-80 transition-opacity cursor-pointer ${progressTagColor(tag).pill} ${drill?.tag === tag && !drill.seedGoalId ? "ring-2 ring-offset-1 ring-stone-400" : ""}`}
                           onClick={() => setDrill(d => d?.tag === tag && !d.seedGoalId ? null : { tag })}
                           title={`Drill all goals in ${tag} phase`}
                         >
@@ -1587,7 +1578,7 @@ function PhaseMatrix({
                             {goal.title}
                           </Link>
                         </td>
-                        {PHASE_TAGS.map((tag) => {
+                        {phaseTags.map((tag) => {
                           const cell = gMap.get(tag);
                           if (!cell) return <td key={tag} className="py-2 px-1 text-center text-stone-200">—</td>;
                           const clPct  = cell.checklistTotal > 0 ? Math.round((cell.checklistDone / cell.checklistTotal) * 100) : null;
@@ -1632,12 +1623,12 @@ function PhaseMatrix({
             {/* Mobile: one card per phase, goals listed inside */}
             <div className="sm:hidden -mx-4 px-4">
               <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-3">
-                {PHASE_TAGS.filter(tag => group.goals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
+                {phaseTags.filter(tag => group.goals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
                   const goalsInPhase = group.goals.filter(g => tagMap.get(g.id)?.has(tag));
                   return (
                     <div key={tag} className="snap-start min-w-[82vw] rounded-xl border border-stone-200 bg-white p-4 flex-shrink-0">
                       <div className="flex items-center gap-2 mb-3">
-                        <span className={`text-xs px-2 py-0.5 rounded border font-medium ${PHASE_COLORS[tag].pill}`}>{tag}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded border font-medium ${progressTagColor(tag).pill}`}>{tag}</span>
                         <span className="text-[11px] text-stone-400">{goalsInPhase.length} goal{goalsInPhase.length !== 1 ? "s" : ""}</span>
                       </div>
                       <div className="space-y-3">
@@ -1686,14 +1677,14 @@ function PhaseMatrix({
 
             {/* Desktop: phase sections, goals listed under each */}
             <div className="hidden sm:block space-y-4">
-              {PHASE_TAGS.filter(tag => group.goals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
+              {phaseTags.filter(tag => group.goals.some(g => tagMap.get(g.id)?.has(tag))).map((tag) => {
                 const goalsInPhase = group.goals.filter(g => tagMap.get(g.id)?.has(tag));
                 const isTagActive = drill?.tag === tag && !drill.seedGoalId;
                 return (
                   <div key={tag}>
                     <div className="flex items-center gap-3 mb-2">
                       <button
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium hover:opacity-80 transition-opacity cursor-pointer ${PHASE_COLORS[tag].pill} ${isTagActive ? "ring-2 ring-offset-1 ring-stone-400" : ""}`}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium hover:opacity-80 transition-opacity cursor-pointer ${progressTagColor(tag).pill} ${isTagActive ? "ring-2 ring-offset-1 ring-stone-400" : ""}`}
                         onClick={() => setDrill(d => d?.tag === tag && !d.seedGoalId ? null : { tag })}
                         title={`Drill all goals in ${tag} phase`}
                       >

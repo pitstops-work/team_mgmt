@@ -70,6 +70,7 @@ type DbPitstopInstance = {
   type: string;
   notes: string | null;
   recurrence: string;
+  progressTag: string | null;
   status: string;
   startDate: Date | null;
   targetDate: Date | null;
@@ -115,6 +116,14 @@ function effectiveKey(explicit: string | null | undefined, fallback: string): st
 
 function isDoneOrCancelled(status: string): boolean {
   return status === "Done" || status === "Cancelled";
+}
+
+// Mirror of /api/templates/[id]/apply cadence map. Returns 0 for non-recurring.
+function getCadenceDays(recurrence: string | null | undefined): number {
+  if (recurrence === "Weekly")    return 7;
+  if (recurrence === "Quarterly") return 90;
+  if (recurrence === "Monthly")   return 30;
+  return 0;
 }
 
 // Compute the scheduledAt for an activity given a pitstop window + optional
@@ -172,17 +181,19 @@ function diffGoal(template: DbTemplate, snapshot: GoalSnapshot): SyncChange[] {
       continue;
     }
 
-    // Diff each instance against this template slot
-    for (const inst of instances) {
+    // Diff each instance against this template slot. Index within the
+    // templateKey group is the recurrence position — used to compute the
+    // expected start/target date for that instance.
+    instances.forEach((inst, idx) => {
       if (isDoneOrCancelled(inst.status)) {
         // Completed pitstop — skip all changes, surface a single blocked entry
         // only if there are template changes that would have applied
-        continue;
+        return;
       }
 
-      diffPitstopFields(tplPt, inst, changes);
+      diffPitstopFields(tplPt, inst, idx, snapshot.startDate, changes);
       diffChecklist(tplPt, inst, changes);
-    }
+    });
   }
 
   // Find instance pitstops whose templateKey is no longer in the template → REMOVE
@@ -207,7 +218,13 @@ function diffGoal(template: DbTemplate, snapshot: GoalSnapshot): SyncChange[] {
   return changes;
 }
 
-function diffPitstopFields(tpl: DbPitstop, inst: DbPitstopInstance, changes: SyncChange[]) {
+function diffPitstopFields(
+  tpl: DbPitstop,
+  inst: DbPitstopInstance,
+  instanceIdx: number,
+  goalStartDate: Date | null,
+  changes: SyncChange[],
+) {
   if (tpl.title && tpl.title !== inst.title) {
     changes.push({
       kind: "edit",
@@ -234,9 +251,69 @@ function diffPitstopFields(tpl: DbPitstop, inst: DbPitstopInstance, changes: Syn
       description: `Update notes on "${inst.title}"`,
     });
   }
+
+  // Phase tag — propagated as-is.
+  const tplTag = tpl.progressTag ?? null;
+  const instTag = inst.progressTag ?? null;
+  if (tplTag !== instTag) {
+    changes.push({
+      kind: "edit",
+      entity: "pitstop",
+      templateKey: inst.templateKey!,
+      instanceId: inst.id,
+      pitstopInstanceId: inst.id,
+      field: "progressTag",
+      oldValue: instTag,
+      newValue: tplTag,
+      description: `Change phase tag of "${inst.title}" from ${instTag ?? "(none)"} → ${tplTag ?? "(none)"}`,
+    });
+  }
+
+  // SLA day offsets — recompute startDate / targetDate from goal start +
+  // template offsets, shifted by the instance's recurrence index. Mirrors the
+  // formula used in /api/templates/[id]/apply on initial goal creation.
+  // Will overwrite any manual reschedules — this is the agreed behaviour.
+  if (goalStartDate) {
+    const cadence = getCadenceDays(tpl.recurrence);
+    const startOffset = Number.isFinite(tpl.startSlaDays) ? tpl.startSlaDays : 0;
+    const targetOffset = Number.isFinite(tpl.slaDays) ? tpl.slaDays : startOffset;
+
+    const expectedStart = snapToWeekday(
+      addDaysUTC(goalStartDate, startOffset + instanceIdx * cadence),
+    );
+    const expectedTarget = snapToWeekday(
+      addDaysUTC(goalStartDate, targetOffset + instanceIdx * cadence),
+    );
+
+    if (!inst.startDate || dayDeltaUTC(inst.startDate, expectedStart) !== 0) {
+      changes.push({
+        kind: "edit",
+        entity: "pitstop",
+        templateKey: inst.templateKey!,
+        instanceId: inst.id,
+        pitstopInstanceId: inst.id,
+        field: "startDate",
+        oldValue: inst.startDate ? inst.startDate.toISOString() : null,
+        newValue: expectedStart.toISOString(),
+        description: `Reschedule start of "${inst.title}" to day ${startOffset}${instanceIdx > 0 ? ` (+${instanceIdx} cycle${instanceIdx === 1 ? "" : "s"})` : ""} after goal start`,
+      });
+    }
+    if (!inst.targetDate || dayDeltaUTC(inst.targetDate, expectedTarget) !== 0) {
+      changes.push({
+        kind: "edit",
+        entity: "pitstop",
+        templateKey: inst.templateKey!,
+        instanceId: inst.id,
+        pitstopInstanceId: inst.id,
+        field: "targetDate",
+        oldValue: inst.targetDate ? inst.targetDate.toISOString() : null,
+        newValue: expectedTarget.toISOString(),
+        description: `Reschedule target of "${inst.title}" to day ${targetOffset}${instanceIdx > 0 ? ` (+${instanceIdx} cycle${instanceIdx === 1 ? "" : "s"})` : ""} after goal start`,
+      });
+    }
+  }
   // Pitstop type is set on apply; sync respects it as immutable to avoid
   // breaking the activity-type mapping. Skip.
-  // Date offsets are NOT propagated — instances may have been cascade-shifted.
 }
 
 function diffChecklist(tpl: DbPitstop, inst: DbPitstopInstance, changes: SyncChange[]) {
@@ -487,12 +564,12 @@ async function loadGoalSnapshots(templateSlug: string): Promise<GoalSnapshot[]> 
   const pitstops = await prisma.$queryRaw<{
     id: string; goalId: string; templateKey: string | null;
     title: string; type: string; notes: string | null;
-    recurrence: string; status: string;
+    recurrence: string; progressTag: string | null; status: string;
     startDate: Date | null; targetDate: Date | null;
   }[]>`
     SELECT p.id, p."goalId", p."templateKey",
            p.title, p.type::text AS type, p.notes,
-           p.recurrence::text AS recurrence, p.status::text AS status,
+           p.recurrence::text AS recurrence, p."progressTag", p.status::text AS status,
            p."startDate", p."targetDate"
     FROM "Pitstop" p
     JOIN "Goal" g ON g.id = p."goalId"
@@ -884,10 +961,18 @@ async function applyGoalChanges(
 
       else if (ch.kind === "edit" && ch.instanceId) {
         if (ch.entity === "pitstop") {
-          await prisma.pitstop.update({
-            where: { id: ch.instanceId },
-            data: { [ch.field as "title" | "notes"]: ch.newValue ?? null } as never,
-          });
+          if (ch.field === "startDate" || ch.field === "targetDate") {
+            await prisma.pitstop.update({
+              where: { id: ch.instanceId },
+              data: { [ch.field]: ch.newValue ? new Date(ch.newValue) : null } as never,
+            });
+          } else {
+            // title | notes | progressTag — all plain string columns
+            await prisma.pitstop.update({
+              where: { id: ch.instanceId },
+              data: { [ch.field as "title" | "notes" | "progressTag"]: ch.newValue ?? null } as never,
+            });
+          }
           auditLog({ entityType: "Pitstop", entityId: ch.instanceId, userId: actorId, action: "template_sync_edit", field: ch.field, oldValue: ch.oldValue ?? null, newValue: ch.newValue ?? null });
           applied += 1;
         } else if (ch.entity === "checklistItem") {

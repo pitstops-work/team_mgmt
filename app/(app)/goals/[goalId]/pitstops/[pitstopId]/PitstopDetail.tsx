@@ -21,6 +21,7 @@ import CoOwnersSection from "./CoOwnersSection";
 import ThemesSection from "./ThemesSection";
 import GeographySection from "./GeographySection";
 import AuditSection from "./AuditSection";
+import { PROGRESS_TAGS, progressTagColor } from "@/lib/progressTags";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -78,17 +79,6 @@ type DateChange = {
   reason: string | null;
   createdAt: string;
   changedBy: { id: string; name: string | null; image: string | null };
-};
-const PROGRESS_TAGS = ["Team", "Baseline", "Permissions", "Infrastructure", "Training", "Live", "Monitoring"] as const;
-type ProgressTag = typeof PROGRESS_TAGS[number];
-const TAG_COLORS: Record<ProgressTag, string> = {
-  Team:           "bg-stone-50 text-stone-700 border-stone-200",
-  Baseline:       "bg-sky-50 text-sky-700 border-sky-200",
-  Permissions:    "bg-amber-50 text-amber-700 border-amber-200",
-  Infrastructure: "bg-violet-50 text-violet-700 border-violet-200",
-  Training:       "bg-teal-50 text-teal-700 border-teal-200",
-  Live:           "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Monitoring:     "bg-rose-50 text-rose-700 border-rose-200",
 };
 
 type Pitstop = {
@@ -1449,7 +1439,7 @@ export default function PitstopDetail({
                   <button
                     key={tag}
                     onClick={() => handleProgressTagChange(active ? null : tag)}
-                    className={`px-2 py-0.5 text-[11px] rounded border transition-colors ${active ? TAG_COLORS[tag] + " font-medium" : "text-stone-400 border-stone-200 hover:border-stone-300 hover:bg-stone-50"}`}
+                    className={`px-2 py-0.5 text-[11px] rounded border transition-colors ${active ? progressTagColor(tag).pill + " font-medium" : "text-stone-400 border-stone-200 hover:border-stone-300 hover:bg-stone-50"}`}
                   >
                     {tag}
                   </button>

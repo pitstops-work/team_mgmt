@@ -5,16 +5,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { ActivityData, ChecklistItemData, PitstopData, GoalData } from "./lib";
 import { fmtDayMonth } from "./lib";
-
-const PHASE_COLORS: Record<string, string> = {
-  Planning:    "bg-sky-50 text-sky-600 border-sky-100",
-  Mobilisation:"bg-violet-50 text-violet-600 border-violet-100",
-  Setup:       "bg-amber-50 text-amber-600 border-amber-100",
-  Capacity:    "bg-orange-50 text-orange-600 border-orange-100",
-  Engagement:  "bg-emerald-50 text-emerald-600 border-emerald-100",
-  Delivery:    "bg-teal-50 text-teal-600 border-teal-100",
-  Monitoring:  "bg-stone-50 text-stone-600 border-stone-100",
-};
+import { progressTagColor } from "@/lib/progressTags";
 
 export function ActivityRow({ a }: { a: ActivityData }) {
   const isDone = a.status === "Done";
@@ -90,7 +81,7 @@ export function PitstopCard({ p, today }: { p: PitstopData; today: Date }) {
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`text-[11px] font-medium flex-1 truncate ${isDone ? "text-stone-400 line-through" : "text-stone-700"}`}>{p.title}</span>
             {p.progressTag && (
-              <span className={`text-[9px] px-1.5 py-0.5 rounded border flex-shrink-0 ${PHASE_COLORS[p.progressTag] ?? "bg-stone-50 text-stone-400 border-stone-100"}`}>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded border flex-shrink-0 ${progressTagColor(p.progressTag).pill}`}>
                 {p.progressTag}
               </span>
             )}
