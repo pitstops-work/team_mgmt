@@ -23,7 +23,7 @@ export function ClusterSplitBanner({
   clusters: ({ id: string; name: string } | null)[];
   /** Override prefix when used outside Today (e.g. "May 30 spans"). */
   label?: string;
-  /** When provided, real-cluster pills become "Move N in X" buttons. */
+  /** When provided, real-cluster pills become "Move {name} (N) to another day" buttons. */
   onMoveCluster?: (cluster: { id: string; name: string }) => void;
 }) {
   const real = new Map<string, { name: string; count: number }>();
@@ -57,9 +57,9 @@ export function ClusterSplitBanner({
                 key={c.id}
                 onClick={() => onMoveCluster({ id: c.id, name: c.name })}
                 className={`${base} hover:bg-amber-100 hover:border-amber-300 transition-colors`}
-                aria-label={`Move ${c.count} activities in ${c.name} to another day`}
+                aria-label={`Move ${c.name} (${c.count} activities) to another day`}
               >
-                Move {c.count} in {c.name}
+                Move {c.name} ({c.count}) to another day
               </button>
             );
           }
