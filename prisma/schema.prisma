@@ -1285,6 +1285,14 @@ model PitstopEvent {
   threads       Thread[]
   // Action points raised from this activity
   actionPoints  ActionPoint[]
+
+  // Activities-page + planner queries sort + range-filter on scheduledAt.
+  // Partial index (active + non-cancelled) backs the most common UI filter.
+  // Full index covers the rest (calendar feed, admin views, audit lookups).
+  // See migration 20260604120000_pitstop_event_perf_indexes for the partial
+  // index — Prisma can't express WHERE predicates in @@index so it lives
+  // only in the migration SQL.
+  @@index([scheduledAt])
 }
 
 model PitstopEventFollowup {

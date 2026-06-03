@@ -657,9 +657,10 @@ function ExternalEventCard({ ev }: { ev: ExternalCalEvent }) {
 type ZoneGeo    = { id: string; name: string; goals: { goalId: string }[] };
 type ClusterGeo = { id: string; name: string; zone: { name: string }; goals: { goalId: string }[] };
 
-export default function EventsCalendar({ events: initialEvents, pitstops, users, currentUserId, eventUpdateScope = "own", manageableTeamIds = [], zones = [], clusters = [], calendarToken = null, inviteEventId = null }: {
+export default function EventsCalendar({ events: initialEvents, pitstops: initialPitstops, users, currentUserId, eventUpdateScope = "own", manageableTeamIds = [], zones = [], clusters = [], calendarToken = null, inviteEventId = null, windowFromYmd, windowToYmd }: {
   events: PitstopEvent[];
-  pitstops: PitstopRef[];
+  /** Optional seed; lazy-loaded via /api/pitstops/lite on first AddActivityModal open if omitted. */
+  pitstops?: PitstopRef[];
   users: User[];
   currentUserId: string;
   eventUpdateScope?: string;
@@ -668,6 +669,9 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   clusters?: ClusterGeo[];
   calendarToken?: string | null;
   inviteEventId?: string | null;
+  /** YMD bounds the server pre-loaded. Navigating outside lazy-fetches. */
+  windowFromYmd?: string;
+  windowToYmd?: string;
 }) {
   const searchParams = useSearchParams();
   const today = new Date(); today.setHours(12, 0, 0, 0);
@@ -688,6 +692,62 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   // 2026-06-04 cancelled ~200 events at once). Done events keep their
   // historical check-mark rendering; only Cancelled disappears.
   const [events, setEvents] = useState(initialEvents.filter(e => e.status !== "Cancelled"));
+  // Pitstops list for the AddActivityModal — lazy-loaded via /api/pitstops/lite
+  // on first modal open (or first inline use). Was eagerly fetched at page
+  // render but for Leaders/admins that pulled thousands of rows just for the
+  // case where the user clicks New activity once a session. See the useEffect
+  // gated on `pendingPitstopsFetch` below.
+  const [pitstops, setPitstops] = useState<PitstopRef[]>(initialPitstops ?? []);
+  const [pendingPitstopsFetch, setPendingPitstopsFetch] = useState(!initialPitstops);
+  useEffect(() => {
+    if (!pendingPitstopsFetch) return;
+    fetch("/api/pitstops/lite")
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: PitstopRef[]) => { setPitstops(rows); setPendingPitstopsFetch(false); })
+      .catch(() => setPendingPitstopsFetch(false));
+  }, [pendingPitstopsFetch]);
+
+  // Track which YMD bounds we've loaded events for. Starts at the server-
+  // rendered window; grows as the user navigates outside it. Without this
+  // the page would either ship the entire event table on first paint (slow)
+  // or show empty grids beyond the server's window (broken).
+  const [loadedFromYmd, setLoadedFromYmd] = useState(windowFromYmd ?? null);
+  const [loadedToYmd, setLoadedToYmd]     = useState(windowToYmd ?? null);
+  const [fetchingExtension, setFetchingExtension] = useState(false);
+
+  // When anchorDate moves outside the loaded window, fetch a fresh ±90d range
+  // around it via /api/pitstop-events/calendar and merge in. Dedup by id.
+  useEffect(() => {
+    if (!loadedFromYmd || !loadedToYmd) return;
+    const ymd = `${anchorDate.getFullYear()}-${String(anchorDate.getMonth() + 1).padStart(2, "0")}-${String(anchorDate.getDate()).padStart(2, "0")}`;
+    // Pad by 14 days so navigating a week outside the window still triggers
+    // a fetch before grids go visibly empty.
+    const padded = ymd;
+    if (padded >= loadedFromYmd && padded <= loadedToYmd) return;
+    setFetchingExtension(true);
+    const target = new Date(anchorDate);
+    const newFrom = new Date(target); newFrom.setDate(newFrom.getDate() - 30);
+    const newTo   = new Date(target); newTo.setDate(newTo.getDate() + 90);
+    const f = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const newFromYmd = f(newFrom);
+    const newToYmd = f(newTo);
+    fetch(`/api/pitstop-events/calendar?from=${newFromYmd}&to=${newToYmd}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: PitstopEvent[]) => {
+        const active = rows.filter(e => e.status !== "Cancelled");
+        setEvents(prev => {
+          const seen = new Set(prev.map(e => e.id));
+          const merged = [...prev];
+          for (const e of active) if (!seen.has(e.id)) merged.push(e);
+          return merged;
+        });
+        setLoadedFromYmd(prev => prev && prev < newFromYmd ? prev : newFromYmd);
+        setLoadedToYmd(prev   => prev && prev > newToYmd   ? prev : newToYmd);
+      })
+      .catch(() => { /* swallow — user can retry by nav */ })
+      .finally(() => setFetchingExtension(false));
+  }, [anchorDate, loadedFromYmd, loadedToYmd]);
+
   // Drag-to-reschedule target. Populated when an EventCard is dropped on a
   // different day's drop zone; opens the shared RescheduleSheet with the new
   // slot pre-filled so the user picks a reason and the API still owns the
