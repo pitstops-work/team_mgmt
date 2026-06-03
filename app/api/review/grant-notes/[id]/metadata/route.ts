@@ -1,6 +1,7 @@
 import { sql, ok, bad } from '@/lib/review/db';
 import { auth } from '@/lib/auth';
 import { isSuperAdmin } from '@/lib/roleGuard';
+import { snapshotVersion } from '@/lib/review/versions';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +32,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { source_documents, staff_notes, vitals } = body;
 
+  let newDocUrls: string[] = [];
+  if (Array.isArray(source_documents)) {
+    const prior = await sql`
+      SELECT source_documents FROM grant_note_metadata WHERE note_id = ${id}::uuid
+    `.catch(() => [] as any[]);
+    const priorUrls: string[] = Array.isArray((prior as any[])[0]?.source_documents)
+      ? (prior as any[])[0].source_documents
+      : [];
+    const priorSet = new Set(priorUrls);
+    newDocUrls = source_documents.filter((u: string) => typeof u === 'string' && !priorSet.has(u));
+  }
+
   const updates: Promise<any>[] = [];
 
   if (Array.isArray(source_documents)) {
@@ -59,5 +72,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   await Promise.all(updates);
-  return ok({ ok: true });
+
+  // Vitals are part of DocumentState — snapshot when they change.
+  // Source-doc and staff-notes edits don't move the document itself yet
+  // (they're consumed at draft/transform time).
+  if (vitals !== undefined) {
+    await snapshotVersion({ noteId: id, trigger: 'metadata_vitals' });
+  }
+
+  return ok({ ok: true, new_doc_urls: newDocUrls });
 }

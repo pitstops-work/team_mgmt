@@ -1,6 +1,7 @@
 import { sql, ok, bad } from '@/lib/review/db';
 import { auth } from '@/lib/auth';
 import { isSuperAdmin } from '@/lib/roleGuard';
+import { snapshotVersion } from '@/lib/review/versions';
 
 export const runtime = 'nodejs';
 
@@ -36,6 +37,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       SET title = ${title}, content_html = ${content_html || ''}, prompt_text = ${prompt_text || ''},
           sort_order = ${sort_order ?? 99}, updated_at = now()
   `;
+  await snapshotVersion({ noteId: id, trigger: 'section_create' });
   return ok({ ok: true });
 }
 
@@ -56,6 +58,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           WHERE note_id = ${id}::uuid AND section_key = ${item.section_key}`
     )
   );
+  await snapshotVersion({ noteId: id, trigger: 'section_reorder' });
   return ok({ ok: true });
 }
 
@@ -81,5 +84,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     ps.push(sql`UPDATE grant_note_sections SET blocks = ${JSON.stringify(body.blocks)}::jsonb, updated_at = now() WHERE note_id = ${id}::uuid AND section_key = ${section_key}`);
 
   await Promise.all(ps);
+  await snapshotVersion({ noteId: id, trigger: 'section_update' });
   return ok({ ok: true });
 }

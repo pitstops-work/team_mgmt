@@ -1,6 +1,7 @@
 import { sql, ok, bad } from '@/lib/review/db';
 import { auth } from '@/lib/auth';
 import { isSuperAdmin } from '@/lib/roleGuard';
+import { snapshotVersion } from '@/lib/review/versions';
 
 export const runtime = 'nodejs';
 
@@ -53,6 +54,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         updated_at = now()
       WHERE id = ${id}::uuid
     `;
+  }
+
+  // Snapshot a version when the document content (draft_text or financial vitals)
+  // actually changes. Status flips alone don't move the document state.
+  if (draft_text !== undefined || grant_amount !== undefined || grant_duration !== undefined) {
+    await snapshotVersion({ noteId: id, trigger: 'note_patch' });
   }
 
   return ok({ ok: true });

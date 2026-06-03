@@ -5,76 +5,130 @@ import { upload } from '@vercel/blob/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type Meta = {
-  meeting: string; orgName: string; orgCity: string; theme: string; geography: string;
-  presentedBy: string; visitedBy: string; progVisitDate: string; finVisitDate: string;
-  grmDate: string; delayRationale: string; grantNumber: string; grantAmount: string;
-  grantDuration: string; beneficiaryCount: string; isRenewal: boolean;
-  programmeName: string; vendors: string; scale: string; hasPilot: boolean; pilotNotes: string;
+type FieldType = 'text' | 'textarea' | 'select' | 'checkbox' | 'number';
+type FieldDef = {
+  key: string;
+  label: string;
+  type: FieldType;
+  group?: string;
+  placeholder?: string;
+  rows?: number;
+  options?: string[];
+  required?: boolean;
 };
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const EMPTY_META: Meta = {
-  meeting: '', orgName: '', orgCity: '', theme: '', geography: '',
-  presentedBy: '', visitedBy: '', progVisitDate: '', finVisitDate: '',
-  grmDate: '', delayRationale: 'NA', grantNumber: '1st',
-  grantAmount: '', grantDuration: '3', beneficiaryCount: '', isRenewal: false,
-  programmeName: '', vendors: '', scale: '', hasPilot: false, pilotNotes: '',
+type DocType = {
+  key: string;
+  label: string;
+  field_schema: FieldDef[];
+  default_capability_ids: string[];
+  sections_mode: 'multi_section' | 'single_section';
 };
 
-const THEMES = [
-  'Adolescent Girls', 'Rural Livelihoods', 'Access to Justice',
-  'Early Childhood', 'Urban Livelihoods', 'Health', 'Education', 'Welfare & Rights', 'Other',
-];
+type CapMeta = { id: string; label: string; description: string; category: string };
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Page ────────────────────────────────────────────────────────────────────
 
-export default function DraftPage() {
+export default function NoteStartPage() {
   // Auth
   const [authed, setAuthed] = useState(false);
   const [passInput, setPassInput] = useState('');
   const [passError, setPassError] = useState('');
   const [passBusy, setPassBusy] = useState(false);
 
-  // Output mode
-  const [outputMode, setOutputMode] = useState<'draft' | 'design'>('draft');
-  const [docType, setDocType] = useState('grant_note');
-  const [docTypes, setDocTypes] = useState<Array<{ key: string; label: string }>>([
-    { key: 'grant_note', label: 'Grant Note' },
-    { key: 'programme_design', label: 'Programme Design' },
-  ]);
+  // Catalog
+  const [docTypes, setDocTypes] = useState<DocType[]>([]);
+  const [docTypeKey, setDocTypeKey] = useState('grant_note');
+  const [allCaps, setAllCaps] = useState<CapMeta[]>([]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
 
-  // Core form
-  const [meta, setMeta] = useState<Meta>(EMPTY_META);
-  const [staffNotes, setStaffNotes] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
-  const [draft, setDraft] = useState('');
-  const [generating, setGenerating] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState('');
-  const [error, setError] = useState('');
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [submitterName, setSubmitterName] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
+  // Intent + collected fields
+  const [intent, setIntent] = useState('');
+  const [fieldValues, setFieldValues] = useState<Record<string, string | boolean>>({});
+  const [orgName, setOrgName] = useState('');
   const [ddOrg, setDdOrg] = useState<{ id: string; name: string } | null>(null);
 
-  // ─── Effects ────────────────────────────────────────────────────────────────
+  // Source documents (optional, collapsible)
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetch('/api/review/doc-types').then(r => r.json()).then(d => {
-      if (d.doc_types?.length) setDocTypes(d.doc_types.map((dt: any) => ({ key: dt.key, label: dt.label })));
-    }).catch(() => {});
-  }, []);
+  // Paste existing text (optional, collapsible)
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pastedText, setPastedText] = useState('');
+
+  // Optional advanced fields (collapsible)
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Scope (overrideable from doc-type defaults)
+  const [scopeIds, setScopeIds] = useState<string[]>([]);
+  const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
+
+  // Submission state
+  const [submitterName, setSubmitterName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [busyStatus, setBusyStatus] = useState('');
+  const [error, setError] = useState('');
+
+  // ─── Initial load ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (sessionStorage.getItem('staffAuthed') === 'true') setAuthed(true);
-    const saved = localStorage.getItem('staffName');
-    if (saved) setSubmitterName(saved);
+    const savedName = localStorage.getItem('staffName');
+    if (savedName) setSubmitterName(savedName);
   }, []);
 
-  // ─── Auth ───────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!authed) return;
+    Promise.all([
+      fetch('/api/review/doc-types').then(r => r.json()),
+      fetch('/api/review/capabilities').then(r => r.json()),
+    ]).then(([dt, cap]) => {
+      const types: DocType[] = (dt.doc_types || []).map((d: any) => ({
+        key: d.key,
+        label: d.label,
+        field_schema: Array.isArray(d.field_schema) ? d.field_schema : [],
+        default_capability_ids: Array.isArray(d.default_capability_ids) ? d.default_capability_ids : [],
+        sections_mode: d.sections_mode === 'single_section' ? 'single_section' : 'multi_section',
+      }));
+      setDocTypes(types);
+      const caps: CapMeta[] = (cap.capabilities || []).map((c: any) => ({
+        id: c.id, label: c.label, description: c.description, category: c.category,
+      }));
+      setAllCaps(caps);
+      // Initialise scope from active doc type's defaults.
+      const active = types.find(t => t.key === docTypeKey) || types[0];
+      if (active) {
+        setDocTypeKey(active.key);
+        setScopeIds(active.default_capability_ids);
+      }
+      setCatalogLoaded(true);
+    }).catch(() => setCatalogLoaded(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed]);
+
+  // When user switches doc type, reset scope to that doc type's defaults.
+  const activeDocType = docTypes.find(t => t.key === docTypeKey);
+  useEffect(() => {
+    if (activeDocType) setScopeIds(activeDocType.default_capability_ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docTypeKey, catalogLoaded]);
+
+  // Org name → DD lookup
+  useEffect(() => {
+    const name = orgName.trim();
+    if (!name) { setDdOrg(null); return; }
+    const t = setTimeout(() => {
+      fetch('/api/review/orgs').then(r => r.json()).then((orgs: any[]) => {
+        const match = orgs.find(o => o.name.toLowerCase() === name.toLowerCase());
+        setDdOrg(match ? { id: match.id, name: match.name } : null);
+      }).catch(() => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [orgName]);
+
+  // ─── Auth ──────────────────────────────────────────────────────────────────
 
   const authSubmit = async () => {
     setPassBusy(true); setPassError('');
@@ -87,27 +141,7 @@ export default function DraftPage() {
     else setPassError('Wrong passphrase');
   };
 
-  // Look up DD record when org name is entered
-  useEffect(() => {
-    const name = meta.orgName.trim();
-    if (!name) { setDdOrg(null); return; }
-    const t = setTimeout(() => {
-      fetch('/api/review/orgs').then(r => r.json()).then((orgs: any[]) => {
-        const match = orgs.find(o => o.name.toLowerCase() === name.toLowerCase());
-        setDdOrg(match ? { id: match.id, name: match.name } : null);
-      }).catch(() => {});
-    }, 600);
-    return () => clearTimeout(t);
-  }, [meta.orgName]);
-
-  // ─── Form helpers ───────────────────────────────────────────────────────────
-
-  const set = (key: keyof Meta) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const value = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
-    setMeta(prev => ({ ...prev, [key]: value }));
-  };
-
-  // ─── Files ──────────────────────────────────────────────────────────────────
+  // ─── Files ─────────────────────────────────────────────────────────────────
 
   const addFiles = useCallback((incoming: FileList | null) => {
     if (!incoming) return;
@@ -116,150 +150,209 @@ export default function DraftPage() {
       const existing = new Set(prev.map(f => f.name));
       return [...prev, ...arr.filter(f => !existing.has(f.name))];
     });
+    setSourcesOpen(true);
   }, []);
 
   const removeFile = (name: string) => setFiles(prev => prev.filter(f => f.name !== name));
 
   const uploadFiles = async (): Promise<string[]> => {
     if (files.length === 0) return [];
-    setUploadStatus(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}…`);
-    const urls = await Promise.all(files.map(async (file) => {
+    setBusyStatus(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}…`);
+    const urls = await Promise.all(files.map(async file => {
       const blob = await upload(`${Date.now()}-${file.name}`, file, {
         access: 'public', handleUploadUrl: '/api/review/blob-upload',
       });
       return blob.url;
     }));
-    setUploadStatus('');
     return urls;
   };
 
-  // ─── Generation ─────────────────────────────────────────────────────────────
+  // ─── Scope helpers ────────────────────────────────────────────────────────
 
-  const generateDraft = async () => {
-    if (!meta.orgName.trim()) { setError('Organisation name is required.'); return; }
-    if (!staffNotes.trim()) { setError('"Our sense of the org" is required.'); return; }
-    setError(''); setGenerating(true); setDraft(''); setUploadStatus('');
+  const dropScope = (id: string) => setScopeIds(s => s.filter(x => x !== id));
+  const addScope = (id: string) => { if (!scopeIds.includes(id)) setScopeIds(s => [...s, id]); setScopeMenuOpen(false); };
+  const availableScope = allCaps.filter(c => !scopeIds.includes(c.id));
 
-    try {
-      const blobUrls = await uploadFiles();
+  // ─── Submit ───────────────────────────────────────────────────────────────
 
-      const fd = new FormData();
-      Object.entries(meta).forEach(([k, v]) => fd.append(k, String(v)));
-      fd.append('staffNotes', staffNotes);
-      fd.append('docType', docType);
-      fd.append('blobUrls', JSON.stringify(blobUrls));
-
-      if (ddOrg) fd.append('ddOrgId', ddOrg.id);
-
-      const res = await fetch('/api/review/draft', { method: 'POST', body: fd });
-      if (!res.ok) {
-        const text = await res.text();
-        let msg = 'Generation failed';
-        try { msg = JSON.parse(text).error || msg; } catch { msg = `Server error (${res.status}): ${text.slice(0, 200)}`; }
-        throw new Error(msg);
-      }
-
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        setDraft(accumulated);
-      }
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setGenerating(false); setUploadStatus('');
+  const startDrafting = async () => {
+    if (!activeDocType) return;
+    if (!submitterName.trim()) { setError('Enter your name first.'); return; }
+    if (!intent.trim() && !pastedText.trim() && files.length === 0) {
+      setError('Tell me what to write — type intent, paste text, or attach source documents.');
+      return;
     }
-  };
-
-  const generateDesign = async () => {
-    if (!meta.orgName.trim()) { setError('Organisation name is required.'); return; }
-    if (!submitterName.trim()) { setError('Enter your name before continuing.'); return; }
-    if (files.length === 0) { setError('Upload at least one document to generate a visual design.'); return; }
-    setError(''); setGenerating(true);
+    setError(''); setBusy(true); setBusyStatus('');
 
     try {
       const blobUrls = await uploadFiles();
       localStorage.setItem('staffName', submitterName);
 
-      const res = await fetch('/api/review/grant-notes', {
+      // Build meta from collected field values + the universal fields.
+      const meta = activeDocType.field_schema.reduce((acc, f) => {
+        const v = fieldValues[f.key];
+        if (v === undefined || v === '') return acc;
+        acc[f.key] = String(v);
+        return acc;
+      }, {} as Record<string, string>);
+
+      // Inject orgName explicitly (it's the hero field).
+      if (orgName.trim()) meta.orgName = orgName.trim();
+
+      setBusyStatus('Creating note…');
+      const createRes = await fetch('/api/review/grant-notes', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          org_name: meta.orgName, org_city: meta.orgCity, meeting: meta.meeting,
-          theme: meta.theme, grant_number: meta.grantNumber, grant_amount: meta.grantAmount,
-          grant_duration: meta.grantDuration, doc_type: docType,
-          source_documents: blobUrls, staff_notes: staffNotes,
-          submitted_by: submitterName, status: 'designing',
+          org_name: meta.orgName || '(unnamed)',
+          org_city: meta.orgCity || '',
+          meeting: meta.meeting || '',
+          theme: meta.theme || '',
+          grant_number: meta.grantNumber || '',
+          grant_amount: meta.grantAmount || '',
+          grant_duration: meta.grantDuration || '',
+          doc_type: docTypeKey,
+          draft_text: pastedText || '',
+          source_documents: blobUrls,
+          staff_notes: (fieldValues.staffNotes as string) || '',
+          submitted_by: submitterName,
+          status: 'designing',
         }),
       });
-      const d = await res.json();
-      if (!d.id) throw new Error(d.error || 'Failed to create note');
-      window.location.href = `/notes/${d.id}/design`;
-    } catch (e: any) {
-      setError(e.message);
-      setGenerating(false); setUploadStatus('');
-    }
-  };
+      const created = await createRes.json();
+      if (!created.id) throw new Error(created.error || 'Failed to create note');
 
-  const downloadWord = async () => {
-    if (!draft.trim()) return;
-    const res = await fetch('/api/review/export', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        text: draft, org_name: meta.orgName, org_city: meta.orgCity,
-        meeting: meta.meeting, theme: meta.theme, grant_number: meta.grantNumber,
-        grant_amount: meta.grantAmount, grant_duration: meta.grantDuration, doc_type: docType,
-      }),
-    });
-    if (!res.ok) { setError('Word export failed'); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `grant-note-${(meta.orgName || 'draft').replace(/\s+/g, '-').toLowerCase()}.docx`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+      // Kick off RAG ingest for any uploaded docs.
+      if (Array.isArray(created.ingest_doc_urls) && created.ingest_doc_urls.length > 0) {
+        fetch('/api/review/ingest', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ note_id: created.id, doc_urls: created.ingest_doc_urls }),
+        }).catch(() => {});
+      }
 
-  const designDocument = async () => {
-    if (!draft.trim()) return;
-    if (!submitterName.trim()) { setError('Enter your name before continuing.'); return; }
-    setSubmitting(true);
-    localStorage.setItem('staffName', submitterName);
-    try {
-      const res = await fetch('/api/review/grant-notes', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
+      // Persist the chosen scope as sticky scope on the new note.
+      await fetch(`/api/review/grant-notes/${created.id}/scope`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ capability_ids: scopeIds, updated_by: submitterName }),
+      }).catch(() => {});
+
+      // Build the initial-draft instruction from intent + collected fields.
+      const instructionLines: string[] = [];
+      if (intent.trim()) {
+        instructionLines.push(intent.trim());
+      } else if (pastedText.trim()) {
+        instructionLines.push('Use the existing draft text in the document state as the starting point. Polish it per the active capabilities.');
+      } else {
+        instructionLines.push('Generate the initial document from the attached source materials per the active capabilities.');
+      }
+
+      const fieldLines = Object.entries(meta)
+        .filter(([k]) => k !== 'orgName' && k !== 'orgCity')
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${k}: ${v}`);
+      if (fieldLines.length > 0) {
+        instructionLines.push('');
+        instructionLines.push('Provided metadata for this draft:');
+        instructionLines.push(...fieldLines);
+      }
+      if (fieldValues.staffNotes) {
+        instructionLines.push('');
+        instructionLines.push('Our sense (staff notes — use as raw material, never paraphrase the meta-instruction):');
+        instructionLines.push(String(fieldValues.staffNotes));
+      }
+
+      setBusyStatus('Drafting (this takes 20–60 seconds)…');
+      const orchRes = await fetch(`/api/review/grant-notes/${created.id}/orchestrate`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          org_name: meta.orgName, org_city: meta.orgCity, meeting: meta.meeting,
-          theme: meta.theme, grant_number: meta.grantNumber, grant_amount: meta.grantAmount,
-          grant_duration: meta.grantDuration, doc_type: docType,
-          draft_text: draft, submitted_by: submitterName, status: 'designing',
+          instruction: instructionLines.join('\n'),
+          created_by: submitterName,
         }),
       });
-      const d = await res.json();
-      window.location.href = `/notes/${d.id}/design`;
+      const orchData = await orchRes.json();
+      if (orchData.error) {
+        throw new Error(`Initial draft failed: ${orchData.error}`);
+      }
+      if (orchData.clarification_request) {
+        // The orchestrator asked for clarification. Still redirect to the design
+        // page — the user will see the message there and can answer.
+      }
+
+      window.location.href = `/grant-notes/notes/${created.id}/design`;
     } catch (e: any) {
       setError(e.message);
-      setSubmitting(false);
+      setBusy(false);
+      setBusyStatus('');
     }
   };
 
-  // ─── JSX helpers ────────────────────────────────────────────────────────────
+  // ─── Field rendering ──────────────────────────────────────────────────────
 
-  const fileIcon = (name: string) => {
-    if (name.endsWith('.pdf')) return '📄';
-    if (name.endsWith('.xlsx') || name.endsWith('.xls')) return '📊';
-    if (name.endsWith('.docx') || name.endsWith('.doc')) return '📝';
-    if (name.endsWith('.pptx') || name.endsWith('.ppt')) return '📊';
-    if (name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png')) return '🖼';
-    return '📎';
+  const fieldValue = (key: string) => fieldValues[key] ?? '';
+  const setFieldValue = (key: string, value: string | boolean) =>
+    setFieldValues(prev => ({ ...prev, [key]: value }));
+
+  const renderField = (f: FieldDef) => {
+    const id = `field-${f.key}`;
+    if (f.type === 'textarea') {
+      return (
+        <div key={f.key} className="ns-field">
+          <label htmlFor={id}>{f.label}{f.required && ' *'}</label>
+          <textarea
+            id={id}
+            rows={f.rows || 4}
+            placeholder={f.placeholder}
+            value={String(fieldValue(f.key))}
+            onChange={e => setFieldValue(f.key, e.target.value)}
+          />
+        </div>
+      );
+    }
+    if (f.type === 'select') {
+      return (
+        <div key={f.key} className="ns-field">
+          <label htmlFor={id}>{f.label}{f.required && ' *'}</label>
+          <select id={id} value={String(fieldValue(f.key))} onChange={e => setFieldValue(f.key, e.target.value)}>
+            <option value="">—</option>
+            {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+      );
+    }
+    if (f.type === 'checkbox') {
+      return (
+        <div key={f.key} className="ns-field ns-field-checkbox">
+          <label>
+            <input type="checkbox"
+              checked={!!fieldValue(f.key)}
+              onChange={e => setFieldValue(f.key, e.target.checked)} />
+            {f.label}
+          </label>
+        </div>
+      );
+    }
+    return (
+      <div key={f.key} className="ns-field">
+        <label htmlFor={id}>{f.label}{f.required && ' *'}</label>
+        <input id={id} type={f.type === 'number' ? 'number' : 'text'}
+          placeholder={f.placeholder}
+          value={String(fieldValue(f.key))}
+          onChange={e => setFieldValue(f.key, e.target.value)} />
+      </div>
+    );
   };
 
-  // ─── Auth gate ──────────────────────────────────────────────────────────────
+  // Drop orgName + staffNotes from the schema's progressive section — they're
+  // promoted to the top-level hero / narrative spot. Everything else collapses.
+  const narrativeField = activeDocType?.field_schema.find(f => f.key === 'staffNotes');
+  const collapsibleFields = (activeDocType?.field_schema || [])
+    .filter(f => f.key !== 'orgName' && f.key !== 'staffNotes' && f.key !== 'orgCity');
+  const cityField = activeDocType?.field_schema.find(f => f.key === 'orgCity');
+
+  // ─── Auth gate ────────────────────────────────────────────────────────────
 
   if (!authed) {
     return (
@@ -279,307 +372,261 @@ export default function DraftPage() {
     );
   }
 
-  const isDesign = outputMode === 'design';
+  // ─── Note-start UI ────────────────────────────────────────────────────────
 
   return (
-    <div className="draft-app">
-      <div className="draft-inputs">
-        <div className="draft-brand">
-          <div className="draft-brand-label">Internal Document</div>
-          <a href="/grant-notes/notes" className="draft-back">← All notes</a>
-        </div>
+    <div className="ns-app">
+      <style>{NOTE_START_CSS}</style>
 
-        {/* Doc type toggle */}
-        <div className="draft-section">
-          <div className="draft-doctype-toggle">
-            {docTypes.map(dt => (
-              <button key={dt.key} className={`draft-doctype-btn${docType === dt.key ? ' active' : ''}`}
-                onClick={() => setDocType(dt.key)}>
-                {dt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="ns-header">
+        <div className="ns-title">Internal Drafting</div>
+        <a href="/grant-notes/notes" className="ns-back">← All notes</a>
+      </div>
 
-        {/* Output mode toggle */}
-        <div className="draft-section">
-          <div className="draft-mode-toggle">
-            <button className={`draft-mode-btn${!isDesign ? ' active' : ''}`} onClick={() => setOutputMode('draft')}>
-              <span className="draft-mode-icon">≡</span>
-              <span>
-                <span className="draft-mode-label">Draft</span>
-                <span className="draft-mode-hint">Text document + Word export</span>
-              </span>
+      {/* Doc type pills */}
+      <div className="ns-row">
+        <div className="ns-label">Doc type</div>
+        <div className="ns-pills">
+          {docTypes.map(d => (
+            <button key={d.key}
+              className={`ns-pill${docTypeKey === d.key ? ' active' : ''}`}
+              onClick={() => setDocTypeKey(d.key)}>
+              {d.label}
             </button>
-            <button className={`draft-mode-btn${isDesign ? ' active' : ''}`} onClick={() => setOutputMode('design')}>
-              <span className="draft-mode-icon">◈</span>
-              <span>
-                <span className="draft-mode-label">Design</span>
-                <span className="draft-mode-hint">Visual interactive review document</span>
-              </span>
-            </button>
-          </div>
+          ))}
         </div>
+      </div>
 
-        {/* ── Meeting & grant details ─────────────────────────────────────────── */}
-        <div className="draft-section">
-          <div className="draft-section-title">{docType === 'programme_design' ? 'Programme details' : 'Meeting & grant details'}</div>
-
-          <div className="draft-field">
-            <label>Meeting</label>
-            <input placeholder="e.g. 30th Apr'26 SGM" value={meta.meeting} onChange={set('meeting')} />
-          </div>
-
-          {docType === 'programme_design' && (
-            <div className="draft-field">
-              <label>Programme / concept name</label>
-              <input placeholder="Urban Food Distribution — Bangalore" value={meta.programmeName} onChange={set('programmeName')} />
-            </div>
+      {/* Scope chips */}
+      <div className="ns-row">
+        <div className="ns-label">Scope</div>
+        <div className="ns-pills">
+          {scopeIds.length === 0 && (
+            <span className="ns-muted">(empty — only editor primitives)</span>
           )}
-
-          <div className="draft-row">
-            <div className="draft-field">
-              <label>{docType === 'programme_design' ? 'Implementation partner' : 'Organisation name'}</label>
-              <input placeholder={docType === 'programme_design' ? 'Sampark' : 'Deepti Foundation'} value={meta.orgName} onChange={set('orgName')} />
-            </div>
-            <div className="draft-field">
-              <label>City</label>
-              <input placeholder="Bangalore" value={meta.orgCity} onChange={set('orgCity')} />
-            </div>
-          </div>
-
-          {docType === 'programme_design' && (
-            <div className="draft-field">
-              <label>Key vendors / partners</label>
-              <input placeholder="Ramani Food (kitchen), JustDelivery (transport)" value={meta.vendors} onChange={set('vendors')} />
-            </div>
-          )}
-
-          <div className="draft-row">
-            <div className="draft-field">
-              <label>Theme</label>
-              <select value={meta.theme} onChange={set('theme')}>
-                <option value="">Select theme</option>
-                {THEMES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="draft-field">
-              <label>Geography</label>
-              <input placeholder="Bhalaswa Dairy, North Delhi" value={meta.geography} onChange={set('geography')} />
-            </div>
-          </div>
-
-          <div className="draft-row">
-            <div className="draft-field">
-              <label>Presented by</label>
-              <input placeholder="Kiran P" value={meta.presentedBy} onChange={set('presentedBy')} />
-            </div>
-            <div className="draft-field">
-              <label>Visited by</label>
-              <input placeholder="Kiran, Vishnu" value={meta.visitedBy} onChange={set('visitedBy')} />
-            </div>
-          </div>
-
-          <div className="draft-row">
-            <div className="draft-field">
-              <label>Programme visit date</label>
-              <input placeholder="1st February 2026" value={meta.progVisitDate} onChange={set('progVisitDate')} />
-            </div>
-            <div className="draft-field">
-              <label>Finance visit date</label>
-              <input placeholder="9th April 2026" value={meta.finVisitDate} onChange={set('finVisitDate')} />
-            </div>
-          </div>
-
-          <div className="draft-row">
-            <div className="draft-field">
-              <label>GRM / Debrief date</label>
-              <input placeholder="31st March 2026" value={meta.grmDate} onChange={set('grmDate')} />
-            </div>
-            <div className="draft-field">
-              <label>Rationale for delay</label>
-              <input placeholder="NA" value={meta.delayRationale} onChange={set('delayRationale')} />
-            </div>
-          </div>
-
-          <div className="draft-row">
-            <div className="draft-field">
-              <label>Grant amount</label>
-              <input placeholder="₹ 74.64 L" value={meta.grantAmount} onChange={set('grantAmount')} />
-            </div>
-            <div className="draft-field">
-              <label>Duration (years)</label>
-              <input type="number" min="1" max="5" value={meta.grantDuration} onChange={set('grantDuration')} />
-            </div>
-          </div>
-
-          {docType === 'grant_note' && (
-            <div className="draft-row">
-              <div className="draft-field">
-                <label>Grant number</label>
-                <select value={meta.grantNumber} onChange={set('grantNumber')}>
-                  <option value="1st">1st</option>
-                  <option value="2nd">2nd</option>
-                  <option value="3rd">3rd</option>
-                </select>
-              </div>
-              <div className="draft-field">
-                <label>Beneficiary count</label>
-                <input placeholder="~500 adolescent girls" value={meta.beneficiaryCount} onChange={set('beneficiaryCount')} />
-              </div>
-              <div className="draft-field draft-checkbox-field">
-                <label>
-                  <input type="checkbox" checked={meta.isRenewal} onChange={set('isRenewal')} />
-                  Renewal grant
-                </label>
-              </div>
-            </div>
-          )}
-
-          {docType === 'programme_design' && (
-            <>
-              <div className="draft-field">
-                <label>Scale / daily target</label>
-                <input placeholder="1,500 meals/day across 5 hotspots" value={meta.scale} onChange={set('scale')} />
-              </div>
-              <div className="draft-field draft-checkbox-field">
-                <label>
-                  <input type="checkbox" checked={meta.hasPilot} onChange={set('hasPilot')} />
-                  Prior pilot exists
-                </label>
-              </div>
-              {meta.hasPilot && (
-                <div className="draft-field">
-                  <label>Pilot notes</label>
-                  <input placeholder="Pushcart model — Peenya; van model failed" value={meta.pilotNotes} onChange={set('pilotNotes')} />
+          {scopeIds.map(id => {
+            const meta = allCaps.find(c => c.id === id);
+            return (
+              <span key={id} title={meta?.description || id} className="ns-chip">
+                {meta?.label || id}
+                <button onClick={() => dropScope(id)} className="ns-chip-x" title="Remove">×</button>
+              </span>
+            );
+          })}
+          {availableScope.length > 0 && (
+            <span className="ns-chip-add-wrap">
+              <button onClick={() => setScopeMenuOpen(o => !o)} className="ns-chip-add">+ add</button>
+              {scopeMenuOpen && (
+                <div className="ns-chip-menu">
+                  {availableScope.map(c => (
+                    <button key={c.id} onClick={() => addScope(c.id)} className="ns-chip-menu-item">
+                      <div className="ns-chip-menu-label">{c.label} <span className="ns-muted">· {c.category}</span></div>
+                      <div className="ns-chip-menu-desc">{c.description}</div>
+                    </button>
+                  ))}
                 </div>
               )}
-            </>
+            </span>
           )}
         </div>
+      </div>
 
+      {/* Hero — intent */}
+      <div className="ns-hero">
+        <label htmlFor="ns-intent" className="ns-hero-label">What are we writing?</label>
+        <textarea
+          id="ns-intent"
+          rows={4}
+          placeholder={'e.g. "draft initial grant note for Deepti Foundation"\ne.g. "send a polite decline to org X — high dependency"\ne.g. "2-para visit summary for the GRM debrief email"'}
+          value={intent}
+          onChange={e => setIntent(e.target.value)}
+        />
+      </div>
 
-        {/* ── Due diligence on file ──────────────────────────────────────────── */}
-        {ddOrg && (
-          <div className="draft-section draft-dd-banner">
-            <span className="draft-dd-icon">✓</span>
-            <span className="draft-dd-text">Due diligence on file for <strong>{ddOrg.name}</strong></span>
-            <a href={`/due-diligence/${ddOrg.id}`} className="draft-dd-link" target="_blank">View / edit →</a>
-          </div>
-        )}
-
-        {/* ── Upload ─────────────────────────────────────────────────────────── */}
-        <div className="draft-section">
-          <div className="draft-section-title">Upload documents</div>
-          <div className="draft-section-hint">
-            {isDesign
-              ? 'Required for Design mode — Claude reads these directly to build the visual document'
-              : 'Audit reports, annual reports, proposal, MIS data — supporting material for Claude to cross-reference'}
-          </div>
-          <div className={`draft-dropzone${dragOver ? ' drag-over' : ''}`}
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}>
-            <div className="draft-dropzone-icon">⬆</div>
-            <div>Drop files here or click to browse</div>
-            <div className="draft-dropzone-hint">PDF, Word, PowerPoint, Excel, images (JPG, PNG)</div>
-            <input ref={fileInputRef} type="file" multiple
-              accept=".pdf,.pptx,.ppt,.xlsx,.xls,.docx,.doc,.jpg,.jpeg,.png,.txt,.md"
-              style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
-          </div>
-          {files.length > 0 && (
-            <div className="draft-file-list">
-              {files.map(f => (
-                <div key={f.name} className="draft-file-item">
-                  <span className="draft-file-icon">{fileIcon(f.name)}</span>
-                  <span className="draft-file-name">{f.name}</span>
-                  <span className="draft-file-size">{(f.size / 1024).toFixed(0)} KB</span>
-                  <button className="draft-file-remove" onClick={() => removeFile(f.name)}>×</button>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Org name — hero */}
+      <div className="ns-org">
+        <div className="ns-field">
+          <label htmlFor="ns-org">Organisation <span className="ns-muted">(optional — enables DD lookup + cross-note retrieval)</span></label>
+          <input id="ns-org" type="text" placeholder="Deepti Foundation"
+            value={orgName} onChange={e => setOrgName(e.target.value)} />
         </div>
-
-        {/* ── Our sense of the org ────────────────────────────────────────────── */}
-        <div className="draft-section">
-          <div className="draft-section-title">Our sense of the org</div>
-          <div className="draft-section-hint">Field observations, concerns, relationship history, recommendation. This is what Claude cannot read from documents.</div>
-          <textarea className="draft-notes"
-            placeholder="Write your candid assessment here."
-            value={staffNotes} onChange={e => setStaffNotes(e.target.value)} rows={8} />
-        </div>
-
-        {error && <div className="draft-error">{error}</div>}
-
-        {isDesign ? (
-          <div className="draft-design-actions">
-            <div className="draft-submit-row">
-              <input className="draft-submitter-input" placeholder="Your name"
-                value={submitterName} onChange={e => setSubmitterName(e.target.value)} />
-              <button className="draft-generate-btn draft-generate-design-btn"
-                onClick={generateDesign} disabled={generating}>
-                {generating
-                  ? <><span className="draft-spinner" />{uploadStatus || 'Uploading & saving…'}</>
-                  : `Generate visual design →`}
-              </button>
-            </div>
-            <p className="draft-design-hint">
-              Claude will read your documents and build a visual section-by-section review document with infographics, tables, and decision points. You can edit it before submitting to leadership.
-            </p>
+        {cityField && (
+          <div className="ns-field">
+            <label htmlFor="ns-city">City</label>
+            <input id="ns-city" type="text" placeholder="Bangalore"
+              value={String(fieldValue('orgCity'))}
+              onChange={e => setFieldValue('orgCity', e.target.value)} />
           </div>
-        ) : (
-          <button className="draft-generate-btn" onClick={generateDraft} disabled={generating}>
-            {generating
-              ? <><span className="draft-spinner" />Generating…</>
-              : `Generate ${docType === 'programme_design' ? 'programme design' : 'grant note'}`}
-          </button>
         )}
       </div>
 
-      {/* Right panel — Draft mode only */}
-      {!isDesign && (
-        <div className={`draft-output${draft ? ' has-draft' : ''}`}>
-          {!draft && !generating && (
-            <div className="draft-output-empty">
-              <div className="draft-output-empty-icon">◎</div>
-              <div>Fill in the details on the left, then hit Generate.</div>
-              <div className="draft-output-empty-hint">The draft will appear here, fully editable.</div>
+      {ddOrg && (
+        <div className="ns-dd-banner">
+          ✓ Due diligence on file for <strong>{ddOrg.name}</strong>
+          <a href={`/due-diligence/${ddOrg.id}`} target="_blank" className="ns-dd-link">View / edit →</a>
+        </div>
+      )}
+
+      {/* Source documents — collapsible */}
+      <div className="ns-section">
+        <button className="ns-collapse" onClick={() => setSourcesOpen(o => !o)}>
+          <span>{sourcesOpen ? '▾' : '▸'} Attach source documents</span>
+          <span className="ns-muted">{files.length > 0 ? `${files.length} attached` : 'optional'}</span>
+        </button>
+        {sourcesOpen && (
+          <div className="ns-section-body">
+            <div
+              className={`ns-dropzone${dragOver ? ' drag' : ''}`}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}>
+              <div className="ns-dropzone-icon">⬆</div>
+              <div>Drop files or click to browse</div>
+              <div className="ns-muted">PDF, Word, PowerPoint, Excel, images</div>
+              <input ref={fileInputRef} type="file" multiple
+                accept=".pdf,.pptx,.ppt,.xlsx,.xls,.docx,.doc,.jpg,.jpeg,.png,.txt,.md"
+                style={{ display: 'none' }}
+                onChange={e => addFiles(e.target.files)} />
             </div>
-          )}
-          {generating && (
-            <div className="draft-output-empty">
-              <div className="draft-output-empty-icon draft-pulse">◎</div>
-              <div>{uploadStatus || 'Reading documents and drafting…'}</div>
-              <div className="draft-output-empty-hint">{uploadStatus ? 'Then Claude will draft the note.' : 'This takes 20–40 seconds.'}</div>
-            </div>
-          )}
-          {draft && (
-            <>
-              <div className="draft-output-header">
-                <div className="draft-output-title">Draft — {meta.orgName || 'Document'}</div>
-                <div className="draft-output-actions">
-                  <button className="draft-copy-btn" onClick={() => navigator.clipboard.writeText(draft)}>Copy</button>
-                  {docType === 'grant_note' && (
-                    <button className="draft-copy-btn" onClick={downloadWord}>↓ Word</button>
-                  )}
-                  <div className="draft-submit-row">
-                    <input className="draft-submitter-input" placeholder="Your name"
-                      value={submitterName} onChange={e => setSubmitterName(e.target.value)} />
-                    <button className="draft-submit-btn" onClick={designDocument}
-                      disabled={submitting || !submitterName.trim()}>
-                      {submitting ? 'Saving…' : 'Design document →'}
-                    </button>
+            {files.length > 0 && (
+              <div className="ns-files">
+                {files.map(f => (
+                  <div key={f.name} className="ns-file">
+                    <span>{f.name}</span>
+                    <span className="ns-muted">{(f.size / 1024).toFixed(0)} KB</span>
+                    <button onClick={() => removeFile(f.name)} className="ns-file-x">×</button>
                   </div>
-                </div>
+                ))}
               </div>
-              <textarea className="draft-output-text" value={draft}
-                onChange={e => setDraft(e.target.value)} spellCheck />
-            </>
+            )}
+            <div className="ns-muted">
+              Documents are indexed cross-note — past relevant material will be retrievable.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Paste existing text — collapsible */}
+      <div className="ns-section">
+        <button className="ns-collapse" onClick={() => setPasteOpen(o => !o)}>
+          <span>{pasteOpen ? '▾' : '▸'} Paste existing text</span>
+          <span className="ns-muted">{pastedText ? `${pastedText.length} chars` : 'optional'}</span>
+        </button>
+        {pasteOpen && (
+          <div className="ns-section-body">
+            <textarea
+              rows={8}
+              placeholder="Paste a starting draft — the AI will use this as raw material."
+              value={pastedText}
+              onChange={e => setPastedText(e.target.value)}
+              className="ns-textarea-full"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Optional additional fields — collapsible */}
+      {collapsibleFields.length > 0 && (
+        <div className="ns-section">
+          <button className="ns-collapse" onClick={() => setAdvancedOpen(o => !o)}>
+            <span>{advancedOpen ? '▾' : '▸'} Additional context for this doc type</span>
+            <span className="ns-muted">{`${collapsibleFields.length} field${collapsibleFields.length === 1 ? '' : 's'}`}</span>
+          </button>
+          {advancedOpen && (
+            <div className="ns-section-body ns-grid-2">
+              {collapsibleFields.map(f => renderField(f))}
+            </div>
           )}
         </div>
       )}
+
+      {/* Narrative / "our sense" — promoted */}
+      {narrativeField && (
+        <div className="ns-section">
+          <label className="ns-hero-label" htmlFor={`field-${narrativeField.key}`}>
+            {narrativeField.label}
+          </label>
+          <textarea
+            id={`field-${narrativeField.key}`}
+            rows={narrativeField.rows || 6}
+            placeholder={narrativeField.placeholder || ''}
+            value={String(fieldValue(narrativeField.key))}
+            onChange={e => setFieldValue(narrativeField.key, e.target.value)}
+            className="ns-textarea-full"
+          />
+        </div>
+      )}
+
+      {/* Submit */}
+      {error && <div className="ns-error">{error}</div>}
+
+      <div className="ns-submit-row">
+        <input type="text" placeholder="Your name"
+          value={submitterName} onChange={e => setSubmitterName(e.target.value)}
+          className="ns-submitter" />
+        <button onClick={startDrafting} disabled={busy} className="ns-submit">
+          {busy ? (busyStatus || 'Working…') : 'Start drafting →'}
+        </button>
+      </div>
+
+      {!catalogLoaded && <div className="ns-muted" style={{ marginTop: 16 }}>Loading catalog…</div>}
     </div>
   );
 }
+
+// ─── CSS (inline for now — the new page uses its own scoped styles) ─────────
+
+const NOTE_START_CSS = `
+.ns-app { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; color: #1a1a1a; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+.ns-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.ns-title { font-size: 18px; font-weight: 700; }
+.ns-back { color: #555; text-decoration: none; font-size: 13px; }
+.ns-back:hover { text-decoration: underline; }
+.ns-row { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.ns-label { font-size: 12px; color: #555; font-weight: 600; letter-spacing: 0.3px; padding-top: 6px; min-width: 64px; }
+.ns-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.ns-pill { background: #f4f4f0; border: 1px solid #d4d2c8; color: #444; padding: 4px 12px; border-radius: 16px; cursor: pointer; font-size: 13px; }
+.ns-pill:hover { background: #ede9d8; }
+.ns-pill.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.ns-chip { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #d4d2c8; border-radius: 12px; padding: 2px 4px 2px 10px; font-size: 12px; }
+.ns-chip-x { border: none; background: transparent; cursor: pointer; color: #888; padding: 0 4px; font-size: 14px; line-height: 1; }
+.ns-chip-add-wrap { position: relative; display: inline-block; }
+.ns-chip-add { border: 1px dashed #b8b5a8; background: transparent; border-radius: 12px; padding: 2px 10px; cursor: pointer; font-size: 12px; color: #555; }
+.ns-chip-menu { position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: 50; background: #fff; border: 1px solid #d4d2c8; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); min-width: 280px; max-width: 360px; }
+.ns-chip-menu-item { display: block; width: 100%; text-align: left; background: transparent; border: none; cursor: pointer; padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #f4f3ee; }
+.ns-chip-menu-item:hover { background: #f8f7f2; }
+.ns-chip-menu-label { font-weight: 600; }
+.ns-chip-menu-desc { color: #666; font-size: 11px; margin-top: 2px; }
+.ns-muted { color: #888; font-size: 12px; }
+.ns-hero { margin: 24px 0; }
+.ns-hero-label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
+.ns-hero textarea, .ns-textarea-full { width: 100%; font-size: 14px; padding: 10px 12px; border: 1px solid #d4d2c8; border-radius: 6px; font-family: inherit; box-sizing: border-box; resize: vertical; line-height: 1.5; }
+.ns-hero textarea:focus, .ns-textarea-full:focus { outline: none; border-color: #1f4d3a; }
+.ns-org { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
+.ns-field { display: flex; flex-direction: column; }
+.ns-field label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+.ns-field input, .ns-field select, .ns-field textarea { font-size: 13px; padding: 6px 10px; border: 1px solid #d4d2c8; border-radius: 4px; font-family: inherit; box-sizing: border-box; }
+.ns-field input:focus, .ns-field select:focus, .ns-field textarea:focus { outline: none; border-color: #1f4d3a; }
+.ns-field-checkbox label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #333; font-weight: 500; cursor: pointer; }
+.ns-field-checkbox input { width: 14px; height: 14px; }
+.ns-dd-banner { background: #ecf6ef; border: 1px solid #c1deca; padding: 8px 12px; border-radius: 4px; display: flex; align-items: center; gap: 10px; font-size: 13px; margin-bottom: 16px; }
+.ns-dd-link { margin-left: auto; color: #1f4d3a; text-decoration: none; }
+.ns-section { margin-bottom: 14px; }
+.ns-collapse { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px 0; background: transparent; border: none; border-bottom: 1px solid #e5e3da; cursor: pointer; font-size: 13px; font-weight: 600; color: #333; }
+.ns-collapse:hover { color: #1f4d3a; }
+.ns-section-body { padding: 12px 0 4px; }
+.ns-dropzone { border: 2px dashed #d4d2c8; border-radius: 6px; padding: 32px 16px; text-align: center; cursor: pointer; color: #666; }
+.ns-dropzone:hover, .ns-dropzone.drag { border-color: #1f4d3a; color: #1f4d3a; background: #f4f8f5; }
+.ns-dropzone-icon { font-size: 20px; margin-bottom: 6px; }
+.ns-files { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.ns-file { display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: #f8f7f2; border-radius: 3px; font-size: 12px; }
+.ns-file-x { margin-left: auto; border: none; background: transparent; cursor: pointer; color: #888; font-size: 14px; }
+.ns-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ns-error { background: #fce5e3; border: 1px solid #e6a9a3; padding: 8px 12px; border-radius: 4px; color: #8b2c25; font-size: 13px; margin: 12px 0; }
+.ns-submit-row { display: flex; gap: 8px; margin-top: 24px; align-items: center; }
+.ns-submitter { padding: 8px 12px; border: 1px solid #d4d2c8; border-radius: 4px; font-size: 13px; width: 180px; box-sizing: border-box; }
+.ns-submit { padding: 10px 20px; background: #1a1a1a; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.ns-submit:hover:not(:disabled) { background: #2a2a2a; }
+.ns-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+`;

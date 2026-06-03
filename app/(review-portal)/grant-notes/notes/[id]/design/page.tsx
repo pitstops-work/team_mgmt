@@ -12,6 +12,32 @@ import TableHeader from '@tiptap/extension-table-header';
 import Image from '@tiptap/extension-image';
 import { upload } from '@vercel/blob/client';
 
+function shortTrigger(t: string): string {
+  switch (t) {
+    case 'orchestrator_turn': return 'AI EDIT';
+    case 'section_update': return 'EDIT';
+    case 'section_create': return 'ADD';
+    case 'section_reorder': return 'REORDER';
+    case 'transform_visual': return 'INITIAL';
+    case 'transform_refresh': return 'REFRESH';
+    case 'transform_text': return 'TEXT';
+    case 'note_created': return 'CREATED';
+    case 'note_patch': return 'NOTE';
+    case 'metadata_vitals': return 'VITALS';
+    default: return t.toUpperCase();
+  }
+}
+function triggerBadgeBg(t: string): string {
+  if (t === 'orchestrator_turn') return '#1F4D3A';
+  if (t.startsWith('transform_')) return '#B8500A';
+  if (t === 'note_created') return '#444';
+  return '#e8e6db';
+}
+function triggerBadgeFg(t: string): string {
+  if (t === 'orchestrator_turn' || t.startsWith('transform_') || t === 'note_created') return '#fff';
+  return '#555';
+}
+
 function toRoman(n: number): string {
   const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
   const syms = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I'];
@@ -78,6 +104,40 @@ export default function DesignPage() {
   const [vitalsDirty, setVitalsDirty] = useState(false);
   const [vitalsSaving, setVitalsSaving] = useState(false);
 
+  // Scope (active capabilities) — phase 3.
+  type CapMeta = { id: string; label: string; description: string; category: string };
+  const [allCaps, setAllCaps] = useState<CapMeta[]>([]);
+  const [scopeIds, setScopeIds] = useState<string[]>([]);
+  const [scopeLoaded, setScopeLoaded] = useState(false);
+  const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
+
+  // Version timeline — phase 4.
+  type VersionRow = {
+    id: string;
+    version_number: number;
+    instruction: string | null;
+    scope_used: string[];
+    capability_calls: Array<{ tool: string; summary: string }>;
+    trigger: string;
+    created_by: string;
+    created_at: string;
+  };
+  const [versions, setVersions] = useState<VersionRow[]>([]);
+  const [versionsOpen, setVersionsOpen] = useState(true);
+
+  // Promotion candidate banner — phase 6.
+  type PromotionHint = { normalized: string; count: number; sample_instruction: string; common_scope: string[] };
+  const [promotionHint, setPromotionHint] = useState<PromotionHint | null>(null);
+
+  const loadVersions = useCallback(() => {
+    fetch(`/api/review/grant-notes/${id}/versions?limit=50`)
+      .then(r => r.json())
+      .then(d => setVersions(Array.isArray(d.versions) ? d.versions : []))
+      .catch(() => {});
+  }, [id]);
+
+  // revertTo is declared further down — it depends on loadSections which is declared later.
+
   // Section reordering
   const [draggedKey, setDraggedKey] = useState<string | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
@@ -134,6 +194,22 @@ export default function DesignPage() {
       });
   }, [id]);
 
+  const revertTo = useCallback(async (versionId: string, versionNumber: number) => {
+    if (!confirm(`Revert document to v${versionNumber}? Current sections will be replaced with the v${versionNumber} snapshot. (A new version row records the revert.)`)) return;
+    const createdBy = (typeof window !== 'undefined' && localStorage.getItem('staffName')) || 'staff';
+    const res = await fetch(`/api/review/grant-notes/${id}/versions/${versionId}/revert`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ created_by: createdBy }),
+    });
+    if (!res.ok) {
+      alert('Revert failed — see server logs.');
+      return;
+    }
+    await loadSections();
+    loadVersions();
+  }, [id, loadSections, loadVersions]);
+
   useEffect(() => {
     if (!authed) return;
     fetch(`/api/review/grant-notes/${id}`).then(r => r.json()).then(d => { if (d.note) setNote(d.note); });
@@ -141,6 +217,19 @@ export default function DesignPage() {
       if (Array.isArray(d.source_documents)) setSourceDocs(d.source_documents);
       if (d.vitals && typeof d.vitals === 'object') setVitals(d.vitals);
     });
+    loadVersions();
+    Promise.all([
+      fetch(`/api/review/capabilities`).then(r => r.json()),
+      fetch(`/api/review/grant-notes/${id}/scope`).then(r => r.json()),
+    ]).then(([capsRes, scopeRes]) => {
+      const caps: CapMeta[] = (capsRes.capabilities || []).map((c: any) => ({
+        id: c.id, label: c.label, description: c.description, category: c.category,
+      }));
+      setAllCaps(caps);
+      const ids: string[] = Array.isArray(scopeRes?.capability_ids) ? scopeRes.capability_ids : [];
+      setScopeIds(ids);
+      setScopeLoaded(true);
+    }).catch(() => setScopeLoaded(true));
     loadSections().then(loaded => {
       if (loaded.length > 0) {
         const first = loaded[0];
@@ -183,6 +272,24 @@ export default function DesignPage() {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  const persistScope = useCallback(async (ids: string[]) => {
+    setScopeIds(ids);
+    const updatedBy = (typeof window !== 'undefined' && localStorage.getItem('staffName')) || 'staff';
+    await fetch(`/api/review/grant-notes/${id}/scope`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ capability_ids: ids, updated_by: updatedBy }),
+    }).catch(() => { /* best-effort */ });
+  }, [id]);
+
+  const dropScopeId = (capId: string) => persistScope(scopeIds.filter(x => x !== capId));
+  const addScopeId = (capId: string) => {
+    if (scopeIds.includes(capId)) return;
+    persistScope([...scopeIds, capId]);
+    setScopeMenuOpen(false);
+  };
+  const availableToAdd = allCaps.filter(c => !scopeIds.includes(c.id));
 
   const runTransform = async () => {
     setTransforming(true);
@@ -270,23 +377,62 @@ export default function DesignPage() {
     setPromptBusy(true);
     setPromptError('');
     try {
-      const res = await fetch(`/api/review/grant-notes/${id}/prompt`, {
+      // Persist any local edits first so the orchestrator sees them.
+      if (dirty) {
+        await fetch(`/api/review/grant-notes/${id}/sections`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ section_key: activeKey, content_html: prevHtml }),
+        });
+      }
+
+      // Phase 4: post directly to the orchestrator. Sticky scope governs;
+      // we don't override scope from the terminal — that's what the chip bar
+      // is for. For per-section edits we filter the orchestrator to this section.
+      const res = await fetch(`/api/review/grant-notes/${id}/orchestrate`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          section_key: activeKey,
           instruction: promptInstruction,
-          current_html: prevHtml,
-          include_context: promptContext,
+          section_filter: promptContext ? undefined : [activeKey],
+          created_by: (typeof window !== 'undefined' && localStorage.getItem('staffName')) || 'staff',
         }),
       });
       const d = await res.json();
-      if (d.content_html) {
+
+      if (d.clarification_request) {
+        setPromptError(`AI needs clarification: ${d.clarification_request.message}`);
+        return;
+      }
+      if (d.error) {
+        setPromptError(d.error);
+        return;
+      }
+
+      // Refetch sections to pick up the orchestrator's persisted changes.
+      const loaded = await loadSections();
+      const updated = loaded.find(s => s.section_key === activeKey);
+      if (updated) {
         setPromptUndoStack(s => [...s.slice(-9), prevHtml]);
-        editor.commands.setContent(d.content_html);
-        setDirty(true);
-      } else {
-        setPromptError(d.error || 'No content returned');
+        editor.commands.setContent(updated.content_html || '<p></p>');
+        setDirty(false);
+      }
+
+      // Refresh the version timeline.
+      loadVersions();
+
+      // Surface promotion candidate hint from the orchestrator response.
+      if (d.promotion_candidate?.normalized) {
+        setPromotionHint({
+          normalized: d.promotion_candidate.normalized,
+          count: d.promotion_candidate.count,
+          sample_instruction: promptInstruction,
+          common_scope: scopeIds,
+        });
+      }
+
+      if (Array.isArray(d.lint_issues) && d.lint_issues.length > 0) {
+        setPromptError(`Applied but with notes: ${d.lint_issues.join('; ')}`);
       }
     } catch (e: any) {
       setPromptError(e.message || 'Failed');
@@ -353,11 +499,22 @@ export default function DesignPage() {
       }));
       const updated = [...sourceDocs, ...newUrls];
       setSourceDocs(updated);
-      await fetch(`/api/review/grant-notes/${id}/metadata`, {
+      const patchRes = await fetch(`/api/review/grant-notes/${id}/metadata`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ source_documents: updated }),
       });
+      const patchData = await patchRes.json().catch(() => ({}));
+      const toIngest: string[] = Array.isArray(patchData?.new_doc_urls) ? patchData.new_doc_urls : newUrls;
+      if (toIngest.length > 0) {
+        // Fire ingestion for RAG. Phase 0: kicked off here so the server function
+        // has a live request to keep it alive on Vercel. We don't block on it.
+        fetch('/api/review/ingest', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ note_id: id, doc_urls: toIngest }),
+        }).catch(() => { /* ingest is best-effort in phase 0 */ });
+      }
     } catch (e: any) {
       setUploadError(e.message || 'Upload failed');
     } finally {
@@ -439,6 +596,106 @@ export default function DesignPage() {
           </button>
         </div>
       </div>
+
+      {/* Scope chip bar — sticky scope for this note (phase 3) */}
+      {scopeLoaded && (
+        <div className="gn-scope-bar" style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
+          background: '#f8f7f2', borderBottom: '1px solid #e5e3da', flexWrap: 'wrap',
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#555', letterSpacing: '0.3px' }}>SCOPE</span>
+          {scopeIds.length === 0 && (
+            <span style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>(empty — only editor primitives are active)</span>
+          )}
+          {scopeIds.map(id => {
+            const meta = allCaps.find(c => c.id === id);
+            return (
+              <span key={id} title={meta?.description || id} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                background: '#fff', border: '1px solid #d4d2c8', borderRadius: 12,
+                padding: '2px 4px 2px 10px', fontSize: 12,
+              }}>
+                <span>{meta?.label || id}</span>
+                <button
+                  onClick={() => dropScopeId(id)}
+                  title={`Remove ${meta?.label || id} from scope`}
+                  style={{
+                    border: 'none', background: 'transparent', cursor: 'pointer',
+                    color: '#888', padding: '0 4px', fontSize: 14, lineHeight: 1,
+                  }}
+                >×</button>
+              </span>
+            );
+          })}
+          {availableToAdd.length > 0 && (
+            <span style={{ position: 'relative' }}>
+              <button
+                onClick={() => setScopeMenuOpen(o => !o)}
+                style={{
+                  border: '1px dashed #b8b5a8', background: 'transparent',
+                  borderRadius: 12, padding: '2px 10px', cursor: 'pointer',
+                  fontSize: 12, color: '#555',
+                }}
+              >+ add</button>
+              {scopeMenuOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: 50,
+                  background: '#fff', border: '1px solid #d4d2c8', borderRadius: 6,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)', minWidth: 280,
+                }}>
+                  {availableToAdd.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => addScopeId(c.id)}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        padding: '8px 12px', fontSize: 12,
+                      }}
+                    >
+                      <div style={{ fontWeight: 600 }}>{c.label} <span style={{ color: '#888', fontWeight: 400 }}>· {c.category}</span></div>
+                      <div style={{ color: '#666', fontSize: 11 }}>{c.description}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </span>
+          )}
+          <span style={{ flex: 1 }} />
+          <span style={{ fontSize: 11, color: '#888' }}>
+            Sticky scope · used by the orchestrator when running prompt instructions
+          </span>
+        </div>
+      )}
+
+      {/* Promotion candidate banner — phase 6 */}
+      {promotionHint && (
+        <div style={{
+          margin: '12px 16px', padding: '10px 14px', borderRadius: 6,
+          background: '#fff8e0', border: '1px solid #e6d28a',
+          display: 'flex', alignItems: 'center', gap: 12, fontSize: 13,
+        }}>
+          <span style={{
+            background: '#7a5a00', color: '#fff', padding: '2px 8px',
+            borderRadius: 3, fontSize: 10, letterSpacing: '0.2px',
+          }}>RECURRING</span>
+          <span>
+            You've asked <em>"{promotionHint.sample_instruction.length > 60
+              ? promotionHint.sample_instruction.slice(0, 60) + '…'
+              : promotionHint.sample_instruction}"</em> {promotionHint.count}× —
+            consider promoting it to a rule.
+          </span>
+          <span style={{ flex: 1 }} />
+          <a href="/grant-notes/admin/rulebook" target="_blank"
+            style={{ color: '#7a5a00', fontWeight: 600, textDecoration: 'underline', fontSize: 12 }}>
+            Open rulebook →
+          </a>
+          <button onClick={() => setPromotionHint(null)} style={{
+            border: 'none', background: 'transparent', cursor: 'pointer',
+            color: '#7a5a00', fontSize: 16,
+          }}>×</button>
+        </div>
+      )}
 
       {/* Transform/loading state */}
       {(transforming || (sectionsLoaded && sections.length === 0)) && (
@@ -555,6 +812,73 @@ export default function DesignPage() {
                   <div className="gn-sources-hint">
                     Vitals appear as tiles at the top of the review page.
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Version timeline — phase 4 */}
+            <div className="gn-sources-panel">
+              <button className="gn-sources-toggle" onClick={() => setVersionsOpen(o => !o)}>
+                <span>History {versions.length > 0 ? `(${versions.length})` : ''}</span>
+                <span>{versionsOpen ? '▲' : '▼'}</span>
+              </button>
+              {versionsOpen && (
+                <div className="gn-sources-body" style={{ maxHeight: 320, overflowY: 'auto' }}>
+                  {versions.length === 0 && (
+                    <div className="gn-sources-hint">No versions yet. Each AI turn or edit creates a new version.</div>
+                  )}
+                  {versions.map(v => (
+                    <div key={v.id} style={{
+                      borderLeft: '2px solid #d4d2c8', paddingLeft: 10, marginBottom: 10,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                        <strong style={{ fontSize: 12 }}>v{v.version_number}</strong>
+                        <span style={{ fontSize: 10, color: '#999' }}>
+                          {new Date(v.created_at).toLocaleString(undefined, {
+                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                        <span style={{
+                          background: triggerBadgeBg(v.trigger), color: triggerBadgeFg(v.trigger),
+                          padding: '1px 6px', borderRadius: 3, fontSize: 10, letterSpacing: '0.2px',
+                        }}>{shortTrigger(v.trigger)}</span>
+                        {v.created_by && v.created_by !== 'system' && (
+                          <span style={{ marginLeft: 6 }}>· {v.created_by}</span>
+                        )}
+                      </div>
+                      {v.instruction && (
+                        <div style={{ fontSize: 12, color: '#333', marginTop: 4, fontStyle: 'italic' }}>
+                          "{v.instruction.length > 100 ? v.instruction.slice(0, 100) + '…' : v.instruction}"
+                        </div>
+                      )}
+                      {v.scope_used.length > 0 && (
+                        <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+                          scope: {v.scope_used.join(', ')}
+                        </div>
+                      )}
+                      {v.capability_calls.length > 0 && (
+                        <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>
+                          {v.capability_calls.slice(0, 3).map((c, i) => (
+                            <div key={i}>· {c.summary}</div>
+                          ))}
+                          {v.capability_calls.length > 3 && (
+                            <div style={{ color: '#999' }}>… +{v.capability_calls.length - 3} more</div>
+                          )}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => revertTo(v.id, v.version_number)}
+                        title={`Restore the document to v${v.version_number}`}
+                        style={{
+                          marginTop: 6, border: '1px solid #c8c4b4', background: '#fff',
+                          color: '#444', padding: '2px 8px', borderRadius: 3,
+                          cursor: 'pointer', fontSize: 11,
+                        }}
+                      >↩ Revert to v{v.version_number}</button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

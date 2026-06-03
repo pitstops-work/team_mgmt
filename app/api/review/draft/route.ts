@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { del } from '@vercel/blob';
 import { parseBudgetExcel } from '@/lib/review/extractDocs';
-import { buildSystemPrompt, buildPromptForDocType, DEFAULT_LANGUAGE_RULES } from '@/lib/review/rulebook';
+import { buildSystemPromptFromCaps } from '@/lib/review/rulebook';
 import { sql } from '@/lib/review/db';
 
 export const runtime = 'nodejs';
@@ -342,17 +342,18 @@ Critical requirements:
       })),
     ];
 
-    // Load rulebook overrides + doc type config from DB in parallel
-    const [rulebookRows, docTypeRows] = await Promise.all([
-      sql`SELECT section, content FROM rulebook_rules`,
-      sql`SELECT key, label, template_rules, export_mode, apply_financial_rules FROM doc_types WHERE key = ${meta.docType}`,
-    ]);
-    const overrides: Record<string, string> = {};
-    for (const r of rulebookRows) overrides[r.section as string] = r.content as string;
-    const docTypeRow = docTypeRows[0] as any;
-    const systemPrompt = docTypeRow
-      ? buildPromptForDocType(docTypeRow, overrides, meta.docType)
-      : buildSystemPrompt(overrides);
+    // Phase 2: pull rule text from the capabilities table (admin-edited there).
+    // Doc-type's apply_financial_rules still gates whether financial+cost apply.
+    const docTypeRows = await sql`
+      SELECT key, label, template_rules, export_mode, apply_financial_rules
+      FROM doc_types WHERE key = ${meta.docType}
+    `;
+    const docTypeRow = (docTypeRows[0] as any) || {
+      key: meta.docType,
+      template_rules: '',
+      apply_financial_rules: true,
+    };
+    const systemPrompt = await buildSystemPromptFromCaps(docTypeRow);
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({

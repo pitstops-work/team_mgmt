@@ -1,4 +1,5 @@
 import { sql, ok, bad } from '@/lib/review/db';
+import { snapshotVersion } from '@/lib/review/versions';
 
 export const runtime = 'nodejs';
 
@@ -67,5 +68,14 @@ export async function POST(req: Request) {
     `;
   }
 
-  return ok({ id: noteId });
+  await snapshotVersion({
+    noteId,
+    trigger: 'note_created',
+    createdBy: submitted_by || 'system',
+  });
+
+  return ok({
+    id: noteId,
+    ingest_doc_urls: hasSourceDocs ? source_documents : [],
+  });
 }

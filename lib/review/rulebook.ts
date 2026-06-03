@@ -188,61 +188,60 @@ GBV / Survivor support: add norm when established
 
 If cost/beneficiary/year is outside the norm range, state it plainly and note the reason given by the organisation. If no norm exists for the theme, write "No established norm for this theme."`;
 
-export function buildSystemPrompt(overrides: Record<string, string> = {}): string {
-  return `You draft internal grant approval notes for a philanthropy organisation.
-
-${overrides.language || DEFAULT_LANGUAGE_RULES}
-
-${overrides.financial || DEFAULT_FINANCIAL_RULES}
-
-${overrides.template || DEFAULT_TEMPLATE_RULES}
-
-${overrides.cost_norms || DEFAULT_COST_NORMS}
-
-You will be given:
-- Metadata: meeting, org name, dates, grant details
-- Extracted text from uploaded documents (proposal, audit reports, MIS data, emails)
-- Parsed budget data from the organisation's budget Excel
-- Staff notes: "Our sense of their work" — use this as raw material for that paragraph; include the specific observations and anecdotes from it
-
-Your job is to DRAFT the note — not to review it, judge it, or comment on its completeness. Do not add any meta-commentary, readiness assessment, or list of what is missing. Do not write sentences like "this note cannot be tabled" or "the following information is required". Where a specific data point is absent from the documents, write "[to be filled]" inline in that field and move on. Produce the complete grant note structure regardless. Do not add sections not in the template. Do not use forbidden adjectives. Show the opex calculation working as a table. Calculate cost per beneficiary in the Remarks section and show the arithmetic.`;
-}
-
-export function buildProgrammeDesignPrompt(overrides: Record<string, string> = {}): string {
-  return buildPromptForDocType(
-    { template_rules: overrides.template || '', apply_financial_rules: false },
-    overrides,
-    'programme_design',
-  );
-}
-
+// Doc-type row shape for builders that consume doc_types — kept as a type
+// only; the legacy buildSystemPrompt / buildPromptForDocType have been removed
+// in phase 7. All callers now use buildSystemPromptFromCaps below.
 export interface DocTypeRow {
   key?: string;
   label?: string;
-  template_rules: string;
+  template_rules?: string;
   export_mode?: string;
   apply_financial_rules: boolean;
 }
 
-export function buildPromptForDocType(
-  docType: DocTypeRow,
-  overrides: Record<string, string> = {},
-  fallbackKey = 'grant_note',
-): string {
-  const isGrant = fallbackKey === 'grant_note' && !docType.template_rules;
-  const templateBlock = docType.template_rules || (isGrant ? DEFAULT_TEMPLATE_RULES : '');
-  const financialBlock = docType.apply_financial_rules
-    ? `\n${overrides.financial || DEFAULT_FINANCIAL_RULES}\n`
-    : '';
-  const costBlock = docType.apply_financial_rules
-    ? `\n${overrides.cost_norms || DEFAULT_COST_NORMS}\n`
-    : '';
+// ────────────────────────────────────────────────────────────────────────────
+// Phase 2 — capabilities-driven prompt assembly.
+//
+// Composes the same drafting system prompt as buildPromptForDocType, but pulls
+// language / financial / structure / cost from the capabilities table instead
+// of the rulebook_rules / DEFAULT_* constants. The doc-type's own template_rules
+// override the structure capability if set (preserves per-doc-type template
+// authoring in the existing doc_types tab — phase 5 collapses that too).
+//
+// `apply_financial_rules` on the doc_type still gates whether financial + cost
+// capabilities are applied for this draft.
+
+import { getCapabilitiesByIds, defaultCapabilityIdsForDocType } from './capabilities';
+
+export async function buildSystemPromptFromCaps(
+  docType: { template_rules?: string; apply_financial_rules?: boolean; key?: string },
+  capabilityIds?: string[],
+): Promise<string> {
+  const ids = capabilityIds || defaultCapabilityIdsForDocType(docType);
+  const caps = await getCapabilitiesByIds(ids);
+
+  const fragmentsByCategory: Record<string, string> = {};
+  for (const c of caps) fragmentsByCategory[c.category] = c.prompt_fragment;
+
+  const language = fragmentsByCategory.language || DEFAULT_LANGUAGE_RULES;
+  const financialBlock = fragmentsByCategory.financial
+    ? `\n${fragmentsByCategory.financial}\n` : '';
+  const costBlock = fragmentsByCategory.cost
+    ? `\n${fragmentsByCategory.cost}\n` : '';
+
+  // Doc-type's own template_rules wins over the structure capability — that's
+  // where per-doc-type structure currently lives.
+  const structureBlock = docType.template_rules
+    || fragmentsByCategory.structure
+    || (docType.key === 'grant_note' ? DEFAULT_TEMPLATE_RULES : '');
+
+  const showFinancialTail = !!fragmentsByCategory.financial;
 
   return `You draft internal documents for a philanthropy organisation.
 
-${overrides.language || DEFAULT_LANGUAGE_RULES}
+${language}
 ${financialBlock}
-${templateBlock}
+${structureBlock}
 ${costBlock}
-Your job is to DRAFT the document — not to review it, judge it, or comment on its completeness. Where a specific data point is absent from the documents, write "[to be filled]" inline and move on. Do not add meta-commentary, readiness assessments, or lists of what is missing. Do not use forbidden adjectives.${docType.apply_financial_rules ? ' Show the opex calculation working as a table. Calculate cost per beneficiary in the Remarks section and show the arithmetic.' : ''}`;
+Your job is to DRAFT the document — not to review it, judge it, or comment on its completeness. Where a specific data point is absent from the documents, write "[to be filled]" inline and move on. Do not add meta-commentary, readiness assessments, or lists of what is missing. Do not use forbidden adjectives.${showFinancialTail ? ' Show the opex calculation working as a table. Calculate cost per beneficiary in the Remarks section and show the arithmetic.' : ''}`;
 }

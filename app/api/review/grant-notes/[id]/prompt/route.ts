@@ -1,79 +1,63 @@
-import Anthropic from '@anthropic-ai/sdk';
+// Phase 4: per-section AI edit now routes through the orchestrator.
+//
+// Backwards compat: the design page's client expects { content_html }, so we
+// fetch the post-orchestrate section content and return it under that key.
+// New callers should prefer POSTing directly to /orchestrate.
+
 import { sql, ok, bad } from '@/lib/review/db';
+import { runOrchestrator } from '@/lib/review/orchestrator/runtime';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-
-const PROMPT_SYSTEM = `You are editing a single section of an internal grant review document for a philanthropy team. The user provides the current HTML content and an instruction for how to revise it. Apply the instruction and return ONLY the updated HTML content — no JSON, no markdown fences, no commentary before or after.
-
-Allowed HTML elements: <p> <strong> <em> <ul> <ol> <li> <table class="data-table"><thead><tbody><tr><th><td> <div class="stat-row"><div class="stat-item"><span class="stat-val">X</span><span class="stat-label">Y</span></div></div>
-
-Tone rules (non-negotiable): cold, direct, understated. No warm adjectives (impactful, transformative, remarkable, inspiring, passionate, committed, vibrant, dynamic). Short sentences. Concerns stated plainly.
-
-If the instruction asks to add content not in the current HTML, add it using good judgment. If the instruction is vague (e.g. "make it shorter"), cut the least essential content. Do not add section titles or headings unless explicitly asked.`;
+export const maxDuration = 120;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let body: any;
   try { body = await req.json(); } catch { return bad('invalid json'); }
 
-  const { instruction, section_key, current_html, include_context } = body;
-  if (!instruction?.trim()) return bad('instruction required');
-  if (!current_html) return bad('current_html required');
+  const instruction: string = String(body?.instruction || '').trim();
+  const sectionKey: string = String(body?.section_key || '');
+  const currentHtml: string = String(body?.current_html || '');
+  const includeContext: boolean = !!body?.include_context;
 
-  const [noteRows, sectionRows, allSectionRows] = await Promise.all([
-    sql`SELECT org_name, org_city, doc_type, theme FROM grant_notes WHERE id = ${id}::uuid`.catch(() => []),
-    sql`SELECT title FROM grant_note_sections WHERE note_id = ${id}::uuid AND section_key = ${section_key}`.catch(() => []),
-    include_context
-      ? sql`SELECT section_num, title, content_html, section_key FROM grant_note_sections WHERE note_id = ${id}::uuid ORDER BY sort_order ASC`.catch(() => [])
-      : Promise.resolve([]),
-  ]);
+  if (!instruction) return bad('instruction required');
+  if (!sectionKey) return bad('section_key required');
+  if (!currentHtml) return bad('current_html required');
 
-  const note = (noteRows as any[])[0];
-  const section = (sectionRows as any[])[0];
-  const allSections = allSectionRows as any[];
+  // If the design page passed local-only edits via current_html, persist them
+  // before invoking the orchestrator so the model sees the same content.
+  await sql`
+    UPDATE grant_note_sections
+    SET content_html = ${currentHtml}, updated_at = now()
+    WHERE note_id = ${id}::uuid AND section_key = ${sectionKey}
+  `.catch(() => {});
 
-  const docLine = note
-    ? `Document: ${note.org_name}${note.org_city ? ', ' + note.org_city : ''} — ${note.doc_type || 'grant_note'} — Theme: ${note.theme || 'unspecified'}`
-    : '';
-  const sectionLine = section ? `Section being edited: ${section.title}` : '';
-
-  // Build document context — plain text summary of every other section
-  let docContext = '';
-  if (include_context && allSections.length > 0) {
-    const others = allSections.filter(s => s.section_key !== section_key);
-    if (others.length > 0) {
-      const summaries = others.map(s => {
-        const text = (s.content_html as string)
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 400);
-        return `  ${s.section_num}. ${s.title}: ${text}${text.length === 400 ? '…' : ''}`;
-      });
-      docContext = `\nOTHER SECTIONS (for cross-section coherence):\n${summaries.join('\n')}\n`;
-    }
-  }
-
-  const userMessage = [
-    docLine,
-    sectionLine,
-    docContext,
-    `CURRENT CONTENT:\n${current_html}`,
-    `INSTRUCTION:\n${instruction.trim()}`,
-  ].filter(Boolean).join('\n\n');
-
-  const msg = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2000,
-    system: PROMPT_SYSTEM,
-    messages: [{ role: 'user', content: userMessage }],
+  const result = await runOrchestrator({
+    noteId: id,
+    instruction,
+    scopeOverride: ['language', 'format'],
+    sectionFilter: includeContext ? undefined : [sectionKey],
+    parentVersionId: null,
+    createdBy: 'staff',
   });
 
-  const raw = (msg.content.find((b: any) => b.type === 'text') as any)?.text || '';
-  const clean = raw.replace(/^```(?:html)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
+  if (result.clarification_request) {
+    return ok({
+      content_html: null,
+      clarification_request: result.clarification_request,
+    });
+  }
 
-  return ok({ content_html: clean });
+  const rows = await sql`
+    SELECT content_html FROM grant_note_sections
+    WHERE note_id = ${id}::uuid AND section_key = ${sectionKey}
+  `.catch(() => [] as any[]);
+  const html = (rows as any[])[0]?.content_html || '';
+
+  return ok({
+    content_html: html,
+    version_id: result.version_id,
+    capability_calls: result.capability_calls,
+    diff: result.diff,
+  });
 }
