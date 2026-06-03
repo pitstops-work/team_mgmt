@@ -23,6 +23,7 @@ import GeographySection from "./GeographySection";
 import AuditSection from "./AuditSection";
 import { PROGRESS_TAGS, progressTagColor } from "@/lib/progressTags";
 import { PitstopAPPanel } from "@/components/action-points/PitstopAPPanel";
+import { RescheduleVisitModal } from "@/components/pitstops/RescheduleVisitModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -722,6 +723,9 @@ export default function PitstopDetail({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set(initialSubscribedThreadIds));
   const [verifying, setVerifying] = useState(false);
+  // "Reschedule visit" cascade — moves pitstop dates + activities together.
+  // Distinct from the inline pitstop-date edit (which only moves dates, no cascade).
+  const [rescheduleVisitOpen, setRescheduleVisitOpen] = useState(false);
   const [dateReason, setDateReason] = useState("");
   const [newCheckItem, setNewCheckItem] = useState("");
   const [addingCheck, setAddingCheck] = useState(false);
@@ -1328,6 +1332,18 @@ export default function PitstopDetail({
                   {pitstop.completedAt && <span>Completed: <span className="text-stone-700">{fmtDate(pitstop.completedAt)}</span></span>}
                   {!pitstop.startDate && !pitstop.targetDate && <span className="text-stone-400">No dates set</span>}
                 </div>
+                {/* "Reschedule visit" = move pitstop + all non-Done activities by the
+                    same delta. Useful when the whole site visit needs to shift to
+                    another day (e.g. Abdul rearranging this month's creche round). */}
+                {pitstop.startDate && pitstop.status !== "Done" && (
+                  <button
+                    onClick={() => setRescheduleVisitOpen(true)}
+                    className="mt-2 flex items-center gap-1 text-[11px] text-sky-600 hover:text-sky-700 hover:bg-sky-50 px-2 py-1 rounded transition-colors"
+                  >
+                    <Calendar className="w-3 h-3" />
+                    Reschedule visit
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1701,6 +1717,19 @@ export default function PitstopDetail({
           )}
         </div>
       </div>
+
+      {/* Reschedule-visit cascade — distinct from the inline date edit. Shifts
+          pitstop start/target + every non-Done activity by the same delta. */}
+      {rescheduleVisitOpen && pitstop.startDate && (
+        <RescheduleVisitModal
+          pitstopId={pitstop.id}
+          pitstopTitle={pitstop.title}
+          currentStartIso={pitstop.startDate}
+          currentTargetIso={pitstop.targetDate ?? null}
+          onClose={() => setRescheduleVisitOpen(false)}
+          onRescheduled={() => { setRescheduleVisitOpen(false); router.refresh(); }}
+        />
+      )}
 
       {/* Edit pitstop modal */}
       {showEdit && (
