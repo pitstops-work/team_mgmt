@@ -361,6 +361,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     });
   }
 
+  // Hard-delete action points (follow-ups). Same treatment as checklist items
+  // — no deletedAt column on the table, and they have no value once the parent
+  // goal is gone. Done on goalId directly (not pitstopIds) so an AP that was
+  // somehow orphaned from its pitstop still gets swept. status (open / done /
+  // cancelled) is irrelevant — goal-delete is destructive end-to-end.
+  await prisma.actionPoint.deleteMany({
+    where: { goalId },
+  });
+
   await prisma.goal.update({ where: { id: goalId }, data: { deletedAt: now } });
   auditLog({ entityType: "Goal", entityId: goalId, userId: session.user.id, action: "deleted" });
   return Response.json({ ok: true });
