@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<!-- HAND_AUTHORED: do not regenerate via gen-training-deck.mjs -->
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pitstops Essentials — Daily Playbook for RPs</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:48px 64px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#38bdf8,#a855f7);transition:width .3s;z-index:100}
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+h1.hero{font-size:56px;font-weight:800;line-height:1.05;letter-spacing:-1.5px}
+h2.title{font-size:38px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.15}
+h3.sub{font-size:18px;font-weight:400;color:#94a3b8;margin-bottom:24px}
+.label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+p.body{font-size:16px;line-height:1.65;color:#cbd5e1}
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:16px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:120px}
+.stat-pill .num{font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+
+.hard-rule{padding:18px 22px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-left:4px solid #ef4444;border-radius:10px}
+.hard-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fca5a5;margin-bottom:6px}
+.hard-rule p{font-size:15px;color:#fecaca;line-height:1.55}
+
+.soft-rule{padding:18px 22px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-left:4px solid #38bdf8;border-radius:10px}
+.soft-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#7dd3fc;margin-bottom:6px}
+.soft-rule p{font-size:15px;color:#bae6fd;line-height:1.55}
+
+.warn{padding:14px 18px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-left:4px solid #fbbf24;border-radius:10px}
+.warn .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fde68a;margin-bottom:6px}
+.warn p{font-size:14px;color:#fde68a;line-height:1.55}
+
+/* ─────────── App UI mockups (sky/stone palette, matches real Pitstops chrome) ──── */
+.app-mock{background:#fafaf9;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px 20px;color:#1c1917;font-size:13px;line-height:1.5;box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.app-mock .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.app-mock .tab-bar{display:flex;gap:0;border-bottom:1px solid #e7e5e4;margin-bottom:14px;font-size:11px;font-weight:500;color:#78716c}
+.app-mock .tab-bar .tab{padding:8px 14px;border-bottom:2px solid transparent}
+.app-mock .tab-bar .tab.active{color:#0369a1;border-color:#0ea5e9}
+.app-mock .section-head{font-size:10px;font-weight:600;color:#a8a29e;letter-spacing:1px;text-transform:uppercase;margin:14px 0 6px}
+.app-mock .card{background:#fff;border:1px solid #e7e5e4;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;font-size:12px}
+.app-mock .card.overdue{background:#fffbeb;border-color:#fde68a}
+.app-mock .card .time{font-size:10px;color:#78716c;font-weight:600;min-width:48px}
+.app-mock .card .body{flex:1}
+.app-mock .card .title{font-weight:600;color:#292524}
+.app-mock .card .meta{font-size:10px;color:#a8a29e;margin-top:2px}
+.app-mock .btn{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:default}
+.app-mock .btn-done{background:#10b981;color:#fff}
+.app-mock .btn-voice{background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd}
+.app-mock .btn-photo{background:#fafaf9;color:#57534e;border:1px solid #d6d3d1}
+.app-mock .pill{display:inline-block;padding:2px 7px;border-radius:50px;font-size:9px;font-weight:600;margin-left:6px}
+.app-mock .pill-overdue{background:#fef2f2;color:#b91c1c}
+.app-mock .pill-today{background:#fef3c7;color:#92400e}
+.app-mock .pill-meeting{background:#dbeafe;color:#1e40af}
+.app-mock .pill-visit{background:#ede9fe;color:#5b21b6}
+.app-mock .pill-ap{background:#f5f5f4;color:#57534e}
+
+/* Arrow callout — points at a UI element */
+.callout-wrap{position:relative;display:inline-block;margin:18px 0}
+.callout-arrow{position:absolute;color:#fb7185;font-size:22px;font-weight:700;font-family:'SF Mono',monospace;line-height:1}
+.callout-label{display:inline-block;padding:5px 11px;background:rgba(251,113,133,.22);color:#fda4af;border:1px solid rgba(251,113,133,.4);border-radius:50px;font-size:11px;font-weight:600;letter-spacing:0.4px}
+
+.split-2{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.split-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start}
+
+/* Step chain */
+.flow{display:flex;gap:14px;align-items:stretch;margin-top:20px;flex-wrap:wrap}
+.flow-step{flex:1;min-width:160px;padding:16px 18px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:12px}
+.flow-step .n{font-size:11px;font-weight:700;color:#7dd3fc;letter-spacing:1.5px;margin-bottom:6px}
+.flow-step .t{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+.flow-step .d{font-size:12px;color:#cbd5e1;line-height:1.4}
+
+.no-yes{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:18px}
+.no-yes .col{padding:18px 22px;border-radius:12px}
+.no-yes .col.no{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25)}
+.no-yes .col.yes{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25)}
+.no-yes .col .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.no-yes .col.no .head{color:#fca5a5}
+.no-yes .col.yes .head{color:#6ee7b7}
+.no-yes .col p{font-size:14px;color:#e2e8f0;line-height:1.55;margin-bottom:8px}
+.no-yes .col p:last-child{margin-bottom:0}
+
+.checks{list-style:none;padding:0;margin:14px 0}
+.checks li{padding:7px 0 7px 28px;border-bottom:1px solid rgba(255,255,255,.04);position:relative;font-size:14px;color:#e2e8f0;line-height:1.55}
+.checks li::before{content:'✓';position:absolute;left:0;top:7px;color:#34d399;font-size:14px;font-weight:700;line-height:1.5}
+.checks li:last-child{border-bottom:none}
+
+.kbd{display:inline-block;padding:1px 6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:4px;font-size:11px;font-family:'SF Mono',Consolas,monospace;color:#e2e8f0}
+
+@media (max-width:880px){
+  .slide{padding:32px 24px}
+  h1.hero{font-size:36px}
+  h2.title{font-size:28px}
+  .split-2, .split-3, .no-yes{grid-template-columns:1fr}
+}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.08s}
+.slide.active>*:nth-child(3){animation-delay:.16s}
+.slide.active>*:nth-child(4){animation-delay:.24s}
+.slide.active>*:nth-child(5){animation-delay:.32s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck">
+
+<!-- 1 · Title -->
+<div class="slide bg-navy active" id="s1">
+  <div style="margin:auto;max-width:980px;text-align:center">
+    <div style="font-size:80px;margin-bottom:18px">🏁</div>
+    <div class="label" style="color:#38bdf8">Pitstops · RP daily essentials</div>
+    <h1 class="hero" style="margin-bottom:16px">Pitstops will tell you<br/>where to go, what to do.</h1>
+    <p class="body" style="font-size:19px;color:#cbd5e1;max-width:780px;margin:0 auto 28px">A 12-minute walkthrough of the only screens you need to open every day. Your goals are already set up. From tomorrow, open the app, do what it says, mark it done. That's the job.</p>
+    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:28px">
+      <div class="stat-pill"><span class="num">15</span><span class="lbl">slides</span></div>
+      <div class="stat-pill"><span class="num">~12 min</span><span class="lbl">read time</span></div>
+      <div class="stat-pill"><span class="num">RP</span><span class="lbl">audience</span></div>
+      <div class="stat-pill"><span class="num">Daily</span><span class="lbl">rhythm</span></div>
+    </div>
+    <p class="body" style="font-size:13px;color:#94a3b8;font-style:italic">If you're new, do this once. After that, the app teaches itself — but bookmark this page; you'll come back to it the day something feels off.</p>
+  </div>
+</div>
+
+<!-- 2 · The Reset -->
+<div class="slide bg-rose" id="s2">
+  <div class="label" style="color:#fb7185">Before you start</div>
+  <h2 class="title">The slate has been wiped clean.</h2>
+  <h3 class="sub">What's different from last week:</h3>
+  <div class="split-2" style="margin-top:18px">
+    <div>
+      <ul class="checks">
+        <li><b>All your goals were redone.</b> The new ones are the only ones that matter. The old mess is gone.</li>
+        <li><b>Every overdue activity from before was cleaned up.</b> If it's on your list now, it's real and current.</li>
+        <li><b>Fewer goals, fewer pitstops.</b> What's left is what we agreed you'd actually do.</li>
+        <li><b>Activities you'll do at one centre on one day are grouped together</b> — not spread across the month like before.</li>
+      </ul>
+    </div>
+    <div class="hard-rule">
+      <div class="head">Mandatory from tomorrow</div>
+      <p style="margin-bottom:10px"><b>Pitstops is the one source of truth.</b> If it's not in Pitstops, it didn't happen. If Pitstops doesn't say to do it, you don't owe it that day.</p>
+      <p>Your ZL, PM, and the Leader all look at the same data. Marking things done here is how the org knows you did the work.</p>
+    </div>
+  </div>
+  <div class="soft-rule" style="margin-top:18px">
+    <div class="head">In practice</div>
+    <p>Open the app at the start of your day. Look at <b>Home → Today</b>. Do what it says. Mark it done. That's the loop. The rest of this deck is how to handle the rough edges.</p>
+  </div>
+</div>
+
+<!-- 3 · Operations vs Setup -->
+<div class="slide bg-navy" id="s3">
+  <div class="label" style="color:#a78bfa">The very first rule</div>
+  <h2 class="title">Stay in Operations. Never go into Setup.</h2>
+  <p class="body" style="margin-bottom:14px">The app has two modes — a small switcher at the bottom-left of the sidebar. <b>Operations is yours.</b> Setup is for admins to add goals, edit templates, change geography. You should never need it.</p>
+  <div class="no-yes">
+    <div class="col no">
+      <div class="head">✗ Don't open Setup unless</div>
+      <p>Something is grievously wrong — your goals are missing entirely, a creche shows up that doesn't exist, your name isn't on a pitstop you definitely own.</p>
+      <p>Even then: <b>tell your ZL first.</b> Don't poke at templates yourself.</p>
+    </div>
+    <div class="col yes">
+      <div class="head">✓ Live in Operations</div>
+      <p>Four tabs across the top: <b>Home</b>, <b>Activities</b>, <b>Threads</b>, <b>Notifications</b>. That's it. From these you can see and do every piece of work assigned to you.</p>
+      <p>Plus three tools in the sidebar: <b>Visit calendar</b>, <b>Route planner</b>, <b>Wiki</b>. We'll cover the first two.</p>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:18px">
+    <div class="head">If you accidentally land in Setup</div>
+    <p>You'll see a longer sidebar (Goals, Field Coverage, Programmes, Programme Map…). Click the mode switcher at the bottom of the sidebar to flip back to Operations. No harm done as long as you didn't change anything.</p>
+  </div>
+</div>
+
+<!-- 4 · The Loop -->
+<div class="slide bg-sky" id="s4">
+  <div class="label" style="color:#7dd3fc">The daily loop</div>
+  <h2 class="title">Pitstops tells you, not the other way around.</h2>
+  <p class="body" style="margin-bottom:16px">A pitstop is one unit of work for one creche / centre / settlement. The app shows you which pitstops have work today, what that work is, and what's coming this week. Your job is to open it and do it.</p>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="n">STEP 1</div>
+      <div class="t">Open Home → Today</div>
+      <div class="d">First thing in the morning. See what's scheduled.</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">STEP 2</div>
+      <div class="t">Go do it</div>
+      <div class="d">The card tells you the creche, the cluster, what to check.</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">STEP 3</div>
+      <div class="t">Mark Done</div>
+      <div class="d">Right in the app. Captures voice / photo / follow-ups in one screen.</div>
+    </div>
+    <div class="flow-step">
+      <div class="n">STEP 4</div>
+      <div class="t">Repeat</div>
+      <div class="d">Next pitstop on the list. Until Today is clear.</div>
+    </div>
+  </div>
+  <div class="soft-rule" style="margin-top:22px">
+    <div class="head">The contract</div>
+    <p>You never have to remember a creche visit. You never have to keep a paper list. If it's a real piece of work, it's a pitstop in your Today. If it's not in your Today, it can wait.</p>
+  </div>
+</div>
+
+<!-- 5 · Home → Today tab (the cockpit) -->
+<div class="slide bg-slate" id="s5">
+  <div class="label" style="color:#a78bfa">Home → Today</div>
+  <h2 class="title">Your cockpit. Open this every morning.</h2>
+  <div class="split-2" style="margin-top:14px">
+    <div>
+      <p class="body" style="margin-bottom:10px">Today shows you three things in order:</p>
+      <ol style="padding-left:22px;color:#cbd5e1;font-size:14px;line-height:1.7">
+        <li><b style="color:#fda4af">Overdue</b> — yellow / amber. Stuff that didn't get done. We'll fix it.</li>
+        <li><b style="color:#fde68a">Today</b> — what's on the plan for right now.</li>
+        <li><b style="color:#bae6fd">Next 7 days</b> — collapsed. Open it to plan your week.</li>
+      </ol>
+      <p class="body" style="margin-top:14px">Plus a <b>"Plan your month"</b> banner that takes you to the drag-and-drop visit calendar. We'll come back to that.</p>
+      <div class="soft-rule" style="margin-top:14px">
+        <div class="head">Yes, do this every morning</div>
+        <p>The whole day fits on one screen. 30 seconds to scan. You'll always know exactly what's expected.</p>
+      </div>
+    </div>
+    <div class="app-mock">
+      <div class="header"><b>👤 You</b><span style="font-size:11px;color:#78716c">Today · Mon Jun 22</span></div>
+      <div class="tab-bar"><div class="tab active">Today</div><div class="tab">Follow-ups</div><div class="tab">Done log</div></div>
+      <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:8px 12px;font-size:11px;color:#1e40af;margin-bottom:10px">📅 <b>Plan your month</b> — drag visits onto days  →</div>
+      <div class="section-head" style="color:#b91c1c">⚠ Overdue (2)</div>
+      <div class="card overdue"><span class="time">2d</span><div class="body"><div class="title">Field visit notes <span class="pill pill-overdue">2d overdue</span></div><div class="meta">Lumbini Slum, Yeshwanthpur</div></div><button class="btn btn-done">Done</button></div>
+      <div class="card overdue"><span class="time">1d</span><div class="body"><div class="title">Caregiver observations <span class="pill pill-overdue">1d</span></div><div class="meta">Jai Bhuvaneshwari Nagar-1</div></div><button class="btn btn-done">Done</button></div>
+      <div class="section-head">Today</div>
+      <div class="card"><span class="time">09:00</span><div class="body"><div class="title">Field visit notes <span class="pill pill-visit">Visit</span></div><div class="meta">Sanjay Gandhi Nagar</div></div><button class="btn btn-done">Done</button></div>
+      <div class="card"><span class="time">10:30</span><div class="body"><div class="title">Nutrition record review</div><div class="meta">Sanjay Gandhi Nagar</div></div><button class="btn btn-done">Done</button></div>
+      <div style="font-size:11px;color:#a8a29e;margin-top:10px;padding-top:8px;border-top:1px solid #e7e5e4">Next 7 days (12) ▾</div>
+    </div>
+  </div>
+</div>
+
+<!-- 6 · Today: Overdue handling -->
+<div class="slide bg-amber" id="s6">
+  <div class="label" style="color:#fde68a">Today · Overdue</div>
+  <h2 class="title">If something's overdue, you have three buttons.</h2>
+  <div class="split-2" style="margin-top:14px">
+    <div>
+      <p class="body" style="margin-bottom:12px">Every overdue card has three things you can do — pick the one that's true:</p>
+      <ul class="checks">
+        <li><b>Done</b> — green button. You actually did it (today, or yesterday but forgot to mark). Tap it. Done.</li>
+        <li><b>Reschedule</b> — the "⋯" menu. You couldn't do it that day; pick a new day.</li>
+        <li><b>Add to today</b> — also in the "⋯" menu. You're doing it now. Pulls it onto today's plan.</li>
+      </ul>
+      <div class="hard-rule" style="margin-top:14px">
+        <div class="head">Don't let it sit</div>
+        <p>An overdue card from 10 days ago doesn't impress anyone. Either do it, reschedule it, or pull it to today. Always pick one.</p>
+      </div>
+    </div>
+    <div class="app-mock">
+      <div class="section-head" style="color:#b91c1c">⚠ Overdue (3)</div>
+      <div class="card overdue" style="position:relative">
+        <span class="time">3d</span>
+        <div class="body"><div class="title">24-point safety check</div><div class="meta">Khalikatta 1, Yeshwanthpur</div></div>
+        <button class="btn btn-done">Done</button>
+        <span style="margin-left:4px;font-size:14px;color:#78716c;cursor:pointer">⋯</span>
+      </div>
+      <!-- Show the menu open -->
+      <div style="position:relative;left:60%;top:-6px;background:#fff;border:1px solid #d6d3d1;border-radius:8px;padding:6px 0;font-size:11px;color:#292524;width:160px;box-shadow:0 8px 24px rgba(0,0,0,0.15)">
+        <div style="padding:6px 12px;display:flex;align-items:center;gap:8px">📅 Add to today</div>
+        <div style="padding:6px 12px;display:flex;align-items:center;gap:8px">🕐 Reschedule</div>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;font-size:11px;color:#7f1d1d;line-height:1.4">
+        <b>Tip:</b> When you click <b>Done</b>, you'll see a popup that asks for follow-ups. <b>Don't ignore it</b> — see the next slide.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 7 · The Complete Activity dialog (Follow-ups) -->
+<div class="slide bg-emerald" id="s7">
+  <div class="label" style="color:#6ee7b7">When you mark Done</div>
+  <h2 class="title">The follow-up dialog. Don't skip it.</h2>
+  <p class="body" style="margin-bottom:14px">When you tap <b>Done</b> on any activity, a small dialog opens. It does two things at once:</p>
+  <div class="split-2" style="margin-top:8px">
+    <div>
+      <ul class="checks">
+        <li><b>Confirms the activity is complete</b> — close the dialog and it's logged as Done.</li>
+        <li><b>Captures any follow-up action points</b> — the small things the visit threw up that need closure later.</li>
+      </ul>
+      <p class="body" style="margin:14px 0 10px"><b>Why this matters.</b> Imagine a creche visit where you spot a missing fire blanket. The visit is done — but the fire blanket isn't. The follow-up dialog is where you note that. You'll see it back on the <b>Follow-ups</b> tab tomorrow until it's actually procured.</p>
+      <div class="soft-rule">
+        <div class="head">Add as many as you need</div>
+        <p>Each follow-up gets its own due date (defaults to a week out). You can change the date, set a priority, even note who's supposed to do it ("creche supervisor", "ZL Ravi"). You own following up.</p>
+      </div>
+    </div>
+    <div class="app-mock">
+      <div style="font-size:13px;font-weight:700;color:#292524;margin-bottom:4px">Complete activity</div>
+      <div style="font-size:12px;color:#57534e;margin-bottom:14px">Field visit notes · Creche Programme — Sanjay Gandhi Nagar</div>
+      <div style="border:1px dashed #d6d3d1;border-radius:8px;padding:10px;font-size:11px;color:#78716c;text-align:center;margin-bottom:10px">+ Add follow-up action point</div>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px;margin-bottom:8px;font-size:12px">
+        <div style="font-weight:600;color:#292524;margin-bottom:4px">Arrange fire blanket for SGN creche</div>
+        <div style="font-size:10px;color:#78716c">Due Mon Jun 29 · Routine · ↪ Creche supervisor</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:10px;border-top:1px solid #e7e5e4">
+        <span style="font-size:10px;color:#78716c">1 follow-up will be created.</span>
+        <div>
+          <button class="btn" style="background:#fafaf9;color:#57534e;border:1px solid #d6d3d1;margin-right:6px">Cancel</button>
+          <button class="btn btn-done">✓ Mark done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 8 · Follow-ups tab -->
+<div class="slide bg-violet" id="s8">
+  <div class="label" style="color:#d8b4fe">Home → Follow-ups</div>
+  <h2 class="title">Where your loose ends live until they're tied up.</h2>
+  <div class="split-2" style="margin-top:14px">
+    <div>
+      <p class="body" style="margin-bottom:12px">Every follow-up you logged shows up here, sorted into four buckets:</p>
+      <ul class="checks">
+        <li><b>Overdue</b> — red. You missed the due date. Same three actions as overdue activities: Done, Reschedule, or push.</li>
+        <li><b>Today</b> — yellow. Due today.</li>
+        <li><b>This week</b> — stone. Coming up.</li>
+        <li><b>Done (last 30d)</b> — historical. Read-only unless you need to reopen one within 14 days.</li>
+      </ul>
+      <p class="body" style="margin-top:14px"><b>When does a follow-up show up on Today?</b> When it's overdue or due today. So if you set "Arrange fire blanket" due in a week, you'll see it sitting in <b>This week</b> until that day, then it pops onto Today.</p>
+      <div class="soft-rule" style="margin-top:14px">
+        <div class="head">Close them out</div>
+        <p>Tap <b>Done</b> on a follow-up to mark it closed — add a closure note ("Delivered to SGN supervisor on Jun 28") + optionally a photo of proof. Future-you and your ZL will thank you.</p>
+      </div>
+    </div>
+    <div class="app-mock">
+      <div class="tab-bar"><div class="tab">Today</div><div class="tab active">Follow-ups</div><div class="tab">Done log</div></div>
+      <div class="section-head" style="color:#b91c1c">⚠ Overdue (1)</div>
+      <div class="card overdue"><div class="body"><div class="title">Confirm caregiver replacement <span class="pill pill-overdue">2d overdue</span></div><div class="meta">↪ ZL Ravi · Lumbini Slum</div></div><button class="btn btn-done">Done</button></div>
+      <div class="section-head" style="color:#92400e">Today (1)</div>
+      <div class="card"><div class="body"><div class="title">Submit registration paperwork</div><div class="meta">Khalikatta 1</div></div><button class="btn btn-done">Done</button></div>
+      <div class="section-head">This week (3)</div>
+      <div class="card"><div class="body"><div class="title">Arrange fire blanket for SGN creche</div><div class="meta">↪ Creche supervisor · Due Mon</div></div><button class="btn btn-done">Done</button></div>
+      <div class="card"><div class="body"><div class="title">Re-check growth chart</div><div class="meta">Balagere · Due Wed</div></div><button class="btn btn-done">Done</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- 9 · Done log / Past tab -->
+<div class="slide bg-teal" id="s9">
+  <div class="label" style="color:#5eead4">Home → Done log</div>
+  <h2 class="title">Receipts of work. Quietly powerful.</h2>
+  <div class="split-2" style="margin-top:14px">
+    <div>
+      <p class="body" style="margin-bottom:12px">Done log is your history — every activity you've marked done, grouped by day, with the voice log or photo or note you attached.</p>
+      <p class="body" style="margin-bottom:14px"><b>Use it for two things:</b></p>
+      <ul class="checks">
+        <li><b>Memory recall.</b> "When did I last visit Kempapura?" Two seconds in Done log to find out.</li>
+        <li><b>Review conversations.</b> When you meet your ZL or PM for a review, your Done log is the conversation. Open it together; you've already done the prep.</li>
+      </ul>
+      <div class="soft-rule" style="margin-top:14px">
+        <div class="head">Quiet superpower</div>
+        <p>You don't need to write a weekly update document. Your Done log <i>is</i> your weekly update. Marking things done as you go means there's nothing extra to compile.</p>
+      </div>
+    </div>
+    <div class="app-mock">
+      <div class="tab-bar"><div class="tab">Today</div><div class="tab">Follow-ups</div><div class="tab active">Done log</div></div>
+      <div style="font-size:11px;color:#78716c;margin-bottom:8px">Last 30 days · 47 activities</div>
+      <div class="section-head">Today · Jun 22</div>
+      <div class="card"><div class="body"><div class="title">✓ Field visit notes</div><div class="meta">Sanjay Gandhi Nagar · 09:24 · 🎤 voice log</div></div></div>
+      <div class="card"><div class="body"><div class="title">✓ Nutrition record review</div><div class="meta">Sanjay Gandhi Nagar · 10:38 · 📎 1 photo</div></div></div>
+      <div class="section-head">Jun 19</div>
+      <div class="card"><div class="body"><div class="title">✓ Caregiver observations</div><div class="meta">Khalikatta 2 · 11:02 · "All trained, attendance up"</div></div></div>
+      <div class="section-head">Jun 17</div>
+      <div class="card"><div class="body"><div class="title">✓ Growth monitoring spot-check</div><div class="meta">Balagere · 14:15 · 📎 2 photos</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 10 · Plan your month (Visit calendar) -->
+<div class="slide bg-indigo" id="s10">
+  <div class="label" style="color:#a5b4fc">Visit calendar</div>
+  <h2 class="title">Plan your month. Move things around. Avoid travel chaos.</h2>
+  <div class="split-2" style="margin-top:14px">
+    <div>
+      <p class="body" style="margin-bottom:10px">Click <b>Plan your month</b> on the Today tab (or <b>Visit calendar</b> in the sidebar). You'll see every upcoming visit as a draggable card on a month grid.</p>
+      <p class="body" style="margin-bottom:14px"><b>What this is really for</b>: rearranging the month so you're not bouncing between clusters. If you've got two Yeshwanthpur creches and one Peenya creche all scheduled for Tuesday, you can drag the Peenya one to Thursday and group your Yeshwanthpur travel together.</p>
+      <ul class="checks">
+        <li><b>Drag a visit to another day</b> — the whole pitstop (and every activity under it) moves with it. Activities' time-of-day is preserved.</li>
+        <li><b>Click a visit</b> to open the reschedule modal explicitly — useful on mobile or if drag feels fiddly.</li>
+        <li><b>Click "Open"</b> on a card to deep-link to the pitstop detail page.</li>
+      </ul>
+      <div class="soft-rule" style="margin-top:14px">
+        <div class="head">Set the month, then forget the calendar</div>
+        <p>Spend 5 minutes on this view at the start of the month. After that, Today shows you what's right and you don't need to revisit the planner.</p>
+      </div>
+    </div>
+    <div class="app-mock">
+      <div style="font-size:14px;font-weight:700;color:#292524;margin-bottom:4px">Monthly visits</div>
+      <div style="font-size:11px;color:#78716c;margin-bottom:12px">Drag a visit onto a different day to reschedule.</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;font-size:10px">
+        <div style="text-align:center;color:#78716c;padding:4px">M</div>
+        <div style="text-align:center;color:#78716c;padding:4px">T</div>
+        <div style="text-align:center;color:#78716c;padding:4px">W</div>
+        <div style="text-align:center;color:#78716c;padding:4px">T</div>
+        <div style="text-align:center;color:#78716c;padding:4px">F</div>
+        <div style="background:#fff;border:1px solid #e7e5e4;border-radius:6px;padding:6px;min-height:60px"><b>22</b><div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:3px 5px;font-size:9px;color:#1e40af;margin-top:3px">Lumbini</div></div>
+        <div style="background:#fff;border:1px solid #e7e5e4;border-radius:6px;padding:6px;min-height:60px"><b>23</b><div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:3px 5px;font-size:9px;color:#1e40af;margin-top:3px">SGN</div></div>
+        <div style="background:#fff;border:1px solid #e7e5e4;border-radius:6px;padding:6px;min-height:60px"><b>24</b><div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:3px 5px;font-size:9px;color:#1e40af;margin-top:3px">Khalikatta 1</div><div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:3px 5px;font-size:9px;color:#1e40af;margin-top:2px">Khalikatta 2</div></div>
+        <div style="background:#fff;border:1px solid #e7e5e4;border-radius:6px;padding:6px;min-height:60px"><b>25</b></div>
+        <div style="background:#fff;border:1px solid #e7e5e4;border-radius:6px;padding:6px;min-height:60px"><b>26</b><div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:3px 5px;font-size:9px;color:#1e40af;margin-top:3px">Balagere</div></div>
+      </div>
+      <div style="margin-top:10px;font-size:10px;color:#78716c;font-style:italic">Khalikatta 1 + 2 on Wed = one trip to Yeshwanthpur, two creches done. Smart move.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 11 · Activities page (the calendar) -->
+<div class="slide bg-sky" id="s11">
+  <div class="label" style="color:#7dd3fc">Activities page</div>
+  <h2 class="title">Day / Week / Month — the full calendar.</h2>
+  <div class="split-2" style="margin-top:14px">
+    <div>
+      <p class="body" style="margin-bottom:12px">The Activities page (top nav) shows every activity you're tagged in, in a real calendar layout. Three views: Day, Week, Month — switch at the top.</p>
+      <p class="body" style="margin-bottom:14px"><b>When to use Activities vs Today</b>:</p>
+      <ul class="checks">
+        <li><b>Today</b> — every morning. Quick scan of what's due.</li>
+        <li><b>Activities</b> — when you want the full month at a glance, or to drag-reschedule, or to find a specific past event in a specific week.</li>
+      </ul>
+      <p class="body" style="margin-top:14px"><b>Same activities, prettier view.</b> Anything you can do on Today, you can do here too — Done button on every card, reschedule via drag.</p>
+      <div class="soft-rule" style="margin-top:14px">
+        <div class="head">Centre work is grouped</div>
+        <p>Because the templates now collapse a creche visit's 8 activities onto one day, you'll see all 8 sitting on that one cell — not spread across the month. Same in Today, same in the Activities calendar.</p>
+      </div>
+    </div>
+    <div class="app-mock">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:14px;font-weight:700;color:#292524">Activities</div>
+        <div style="display:flex;gap:4px;font-size:11px">
+          <span style="padding:3px 8px;background:#0f172a;color:#fff;border-radius:4px;font-weight:600">Day</span>
+          <span style="padding:3px 8px;background:#fafaf9;color:#57534e;border-radius:4px">Week</span>
+          <span style="padding:3px 8px;background:#fafaf9;color:#57534e;border-radius:4px">Month</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#78716c;margin-bottom:10px">Mon, Jun 22 · 8 activities</div>
+      <div style="border-left:3px solid #38bdf8;padding-left:10px">
+        <div class="card"><span class="time">09:00</span><div class="body"><div class="title">Field visit notes</div><div class="meta">SGN · 30min</div></div><button class="btn btn-done">Done</button></div>
+        <div class="card"><span class="time">09:30</span><div class="body"><div class="title">Caregiver observations</div><div class="meta">SGN · 30min</div></div><button class="btn btn-done">Done</button></div>
+        <div class="card"><span class="time">10:00</span><div class="body"><div class="title">Nutrition record review</div><div class="meta">SGN · 30min</div></div><button class="btn btn-done">Done</button></div>
+        <div class="card"><span class="time">10:30</span><div class="body"><div class="title">24-point safety check</div><div class="meta">SGN · 30min</div></div><button class="btn btn-done">Done</button></div>
+        <div class="card"><span class="time">11:00</span><div class="body"><div class="title">Attendance register notes</div><div class="meta">SGN · 30min</div></div><button class="btn btn-done">Done</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 12 · Creating a new activity -->
+<div class="slide bg-dark" id="s12">
+  <div class="label" style="color:#94a3b8">+ New activity</div>
+  <h2 class="title">Need to add something the template missed? Yes, you can.</h2>
+  <div class="split-2" style="margin-top:14px">
+    <div>
+      <p class="body" style="margin-bottom:14px">The <b>+ New activity</b> button is on every Home tab and on the Activities page. Use it when there's a real piece of work that wasn't pre-planned — a callback meeting, a one-off training, an unscheduled audit.</p>
+      <p class="body" style="margin-bottom:10px"><b>The dialog asks you to pin it to:</b></p>
+      <ul class="checks">
+        <li><b>Goal</b> — required. Which programme is this work for?</li>
+        <li><b>Pitstop</b> — required. Which workstream under that goal?</li>
+        <li><b>Checklist item</b> — optional but recommended. Picks the specific thing on the pitstop's checklist.</li>
+      </ul>
+      <p class="body" style="margin-top:14px">Pinning matters: it means your one-off activity rolls up into the right report. If you skip pinning, it floats and doesn't count.</p>
+      <div class="warn" style="margin-top:14px">
+        <div class="head">Don't create activities to "log" past work</div>
+        <p>Use voice log or photo on an existing activity instead. New activities are for new pieces of work going forward.</p>
+      </div>
+    </div>
+    <div class="app-mock">
+      <div style="font-size:13px;font-weight:700;color:#292524;margin-bottom:14px">New Event</div>
+      <div style="font-size:10px;color:#a8a29e;margin-bottom:3px">GOAL <span style="color:#dc2626">*</span></div>
+      <div style="border:1px solid #d6d3d1;border-radius:6px;padding:7px 10px;font-size:12px;color:#292524;margin-bottom:8px">Creche Programme — Lumbini Slum ▾</div>
+      <div style="font-size:10px;color:#a8a29e;margin-bottom:3px">PITSTOP <span style="color:#dc2626">*</span></div>
+      <div style="border:1px solid #d6d3d1;border-radius:6px;padding:7px 10px;font-size:12px;color:#292524;margin-bottom:8px">Monthly Creche Round ▾</div>
+      <div style="font-size:10px;color:#a8a29e;margin-bottom:3px">CHECKLIST ITEM</div>
+      <div style="border:1px solid #d6d3d1;border-radius:6px;padding:7px 10px;font-size:12px;color:#292524;margin-bottom:8px">Caregiver observations ▾</div>
+      <div style="font-size:10px;color:#a8a29e;margin-bottom:3px">TITLE</div>
+      <div style="border:1px solid #d6d3d1;border-radius:6px;padding:7px 10px;font-size:12px;color:#292524;margin-bottom:8px">Caregiver replacement check-in</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px"><div style="flex:1;font-size:10px;color:#a8a29e">DATE</div><div style="flex:1;font-size:10px;color:#a8a29e">TIME</div></div>
+      <div style="display:flex;gap:6px;margin-bottom:14px"><div style="flex:1;border:1px solid #d6d3d1;border-radius:6px;padding:5px 8px;font-size:11px">Wed Jun 24</div><div style="flex:1;border:1px solid #d6d3d1;border-radius:6px;padding:5px 8px;font-size:11px">14:00</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 13 · Attendees + ZL tagging -->
+<div class="slide bg-violet" id="s13">
+  <div class="label" style="color:#d8b4fe">Tag attendees · Bring people in</div>
+  <h2 class="title">An activity isn't only yours. Tag who's coming.</h2>
+  <p class="body" style="margin-bottom:14px">Every activity has an attendees field. By default it's just you. Add anyone who's coming along — partner staff, your ZL, a peer RP — and they get notified + the activity shows on their calendar too.</p>
+  <div class="split-3" style="margin-top:18px">
+    <div style="padding:18px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:12px">
+      <div style="font-size:11px;font-weight:700;color:#7dd3fc;letter-spacing:1.5px;margin-bottom:8px">JOINT VISIT</div>
+      <p class="body" style="font-size:13px">ZL or PM joining you on a creche walk-through? Tag them. They'll see it on their Today.</p>
+    </div>
+    <div style="padding:18px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:12px">
+      <div style="font-size:11px;font-weight:700;color:#d8b4fe;letter-spacing:1.5px;margin-bottom:8px">CLARIFICATION</div>
+      <p class="body" style="font-size:13px">Not sure how to complete a specific check? <b>Reach out to your ZL</b> in the activity's thread (chat icon on the card). They get the question with full context.</p>
+    </div>
+    <div style="padding:18px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:12px">
+      <div style="font-size:11px;font-weight:700;color:#6ee7b7;letter-spacing:1.5px;margin-bottom:8px">PARTNER STAFF</div>
+      <p class="body" style="font-size:13px">Creche supervisor or caregiver should be in the loop? Tag them too. Everyone sees the same calendar.</p>
+    </div>
+  </div>
+  <div class="soft-rule" style="margin-top:18px">
+    <div class="head">The ZL is your first call</div>
+    <p>Anything unclear — what to check, how to handle a tough situation, whether to escalate — message your ZL on the activity's thread <b>before</b> the visit. Not after. You'll get an answer with the right context.</p>
+  </div>
+</div>
+
+<!-- 14 · Reschedule (the one-screen reality check) -->
+<div class="slide bg-amber" id="s14">
+  <div class="label" style="color:#fde68a">Rescheduling · No shame</div>
+  <h2 class="title">Plans change. The app handles it. Just be honest.</h2>
+  <p class="body" style="margin-bottom:14px">Two ways to reschedule, depending on scale:</p>
+  <div class="no-yes">
+    <div class="col yes" style="background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.25)">
+      <div class="head" style="color:#7dd3fc">One activity</div>
+      <p>Open the activity card's <b>⋯ menu</b> → <b>Reschedule</b>. Pick a new date + reason. The activity moves; your ZL sees the reason in the audit trail.</p>
+    </div>
+    <div class="col yes" style="background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.25)">
+      <div class="head" style="color:#d8b4fe">Whole creche visit</div>
+      <p>On the pitstop detail page, click <b>Reschedule visit</b>. Pick a new day — pitstop dates + every activity under it shift together by the same amount.</p>
+    </div>
+  </div>
+  <p class="body" style="margin-top:18px">For Abdul and other RPs covering many sites: the <b>Visit calendar</b> drag-and-drop is the fastest way to rearrange visits week by week.</p>
+  <div class="hard-rule" style="margin-top:14px">
+    <div class="head">Don't fudge it</div>
+    <p>If something didn't happen, don't mark it Done just to clear the cockpit. Reschedule it honestly. The app is built around the truth — your ZL trusts it, you trust it, and you'll never be caught short in a review.</p>
+  </div>
+</div>
+
+<!-- 15 · Close: the daily rhythm -->
+<div class="slide bg-navy" id="s15">
+  <div style="margin:auto;max-width:980px;text-align:center">
+    <div style="font-size:60px;margin-bottom:16px">🌅</div>
+    <div class="label" style="color:#38bdf8">From tomorrow</div>
+    <h1 class="hero" style="font-size:46px;margin-bottom:18px">Morning, app, work, app, evening.<br/>That's the rhythm.</h1>
+    <p class="body" style="font-size:17px;max-width:780px;margin:0 auto 28px">You don't need to memorise this deck. You need to remember three things — everything else is on the screen when you need it.</p>
+    <div class="split-3" style="text-align:left">
+      <div style="padding:20px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:14px">
+        <div style="font-size:11px;font-weight:700;color:#7dd3fc;letter-spacing:1.5px;margin-bottom:6px">EVERY MORNING</div>
+        <p style="font-size:14px;color:#cbd5e1;line-height:1.5">Open the app. Look at <b>Home → Today</b>. Scan: overdue, today, next 7d. That's your plan.</p>
+      </div>
+      <div style="padding:20px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:14px">
+        <div style="font-size:11px;font-weight:700;color:#d8b4fe;letter-spacing:1.5px;margin-bottom:6px">AFTER EVERY VISIT</div>
+        <p style="font-size:14px;color:#cbd5e1;line-height:1.5">Tap <b>Done</b>. Use the dialog to log any follow-ups. You're capturing the visit in real time.</p>
+      </div>
+      <div style="padding:20px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:14px">
+        <div style="font-size:11px;font-weight:700;color:#6ee7b7;letter-spacing:1.5px;margin-bottom:6px">START OF MONTH</div>
+        <p style="font-size:14px;color:#cbd5e1;line-height:1.5">Click <b>Plan your month</b>. Drag visits to good days. 5 minutes saves you a week of bad travel.</p>
+      </div>
+    </div>
+    <div class="soft-rule" style="max-width:680px;margin:30px auto 0;text-align:left">
+      <div class="head">Stuck?</div>
+      <p><b>First call: your ZL.</b> Message them on the activity's thread. Then if it's a bug in the app: tell the Pitstops team in your shared channel. We respond fast.</p>
+    </div>
+    <p style="font-size:13px;color:#94a3b8;font-style:italic;margin-top:24px">You've got this. The app is on your side.</p>
+  </div>
+</div>
+
+</div>
+
+<div id="nav">
+  <a href="/pitstops-training.html">← Training Hub</a>
+  <button id="prev">‹</button>
+  <span id="slide-counter">1 / 15</span>
+  <button id="next">›</button>
+</div>
+
+<script>
+const slides=document.querySelectorAll('.slide');
+const counter=document.getElementById('slide-counter');
+const progress=document.getElementById('progress');
+const prevBtn=document.getElementById('prev');
+const nextBtn=document.getElementById('next');
+let cur=0;
+function go(i){
+  if(i<0||i>=slides.length)return;
+  slides[cur].classList.remove('active');
+  slides[i].classList.add('active');
+  cur=i;
+  counter.textContent=`${i+1} / ${slides.length}`;
+  progress.style.width=`${((i+1)/slides.length)*100}%`;
+  prevBtn.disabled=i===0;
+  nextBtn.disabled=i===slides.length-1;
+  history.replaceState(null,'',`#s${i+1}`);
+}
+prevBtn.addEventListener('click',()=>go(cur-1));
+nextBtn.addEventListener('click',()=>go(cur+1));
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft')go(cur-1);
+  if(e.key==='ArrowRight')go(cur+1);
+});
+// Deep-link: open with #s5 → start on slide 5
+const hash=location.hash.match(/^#s(\d+)$/);
+if(hash){const i=parseInt(hash[1])-1;if(i>=0&&i<slides.length)go(i);}
+else go(0);
+</script>
+</body>
+</html>
