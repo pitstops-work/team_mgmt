@@ -40,6 +40,7 @@ export const NAV_GATES: Record<string, NavGate> = {
   "/route":      { resource: "pitstop",          action: "list" },
   "/gantt":      { resource: "goal",             action: "list" },
   "/planner":    { resource: "plan_item",        action: "list" },
+  "/visits":     { resource: "pitstop",          action: "list" },
   "/quarters":   { resource: "quarter",          action: "list" },
   "/people":     { resource: "user",             action: "list", requiresReports: true },
   "/standup":    { resource: "standup",          action: "list" },

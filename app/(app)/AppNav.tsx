@@ -80,6 +80,7 @@ export default function AppNav({
     { href: "/route",      icon: <Route className="w-3.5 h-3.5" />,            label: "Route Planner"  },
     { href: "/gantt",      icon: <GanttChartSquare className="w-3.5 h-3.5" />, label: "Gantt"          },
     { href: "/planner",    icon: <BookOpen className="w-3.5 h-3.5" />,         label: "Planner"        },
+    { href: "/visits",     icon: <CalendarRange className="w-3.5 h-3.5" />,    label: "Visit calendar" },
     { href: "/quarters",   icon: <CalendarRange className="w-3.5 h-3.5" />,    label: "Quarters"       },
     { href: "/models",     icon: <Calculator className="w-3.5 h-3.5" />,       label: "Models"         },
     { href: "/people",     icon: <Users className="w-3.5 h-3.5" />,            label: "People"         },
