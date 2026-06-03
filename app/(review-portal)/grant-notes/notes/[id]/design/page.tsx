@@ -91,7 +91,8 @@ export default function DesignPage() {
   const [saving, setSaving] = useState(false);
 
   // AI prompt terminal
-  const [promptOpen, setPromptOpen] = useState(false);
+  // AI prompt terminal — open by default so the primary affordance is discoverable.
+  const [promptOpen, setPromptOpen] = useState(true);
   const [promptInstruction, setPromptInstruction] = useState('');
   const [promptBusy, setPromptBusy] = useState(false);
   const [promptError, setPromptError] = useState('');
@@ -608,9 +609,7 @@ export default function DesignPage() {
                 title={sourceDocs.length > 0 ? 'Refreshes section content from updated source documents — preserves your titles, prompts and blocks' : 'Re-generates section structure from draft text'}>
                 {sourceDocs.length > 0 ? 'Refresh content' : 'Re-transform'}
               </button>
-              {note?.doc_type === 'grant_note' && (
-                <a href={`/api/review/grant-notes/${id}/export`} className="gn-design-retransform" download>↓ Word</a>
-              )}
+              <a href={`/api/review/grant-notes/${id}/export`} className="gn-design-retransform" download>↓ Word</a>
             </>
           )}
           {isSingleSection ? (
@@ -935,15 +934,17 @@ export default function DesignPage() {
             {activeSection && (
               <div className="gn-editor-area">
 
-                {/* Section header */}
-                <div className="gn-editor-section-header">
-                  <div className="gn-editor-section-num">Section {activeSection.section_num}</div>
-                  <input className="gn-editor-title-input"
-                    value={editTitle}
-                    onChange={e => { setEditTitle(e.target.value); setDirty(true); }}
-                    placeholder="Section title" />
-                  {dirty && <span className="gn-editor-dirty">●</span>}
-                </div>
+                {/* Section header — hidden for single-section docs (e.g. emails) */}
+                {!isSingleSection && (
+                  <div className="gn-editor-section-header">
+                    <div className="gn-editor-section-num">Section {activeSection.section_num}</div>
+                    <input className="gn-editor-title-input"
+                      value={editTitle}
+                      onChange={e => { setEditTitle(e.target.value); setDirty(true); }}
+                      placeholder="Section title" />
+                    {dirty && <span className="gn-editor-dirty">●</span>}
+                  </div>
+                )}
 
                 {/* Toolbar */}
                 <div className="gn-editor-toolbar">
