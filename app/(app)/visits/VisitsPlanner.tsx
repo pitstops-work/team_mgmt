@@ -3,20 +3,34 @@
 /**
  * VisitsPlanner — month grid of pitstop visits, drag-card-to-day to reschedule.
  *
- * Reads from GET /api/pitstops/planner?from&to&scope, writes via PATCH
+ * Reads from GET /api/pitstops/planner?from&to&userIds, writes via PATCH
  * /api/pitstops/[id]/reschedule (same endpoint the pitstop-detail Reschedule
  * Visit button uses). Time-of-day is preserved per pitstop's activities.
  *
- * Filter chips: domain, cluster, goal-name search. Scope toggle: mine/team.
+ * User picker (multi-select, designation-anchored):
+ *   - RP                    → self only, picker hidden
+ *   - ZL / PM               → self + direct reports
+ *   - Leader / admin / super → self + recursive descendants
+ *   - Other                 → self only, picker hidden
+ *
+ * Filter chips: domain, cluster, goal-name search.
  *
  * Designed for any RP doing site-visit work, especially the high-fan-out
  * pattern where one RP runs many sites and needs the month-at-a-glance.
  */
 
-import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw, Filter, MapPin, ExternalLink, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, RefreshCw, MapPin, ExternalLink, Loader2, Users, X as XIcon } from "lucide-react";
 import Link from "next/link";
 import { RescheduleVisitModal } from "@/components/pitstops/RescheduleVisitModal";
+import Avatar from "@/components/Avatar";
+
+type PickerUser = {
+  id: string;
+  name: string | null;
+  image: string | null;
+  designation: string;
+};
 
 type PitstopCard = {
   id: string;
@@ -60,9 +74,16 @@ export function VisitsPlanner({
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
 
-  // RP starts on "mine"; everyone else defaults to "team" since their value is
-  // in seeing the broader queue. They can toggle.
-  const [scope, setScope] = useState<"mine" | "team">(currentUserDesignation === "RP" ? "mine" : "team");
+  // User picker. RP/Other are locked to self (server enforces too — the picker
+  // is hidden for them). ZL/PM/Leader/admin start with self selected; they can
+  // pick teammates from the picker dropdown (populated by /planner/users which
+  // returns the same designation-anchored allowed set the GET endpoint validates).
+  const isPickerVisible = !(currentUserDesignation === "RP" || currentUserDesignation === "Other");
+  const [allowedUsers, setAllowedUsers] = useState<PickerUser[] | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([currentUserId]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
   const [rows, setRows] = useState<PitstopCard[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -71,12 +92,32 @@ export function VisitsPlanner({
   const [domainFilter, setDomainFilter] = useState<string>("");
   const [clusterFilter, setClusterFilter] = useState<string>("");
 
+  // Click-outside to dismiss the picker dropdown.
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [pickerOpen]);
+
+  // Load the picker's allowed-user list once.
+  useEffect(() => {
+    if (!isPickerVisible) return;
+    fetch("/api/pitstops/planner/users")
+      .then(r => r.ok ? r.json() : [])
+      .then(setAllowedUsers)
+      .catch(() => setAllowedUsers([]));
+  }, [isPickerVisible]);
+
   async function load() {
     setLoading(true);
     setErr(null);
     const from = toYMD(startOfMonth(year, month));
     const to = toYMD(endOfMonth(year, month));
-    const res = await fetch(`/api/pitstops/planner?from=${from}&to=${to}&scope=${scope}`);
+    const userIds = selectedUserIds.length > 0 ? selectedUserIds.join(",") : currentUserId;
+    const res = await fetch(`/api/pitstops/planner?from=${from}&to=${to}&userIds=${encodeURIComponent(userIds)}`);
     if (!res.ok) {
       setErr((await res.json().catch(() => ({})))?.error ?? "Couldn't load visits");
       setRows([]);
@@ -85,7 +126,25 @@ export function VisitsPlanner({
     }
     setLoading(false);
   }
-  useEffect(() => { load(); }, [year, month, scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [year, month, selectedUserIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggleUser(uid: string) {
+    setSelectedUserIds(prev => {
+      if (prev.includes(uid)) {
+        // Never let the user deselect themselves entirely → leaves picker empty
+        // and confusing. Falls back to self if their click would empty the list.
+        const next = prev.filter(x => x !== uid);
+        return next.length === 0 ? [currentUserId] : next;
+      }
+      return [...prev, uid];
+    });
+  }
+  function selectAll() {
+    if (allowedUsers) setSelectedUserIds(allowedUsers.map(u => u.id));
+  }
+  function selectOnlySelf() {
+    setSelectedUserIds([currentUserId]);
+  }
 
   // Filter options derived from loaded data.
   const domains = useMemo(() => {
@@ -195,16 +254,66 @@ export function VisitsPlanner({
           </button>
         </div>
 
-        <div className="ml-2 inline-flex bg-white border border-stone-200 rounded-md p-0.5 text-xs">
-          <button onClick={() => setScope("mine")}
-            className={`px-2.5 py-1 rounded ${scope === "mine" ? "bg-sky-500 text-white shadow-sm" : "text-stone-600 hover:text-stone-800"}`}>
-            Mine
-          </button>
-          <button onClick={() => setScope("team")}
-            className={`px-2.5 py-1 rounded ${scope === "team" ? "bg-sky-500 text-white shadow-sm" : "text-stone-600 hover:text-stone-800"}`}>
-            Team
-          </button>
-        </div>
+        {isPickerVisible && allowedUsers !== null && (
+          <div className="ml-2 relative" ref={pickerRef}>
+            <button
+              onClick={() => setPickerOpen(v => !v)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs border rounded-md transition-colors ${
+                selectedUserIds.length > 1 || (selectedUserIds[0] && selectedUserIds[0] !== currentUserId)
+                  ? "bg-sky-50 border-sky-200 text-sky-700"
+                  : "bg-white border-stone-200 text-stone-600 hover:border-stone-300"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              {selectedUserIds.length === 1 && selectedUserIds[0] === currentUserId
+                ? "Just me"
+                : `${selectedUserIds.length} ${selectedUserIds.length === 1 ? "person" : "people"}`}
+            </button>
+            {pickerOpen && (
+              <div className="absolute left-0 top-full mt-1 z-20 min-w-[260px] bg-white border border-stone-200 rounded-lg shadow-lg overflow-hidden">
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-stone-100 bg-stone-50">
+                  <button onClick={selectAll} className="text-[11px] text-sky-600 hover:underline">Select all</button>
+                  <button onClick={selectOnlySelf} className="text-[11px] text-stone-500 hover:underline">Just me</button>
+                </div>
+                <div className="max-h-72 overflow-y-auto py-1">
+                  {allowedUsers.length === 0 ? (
+                    <p className="text-[11px] text-stone-400 px-3 py-2 italic">No teammates in scope.</p>
+                  ) : (
+                    allowedUsers.map(u => {
+                      const checked = selectedUserIds.includes(u.id);
+                      const isSelf = u.id === currentUserId;
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => toggleUser(u.id)}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-stone-50 transition-colors text-left"
+                        >
+                          <span className={`w-3.5 h-3.5 flex-shrink-0 rounded border flex items-center justify-center ${
+                            checked ? "bg-sky-500 border-sky-500" : "border-stone-300 bg-white"
+                          }`}>
+                            {checked && (
+                              <svg className="w-2 h-2 text-white" viewBox="0 0 10 8" fill="none">
+                                <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </span>
+                          <Avatar name={u.name} image={u.image} size="xs" />
+                          <span className="flex-1 min-w-0">
+                            <span className="block truncate text-stone-700">{u.name ?? "—"}{isSelf && <span className="text-stone-400"> (you)</span>}</span>
+                            {u.designation && u.designation !== "Other" && (
+                              <span className="block text-[10px] text-stone-400">{u.designation}</span>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <input
           type="text"
@@ -275,7 +384,12 @@ export function VisitsPlanner({
                   </p>
                   <div className="space-y-1">
                     {cards.map(c => (
-                      <VisitCard key={c.id} card={c} onClickReschedule={() => setTarget(c)} />
+                      <VisitCard
+                        key={c.id}
+                        card={c}
+                        onClickReschedule={() => setTarget(c)}
+                        showOwner={selectedUserIds.length > 1}
+                      />
                     ))}
                   </div>
                 </div>
@@ -312,7 +426,14 @@ export function VisitsPlanner({
   );
 }
 
-function VisitCard({ card, onClickReschedule }: { card: PitstopCard; onClickReschedule: () => void }) {
+function VisitCard({
+  card, onClickReschedule, showOwner,
+}: {
+  card: PitstopCard;
+  onClickReschedule: () => void;
+  /** Render owner avatar — useful when multiple users' visits share the grid. */
+  showOwner: boolean;
+}) {
   const cluster = card.goal.needsCluster?.name;
   const settlement = card.goal.needsSettlement?.name;
   return (
@@ -321,9 +442,14 @@ function VisitCard({ card, onClickReschedule }: { card: PitstopCard; onClickResc
       onDragStart={e => { e.dataTransfer.setData("text/pitstop-id", card.id); e.dataTransfer.effectAllowed = "move"; }}
       onClick={onClickReschedule}
       className="px-1.5 py-1 rounded border border-sky-200 bg-sky-50 text-[10px] text-sky-900 leading-snug cursor-grab active:cursor-grabbing hover:bg-sky-100 hover:border-sky-300 transition-colors"
-      title={`${card.goal.title} — ${card.title}\nClick to open reschedule modal, drag to another day for quick move.`}
+      title={`${card.goal.title} — ${card.title}${card.owner?.name ? `\nOwner: ${card.owner.name}` : ""}\nClick to open reschedule modal, drag to another day for quick move.`}
     >
-      <p className="font-semibold truncate">{card.goal.title}</p>
+      <div className="flex items-start gap-1">
+        {showOwner && card.owner && (
+          <Avatar name={card.owner.name} image={card.owner.image} size="xs" />
+        )}
+        <p className="font-semibold truncate flex-1 min-w-0">{card.goal.title}</p>
+      </div>
       {(cluster || settlement) && (
         <p className="text-sky-700 text-[10px] truncate flex items-center gap-0.5">
           <MapPin className="w-2 h-2 flex-shrink-0" />

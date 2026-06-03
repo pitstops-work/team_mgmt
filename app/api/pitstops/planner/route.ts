@@ -1,22 +1,32 @@
 /**
- * Monthly visit-planner data. Returns the pitstops whose startDate falls in
- * the requested window, with goal + geo + owner context, so the /planner page
- * can render them as draggable cards on a calendar grid.
+ * Monthly visit-planner data. Returns pitstops whose startDate falls in the
+ * requested window, owned by one of the requested user(s), with goal + geo +
+ * owner context — the /visits page renders each row as a draggable card.
  *
- *   GET /api/pitstops/planner?from=YYYY-MM-DD&to=YYYY-MM-DD&scope=mine|team
+ *   GET /api/pitstops/planner?from=YYYY-MM-DD&to=YYYY-MM-DD&userIds=u1,u2,…
  *
- *   - `mine` (default): pitstops owned by the caller (or whose goal they own/co-own)
- *   - `team`: RBAC team scope on `pitstop` (expands via reportsToId tree)
+ * Visibility (designation-anchored, see lib/rbac.ts:getVisibleUserIds):
+ *   - RP                    → {self} only (any requested userIds outside that
+ *                              set are silently dropped)
+ *   - ZL / PM               → {self} ∪ direct reports (one hop)
+ *   - Leader / admin / super → recursive descendants
+ *   - Other                 → {self}
+ *
+ * If `userIds` is omitted, defaults to {self}. The intersection of requested
+ * and allowed is what gets queried — passing IDs you can't see returns no
+ * extra rows; passing only IDs you can see returns just those. Same shape as
+ * the picker on the UI uses.
  *
  * Skips Done / Cancelled pitstops (no point dragging a historical visit) and
- * soft-deleted goals / pitstops. Results are capped at 500 — beyond that the
- * UI gets unusable anyway.
+ * soft-deleted goals / pitstops. Results capped at 500 — UI gets unusable
+ * beyond that anyway.
  */
 
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { buildRbacContext, scopeWhere } from "@/lib/rbac";
+import { buildRbacContext } from "@/lib/rbac";
+import { getVisibleUserIds } from "@/lib/visibilityScope";
 
 const select = {
   id: true,
@@ -48,39 +58,29 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
-  const scope = (url.searchParams.get("scope") ?? "mine") as "mine" | "team";
   if (!from || !to) {
     return Response.json({ error: "from and to (YYYY-MM-DD) required" }, { status: 400 });
   }
-  // Interpret the YMD bounds as local-midnight → end-of-day so a visit at
-  // 9 AM IST on the boundary day shows on the right cell.
   const fromDate = new Date(`${from}T00:00:00`);
   const toDate = new Date(`${to}T23:59:59`);
   if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
     return Response.json({ error: "from/to must be YYYY-MM-DD" }, { status: 400 });
   }
 
-  // Scope filter — RP path is fast (just ownerId), team path goes through
-  // the standard pitstop scope builder.
-  let where: Record<string, unknown> = {};
-  if (scope === "team") {
-    const rbac = await scopeWhere(ctx, "pitstop", "list");
-    if (rbac === null) return Response.json([], { status: 200 });
-    where = { ...rbac };
-  } else {
-    where = {
-      OR: [
-        { ownerId: ctx.userId },
-        { coOwners: { some: { userId: ctx.userId } } },
-        { goal: { ownerId: ctx.userId } },
-        { goal: { coOwners: { some: { userId: ctx.userId } } } },
-      ],
-    };
-  }
+  // Parse + validate requested user ids against the caller's allowed set.
+  // Silent filtering (vs 403) keeps the picker UX forgiving when a user is
+  // removed from the org while the page is open.
+  const requestedRaw = url.searchParams.get("userIds");
+  const requestedIds = requestedRaw
+    ? requestedRaw.split(",").map(s => s.trim()).filter(Boolean)
+    : [ctx.userId];
+  const allowed = new Set(await getVisibleUserIds(ctx));
+  const userIds = requestedIds.filter(id => allowed.has(id));
+  if (userIds.length === 0) return Response.json([], { status: 200 });
 
   const rows = await prisma.pitstop.findMany({
     where: {
-      ...where,
+      ownerId: { in: userIds },
       deletedAt: null,
       goal: { deletedAt: null },
       startDate: { gte: fromDate, lte: toDate },
