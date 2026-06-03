@@ -14,6 +14,7 @@ export type GeneratedLine = {
   inputVar: string;
   salaryHint?: string | null;
   notes?: string | null;
+  templateKey: string;
   y1Units: number; y1UnitCost: number; y1AllocPct: number; y1Total: number;
   y2Units: number; y2UnitCost: number; y2AllocPct: number; y2Total: number;
   y3Units: number; y3UnitCost: number; y3AllocPct: number; y3Total: number;
@@ -104,6 +105,7 @@ function templateToLine(
     inputVar:        t.inputVar,
     salaryHint:      t.salaryHint,
     notes:           t.notes,
+    templateKey:     t.templateKey,
     y1Units, y1UnitCost: unitCost,   y1AllocPct: alloc, y1Total: Math.round(y1Units * unitCost * alloc),
     y2Units, y2UnitCost: applyY2 ? y2UnitCost : 0, y2AllocPct: alloc, y2Total: Math.round(y2Units * y2UnitCost * alloc),
     y3Units, y3UnitCost: applyY3 ? y3UnitCost : 0, y3AllocPct: alloc, y3Total: Math.round(y3Units * y3UnitCost * alloc),
