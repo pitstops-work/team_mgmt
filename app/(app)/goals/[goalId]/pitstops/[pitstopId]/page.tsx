@@ -160,13 +160,6 @@ export default async function PitstopPage({
   // correctly hide the completion UI when this page isn't in the allow-list.
   const ctx = await buildRbacContext(session, { surface: "pitstop.detail" });
 
-  // Gate page access on pitstop.read. When a role (e.g. member at
-  // /settings/roles/member) has this unchecked, both the inline EventsCalendar
-  // link and direct URL navigation bounce to 404. notFound() chosen over a
-  // 403 so we don't leak existence of out-of-scope pitstops.
-  const canReadPitstop = ctx ? await can(ctx, "pitstop", "read") : false;
-  if (!canReadPitstop) notFound();
-
   // Direct manual checklist edits (tick box, status dropdown) require
   // checklist_item.update, scoped to the parent pitstop (own/team/all).
   const canUpdateChecklist = (await checklistUpdatablePitstopIds(ctx, [pitstop.id])).has(pitstop.id);

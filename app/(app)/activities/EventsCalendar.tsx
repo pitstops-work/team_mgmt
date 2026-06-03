@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, CalendarPlus, MessageSquare, Send, Mic, Paperclip, Loader2, RotateCcw } from "lucide-react";
-import { useHasGrant } from "@/components/rbac/RbacProviders";
+import { useCan } from "@/components/rbac/RbacProviders";
 import Avatar from "@/components/Avatar";
 import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 import { RescheduleSheet } from "../home/_shared/RescheduleSheet";
@@ -321,13 +321,13 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
   currentUserId: string; users: User[];
   eventUpdateScope: string; manageableTeamIds: string[];
 }) {
-  // Gate the "open pitstop detail" link on pitstop.read. When unchecked for a
-  // role (e.g. member at /settings/roles/member), the pitstop title renders
-  // as plain text instead of a Link — RPs can see WHICH pitstop the activity
-  // belongs to but can't drill into the detail page from here. Pairs with the
-  // server-side gate on app/(app)/goals/[goalId]/pitstops/[pitstopId]/page.tsx
-  // so URL bookmarks also bounce.
-  const canReadPitstop = useHasGrant("pitstop", "read");
+  // Gate the "open pitstop detail" link on pitstop.read at THIS surface
+  // (activities.list). useCan — unlike useHasGrant — honours the surface
+  // restriction on the grant. So admins can configure pitstop.read for
+  // member with surfaces=[goal.detail, pitstop.detail, …] (omitting
+  // activities.list), and the link here hides — while the detail page
+  // itself and other navigation paths (e.g. Goal detail) stay accessible.
+  const canReadPitstop = useCan("pitstop", "read");
   const [showThreads, setShowThreads] = useState(false);
   const [showAction, setShowAction] = useState(false);
   const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
