@@ -111,6 +111,10 @@ export default function DesignPage() {
   const [scopeLoaded, setScopeLoaded] = useState(false);
   const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
 
+  // Doc-type meta — drives whether the review workflow surfaces.
+  const [docTypeMeta, setDocTypeMeta] = useState<{ key: string; label: string; sections_mode: string } | null>(null);
+  const isSingleSection = docTypeMeta?.sections_mode === 'single_section';
+
   // Version timeline — phase 4.
   type VersionRow = {
     id: string;
@@ -212,7 +216,16 @@ export default function DesignPage() {
 
   useEffect(() => {
     if (!authed) return;
-    fetch(`/api/review/grant-notes/${id}`).then(r => r.json()).then(d => { if (d.note) setNote(d.note); });
+    fetch(`/api/review/grant-notes/${id}`).then(r => r.json()).then(d => {
+      if (d.note) {
+        setNote(d.note);
+        // Resolve doc-type meta — controls whether review workflow shows.
+        fetch('/api/review/doc-types').then(r => r.json()).then(dt => {
+          const match = (dt.doc_types || []).find((t: any) => t.key === d.note.doc_type);
+          if (match) setDocTypeMeta({ key: match.key, label: match.label, sections_mode: match.sections_mode || 'multi_section' });
+        }).catch(() => {});
+      }
+    });
     fetch(`/api/review/grant-notes/${id}/metadata`).then(r => r.json()).then(d => {
       if (Array.isArray(d.source_documents)) setSourceDocs(d.source_documents);
       if (d.vitals && typeof d.vitals === 'object') setVitals(d.vitals);
@@ -600,10 +613,29 @@ export default function DesignPage() {
               )}
             </>
           )}
-          <button className="gn-design-submit-btn" onClick={submitForReview}
-            disabled={submitting || sections.length === 0}>
-            {submitting ? 'Submitting…' : 'Submit for review →'}
-          </button>
+          {isSingleSection ? (
+            <button
+              className="gn-design-submit-btn"
+              disabled={sections.length === 0}
+              onClick={async () => {
+                if (sections.length === 0) return;
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = sections.map(s => s.content_html || '').join('\n\n');
+                const text = tempDiv.innerText || tempDiv.textContent || '';
+                try {
+                  await navigator.clipboard.writeText(text);
+                  alert('Copied to clipboard.');
+                } catch {
+                  alert('Could not copy — select and copy manually from the editor.');
+                }
+              }}
+            >Copy</button>
+          ) : (
+            <button className="gn-design-submit-btn" onClick={submitForReview}
+              disabled={submitting || sections.length === 0}>
+              {submitting ? 'Submitting…' : 'Submit for review →'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -942,16 +974,18 @@ export default function DesignPage() {
                 {/* TipTap editor */}
                 <EditorContent editor={editor} className="gn-tiptap-editor" />
 
-                {/* Reader prompt */}
-                <div className="gn-editor-prompt-row">
-                  <div className="gn-editor-prompt-label">
-                    Reader prompt — bubble that pops up when this section scrolls into view
+                {/* Reader prompt — only meaningful for review-mode docs */}
+                {!isSingleSection && (
+                  <div className="gn-editor-prompt-row">
+                    <div className="gn-editor-prompt-label">
+                      Reader prompt — bubble that pops up when this section scrolls into view
+                    </div>
+                    <input className="gn-editor-prompt-input"
+                      value={editPrompt}
+                      onChange={e => { setEditPrompt(e.target.value); setDirty(true); }}
+                      placeholder="Leave empty for no reader prompt" />
                   </div>
-                  <input className="gn-editor-prompt-input"
-                    value={editPrompt}
-                    onChange={e => { setEditPrompt(e.target.value); setDirty(true); }}
-                    placeholder="Leave empty for no reader prompt" />
-                </div>
+                )}
 
                 {/* AI Prompt Terminal */}
                 <div className="gn-prompt-terminal">
@@ -998,7 +1032,8 @@ export default function DesignPage() {
                   )}
                 </div>
 
-                {/* Decision / Assumption / Settled blocks */}
+                {/* Decision / Assumption / Settled blocks — review-mode only */}
+                {!isSingleSection && (
                 <div className="gn-editor-blocks-section">
                   {activeSection.blocks.length > 0 && (
                     <div className="gn-design-blocks">
@@ -1046,6 +1081,7 @@ export default function DesignPage() {
                     </button>
                   )}
                 </div>
+                )}
 
                 {/* Save row */}
                 <div className="gn-editor-save-row">
