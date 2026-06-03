@@ -69,12 +69,13 @@ export function RPTodayTab({
   const { ids: doneEventIds, add: addDoneEventId } = useSessionDoneIds(`rp-${userId}-done-events`);
   const { ids: doneChecklistIds, add: addDoneChecklistId } = useSessionDoneIds(`rp-${userId}-done-checklists`);
   const [showWeek, setShowWeek] = useState(false);
-  // Overdue expands by default. The earlier "collapsed to keep the cockpit
-  // short" default surfaced the count in the ProgressChip but hid the items
-  // themselves behind a small amber expander that RPs were missing — they
-  // could see "3 overdue" in the badge but had no idea where to click to act
-  // on them. ZL TodayTab already renders this list expanded; we match.
-  const [showOverdue, setShowOverdue] = useState(true);
+  // Overdue collapses by default. (Flipped 2026-06-04 — RP request.) The
+  // count + amber chevron still surface the number; clicking expands. With the
+  // AP section above already carrying "Overdue follow-ups" prominently, the
+  // cockpit can lead with today rather than yesterday's slip. The prior
+  // "expanded by default" tradeoff (RPs missing items) is mitigated by the
+  // chevron's amber colour, which keeps the count visually loud.
+  const [showOverdue, setShowOverdue] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [batchCluster, setBatchCluster] = useState<{ id: string; name: string } | null>(null);
   const [showAddActivity, setShowAddActivity] = useState(false);
