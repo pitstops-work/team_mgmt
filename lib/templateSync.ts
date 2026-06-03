@@ -867,6 +867,11 @@ async function applyGoalChanges(
                 createdById: actorId,
                 templateKey: ak,
                 pitstops: { create: [{ pitstopId: created.id }] },
+                // Attach the goal owner as accepted attendee. Mirrors the
+                // official template-apply route (app/api/templates/[id]/apply
+                // route.ts:323). Without this, sync-added activities are
+                // invisible on every user's calendar (no attendee match).
+                attendees: { create: [{ userId: goal.ownerId, status: "accepted" }] },
               },
             });
             // Link to checklist item (Lambda-cache safety)
@@ -917,6 +922,8 @@ async function applyGoalChanges(
               createdById: actorId,
               templateKey: ak,
               pitstops: { create: [{ pitstopId: parentPt.id }] },
+              // Attendee on the goal owner — see add-pitstop branch above.
+              attendees: { create: [{ userId: goal.ownerId, status: "accepted" }] },
             },
             select: { id: true },
           });
@@ -951,6 +958,8 @@ async function applyGoalChanges(
             createdById: actorId,
             templateKey: ch.templateKey,
             pitstops: { create: [{ pitstopId: ch.pitstopInstanceId }] },
+            // Attendee on the goal owner — see add-pitstop branch above.
+            attendees: { create: [{ userId: goal.ownerId, status: "accepted" }] },
           },
           select: { id: true },
         });
