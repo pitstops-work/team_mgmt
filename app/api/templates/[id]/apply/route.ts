@@ -264,17 +264,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const totalActivities = itemsWithActivities.reduce((sum, { activities }) => sum + activities.length, 0);
     if (totalActivities === 0) continue;
 
-    // Use the instance's own date window for scheduling
+    // Use the instance's own date window for scheduling. SLA=0 collapses to a
+    // single-day window (start === target) so all activities — pinned or
+    // unpinned — land on the same day.
     const pitstopWindowStart = inst.pitstopStart;
-    const pitstopWindowEnd = inst.pitstopTarget > inst.pitstopStart
+    const pitstopWindowEnd = inst.pitstopTarget >= inst.pitstopStart
       ? inst.pitstopTarget
-      : (() => {
-          const isRecurring = pt.recurrence && pt.recurrence !== "None";
-          const cadenceDaysVal = isRecurring ? getCadenceDays(pt.recurrence!) : 30;
-          const d = new Date(inst.pitstopStart);
-          d.setDate(d.getDate() + cadenceDaysVal);
-          return d;
-        })();
+      : inst.pitstopStart;
 
     const workingDays = getWorkingDays(pitstopWindowStart, pitstopWindowEnd, cityName, schedConfig);
     const effectiveDays = workingDays.length > 0

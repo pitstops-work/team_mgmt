@@ -103,8 +103,8 @@ export function interpolatePitstops(
       key: item.key,
       completionType: item.completionType,
       activities: normalizeActivities(item).map((act) => ({
+        ...act,
         title: interpolate(act.title, params),
-        completionType: act.completionType,
       })),
     })),
   }));
