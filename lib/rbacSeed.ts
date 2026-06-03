@@ -77,6 +77,10 @@ export const RESOURCE_ACTIONS: Record<string, readonly string[]> = {
   programme_journey: [...STANDARD_ACTIONS, "apply_pack"],
   plan_item: [...STANDARD_ACTIONS],
   checklist_item: [...STANDARD_ACTIONS],
+  // ActionPoint — follow-ups that emerge during a visit. Rooted in
+  // Goal → Pitstop → PitstopEvent. Owner = RP at creation; ZL/PM/Leader may
+  // close on the RP's behalf via TEAM scope.
+  action_point: [...STANDARD_ACTIONS],
   thread: [...STANDARD_ACTIONS, "post_message", "subscribe"],
   notification: ["list", "read", "mark_read"],
   map_note: [...STANDARD_ACTIONS],
@@ -224,6 +228,15 @@ const MEMBER_GRANTS: RoleGrant = {
   "checklist_item.create": OWN,
   "checklist_item.update": OWN,
   "checklist_item.delete": OWN,
+
+  // ActionPoint follows the pitstop_event pattern. update = TEAM so ZL/PM/Leader
+  // can mark done on the RP's behalf (close-authority rule, locked 2026-06-03).
+  // delete = OWN: the raiser cancels their own; supervisors don't silently delete.
+  "action_point.list":   TEAM,
+  "action_point.read":   TEAM,
+  "action_point.create": OWN,
+  "action_point.update": TEAM,
+  "action_point.delete": OWN,
 
   "thread.list":         TEAM_OR_SUBSCRIBED,
   "thread.read":         TEAM_OR_SUBSCRIBED,

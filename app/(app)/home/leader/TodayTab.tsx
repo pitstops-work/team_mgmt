@@ -13,6 +13,7 @@ import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat
 import { ClusterTodayView } from "../_shared/ClusterTodayView";
 import { TeamSlaPanel, TeamOverduePanel } from "../TeamPerformance";
 import AddActivityModal, { type ActivityModalPitstopRef, type ActivityModalUser } from "../_shared/AddActivityModal";
+import { HomeTodayAPSection } from "@/components/action-points/HomeTodayAPSection";
 
 function todayYMD() {
   const d = new Date();
@@ -52,6 +53,9 @@ export function TodayTab({
           New activity
         </button>
       </div>
+
+      {/* Org-wide follow-ups (Leader's recursive team tree = all team APs). */}
+      <HomeTodayAPSection scope="team" currentUserId={userId} />
 
       <ClusterTodayView
         userId={userId}
