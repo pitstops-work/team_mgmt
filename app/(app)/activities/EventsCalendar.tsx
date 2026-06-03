@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Plus, X, MapPin, ExternalLink, Trash2, Pencil, ChevronDown, Check, CalendarClock, CalendarPlus, MessageSquare, Send, Mic, Paperclip, Loader2, RotateCcw } from "lucide-react";
+import { useHasGrant } from "@/components/rbac/RbacProviders";
 import Avatar from "@/components/Avatar";
 import PitstopMultiPicker from "@/components/PitstopMultiPicker";
 import { RescheduleSheet } from "../home/_shared/RescheduleSheet";
@@ -320,6 +321,13 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
   currentUserId: string; users: User[];
   eventUpdateScope: string; manageableTeamIds: string[];
 }) {
+  // Gate the "open pitstop detail" link on pitstop.read. When unchecked for a
+  // role (e.g. member at /settings/roles/member), the pitstop title renders
+  // as plain text instead of a Link — RPs can see WHICH pitstop the activity
+  // belongs to but can't drill into the detail page from here. Pairs with the
+  // server-side gate on app/(app)/goals/[goalId]/pitstops/[pitstopId]/page.tsx
+  // so URL bookmarks also bounce.
+  const canReadPitstop = useHasGrant("pitstop", "read");
   const [showThreads, setShowThreads] = useState(false);
   const [showAction, setShowAction] = useState(false);
   const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
@@ -523,11 +531,17 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
           {ev.pitstops.length > 0 && (
             <div className="flex flex-col gap-0.5 mt-1">
               {ev.pitstops.map(({ pitstop }) => (
-                <Link key={pitstop.id} href={`/goals/${pitstop.goal.id}/pitstops/${pitstop.id}`}
-                  className="flex items-center gap-0.5 text-xs opacity-70 hover:opacity-100">
-                  <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
-                  <span className="truncate">{pitstop.goal.title} › {pitstop.title}</span>
-                </Link>
+                canReadPitstop ? (
+                  <Link key={pitstop.id} href={`/goals/${pitstop.goal.id}/pitstops/${pitstop.id}`}
+                    className="flex items-center gap-0.5 text-xs opacity-70 hover:opacity-100">
+                    <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span className="truncate">{pitstop.goal.title} › {pitstop.title}</span>
+                  </Link>
+                ) : (
+                  <span key={pitstop.id} className="flex items-center gap-0.5 text-xs opacity-70">
+                    <span className="truncate">{pitstop.goal.title} › {pitstop.title}</span>
+                  </span>
+                )
               ))}
             </div>
           )}
