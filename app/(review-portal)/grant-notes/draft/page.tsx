@@ -158,13 +158,27 @@ export default function NoteStartPage() {
   const uploadFiles = async (): Promise<string[]> => {
     if (files.length === 0) return [];
     setBusyStatus(`Uploading ${files.length} file${files.length > 1 ? 's' : ''}…`);
-    const urls = await Promise.all(files.map(async file => {
-      const blob = await upload(`${Date.now()}-${file.name}`, file, {
-        access: 'public', handleUploadUrl: '/api/review/blob-upload',
-      });
-      return blob.url;
-    }));
-    return urls;
+
+    const uploadOne = async (file: File): Promise<string> => {
+      // Wrap each upload in a 60s timeout so the UI can't hang silently.
+      return await Promise.race<string>([
+        (async () => {
+          const blob = await upload(`${Date.now()}-${file.name}`, file, {
+            access: 'public', handleUploadUrl: '/api/review/blob-upload',
+          });
+          return blob.url;
+        })(),
+        new Promise<string>((_, reject) =>
+          setTimeout(() => reject(new Error(`Upload of ${file.name} timed out after 60s — likely a Vercel Blob token issue or a 401 from the blob-upload route.`)), 60000),
+        ),
+      ]);
+    };
+
+    try {
+      return await Promise.all(files.map(uploadOne));
+    } catch (e: any) {
+      throw new Error(`File upload failed: ${e?.message || 'unknown'}. Check that BLOB_READ_WRITE_TOKEN is set on Vercel and that /api/review/blob-upload isn't being blocked by middleware.`);
+    }
   };
 
   // ─── Scope helpers ────────────────────────────────────────────────────────
