@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Target, ChevronRight, ChevronDown, Layers, LayoutDashboard, ListChecks,
   MessageSquare, Home, Users, AlertTriangle, CheckCircle2, Flag, GitBranch,
+  CheckSquare, Trash2, Check,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge } from "@/components/StatusBadge";
@@ -363,6 +364,40 @@ export default function GoalsDashboard({
   });
   const [groupByGeo, setGroupByGeo] = useState(searchParams.get("group") === "1");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const canDeleteGoals = currentUserRole !== "viewer";
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const exitSelection = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const n = selectedIds.size;
+    if (!confirm(`Delete ${n} goal${n === 1 ? "" : "s"} and all their pitstops? This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map(id => fetch(`/api/goals/${id}`, { method: "DELETE" }))
+    );
+    const failed = results.filter(r => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
+    setBulkDeleting(false);
+    exitSelection();
+    await queryClient.invalidateQueries({ queryKey: qk.goals() });
+    if (failed > 0) alert(`${failed} goal${failed === 1 ? "" : "s"} could not be deleted.`);
+  };
 
   // Sync filter state → URL so navigating back restores filters
   useEffect(() => {
@@ -541,20 +576,56 @@ export default function GoalsDashboard({
 
         {activeTab === "goals" && (
           <div className="flex items-center gap-2 ml-auto">
-            <button
-              onClick={() => setGroupByGeo(g => !g)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${groupByGeo ? "bg-sky-100 text-sky-700 border border-sky-200" : "bg-stone-100 hover:bg-stone-200 text-stone-700"}`}
-            >
-              <Layers className="w-4 h-4" />
-              {groupByGeo ? "Grouped" : "Group"}
-            </button>
-            <button
-              onClick={() => setShowTemplate(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              New Goal
-            </button>
+            {selectionMode ? (
+              <>
+                <span className="text-sm font-medium text-stone-600">
+                  {selectedIds.size} selected
+                </span>
+                <button
+                  onClick={exitSelection}
+                  disabled={bulkDeleting}
+                  className="px-3 py-1.5 text-sm font-medium rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={selectedIds.size === 0 || bulkDeleting}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {bulkDeleting
+                    ? "Deleting…"
+                    : `Delete${selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}`}
+                </button>
+              </>
+            ) : (
+              <>
+                {canDeleteGoals && (
+                  <button
+                    onClick={() => setSelectionMode(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700"
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                    Select
+                  </button>
+                )}
+                <button
+                  onClick={() => setGroupByGeo(g => !g)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${groupByGeo ? "bg-sky-100 text-sky-700 border border-sky-200" : "bg-stone-100 hover:bg-stone-200 text-stone-700"}`}
+                >
+                  <Layers className="w-4 h-4" />
+                  {groupByGeo ? "Grouped" : "Group"}
+                </button>
+                <button
+                  onClick={() => setShowTemplate(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Goal
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -694,7 +765,7 @@ export default function GoalsDashboard({
                             {/* City-level goals */}
                             {city.goals.length > 0 && (
                               <div className="px-4 py-2 space-y-1.5">
-                                {city.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                                {city.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} selectionMode={selectionMode} selected={selectedIds.has(g.id)} onToggleSelect={toggleSelected} />)}
                               </div>
                             )}
                             {/* Zones */}
@@ -718,7 +789,7 @@ export default function GoalsDashboard({
                                       {/* Zone-level goals */}
                                       {zone.goals.length > 0 && (
                                         <div className="px-6 py-2 space-y-1.5">
-                                          {zone.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                                          {zone.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} selectionMode={selectionMode} selected={selectedIds.has(g.id)} onToggleSelect={toggleSelected} />)}
                                         </div>
                                       )}
                                       {/* Clusters */}
@@ -738,7 +809,7 @@ export default function GoalsDashboard({
                                             </button>
                                             {clusterOpen && (
                                               <div className="px-8 py-2 space-y-1.5 bg-white border-l-2 border-stone-100">
-                                                {cluster.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                                                {cluster.goals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} selectionMode={selectionMode} selected={selectedIds.has(g.id)} onToggleSelect={toggleSelected} />)}
                                               </div>
                                             )}
                                           </div>
@@ -767,7 +838,7 @@ export default function GoalsDashboard({
                       </button>
                       {expandedGroups.has("no-geo") && (
                         <div className="px-4 pb-2 space-y-1.5">
-                          {tree.noGeo.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                          {tree.noGeo.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} selectionMode={selectionMode} selected={selectedIds.has(g.id)} onToggleSelect={toggleSelected} />)}
                         </div>
                       )}
                     </div>
@@ -781,7 +852,7 @@ export default function GoalsDashboard({
                 <section className="mb-8">
                   <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">My Goals</h2>
                   <div className="space-y-2">
-                    {myGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                    {myGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} selectionMode={selectionMode} selected={selectedIds.has(g.id)} onToggleSelect={toggleSelected} />)}
                   </div>
                 </section>
               )}
@@ -789,7 +860,7 @@ export default function GoalsDashboard({
                 <section>
                   <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Team Goals</h2>
                   <div className="space-y-2">
-                    {teamGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} />)}
+                    {teamGoals.map((g) => <GoalCard key={g.id} goal={g} onHover={prefetchGoal} selectionMode={selectionMode} selected={selectedIds.has(g.id)} onToggleSelect={toggleSelected} />)}
                   </div>
                 </section>
               )}
@@ -866,19 +937,35 @@ function StatPill({
 
 // ── Goal card ─────────────────────────────────────────────────────────────────
 
-function GoalCard({ goal, onHover }: { goal: Goal; onHover: (id: string) => void }) {
+function GoalCard({
+  goal, onHover,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
+}: {
+  goal: Goal;
+  onHover: (id: string) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
+}) {
   const total = goal.pitstops.length;
   const done = goal.pitstops.filter((p) => p.status === "Done").length;
   const progress = total > 0 ? Math.round((done / total) * 100) : 0;
   const incomplete = !goal.needsDomain;
 
-  return (
-    <Link
-      href={`/goals/${goal.id}`}
-      onMouseEnter={() => onHover(goal.id)}
-      onTouchStart={() => onHover(goal.id)}
-      className="flex items-center gap-4 px-4 py-3.5 bg-white rounded-lg border border-stone-200 hover:border-stone-300 hover:shadow-sm transition-all group"
-    >
+  const inner = (
+    <>
+      {selectionMode && (
+        <div
+          className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+            selected ? "bg-sky-500 border-sky-500" : "border-stone-300 bg-white group-hover:border-stone-400"
+          }`}
+          aria-hidden="true"
+        >
+          {selected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
           <p className="text-sm font-medium text-stone-900 truncate">{goal.title}</p>
@@ -903,8 +990,36 @@ function GoalCard({ goal, onHover }: { goal: Goal; onHover: (id: string) => void
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <Avatar name={goal.owner.name} image={goal.owner.image} size="sm" />
-        <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-stone-600" />
+        {!selectionMode && <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-stone-600" />}
       </div>
+    </>
+  );
+
+  if (selectionMode) {
+    return (
+      <button
+        type="button"
+        onClick={() => onToggleSelect?.(goal.id)}
+        className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-lg border text-left transition-all group ${
+          selected
+            ? "bg-sky-50 border-sky-300 ring-1 ring-sky-200"
+            : "bg-white border-stone-200 hover:border-stone-300 hover:shadow-sm"
+        }`}
+        aria-pressed={selected}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={`/goals/${goal.id}`}
+      onMouseEnter={() => onHover(goal.id)}
+      onTouchStart={() => onHover(goal.id)}
+      className="flex items-center gap-4 px-4 py-3.5 bg-white rounded-lg border border-stone-200 hover:border-stone-300 hover:shadow-sm transition-all group"
+    >
+      {inner}
     </Link>
   );
 }
