@@ -27,7 +27,12 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
 
   const [events, pitstops, users, rawZones, rawClusters, goalGeo] = await Promise.all([
     prisma.pitstopEvent.findMany({
-      where: { deletedAt: null, ...eventAttendeeFilter },
+      // Hide Cancelled events — they rendered as a struck-through grey row and
+      // confused users (esp. after template-sync orphan cleanup created a
+      // wave of cancelled rows). Done stays visible (historical record with
+      // check mark, not strikethrough); Flagged + InProgress + Rescheduled +
+      // Scheduled all stay.
+      where: { deletedAt: null, status: { not: "Cancelled" }, ...eventAttendeeFilter },
       include: {
         pitstops: {
           select: {

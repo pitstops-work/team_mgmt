@@ -64,6 +64,7 @@ export default async function PlannerPage() {
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
+        status: { not: "Cancelled" }, // hide struck-through cancelled rows from the planner
         scheduledAt: { gte: qStart, lt: qEnd },
         attendees: { some: { userId: currentUserId } },
       },

@@ -667,7 +667,12 @@ export default function EventsCalendar({ events: initialEvents, pitstops, users,
   const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [anchorDate, setAnchorDate] = useState(initialDate);
-  const [events, setEvents] = useState(initialEvents);
+  // Drop Cancelled events at the boundary so day/week/month grids and the
+  // existing struck-through-grey rendering path can't surface them — they
+  // confused users (esp. after the template-sync orphan-cleanup wave on
+  // 2026-06-04 cancelled ~200 events at once). Done events keep their
+  // historical check-mark rendering; only Cancelled disappears.
+  const [events, setEvents] = useState(initialEvents.filter(e => e.status !== "Cancelled"));
   // Drag-to-reschedule target. Populated when an EventCard is dropped on a
   // different day's drop zone; opens the shared RescheduleSheet with the new
   // slot pre-filled so the user picks a reason and the API still owns the

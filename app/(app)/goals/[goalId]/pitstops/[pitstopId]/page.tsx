@@ -116,7 +116,9 @@ export default async function PitstopPage({
     }[]>`
       SELECT "checklistItemId", id, title, "scheduledAt"::text, status::text
       FROM "PitstopEvent"
-      WHERE "checklistItemId" = ANY(${checklistIds}) AND "deletedAt" IS NULL
+      WHERE "checklistItemId" = ANY(${checklistIds})
+        AND "deletedAt" IS NULL
+        AND status != 'Cancelled'::"PitstopEventStatus"
       ORDER BY "scheduledAt" ASC
     `;
     const activityMap = new Map<string, { id: string; title: string; scheduledAt: string; status: string }[]>();

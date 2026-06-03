@@ -26,7 +26,7 @@ export default async function TimelinePage() {
       orderBy: { targetDate: "asc" },
     }),
     prisma.pitstopEvent.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, status: { not: "Cancelled" } }, // hide struck-through cancelled rows from the timeline
       select: {
         id: true,
         title: true,
