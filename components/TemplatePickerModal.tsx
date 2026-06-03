@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { X, ChevronRight, ChevronDown, Layers, ArrowRight, Search } from "lucide-react";
+import { MultiFacilityCalendar } from "@/components/pitstops/MultiFacilityCalendar";
 
 // Sub-domains redirect to their parent programme
 const SUB_DOMAIN_PARENT: Record<string, { label: string; templateId: string; programmeName: string }> = {
@@ -124,6 +125,10 @@ export default function TemplatePickerModal({
 
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>(currentUserId ?? "");
   const [linkedFacilityIds, setLinkedFacilityIds] = useState<Set<string>>(new Set());
+  // Per-facility startDate (YMD) when 2+ facilities are selected, so each
+  // resulting goal lands on its own day instead of all sharing the modal's
+  // single startDate. See MultiFacilityCalendar.
+  const [facilityStartDates, setFacilityStartDates] = useState<Map<string, string>>(new Map());
   const [facilities, setFacilities] = useState<FacilityOption[]>([]);
   const [facilitySearch, setFacilitySearch] = useState("");
   const [facilityLayerLabels, setFacilityLayerLabels] = useState<Record<string, string>>({});
@@ -275,6 +280,7 @@ export default function TemplatePickerModal({
     setParamValues(init);
     setPreview([]);
     setLinkedFacilityIds(new Set());
+    setFacilityStartDates(new Map());
     setFacilitySearch("");
     setStep("geo");
   };
@@ -327,6 +333,14 @@ export default function TemplatePickerModal({
     if (!selected) return false;
     if (!isGeoValid()) return false;
     if (selected.linkedFacilityLayerKey && linkedFacilityIds.size === 0) return false;
+    // When multi-selecting, every chosen facility must have its own startDate
+    // (so the resulting goals don't all land on the same day). Single-select
+    // falls back to the modal-level startDate above.
+    if (selected.linkedFacilityLayerKey && linkedFacilityIds.size > 1) {
+      for (const fid of linkedFacilityIds) {
+        if (!facilityStartDates.get(fid)) return false;
+      }
+    }
     const paramsOk = selected.parameters.every((p) => {
       const v = paramValues[p.key];
       if (!v) return false;
@@ -377,15 +391,22 @@ export default function TemplatePickerModal({
 
       const facilityNames = new Map(facilities.map(f => [f.id, f.name]));
 
+      // When >1 facility, each goal's startDate comes from the calendar grid.
+      // basePayload.startDate is left as the modal-level default for single-
+      // facility flows. Per-facility goals override below.
       const results = await Promise.all(
         facilityIds.map((fId, i) => {
           const goalTitle = facilityIds.length > 1
             ? `${title.trim()} — ${facilityNames.get(fId!) ?? `Facility ${i + 1}`}`
             : title.trim();
+          const perFacilityStart = (fId && facilityIds.length > 1) ? facilityStartDates.get(fId) : undefined;
+          const startDateOverride = perFacilityStart
+            ? { startDate: perFacilityStart }
+            : {};
           return fetch(`/api/templates/${selected.id}/apply`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...basePayload, title: goalTitle, ...facility(fId) }),
+            body: JSON.stringify({ ...basePayload, ...startDateOverride, title: goalTitle, ...facility(fId) }),
           }).then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); });
         }),
       );
@@ -762,11 +783,21 @@ export default function TemplatePickerModal({
                           <button
                             key={f.id}
                             type="button"
-                            onClick={() => setLinkedFacilityIds(prev => {
-                              const next = new Set(prev);
-                              if (next.has(f.id)) next.delete(f.id); else next.add(f.id);
-                              return next;
-                            })}
+                            onClick={() => {
+                              setLinkedFacilityIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(f.id)) next.delete(f.id); else next.add(f.id);
+                                return next;
+                              });
+                              // Drop any assigned date when a facility is unselected.
+                              if (linkedFacilityIds.has(f.id)) {
+                                setFacilityStartDates(prev => {
+                                  const next = new Map(prev);
+                                  next.delete(f.id);
+                                  return next;
+                                });
+                              }
+                            }}
                             className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
                               checked ? "bg-sky-50 text-sky-800" : "hover:bg-stone-50 text-stone-700"
                             }`}
@@ -790,6 +821,45 @@ export default function TemplatePickerModal({
                   {linkedFacilityIds.size === 0 && (
                     <p className="text-xs text-amber-600 mt-1">Select at least one facility to continue.</p>
                   )}
+
+                  {/* Calendar-grid stagger: shown when 2+ facilities are
+                      selected. Each facility gets its own startDate so the
+                      resulting goals don't all land on the same day. Required
+                      for RPs covering many sites (e.g. Abdul + 21 creches). */}
+                  {linkedFacilityIds.size > 1 && (() => {
+                    const selectedFacilities = facilities
+                      .filter(f => linkedFacilityIds.has(f.id))
+                      .map(f => ({ id: f.id, name: f.name, cluster: f.cluster || f.settlement || null }));
+                    const allAssigned = selectedFacilities.every(f => facilityStartDates.has(f.id));
+                    return (
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
+                            Assign each {facilityLayerLabels[selected.linkedFacilityLayerKey ?? ""] ?? "facility"} a visit day
+                          </p>
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                            allAssigned ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}>
+                            {facilityStartDates.size} / {selectedFacilities.length} assigned
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-stone-500 mb-2 leading-snug">
+                          Drag a facility onto a day, or click a facility then click a day. Click an assigned chip on the calendar to remove it.
+                        </p>
+                        <MultiFacilityCalendar
+                          facilities={selectedFacilities}
+                          value={facilityStartDates}
+                          onChange={setFacilityStartDates}
+                          startMonthYmd={startDate || undefined}
+                        />
+                        {!allAssigned && (
+                          <p className="text-xs text-amber-600 mt-1.5">
+                            Assign a day to every selected facility before creating.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
