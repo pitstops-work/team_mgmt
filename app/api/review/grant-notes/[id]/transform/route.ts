@@ -49,14 +49,25 @@ VITALS — extract from the draft where available.
 
 DIAGRAMS — only if the draft references one explicitly.`;
 
+// Single-section override used when the doc-type's sections_mode is single_section
+// (e.g. email, short note). Same path through the orchestrator, but the model is
+// told to produce exactly ONE section regardless of which path triggered it.
+const SINGLE_SECTION_DRAFT_INSTRUCTION = `Generate the document as a SINGLE section using seed_document with EXACTLY one entry.
+
+This is a short-form document (email, memo, or brief note) — do NOT split content into multiple sections, do NOT add Executive Summary / Context / Effects / etc. Treat the draft text or source materials as one coherent body and produce one section with section_key="body" and a brief, descriptive title.
+
+VITALS — leave empty unless the document explicitly contains key/value data that belongs at the top.
+DIAGRAMS — none.`;
+
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   try {
-    const [noteRows, metaRows, existingSections] = await Promise.all([
+    const [noteRows, metaRows, existingSections, docTypeRows] = await Promise.all([
       sql`SELECT doc_type, draft_text FROM grant_notes WHERE id = ${id}::uuid`,
       sql`SELECT source_documents FROM grant_note_metadata WHERE note_id = ${id}::uuid`.catch(() => [] as any[]),
       sql`SELECT section_key FROM grant_note_sections WHERE note_id = ${id}::uuid LIMIT 1`.catch(() => [] as any[]),
+      sql`SELECT key, sections_mode FROM doc_types`.catch(() => [] as any[]),
     ]);
 
     if (noteRows.length === 0) return bad('note not found', 404);
@@ -67,12 +78,18 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const hasSections = (existingSections as any[]).length > 0;
     const isDesignPath = sourceUrls.length > 0;
 
+    // Look up the doc-type's sections_mode so we can override the instruction
+    // for short-form docs (email / memo). Without this, the transform would
+    // create multi-section structured docs for emails too.
+    const docTypeRow = (docTypeRows as any[]).find(d => d.key === noteRow.doc_type);
+    const isSingleSection = docTypeRow?.sections_mode === 'single_section';
+
     let instruction: string;
     let path: 'visual' | 'refresh' | 'text';
     let useFullCorpus = false;
 
     if (isDesignPath && !hasSections) {
-      instruction = VISUAL_DRAFT_INSTRUCTION;
+      instruction = isSingleSection ? SINGLE_SECTION_DRAFT_INSTRUCTION : VISUAL_DRAFT_INSTRUCTION;
       path = 'visual';
       // Initial draft turn → orchestrator automatically uses full corpus.
     } else if (isDesignPath && hasSections) {
@@ -82,7 +99,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     } else {
       const draftText = noteRow.draft_text as string;
       if (!draftText?.trim()) return bad('no draft text to transform — add source documents or generate a draft first');
-      instruction = TEXT_TRANSFORM_INSTRUCTION;
+      instruction = isSingleSection ? SINGLE_SECTION_DRAFT_INSTRUCTION : TEXT_TRANSFORM_INSTRUCTION;
       path = 'text';
     }
 

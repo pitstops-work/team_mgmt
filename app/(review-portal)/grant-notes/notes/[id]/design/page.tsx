@@ -598,7 +598,14 @@ export default function DesignPage() {
           <Link href="/grant-notes/notes" className="gn-back">← All notes</Link>
           {note && (
             <span className="gn-editor-topbar-title">
-              {note.org_name}{note.org_city ? `, ${note.org_city}` : ''} — Design
+              {note.org_name}{note.org_city ? `, ${note.org_city}` : ''} — {docTypeMeta?.label || 'Design'}
+              {docTypeMeta && (
+                <span style={{
+                  fontSize: 10, marginLeft: 8, padding: '2px 6px', borderRadius: 3,
+                  background: isSingleSection ? '#1F4D3A' : '#444', color: '#fff',
+                  letterSpacing: '0.3px',
+                }}>{isSingleSection ? 'SHORT-FORM' : 'STRUCTURED'}</span>
+              )}
             </span>
           )}
         </div>
