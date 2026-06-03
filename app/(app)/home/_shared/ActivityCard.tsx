@@ -42,9 +42,13 @@ export function ActivityCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   // Close-out modal — replaces the legacy one-click Done. Lets the RP capture
-  // follow-up action points in the same submit. AP block is collapsed by default
-  // so routine activities still close in 2 clicks (open modal + click "Mark done").
-  const [completeOpen, setCompleteOpen] = useState(false);
+  // indicator values + follow-up action points in the same submit.
+  //   "complete" — Activity-type Done button. Modal owns the PATCH Done.
+  //   "post-complete" — Voice / Upload paths. The server endpoint already
+  //                     marked the activity Done; modal just captures
+  //                     indicators + APs after the fact so the flow stays
+  //                     consistent across all three completion types.
+  const [completeOpen, setCompleteOpen] = useState<"complete" | "post-complete" | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,12 +86,13 @@ export function ActivityCard({
   const cluster = goal?.needsCluster?.name ?? null;
   const settlement = goal?.needsSettlement?.name ?? null;
 
-  // Activity-type completion goes through CompleteActivityModal (handles APs +
-  // the PATCH). Voice/Upload paths bypass this — their respective endpoints
-  // close the activity directly, and APs can be added later from the pitstop
-  // detail page.
+  // Activity-type completion goes through CompleteActivityModal (modal owns
+  // the PATCH Done). Voice / Upload paths server-side mark the activity Done
+  // via their own endpoints, then open the SAME modal in "post-complete"
+  // mode so indicators + follow-ups can be captured. Outcome is consistent
+  // across all three completion paths — no inconsistency.
   function openCompleteModal() {
-    setCompleteOpen(true);
+    setCompleteOpen("complete");
   }
 
   async function startVoice() {
@@ -105,7 +110,8 @@ export function ActivityCard({
         fd.append("audio", blob, "voice.webm");
         try {
           await fetchJson(`/api/checklist/${linkedChecklist.id}/voice`, { method: "POST", body: fd });
-          onCompleted(activity.id, linkedChecklist.id);
+          // Activity is closed server-side; pop the modal to capture indicators + APs.
+          setCompleteOpen("post-complete");
         } catch {
           // surface gate or transcription error
         }
@@ -129,7 +135,8 @@ export function ActivityCard({
     fd.append("checklistItemId", linkedChecklist.id);
     try {
       await fetchJson("/api/upload", { method: "POST", body: fd });
-      onCompleted(activity.id, linkedChecklist.id);
+      // Activity is closed server-side; pop the modal to capture indicators + APs.
+      setCompleteOpen("post-complete");
     } catch {
       // surface gate or upload error
     }
@@ -275,8 +282,9 @@ export function ActivityCard({
             activityTitle={activity.title}
             pitstopTitle={ps?.title ?? null}
             goalTitle={goal?.title ?? null}
-            onClose={() => setCompleteOpen(false)}
-            onCompleted={() => { setCompleteOpen(false); onCompleted(activity.id, linkedChecklist?.id); }}
+            mode={completeOpen}
+            onClose={() => setCompleteOpen(null)}
+            onCompleted={() => { setCompleteOpen(null); onCompleted(activity.id, linkedChecklist?.id); }}
           />
         )}
       </div>
@@ -365,8 +373,9 @@ export function ActivityCard({
           activityTitle={activity.title}
           pitstopTitle={ps?.title ?? null}
           goalTitle={goal?.title ?? null}
-          onClose={() => setCompleteOpen(false)}
-          onCompleted={() => { setCompleteOpen(false); onCompleted(activity.id, linkedChecklist?.id); }}
+          mode={completeOpen}
+          onClose={() => setCompleteOpen(null)}
+          onCompleted={() => { setCompleteOpen(null); onCompleted(activity.id, linkedChecklist?.id); }}
         />
       )}
     </div>

@@ -45,6 +45,7 @@ export function CompleteActivityModal({
   activityTitle,
   pitstopTitle,
   goalTitle,
+  mode = "complete",
   onClose,
   onCompleted,
 }: {
@@ -52,8 +53,16 @@ export function CompleteActivityModal({
   activityTitle: string;
   pitstopTitle?: string | null;
   goalTitle?: string | null;
+  /**
+   * "complete" (default) — Activity-type path: modal owns the PATCH Done.
+   * "post-complete" — Voice / Upload / direct-PATCH paths where the activity
+   *    has already been closed by an earlier endpoint. Modal skips step 3
+   *    (no re-PATCH) but still captures indicators + APs. The Mark-done
+   *    button reads "Save" instead of "Mark done".
+   */
+  mode?: "complete" | "post-complete";
   onClose: () => void;
-  /** Called after both POST APs + PATCH Done succeed. The parent should refresh. */
+  /** Called after all save steps succeed (or skipped). The parent should refresh. */
   onCompleted: () => void;
 }) {
   const [drafts, setDrafts] = useState<ActionPointDraft[]>([]);
@@ -118,18 +127,22 @@ export function CompleteActivityModal({
       }
     }
 
-    // Step 3: close the activity. Same PATCH as the legacy one-click path.
-    // Any failure here leaves indicators + APs saved (immutable evidence of
-    // the visit) — user can retry the close without losing the captures.
-    const doneRes = await fetch(`/api/pitstop-events/${eventId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Done" }),
-    });
-    if (!doneRes.ok) {
-      setErr((await doneRes.json().catch(() => ({})))?.error ?? "Couldn't close activity (indicators + action points saved; retry to close).");
-      setSubmitting(false);
-      return;
+    // Step 3: close the activity. Only when the caller owns the close (mode
+    // === "complete"). Voice / Upload / direct-PATCH paths run the modal in
+    // "post-complete" mode AFTER their own endpoint already flipped the
+    // activity to Done — re-PATCHing would be a no-op at best and a status-
+    // race at worst.
+    if (mode === "complete") {
+      const doneRes = await fetch(`/api/pitstop-events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Done" }),
+      });
+      if (!doneRes.ok) {
+        setErr((await doneRes.json().catch(() => ({})))?.error ?? "Couldn't close activity (indicators + action points saved; retry to close).");
+        setSubmitting(false);
+        return;
+      }
     }
 
     setSubmitting(false);
@@ -144,9 +157,16 @@ export function CompleteActivityModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-stone-900">Complete activity</h2>
+          <h2 className="text-sm font-semibold text-stone-900">
+            {mode === "post-complete" ? "Capture details" : "Complete activity"}
+          </h2>
           <button onClick={onClose} aria-label="Close"><X className="w-4 h-4 text-stone-400" /></button>
         </div>
+        {mode === "post-complete" && (
+          <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-2.5 py-1 mb-3 inline-block">
+            ✓ Activity marked done · capture any indicators or follow-ups below
+          </p>
+        )}
 
         <p className="text-sm text-stone-700 leading-snug">{activityTitle}</p>
         {(pitstopTitle || goalTitle) && (
@@ -251,7 +271,7 @@ export function CompleteActivityModal({
               className="px-3 py-2 text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-lg flex items-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" />
-              {submitting ? "Saving…" : "Mark done"}
+              {submitting ? "Saving…" : mode === "post-complete" ? "Save" : "Mark done"}
             </button>
           </div>
         </div>

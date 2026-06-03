@@ -11,6 +11,7 @@ import { RescheduleSheet } from "../home/_shared/RescheduleSheet";
 import { ClusterSplitBanner } from "../home/_shared/ClusterSplitBanner";
 import { ClusterBatchRescheduleSheet } from "../home/_shared/ClusterBatchRescheduleSheet";
 import AddActivityModal from "../home/_shared/AddActivityModal";
+import { CompleteActivityModal } from "@/components/action-points/CompleteActivityModal";
 import { fetchJson, FetchJsonError } from "@/lib/fetchJson";
 
 type User = { id: string; name: string | null; image: string | null };
@@ -333,6 +334,12 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
   const [voiceState, setVoiceState] = useState<"idle" | "recording" | "processing">("idle");
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Same modal as home/ActivityCard. "complete" — Done button: modal owns
+  // the PATCH Done. "post-complete" — Voice/Upload: their endpoint already
+  // flipped status; modal pops only for indicator + follow-up capture.
+  // Single state across all three entry points → no inconsistency between
+  // surfaces, per the contract with the Today tab.
+  const [completeOpen, setCompleteOpen] = useState<"complete" | "post-complete" | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -375,19 +382,29 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
   const canDrag = !isCancelled && !isDone && canManage;
   const ctype = ev.checklistItem?.completionType ?? "Activity";
 
-  async function markDone() {
-    setBusy(true);
+  // Direct PATCH Done — used by voice/upload flows that need to flip the
+  // PitstopEvent status server-side before opening the modal in post-complete
+  // mode. The user-facing "Mark done" button no longer calls this directly;
+  // it opens the modal in "complete" mode and the modal owns the PATCH.
+  async function patchEventDone(): Promise<boolean> {
     try {
       const updated = await fetchJson<Record<string, unknown>>(`/api/pitstop-events/${ev.id}`, {
         method: "PATCH",
         json: { status: "Done" },
       });
       onUpdated(ev.id, updated);
-      setShowAction(false);
+      return true;
     } catch (err) {
       if (err instanceof FetchJsonError) alert(err.message);
+      return false;
     }
-    setBusy(false);
+  }
+
+  // Done button click — opens the modal in "complete" mode. The modal will
+  // capture indicators + APs, then PATCH the event Done as its final step.
+  function openDoneModal() {
+    setShowAction(false);
+    setCompleteOpen("complete");
   }
 
   async function undoComplete() {
@@ -419,7 +436,8 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
         fd.append("audio", blob, "voice.webm");
         try {
           await fetchJson(`/api/checklist/${ev.checklistItem!.id}/voice`, { method: "POST", body: fd });
-          await markDone();
+          const closed = await patchEventDone();
+          if (closed) setCompleteOpen("post-complete");
         } catch {
           // surface gate or transcription error
         }
@@ -439,7 +457,8 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
     fd.append("checklistItemId", ev.checklistItem.id);
     try {
       await fetchJson("/api/upload", { method: "POST", body: fd });
-      await markDone();
+      const closed = await patchEventDone();
+      if (closed) setCompleteOpen("post-complete");
     } catch {
       // surface gate or upload error
     }
@@ -624,9 +643,9 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
               </button>
             </div>
           ) : (
-            <button onClick={markDone} disabled={busy}
+            <button onClick={openDoneModal} disabled={busy}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors">
-              <Check className="w-3.5 h-3.5" /> {busy ? "Saving…" : "Mark Done"}
+              <Check className="w-3.5 h-3.5" /> Mark Done
             </button>
           )}
           <input ref={fileInputRef} type="file" className="hidden"
@@ -636,6 +655,26 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
 
       {showThreads && (
         <EventThreadPanel eventId={ev.id} currentUserId={currentUserId} users={users} />
+      )}
+
+      {completeOpen && (
+        <CompleteActivityModal
+          eventId={ev.id}
+          activityTitle={ev.title}
+          pitstopTitle={ev.pitstops[0]?.pitstop?.title ?? null}
+          goalTitle={ev.pitstops[0]?.pitstop?.goal?.title ?? null}
+          mode={completeOpen}
+          onClose={() => setCompleteOpen(null)}
+          onCompleted={() => {
+            setCompleteOpen(null);
+            // In "complete" mode the modal PATCHed status=Done — reflect that
+            // in our local copy so the row repaints without a hard refetch.
+            // In "post-complete" mode patchEventDone already called onUpdated.
+            if (completeOpen === "complete") {
+              onUpdated(ev.id, { ...ev, status: "Done" } as unknown as Record<string, unknown>);
+            }
+          }}
+        />
       )}
     </div>
   );
