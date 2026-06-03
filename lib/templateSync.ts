@@ -1109,6 +1109,32 @@ async function applyGoalChanges(
             data: { deletedAt: new Date() },
           });
           auditLog({ entityType: "Pitstop", entityId: ch.instanceId, userId: actorId, action: "template_sync_remove", /* field omitted */ oldValue: null, newValue: "removed from template" });
+          // Cascade-cancel non-Done events under this pitstop. Without this,
+          // events linger as orphans on every user's activities calendar even
+          // though the parent pitstop is gone — confused user 2026-06-04 when
+          // Abdul's activities page kept showing visits that no longer
+          // appeared on /visits. Done events stay as historical record.
+          const cancelled = await prisma.$executeRaw`
+            UPDATE "PitstopEvent"
+            SET status = 'Cancelled'::"PitstopEventStatus",
+                "cancellationReason" = 'Parent pitstop removed via template sync',
+                "updatedAt" = NOW()
+            WHERE id IN (
+              SELECT pep."eventId"
+              FROM "PitstopEventPitstop" pep
+              WHERE pep."pitstopId" = ${ch.instanceId}
+            )
+              AND status NOT IN ('Done'::"PitstopEventStatus", 'Cancelled'::"PitstopEventStatus")
+              AND "deletedAt" IS NULL
+          `;
+          if (cancelled > 0) {
+            auditLog({
+              entityType: "Pitstop", entityId: ch.instanceId, userId: actorId,
+              action: "template_sync_remove_cascade",
+              field: "events", oldValue: null,
+              newValue: `${cancelled} non-Done event(s) cancelled`,
+            });
+          }
           applied += 1;
         } else if (ch.entity === "checklistItem") {
           await prisma.$executeRaw`
