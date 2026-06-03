@@ -164,12 +164,16 @@ function composeSystemPrompt(args: {
     parts.push(`SECTION FILTER: edits this turn must affect only [${args.sectionFilter.join(', ')}]. Calls to other sections will be rejected.`);
   }
 
-  if (isInitialDraftTurn(args.state)) {
+  const initialDraft = isInitialDraftTurn(args.state);
+
+  if (initialDraft) {
     parts.push('');
-    parts.push('INITIAL DRAFT MODE: the document has no sections yet. Call seed_document once with the full initial set drawn from the source corpus. Honor the structure rules above (if any) for section layout.');
+    parts.push(`INITIAL DRAFT MODE: the document has no sections yet. Call seed_document ONCE with the full initial set drawn from the source corpus and/or the DRAFT TEXT block in the document state. seed_document is always allowed on the initial draft regardless of scope — the rule-only-scope restriction below does NOT apply on this turn. Honor the structure rules above (if any) for section layout. For single-section doc types (e.g. emails), seed exactly one section.`);
   }
 
-  if (isRuleOnlyScope(args.caps)) {
+  // Rule-only-scope guard applies only to refinement turns — on initial draft,
+  // seed_document is always legitimate even when no structure capability is active.
+  if (!initialDraft && isRuleOnlyScope(args.caps)) {
     parts.push('');
     parts.push('SCOPE-NOTE: the active scope is rule-only (no structure capability). Do NOT add or remove sections unless the instruction explicitly requests structural change; if it does, call prompt_user_for_clarification with suggested_scope including "structure" instead.');
   }

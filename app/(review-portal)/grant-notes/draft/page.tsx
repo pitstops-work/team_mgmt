@@ -277,8 +277,12 @@ export default function NoteStartPage() {
         throw new Error(`Initial draft failed: ${orchData.error}`);
       }
       if (orchData.clarification_request) {
-        // The orchestrator asked for clarification. Still redirect to the design
-        // page — the user will see the message there and can answer.
+        // Don't redirect — surface the question right here so the user can
+        // refine their input without leaving the entry screen.
+        setError(`AI needs more from you to start: ${orchData.clarification_request.message}\n\nThe note has been created (id: ${created.id}) — refine your input below and try again, or open it in the design editor at /grant-notes/notes/${created.id}/design to continue manually.`);
+        setBusy(false);
+        setBusyStatus('');
+        return;
       }
 
       window.location.href = `/grant-notes/notes/${created.id}/design`;

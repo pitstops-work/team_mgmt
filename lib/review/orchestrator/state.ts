@@ -239,6 +239,12 @@ export function renderDocumentStateForModel(state: DocumentState): string {
     for (const [k, v] of vitalsEntries) lines.push(`  ${k}: ${JSON.stringify(v)}`);
   }
 
+  if (state.draft_text && state.sections.length === 0) {
+    lines.push('');
+    lines.push('DRAFT TEXT (provided by user — use this as the raw material when seeding the document):');
+    lines.push(state.draft_text);
+  }
+
   lines.push('');
   lines.push(`SECTIONS (${state.sections.length}):`);
   for (const s of state.sections) {

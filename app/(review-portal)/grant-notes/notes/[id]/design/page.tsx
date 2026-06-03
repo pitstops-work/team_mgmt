@@ -240,12 +240,22 @@ export default function DesignPage() {
     });
   }, [id, authed, loadSections]);
 
-  // Auto-transform ONLY when sections are confirmed empty after load
+  // Auto-transform ONLY when sections are confirmed empty AND no prior versions
+  // exist (which would indicate orchestrate has already been attempted, possibly
+  // returning a clarification request). Avoids the loop where the note-start
+  // page's initial orchestrate fails with clarification and the design page
+  // silently retries.
   useEffect(() => {
     if (!authed || !note || !sectionsLoaded || sections.length > 0 || transforming) return;
-    runTransform();
+    // Only auto-transform if there are no versions yet AND we have source documents
+    // (legacy design-path) or a draft text. Otherwise wait for the user.
+    const hasSourceMaterial = sourceDocs.length > 0 || !!(note as any)?.draft_text;
+    const isFreshNote = versions.length === 0;
+    if (isFreshNote && hasSourceMaterial) {
+      runTransform();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sectionsLoaded, note, authed]);
+  }, [sectionsLoaded, note, authed, versions.length]);
 
   // Sync editor content when active section changes
   useEffect(() => {
