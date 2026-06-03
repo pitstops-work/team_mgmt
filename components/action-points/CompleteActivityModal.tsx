@@ -2,27 +2,43 @@
 
 /**
  * CompleteActivityModal — replaces the one-click "Done" path on Activity-type
- * checklist completions. Lets the RP capture any follow-up action points that
- * emerged from the visit, in the same submit. The AP block is collapsed by
- * default so routine activities still close in 2 clicks.
+ * checklist completions. Lets the RP capture in one shot:
+ *   - Numeric indicators bound to this activity's parent checklist item
+ *     (e.g. creche attendance %, footfall, water TDS — see [[visit-scheduling]]
+ *     and `lib/captureIndicatorPoints.ts`). 7 templates carry bindings today;
+ *     for activities under other templates the block silently doesn't render.
+ *   - Follow-up action points the visit threw up (collapsed by default).
  *
- * Submit order:
- *   1. POST /api/action-points (batch) — must succeed before we close the activity
- *   2. PATCH /api/pitstop-events/[id] status=Done
+ * Submit order — three steps, each must succeed before the next:
+ *   1. POST /api/pitstop-events/[id]/indicators (if any values)
+ *   2. POST /api/action-points (batch, if any drafts)
+ *   3. PATCH /api/pitstop-events/[id] status=Done
  *
- * If step 1 fails we surface the error and don't proceed to step 2. If step 1
- * succeeds but step 2 fails, the APs are still saved (acceptable — the activity
- * close can be retried).
+ * Failures partway through: surface the error on the modal; whatever was
+ * already saved is kept (indicator points + APs are immutable evidence of
+ * the visit). The activity stays open until the user retries or cancels.
  *
- * Voice/Upload completion paths are unchanged (faster, with their own UI). APs
- * can be added to those activities later from the pitstop detail page.
+ * Voice / Upload completion paths bypass this modal entirely. APs and
+ * indicators on those activities can be added from the pitstop detail page.
  */
 
-import { useState } from "react";
-import { X, Plus, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Plus, Check, Gauge } from "lucide-react";
 import { ActionPointInputRows, draftsToPayload } from "./ActionPointInputRows";
 import type { ActionPointDraft } from "./types";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
+
+type IndicatorBinding = {
+  kind: "facility" | "journey";
+  bindingId: string;
+  numericField: string;
+  defId: string;
+  defLabel: string;
+  defUnit: string | null;
+  defColor: string;
+  journeyId?: string;
+  journeyLabel?: string;
+};
 
 export function CompleteActivityModal({
   eventId,
@@ -45,12 +61,50 @@ export function CompleteActivityModal({
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // Indicator bindings for this activity's parent checklist item.
+  // Lazy-fetched on open — most activities (31/38 templates) have no bindings
+  // and we don't want to slow the modal open for them. `null` = not yet
+  // fetched; `[]` = fetched, no bindings; populated = render block.
+  const [bindings, setBindings] = useState<IndicatorBinding[] | null>(null);
+  const [indicatorValues, setIndicatorValues] = useState<Record<string, string>>({});
+  useEffect(() => {
+    fetch(`/api/pitstop-events/${eventId}/indicators`)
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: IndicatorBinding[]) => setBindings(rows))
+      .catch(() => setBindings([]));
+  }, [eventId]);
+  function setIndicatorValue(numericField: string, raw: string) {
+    setIndicatorValues(prev => ({ ...prev, [numericField]: raw }));
+  }
+
   async function submit() {
     setSubmitting(true);
     setErr(null);
 
+    // Step 1: capture indicator values (if any non-empty). Coerce strings →
+    // numbers; drop empties + non-finites at the boundary so the server doesn't
+    // have to second-guess.
+    const numericValues: Record<string, number> = {};
+    for (const [k, v] of Object.entries(indicatorValues)) {
+      if (v === "" || v === undefined || v === null) continue;
+      const n = Number(v);
+      if (Number.isFinite(n)) numericValues[k] = n;
+    }
+    if (Object.keys(numericValues).length > 0) {
+      const indRes = await fetch(`/api/pitstop-events/${eventId}/indicators`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ values: numericValues }),
+      });
+      if (!indRes.ok) {
+        setErr((await indRes.json().catch(() => ({})))?.error ?? "Couldn't save indicator values");
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    // Step 2: save APs if any. Empty payload → skip.
     const payload = draftsToPayload(drafts);
-    // Step 1: save APs if any. Empty payload → skip.
     if (payload.length > 0) {
       const apRes = await fetch("/api/action-points", {
         method: "POST",
@@ -64,16 +118,16 @@ export function CompleteActivityModal({
       }
     }
 
-    // Step 2: close the activity. Same PATCH as the legacy one-click path.
+    // Step 3: close the activity. Same PATCH as the legacy one-click path.
+    // Any failure here leaves indicators + APs saved (immutable evidence of
+    // the visit) — user can retry the close without losing the captures.
     const doneRes = await fetch(`/api/pitstop-events/${eventId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "Done" }),
     });
     if (!doneRes.ok) {
-      // APs (if any) are already saved; surface the activity error but don't
-      // try to roll them back — they belong to the visit either way.
-      setErr((await doneRes.json().catch(() => ({})))?.error ?? "Couldn't close activity (action points were saved).");
+      setErr((await doneRes.json().catch(() => ({})))?.error ?? "Couldn't close activity (indicators + action points saved; retry to close).");
       setSubmitting(false);
       return;
     }
@@ -83,6 +137,7 @@ export function CompleteActivityModal({
   }
 
   const apCount = drafts.filter(d => d.title.trim().length > 0).length;
+  const filledIndicators = Object.entries(indicatorValues).filter(([, v]) => v !== "" && Number.isFinite(Number(v))).length;
 
   return (
     <SurfaceProvider id="activities.complete_modal">
@@ -101,6 +156,46 @@ export function CompleteActivityModal({
         )}
 
         <div className="mt-4 mb-3 border-t border-stone-100" />
+
+        {/* Indicators — only renders when the parent checklist item has
+            bindings (~7 templates today; silent for the rest). Optional fields
+            in v1: empty rows are skipped on submit. */}
+        {bindings && bindings.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Gauge className="w-3 h-3 text-stone-400" />
+                Indicators ({bindings.length})
+              </h3>
+              <p className="text-[11px] text-stone-400">Optional — fill what you observed</p>
+            </div>
+            <div className="space-y-1.5">
+              {bindings.map(b => (
+                <div key={b.bindingId} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50/60">
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: b.defColor }} />
+                  <label className="text-xs text-stone-700 flex-1 truncate" title={b.defLabel}>
+                    {b.defLabel}
+                    {b.kind === "journey" && b.journeyLabel && (
+                      <span className="text-[10px] text-stone-400 ml-1.5">↪ {b.journeyLabel}</span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    value={indicatorValues[b.numericField] ?? ""}
+                    onChange={e => setIndicatorValue(b.numericField, e.target.value)}
+                    placeholder="—"
+                    className="w-24 px-2 py-1 text-xs border border-stone-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-sky-400 tabular-nums text-right"
+                  />
+                  {b.defUnit && (
+                    <span className="text-[10px] text-stone-400 w-10 truncate">{b.defUnit}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* AP capture — collapsed by default */}
         {!showAPs && drafts.length === 0 ? (
@@ -136,7 +231,10 @@ export function CompleteActivityModal({
 
         <div className="flex justify-between items-center gap-2 mt-5 pt-3 border-t border-stone-100">
           <p className="text-[11px] text-stone-400">
-            {apCount > 0 ? `${apCount} follow-up${apCount === 1 ? "" : "s"} will be created.` : "No follow-ups."}
+            {[
+              filledIndicators > 0 ? `${filledIndicators} indicator${filledIndicators === 1 ? "" : "s"}` : null,
+              apCount > 0 ? `${apCount} follow-up${apCount === 1 ? "" : "s"}` : null,
+            ].filter(Boolean).join(" + ") || "No extras."}
           </p>
           <div className="flex gap-2">
             <button
