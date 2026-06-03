@@ -9,6 +9,9 @@ const PUBLIC_PREFIXES = [
   "/api/register",
   "/api/cron/",
   "/api/debug/",
+  // One-shot review-portal migration runner — gated by STAFF_PASSPHRASE inside the route.
+  // Remove this line + the route file once migrations have been applied.
+  "/api/review/admin/migrate",
   "/_next",
   "/favicon",
   "/manifest",
