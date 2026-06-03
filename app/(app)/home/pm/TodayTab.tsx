@@ -16,6 +16,7 @@ import { RPChecklistRow } from "../_shared/RPChecklistRow";
 import { ZLOverdueCarousel, ZLTodayCarousel } from "../_shared/ZLOverdue";
 import AddActivityModal, { type ActivityModalPitstopRef, type ActivityModalUser } from "../_shared/AddActivityModal";
 import { HomeTodayAPSection } from "@/components/action-points/HomeTodayAPSection";
+import { PlanMonthCTA } from "@/components/pitstops/PlanMonthCTA";
 
 function todayYMD() {
   const d = new Date();
@@ -158,6 +159,9 @@ export function PMTodayTab({
 
       {/* Team follow-ups (action points raised by RPs / ZLs in this PM's tree). */}
       <HomeTodayAPSection scope="team" currentUserId={userId} />
+
+      {/* Plan-your-month link to the visit calendar (discoverability). */}
+      <PlanMonthCTA />
 
       {/* PM's own work as cluster cards. */}
       <ClusterTodayView

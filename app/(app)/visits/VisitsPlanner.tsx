@@ -436,22 +436,28 @@ function VisitCard({
 }) {
   const cluster = card.goal.needsCluster?.name;
   const settlement = card.goal.needsSettlement?.name;
+  // Three-line shape: pitstop title (what's happening) → goal title (which
+  // creche / programme) → cluster (where, geographically). RP request: pitstop
+  // title is the most useful at-a-glance signal because the goal name is often
+  // long ("Creche Programme — Lumbini Slum") while the pitstop is short
+  // ("Monthly Creche Round") and tells you what work you're walking into.
   return (
     <div
       draggable
       onDragStart={e => { e.dataTransfer.setData("text/pitstop-id", card.id); e.dataTransfer.effectAllowed = "move"; }}
       onClick={onClickReschedule}
       className="px-1.5 py-1 rounded border border-sky-200 bg-sky-50 text-[10px] text-sky-900 leading-snug cursor-grab active:cursor-grabbing hover:bg-sky-100 hover:border-sky-300 transition-colors"
-      title={`${card.goal.title} — ${card.title}${card.owner?.name ? `\nOwner: ${card.owner.name}` : ""}\nClick to open reschedule modal, drag to another day for quick move.`}
+      title={`${card.title}\n${card.goal.title}${card.owner?.name ? `\nOwner: ${card.owner.name}` : ""}\nClick to open reschedule modal, drag to another day for quick move.`}
     >
       <div className="flex items-start gap-1">
         {showOwner && card.owner && (
           <Avatar name={card.owner.name} image={card.owner.image} size="xs" />
         )}
-        <p className="font-semibold truncate flex-1 min-w-0">{card.goal.title}</p>
+        <p className="font-semibold truncate flex-1 min-w-0">{card.title}</p>
       </div>
+      <p className="text-sky-700 truncate">{card.goal.title}</p>
       {(cluster || settlement) && (
-        <p className="text-sky-700 text-[10px] truncate flex items-center gap-0.5">
+        <p className="text-sky-600/80 truncate flex items-center gap-0.5">
           <MapPin className="w-2 h-2 flex-shrink-0" />
           {[settlement, cluster].filter(Boolean).join(", ")}
         </p>
@@ -459,7 +465,7 @@ function VisitCard({
       <Link
         href={`/goals/${card.goalId}/pitstops/${card.id}`}
         onClick={e => e.stopPropagation()}
-        className="text-[10px] text-sky-600 hover:text-sky-800 hover:underline inline-flex items-center gap-0.5"
+        className="text-sky-600 hover:text-sky-800 hover:underline inline-flex items-center gap-0.5"
       >
         <ExternalLink className="w-2.5 h-2.5" /> Open
       </Link>

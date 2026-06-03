@@ -18,6 +18,7 @@ import { useTodayFilters, type GroupBy } from "../_shared/useTodayFilters";
 import { useSessionDoneIds } from "../_shared/useSessionDoneIds";
 import AddActivityModal, { type ActivityModalPitstopRef, type ActivityModalUser } from "../_shared/AddActivityModal";
 import { HomeTodayAPSection } from "@/components/action-points/HomeTodayAPSection";
+import { PlanMonthCTA } from "@/components/pitstops/PlanMonthCTA";
 
 function todayYMD() {
   const d = new Date();
@@ -215,6 +216,9 @@ export function RPTodayTab({
       {/* Follow-up action points raised on past visits — RP scope is "mine".
           Renders nothing when there are no overdue / due-today APs. */}
       <HomeTodayAPSection scope="mine" currentUserId={userId} />
+
+      {/* Inviting link to /visits — discoverability path for the planner. */}
+      <PlanMonthCTA />
 
       {/* Cluster-split heads-up: when today's activities span 2+ clusters,
           surface the breakdown so the RP sees the travel implication up front.

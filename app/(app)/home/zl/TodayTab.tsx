@@ -17,6 +17,7 @@ import { TeamTodayStripe } from "./TeamTodayStripe";
 import { RescheduleAlertsPanel } from "./RescheduleAlertsPanel";
 import { useSessionDoneIds } from "../_shared/useSessionDoneIds";
 import { HomeTodayAPSection } from "@/components/action-points/HomeTodayAPSection";
+import { PlanMonthCTA } from "@/components/pitstops/PlanMonthCTA";
 import type { RPHealthStat } from "../page";
 import AddActivityModal, { type ActivityModalPitstopRef, type ActivityModalUser } from "../_shared/AddActivityModal";
 
@@ -313,6 +314,9 @@ export function ZLTodayTab({
 
       {/* ── Team follow-ups (action points raised by RPs in this ZL's tree) ── */}
       <HomeTodayAPSection scope="team" currentUserId={userId} />
+
+      {/* ── Plan your month / visit calendar discoverability ────────────── */}
+      <PlanMonthCTA />
 
       {/* ── Reschedule alerts (Phase 4.3) ───────────────────────────────── */}
       <RescheduleAlertsPanel />

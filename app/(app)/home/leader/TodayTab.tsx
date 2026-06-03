@@ -14,6 +14,7 @@ import { ClusterTodayView } from "../_shared/ClusterTodayView";
 import { TeamSlaPanel, TeamOverduePanel } from "../TeamPerformance";
 import AddActivityModal, { type ActivityModalPitstopRef, type ActivityModalUser } from "../_shared/AddActivityModal";
 import { HomeTodayAPSection } from "@/components/action-points/HomeTodayAPSection";
+import { PlanMonthCTA } from "@/components/pitstops/PlanMonthCTA";
 
 function todayYMD() {
   const d = new Date();
@@ -56,6 +57,9 @@ export function TodayTab({
 
       {/* Org-wide follow-ups (Leader's recursive team tree = all team APs). */}
       <HomeTodayAPSection scope="team" currentUserId={userId} />
+
+      {/* Plan-your-month link to the visit calendar (discoverability). */}
+      <PlanMonthCTA />
 
       <ClusterTodayView
         userId={userId}
