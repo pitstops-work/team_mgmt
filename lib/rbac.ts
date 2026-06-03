@@ -270,6 +270,42 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
       default: throw scopeUnsupported("pitstop_event", rule.kind);
     }
   },
+  // ActionPoint follows the pitstop_event pattern. "own" = I own the AP, OR I
+  // own/co-own the parent pitstop, OR I created the AP. "team" expands the same
+  // union to teamIds — so a ZL's TEAM scope on action_point.update covers every
+  // AP raised by, owned by, or against a pitstop owned by their reporting tree.
+  action_point: ({ rule, ctx, teamIds }) => {
+    switch (rule.kind) {
+      case "all":  return {};
+      case "own":
+        return {
+          OR: [
+            { ownerId: ctx.userId },
+            { createdById: ctx.userId },
+            { pitstop: {
+              OR: [
+                { ownerId: ctx.userId },
+                { coOwners: { some: { userId: ctx.userId } } },
+              ],
+            } },
+          ],
+        };
+      case "team":
+        return {
+          OR: [
+            { ownerId: { in: teamIds } },
+            { createdById: { in: teamIds } },
+            { pitstop: {
+              OR: [
+                { ownerId: { in: teamIds } },
+                { coOwners: { some: { userId: { in: teamIds } } } },
+              ],
+            } },
+          ],
+        };
+      default: throw scopeUnsupported("action_point", rule.kind);
+    }
+  },
   // ChecklistItem inherits its scope from the parent Pitstop (owner / co-owners),
   // mirroring the `pitstop` builder but nested through the `pitstop` relation.
   checklist_item: ({ rule, ctx, teamIds }) => {

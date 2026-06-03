@@ -41,26 +41,30 @@ import { AdminCoverageTab } from "./admin/CoverageTab";
 import { PastTab } from "./_shared/PastTab";
 import { GoalsTab } from "./_shared/GoalsTab";
 import { DoneLog } from "./rp/DoneLog";
+import { FollowUpsTab } from "./_shared/FollowUpsTab";
 import type { ActivityModalPitstopRef, ActivityModalUser } from "./_shared/AddActivityModal";
 
 // ── Tab catalogs ──────────────────────────────────────────────────────────────
 
 const RP_TABS = [
-  { key: "today", label: "Today",    icon: CalendarClock },
-  { key: "past",  label: "Done log", icon: CheckCircle2 },
+  { key: "today",      label: "Today",      icon: CalendarClock },
+  { key: "follow-ups", label: "Follow-ups", icon: ListTree },
+  { key: "past",       label: "Done log",   icon: CheckCircle2 },
 ] as const;
 
 const ZL_TABS = [
-  { key: "today",    label: "Today",           icon: CalendarClock },
-  { key: "past",     label: "Past",            icon: CheckCircle2 },
-  { key: "health",   label: "Team Health",     icon: Activity },
-  { key: "coverage", label: "Field Coverage",  icon: BarChart3 },
-  { key: "clusters", label: "Cluster Status",  icon: MapPin },
-  { key: "goals",    label: "Goals",           icon: Target },
+  { key: "today",      label: "Today",           icon: CalendarClock },
+  { key: "follow-ups", label: "Follow-ups",      icon: ListTree },
+  { key: "past",       label: "Past",            icon: CheckCircle2 },
+  { key: "health",     label: "Team Health",     icon: Activity },
+  { key: "coverage",   label: "Field Coverage",  icon: BarChart3 },
+  { key: "clusters",   label: "Cluster Status",  icon: MapPin },
+  { key: "goals",      label: "Goals",           icon: Target },
 ] as const;
 
 const ADMIN_TABS = [
   { key: "today",       label: "Today",         icon: CalendarClock },
+  { key: "follow-ups",  label: "Follow-ups",    icon: ListTree },
   { key: "past",        label: "Past",          icon: CheckCircle2 },
   { key: "overview",    label: "Overview",      icon: LayoutDashboard },
   { key: "attention",   label: "Attention",     icon: AlertTriangle },
@@ -73,20 +77,22 @@ const ADMIN_TABS = [
 ] as const;
 
 const PM_TABS = [
-  { key: "today",     label: "Today",          icon: CalendarClock },
-  { key: "past",      label: "Past",           icon: CheckCircle2 },
-  { key: "zl-health", label: "ZL Health",      icon: Users },
-  { key: "rp-health", label: "RP Health",      icon: Activity },
-  { key: "coverage",  label: "Field Coverage", icon: BarChart3 },
-  { key: "clusters",  label: "Cluster Status", icon: MapPin },
-  { key: "goals",     label: "Goals",          icon: Target },
+  { key: "today",      label: "Today",          icon: CalendarClock },
+  { key: "follow-ups", label: "Follow-ups",     icon: ListTree },
+  { key: "past",       label: "Past",           icon: CheckCircle2 },
+  { key: "zl-health",  label: "ZL Health",      icon: Users },
+  { key: "rp-health",  label: "RP Health",      icon: Activity },
+  { key: "coverage",   label: "Field Coverage", icon: BarChart3 },
+  { key: "clusters",   label: "Cluster Status", icon: MapPin },
+  { key: "goals",      label: "Goals",          icon: Target },
 ] as const;
 
 const OTHER_TABS = [
-  { key: "today",    label: "Today",        icon: CalendarClock },
-  { key: "past",     label: "Past",         icon: CheckCircle2 },
-  { key: "activity", label: "Activity log", icon: ListTree },
-  { key: "goals",    label: "Goals",        icon: Target },
+  { key: "today",      label: "Today",        icon: CalendarClock },
+  { key: "follow-ups", label: "Follow-ups",   icon: ListTree },
+  { key: "past",       label: "Past",         icon: CheckCircle2 },
+  { key: "activity",   label: "Activity log", icon: ListTree },
+  { key: "goals",      label: "Goals",        icon: Target },
 ] as const;
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────
@@ -220,6 +226,15 @@ export default function HomeView({
             facilityLayerConfigs={facilityLayerConfigs}
             addActivityPitstops={addActivityPitstops}
             addActivityUsers={addActivityUsers}
+          />
+        )}
+
+        {/* Follow-ups — RP scope=mine, supervisors scope=team. Admin and Other follow
+            the supervisor pattern: they want to see what's open across people. */}
+        {activeTab === "follow-ups" && (
+          <FollowUpsTab
+            scope={designation === "RP" ? "mine" : "team"}
+            currentUserId={userId}
           />
         )}
 

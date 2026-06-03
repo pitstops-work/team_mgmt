@@ -22,6 +22,7 @@ import ThemesSection from "./ThemesSection";
 import GeographySection from "./GeographySection";
 import AuditSection from "./AuditSection";
 import { PROGRESS_TAGS, progressTagColor } from "@/lib/progressTags";
+import { PitstopAPPanel } from "@/components/action-points/PitstopAPPanel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1616,6 +1617,11 @@ export default function PitstopDetail({
                   />
                 ))
             )}
+
+            {/* Follow-ups for this pitstop — APs raised during any of its activities,
+                grouped by the raising activity. Lives in the same scroll area as the
+                checklist so the visit's "what's open" is visible top-to-bottom. */}
+            <PitstopAPPanel pitstopId={pitstop.id} currentUserId={currentUserId} />
           </div>
 
           {/* Add item */}

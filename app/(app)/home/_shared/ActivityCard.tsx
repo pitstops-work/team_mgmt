@@ -7,6 +7,7 @@ import type { Activity, ChecklistItem } from "../_lib/types";
 import { daysAgo, fmtDomain, fmtTime, isToday } from "../_lib/helpers";
 import { ACTIVITY_TYPE_STYLE } from "../_lib/constants";
 import { RescheduleSheet } from "./RescheduleSheet";
+import { CompleteActivityModal } from "@/components/action-points/CompleteActivityModal";
 
 /**
  * The unified activity row used across the new RP/ZL Today cockpits.
@@ -39,6 +40,10 @@ export function ActivityCard({
   const [busy, setBusy] = useState<null | "done" | "voice-recording" | "voice-processing" | "upload">(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  // Close-out modal — replaces the legacy one-click Done. Lets the RP capture
+  // follow-up action points in the same submit. AP block is collapsed by default
+  // so routine activities still close in 2 clicks (open modal + click "Mark done").
+  const [completeOpen, setCompleteOpen] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,18 +81,12 @@ export function ActivityCard({
   const cluster = goal?.needsCluster?.name ?? null;
   const settlement = goal?.needsSettlement?.name ?? null;
 
-  async function markDone() {
-    setBusy("done");
-    try {
-      const res = await fetch(`/api/pitstop-events/${activity.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Done" }),
-      });
-      if (res.ok) onCompleted(activity.id, linkedChecklist?.id);
-    } finally {
-      setBusy(null);
-    }
+  // Activity-type completion goes through CompleteActivityModal (handles APs +
+  // the PATCH). Voice/Upload paths bypass this — their respective endpoints
+  // close the activity directly, and APs can be added later from the pitstop
+  // detail page.
+  function openCompleteModal() {
+    setCompleteOpen(true);
   }
 
   async function startVoice() {
@@ -192,7 +191,7 @@ export function ActivityCard({
       </>
     )
   ) : (
-    <button onClick={markDone} disabled={isBusy}
+    <button onClick={openCompleteModal} disabled={isBusy}
       className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg">
       {busy === "done" ? "…" : "Done"}
     </button>
@@ -265,6 +264,16 @@ export function ActivityCard({
           activity={activity}
           onRescheduled={() => onRescheduled?.()}
         />
+        {completeOpen && (
+          <CompleteActivityModal
+            eventId={activity.id}
+            activityTitle={activity.title}
+            pitstopTitle={ps?.title ?? null}
+            goalTitle={goal?.title ?? null}
+            onClose={() => setCompleteOpen(false)}
+            onCompleted={() => { setCompleteOpen(false); onCompleted(activity.id, linkedChecklist?.id); }}
+          />
+        )}
       </div>
     );
   }
@@ -345,6 +354,16 @@ export function ActivityCard({
         activity={activity}
         onRescheduled={() => onRescheduled?.()}
       />
+      {completeOpen && (
+        <CompleteActivityModal
+          eventId={activity.id}
+          activityTitle={activity.title}
+          pitstopTitle={ps?.title ?? null}
+          goalTitle={goal?.title ?? null}
+          onClose={() => setCompleteOpen(false)}
+          onCompleted={() => { setCompleteOpen(false); onCompleted(activity.id, linkedChecklist?.id); }}
+        />
+      )}
     </div>
   );
 }

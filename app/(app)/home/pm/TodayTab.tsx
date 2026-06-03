@@ -15,6 +15,7 @@ import { EmptyState, SectionTitle, WeekCard } from "../_shared/Primitives";
 import { RPChecklistRow } from "../_shared/RPChecklistRow";
 import { ZLOverdueCarousel, ZLTodayCarousel } from "../_shared/ZLOverdue";
 import AddActivityModal, { type ActivityModalPitstopRef, type ActivityModalUser } from "../_shared/AddActivityModal";
+import { HomeTodayAPSection } from "@/components/action-points/HomeTodayAPSection";
 
 function todayYMD() {
   const d = new Date();
@@ -154,6 +155,9 @@ export function PMTodayTab({
           New activity
         </button>
       </div>
+
+      {/* Team follow-ups (action points raised by RPs / ZLs in this PM's tree). */}
+      <HomeTodayAPSection scope="team" currentUserId={userId} />
 
       {/* PM's own work as cluster cards. */}
       <ClusterTodayView
