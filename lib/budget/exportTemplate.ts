@@ -1,6 +1,15 @@
 import ExcelJS from "exceljs";
 import type { BudgetSection } from "@/app/generated/prisma/client";
 
+/**
+ * Cost-component for a programme line, sourced from CostRegistry items joined
+ * via LineTemplate.costKey/costKey2/costKey3. Used to populate Working sheet.
+ */
+export type CostComponent = {
+  label: string;   // human-readable, e.g. "₹/workshop (youth.yuva_adda_cost_per_workshop)"
+  value: number;   // numeric value used in the Excel multiplication formula
+};
+
 export type ExportLine = {
   domain: string | null;
   section: BudgetSection;
@@ -10,7 +19,16 @@ export type ExportLine = {
   notes: string | null;
   salaryHint: string | null;
   templateKey: string | null;
-  costDriver: string | null;
+  // Cost-formula metadata copied from the LineTemplate this line was generated
+  // from. Used to reverse the Working→Budget linkage: when a section-4 line has
+  // a standard product formula (costKey × costKey2 × costKey3 × maybe ×12), the
+  // Working sheet computes Unit Cost and Budget G col references back to it.
+  costComponents: CostComponent[];
+  costMonthly: boolean;
+  isSalaryStub: boolean;
+  userInputCost: string | null;
+  workerRatioKey: string | null;   // present → non-standard formula, no linkage
+  costPctOf: string | null;        // present → non-standard formula, no linkage
   y1Units: number; y1UnitCost: number; y1AllocPct: number; y1Total: number;
   y2Units: number; y2UnitCost: number; y2AllocPct: number; y2Total: number;
   y3Units: number; y3UnitCost: number; y3AllocPct: number; y3Total: number;
@@ -130,11 +148,7 @@ const TEMPLATE_SECTIONS: TemplateSection[] = [
 type SectionRowMap = Record<string, number> & { grandTotal: number };
 
 export type ProgrammeRowRef = {
-  description: string;
-  notes: string | null;
-  costDriver: string | null;
-  y1Units: number;
-  y1UnitCost: number;
+  line: ExportLine;
   rowNum: number; // row position on the source Budget sheet
 };
 
@@ -241,42 +255,105 @@ function buildInstructionsSheet(wb: ExcelJS.Workbook): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Working sheet — pre-populated from backend programme lines
-// One row per section-4 (Programme expense) line, with Total linked back to
-// the source Budget sheet. Breakdown columns (Food/Accom/Resource/IEC/Others)
-// kept as template-style reviewer space.
+// Working sheet — pre-populated from backend programme lines.
+// One row per section-4 (Programme expense) line. Cells C/D, E/F, G/H carry
+// the cost-registry components (label + numeric value). Cell J holds a
+// product formula that becomes the source of truth for the line's unit cost.
+// The corresponding Budget sheet's Y1 Unit Cost cell (col G) references
+// J on this sheet, so editing component values cascades into Budget totals.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type WorkingProgrammeGroup = {
-  domainLabel: string;
-  sheetName: string; // source Budget sheet to link Total cell to
-  rows: ProgrammeRowRef[];
+/**
+ * Plan for a single domain's programme rows on the Working sheet. The plan
+ * is built BEFORE writing any sheets so Budget G cells can reference the
+ * forecasted Working unit-cost cells.
+ */
+type WorkingPlan = {
+  multiDomain: boolean;
+  groups: Array<{
+    domainKey: string;
+    domainLabel: string;
+    bannerRow: number | null;        // null in single-domain mode
+    lines: Array<{
+      line: ExportLine;
+      workingRow: number;
+      // Address used by Budget sheets to reference this row's unit cost.
+      // null when the line is not formula-linkable (salary stub, user input,
+      // worker ratio, %-of, or no cost components).
+      unitCostRef: string | null;
+    }>;
+  }>;
 };
 
-function buildWorkingSheet(wb: ExcelJS.Workbook, groups: WorkingProgrammeGroup[]): void {
+function forecastWorkingPlan(
+  programmeByDomain: Array<{ domainKey: string; domainLabel: string; lines: ExportLine[] }>,
+): WorkingPlan {
+  const groupsWithRows = programmeByDomain.filter(g => g.lines.length > 0);
+  const multiDomain = groupsWithRows.length > 1;
+  const groups: WorkingPlan["groups"] = [];
+
+  // Rows 1 (intro), 2 (header) are fixed. Next available = 3.
+  let cursor = 3;
+  for (const g of groupsWithRows) {
+    let bannerRow: number | null = null;
+    if (multiDomain) { bannerRow = cursor; cursor++; }
+    const lines: WorkingPlan["groups"][number]["lines"] = [];
+    for (const ln of g.lines) {
+      const workingRow = cursor;
+      const unitCostRef = isStandardCostFormula(ln)
+        ? `'04.Working'!$J$${workingRow}`
+        : null;
+      lines.push({ line: ln, workingRow, unitCostRef });
+      cursor++;
+    }
+    groups.push({ domainKey: g.domainKey, domainLabel: g.domainLabel, bannerRow, lines });
+  }
+  return { multiDomain, groups };
+}
+
+function buildWorkingCellMap(plan: WorkingPlan): WorkingCellMap {
+  const m: WorkingCellMap = new Map();
+  for (const g of plan.groups) {
+    g.lines.forEach((l, idx) => {
+      if (l.unitCostRef) m.set(`${g.domainKey}:${idx}`, l.unitCostRef);
+    });
+  }
+  return m;
+}
+
+const WORKING_COLS = 11;
+
+function buildWorkingSheet(wb: ExcelJS.Workbook, plan: WorkingPlan): void {
   const ws = wb.addWorksheet("04.Working");
   ws.properties.tabColor = { argb: C.tabGreen };
-  // A=Sl.No B=Programme expense C=Food D=Accom E=Resource fee F=IEC G=Others
-  // H=Total (linked) I=Cost driver (from cost registry) J=Assumptions (notes)
+  // A=Sl B=Programme expense C=Component1 D=Value1 E=Component2 F=Value2
+  // G=Component3 H=Value3 I=×12 months? J=Unit Cost (formula) K=Assumptions
   ws.columns = [
     { width: 6 }, { width: 38 },
-    { width: 12 }, { width: 14 }, { width: 20 }, { width: 10 }, { width: 12 },
-    { width: 16 }, { width: 46 }, { width: 36 },
+    { width: 36 }, { width: 12 },
+    { width: 28 }, { width: 12 },
+    { width: 22 }, { width: 12 },
+    { width: 13 }, { width: 14 }, { width: 36 },
   ];
 
-  const totalCols = 10;
-  const totalLines = groups.reduce((s, g) => s + g.rows.length, 0);
+  const totalLines = plan.groups.reduce((s, g) => s + g.lines.length, 0);
   const introText = totalLines === 0
     ? "No programme expenses in this budget yet. Add lines under section 4 of 03.Budget; they'll appear here on the next export."
-    : "Reference breakdown of programme expenses. Each row links back to the corresponding line on the Budget sheet (Total column = live reference). The 'Cost driver' column shows the cost-registry components fed in by the Budget Builder. This export is generated by the Budget Builder; the Budget Builder remains the source of truth.";
+    : "Backing maths for each programme expense. Each row reconstructs the unit cost from the cost registry and the line template. The Unit Cost (₹) cell is the source of truth — the corresponding Unit Cost cell on the Budget sheet (col G) references it. Editing component values here flows through to the Budget sheet's Y1 totals.";
 
   const intro = ws.addRow([introText]);
-  ws.mergeCells(1, 1, 1, totalCols);
+  ws.mergeCells(1, 1, 1, WORKING_COLS);
   intro.getCell(1).alignment = { wrapText: true, vertical: "middle" };
   intro.getCell(1).font = { name: FONT_NAME, size: FONT_SIZE, italic: true };
-  intro.height = 42;
+  intro.height = 46;
 
-  const hdr = ws.addRow(["Sl.No", "Programme expense", "Food", "Accommodation", "Resource fee / Consultant", "IEC", "Others", "Total (Rs.)", "Cost driver", "Assumptions"]);
+  const hdr = ws.addRow([
+    "Sl.No", "Programme expense",
+    "Component 1 (cost driver)", "Value 1",
+    "Component 2", "Value 2",
+    "Component 3", "Value 3",
+    "× 12 months?", "Unit Cost (₹)", "Assumptions",
+  ]);
   hdr.eachCell({ includeEmpty: true }, c => {
     c.fill = fill(C.olive);
     c.font = { name: FONT_NAME, bold: true, size: FONT_SIZE };
@@ -285,45 +362,90 @@ function buildWorkingSheet(wb: ExcelJS.Workbook, groups: WorkingProgrammeGroup[]
   });
   hdr.height = 30;
 
-  const multiDomain = groups.length > 1;
   let sno = 1;
-  for (const g of groups) {
-    if (g.rows.length === 0) continue;
-    if (multiDomain) {
+  for (const g of plan.groups) {
+    if (plan.multiDomain && g.bannerRow != null) {
       const bnr = ws.addRow([`${g.domainLabel} — Programme expenses`]);
-      ws.mergeCells(bnr.number, 1, bnr.number, totalCols);
+      ws.mergeCells(bnr.number, 1, bnr.number, WORKING_COLS);
       bnr.getCell(1).font = { name: FONT_NAME, bold: true, size: FONT_SIZE, color: { argb: C.black } };
       bnr.getCell(1).fill = fill(C.sectionBanner);
       bnr.getCell(1).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
       bnr.getCell(1).border = thinBorder();
-      for (let c = 2; c <= totalCols; c++) {
+      for (let c = 2; c <= WORKING_COLS; c++) {
         bnr.getCell(c).fill = fill(C.sectionBanner);
         bnr.getCell(c).border = thinBorder();
       }
       bnr.height = 18;
     }
 
-    for (const pr of g.rows) {
-      const r = ws.addRow([
-        sno++,
-        pr.description,
-        null, null, null, null, null,
-        { formula: `'${g.sheetName.replace(/'/g, "''")}'!I${pr.rowNum}` },
-        pr.costDriver ?? "",
-        pr.notes ?? "",
-      ]);
+    for (const entry of g.lines) {
+      const line = entry.line;
+      const r = ws.addRow([]);
+      const rn = r.number;
+
+      r.getCell(1).value = sno++;
+      r.getCell(2).value = line.description;
+
+      // Component cells (C/D, E/F, G/H)
+      const comps = line.costComponents.slice(0, 3);
+      const compSlots: Array<{ labelCol: number; valueCol: number }> = [
+        { labelCol: 3, valueCol: 4 }, { labelCol: 5, valueCol: 6 }, { labelCol: 7, valueCol: 8 },
+      ];
+      for (let i = 0; i < compSlots.length; i++) {
+        const slot = compSlots[i];
+        const c = comps[i];
+        if (c) {
+          r.getCell(slot.labelCol).value = c.label;
+          r.getCell(slot.valueCol).value = c.value;
+        }
+      }
+
+      // × 12 months? toggle (I) — only for standard-formula lines
+      const isStandard = isStandardCostFormula(line);
+      r.getCell(9).value = isStandard ? (line.costMonthly ? "Yes" : "No") : "";
+
+      // Unit Cost (J) — formula when standard; literal fallback otherwise
+      if (isStandard) {
+        // =IF(ISNUMBER(D),D,1)*IF(ISNUMBER(F),F,1)*IF(ISNUMBER(H),H,1)*IF(I="Yes",12,1)
+        r.getCell(10).value = {
+          formula: `IF(ISNUMBER(D${rn}),D${rn},1)*IF(ISNUMBER(F${rn}),F${rn},1)*IF(ISNUMBER(H${rn}),H${rn},1)*IF(I${rn}="Yes",12,1)`,
+        };
+      } else {
+        r.getCell(10).value = line.y1UnitCost || null;
+      }
+
+      // Assumptions (K): line notes + status note for non-standard formulas
+      let assumption = line.notes ?? "";
+      if (line.isSalaryStub) assumption = `Salary stub — user fills cost on Budget sheet${assumption ? `. ${assumption}` : ""}`;
+      else if (line.userInputCost) assumption = `Programme input field: ${line.userInputCost}${assumption ? `. ${assumption}` : ""}`;
+      else if (line.workerRatioKey) assumption = `Worker-ratio formula (not auto-linked)${assumption ? `. ${assumption}` : ""}`;
+      else if (line.costPctOf) assumption = `Percentage-of formula (not auto-linked)${assumption ? `. ${assumption}` : ""}`;
+      else if (!line.templateKey) assumption = `Manually added line (no template link)${assumption ? `. ${assumption}` : ""}`;
+      r.getCell(11).value = assumption;
+
       r.eachCell({ includeEmpty: true }, (cell, col) => {
         cell.border = thinBorder();
         cell.font = { name: FONT_NAME, size: FONT_SIZE };
         cell.fill = fill(C.dataRow);
         if (col === 1) cell.alignment = { horizontal: "center", vertical: "middle" };
-        else if (col === 2 || col === 9 || col === 10) cell.alignment = { vertical: "middle", wrapText: true };
+        else if (col === 2 || col === 3 || col === 5 || col === 7 || col === 11)
+          cell.alignment = { vertical: "middle", wrapText: true };
+        else if (col === 9) cell.alignment = { horizontal: "center", vertical: "middle" };
         else cell.alignment = { horizontal: "right", vertical: "middle" };
-        if ([3, 4, 5, 6, 7, 8].includes(col)) cell.numFmt = NUMFMT.currency;
+        if (col === 4 || col === 6 || col === 8 || col === 10) cell.numFmt = NUMFMT.currency;
       });
+      // Highlight the source-of-truth unit cost cell
+      r.getCell(10).fill = fill(C.subtotal);
+      r.getCell(10).font = { name: FONT_NAME, bold: true, size: FONT_SIZE };
       r.height = 28;
+
+      if (rn !== entry.workingRow) {
+        console.warn(`[budget export] Working row mismatch: forecast=${entry.workingRow}, actual=${rn} (${line.description})`);
+      }
     }
   }
+
+  ws.views = [{ state: "frozen", xSplit: 2, ySplit: 2, topLeftCell: "C3" }];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -460,12 +582,27 @@ function applyDataRowStyling(r: ExcelJS.Row) {
   });
 }
 
+/**
+ * Returns true if this line's unit cost can be expressed as a simple product
+ * formula on the Working sheet (so Budget G can reference it). Excludes salary
+ * stubs, user-input costs, worker-ratio, and pct-of formulas.
+ */
+function isStandardCostFormula(line: ExportLine): boolean {
+  if (line.isSalaryStub) return false;
+  if (line.userInputCost) return false;
+  if (line.workerRatioKey) return false;
+  if (line.costPctOf) return false;
+  if (line.costComponents.length === 0) return false;
+  return true;
+}
+
 function emitDataRow(
   ws: ExcelJS.Worksheet,
   line: ExportLine,
   sno: number,
   years: number,
   grandTotalRow: number,
+  y1UnitCostFormula: string | null,
 ): void {
   const r = ws.addRow([]);
   const rn = r.number;
@@ -477,7 +614,7 @@ function emitDataRow(
   r.getCell(5).value = line.unitType;
 
   r.getCell(6).value = line.y1Units || null;
-  r.getCell(7).value = line.y1UnitCost || null;
+  r.getCell(7).value = y1UnitCostFormula ? { formula: y1UnitCostFormula } : (line.y1UnitCost || null);
   r.getCell(8).value = line.y1AllocPct;
   r.getCell(9).value = { formula: inflationFormula(rn, 1) };
 
@@ -533,12 +670,21 @@ function emitSubTotalRow(
 // Per-domain (or single) budget sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Map keyed by `${domain}:${programmeLineIndex}` → working-sheet unit-cost cell
+ * address (e.g. "'04.Working'!J5"). Used by emitDataRow to write G col as a
+ * cross-sheet reference instead of a literal value.
+ */
+type WorkingCellMap = Map<string, string>;
+
 export function buildBudgetSheet(
   wb: ExcelJS.Workbook,
   sheetName: string,
   title: string,
   lines: ExportLine[],
   years: number,
+  domainKey: string,
+  workingCellMap: WorkingCellMap,
 ): BudgetSheetResult {
   const ws = wb.addWorksheet(sheetName.substring(0, 31));
   ws.properties.tabColor = { argb: C.tabGreen };
@@ -609,17 +755,16 @@ export function buildBudgetSheet(
     writeColumnHeaderRow(ws, ws.rowCount);
 
     let sno = 1;
+    let programmeIdxInDomain = 0;
     for (const line of p.data) {
-      emitDataRow(ws, line, sno++, years, grandTotalRow);
+      let unitCostFormula: string | null = null;
       if (p.key === "4") {
-        programmeRows.push({
-          description: line.description,
-          notes: line.notes,
-          costDriver: line.costDriver,
-          y1Units: line.y1Units,
-          y1UnitCost: line.y1UnitCost,
-          rowNum: ws.rowCount,
-        });
+        unitCostFormula = workingCellMap.get(`${domainKey}:${programmeIdxInDomain}`) ?? null;
+      }
+      emitDataRow(ws, line, sno++, years, grandTotalRow, unitCostFormula);
+      if (p.key === "4") {
+        programmeRows.push({ line, rowNum: ws.rowCount });
+        programmeIdxInDomain++;
       }
     }
 
@@ -889,35 +1034,48 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
   buildInstructionsSheet(wb);
 
   const domains = budget.domains.length > 0 ? budget.domains : ["__all__"];
-  const workingGroups: WorkingProgrammeGroup[] = [];
 
+  // Step 1: gather programme lines per domain so we can forecast Working rows.
+  const programmeByDomain = domains.map(domain => {
+    const isAll = domain === "__all__";
+    const filteredLines = isAll
+      ? budget.lines
+      : budget.lines.filter(l => l.domain === domain || l.domain === null);
+    return {
+      domainKey: domain,
+      domainLabel: isAll ? budget.name : (DOMAIN_LABELS[domain] ?? domain),
+      lines: filteredLines.filter(l => l.section === "programme"),
+    };
+  });
+
+  // Step 2: forecast Working sheet row positions; build a (domain, idx) →
+  // unit-cost cell address map that emitDataRow uses for Budget G col.
+  const workingPlan = forecastWorkingPlan(programmeByDomain);
+  const workingCellMap = buildWorkingCellMap(workingPlan);
+
+  // Step 3: build Budget sheets with cross-sheet references in place.
   if (domains.length === 1) {
     const domainKey = domains[0];
     const linesForDomain = domainKey === "__all__"
       ? budget.lines
       : budget.lines.filter(l => l.domain === domainKey || l.domain === null);
-    const { map, programmeRows } = buildBudgetSheet(wb, "03.Budget", budget.name, linesForDomain, budget.years);
+    const { map } = buildBudgetSheet(wb, "03.Budget", budget.name, linesForDomain, budget.years, domainKey, workingCellMap);
     buildSummarySheet(wb, budget.name, "03.Budget", map);
-    workingGroups.push({
-      domainLabel: domainKey === "__all__" ? budget.name : (DOMAIN_LABELS[domainKey] ?? domainKey),
-      sheetName: "03.Budget",
-      rows: programmeRows,
-    });
   } else {
     const domainSheets: Array<{ name: string; map: SectionRowMap; label: string }> = [];
     for (const domain of domains) {
       const label = DOMAIN_LABELS[domain] ?? domain;
       const sheetName = `Budget - ${label}`.substring(0, 31);
       const domainLines = budget.lines.filter(l => l.domain === domain || l.domain === null);
-      const { map, programmeRows } = buildBudgetSheet(wb, sheetName, `${label} – ${budget.name}`, domainLines, budget.years);
+      const { map } = buildBudgetSheet(wb, sheetName, `${label} – ${budget.name}`, domainLines, budget.years, domain, workingCellMap);
       domainSheets.push({ name: sheetName, map, label });
-      workingGroups.push({ domainLabel: label, sheetName, rows: programmeRows });
     }
     const masterMap = buildMasterBudgetSheet(wb, budget.name, budget.years, domainSheets);
     buildSummarySheet(wb, budget.name, "03.Budget", masterMap);
   }
 
-  buildWorkingSheet(wb, workingGroups);
+  // Step 4: build Working with the structured component layout.
+  buildWorkingSheet(wb, workingPlan);
 
   // Reorder sheets to: 01.Instructions, 02.Summary, 03.Budget, 04.Working, then per-domain
   const desiredOrder = ["01.Instructions", "02.Summary", "03.Budget", "04.Working"];
