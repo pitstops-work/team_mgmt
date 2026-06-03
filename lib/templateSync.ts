@@ -21,7 +21,7 @@
 import prisma from "./prisma";
 import type { DbTemplate, DbPitstop, DbChecklistItem, DbActivity } from "./templateDb";
 import { slugifyChecklistText, normalizeActivities } from "./templateDb";
-import { snapToWeekday, addDaysUTC, dayDeltaUTC } from "./scheduleActivities";
+import { snapToWeekday, addDaysUTC, dayDeltaUTC, scheduleActivitiesInWindow } from "./scheduleActivities";
 import { auditLog } from "./auditLog";
 import { sendPushToUsers } from "./push";
 
@@ -145,6 +145,82 @@ function offsetScheduledAt(
   return snapped;
 }
 
+// Where the pitstop's startDate/targetDate SHOULD land given the current
+// template SLA + recurrence index. Used both by the pitstop field-diff
+// (line 276) and the activity scheduling diff so the latter computes against
+// the post-sync window — not the snapshot.
+function computeExpectedWindow(
+  tpl: DbPitstop,
+  instanceIdx: number,
+  goalStartDate: Date | null,
+): { start: Date; target: Date } | null {
+  if (!goalStartDate) return null;
+  const cadence = getCadenceDays(tpl.recurrence);
+  const startOffset = Number.isFinite(tpl.startSlaDays) ? tpl.startSlaDays : 0;
+  const targetOffset = Number.isFinite(tpl.slaDays) ? tpl.slaDays : startOffset;
+  return {
+    start:  snapToWeekday(addDaysUTC(goalStartDate, startOffset + instanceIdx * cadence)),
+    target: snapToWeekday(addDaysUTC(goalStartDate, targetOffset + instanceIdx * cadence)),
+  };
+}
+
+// Plain Mon–Fri enumeration between two dates (UTC). Used to seed the
+// distribute-evenly fallback in activity scheduling. Does NOT honour
+// city-specific blocked days (travel/non-travel meeting rule lives in
+// AppSetting + city — too heavy to load per pitstop in the sync path); the
+// initial template-apply route does honour them. Acceptable divergence: the
+// RP can drag-reschedule within the new window if the exact day matters.
+function workingDaysBetween(start: Date, end: Date): Date[] {
+  const days: Date[] = [];
+  const cur = new Date(start);
+  cur.setUTCHours(0, 0, 0, 0);
+  const endDay = new Date(end);
+  endDay.setUTCHours(23, 59, 59, 999);
+  while (cur <= endDay) {
+    const dow = cur.getUTCDay();
+    if (dow >= 1 && dow <= 5) days.push(new Date(cur));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return days;
+}
+
+// Build a templateKey → expected scheduledAt map for every activity under one
+// template pitstop, given the expected pitstop window. Mirrors what
+// /api/templates/[id]/apply does on initial goal creation: activities with
+// `dayOffset` pin to start+offset (clamped to window), the rest distribute
+// evenly across the working days. Activities are flattened across all
+// checklist items in declaration order, matching the apply route's behaviour.
+function computeActivitySchedule(
+  tpl: DbPitstop,
+  expectedStart: Date,
+  expectedTarget: Date,
+): Map<string, Date> {
+  const out = new Map<string, Date>();
+  // Flat list of {key, dayOffset} across all activities, preserving declaration order.
+  const flat: { key: string; dayOffset?: number }[] = [];
+  for (const tplItem of tpl.checklist) {
+    for (const act of normalizeActivities(tplItem)) {
+      const k = effectiveKey(act.key, act.title);
+      if (!k) continue;
+      flat.push({ key: k, dayOffset: act.dayOffset });
+    }
+  }
+  if (flat.length === 0) return out;
+  const workingDays = workingDaysBetween(expectedStart, expectedTarget);
+  if (workingDays.length === 0) {
+    // No working days in window (e.g. weekend-only window — shouldn't happen
+    // since pitstop dates are snapped to weekdays). Fall back to the snapped
+    // start so nothing is null.
+    for (const a of flat) out.set(a.key, snapToWeekday(expectedStart));
+    return out;
+  }
+  const { dates } = scheduleActivitiesInWindow(flat, expectedStart, workingDays);
+  for (let i = 0; i < flat.length; i++) {
+    if (dates[i]) out.set(flat[i].key, dates[i]);
+  }
+  return out;
+}
+
 // ── Diff: template vs one goal snapshot ─────────────────────────────────────
 
 function diffGoal(template: DbTemplate, snapshot: GoalSnapshot): SyncChange[] {
@@ -191,8 +267,18 @@ function diffGoal(template: DbTemplate, snapshot: GoalSnapshot): SyncChange[] {
         return;
       }
 
-      diffPitstopFields(tplPt, inst, idx, snapshot.startDate, changes);
-      diffChecklist(tplPt, inst, changes);
+      // Compute the expected post-sync window ONCE per instance and reuse
+      // for both the pitstop-field diff and the activity scheduling diff.
+      // This is the fix to the snapshot-vs-mutation bug: previously
+      // diffActivities computed scheduledAt against inst.startDate (the
+      // pre-sync value), so SLA changes never propagated to activity dates.
+      const expected = computeExpectedWindow(tplPt, idx, snapshot.startDate);
+      const expectedSchedule = expected
+        ? computeActivitySchedule(tplPt, expected.start, expected.target)
+        : new Map<string, Date>();
+
+      diffPitstopFields(tplPt, inst, idx, snapshot.startDate, changes, expected);
+      diffChecklist(tplPt, inst, expectedSchedule, changes);
     });
   }
 
@@ -224,6 +310,7 @@ function diffPitstopFields(
   instanceIdx: number,
   goalStartDate: Date | null,
   changes: SyncChange[],
+  expected: { start: Date; target: Date } | null,
 ) {
   if (tpl.title && tpl.title !== inst.title) {
     changes.push({
@@ -273,19 +360,12 @@ function diffPitstopFields(
   // template offsets, shifted by the instance's recurrence index. Mirrors the
   // formula used in /api/templates/[id]/apply on initial goal creation.
   // Will overwrite any manual reschedules — this is the agreed behaviour.
-  if (goalStartDate) {
-    const cadence = getCadenceDays(tpl.recurrence);
+  // `expected` is precomputed once per instance by the caller so the same
+  // values are reused for activity scheduling (see computeActivitySchedule).
+  if (expected) {
     const startOffset = Number.isFinite(tpl.startSlaDays) ? tpl.startSlaDays : 0;
     const targetOffset = Number.isFinite(tpl.slaDays) ? tpl.slaDays : startOffset;
-
-    const expectedStart = snapToWeekday(
-      addDaysUTC(goalStartDate, startOffset + instanceIdx * cadence),
-    );
-    const expectedTarget = snapToWeekday(
-      addDaysUTC(goalStartDate, targetOffset + instanceIdx * cadence),
-    );
-
-    if (!inst.startDate || dayDeltaUTC(inst.startDate, expectedStart) !== 0) {
+    if (!inst.startDate || dayDeltaUTC(inst.startDate, expected.start) !== 0) {
       changes.push({
         kind: "edit",
         entity: "pitstop",
@@ -294,11 +374,11 @@ function diffPitstopFields(
         pitstopInstanceId: inst.id,
         field: "startDate",
         oldValue: inst.startDate ? inst.startDate.toISOString() : null,
-        newValue: expectedStart.toISOString(),
+        newValue: expected.start.toISOString(),
         description: `Reschedule start of "${inst.title}" to day ${startOffset}${instanceIdx > 0 ? ` (+${instanceIdx} cycle${instanceIdx === 1 ? "" : "s"})` : ""} after goal start`,
       });
     }
-    if (!inst.targetDate || dayDeltaUTC(inst.targetDate, expectedTarget) !== 0) {
+    if (!inst.targetDate || dayDeltaUTC(inst.targetDate, expected.target) !== 0) {
       changes.push({
         kind: "edit",
         entity: "pitstop",
@@ -307,16 +387,22 @@ function diffPitstopFields(
         pitstopInstanceId: inst.id,
         field: "targetDate",
         oldValue: inst.targetDate ? inst.targetDate.toISOString() : null,
-        newValue: expectedTarget.toISOString(),
+        newValue: expected.target.toISOString(),
         description: `Reschedule target of "${inst.title}" to day ${targetOffset}${instanceIdx > 0 ? ` (+${instanceIdx} cycle${instanceIdx === 1 ? "" : "s"})` : ""} after goal start`,
       });
     }
   }
   // Pitstop type is set on apply; sync respects it as immutable to avoid
   // breaking the activity-type mapping. Skip.
+  void goalStartDate; void instanceIdx; // kept for signature stability
 }
 
-function diffChecklist(tpl: DbPitstop, inst: DbPitstopInstance, changes: SyncChange[]) {
+function diffChecklist(
+  tpl: DbPitstop,
+  inst: DbPitstopInstance,
+  expectedSchedule: Map<string, Date>,
+  changes: SyncChange[],
+) {
   // Group template items by key
   const tplItems = new Map<string, DbChecklistItem>();
   for (const tplItem of tpl.checklist) {
@@ -395,7 +481,7 @@ function diffChecklist(tpl: DbPitstop, inst: DbPitstopInstance, changes: SyncCha
       });
     }
 
-    diffActivities(tplItem, instItem, inst, changes);
+    diffActivities(tplItem, instItem, inst, expectedSchedule, changes);
   }
 
   // REMOVE: instance items not in template
@@ -421,6 +507,7 @@ function diffActivities(
   tplItem: DbChecklistItem,
   instItem: DbChecklistItemInstance,
   inst: DbPitstopInstance,
+  expectedSchedule: Map<string, Date>,
   changes: SyncChange[],
 ) {
   const tplActivities = normalizeActivities(tplItem);
@@ -477,24 +564,22 @@ function diffActivities(
       });
     }
 
-    // Schedule (dayOffset) diff — only when template specifies an offset and
-    // we know the parent pitstop's start date.
-    if (Number.isFinite(a.dayOffset) && inst.startDate) {
-      const rawTarget = addDaysUTC(inst.startDate, a.dayOffset as number);
-      let target = snapToWeekday(rawTarget);
-      let clamped: "before" | "after" | null = null;
-      const snappedStart = snapToWeekday(inst.startDate);
-      const snappedEnd = inst.targetDate ? snapToWeekday(inst.targetDate) : null;
-      if (target < snappedStart) { target = snappedStart; clamped = "before"; }
-      else if (snappedEnd && target > snappedEnd) { target = snappedEnd; clamped = "after"; }
-
+    // Schedule diff — compute against the EXPECTED post-sync pitstop window
+    // (passed in via expectedSchedule). Covers two cases that the previous
+    // dayOffset-only path missed:
+    //   1. Activities without dayOffset now also reschedule, distributed
+    //      evenly across the new working-day window (mirrors the apply route).
+    //   2. Even with dayOffset, the scheduledAt is computed against the new
+    //      pitstop start — previously it used inst.startDate (the pre-sync
+    //      snapshot), so SLA changes never propagated to activity dates in
+    //      the same sync run.
+    const target = expectedSchedule.get(k);
+    if (target) {
       const sameDay = ev.scheduledAt && dayDeltaUTC(ev.scheduledAt, target) === 0;
       if (!sameDay) {
-        const clampNote = clamped === "after"
-          ? ` (offset day ${a.dayOffset} clamped to SLA end)`
-          : clamped === "before"
-          ? ` (offset day ${a.dayOffset} clamped to SLA start)`
-          : "";
+        const reasonNote = Number.isFinite(a.dayOffset)
+          ? ` to day ${a.dayOffset} of pitstop`
+          : ` to match new pitstop window`;
         changes.push({
           kind: "edit",
           entity: "activity",
@@ -505,7 +590,7 @@ function diffActivities(
           field: "scheduledAt",
           oldValue: ev.scheduledAt ? ev.scheduledAt.toISOString() : null,
           newValue: target.toISOString(),
-          description: `Reschedule "${ev.title}" to day ${a.dayOffset} of pitstop${clampNote}`,
+          description: `Reschedule "${ev.title}"${reasonNote}`,
           ...(evBlocked
             ? { blocked: true, blockedReason: `Activity is ${ev.status}` }
             : {}),
