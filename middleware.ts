@@ -9,6 +9,11 @@ const PUBLIC_PREFIXES = [
   "/api/register",
   "/api/cron/",
   "/api/debug/",
+  // Vercel Blob client uploader. The endpoint itself uses handleUpload from
+  // @vercel/blob/client, which signs short-lived tokens server-side and
+  // restricts allowed content types + max size. Safe to expose without
+  // NextAuth gating.
+  "/api/review/blob-upload",
   "/_next",
   "/favicon",
   "/manifest",
