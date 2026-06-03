@@ -18,6 +18,7 @@ import { EDITOR_TOOLS } from './tools';
 import { snapshotVersion } from '../versions';
 import { embedQuery, toPgVector } from '../embedding';
 import { downloadAndProcess, buildMessageContent } from '../processFiles';
+import { tryFastPath } from './fastPath';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
@@ -462,6 +463,46 @@ export async function runOrchestrator(input: OrchestrateInput): Promise<Orchestr
     : (sticky.length > 0 ? sticky : fallback);
   const caps = await getCapabilitiesByIds(activeIds);
 
+  // 1.5. Fast-path: deterministic instructions that need no LLM call.
+  // Skip the Claude call entirely; persist + version like a normal turn.
+  const fastResult = tryFastPath(input.instruction, before, input.sectionFilter);
+  if (fastResult) {
+    await persistDocumentState(input.noteId, fastResult.working, fastResult.remap);
+    const versionId = await snapshotVersion({
+      noteId: input.noteId,
+      trigger: 'orchestrator_turn',
+      createdBy: input.createdBy || 'system',
+      instruction: input.instruction,
+      scopeUsed: activeIds,
+      capabilityCalls: fastResult.capabilityCalls,
+      keyRemap: fastResult.remap,
+    });
+    let versionNumber: number | null = null;
+    if (versionId) {
+      const vrows = await sql`
+        SELECT version_number FROM grant_note_versions WHERE id = ${versionId}::uuid
+      `.catch(() => [] as any[]);
+      versionNumber = (vrows as any[])[0]?.version_number ?? null;
+    }
+    const promotion = await logInstructionAndDetect({
+      noteId: input.noteId,
+      versionId,
+      instruction: input.instruction,
+      capabilitiesUsed: activeIds,
+    });
+    return {
+      version_id: versionId,
+      version_number: versionNumber,
+      diff: computeDiff(before, fastResult.working, fastResult.remap),
+      capability_calls: fastResult.capabilityCalls,
+      clarification_request: undefined,
+      lint_issues: [],
+      scope_used: activeIds,
+      tokens: { input: 0, output: 0 },
+      promotion_candidate: promotion || undefined,
+    };
+  }
+
   // 2. Build content for the Claude call.
   const initialDraft = isInitialDraftTurn(before);
   let corpusContent: any[] = [];
@@ -473,7 +514,7 @@ export async function runOrchestrator(input: OrchestrateInput): Promise<Orchestr
   }
 
   const systemPrompt = composeSystemPrompt({ caps, state: before, sectionFilter: input.sectionFilter });
-  const docBlock = renderDocumentStateForModel(before);
+  const docBlock = renderDocumentStateForModel(before, { focusKeys: input.sectionFilter });
   const chunksBlock = renderChunksForModel(chunks);
 
   const userTextParts: string[] = [];
@@ -537,7 +578,7 @@ export async function runOrchestrator(input: OrchestrateInput): Promise<Orchestr
       ...corpusContent,
       { type: 'text', text: [
         'CURRENT DOCUMENT (post-edit, with violations):',
-        renderDocumentStateForModel(working),
+        renderDocumentStateForModel(working, { focusKeys: input.sectionFilter }),
         '',
         'LINT ISSUES — these must be fixed before this turn can land:',
         ...lintIssues.map(i => '- ' + i),

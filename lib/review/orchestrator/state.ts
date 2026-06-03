@@ -226,7 +226,14 @@ export async function persistDocumentState(
  * conversation. We strip HTML to plain text in the listing so the model
  * sees what's there without burning tokens on tag noise.
  */
-export function renderDocumentStateForModel(state: DocumentState): string {
+export function renderDocumentStateForModel(
+  state: DocumentState,
+  options: { focusKeys?: string[] } = {},
+): string {
+  const focusSet = options.focusKeys && options.focusKeys.length > 0
+    ? new Set(options.focusKeys)
+    : null;
+
   const lines: string[] = [];
   lines.push(`Document: ${state.meta.org_name}${state.meta.org_city ? ', ' + state.meta.org_city : ''} — ${state.doc_type}`);
   if (state.meta.meeting) lines.push(`Meeting: ${state.meta.meeting}`);
@@ -246,17 +253,31 @@ export function renderDocumentStateForModel(state: DocumentState): string {
   }
 
   lines.push('');
-  lines.push(`SECTIONS (${state.sections.length}):`);
+  if (focusSet) {
+    lines.push(`SECTIONS (${state.sections.length}) — focused on [${[...focusSet].join(', ')}], other sections shown as outline only for context:`);
+  } else {
+    lines.push(`SECTIONS (${state.sections.length}):`);
+  }
+
   for (const s of state.sections) {
+    const isFocus = !focusSet || focusSet.has(s.section_key);
     lines.push('');
     lines.push(`[${s.section_key}] ${s.section_num ? s.section_num + '. ' : ''}${s.title}`);
-    if (s.prompt_text) lines.push(`  reader_prompt: ${s.prompt_text}`);
-    if (s.content_html) {
-      lines.push('  content_html:');
-      lines.push(indent(s.content_html, 4));
-    }
-    if (s.blocks && s.blocks.length > 0) {
-      lines.push(`  blocks: ${s.blocks.map(b => `${b.type}#${b.id}`).join(', ')}`);
+    if (isFocus) {
+      if (s.prompt_text) lines.push(`  reader_prompt: ${s.prompt_text}`);
+      if (s.content_html) {
+        lines.push('  content_html:');
+        lines.push(indent(s.content_html, 4));
+      }
+      if (s.blocks && s.blocks.length > 0) {
+        lines.push(`  blocks: ${s.blocks.map(b => `${b.type}#${b.id}`).join(', ')}`);
+      }
+    } else {
+      // Outline-only — saves tokens significantly when editing one section in
+      // a multi-section doc; the model gets enough context to know what other
+      // sections cover without their full HTML.
+      const wordCount = (s.content_html || '').replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+      lines.push(`  (outline only — ${wordCount} words, not editable this turn)`);
     }
   }
 
