@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isWikiSteward, isWikiCurator } from "@/lib/wiki/auth";
 import { redirect } from "next/navigation";
 import TranslationQueueView from "./TranslationQueueView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function TranslationQueuePage() {
   const session = await auth();
@@ -32,5 +33,9 @@ export default async function TranslationQueuePage() {
     },
   });
 
-  return <TranslationQueueView flags={JSON.parse(JSON.stringify(flags))} />;
+  return (
+    <SurfaceProvider id="wiki.translation_queue">
+      <TranslationQueueView flags={JSON.parse(JSON.stringify(flags))} />
+    </SurfaceProvider>
+  );
 }

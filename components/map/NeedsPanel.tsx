@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type DomainActuals = Record<string, { done: number; inProgress: number }>;
 type Existing = Record<string, number>;
@@ -290,15 +291,19 @@ export default function NeedsPanel({ mode, name, cluster, zone, settlementId, on
   }, [prevKey]);
 
   if (loading) return (
+    <SurfaceProvider id="map.needs_panel">
     <div className="flex items-center justify-center py-8">
       <div className="flex gap-1">
         {[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
       </div>
     </div>
+    </SurfaceProvider>
   );
 
   if (!data) return (
+    <SurfaceProvider id="map.needs_panel">
     <div className="py-6 text-center text-xs text-slate-400">No assessment data found</div>
+    </SurfaceProvider>
   );
 
   const noAssessment = !data.assessment && mode === "settlement";
@@ -321,6 +326,7 @@ export default function NeedsPanel({ mode, name, cluster, zone, settlementId, on
     : null;
 
   return (
+    <SurfaceProvider id="map.needs_panel">
     <div className="space-y-2">
       {/* Assessment metadata */}
       {mode === "settlement" && data.assessment && (
@@ -527,5 +533,6 @@ export default function NeedsPanel({ mode, name, cluster, zone, settlementId, on
         </div>
       )}
     </div>
+    </SurfaceProvider>
   );
 }

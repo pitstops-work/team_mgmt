@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { fmtDate, fmtTime } from "../_lib/helpers";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 /**
  * Minimal shape this sheet needs. Looser than the full `Activity` so the
@@ -115,6 +116,7 @@ export function RescheduleSheet({
   }
 
   return (
+    <SurfaceProvider id="activities.reschedule_sheet">
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
       <div
@@ -215,6 +217,7 @@ export function RescheduleSheet({
         </div>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }
 

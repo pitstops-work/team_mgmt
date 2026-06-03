@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import { ArrowLeft, ScrollText, Filter, RefreshCw } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type AuditEntry = {
   id: string;
@@ -128,6 +129,7 @@ export default function AuditLogPage() {
   if (!isAdmin) return null;
 
   return (
+    <SurfaceProvider id="settings.audit">
     <div className="mx-auto max-w-5xl px-4 py-6">
       <div className="mb-4 flex items-center gap-2">
         <Link href="/settings" className="rounded-md p-1 hover:bg-stone-100">
@@ -234,5 +236,6 @@ export default function AuditLogPage() {
         </div>
       )}
     </div>
+    </SurfaceProvider>
   );
 }

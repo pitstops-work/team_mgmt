@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import ThemesView from "./ThemesView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function ThemesPage() {
   const session = await auth();
@@ -21,9 +22,11 @@ export default async function ThemesPage() {
   });
 
   return (
-    <ThemesView
-      initialThemes={JSON.parse(JSON.stringify(themes))}
-      currentUserId={session!.user!.id!}
-    />
+    <SurfaceProvider id="themes.view">
+      <ThemesView
+        initialThemes={JSON.parse(JSON.stringify(themes))}
+        currentUserId={session!.user!.id!}
+      />
+    </SurfaceProvider>
   );
 }

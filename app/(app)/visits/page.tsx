@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { VisitsPlanner } from "./VisitsPlanner";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +27,11 @@ export default async function VisitsPage() {
   if (!me) redirect("/login");
 
   return (
-    <VisitsPlanner
-      currentUserId={me.id}
-      currentUserDesignation={me.designation ?? "Other"}
-    />
+    <SurfaceProvider id="visits.view">
+      <VisitsPlanner
+        currentUserId={me.id}
+        currentUserDesignation={me.designation ?? "Other"}
+      />
+    </SurfaceProvider>
   );
 }

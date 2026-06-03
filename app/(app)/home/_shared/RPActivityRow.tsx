@@ -10,6 +10,7 @@ import { fmtTime, fmtDate, fmtDateShort, isToday, daysDiff, daysAgo, activityMet
 import { STATUS_BADGE, STATUS_DOT, CHECKLIST_STATUS_DOT, EVENT_TYPE_COLOR, ACTIVITY_TYPE_STYLE, DESIGNATION_ORDER, DESIGNATION_COLOR, PITSTOP_STATUS_COLOR } from "../_lib/constants";
 import type { DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat, RPPitstopDetail, AdminDash, AdminGoal, AdminUser, AdminZone, OverduePitstop, AdminPersonHealth, AdminDelayedPitstop, AdminOverdueActivity, AdminEngagementStat, AdminCityCoverage, LeaderTeamMember, RPClusterDeckCluster, FacilityLayerConfigLite } from "../page";
 import { SectionTitle } from "../_shared/Primitives";
+import { fetchJson } from "@/lib/fetchJson";
 
 export function RPOverdueCard({
   a, linkedChecklist, onDone, onCompleted, isLoadingDone, isOverdue = true,
@@ -48,8 +49,12 @@ export function RPOverdueCard({
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const fd = new FormData();
         fd.append("audio", blob, "voice.webm");
-        const res = await fetch(`/api/checklist/${linkedChecklist.id}/voice`, { method: "POST", body: fd });
-        if (res.ok) onCompleted(linkedChecklist.id);
+        try {
+          await fetchJson(`/api/checklist/${linkedChecklist.id}/voice`, { method: "POST", body: fd });
+          onCompleted(linkedChecklist.id);
+        } catch {
+          // surface gate or transcription error
+        }
         setVoiceState("idle");
       };
       mediaRecorderRef.current = mr;
@@ -66,9 +71,13 @@ export function RPOverdueCard({
     const fd = new FormData();
     fd.append("file", file);
     fd.append("checklistItemId", linkedChecklist.id);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    try {
+      await fetchJson("/api/upload", { method: "POST", body: fd });
+      onCompleted(linkedChecklist.id);
+    } catch {
+      // surface gate or upload error
+    }
     setUploading(false);
-    if (res.ok) onCompleted(linkedChecklist.id);
   }
 
   return (
@@ -297,8 +306,12 @@ export function RPActivityRow({
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const fd = new FormData();
         fd.append("audio", blob, "voice.webm");
-        const res = await fetch(`/api/checklist/${linkedChecklist.id}/voice`, { method: "POST", body: fd });
-        if (res.ok) onCompleted(linkedChecklist.id);
+        try {
+          await fetchJson(`/api/checklist/${linkedChecklist.id}/voice`, { method: "POST", body: fd });
+          onCompleted(linkedChecklist.id);
+        } catch {
+          // surface gate or transcription error
+        }
         setVoiceState("idle");
       };
       mediaRecorderRef.current = mr;
@@ -317,9 +330,13 @@ export function RPActivityRow({
     const fd = new FormData();
     fd.append("file", file);
     fd.append("checklistItemId", linkedChecklist.id);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    try {
+      await fetchJson("/api/upload", { method: "POST", body: fd });
+      onCompleted(linkedChecklist.id);
+    } catch {
+      // surface gate or upload error
+    }
     setUploading(false);
-    if (res.ok) onCompleted(linkedChecklist.id);
   }
 
   return (

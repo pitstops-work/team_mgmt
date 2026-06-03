@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Languages } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 const LANGS = [
   { code: "en", label: "English",   native: "English"   },
@@ -38,6 +39,7 @@ export default function LanguageSettingsPage() {
   };
 
   return (
+    <SurfaceProvider id="settings.language">
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <h1 className="text-xl font-semibold text-stone-900 mb-8">Settings</h1>
 
@@ -71,5 +73,6 @@ export default function LanguageSettingsPage() {
         {langSuccess && <p className="text-xs text-emerald-600 mt-3">Language preference saved.</p>}
       </section>
     </div>
+    </SurfaceProvider>
   );
 }

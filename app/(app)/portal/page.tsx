@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CalendarClock, Target, BarChart3, FileText, ClipboardCheck } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import SignOutButton from "@/components/SignOutButton";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function PortalPage() {
   const session = await auth();
@@ -12,6 +13,7 @@ export default async function PortalPage() {
   const firstName = session.user.name?.split(" ")[0] ?? "there";
 
   return (
+    <SurfaceProvider id="portal.view">
     <div className="min-h-full bg-stone-50 flex flex-col items-center justify-center px-6 py-12">
 
       {/* Logo */}
@@ -108,5 +110,6 @@ export default async function PortalPage() {
       </div>
 
     </div>
+    </SurfaceProvider>
   );
 }

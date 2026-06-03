@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   X, ChevronRight, Plus, Pencil, Minus, AlertTriangle, CheckCircle, Loader2, Send,
 } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type SyncChange = {
   kind: "add" | "edit" | "remove";
@@ -126,6 +127,7 @@ export default function TemplateSyncModal({ templateId, templateName, onClose }:
   };
 
   return (
+    <SurfaceProvider id="settings.template_sync_modal">
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={onClose}>
       <div
         className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col"
@@ -277,6 +279,7 @@ export default function TemplateSyncModal({ templateId, templateName, onClose }:
         )}
       </div>
     </div>
+    </SurfaceProvider>
   );
 }
 

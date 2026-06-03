@@ -12,16 +12,23 @@ import prisma from "./prisma";
 
 // ── Scope rule kinds (the closed set surfaced in the admin UI) ───────────────
 
+/**
+ * Optional `surfaces` allowlist (set in the admin UI) restricts the grant to
+ * requests originating from those UI surfaces (see lib/rbacSurfaces.ts). Omit
+ * / leave empty for "any surface" (the default, backwards-compatible behavior).
+ */
+type WithSurfaces<T> = T & { surfaces?: string[] };
+
 export type ScopeRule =
-  | { kind: "all" }
-  | { kind: "self" }
-  | { kind: "own" }
-  | { kind: "team" }
-  | { kind: "city" }
-  | { kind: "team_and_city" }
-  | { kind: "own_or_followed" }
-  | { kind: "team_or_subscribed" }
-  | { kind: "own_or_subscribed" };
+  | WithSurfaces<{ kind: "all" }>
+  | WithSurfaces<{ kind: "self" }>
+  | WithSurfaces<{ kind: "own" }>
+  | WithSurfaces<{ kind: "team" }>
+  | WithSurfaces<{ kind: "city" }>
+  | WithSurfaces<{ kind: "team_and_city" }>
+  | WithSurfaces<{ kind: "own_or_followed" }>
+  | WithSurfaces<{ kind: "team_or_subscribed" }>
+  | WithSurfaces<{ kind: "own_or_subscribed" }>;
 
 export const SCOPE_KINDS = [
   "all",
@@ -99,6 +106,11 @@ export const RESOURCE_ACTIONS: Record<string, readonly string[]> = {
   app_setting: [...STANDARD_ACTIONS],
   invite_code: ["read", "rotate"],
   audit_log: ["list", "read"],
+  // RBAC self-management. Only super-admin should edit the role catalog itself
+  // (gated via ADMIN_EXCLUDED below). `list` powers the /settings/roles link.
+  role: ["list", "read", "update"],
+  // Wiki staff designation (curator/steward). Admin can manage; member just lists.
+  wiki_staff: ["list", "manage"],
   review_portal: ["access"],
   budget: [...STANDARD_ACTIONS],
   // Catalog refresh 2026-05-22 — new resources.
@@ -137,6 +149,8 @@ const ADMIN_EXCLUDED = new Set<string>([
   "invite_code.rotate",
   "settlement.sync_civic_data",
   "budget.list", "budget.read", "budget.create", "budget.update", "budget.delete",
+  // Role catalog is super-admin-only — admins can't grant themselves more rights.
+  "role.list", "role.read", "role.update",
   // Catalog refresh 2026-05-22 — admin still gets these via city/team scope at the
   // role row; keeping admin = ALL for new resources unless we add exclusions later.
 ]);

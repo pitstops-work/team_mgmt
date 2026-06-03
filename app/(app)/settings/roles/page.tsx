@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, Shield } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type Role = {
   id: string;
@@ -46,6 +47,7 @@ export default function RolesListPage() {
   if (status === "loading" || !isSuperAdmin) return null;
 
   return (
+    <SurfaceProvider id="settings.roles">
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <Link
         href="/settings"
@@ -91,5 +93,6 @@ export default function RolesListPage() {
         ))}
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

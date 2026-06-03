@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
   // Editing any field of a checklist item (incl. ticking it Done) requires the
   // checklist_item.update permission, scoped to the parent pitstop (own/team/all).
   // Completing the linked activity is a separate path governed by pitstop_event.update.
-  const ctx = await buildRbacContext(session);
+  const ctx = await buildRbacContext(session, { req });
   if (!(await checklistItemInScope(ctx, itemId, "update"))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -107,11 +107,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
   return Response.json(updated[0] ?? { ok: true });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const { itemId } = await params;
-  const ctx = await buildRbacContext(session);
+  const ctx = await buildRbacContext(session, { req });
   if (!(await checklistItemInScope(ctx, itemId, "delete"))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }

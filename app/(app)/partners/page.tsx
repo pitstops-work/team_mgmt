@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { LAYERS } from "@/lib/layers";
 import PartnersPage from "./PartnersPage";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 const BUILT_IN_PARTNER_LAYERS = LAYERS.filter(
   l => l.type === "polygon" && l.key !== "custom_settlements" && l.file !== ""
@@ -23,9 +24,11 @@ export default async function Page() {
   });
 
   return (
-    <PartnersPage
-      dbPartners={dbPartners}
-      customPolygons={[]}
-    />
+    <SurfaceProvider id="partners.list">
+      <PartnersPage
+        dbPartners={dbPartners}
+        customPolygons={[]}
+      />
+    </SurfaceProvider>
   );
 }

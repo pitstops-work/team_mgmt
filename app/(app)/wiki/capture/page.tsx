@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import CaptureSheet from "./CaptureSheet";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import { isValidSectionNumber, type SectionNumber } from "@/lib/wiki/manual";
 
 type SearchParams = Promise<{ manual?: string; page?: string; section?: string }>;
@@ -41,10 +42,12 @@ export default async function CapturePage({ searchParams }: { searchParams: Sear
   const prefillSectionNumber: SectionNumber | null = isValidSectionNumber(sectionRaw) ? sectionRaw : null;
 
   return (
-    <CaptureSheet
-      verticals={verticals.map((v) => ({ domain: v.domain, label: v.label ?? v.domain }))}
-      prefillTarget={prefillTarget}
-      prefillSectionNumber={prefillSectionNumber}
-    />
+    <SurfaceProvider id="wiki.capture">
+      <CaptureSheet
+        verticals={verticals.map((v) => ({ domain: v.domain, label: v.label ?? v.domain }))}
+        prefillTarget={prefillTarget}
+        prefillSectionNumber={prefillSectionNumber}
+      />
+    </SurfaceProvider>
   );
 }

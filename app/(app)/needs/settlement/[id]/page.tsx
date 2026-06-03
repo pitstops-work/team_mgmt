@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import AssessmentForm from "./AssessmentForm";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function SettlementNeedsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -52,11 +53,13 @@ export default async function SettlementNeedsPage({ params }: { params: Promise<
   });
 
   return (
-    <AssessmentForm
-      settlement={JSON.parse(JSON.stringify(settlement))}
-      schemes={JSON.parse(JSON.stringify(schemes))}
-      formulas={JSON.parse(JSON.stringify(formulas))}
-      goals={JSON.parse(JSON.stringify(goals))}
-    />
+    <SurfaceProvider id="needs.settlement">
+      <AssessmentForm
+        settlement={JSON.parse(JSON.stringify(settlement))}
+        schemes={JSON.parse(JSON.stringify(schemes))}
+        formulas={JSON.parse(JSON.stringify(formulas))}
+        goals={JSON.parse(JSON.stringify(goals))}
+      />
+    </SurfaceProvider>
   );
 }

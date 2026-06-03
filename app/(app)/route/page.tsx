@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import RoutePlannerLoader from "./RoutePlannerLoader";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export const metadata = { title: "Route Planner · Urban Program" };
 
@@ -86,8 +87,10 @@ export default async function RoutePlannerPage() {
   });
 
   return (
-    <div className="absolute inset-0">
-      <RoutePlannerLoader stops={stops} />
-    </div>
+    <SurfaceProvider id="route.view">
+      <div className="absolute inset-0">
+        <RoutePlannerLoader stops={stops} />
+      </div>
+    </SurfaceProvider>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Lock, CheckCircle2, MapPin } from "lucide-react";
 import { toDateInput } from "@/lib/timeline";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type Recurrence = "None" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
 
@@ -227,6 +228,7 @@ export default function EditGoalModal({ goal, onClose, onUpdated, isAdmin = fals
   };
 
   return (
+    <SurfaceProvider id="goal.edit_modal">
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
@@ -533,5 +535,6 @@ export default function EditGoalModal({ goal, onClose, onUpdated, isAdmin = fals
         </form>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

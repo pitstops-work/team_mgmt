@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import PeopleDashboard from "./PeopleDashboard";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import { buildRbacContext, scopeWhere } from "@/lib/rbac";
 
 export default async function PeoplePage() {
@@ -48,10 +49,12 @@ export default async function PeoplePage() {
   ]);
 
   return (
-    <PeopleDashboard
-      users={JSON.parse(JSON.stringify(users))}
-      goals={JSON.parse(JSON.stringify(goals))}
-      partners={partners.map(p => ({ id: p.id, key: p.key, label: p.label, color: p.color, isBuiltIn: p.isBuiltIn }))}
-    />
+    <SurfaceProvider id="people.list">
+      <PeopleDashboard
+        users={JSON.parse(JSON.stringify(users))}
+        goals={JSON.parse(JSON.stringify(goals))}
+        partners={partners.map(p => ({ id: p.id, key: p.key, label: p.label, color: p.color, isBuiltIn: p.isBuiltIn }))}
+      />
+    </SurfaceProvider>
   );
 }

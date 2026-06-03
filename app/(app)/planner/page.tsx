@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import PlannerView from "./PlannerView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function PlannerPage() {
   const session = await auth();
@@ -104,15 +105,17 @@ export default async function PlannerPage() {
   });
 
   return (
-    <PlannerView
-      currentUserId={currentUserId}
-      initialYear={currentYear}
-      initialQuarter={currentQuarter}
-      users={JSON.parse(JSON.stringify(users))}
-      initialPitstops={JSON.parse(JSON.stringify(pitstops))}
-      initialActivities={JSON.parse(JSON.stringify(activities))}
-      initialPlanItems={JSON.parse(JSON.stringify(planItems))}
-      allPitstops={JSON.parse(JSON.stringify(allPitstops))}
-    />
+    <SurfaceProvider id="planner.view">
+      <PlannerView
+        currentUserId={currentUserId}
+        initialYear={currentYear}
+        initialQuarter={currentQuarter}
+        users={JSON.parse(JSON.stringify(users))}
+        initialPitstops={JSON.parse(JSON.stringify(pitstops))}
+        initialActivities={JSON.parse(JSON.stringify(activities))}
+        initialPlanItems={JSON.parse(JSON.stringify(planItems))}
+        allPitstops={JSON.parse(JSON.stringify(allPitstops))}
+      />
+    </SurfaceProvider>
   );
 }

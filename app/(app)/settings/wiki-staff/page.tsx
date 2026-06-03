@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import WikiStaffView from "./WikiStaffView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function WikiStaffPage() {
   const session = await auth();
@@ -24,9 +25,11 @@ export default async function WikiStaffPage() {
   ]);
 
   return (
-    <WikiStaffView
-      staff={JSON.parse(JSON.stringify(staff))}
-      users={users}
-    />
+    <SurfaceProvider id="settings.wiki_staff">
+      <WikiStaffView
+        staff={JSON.parse(JSON.stringify(staff))}
+        users={users}
+      />
+    </SurfaceProvider>
   );
 }

@@ -15,6 +15,7 @@ import { ActionPointCard } from "./ActionPointCard";
 import { MarkAPDoneModal } from "./MarkAPDoneModal";
 import { EditAPModal } from "./EditAPModal";
 import type { ActionPoint } from "./types";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type Tab = "open" | "done";
 
@@ -69,6 +70,7 @@ export function PitstopAPPanel({
   const total = rows?.length ?? 0;
 
   return (
+    <SurfaceProvider id="pitstop.ap_panel">
     <div className="border-t border-stone-200 mt-3 pt-3">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -158,5 +160,6 @@ export function PitstopAPPanel({
         />
       )}
     </div>
+    </SurfaceProvider>
   );
 }

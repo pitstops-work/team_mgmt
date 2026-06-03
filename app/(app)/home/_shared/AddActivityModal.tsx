@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export type ActivityModalUser = { id: string; name: string | null; image: string | null };
 export type ActivityModalPitstopRef = {
@@ -135,6 +136,7 @@ export default function AddActivityModal({
   };
 
   return (
+    <SurfaceProvider id="activities.add_modal">
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
@@ -250,5 +252,6 @@ export default function AddActivityModal({
         </form>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Target, ChevronRight, ChevronLeft, Briefcase } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -592,6 +593,7 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
   const canProceedFromStep2 = !!needsDomain;
 
   return (
+    <SurfaceProvider id="goal.create_modal">
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
       <div
         className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
@@ -742,5 +744,6 @@ export default function CreateGoalModal({ onClose, onCreated, prefill }: Props) 
         </div>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import prisma from "@/lib/prisma";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function PlaybooksIndexPage() {
   const rows = await prisma.$queryRaw<{
@@ -24,6 +25,7 @@ export default async function PlaybooksIndexPage() {
   }, {});
 
   return (
+    <SurfaceProvider id="help.templates">
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pb-24 sm:pb-8">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/help" className="flex items-center gap-1 text-xs text-stone-400 hover:text-sky-600 transition-colors">
@@ -73,5 +75,6 @@ export default async function PlaybooksIndexPage() {
         ))}
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

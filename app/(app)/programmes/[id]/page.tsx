@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Plus, Pencil, Trash2, Activity, Target, Check, X, Layers, MapPin, Network, Table as TableIcon } from "lucide-react";
 import PhaseCanvas from "./PhaseCanvas";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type Journey = {
   id: string; key: string; label: string; primaryDomain: string | null;
@@ -98,6 +99,7 @@ export default function ProgrammeDetailPage({ params }: { params: Promise<{ id: 
   const isSuper = !journey.primaryDomain;
 
   return (
+    <SurfaceProvider id="programmes.detail">
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {/* Header */}
       <div className="flex items-start gap-3 mb-4">
@@ -258,6 +260,7 @@ export default function ProgrammeDetailPage({ params }: { params: Promise<{ id: 
         </section>
       )}
     </div>
+    </SurfaceProvider>
   );
 }
 

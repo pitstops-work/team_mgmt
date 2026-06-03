@@ -5,6 +5,7 @@ import {
   X, CheckCircle2, Circle, Mic, Square, Upload, Loader2, Calendar, Plus, CheckSquare,
 } from "lucide-react";
 import { confirmManualChecklistTick } from "@/lib/checklistGate";
+import { fetchJson } from "@/lib/fetchJson";
 
 type Activity = {
   id: string;
@@ -147,10 +148,9 @@ function QuickItem({
     const next = !isDone;
     if (!confirmManualChecklistTick(item.completionType ?? undefined, next)) return;
     onItemPatch({ checked: next, status: next ? "Done" : "NotStarted" });
-    await fetch(`/api/checklist/${item.id}`, {
+    await fetchJson(`/api/checklist/${item.id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ checked: next }),
+      json: { checked: next },
     });
   };
 
@@ -212,40 +212,41 @@ function ActivityControls({
 
   const markDone = async (actId: string) => {
     onActivityPatch(actId, { status: "Done", completedAt: new Date().toISOString() });
-    await fetch(`/api/pitstop-events/${actId}`, {
+    await fetchJson(`/api/pitstop-events/${actId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Done" }),
+      json: { status: "Done" },
     });
   };
 
   const undoDone = async (actId: string) => {
     onActivityPatch(actId, { status: "Scheduled", completedAt: null });
-    await fetch(`/api/pitstop-events/${actId}`, {
+    await fetchJson(`/api/pitstop-events/${actId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Scheduled" }),
+      json: { status: "Scheduled" },
     });
   };
 
   const handleAdd = async () => {
     if (!date) return;
     setSaving(true);
-    const res = await fetch("/api/pitstop-events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: title.trim() || item.text,
-        scheduledAt: new Date(date).toISOString(),
-        pitstopIds: [pitstopId],
-        checklistItemId: item.id,
-      }),
-    });
-    if (res.ok) {
-      const evt = await res.json();
+    try {
+      const evt = await fetchJson<{ id: string; title: string; scheduledAt: string }>(
+        "/api/pitstop-events",
+        {
+          method: "POST",
+          json: {
+            title: title.trim() || item.text,
+            scheduledAt: new Date(date).toISOString(),
+            pitstopIds: [pitstopId],
+            checklistItemId: item.id,
+          },
+        },
+      );
       onActivityAdded({ id: evt.id, title: evt.title, scheduledAt: evt.scheduledAt, status: "Scheduled" });
       setTitle("");
       setAdding(false);
+    } catch {
+      // surface gate or network error — leave the form open
     }
     setSaving(false);
   };
@@ -359,9 +360,11 @@ function VoiceControl({
           const blob = new Blob(chunksRef.current, { type: mimeType });
           const fd = new FormData();
           fd.append("audio", blob, `recording.${mimeType.includes("mp4") ? "mp4" : "webm"}`);
-          const res = await fetch(`/api/checklist/${item.id}/voice`, { method: "POST", body: fd });
-          if (res.ok) {
+          try {
+            await fetchJson(`/api/checklist/${item.id}/voice`, { method: "POST", body: fd });
             onItemPatch({ checked: true, status: "Done", completedAt: new Date().toISOString() });
+          } catch {
+            // surface gate or transcription error — keep the item un-ticked
           }
         } finally {
           setState("idle");
@@ -425,9 +428,11 @@ function UploadControl({
     const fd = new FormData();
     fd.append("file", file);
     fd.append("checklistItemId", item.id);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (res.ok) {
+    try {
+      await fetchJson("/api/upload", { method: "POST", body: fd });
       onItemPatch({ checked: true, status: "Done", completedAt: new Date().toISOString() });
+    } catch {
+      // surface gate or upload error
     }
     setUploading(false);
     if (inputRef.current) inputRef.current.value = "";

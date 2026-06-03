@@ -6,6 +6,7 @@ import { forbidden, notFound } from "next/navigation";
 import { toEngineTemplate } from "@/lib/models/fromPrisma";
 import type { InstanceInputs } from "@/lib/models/types";
 import PlayWorkbench from "./PlayWorkbench";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function ModelPlayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -73,16 +74,18 @@ export default async function ModelPlayPage({ params }: { params: Promise<{ id: 
   const inputs = (instance.inputsJson ?? {}) as InstanceInputs;
 
   return (
-    <PlayWorkbench
-      instanceId={instance.id}
-      instanceName={instance.name}
-      scenarioName={instance.scenarioName}
-      template={template}
-      initialInputs={inputs}
-      siblings={siblings.length > 1 ? siblings : null}
-      headId={headId}
-      attachedPitstop={attachedPitstop}
-      canSeeDashboard={canSeeDashboard}
-    />
+    <SurfaceProvider id="models.detail">
+      <PlayWorkbench
+        instanceId={instance.id}
+        instanceName={instance.name}
+        scenarioName={instance.scenarioName}
+        template={template}
+        initialInputs={inputs}
+        siblings={siblings.length > 1 ? siblings : null}
+        headId={headId}
+        attachedPitstop={attachedPitstop}
+        canSeeDashboard={canSeeDashboard}
+      />
+    </SurfaceProvider>
   );
 }

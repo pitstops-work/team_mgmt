@@ -10,6 +10,7 @@ import { RescheduleSheet } from "../home/_shared/RescheduleSheet";
 import { ClusterSplitBanner } from "../home/_shared/ClusterSplitBanner";
 import { ClusterBatchRescheduleSheet } from "../home/_shared/ClusterBatchRescheduleSheet";
 import AddActivityModal from "../home/_shared/AddActivityModal";
+import { fetchJson, FetchJsonError } from "@/lib/fetchJson";
 
 type User = { id: string; name: string | null; image: string | null };
 type PitstopOwner = { id: string; name: string | null; image: string | null };
@@ -368,24 +369,31 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
 
   async function markDone() {
     setBusy(true);
-    const res = await fetch(`/api/pitstop-events/${ev.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Done" }),
-    });
+    try {
+      const updated = await fetchJson<Record<string, unknown>>(`/api/pitstop-events/${ev.id}`, {
+        method: "PATCH",
+        json: { status: "Done" },
+      });
+      onUpdated(ev.id, updated);
+      setShowAction(false);
+    } catch (err) {
+      if (err instanceof FetchJsonError) alert(err.message);
+    }
     setBusy(false);
-    if (res.ok) { onUpdated(ev.id, await res.json()); setShowAction(false); }
   }
 
   async function undoComplete() {
     setBusy(true);
-    const res = await fetch(`/api/pitstop-events/${ev.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Scheduled" }),
-    });
+    try {
+      const updated = await fetchJson<Record<string, unknown>>(`/api/pitstop-events/${ev.id}`, {
+        method: "PATCH",
+        json: { status: "Scheduled" },
+      });
+      onUpdated(ev.id, updated);
+    } catch (err) {
+      if (err instanceof FetchJsonError) alert(err.message);
+    }
     setBusy(false);
-    if (res.ok) onUpdated(ev.id, await res.json());
   }
 
   async function startVoice() {
@@ -401,8 +409,12 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const fd = new FormData();
         fd.append("audio", blob, "voice.webm");
-        const res = await fetch(`/api/checklist/${ev.checklistItem!.id}/voice`, { method: "POST", body: fd });
-        if (res.ok) await markDone();
+        try {
+          await fetchJson(`/api/checklist/${ev.checklistItem!.id}/voice`, { method: "POST", body: fd });
+          await markDone();
+        } catch {
+          // surface gate or transcription error
+        }
         setVoiceState("idle");
       };
       mediaRecorderRef.current = mr;
@@ -417,9 +429,13 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
     const fd = new FormData();
     fd.append("file", file);
     fd.append("checklistItemId", ev.checklistItem.id);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    try {
+      await fetchJson("/api/upload", { method: "POST", body: fd });
+      await markDone();
+    } catch {
+      // surface gate or upload error
+    }
     setUploading(false);
-    if (res.ok) await markDone();
   }
 
   const [todayBusy, setTodayBusy] = useState(false);
@@ -428,16 +444,15 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
     setTodayBusy(true);
     try {
       const method = pulledToToday ? "DELETE" : "POST";
-      const res = await fetch(`/api/pitstop-events/${ev.id}/display-today`, { method });
-      if (res.ok) {
-        // Optimistic patch so the badge flips without waiting for a server-render.
-        onUpdated(ev.id, { displayDate: pulledToToday ? null : new Date().toISOString() });
-      } else {
-        const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        alert(body.error || `Could not ${pulledToToday ? "remove from" : "add to"} today.`);
-      }
+      await fetchJson(`/api/pitstop-events/${ev.id}/display-today`, { method });
+      // Optimistic patch so the badge flips without waiting for a server-render.
+      onUpdated(ev.id, { displayDate: pulledToToday ? null : new Date().toISOString() });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Network error.");
+      if (err instanceof FetchJsonError) {
+        alert(err.message || `Could not ${pulledToToday ? "remove from" : "add to"} today.`);
+      } else {
+        alert(err instanceof Error ? err.message : "Network error.");
+      }
     } finally {
       setTodayBusy(false);
     }

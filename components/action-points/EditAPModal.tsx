@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { X, AlertTriangle } from "lucide-react";
 import type { ActionPoint, APPriority } from "./types";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 function ymdFromIso(iso: string): string {
   const d = new Date(iso);
@@ -53,6 +54,7 @@ export function EditAPModal({
   }
 
   return (
+    <SurfaceProvider id="action_point.edit_modal">
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
@@ -120,5 +122,6 @@ export function EditAPModal({
         </div>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

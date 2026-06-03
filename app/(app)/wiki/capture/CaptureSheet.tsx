@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Search, X, Sprout, Lock, Inbox, CheckCircle2, Plus, BookOpen, FileText } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import {
   MANUAL_TYPE,
   SECTION_NUMBERS,
@@ -184,6 +185,7 @@ export default function CaptureSheet({
   }, [target, body, vertical, submitting]);
 
   return (
+    <SurfaceProvider id="wiki.capture_sheet">
     <main className="min-h-screen bg-stone-50">
       <div className="max-w-2xl mx-auto px-4 py-6">
         <Link
@@ -385,6 +387,7 @@ export default function CaptureSheet({
         )}
       </div>
     </main>
+    </SurfaceProvider>
   );
 }
 

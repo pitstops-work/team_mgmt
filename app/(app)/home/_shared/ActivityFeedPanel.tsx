@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CalendarClock, CheckSquare, Target, MapPin, BarChart3, ChevronRight, ChevronLeft, LayoutDashboard, Users, TrendingUp, AlertTriangle, CheckCircle2, Clock, Filter, ChevronDown, ChevronUp, Mic, Square, Loader2, Paperclip } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
 import Avatar from "@/components/Avatar";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import type { ActivityGoal, Activity, ChecklistItem, Goal, TeamMember, ZLTeamActivity, TabKey } from "../_lib/types";
 import { fmtTime, fmtDate, fmtDateShort, isToday, daysDiff, daysAgo, activityMeta, groupByDay, fmtDomain, groupBySla, slaHeaderLabel, engLevel, istTodayStr, shiftIstDate } from "../_lib/helpers";
 import { STATUS_BADGE, STATUS_DOT, CHECKLIST_STATUS_DOT, EVENT_TYPE_COLOR, ACTIVITY_TYPE_STYLE, DESIGNATION_ORDER, DESIGNATION_COLOR, PITSTOP_STATUS_COLOR } from "../_lib/constants";
@@ -52,11 +53,12 @@ export function ActivityFeedPanel({ userId, date }: { userId: string; date: stri
     return () => { cancelled = true; };
   }, [userId, date]);
 
-  if (loading) return <p className="text-[11px] text-stone-400">Loading activity…</p>;
-  if (error)   return <p className="text-[11px] text-red-500">Failed to load activity: {error}</p>;
-  if (!items || items.length === 0) return <p className="text-[11px] text-stone-400">No activity on this date.</p>;
+  if (loading) return <SurfaceProvider id="activities.feed_panel"><p className="text-[11px] text-stone-400">Loading activity…</p></SurfaceProvider>;
+  if (error)   return <SurfaceProvider id="activities.feed_panel"><p className="text-[11px] text-red-500">Failed to load activity: {error}</p></SurfaceProvider>;
+  if (!items || items.length === 0) return <SurfaceProvider id="activities.feed_panel"><p className="text-[11px] text-stone-400">No activity on this date.</p></SurfaceProvider>;
 
   return (
+    <SurfaceProvider id="activities.feed_panel">
     <ol className="space-y-1.5">
       {items.map((it, i) => {
         const time = new Date(it.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
@@ -77,6 +79,7 @@ export function ActivityFeedPanel({ userId, date }: { userId: string; date: stri
         );
       })}
     </ol>
+    </SurfaceProvider>
   );
 }
 

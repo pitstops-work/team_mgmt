@@ -39,6 +39,7 @@ async function main() {
       role,
       designation: user?.designation ?? "Other",
       cityId: user?.cityId ?? null,
+      surface: null,
     };
     console.log(`── role: ${role} ──────────────────────────`);
     for (const check of CHECKS) {

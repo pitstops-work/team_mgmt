@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 import { X, Calendar, ArrowRight, Loader2 } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -75,6 +76,7 @@ export function RescheduleVisitModal({
   }
 
   return (
+    <SurfaceProvider id="pitstop.reschedule_modal">
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
@@ -134,5 +136,6 @@ export function RescheduleVisitModal({
         </div>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

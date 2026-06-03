@@ -3,13 +3,17 @@ import prisma from "@/lib/prisma";
 import { generateCalendarToken } from "@/lib/calendarToken";
 import { buildRbacContext, scopeWhere, getScopeRule, getTeamIds } from "@/lib/rbac";
 import EventsCalendar from "./EventsCalendar";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function ActivitiesPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const session = await auth();
   const sp = await searchParams;
   const inviteEventId = sp.invite ?? null;
 
-  const ctx = await buildRbacContext(session);
+  // Declares the RSC's surface so surface-restricted grants on pitstop_event
+  // (e.g. RP `update` allowed only from activities.list / home.today) resolve
+  // to the right scope when computing UI capabilities below.
+  const ctx = await buildRbacContext(session, { surface: "activities.list" });
   const eventScope = ctx ? await scopeWhere(ctx, "pitstop_event", "list") : null;
   const pitstopScope = ctx ? await scopeWhere(ctx, "pitstop", "list") : null;
   const eventAttendeeFilter: Record<string, unknown> = eventScope ?? {};
@@ -120,17 +124,19 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
   const calendarToken = session?.user?.id ? generateCalendarToken(session.user.id) : null;
 
   return (
-    <EventsCalendar
-      events={JSON.parse(JSON.stringify(events))}
-      pitstops={JSON.parse(JSON.stringify(pitstops))}
-      users={JSON.parse(JSON.stringify(users))}
-      currentUserId={session!.user!.id!}
-      eventUpdateScope={eventUpdateScope}
-      manageableTeamIds={manageableTeamIds}
-      zones={JSON.parse(JSON.stringify(zones))}
-      clusters={JSON.parse(JSON.stringify(clusters))}
-      calendarToken={calendarToken}
-      inviteEventId={inviteEventId}
-    />
+    <SurfaceProvider id="activities.list">
+      <EventsCalendar
+        events={JSON.parse(JSON.stringify(events))}
+        pitstops={JSON.parse(JSON.stringify(pitstops))}
+        users={JSON.parse(JSON.stringify(users))}
+        currentUserId={session!.user!.id!}
+        eventUpdateScope={eventUpdateScope}
+        manageableTeamIds={manageableTeamIds}
+        zones={JSON.parse(JSON.stringify(zones))}
+        clusters={JSON.parse(JSON.stringify(clusters))}
+        calendarToken={calendarToken}
+        inviteEventId={inviteEventId}
+      />
+    </SurfaceProvider>
   );
 }

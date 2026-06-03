@@ -4,6 +4,7 @@ import { buildRbacContext, can } from "@/lib/rbac";
 import { forbidden } from "next/navigation";
 import Link from "next/link";
 import NewTemplateButton from "./NewTemplateButton";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function TemplatesListPage() {
   const session = await auth();
@@ -18,6 +19,7 @@ export default async function TemplatesListPage() {
   });
 
   return (
+    <SurfaceProvider id="models.templates">
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -55,5 +57,6 @@ export default async function TemplatesListPage() {
         <p className="mt-6 text-xs text-stone-400">Editing requires admin access.</p>
       )}
     </div>
+    </SurfaceProvider>
   );
 }

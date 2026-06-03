@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Activity, MapPin, Target, ChevronRight, Layers, Plus, X } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type JourneyListItem = {
   id: string;
@@ -55,6 +56,7 @@ export default function ProgrammesPage() {
   });
 
   return (
+    <SurfaceProvider id="programmes.list">
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <div className="flex items-center gap-3 mb-2">
         <Layers className="w-5 h-5 text-stone-400" />
@@ -216,5 +218,6 @@ export default function ProgrammesPage() {
         </div>
       )}
     </div>
+    </SurfaceProvider>
   );
 }

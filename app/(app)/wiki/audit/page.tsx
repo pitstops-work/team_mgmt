@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isWikiSteward } from "@/lib/wiki/auth";
 import { redirect } from "next/navigation";
 import AuditView from "./AuditView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -80,5 +81,9 @@ export default async function WikiAuditPage() {
     };
   });
 
-  return <AuditView pages={decorated} />;
+  return (
+    <SurfaceProvider id="wiki.audit">
+      <AuditView pages={decorated} />
+    </SurfaceProvider>
+  );
 }

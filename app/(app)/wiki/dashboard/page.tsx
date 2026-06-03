@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen, LayoutDashboard } from "lucide-react";
 import OwnerDashboard from "./OwnerDashboard";
 import StewardDashboard from "./StewardDashboard";
 import CuratorDashboard from "./CuratorDashboard";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -75,6 +76,7 @@ export default async function WikiDashboardPage() {
     : null;
 
   return (
+    <SurfaceProvider id="wiki.dashboard">
     <main className="min-h-screen bg-stone-50">
       <div className="max-w-5xl mx-auto px-4 py-6">
         <Link
@@ -127,6 +129,7 @@ export default async function WikiDashboardPage() {
         )}
       </div>
     </main>
+    </SurfaceProvider>
   );
 }
 

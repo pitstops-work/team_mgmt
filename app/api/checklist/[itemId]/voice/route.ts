@@ -16,7 +16,7 @@ export async function POST(
   // A voice log completes the linked activity (its proof). Governed by
   // pitstop_event.update — the permission to complete activities — NOT
   // checklist_item.update, which only gates direct manual edits to the list.
-  const ctx = await buildRbacContext(session);
+  const ctx = await buildRbacContext(session, { req });
   if (!ctx || !(await can(ctx, "pitstop_event", "update"))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }

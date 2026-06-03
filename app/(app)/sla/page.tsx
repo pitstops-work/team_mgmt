@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { isAdminUser, isSuperAdmin } from "@/lib/roleGuard";
 import prisma from "@/lib/prisma";
 import SlaView, { type SlaItem, type SlaStatus } from "./SlaView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export const metadata = { title: "SLA Compliance" };
 
@@ -170,6 +171,7 @@ export default async function SlaPage() {
     : null;
 
   return (
+    <SurfaceProvider id="sla.view">
     <div className="flex flex-col min-h-full bg-white">
       <div className="px-5 sm:px-8 pt-6 pb-5 border-b border-stone-100">
         <h1 className="text-xl font-semibold text-stone-900">SLA Compliance</h1>
@@ -190,5 +192,6 @@ export default async function SlaPage() {
         <SlaView items={items} showCityFilter={superAdmin} />
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

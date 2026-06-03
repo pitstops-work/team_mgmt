@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const veto = viewerForbidden(session); if (veto) return veto;
 
-  const ctx = await buildRbacContext(session);
+  const ctx = await buildRbacContext(session, { req });
   if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;

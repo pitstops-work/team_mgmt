@@ -4,6 +4,7 @@ import { isSuperAdmin } from "@/lib/roleGuard";
 import { auditLog } from "@/lib/auditLog";
 import { invalidateRbacCache } from "@/lib/rbac";
 import { SCOPE_KINDS, RESOURCE_ACTIONS, SCOPE_LABELS } from "@/lib/rbacSeed";
+import { SURFACES, isKnownSurface } from "@/lib/rbacSurfaces";
 
 const VALID_KINDS = new Set<string>(SCOPE_KINDS);
 
@@ -56,6 +57,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ roleId:
     groups,
     scopeKinds: SCOPE_KINDS,
     scopeLabels: SCOPE_LABELS,
+    surfaces: SURFACES,
   });
 }
 
@@ -71,17 +73,34 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ roleId
   const role = await prisma.role.findUnique({ where: { id: roleId } });
   if (!role) return Response.json({ error: "Not found" }, { status: 404 });
 
-  const body = await req.json().catch(() => null) as { updates?: Array<{ permissionId: string; granted: boolean; scopeRule?: { kind: string } }> } | null;
+  const body = await req.json().catch(() => null) as {
+    updates?: Array<{
+      permissionId: string;
+      granted: boolean;
+      scopeRule?: { kind: string; surfaces?: string[] };
+    }>;
+  } | null;
   if (!body || !Array.isArray(body.updates)) {
     return Response.json({ error: "Body must be { updates: [...] }" }, { status: 400 });
   }
 
-  // Validate scope kinds before doing any DB work
+  // Validate scope kinds + surfaces before doing any DB work
   for (const u of body.updates) {
     if (u.granted) {
       const kind = u.scopeRule?.kind;
       if (!kind || !VALID_KINDS.has(kind)) {
         return Response.json({ error: `Invalid scope kind: ${kind ?? "(missing)"}` }, { status: 400 });
+      }
+      const surfaces = u.scopeRule?.surfaces;
+      if (surfaces !== undefined) {
+        if (!Array.isArray(surfaces)) {
+          return Response.json({ error: "scopeRule.surfaces must be an array" }, { status: 400 });
+        }
+        for (const s of surfaces) {
+          if (!isKnownSurface(s)) {
+            return Response.json({ error: `Unknown surface: ${s}` }, { status: 400 });
+          }
+        }
       }
     }
   }

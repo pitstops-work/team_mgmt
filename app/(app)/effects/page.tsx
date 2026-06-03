@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import ImpactDashboard from "./ImpactDashboard";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +18,10 @@ export default async function ImpactPage() {
   });
 
   return (
-    <Suspense>
-      <ImpactDashboard cities={cities} />
-    </Suspense>
+    <SurfaceProvider id="effects.view">
+      <Suspense>
+        <ImpactDashboard cities={cities} />
+      </Suspense>
+    </SurfaceProvider>
   );
 }

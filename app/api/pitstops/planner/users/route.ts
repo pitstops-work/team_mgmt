@@ -18,10 +18,10 @@ import prisma from "@/lib/prisma";
 import { buildRbacContext } from "@/lib/rbac";
 import { getVisibleUserIds } from "@/lib/visibilityScope";
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const ctx = await buildRbacContext(session);
+  const ctx = await buildRbacContext(session, { req });
   if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const ids = await getVisibleUserIds(ctx);

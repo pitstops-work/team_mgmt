@@ -12,6 +12,7 @@
 import { useState, useRef } from "react";
 import { X, Loader2, Paperclip, Trash2 } from "lucide-react";
 import type { ActionPoint } from "./types";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export function MarkAPDoneModal({
   ap, onClose, onDone,
@@ -72,6 +73,7 @@ export function MarkAPDoneModal({
   }
 
   return (
+    <SurfaceProvider id="action_point.mark_done_modal">
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
@@ -159,5 +161,6 @@ export function MarkAPDoneModal({
         </div>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

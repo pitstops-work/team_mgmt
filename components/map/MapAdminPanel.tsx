@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import { X, MapPin, SquarePen, Check } from "lucide-react";
 import { LAYERS } from "@/lib/layers";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 interface SettlementRef { id: string; name: string; clusterId: string }
 interface ClusterOption { id: string; name: string; zoneId: string }
@@ -334,6 +335,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
 
   if (!open) {
     return (
+      <SurfaceProvider id="map.admin_panel">
       <button
         onClick={() => setOpen(true)}
         className="absolute bottom-28 sm:bottom-6 left-1/2 -translate-x-1/2 z-10 bg-white border border-indigo-200 shadow-lg px-4 py-2 rounded-full text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors flex items-center gap-2"
@@ -343,10 +345,12 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
         </svg>
         Edit Map
       </button>
+      </SurfaceProvider>
     );
   }
 
   return (
+    <SurfaceProvider id="map.admin_panel">
     <>
       <div className="absolute bottom-28 sm:bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-2 items-center bg-white border border-indigo-300 shadow-xl px-3 py-2 rounded-2xl">
         <span className="text-xs font-bold text-indigo-700 mr-1">Edit Map</span>
@@ -505,6 +509,7 @@ export default function MapAdminPanel({ mapRef, onRefresh }: Props) {
         </div>
       )}
     </>
+    </SurfaceProvider>
   );
 }
 

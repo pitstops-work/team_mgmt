@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { canEditPage, isWikiSteward } from "@/lib/wiki/auth";
 import { MANUAL_TYPE } from "@/lib/wiki/manual";
 import EditManualForm from "./EditManualForm";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function EditManualPage({
   params,
@@ -31,19 +32,21 @@ export default async function EditManualPage({
   if (!canEditPage(page, session, steward)) redirect(`/manual/${slug}`);
 
   return (
-    <EditManualForm
-      page={{
-        slug: page.slug,
-        title: page.title,
-        canonicalContent: page.canonicalContent,
-        maturity: page.maturity,
-        isSensitive: page.isSensitive,
-        sensitiveNote: page.sensitiveNote,
-      }}
-      sections={page.manualSections.map((s) => ({
-        sectionNumber: s.sectionNumber,
-        content: s.content,
-      }))}
-    />
+    <SurfaceProvider id="manual.editor">
+      <EditManualForm
+        page={{
+          slug: page.slug,
+          title: page.title,
+          canonicalContent: page.canonicalContent,
+          maturity: page.maturity,
+          isSensitive: page.isSensitive,
+          sensitiveNote: page.sensitiveNote,
+        }}
+        sections={page.manualSections.map((s) => ({
+          sectionNumber: s.sectionNumber,
+          content: s.content,
+        }))}
+      />
+    </SurfaceProvider>
   );
 }

@@ -12,6 +12,7 @@ import type { DbTemplate, DbPitstop, DbTemplateParam, DbActivity } from "@/lib/t
 import { normalizeActivities, slugifyChecklistText } from "@/lib/templateDb";
 import { PROGRESS_TAGS } from "@/lib/progressTags";
 import TemplateSyncModal from "./TemplateSyncModal";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -716,6 +717,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
   }
 
   return (
+    <SurfaceProvider id="settings.template_detail">
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
@@ -1007,5 +1009,6 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
         />
       )}
     </div>
+    </SurfaceProvider>
   );
 }

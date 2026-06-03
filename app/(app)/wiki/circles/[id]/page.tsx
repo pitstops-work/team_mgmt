@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isWikiSteward } from "@/lib/wiki/auth";
 import { notFound, redirect } from "next/navigation";
 import CircleDetailView from "./CircleDetailView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function CircleDetailPage({
   params,
@@ -36,10 +37,12 @@ export default async function CircleDetailPage({
       : null;
 
   return (
-    <CircleDetailView
-      circle={JSON.parse(JSON.stringify(circle))}
-      canModify={canModify}
-      verticalLabel={verticalLabel}
-    />
+    <SurfaceProvider id="wiki.circle_detail">
+      <CircleDetailView
+        circle={JSON.parse(JSON.stringify(circle))}
+        canModify={canModify}
+        verticalLabel={verticalLabel}
+      />
+    </SurfaceProvider>
   );
 }

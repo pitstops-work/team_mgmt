@@ -12,6 +12,7 @@ import {
   isValidMaturity,
   type Maturity,
 } from "@/lib/wiki/manual";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type SearchParams = Promise<{ maturity?: string }>;
 
@@ -59,6 +60,7 @@ export default async function ManualListPage({ searchParams }: { searchParams: S
   });
 
   return (
+    <SurfaceProvider id="manual.list">
     <main className="min-h-screen bg-stone-50">
       <div className="max-w-5xl mx-auto px-4 py-6">
         <Link
@@ -165,6 +167,7 @@ export default async function ManualListPage({ searchParams }: { searchParams: S
         )}
       </div>
     </main>
+    </SurfaceProvider>
   );
 }
 

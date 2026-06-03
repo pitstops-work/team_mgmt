@@ -3,6 +3,7 @@
 import { LAYERS, type LayerKey, type MapCity } from "@/lib/layers";
 import { type MapFilter } from "@/lib/mapFilter";
 import type { FacilityLayer } from "@/components/map/MapDashboard";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 interface LayerPanelProps {
   visibleLayers: Set<LayerKey>;
@@ -134,6 +135,7 @@ export default function LayerPanel({
   void cityPrefix; // suppress unused warning
 
   return (
+    <SurfaceProvider id="map.layer_panel">
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
@@ -669,5 +671,6 @@ export default function LayerPanel({
         )}
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

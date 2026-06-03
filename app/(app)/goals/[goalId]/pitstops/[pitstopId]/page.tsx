@@ -155,7 +155,10 @@ export default async function PitstopPage({
 
   const currentUserRole = (session as { user?: { role?: string } } | null)?.user?.role ?? "member";
 
-  const ctx = await buildRbacContext(session);
+  // Declares the RSC's surface so surface-restricted grants on checklist_item /
+  // pitstop_event (e.g. RP `update` allowed only from home.today / activities.list)
+  // correctly hide the completion UI when this page isn't in the allow-list.
+  const ctx = await buildRbacContext(session, { surface: "pitstop.detail" });
   // Direct manual checklist edits (tick box, status dropdown) require
   // checklist_item.update, scoped to the parent pitstop (own/team/all).
   const canUpdateChecklist = (await checklistUpdatablePitstopIds(ctx, [pitstop.id])).has(pitstop.id);

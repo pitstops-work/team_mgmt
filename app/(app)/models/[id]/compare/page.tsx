@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toEngineTemplate } from "@/lib/models/fromPrisma";
 import { compute } from "@/lib/models/engine";
 import type { InstanceInputs, NodeValue } from "@/lib/models/types";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 const fmtINR = (n: number) => {
   if (!Number.isFinite(n)) return "—";
@@ -67,6 +68,7 @@ export default async function CompareScenariosPage({ params }: { params: Promise
   const kpiOutputs = template.outputs.filter(o => o.kind === "kpi");
 
   return (
+    <SurfaceProvider id="models.compare">
     <div className="p-6">
       <div className="flex items-baseline justify-between mb-6">
         <div>
@@ -124,5 +126,6 @@ export default async function CompareScenariosPage({ params }: { params: Promise
         Green = best in row · red = worst · blank = single scenario / non-numeric.
       </p>
     </div>
+    </SurfaceProvider>
   );
 }

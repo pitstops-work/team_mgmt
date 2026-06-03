@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { buildRbacContext, can, checklistUpdatablePitstopIds } from "@/lib/rbac";
 import GoalDetail from "./GoalDetail";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function GoalPage({ params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
@@ -51,14 +52,16 @@ export default async function GoalPage({ params }: { params: Promise<{ goalId: s
   const canCompleteActivity = ctx ? await can(ctx, "pitstop_event", "update") : false;
 
   return (
-    <GoalDetail
-      goal={JSON.parse(JSON.stringify(goal))}
-      users={JSON.parse(JSON.stringify(users))}
-      currentUserId={session!.user!.id!}
-      currentUserRole={currentUserRole}
-      checklistUpdatablePitstopIds={Array.from(updatable)}
-      canCompleteActivity={canCompleteActivity}
-      isFollowing={isFollowing}
-    />
+    <SurfaceProvider id="goal.detail">
+      <GoalDetail
+        goal={JSON.parse(JSON.stringify(goal))}
+        users={JSON.parse(JSON.stringify(users))}
+        currentUserId={session!.user!.id!}
+        currentUserRole={currentUserRole}
+        checklistUpdatablePitstopIds={Array.from(updatable)}
+        canCompleteActivity={canCompleteActivity}
+        isFollowing={isFollowing}
+      />
+    </SurfaceProvider>
   );
 }

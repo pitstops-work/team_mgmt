@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import Avatar from "@/components/Avatar";
 import { Trash2, KeyRound, UserPlus, ArrowLeft, Eye, EyeOff, Pencil, Check, X } from "lucide-react";
 import Link from "next/link";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 interface City { id: string; name: string; }
 interface ZoneRow { id: string; name: string; leadId: string | null; cityId: string | null; }
@@ -239,6 +240,7 @@ export default function UserManagementPage() {
   }
 
   return (
+    <SurfaceProvider id="settings.users">
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <div className="flex items-center gap-3 mb-8">
         <Link href="/settings" className="text-stone-400 hover:text-stone-600">
@@ -620,5 +622,6 @@ export default function UserManagementPage() {
         </form>
       </section>
     </div>
+    </SurfaceProvider>
   );
 }

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import CalendarView from "./CalendarView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function TimelinePage() {
   await auth();
@@ -39,9 +40,11 @@ export default async function TimelinePage() {
   ]);
 
   return (
-    <CalendarView
-      pitstops={JSON.parse(JSON.stringify(pitstops))}
-      scheduledEvents={JSON.parse(JSON.stringify(scheduledEvents))}
-    />
+    <SurfaceProvider id="timeline.view">
+      <CalendarView
+        pitstops={JSON.parse(JSON.stringify(pitstops))}
+        scheduledEvents={JSON.parse(JSON.stringify(scheduledEvents))}
+      />
+    </SurfaceProvider>
   );
 }

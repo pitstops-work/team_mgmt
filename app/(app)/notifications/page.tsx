@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import NotificationsPage from "./NotificationsPage";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function NotificationsRoute() {
   const session = await auth();
@@ -14,5 +15,9 @@ export default async function NotificationsRoute() {
     take: 50,
   });
 
-  return <NotificationsPage initialNotifications={JSON.parse(JSON.stringify(notifications))} />;
+  return (
+    <SurfaceProvider id="notifications.list">
+      <NotificationsPage initialNotifications={JSON.parse(JSON.stringify(notifications))} />
+    </SurfaceProvider>
+  );
 }

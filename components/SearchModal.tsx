@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Target, CheckSquare, MessageSquare, Search } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 interface GoalResult {
   id: string;
@@ -155,6 +156,7 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
   let flatIdx = 0;
 
   return (
+    <SurfaceProvider id="search.modal">
     <div
       className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-[15vh]"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -238,5 +240,6 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
         )}
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

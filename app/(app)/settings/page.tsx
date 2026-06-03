@@ -5,15 +5,39 @@ import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronR
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import { useSession } from "next-auth/react";
+import { SurfaceProvider, useHasGrant } from "@/components/rbac/RbacProviders";
 
 type Member = { id: string; name: string | null; email: string | null; image: string | null };
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "super-admin";
-  const isSuperAdmin = session?.user?.role === "super-admin";
   const isViewer = session?.user?.role === "viewer";
   const isBudgetAdmin = session?.user?.role === "budget-admin";
+
+  // Per-section visibility — each link is gated on the underlying RBAC permission
+  // so a super-admin can hide/show settings sections per role via /settings/roles.
+  // useHasGrant ignores surface restrictions so the nav link shows even if the
+  // action itself is restricted to a specific surface.
+  const canNeedsFormulas        = useHasGrant("needs_formula",        "update");
+  const canGeography            = useHasGrant("zone",                 "update");
+  const canMapFeatures          = useHasGrant("map_data",             "register_settlement");
+  const canFacilityIndicators   = useHasGrant("facility_indicator",   "update");
+  const canMisProviders         = useHasGrant("mis_provider",         "update");
+  const canJourneyOutcomePacks  = useHasGrant("journey_outcome_pack", "update");
+  const canFacilityLayers       = useHasGrant("facility_layer",       "update");
+  const canUsers                = useHasGrant("user",                 "update");
+  const canRoles                = useHasGrant("role",                 "list");
+  const canAuditLog             = useHasGrant("audit_log",            "list");
+  const canTemplates            = useHasGrant("template",             "update");
+  const canWikiStaff            = useHasGrant("wiki_staff",           "manage");
+  const canInviteCode           = useHasGrant("invite_code",          "read");
+  const canRotateInvite         = useHasGrant("invite_code",          "rotate");
+  const canMembers              = useHasGrant("user",                 "list");
+  const canExternalCalendar     = useHasGrant("calendar",             "subscribe");
+
+  // Section headers — show only if at least one child link is visible
+  const showFieldCoverageSection = canNeedsFormulas || canGeography || canMapFeatures || canFacilityIndicators || canMisProviders || canJourneyOutcomePacks;
+  const showAdminSection         = canUsers || canRoles || canAuditLog || canTemplates || canWikiStaff || canFacilityLayers;
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
@@ -104,14 +128,18 @@ export default function SettingsPage() {
         }),
       );
     }
-    if (isAdmin) {
+    if (canInviteCode) {
       fetches.push(
         fetch("/api/invite-code").then((r) => r.json()).then((d) => setCode(d.code)),
+      );
+    }
+    if (canMembers) {
+      fetches.push(
         fetch("/api/users").then((r) => r.json()).then(setMembers),
       );
     }
     Promise.all(fetches);
-  }, [isAdmin, isViewer]);
+  }, [canInviteCode, canMembers, isViewer]);
 
   const handleSaveLang = async (lang: string) => {
     setLangSaving(true);
@@ -186,6 +214,7 @@ export default function SettingsPage() {
   };
 
   return (
+    <SurfaceProvider id="settings.index">
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {isBudgetAdmin && (
         <a href="/budget" className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-700 mb-6">← Back to Budget Builder</a>
@@ -342,97 +371,114 @@ export default function SettingsPage() {
         </section>
       )}
 
-      {/* Admin-only sections */}
-      {isAdmin && <>
+      {/* Field Coverage — visible if user has any sub-permission */}
+      {showFieldCoverageSection && (
         <section className="mb-10">
           <h2 className="text-sm font-semibold text-stone-700 mb-1">Field Coverage</h2>
           <p className="text-xs text-stone-500 mb-3">Configure target formulas and entitlement schemes.</p>
           <div className="space-y-2">
-            <Link
-              href="/settings/needs"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <Target className="w-4 h-4 text-sky-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Formulas &amp; Schemes</p>
-                <p className="text-xs text-stone-400">Target denominators · Entitlement scheme list</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            <Link
-              href="/settings/geography"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <Map className="w-4 h-4 text-sky-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Geography</p>
-                <p className="text-xs text-stone-400">Zones · clusters · settlements</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            <Link
-              href="/settings/map-features"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <Map className="w-4 h-4 text-indigo-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Map Features</p>
-                <p className="text-xs text-stone-400">Centre points · settlement polygons</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            <Link
-              href="/settings/facility-indicators"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <Activity className="w-4 h-4 text-emerald-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Facility Indicators (Layer 2)</p>
-                <p className="text-xs text-stone-400">Utilization · enrollment · saturation per facility</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            <Link
-              href="/settings/mis-providers"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <Cloud className="w-4 h-4 text-sky-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">MIS Providers</p>
-                <p className="text-xs text-stone-400">External MIS APIs feeding indicators (e.g. Frappe Creche MIS)</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            <Link
-              href="/settings/journey-outcome-packs"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <Layers className="w-4 h-4 text-indigo-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Journey Outcome Packs (Layer 3)</p>
-                <p className="text-xs text-stone-400">Reusable outcome definitions you can apply to programme journeys</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
+            {canNeedsFormulas && (
+              <Link
+                href="/settings/needs"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <Target className="w-4 h-4 text-sky-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Formulas &amp; Schemes</p>
+                  <p className="text-xs text-stone-400">Target denominators · Entitlement scheme list</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canGeography && (
+              <Link
+                href="/settings/geography"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <Map className="w-4 h-4 text-sky-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Geography</p>
+                  <p className="text-xs text-stone-400">Zones · clusters · settlements</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canMapFeatures && (
+              <Link
+                href="/settings/map-features"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <Map className="w-4 h-4 text-indigo-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Map Features</p>
+                  <p className="text-xs text-stone-400">Centre points · settlement polygons</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canFacilityIndicators && (
+              <Link
+                href="/settings/facility-indicators"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <Activity className="w-4 h-4 text-emerald-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Facility Indicators (Layer 2)</p>
+                  <p className="text-xs text-stone-400">Utilization · enrollment · saturation per facility</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canMisProviders && (
+              <Link
+                href="/settings/mis-providers"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <Cloud className="w-4 h-4 text-sky-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">MIS Providers</p>
+                  <p className="text-xs text-stone-400">External MIS APIs feeding indicators (e.g. Frappe Creche MIS)</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canJourneyOutcomePacks && (
+              <Link
+                href="/settings/journey-outcome-packs"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <Layers className="w-4 h-4 text-indigo-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Journey Outcome Packs (Layer 3)</p>
+                  <p className="text-xs text-stone-400">Reusable outcome definitions you can apply to programme journeys</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
           </div>
         </section>
+      )}
 
+      {/* Administration — visible if user has any sub-permission */}
+      {showAdminSection && (
         <section className="mb-10">
           <h2 className="text-sm font-semibold text-stone-700 mb-1">Administration</h2>
-          <p className="text-xs text-stone-500 mb-3">Admin-only tools — not visible to other members.</p>
+          <p className="text-xs text-stone-500 mb-3">Per-role configurable via Roles &amp; Permissions.</p>
           <div className="space-y-2">
-            <Link
-              href="/settings/users"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">User Management</p>
-                <p className="text-xs text-stone-400">Add · delete · reset passwords</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            {isSuperAdmin && (
+            {canUsers && (
+              <Link
+                href="/settings/users"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">User Management</p>
+                  <p className="text-xs text-stone-400">Add · delete · reset passwords</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canRoles && (
               <Link
                 href="/settings/roles"
                 className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
@@ -440,67 +486,73 @@ export default function SettingsPage() {
                 <ShieldCheck className="w-4 h-4 text-amber-500" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-stone-800">Roles &amp; Permissions</p>
-                  <p className="text-xs text-stone-400">Edit what each role can do · super-admin only</p>
+                  <p className="text-xs text-stone-400">Edit what each role can do · per-section</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-stone-300" />
               </Link>
             )}
-            <Link
-              href="/settings/audit"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <ScrollText className="w-4 h-4 text-stone-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Audit Log</p>
-                <p className="text-xs text-stone-400">
-                  {isSuperAdmin
-                    ? "All system actions · super-admin sees everything"
-                    : "Your actions and entries about your user"}
-                </p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            <Link
-              href="/settings/templates"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <LayoutTemplate className="w-4 h-4 text-violet-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Goal Templates</p>
-                <p className="text-xs text-stone-400">Edit pitstops · checklists · SLAs · parameters</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            <Link
-              href="/settings/wiki-staff"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <ShieldCheck className="w-4 h-4 text-pink-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Wiki Staff</p>
-                <p className="text-xs text-stone-400">Designate curators &amp; stewards — per city or global</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
-            <Link
-              href="/settings/facility-layers"
-              className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
-            >
-              <Layers className="w-4 h-4 text-violet-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-800">Facility Layer Types</p>
-                <p className="text-xs text-stone-400">Manage facility types for goal creation wizard</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300" />
-            </Link>
+            {canAuditLog && (
+              <Link
+                href="/settings/audit"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <ScrollText className="w-4 h-4 text-stone-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Audit Log</p>
+                  <p className="text-xs text-stone-400">System actions · scoped by your audit_log.list permission</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canTemplates && (
+              <Link
+                href="/settings/templates"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <LayoutTemplate className="w-4 h-4 text-violet-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Goal Templates</p>
+                  <p className="text-xs text-stone-400">Edit pitstops · checklists · SLAs · parameters</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canWikiStaff && (
+              <Link
+                href="/settings/wiki-staff"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4 text-pink-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Wiki Staff</p>
+                  <p className="text-xs text-stone-400">Designate curators &amp; stewards — per city or global</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canFacilityLayers && (
+              <Link
+                href="/settings/facility-layers"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <Layers className="w-4 h-4 text-violet-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Facility Layer Types</p>
+                  <p className="text-xs text-stone-400">Manage facility types for goal creation wizard</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
           </div>
         </section>
+      )}
 
+      {canInviteCode && (
         <section className="mb-10">
           <h2 className="text-sm font-semibold text-stone-700 mb-1">Invite Code</h2>
           <p className="text-xs text-stone-500 mb-4">
             Share this code with people you want to invite. They&apos;ll need it to register.
-            Rotating the code prevents new signups with the old code.
+            {canRotateInvite && " Rotating the code prevents new signups with the old code."}
           </p>
 
           <div className="flex items-center gap-3">
@@ -520,18 +572,24 @@ export default function SettingsPage() {
               <span className="text-stone-600">{copied ? "Copied" : "Copy"}</span>
             </button>
 
-            <button
-              onClick={handleRotate}
-              disabled={rotating || !code}
-              className="flex items-center gap-1.5 px-3 py-2.5 text-sm border border-stone-200 rounded-xl hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-40"
-              title="Rotate code"
-            >
-              <RefreshCw className={`w-4 h-4 ${rotating ? "animate-spin" : ""}`} />
-              <span>Rotate</span>
-            </button>
+            {canRotateInvite && (
+              <button
+                onClick={handleRotate}
+                disabled={rotating || !code}
+                className="flex items-center gap-1.5 px-3 py-2.5 text-sm border border-stone-200 rounded-xl hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors disabled:opacity-40"
+                title="Rotate code"
+              >
+                <RefreshCw className={`w-4 h-4 ${rotating ? "animate-spin" : ""}`} />
+                <span>Rotate</span>
+              </button>
+            )}
           </div>
         </section>
+      )}
 
+      {/* External calendar — per-user (their own iCal URL). Not viewer; gated on
+          calendar.subscribe so admins can disable via /settings/roles if desired. */}
+      {!isViewer && canExternalCalendar && (
         <section className="mb-10">
           <div className="flex items-center gap-2 mb-1">
             <CalendarDays className="w-4 h-4 text-stone-400" />
@@ -581,7 +639,9 @@ export default function SettingsPage() {
             </div>
           </form>
         </section>
+      )}
 
+      {canMembers && (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Users className="w-4 h-4 text-stone-400" />
@@ -601,7 +661,8 @@ export default function SettingsPage() {
             ))}
           </div>
         </section>
-      </>}
+      )}
     </div>
+    </SurfaceProvider>
   );
 }

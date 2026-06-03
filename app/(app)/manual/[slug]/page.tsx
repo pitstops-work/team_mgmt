@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { MANUAL_TYPE } from "@/lib/wiki/manual";
 import { canEditPage, isWikiSteward } from "@/lib/wiki/auth";
 import ManualReaderView from "./ManualReaderView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function ManualReaderPage({
   params,
@@ -49,10 +50,12 @@ export default async function ManualReaderPage({
   const canEdit = canEditPage(page, session, steward);
 
   return (
-    <ManualReaderView
-      page={JSON.parse(JSON.stringify(page))}
-      currentUserId={userId}
-      canEdit={canEdit}
-    />
+    <SurfaceProvider id="manual.reader">
+      <ManualReaderView
+        page={JSON.parse(JSON.stringify(page))}
+        currentUserId={userId}
+        canEdit={canEdit}
+      />
+    </SurfaceProvider>
   );
 }

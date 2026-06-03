@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isWikiSteward } from "@/lib/wiki/auth";
 import { notFound, redirect } from "next/navigation";
 import PartnerReviewDetailView from "./PartnerReviewDetailView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function PartnerReviewDetailPage({
   params,
@@ -29,10 +30,12 @@ export default async function PartnerReviewDetailPage({
   const canArchive = steward || meeting.attendees.some((a) => a.id === userId);
 
   return (
-    <PartnerReviewDetailView
-      meeting={JSON.parse(JSON.stringify(meeting))}
-      canModify={steward}
-      canArchive={canArchive}
-    />
+    <SurfaceProvider id="wiki.partner_review_detail">
+      <PartnerReviewDetailView
+        meeting={JSON.parse(JSON.stringify(meeting))}
+        canModify={steward}
+        canArchive={canArchive}
+      />
+    </SurfaceProvider>
   );
 }

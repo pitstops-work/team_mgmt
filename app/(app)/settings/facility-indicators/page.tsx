@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, Plus, Pencil, Trash2, Check, X, Activity, Cloud, User, ChevronDown, ChevronRight } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type CaptureSource = "MIS_API" | "RP_ACTIVITY" | "MANUAL_ADMIN";
 type Frequency = "Daily" | "Weekly" | "Monthly" | "Quarterly";
@@ -164,6 +165,7 @@ export default function FacilityIndicatorsPage() {
   const domainsInUse = new Set(indicators.map(i => i.domain));
 
   return (
+    <SurfaceProvider id="settings.facility_indicators">
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <div className="flex items-center gap-3 mb-4">
         <Link href="/settings" className="text-stone-400 hover:text-stone-600 transition-colors">
@@ -284,6 +286,7 @@ export default function FacilityIndicatorsPage() {
         </button>
       )}
     </div>
+    </SurfaceProvider>
   );
 }
 

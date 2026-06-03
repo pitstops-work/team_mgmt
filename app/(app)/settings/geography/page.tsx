@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronDown, ChevronRight, Check, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 function broadcastBoundariesUpdated() {
   try { new BroadcastChannel("pitstop:geo").postMessage("boundaries-updated"); } catch { /* unsupported */ }
@@ -284,6 +285,7 @@ export default function GeographyPage() {
   const allZones = zones; // already filtered by city via API
 
   return (
+    <SurfaceProvider id="settings.geography">
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -615,5 +617,6 @@ export default function GeographyPage() {
         </div>
       )}
     </div>
+    </SurfaceProvider>
   );
 }

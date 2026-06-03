@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BookOpen, Layers } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 const SECTIONS = [
   {
@@ -230,6 +231,7 @@ const SECTIONS = [
 
 export default function HelpPage() {
   return (
+    <SurfaceProvider id="help.index">
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pb-20 sm:pb-8">
       <div className="flex items-center gap-3 mb-8">
         <div className="w-9 h-9 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center">
@@ -266,5 +268,6 @@ export default function HelpPage() {
 
       <p className="mt-12 text-xs text-stone-300 text-center">Pitstop — built for Urban Program, Bangalore 2026</p>
     </div>
+    </SurfaceProvider>
   );
 }

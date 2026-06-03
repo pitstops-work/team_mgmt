@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "targetDate (YYYY-MM-DD) required" }, { status: 400 });
   }
 
-  const ctx = await buildRbacContext(session);
+  const ctx = await buildRbacContext(session, { req });
   if (!ctx) return Response.json({ error: "Forbidden" }, { status: 403 });
   const scope = await scopeWhere(ctx, "pitstop_event", "update");
   if (scope === null) return Response.json({ error: "Forbidden" }, { status: 403 });

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isWikiSteward } from "@/lib/wiki/auth";
 import { redirect } from "next/navigation";
 import CircleNewForm from "./CircleNewForm";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function NewCirclePage() {
   const session = await auth();
@@ -43,12 +44,14 @@ export default async function NewCirclePage() {
   const domainOptions = needsDomains.map((d) => ({ domain: d.domain, label: d.label ?? d.domain }));
 
   return (
-    <CircleNewForm
-      users={JSON.parse(JSON.stringify(users))}
-      zones={JSON.parse(JSON.stringify(zones))}
-      pages={JSON.parse(JSON.stringify(pages))}
-      needsDomains={domainOptions}
-      defaultFacilitatorId={userId}
-    />
+    <SurfaceProvider id="wiki.circle_new">
+      <CircleNewForm
+        users={JSON.parse(JSON.stringify(users))}
+        zones={JSON.parse(JSON.stringify(zones))}
+        pages={JSON.parse(JSON.stringify(pages))}
+        needsDomains={domainOptions}
+        defaultFacilitatorId={userId}
+      />
+    </SurfaceProvider>
   );
 }

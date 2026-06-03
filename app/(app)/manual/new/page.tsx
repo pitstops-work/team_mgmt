@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { isWikiSteward } from "@/lib/wiki/auth";
 import NewManualForm from "./NewManualForm";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function NewManualPage() {
   const session = await auth();
@@ -11,5 +12,9 @@ export default async function NewManualPage() {
   const steward = await isWikiSteward(userId);
   if (!steward) redirect("/manual");
 
-  return <NewManualForm />;
+  return (
+    <SurfaceProvider id="manual.new">
+      <NewManualForm />
+    </SurfaceProvider>
+  );
 }

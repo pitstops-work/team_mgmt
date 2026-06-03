@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { X, ChevronRight, ChevronDown, Layers, ArrowRight, Search } from "lucide-react";
 import { MultiFacilityCalendar } from "@/components/pitstops/MultiFacilityCalendar";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 // Sub-domains redirect to their parent programme
 const SUB_DOMAIN_PARENT: Record<string, { label: string; templateId: string; programmeName: string }> = {
@@ -444,6 +445,7 @@ export default function TemplatePickerModal({
   }, {});
 
   return (
+    <SurfaceProvider id="template.picker_modal">
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
       <div
         className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]"
@@ -1017,5 +1019,6 @@ export default function TemplatePickerModal({
         )}
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

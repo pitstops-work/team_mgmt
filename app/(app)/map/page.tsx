@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import MapDashboard from "@/components/map/MapDashboard";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export const metadata = { title: "Programme Map · Urban Program" };
 
@@ -27,15 +28,17 @@ export default async function MapPage() {
     : [];
 
   return (
-    <div className="absolute inset-0">
-      <Suspense>
-        <MapDashboard
-          currentUserId={userId ?? undefined}
-          currentUserDesignation={designation}
-          currentUserRole={me?.role ?? session?.user?.role ?? "member"}
-          allUsers={JSON.parse(JSON.stringify(allUsers))}
-        />
-      </Suspense>
-    </div>
+    <SurfaceProvider id="map.view">
+      <div className="absolute inset-0">
+        <Suspense>
+          <MapDashboard
+            currentUserId={userId ?? undefined}
+            currentUserDesignation={designation}
+            currentUserRole={me?.role ?? session?.user?.role ?? "member"}
+            allUsers={JSON.parse(JSON.stringify(allUsers))}
+          />
+        </Suspense>
+      </div>
+    </SurfaceProvider>
   );
 }

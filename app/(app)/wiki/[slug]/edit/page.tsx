@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { isWikiSteward } from "@/lib/wiki/auth";
 import { notFound, redirect } from "next/navigation";
 import WikiEditor from "./WikiEditor";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function WikiEditPage({
   params,
@@ -55,13 +56,15 @@ export default async function WikiEditPage({
   ]);
 
   return (
-    <WikiEditor
-      slug={page.slug}
-      initialTitle={page.title}
-      initialContent={page.canonicalContent}
-      type={page.type}
-      openFlags={JSON.parse(JSON.stringify(openFlags))}
-      unresolvedComments={JSON.parse(JSON.stringify(unresolvedComments))}
-    />
+    <SurfaceProvider id="wiki.editor">
+      <WikiEditor
+        slug={page.slug}
+        initialTitle={page.title}
+        initialContent={page.canonicalContent}
+        type={page.type}
+        openFlags={JSON.parse(JSON.stringify(openFlags))}
+        unresolvedComments={JSON.parse(JSON.stringify(unresolvedComments))}
+      />
+    </SurfaceProvider>
   );
 }

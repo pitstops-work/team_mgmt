@@ -4,6 +4,7 @@ import { isWikiSteward } from "@/lib/wiki/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Handshake, Plus, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 function fmtDate(d: Date | null): string {
   if (!d) return "—";
@@ -33,6 +34,7 @@ export default async function PartnerReviewsListPage() {
   ]);
 
   return (
+    <SurfaceProvider id="wiki.partner_reviews">
     <main className="min-h-screen bg-stone-50">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <Link href="/wiki" className="inline-flex items-center gap-1 text-sm text-stone-600 hover:text-stone-900 mb-4">
@@ -97,5 +99,6 @@ export default async function PartnerReviewsListPage() {
         )}
       </div>
     </main>
+    </SurfaceProvider>
   );
 }

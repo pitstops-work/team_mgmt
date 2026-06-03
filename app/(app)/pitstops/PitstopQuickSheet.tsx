@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { X, ArrowRight } from "lucide-react";
 import ChecklistCompletionList from "@/components/ChecklistCompletionList";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 interface Props {
   pitstop: {
@@ -20,6 +21,7 @@ interface Props {
 
 export default function PitstopQuickSheet({ pitstop, canUpdateChecklist = false, canCompleteActivity = false, onClose, onChanged }: Props) {
   return (
+    <SurfaceProvider id="pitstop.panel">
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm"
       onClick={onClose}
@@ -54,5 +56,6 @@ export default function PitstopQuickSheet({ pitstop, canUpdateChecklist = false,
         </div>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

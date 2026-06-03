@@ -25,14 +25,14 @@ import { buildRbacContext, scopeWhere } from "@/lib/rbac";
  * Permission mirrors completion / reschedule: `pitstop_event.update` scope so
  * leads can do this on behalf of their RP.
  */
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const veto = viewerForbidden(session); if (veto) return veto;
   const actorId = session.user.id;
   const { eventId } = await params;
 
-  if (!(await canUpdateEvent(session, eventId))) {
+  if (!(await canUpdateEvent(session, req, eventId))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -53,14 +53,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ ev
   return Response.json({ ok: true });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const veto = viewerForbidden(session); if (veto) return veto;
   const actorId = session.user.id;
   const { eventId } = await params;
 
-  if (!(await canUpdateEvent(session, eventId))) {
+  if (!(await canUpdateEvent(session, req, eventId))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -82,8 +82,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 // scopeWhere yields a Prisma `where` fragment for the rows this user can
 // update. A direct findFirst with the eventId AND that fragment is the cheapest
 // way to gate: 0 rows ⇒ forbidden (or not found, treated the same here).
-async function canUpdateEvent(session: Parameters<typeof viewerForbidden>[0], eventId: string): Promise<boolean> {
-  const ctx = await buildRbacContext(session);
+async function canUpdateEvent(session: Parameters<typeof viewerForbidden>[0], req: Request, eventId: string): Promise<boolean> {
+  const ctx = await buildRbacContext(session, { req });
   if (!ctx) return false;
   const scope = await scopeWhere(ctx, "pitstop_event", "update");
   if (scope === null) return false;

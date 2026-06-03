@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import NeedsDashboard from "./NeedsDashboard";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export const dynamic = "force-dynamic";
 
@@ -963,6 +964,7 @@ export default async function NeedsPage() {
   }));
 
   return (
+    <SurfaceProvider id="needs.list">
     <Suspense>
       <NeedsDashboard
         cities={JSON.parse(JSON.stringify(cities))}
@@ -992,5 +994,6 @@ export default async function NeedsPage() {
         settlementEntMap={JSON.parse(JSON.stringify(settlementEntSummaryMap))}
       />
     </Suspense>
+    </SurfaceProvider>
   );
 }

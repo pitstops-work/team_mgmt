@@ -3,6 +3,7 @@
 import { useEffect, useState, use, useMemo } from "react";
 import Link from "next/link";
 import { ChevronLeft, Target, Activity } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type Outcome = { id: string; label: string; unit: string | null; targetValue: number | null; targetCadence: string | null };
 type Point = { capturedAt: string; value: number };
@@ -60,6 +61,7 @@ export default function OutcomeAttributionPage({ params }: { params: Promise<{ i
   const { outcome, points, phaseSpans, contributions } = data;
 
   return (
+    <SurfaceProvider id="programmes.outcome">
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <div className="flex items-start gap-3 mb-4">
         <Link href={`/programmes/${id}`} className="text-stone-400 hover:text-stone-600 transition-colors mt-1">
@@ -185,5 +187,6 @@ export default function OutcomeAttributionPage({ params }: { params: Promise<{ i
         </div>
       </section>
     </div>
+    </SurfaceProvider>
   );
 }

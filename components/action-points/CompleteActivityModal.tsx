@@ -22,6 +22,7 @@ import { useState } from "react";
 import { X, Plus, Check } from "lucide-react";
 import { ActionPointInputRows, draftsToPayload } from "./ActionPointInputRows";
 import type { ActionPointDraft } from "./types";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export function CompleteActivityModal({
   eventId,
@@ -84,6 +85,7 @@ export function CompleteActivityModal({
   const apCount = drafts.filter(d => d.title.trim().length > 0).length;
 
   return (
+    <SurfaceProvider id="activities.complete_modal">
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
@@ -157,6 +159,7 @@ export function CompleteActivityModal({
         </div>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }
 

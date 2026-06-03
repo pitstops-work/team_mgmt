@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isAdminUser } from "@/lib/roleGuard";
 import ReadinessDashboard from "./ReadinessDashboard";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 // Only accessible to the admin user. Set ADMIN_USER_ID in your .env
 export default async function ReadinessPage() {
@@ -158,11 +159,13 @@ export default async function ReadinessPage() {
   });
 
   return (
-    <ReadinessDashboard
-      readiness={JSON.parse(JSON.stringify(readiness))}
-      fyStart={FY_START.toISOString()}
-      fyEnd={FY_END.toISOString()}
-      generatedAt={now.toISOString()}
-    />
+    <SurfaceProvider id="readiness.view">
+      <ReadinessDashboard
+        readiness={JSON.parse(JSON.stringify(readiness))}
+        fyStart={FY_START.toISOString()}
+        fyEnd={FY_END.toISOString()}
+        generatedAt={now.toISOString()}
+      />
+    </SurfaceProvider>
   );
 }

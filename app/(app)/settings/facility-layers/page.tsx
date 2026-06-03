@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 interface FacilityLayer {
   id: string;
@@ -188,6 +189,7 @@ export default function FacilityLayersPage() {
   }
 
   return (
+    <SurfaceProvider id="settings.facility_layers">
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/settings" className="text-stone-400 hover:text-stone-600 transition-colors">
@@ -263,5 +265,6 @@ export default function FacilityLayersPage() {
         </button>
       )}
     </div>
+    </SurfaceProvider>
   );
 }

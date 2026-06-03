@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import DecisionsView from "./DecisionsView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function DecisionsPage() {
   const session = await auth();
@@ -19,10 +20,12 @@ export default async function DecisionsPage() {
   ]);
 
   return (
-    <DecisionsView
-      initialDecisions={JSON.parse(JSON.stringify(decisions))}
-      goals={JSON.parse(JSON.stringify(goals))}
-      currentUserId={session!.user!.id!}
-    />
+    <SurfaceProvider id="decisions.list">
+      <DecisionsView
+        initialDecisions={JSON.parse(JSON.stringify(decisions))}
+        goals={JSON.parse(JSON.stringify(goals))}
+        currentUserId={session!.user!.id!}
+      />
+    </SurfaceProvider>
   );
 }

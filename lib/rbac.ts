@@ -13,6 +13,9 @@
  */
 
 import prisma from "./prisma";
+import { SURFACE_HEADER } from "./rbacConstants";
+
+export { SURFACE_HEADER };
 
 // ── Context ──────────────────────────────────────────────────────────────────
 
@@ -21,17 +24,38 @@ export type RbacContext = {
   role: string;
   designation: string;
   cityId: string | null;
+  /**
+   * The UI surface the request originated from (e.g. "home.today",
+   * "pitstop.detail"). Sourced from the `X-Surface` header. Null = the request
+   * didn't declare a surface; grants restricted by `scopeRule.surfaces` are
+   * denied in that case (see `passesSurfaceCheck`).
+   */
+  surface: string | null;
 };
 
 type SessionLike = {
   user?: { id?: string; role?: string; email?: string | null } | null;
 } | null;
 
+/** Reads the X-Surface header from a request, or null if absent / unknown. */
+export function getSurface(req: Request | Headers | null | undefined): string | null {
+  if (!req) return null;
+  const headers = req instanceof Headers ? req : req.headers;
+  const raw = headers.get(SURFACE_HEADER);
+  if (!raw) return null;
+  // Defer registry validation to consumers — keeping this helper sync + dep-free.
+  return raw.trim() || null;
+}
+
 /**
  * Build the context once per request and reuse for multiple checks.
  * Pulls designation + cityId from the DB (not the JWT) for freshness.
+ * Pass `{ req }` (or `{ surface }`) so surface-restricted grants can be enforced.
  */
-export async function buildRbacContext(session: SessionLike): Promise<RbacContext | null> {
+export async function buildRbacContext(
+  session: SessionLike,
+  opts?: { req?: Request | null; surface?: string | null },
+): Promise<RbacContext | null> {
   const userId = session?.user?.id;
   if (!userId) return null;
 
@@ -41,12 +65,15 @@ export async function buildRbacContext(session: SessionLike): Promise<RbacContex
   });
   if (!me) return null;
 
+  const surface = opts?.surface ?? (opts?.req ? getSurface(opts.req) : null);
+
   // Prefer DB role over session — defends against stale JWT after role changes.
   return {
     userId,
     role: me.role ?? session?.user?.role ?? "member",
     designation: me.designation ?? "Other",
     cityId: me.cityId ?? null,
+    surface,
   };
 }
 
@@ -88,6 +115,25 @@ export function invalidateRbacCache() {
   ROLE_PERMS_CACHE.clear();
 }
 
+// ── Surface gate ─────────────────────────────────────────────────────────────
+
+/**
+ * A grant restricts surfaces when `scopeRule.surfaces` is a non-empty array.
+ * - undefined / missing → no restriction (default; backwards-compat).
+ * - empty array         → no restriction (treated same as undefined, so admins
+ *                         can't accidentally lock themselves out by clearing
+ *                         the multi-select).
+ * - populated           → the request's surface MUST be in the list. Requests
+ *                         that didn't declare a surface (ctx.surface == null)
+ *                         are denied.
+ */
+function passesSurfaceCheck(rule: ScopeRule, surface: string | null): boolean {
+  const allowed = (rule as { surfaces?: string[] }).surfaces;
+  if (!allowed || allowed.length === 0) return true;
+  if (!surface) return false;
+  return allowed.includes(surface);
+}
+
 // ── can() ────────────────────────────────────────────────────────────────────
 
 /** Does this user's role have the (resource, action) permission, at any scope? */
@@ -98,7 +144,9 @@ export async function can(
 ): Promise<boolean> {
   if (!ctx) return false;
   const perms = await getRolePermissions(ctx.role);
-  return perms.has(`${resource}.${action}`);
+  const rule = perms.get(`${resource}.${action}`);
+  if (!rule) return false;
+  return passesSurfaceCheck(rule, ctx.surface);
 }
 
 /** Look up the scope rule for this (resource, action). Null if no permission. */
@@ -108,7 +156,10 @@ export async function getScopeRule(
   action: string,
 ): Promise<ScopeRule | null> {
   const perms = await getRolePermissions(ctx.role);
-  return perms.get(`${resource}.${action}`) ?? null;
+  const rule = perms.get(`${resource}.${action}`);
+  if (!rule) return null;
+  if (!passesSurfaceCheck(rule, ctx.surface)) return null;
+  return rule;
 }
 
 // ── Team expansion (recursive descendants via reportsToId) ───────────────────
@@ -139,6 +190,38 @@ export async function getTeamIds(userId: string): Promise<string[]> {
     TEAM_CACHE.set(userId, entry);
   }
   return entry;
+}
+
+/**
+ * Designation-anchored visibility set for visit-planner-style UIs where the
+ * picker must show "users I can pull a schedule for".
+ *
+ *   RP            → {self}                     (no one else's calendar)
+ *   ZL / PM       → {self} ∪ direct reports    (one hop down only)
+ *   Leader        → recursive descendants      (self + all transitive reports)
+ *   admin / super-admin → recursive            (treat as apex Leader)
+ *   Other         → {self}                     (no team visibility by default)
+ *
+ * Distinct from `getTeamIds` (which is always recursive). ZL/PM intentionally
+ * stop at one hop — the Leader sees through them; they don't bypass their own
+ * sub-trees.
+ */
+export async function getVisibleUserIds(ctx: RbacContext): Promise<string[]> {
+  const d = ctx.designation;
+  const role = ctx.role;
+  // Apex roles get the full tree.
+  if (role === "admin" || role === "super-admin" || d === "Leader") {
+    return getTeamIds(ctx.userId);
+  }
+  if (d === "ZL" || d === "PM") {
+    const reports = await prisma.user.findMany({
+      where: { reportsToId: ctx.userId },
+      select: { id: true },
+    });
+    return [ctx.userId, ...reports.map(r => r.id)];
+  }
+  // RP / Other — self only.
+  return [ctx.userId];
 }
 
 // ── Resource-specific scope evaluators ───────────────────────────────────────

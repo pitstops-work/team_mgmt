@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import StandupView from "./StandupView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function StandupPage() {
   const session = await auth();
@@ -57,11 +58,13 @@ export default async function StandupPage() {
   ]);
 
   return (
-    <StandupView
-      initialLogs={JSON.parse(JSON.stringify(logs))}
-      inProgressPitstops={JSON.parse(JSON.stringify(inProgressPitstops))}
-      users={JSON.parse(JSON.stringify(users))}
-      currentUserId={currentUserId}
-    />
+    <SurfaceProvider id="standup.view">
+      <StandupView
+        initialLogs={JSON.parse(JSON.stringify(logs))}
+        inProgressPitstops={JSON.parse(JSON.stringify(inProgressPitstops))}
+        users={JSON.parse(JSON.stringify(users))}
+        currentUserId={currentUserId}
+      />
+    </SurfaceProvider>
   );
 }

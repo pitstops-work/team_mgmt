@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import prisma from "@/lib/prisma";
 import type { DbPitstop, DbTemplateParam } from "@/lib/templateDb";
 import { normalizeActivities } from "@/lib/templateDb";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 const TAG_COLORS: Record<string, string> = {
   Team:           "bg-violet-50 text-violet-600 border-violet-200",
@@ -74,6 +75,7 @@ export default async function PlaybookDetailPage({ params }: { params: Promise<{
   Object.keys(grouped).forEach(tag => { if (!TAG_ORDER.includes(tag)) orderedTags.push(tag); });
 
   return (
+    <SurfaceProvider id="help.template_detail">
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pb-24 sm:pb-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
@@ -206,5 +208,6 @@ export default async function PlaybookDetailPage({ params }: { params: Promise<{
         </Link>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

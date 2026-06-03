@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { buildRbacContext, can } from "@/lib/rbac";
 import { forbidden } from "next/navigation";
 import Link from "next/link";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function ModelsListPage() {
   const session = await auth();
@@ -24,6 +25,7 @@ export default async function ModelsListPage() {
   });
 
   return (
+    <SurfaceProvider id="models.list">
     <div className="p-6">
       <div className="flex items-baseline justify-between mb-6">
         <div>
@@ -71,5 +73,6 @@ export default async function ModelsListPage() {
         ))}
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   // is gated by pitstop_event.update — the permission to complete activities —
   // not checklist_item.update, which only gates direct manual edits to the list.
   if (checklistItemId) {
-    const ctx = await buildRbacContext(session);
+    const ctx = await buildRbacContext(session, { req });
     if (!ctx || !(await can(ctx, "pitstop_event", "update"))) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import type { TodayFilters } from "./useTodayFilters";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type Option = { value: string; label: string };
 
@@ -51,6 +52,7 @@ export function FilterSheet({
   }
 
   return (
+    <SurfaceProvider id="activities.filter_sheet">
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
       <div
@@ -172,6 +174,7 @@ export function FilterSheet({
         </div>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }
 

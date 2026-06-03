@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, Plus, Trash2, GripVertical, Check, X, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1201,6 +1202,7 @@ function SchemesSection() {
 
 export default function NeedsSettingsPage() {
   return (
+    <SurfaceProvider id="settings.needs">
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-10">
       <div className="flex items-center gap-3">
         <Link href="/settings" className="text-stone-400 hover:text-stone-700">
@@ -1217,5 +1219,6 @@ export default function NeedsSettingsPage() {
       <BangaloreFacilityCountsSection />
       <SchemesSection />
     </div>
+    </SurfaceProvider>
   );
 }

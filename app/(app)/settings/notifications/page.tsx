@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import NotificationsView from "./NotificationsView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function NotificationsSettingsPage() {
   const session = await auth();
@@ -17,12 +18,14 @@ export default async function NotificationsSettingsPage() {
   ]);
 
   return (
-    <NotificationsView
-      initial={{
-        emailOptIn: user?.emailOptIn ?? false,
-        email: user?.email ?? null,
-        pushSubscribed: pushSubs > 0,
-      }}
-    />
+    <SurfaceProvider id="settings.notifications">
+      <NotificationsView
+        initial={{
+          emailOptIn: user?.emailOptIn ?? false,
+          email: user?.email ?? null,
+          pushSubscribed: pushSubs > 0,
+        }}
+      />
+    </SurfaceProvider>
   );
 }

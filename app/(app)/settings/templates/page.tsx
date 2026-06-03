@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ChevronLeft, Plus, Layers, Eye, EyeOff, Pencil, Copy } from "lucide-react";
 import type { DbTemplate } from "@/lib/templateDb";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 const CATEGORY_ORDER = ["Community Programs", "Programmes", "Field Programmes", "Zonal Leadership"];
 
@@ -44,6 +45,7 @@ export default function TemplatesPage() {
   const other = visible.filter((t) => !knownCats.has(t.category));
 
   return (
+    <SurfaceProvider id="settings.templates">
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
@@ -134,5 +136,6 @@ export default function TemplatesPage() {
         Changes take effect immediately for any new goal created from a template.
       </p>
     </div>
+    </SurfaceProvider>
   );
 }

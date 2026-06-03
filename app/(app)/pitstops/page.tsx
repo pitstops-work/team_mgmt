@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { buildRbacContext, can, checklistUpdatablePitstopIds } from "@/lib/rbac";
 import PitstopsList from "./PitstopsList";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function PitstopsPage({
   searchParams,
@@ -34,14 +35,16 @@ export default async function PitstopsPage({
   const canCompleteActivity = ctx ? await can(ctx, "pitstop_event", "update") : false;
 
   return (
-    <PitstopsList
-      pitstops={JSON.parse(JSON.stringify(pitstops))}
-      goals={JSON.parse(JSON.stringify(goals))}
-      users={JSON.parse(JSON.stringify(users))}
-      initialStatus={status ?? ""}
-      initialNoDate={noDate === "1"}
-      checklistUpdatablePitstopIds={Array.from(updatable)}
-      canCompleteActivity={canCompleteActivity}
-    />
+    <SurfaceProvider id="pitstop.list">
+      <PitstopsList
+        pitstops={JSON.parse(JSON.stringify(pitstops))}
+        goals={JSON.parse(JSON.stringify(goals))}
+        users={JSON.parse(JSON.stringify(users))}
+        initialStatus={status ?? ""}
+        initialNoDate={noDate === "1"}
+        checklistUpdatablePitstopIds={Array.from(updatable)}
+        canCompleteActivity={canCompleteActivity}
+      />
+    </SurfaceProvider>
   );
 }

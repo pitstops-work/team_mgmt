@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isWikiCurator } from "@/lib/wiki/auth";
 import { redirect } from "next/navigation";
 import ObservationsView from "./ObservationsView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function WikiObservationsPage() {
   const session = await auth();
@@ -45,13 +46,15 @@ export default async function WikiObservationsPage() {
   const domainOptions = needsDomains.map((d) => ({ domain: d.domain, label: d.label ?? d.domain }));
 
   return (
-    <ObservationsView
-      viewerId={userId}
-      viewerIsCurator={viewerIsCurator}
-      observations={JSON.parse(JSON.stringify(observations))}
-      partnerOrgs={partnerOrgs}
-      pageOptions={pageOptions}
-      needsDomains={domainOptions}
-    />
+    <SurfaceProvider id="wiki.observations">
+      <ObservationsView
+        viewerId={userId}
+        viewerIsCurator={viewerIsCurator}
+        observations={JSON.parse(JSON.stringify(observations))}
+        partnerOrgs={partnerOrgs}
+        pageOptions={pageOptions}
+        needsDomains={domainOptions}
+      />
+    </SurfaceProvider>
   );
 }

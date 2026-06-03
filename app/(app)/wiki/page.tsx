@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isWikiSteward, isWikiCurator } from "@/lib/wiki/auth";
 import WikiListView from "./WikiListView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function WikiIndexPage() {
   const session = await auth();
@@ -47,12 +48,14 @@ export default async function WikiIndexPage() {
   }));
 
   return (
-    <WikiListView
-      initialPages={JSON.parse(JSON.stringify(decorated))}
-      canCreate={steward}
-      hasDashboard={steward || curator || ownedCount > 0}
-      isStaff={steward || curator}
-      isStewardOnly={steward}
-    />
+    <SurfaceProvider id="wiki.list">
+      <WikiListView
+        initialPages={JSON.parse(JSON.stringify(decorated))}
+        canCreate={steward}
+        hasDashboard={steward || curator || ownedCount > 0}
+        isStaff={steward || curator}
+        isStewardOnly={steward}
+      />
+    </SurfaceProvider>
   );
 }

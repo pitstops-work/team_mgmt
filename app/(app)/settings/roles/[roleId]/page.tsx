@@ -1,17 +1,18 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { ArrowLeft, RotateCcw, Save } from "lucide-react";
+import { ArrowLeft, ChevronDown, RotateCcw, Save } from "lucide-react";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type PermissionRow = {
   permissionId: string;
   resource: string;
   action: string;
   granted: boolean;
-  scopeRule: { kind: string } | null;
+  scopeRule: { kind: string; surfaces?: string[] } | null;
 };
 
 type ResourceGroup = {
@@ -19,14 +20,22 @@ type ResourceGroup = {
   permissions: PermissionRow[];
 };
 
+type SurfaceDef = {
+  id: string;
+  label: string;
+  group?: string;
+  description?: string;
+};
+
 type RoleDetail = {
   role: { id: string; name: string; description: string | null; isSystem: boolean };
   groups: ResourceGroup[];
   scopeKinds: string[];
   scopeLabels: Record<string, string>;
+  surfaces: SurfaceDef[];
 };
 
-type DraftRow = { granted: boolean; kind: string };
+type DraftRow = { granted: boolean; kind: string; surfaces: string[] };
 type Draft = Record<string, DraftRow>; // keyed by permissionId
 
 const ROLE_STYLE: Record<string, string> = {
@@ -60,6 +69,7 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
         out[p.permissionId] = {
           granted: p.granted,
           kind: p.scopeRule?.kind ?? DEFAULT_KIND,
+          surfaces: p.scopeRule?.surfaces ?? [],
         };
       }
     }
@@ -96,8 +106,10 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
       for (const p of g.permissions) {
         const d = draft[p.permissionId];
         const wasKind = p.scopeRule?.kind ?? DEFAULT_KIND;
+        const wasSurfaces = p.scopeRule?.surfaces ?? [];
         if (d.granted !== p.granted) return true;
         if (d.granted && d.kind !== wasKind) return true;
+        if (d.granted && !sameStringSet(d.surfaces, wasSurfaces)) return true;
       }
     }
     return false;
@@ -105,17 +117,32 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
 
   async function handleSave() {
     if (!detail) return;
-    const updates: Array<{ permissionId: string; granted: boolean; scopeRule?: { kind: string } }> = [];
+    const updates: Array<{
+      permissionId: string;
+      granted: boolean;
+      scopeRule?: { kind: string; surfaces?: string[] };
+    }> = [];
     for (const g of detail.groups) {
       for (const p of g.permissions) {
         const d = draft[p.permissionId];
         const wasKind = p.scopeRule?.kind ?? DEFAULT_KIND;
-        const changed = d.granted !== p.granted || (d.granted && d.kind !== wasKind);
+        const wasSurfaces = p.scopeRule?.surfaces ?? [];
+        const changed =
+          d.granted !== p.granted ||
+          (d.granted && d.kind !== wasKind) ||
+          (d.granted && !sameStringSet(d.surfaces, wasSurfaces));
         if (!changed) continue;
         updates.push({
           permissionId: p.permissionId,
           granted: d.granted,
-          ...(d.granted ? { scopeRule: { kind: d.kind } } : {}),
+          ...(d.granted
+            ? {
+                scopeRule: {
+                  kind: d.kind,
+                  ...(d.surfaces.length > 0 ? { surfaces: d.surfaces } : {}),
+                },
+              }
+            : {}),
         });
       }
     }
@@ -129,11 +156,14 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ updates }),
       });
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `${res.status}`);
+      }
       setSavedAt(Date.now());
       await load();
-    } catch {
-      setError("Save failed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -160,6 +190,7 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
   if (!detail) return <p className="p-6 text-sm text-red-500">{error ?? "Not found"}</p>;
 
   return (
+    <SurfaceProvider id="settings.role_detail">
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <Link
         href="/settings/roles"
@@ -201,7 +232,7 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
         {savedAt && !dirty && !saving && (
           <span className="text-xs text-emerald-600">Saved</span>
         )}
-        {error && <span className="text-xs text-red-500 ml-auto">{error}</span>}
+        {error && <span className="text-xs text-red-500 ml-auto truncate max-w-[40%]">{error}</span>}
       </div>
 
       <div className="space-y-6">
@@ -215,7 +246,7 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
                 return (
                   <div
                     key={p.permissionId}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm"
+                    className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm"
                   >
                     <label className="flex items-center gap-2 min-w-[200px]">
                       <input
@@ -236,12 +267,21 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
                         [p.permissionId]: { ...prev[p.permissionId], kind: e.target.value },
                       }))}
                       disabled={!d.granted}
-                      className="flex-1 max-w-xs px-2 py-1.5 text-xs border border-stone-200 rounded-md bg-white disabled:bg-stone-50 disabled:text-stone-300"
+                      className="flex-1 min-w-[180px] max-w-xs px-2 py-1.5 text-xs border border-stone-200 rounded-md bg-white disabled:bg-stone-50 disabled:text-stone-300"
                     >
                       {detail.scopeKinds.map((k) => (
                         <option key={k} value={k}>{detail.scopeLabels[k] ?? k}</option>
                       ))}
                     </select>
+                    <SurfacesPicker
+                      value={d.surfaces}
+                      allSurfaces={detail.surfaces}
+                      disabled={!d.granted}
+                      onChange={(next) => setDraft((prev) => ({
+                        ...prev,
+                        [p.permissionId]: { ...prev[p.permissionId], surfaces: next },
+                      }))}
+                    />
                   </div>
                 );
               })}
@@ -249,6 +289,125 @@ export default function RoleDetailPage({ params }: { params: Promise<{ roleId: s
           </section>
         ))}
       </div>
+    </div>
+    </SurfaceProvider>
+  );
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function sameStringSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  return b.every((x) => setA.has(x));
+}
+
+// ── Surfaces picker ─────────────────────────────────────────────────────────
+
+function SurfacesPicker({
+  value,
+  allSurfaces,
+  disabled,
+  onChange,
+}: {
+  value: string[];
+  allSurfaces: SurfaceDef[];
+  disabled: boolean;
+  onChange: (next: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click.
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, SurfaceDef[]>();
+    for (const s of allSurfaces) {
+      const g = s.group ?? s.id.split(".")[0];
+      if (!map.has(g)) map.set(g, []);
+      map.get(g)!.push(s);
+    }
+    return [...map.entries()];
+  }, [allSurfaces]);
+
+  const selected = new Set(value);
+  const label =
+    value.length === 0
+      ? "All surfaces"
+      : value.length === 1
+        ? (allSurfaces.find((s) => s.id === value[0])?.label ?? value[0])
+        : `${value.length} surfaces`;
+
+  function toggle(id: string) {
+    if (selected.has(id)) onChange(value.filter((x) => x !== id));
+    else onChange([...value, id]);
+  }
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen((v) => !v)}
+        disabled={disabled}
+        className={`inline-flex items-center gap-1.5 px-2 py-1.5 text-xs border rounded-md transition-colors ${
+          disabled
+            ? "bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed"
+            : value.length === 0
+              ? "bg-white text-stone-500 border-stone-200 hover:bg-stone-50"
+              : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+        }`}
+        title={value.length === 0 ? "No surface restriction (allowed from anywhere)" : "Restricted to specific surfaces"}
+      >
+        {label}
+        <ChevronDown className="w-3 h-3" />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-80 max-h-96 overflow-y-auto bg-white border border-stone-200 rounded-lg shadow-lg p-2">
+          <div className="px-2 py-1.5 flex items-center justify-between border-b border-stone-100">
+            <span className="text-[11px] uppercase tracking-wide text-stone-500">Restrict to surfaces</span>
+            {value.length > 0 && (
+              <button
+                onClick={() => onChange([])}
+                className="text-[11px] text-sky-600 hover:underline"
+              >
+                Clear (allow all)
+              </button>
+            )}
+          </div>
+          {grouped.map(([group, surfaces]) => (
+            <div key={group} className="pt-2">
+              <div className="px-2 text-[10px] uppercase tracking-wide text-stone-400 mb-1">{group}</div>
+              {surfaces.map((s) => (
+                <label
+                  key={s.id}
+                  className="flex items-start gap-2 px-2 py-1 rounded hover:bg-stone-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(s.id)}
+                    onChange={() => toggle(s.id)}
+                    className="mt-0.5 rounded border-stone-300"
+                  />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-xs text-stone-700">{s.label}</span>
+                    {s.description && (
+                      <span className="block text-[10px] text-stone-400">{s.description}</span>
+                    )}
+                  </span>
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

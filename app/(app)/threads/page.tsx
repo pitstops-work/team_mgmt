@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { isAdminUser } from "@/lib/roleGuard";
 import { buildRbacContext, scopeWhere } from "@/lib/rbac";
 import ThreadsList from "./ThreadsList";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function ThreadsPage({ searchParams }: { searchParams: Promise<{ thread?: string }> }) {
   const { thread: threadParam } = await searchParams;
@@ -152,18 +153,20 @@ export default async function ThreadsPage({ searchParams }: { searchParams: Prom
   const preferredLang = langRows[0]?.preferredLang ?? "en";
 
   return (
-    <ThreadsList
-      threads={JSON.parse(JSON.stringify(threads))}
-      goals={JSON.parse(JSON.stringify(goals))}
-      pitstops={JSON.parse(JSON.stringify(pitstops))}
-      checklistItems={JSON.parse(JSON.stringify(checklistItemsRaw))}
-      events={JSON.parse(JSON.stringify(events))}
-      users={JSON.parse(JSON.stringify(users))}
-      currentUserId={userId}
-      currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
-      currentUserRole={userRole}
-      preferredLang={preferredLang}
-      initialThreadId={threadParam ?? null}
-    />
+    <SurfaceProvider id="threads.list">
+      <ThreadsList
+        threads={JSON.parse(JSON.stringify(threads))}
+        goals={JSON.parse(JSON.stringify(goals))}
+        pitstops={JSON.parse(JSON.stringify(pitstops))}
+        checklistItems={JSON.parse(JSON.stringify(checklistItemsRaw))}
+        events={JSON.parse(JSON.stringify(events))}
+        users={JSON.parse(JSON.stringify(users))}
+        currentUserId={userId}
+        currentUserName={session!.user!.name ?? session!.user!.email ?? ""}
+        currentUserRole={userRole}
+        preferredLang={preferredLang}
+        initialThreadId={threadParam ?? null}
+      />
+    </SurfaceProvider>
   );
 }

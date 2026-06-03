@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isWikiSteward } from "@/lib/wiki/auth";
 import { redirect } from "next/navigation";
 import PartnerReviewNewForm from "./PartnerReviewNewForm";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function NewPartnerReviewPage() {
   const session = await auth();
@@ -36,10 +37,12 @@ export default async function NewPartnerReviewPage() {
   ]);
 
   return (
-    <PartnerReviewNewForm
-      users={JSON.parse(JSON.stringify(users))}
-      partnerOrgs={JSON.parse(JSON.stringify(partnerOrgs))}
-      pages={JSON.parse(JSON.stringify(pages))}
-    />
+    <SurfaceProvider id="wiki.partner_review_new">
+      <PartnerReviewNewForm
+        users={JSON.parse(JSON.stringify(users))}
+        partnerOrgs={JSON.parse(JSON.stringify(partnerOrgs))}
+        pages={JSON.parse(JSON.stringify(pages))}
+      />
+    </SurfaceProvider>
   );
 }

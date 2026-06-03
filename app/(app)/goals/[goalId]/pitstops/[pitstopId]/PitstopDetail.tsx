@@ -24,6 +24,8 @@ import AuditSection from "./AuditSection";
 import { PROGRESS_TAGS, progressTagColor } from "@/lib/progressTags";
 import { PitstopAPPanel } from "@/components/action-points/PitstopAPPanel";
 import { RescheduleVisitModal } from "@/components/pitstops/RescheduleVisitModal";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
+import { fetchJson } from "@/lib/fetchJson";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -240,10 +242,14 @@ function ChecklistItemRow({
           const blob = new Blob(chunksRef.current, { type: mimeType });
           const fd = new FormData();
           fd.append("audio", blob, `recording.${mimeType.includes("mp4") ? "mp4" : "webm"}`);
-          const res = await fetch(`/api/checklist/${item.id}/voice`, { method: "POST", body: fd });
-          if (res.ok) {
-            const updated = await res.json();
+          try {
+            const updated = await fetchJson<{ notes?: string }>(
+              `/api/checklist/${item.id}/voice`,
+              { method: "POST", body: fd },
+            );
             onVoiceLogged(item.id, updated.notes ?? "");
+          } catch {
+            // surface gate or transcription error
           }
         } finally {
           setVoiceState("idle");
@@ -842,11 +848,10 @@ export default function PitstopDetail({
     }
     setPitstop((p) => ({ ...p, checklistItems: newItems, ...(newStatus ? { status: newStatus } : {}) }));
     const indicatorPayload = checked ? collectIndicatorPayload(itemId) : undefined;
-    await fetch(`/api/checklist/${itemId}`, {
+    await fetchJson(`/api/checklist/${itemId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ checked, ...(indicatorPayload ? { indicatorValues: indicatorPayload } : {}) }),
-    });
+      json: { checked, ...(indicatorPayload ? { indicatorValues: indicatorPayload } : {}) },
+    }).catch(() => undefined);
   };
 
   const handleUpdateItemStatus = async (itemId: string, status: string) => {
@@ -857,11 +862,10 @@ export default function PitstopDetail({
       ),
     }));
     const indicatorPayload = status === "Done" ? collectIndicatorPayload(itemId) : undefined;
-    await fetch(`/api/checklist/${itemId}`, {
+    await fetchJson(`/api/checklist/${itemId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, ...(indicatorPayload ? { indicatorValues: indicatorPayload } : {}) }),
-    });
+      json: { status, ...(indicatorPayload ? { indicatorValues: indicatorPayload } : {}) },
+    }).catch(() => undefined);
   };
 
   const handleUpdateItemAssignee = async (itemId: string, assigneeId: string | null) => {
@@ -869,11 +873,10 @@ export default function PitstopDetail({
       ...p,
       checklistItems: p.checklistItems.map((i) => i.id === itemId ? { ...i, assigneeId } : i),
     }));
-    await fetch(`/api/checklist/${itemId}`, {
+    await fetchJson(`/api/checklist/${itemId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assigneeId }),
-    });
+      json: { assigneeId },
+    }).catch(() => undefined);
   };
 
   const handleUpdateItemNotes = async (itemId: string, notes: string) => {
@@ -881,11 +884,10 @@ export default function PitstopDetail({
       ...p,
       checklistItems: p.checklistItems.map((i) => i.id === itemId ? { ...i, notes: notes || null } : i),
     }));
-    await fetch(`/api/checklist/${itemId}`, {
+    await fetchJson(`/api/checklist/${itemId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes: notes || null }),
-    });
+      json: { notes: notes || null },
+    }).catch(() => undefined);
   };
 
   const handleVoiceLogged = (itemId: string, notes: string) => {
@@ -943,16 +945,15 @@ export default function PitstopDetail({
       });
       return { ...p, checklistItems: newItems, status: forwardAdvance(p.status, newItems) };
     });
-    await fetch(`/api/pitstop-events/${activityId}`, {
+    await fetchJson(`/api/pitstop-events/${activityId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Done" }),
-    });
+      json: { status: "Done" },
+    }).catch(() => undefined);
   };
 
   const handleDeleteCheckItem = async (itemId: string) => {
     setPitstop((p) => ({ ...p, checklistItems: p.checklistItems.filter((i) => i.id !== itemId) }));
-    await fetch(`/api/checklist/${itemId}`, { method: "DELETE" });
+    await fetchJson(`/api/checklist/${itemId}`, { method: "DELETE" }).catch(() => undefined);
   };
 
   const handleMoveItem = async (itemId: string, direction: "up" | "down") => {
@@ -1159,6 +1160,7 @@ export default function PitstopDetail({
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
+    <SurfaceProvider id="pitstop.detail">
     <div className="flex flex-col h-full">
       {/* Mobile tab strip */}
       <div className="sm:hidden flex border-b border-stone-200 bg-white flex-shrink-0">
@@ -1783,6 +1785,7 @@ export default function PitstopDetail({
         </div>
       )}
     </div>
+    </SurfaceProvider>
   );
 }
 

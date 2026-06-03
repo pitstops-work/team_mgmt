@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import GoalsDashboard from "./GoalsDashboard";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import { goalCityFilter } from "@/lib/goalCityFilter";
 import { buildRbacContext, scopeWhere, userIdFilter } from "@/lib/rbac";
 
@@ -338,20 +339,22 @@ export default async function DashboardPage({
   }
 
   return (
-    <GoalsDashboard
-      initialGoals={JSON.parse(JSON.stringify(goals))}
-      currentUserId={currentUserId}
-      currentUserDesignation={me?.designation ?? "Other"}
-      currentUserRole={me?.role ?? session?.user?.role ?? "member"}
-      searchResults={searchResults ? JSON.parse(JSON.stringify(searchResults)) : null}
-      users={users}
-      programs={programs}
-      threads={JSON.parse(JSON.stringify(threads))}
-      myPitstops={JSON.parse(JSON.stringify(myPitstops))}
-      overviewData={JSON.parse(JSON.stringify(overviewData))}
-      phaseData={JSON.parse(JSON.stringify(phaseRows))}
-      initialTab={(tab === "home" || tab === "goals" || tab === "team" || tab === "phase" ? tab : "home") as "home" | "goals" | "team" | "phase"}
-      initialFilter={(["All","Mine","Active","Paused","Complete"].includes(filter ?? "") ? filter : "All") as "All" | "Mine" | "Active" | "Paused" | "Complete"}
-    />
+    <SurfaceProvider id="dashboard.view">
+      <GoalsDashboard
+        initialGoals={JSON.parse(JSON.stringify(goals))}
+        currentUserId={currentUserId}
+        currentUserDesignation={me?.designation ?? "Other"}
+        currentUserRole={me?.role ?? session?.user?.role ?? "member"}
+        searchResults={searchResults ? JSON.parse(JSON.stringify(searchResults)) : null}
+        users={users}
+        programs={programs}
+        threads={JSON.parse(JSON.stringify(threads))}
+        myPitstops={JSON.parse(JSON.stringify(myPitstops))}
+        overviewData={JSON.parse(JSON.stringify(overviewData))}
+        phaseData={JSON.parse(JSON.stringify(phaseRows))}
+        initialTab={(tab === "home" || tab === "goals" || tab === "team" || tab === "phase" ? tab : "home") as "home" | "goals" | "team" | "phase"}
+        initialFilter={(["All","Mine","Active","Paused","Complete"].includes(filter ?? "") ? filter : "All") as "All" | "Mine" | "Active" | "Paused" | "Complete"}
+      />
+    </SurfaceProvider>
   );
 }

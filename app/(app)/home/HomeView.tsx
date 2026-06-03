@@ -43,6 +43,12 @@ import { GoalsTab } from "./_shared/GoalsTab";
 import { DoneLog } from "./rp/DoneLog";
 import { FollowUpsTab } from "./_shared/FollowUpsTab";
 import type { ActivityModalPitstopRef, ActivityModalUser } from "./_shared/AddActivityModal";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
+
+/** Map active home tab → RBAC surface id (lib/rbacSurfaces.ts). */
+function tabSurface(tab: TabKey): string {
+  return `home.${tab.replace(/-/g, "_")}`;
+}
 
 // ── Tab catalogs ──────────────────────────────────────────────────────────────
 
@@ -206,7 +212,9 @@ export default function HomeView({
         </div>
       </div>
 
-      {/* Tab content */}
+      {/* Tab content — wrapped in SurfaceProvider so mutations from inside any
+          tab carry X-Surface: home.<tab>. Restrict per-tab in /settings/roles. */}
+      <SurfaceProvider id={tabSurface(activeTab)}>
       <div className={`flex-1 px-5 sm:px-8 py-6 pb-24 sm:pb-8 ${
         activeTab === "today" || activeTab === "overview" || activeTab === "pipeline" || activeTab === "team"
           ? "max-w-6xl"
@@ -331,6 +339,7 @@ export default function HomeView({
         {activeTab === "team" && adminDash && <AdminTeamTab users={adminDash.users} />}
         {activeTab === "pipeline" && adminDash && <AdminPipelineTab dash={adminDash} />}
       </div>
+      </SurfaceProvider>
     </div>
   );
 }

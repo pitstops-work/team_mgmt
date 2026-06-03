@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import ProgramsList from "./ProgramsList";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function ProgramsPage() {
   const session = await auth();
@@ -31,10 +32,12 @@ export default async function ProgramsPage() {
   ]);
 
   return (
-    <ProgramsList
-      programs={JSON.parse(JSON.stringify(programs))}
-      goals={JSON.parse(JSON.stringify(goals))}
-      currentUserId={session!.user!.id!}
-    />
+    <SurfaceProvider id="programs.list">
+      <ProgramsList
+        programs={JSON.parse(JSON.stringify(programs))}
+        goals={JSON.parse(JSON.stringify(goals))}
+        currentUserId={session!.user!.id!}
+      />
+    </SurfaceProvider>
   );
 }

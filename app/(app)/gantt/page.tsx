@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { buildRbacContext, checklistUpdatablePitstopIds } from "@/lib/rbac";
 import GanttChart from "./GanttChart";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function GanttPage() {
   const session = await auth();
@@ -58,9 +59,11 @@ export default async function GanttPage() {
   const updatable = await checklistUpdatablePitstopIds(ctx, goals.flatMap((g) => g.pitstops.map((p) => p.id)));
 
   return (
-    <GanttChart
-      goals={JSON.parse(JSON.stringify(goals))}
-      checklistUpdatablePitstopIds={Array.from(updatable)}
-    />
+    <SurfaceProvider id="gantt.view">
+      <GanttChart
+        goals={JSON.parse(JSON.stringify(goals))}
+        checklistUpdatablePitstopIds={Array.from(updatable)}
+      />
+    </SurfaceProvider>
   );
 }

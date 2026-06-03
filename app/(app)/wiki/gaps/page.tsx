@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isWikiCurator } from "@/lib/wiki/auth";
 import { redirect } from "next/navigation";
 import GapsView from "./GapsView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function WikiGapsPage() {
   const session = await auth();
@@ -57,13 +58,15 @@ export default async function WikiGapsPage() {
   const domainOptions = needsDomains.map((d) => ({ domain: d.domain, label: d.label ?? d.domain }));
 
   return (
-    <GapsView
-      viewerIsCurator={curator}
-      viewerId={userId}
-      gaps={JSON.parse(JSON.stringify(gaps))}
-      partnerOrgs={partnerOrgs}
-      candidateOwners={candidateOwners}
-      needsDomains={domainOptions}
-    />
+    <SurfaceProvider id="wiki.gaps">
+      <GapsView
+        viewerIsCurator={curator}
+        viewerId={userId}
+        gaps={JSON.parse(JSON.stringify(gaps))}
+        partnerOrgs={partnerOrgs}
+        candidateOwners={candidateOwners}
+        needsDomains={domainOptions}
+      />
+    </SurfaceProvider>
   );
 }

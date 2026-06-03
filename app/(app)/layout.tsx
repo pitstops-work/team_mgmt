@@ -15,6 +15,8 @@ import prisma from "@/lib/prisma";
 import { isAdminUser, isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
 import { buildRbacContext } from "@/lib/rbac";
 import { computeAllowedNavHrefs } from "./navGates";
+import { GrantsProvider } from "@/components/rbac/RbacProviders";
+import type { UserGrant } from "@/lib/rbacClient";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -43,9 +45,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     isAdmin,
   });
 
+  // Hydrate the client-side RBAC context so useCan() works without a fetch.
+  // Surface restrictions are evaluated client-side too (mirrors server semantics).
+  const userGrants: UserGrant[] = ctx
+    ? await prisma.rolePermission
+        .findMany({
+          where: { role: { name: ctx.role } },
+          include: { permission: { select: { resource: true, action: true } } },
+        })
+        .then((rows) =>
+          rows.map((rp) => ({
+            resource: rp.permission.resource,
+            action: rp.permission.action,
+            scopeRule: rp.scopeRule as { kind: string; surfaces?: string[] },
+          })),
+        )
+    : [];
+
   return (
     <SessionProvider>
       <QueryProvider>
+      <GrantsProvider grants={userGrants}>
       <BfcacheRefresh />
       <NavigationProgress />
       <ActivityPing />
@@ -65,6 +85,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <PWAInstallBanner />
         {isSuperAdmin(session) && <AgentPanel />}
       </div>
+      </GrantsProvider>
       </QueryProvider>
     </SessionProvider>
   );

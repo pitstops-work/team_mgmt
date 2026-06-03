@@ -18,10 +18,11 @@ import { auditLog, diffAudit, auditLogMany } from "@/lib/auditLog";
 
 async function inScope(
   session: Awaited<ReturnType<typeof auth>>,
+  req: Request,
   id: string,
   action: "update" | "delete",
 ): Promise<boolean> {
-  const ctx = await buildRbacContext(session);
+  const ctx = await buildRbacContext(session, { req });
   if (!ctx) return false;
   const where = await scopeWhere(ctx, "action_point", action);
   if (where === null) return false;
@@ -38,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const veto = viewerForbidden(session); if (veto) return veto;
 
   const { id } = await params;
-  if (!(await inScope(session, id, "update"))) {
+  if (!(await inScope(session, req, id, "update"))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -74,13 +75,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return Response.json(updated);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const veto = viewerForbidden(session); if (veto) return veto;
 
   const { id } = await params;
-  if (!(await inScope(session, id, "delete"))) {
+  if (!(await inScope(session, req, id, "delete"))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 

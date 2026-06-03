@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { isWikiSteward } from "@/lib/wiki/auth";
 import { redirect } from "next/navigation";
 import WikiNewForm from "./WikiNewForm";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function WikiNewPage() {
   const session = await auth();
@@ -26,5 +27,9 @@ export default async function WikiNewPage() {
     orderBy: { name: "asc" },
   });
 
-  return <WikiNewForm users={JSON.parse(JSON.stringify(users))} />;
+  return (
+    <SurfaceProvider id="wiki.new">
+      <WikiNewForm users={JSON.parse(JSON.stringify(users))} />
+    </SurfaceProvider>
+  );
 }

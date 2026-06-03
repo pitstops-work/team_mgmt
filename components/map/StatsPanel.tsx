@@ -2,6 +2,7 @@
 
 import type { GeoData } from "@/lib/useGeoData";
 import { LAYERS } from "@/lib/layers";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 interface StatsPanelProps {
   geoData: GeoData | null;
@@ -73,6 +74,7 @@ export default function StatsPanel({ geoData, isOpen, onClose }: StatsPanelProps
     geoData.centres.resource.length;
 
   return (
+    <SurfaceProvider id="map.stats_panel">
     <div
       className={`absolute bottom-16 sm:bottom-0 left-0 right-0 z-20 bg-white border-t border-slate-200 shadow-2xl transition-transform duration-300 ${
         isOpen ? "translate-y-0" : "translate-y-full"
@@ -201,5 +203,6 @@ export default function StatsPanel({ geoData, isOpen, onClose }: StatsPanelProps
         </div>
       </div>
     </div>
+    </SurfaceProvider>
   );
 }

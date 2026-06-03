@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import ProgramDetail from "./ProgramDetail";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function ProgramPage({ params }: { params: Promise<{ programId: string }> }) {
   const session = await auth();
@@ -38,10 +39,12 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
   if (!program) notFound();
 
   return (
-    <ProgramDetail
-      program={JSON.parse(JSON.stringify(program))}
-      allGoals={JSON.parse(JSON.stringify(allGoals))}
-      currentUserId={session!.user!.id!}
-    />
+    <SurfaceProvider id="programs.detail">
+      <ProgramDetail
+        program={JSON.parse(JSON.stringify(program))}
+        allGoals={JSON.parse(JSON.stringify(allGoals))}
+        currentUserId={session!.user!.id!}
+      />
+    </SurfaceProvider>
   );
 }

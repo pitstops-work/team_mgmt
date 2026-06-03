@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import QuartersView from "./QuartersView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export const dynamic = "force-dynamic";
 
@@ -108,5 +109,9 @@ export default async function QuartersPage() {
   };
 
   const goals = [...rawGoals.map(transform), ...completedGoals.map(transform)];
-  return <QuartersView goals={goals} />;
+  return (
+    <SurfaceProvider id="quarters.view">
+      <QuartersView goals={goals} />
+    </SurfaceProvider>
+  );
 }

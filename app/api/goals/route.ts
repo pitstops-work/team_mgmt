@@ -5,11 +5,11 @@ import { viewerForbidden } from "@/lib/roleGuard";
 import { buildRbacContext, scopeWhere } from "@/lib/rbac";
 import { auditLog } from "@/lib/auditLog";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const ctx = await buildRbacContext(session);
+  const ctx = await buildRbacContext(session, { req });
   if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const scope = await scopeWhere(ctx, "goal", "list");
   if (scope === null) return Response.json([], { status: 200 });

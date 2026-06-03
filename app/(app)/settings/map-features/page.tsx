@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, Plus, Pencil, Trash2, Check, X, MapPin, SquarePen, ClipboardList, Download } from "lucide-react";
 import { LAYERS } from "@/lib/layers";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 // Built-in NGO partners from LAYERS config (always show, even if MapPartner table is empty)
 const BUILT_IN_PARTNERS = LAYERS
@@ -510,6 +511,7 @@ export default function MapFeaturesSettingsPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
+    <SurfaceProvider id="settings.map_features">
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <style>{`
         .label { display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:3px }
@@ -747,5 +749,6 @@ export default function MapFeaturesSettingsPage() {
 
       <Toast msg={msg} />
     </div>
+    </SurfaceProvider>
   );
 }

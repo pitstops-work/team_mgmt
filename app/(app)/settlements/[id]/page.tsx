@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import SettlementDetail from "./SettlementDetail";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export const dynamic = "force-dynamic";
 
@@ -94,5 +95,9 @@ export default async function SettlementPage({
 
   if (!settlement) notFound();
 
-  return <SettlementDetail settlement={JSON.parse(JSON.stringify(settlement))} />;
+  return (
+    <SurfaceProvider id="settlement.detail">
+      <SettlementDetail settlement={JSON.parse(JSON.stringify(settlement))} />
+    </SurfaceProvider>
+  );
 }

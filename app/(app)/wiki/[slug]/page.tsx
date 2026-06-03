@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { canArchivePage, isWikiCurator, isWikiSteward } from "@/lib/wiki/auth";
 import { notFound } from "next/navigation";
 import WikiReaderView from "./WikiReaderView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function WikiPageReader({
   params,
@@ -91,16 +92,18 @@ export default async function WikiPageReader({
   ]);
 
   return (
-    <WikiReaderView
-      page={JSON.parse(JSON.stringify(page))}
-      initialComments={JSON.parse(JSON.stringify(comments))}
-      initialFlags={JSON.parse(JSON.stringify(flags))}
-      pendingReviews={JSON.parse(JSON.stringify(pendingReviews))}
-      pendingHandover={pendingHandover ? JSON.parse(JSON.stringify(pendingHandover)) : null}
-      currentUserId={userId}
-      isSteward={steward}
-      canArchive={canArchivePage(steward, curator)}
-      preferredLang={me?.preferredLang ?? "en"}
-    />
+    <SurfaceProvider id="wiki.reader">
+      <WikiReaderView
+        page={JSON.parse(JSON.stringify(page))}
+        initialComments={JSON.parse(JSON.stringify(comments))}
+        initialFlags={JSON.parse(JSON.stringify(flags))}
+        pendingReviews={JSON.parse(JSON.stringify(pendingReviews))}
+        pendingHandover={pendingHandover ? JSON.parse(JSON.stringify(pendingHandover)) : null}
+        currentUserId={userId}
+        isSteward={steward}
+        canArchive={canArchivePage(steward, curator)}
+        preferredLang={me?.preferredLang ?? "en"}
+      />
+    </SurfaceProvider>
   );
 }

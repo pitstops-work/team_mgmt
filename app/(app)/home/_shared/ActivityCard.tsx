@@ -8,6 +8,7 @@ import { daysAgo, fmtDomain, fmtTime, isToday } from "../_lib/helpers";
 import { ACTIVITY_TYPE_STYLE } from "../_lib/constants";
 import { RescheduleSheet } from "./RescheduleSheet";
 import { CompleteActivityModal } from "@/components/action-points/CompleteActivityModal";
+import { fetchJson, FetchJsonError } from "@/lib/fetchJson";
 
 /**
  * The unified activity row used across the new RP/ZL Today cockpits.
@@ -102,8 +103,12 @@ export function ActivityCard({
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const fd = new FormData();
         fd.append("audio", blob, "voice.webm");
-        const res = await fetch(`/api/checklist/${linkedChecklist.id}/voice`, { method: "POST", body: fd });
-        if (res.ok) onCompleted(activity.id, linkedChecklist.id);
+        try {
+          await fetchJson(`/api/checklist/${linkedChecklist.id}/voice`, { method: "POST", body: fd });
+          onCompleted(activity.id, linkedChecklist.id);
+        } catch {
+          // surface gate or transcription error
+        }
         setBusy(null);
       };
       mediaRecorderRef.current = mr;
@@ -122,8 +127,12 @@ export function ActivityCard({
     const fd = new FormData();
     fd.append("file", file);
     fd.append("checklistItemId", linkedChecklist.id);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (res.ok) onCompleted(activity.id, linkedChecklist.id);
+    try {
+      await fetchJson("/api/upload", { method: "POST", body: fd });
+      onCompleted(activity.id, linkedChecklist.id);
+    } catch {
+      // surface gate or upload error
+    }
     setBusy(null);
   }
 
@@ -136,15 +145,11 @@ export function ActivityCard({
     if (todayBusy) return;
     setTodayBusy(true);
     try {
-      const res = await fetch(`/api/pitstop-events/${activity.id}/display-today`, { method });
-      if (res.ok) {
-        onRescheduled?.();
-      } else {
-        const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        alert(body.error || `Could not ${method === "POST" ? "add to" : "remove from"} today.`);
-      }
+      await fetchJson(`/api/pitstop-events/${activity.id}/display-today`, { method });
+      onRescheduled?.();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Network error.");
+      const msg = err instanceof FetchJsonError ? err.message : "Network error.";
+      alert(msg || `Could not ${method === "POST" ? "add to" : "remove from"} today.`);
     } finally {
       setTodayBusy(false);
     }

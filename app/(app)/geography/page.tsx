@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import GeographyView from "./GeographyView";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function GeographyPage() {
   const session = await auth();
@@ -66,10 +67,12 @@ export default async function GeographyPage() {
   }));
 
   return (
-    <GeographyView
-      initialCities={JSON.parse(JSON.stringify(cities))}
-      initialZones={JSON.parse(JSON.stringify(zones))}
-      currentUserId={session!.user!.id!}
-    />
+    <SurfaceProvider id="geography.view">
+      <GeographyView
+        initialCities={JSON.parse(JSON.stringify(cities))}
+        initialZones={JSON.parse(JSON.stringify(zones))}
+        currentUserId={session!.user!.id!}
+      />
+    </SurfaceProvider>
   );
 }

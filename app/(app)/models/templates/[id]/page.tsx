@@ -4,6 +4,7 @@ import { buildRbacContext, can } from "@/lib/rbac";
 import { forbidden, notFound } from "next/navigation";
 import { toEngineTemplate } from "@/lib/models/fromPrisma";
 import TemplateEditor from "./TemplateEditor";
+import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 export default async function TemplateEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,5 +25,9 @@ export default async function TemplateEditorPage({ params }: { params: Promise<{
   if (!t) notFound();
   const template = toEngineTemplate(t);
 
-  return <TemplateEditor templateId={t.id} templateKey={t.key} initial={template} canEdit={canEdit} />;
+  return (
+    <SurfaceProvider id="models.template_detail">
+      <TemplateEditor templateId={t.id} templateKey={t.key} initial={template} canEdit={canEdit} />
+    </SurfaceProvider>
+  );
 }
