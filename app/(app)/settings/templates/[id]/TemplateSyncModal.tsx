@@ -8,7 +8,7 @@ import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
 type SyncChange = {
   kind: "add" | "edit" | "remove";
-  entity: "pitstop" | "checklistItem" | "activity";
+  entity: "pitstop" | "checklistItem" | "activity" | "goal";
   templateKey: string;
   description: string;
   blocked?: boolean;

@@ -29,7 +29,7 @@ import { sendPushToUsers } from "./push";
 
 export type SyncChange = {
   kind: "add" | "edit" | "remove";
-  entity: "pitstop" | "checklistItem" | "activity";
+  entity: "pitstop" | "checklistItem" | "activity" | "goal";
   templateKey: string;
   parentTemplateKey?: string;   // checklist item key (for activities) or pitstop key (for items)
   instanceId?: string;          // present for edit/remove; absent for add
@@ -238,6 +238,13 @@ function diffGoal(template: DbTemplate, snapshot: GoalSnapshot): SyncChange[] {
 
   const templateKeys = new Set<string>();
 
+  // Collect targetDate candidates from every pitstop that will survive sync,
+  // so we can reconcile Goal.targetDate against MAX(pitstop.targetDate) per
+  // the [[recurring-pitstop-target-date]] invariant. Done instances keep
+  // their current targetDate; non-Done instances move to expected.target;
+  // Cancelled and removed instances are excluded.
+  const candidateTargets: Date[] = [];
+
   // Walk template pitstop slots
   for (const tplPt of template.pitstops) {
     const pKey = effectiveKey(tplPt.key, tplPt.title);
@@ -254,6 +261,13 @@ function diffGoal(template: DbTemplate, snapshot: GoalSnapshot): SyncChange[] {
         templateKey: pKey,
         description: `Add pitstop "${tplPt.title}"`,
       });
+      // The apply branch creates ONE instance at goalStart + slaDays (V1
+      // limitation — repeatCount > 1 not yet honoured on add). Mirror that
+      // here for the goal-target MAX.
+      if (snapshot.startDate) {
+        const targetOffset = Number.isFinite(tplPt.slaDays) ? tplPt.slaDays : (tplPt.startSlaDays ?? 0);
+        candidateTargets.push(snapToWeekday(addDaysUTC(snapshot.startDate, targetOffset)));
+      }
       continue;
     }
 
@@ -261,6 +275,16 @@ function diffGoal(template: DbTemplate, snapshot: GoalSnapshot): SyncChange[] {
     // templateKey group is the recurrence position — used to compute the
     // expected start/target date for that instance.
     instances.forEach((inst, idx) => {
+      // Goal-target candidate: Done keeps current; Cancelled excluded;
+      // everything else picks up expected.target.
+      const expected = computeExpectedWindow(tplPt, idx, snapshot.startDate);
+      if (inst.status === "Done") {
+        if (inst.targetDate) candidateTargets.push(inst.targetDate);
+      } else if (inst.status !== "Cancelled") {
+        if (expected) candidateTargets.push(expected.target);
+        else if (inst.targetDate) candidateTargets.push(inst.targetDate);
+      }
+
       if (isDoneOrCancelled(inst.status)) {
         // Completed pitstop — skip all changes, surface a single blocked entry
         // only if there are template changes that would have applied
@@ -272,7 +296,6 @@ function diffGoal(template: DbTemplate, snapshot: GoalSnapshot): SyncChange[] {
       // This is the fix to the snapshot-vs-mutation bug: previously
       // diffActivities computed scheduledAt against inst.startDate (the
       // pre-sync value), so SLA changes never propagated to activity dates.
-      const expected = computeExpectedWindow(tplPt, idx, snapshot.startDate);
       const expectedSchedule = expected
         ? computeActivitySchedule(tplPt, expected.start, expected.target)
         : new Map<string, Date>();
@@ -297,6 +320,29 @@ function diffGoal(template: DbTemplate, snapshot: GoalSnapshot): SyncChange[] {
         ...(blocked
           ? { blocked: true, blockedReason: `Pitstop is ${inst.status}` }
           : {}),
+      });
+    }
+  }
+
+  // Goal-target reconciliation. Only bump UP — never shrink, so a goal whose
+  // owner manually extended the deadline keeps that buffer. Apply-time also
+  // re-reads true MAX after writes to catch user-added (non-template)
+  // pitstops the snapshot doesn't load.
+  if (snapshot.targetDate && candidateTargets.length > 0) {
+    const maxTarget = candidateTargets.reduce(
+      (m, d) => (d.getTime() > m.getTime() ? d : m),
+      candidateTargets[0],
+    );
+    if (dayDeltaUTC(snapshot.targetDate, maxTarget) > 0) {
+      changes.push({
+        kind: "edit",
+        entity: "goal",
+        templateKey: "__goal_target__",
+        instanceId: snapshot.id,
+        field: "targetDate",
+        oldValue: snapshot.targetDate.toISOString(),
+        newValue: maxTarget.toISOString(),
+        description: `Extend goal deadline to cover updated pitstop schedule`,
       });
     }
   }
@@ -1054,7 +1100,23 @@ async function applyGoalChanges(
       }
 
       else if (ch.kind === "edit" && ch.instanceId) {
-        if (ch.entity === "pitstop") {
+        if (ch.entity === "goal") {
+          // Goal-target reconciliation. instanceId is the goalId. Only the
+          // targetDate field is emitted today; future goal-level edits can
+          // extend this branch.
+          if (ch.field === "targetDate" && ch.newValue) {
+            await prisma.goal.update({
+              where: { id: ch.instanceId },
+              data: { targetDate: new Date(ch.newValue) },
+            });
+            auditLog({
+              entityType: "Goal", entityId: ch.instanceId, userId: actorId,
+              action: "template_sync_edit", field: "targetDate",
+              oldValue: ch.oldValue ?? null, newValue: ch.newValue,
+            });
+            applied += 1;
+          }
+        } else if (ch.entity === "pitstop") {
           if (ch.field === "startDate" || ch.field === "targetDate") {
             await prisma.pitstop.update({
               where: { id: ch.instanceId },
