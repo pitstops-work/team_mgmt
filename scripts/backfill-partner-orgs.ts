@@ -131,14 +131,22 @@ async function main() {
     console.log(`  upserted ${e.name}`);
   }
 
-  // Build mapKey → orgId index for the geo backfills.
+  // Build mapKey → orgId index for the geo backfills. In dry-run mode the
+  // upserts above were skipped, so we synthesise placeholder ids for the
+  // would-be-created Orgs — the geo phases only need *something* truthy
+  // here to make the "no Org for this key" check pass and so we can preview
+  // the row counts honestly.
   const partnerOrgs = await prisma.org.findMany({
     where: { kind: "partner" },
     select: { id: true, slug: true, mapKey: true, name: true },
   });
   const orgByMapKey = new Map<string, string>();
   for (const o of partnerOrgs) if (o.mapKey) orgByMapKey.set(o.mapKey, o.id);
-  console.log(`\nResolved ${orgByMapKey.size} partner Org rows by mapKey.`);
+  if (DRY_RUN) {
+    for (const m of mapPartners) if (!orgByMapKey.has(m.key)) orgByMapKey.set(m.key, `(dry:${m.key})`);
+    for (const e of EXTRA_ORGS) if (!orgByMapKey.has(e.mapKey)) orgByMapKey.set(e.mapKey, `(dry:${e.mapKey})`);
+  }
+  console.log(`\nResolved ${orgByMapKey.size} partner Org rows by mapKey${DRY_RUN ? " (incl. dry placeholders)" : ""}.`);
 
   // ── Phase B — Settlement.partnerId → Settlement.partnerOrgId ─────────────
   // Skip rows that already have partnerOrgId (idempotent).
@@ -216,7 +224,11 @@ async function main() {
   console.log(`  LayerFeature.partner set    : ${lfLegacy}`);
   console.log(`  LayerFeature.partnerOrgId set: ${lfNew}     ${lfNew === lfLegacy ? "OK" : "MISMATCH"}`);
 
-  if (sNew !== sLegacy || lfNew !== lfLegacy) {
+  if (DRY_RUN) {
+    console.log(`\nDry run: counts above reflect current DB state (no writes happened).`);
+    console.log(`Phase B would update ${updatedB} Settlement row${updatedB === 1 ? "" : "s"}.`);
+    console.log(`Phase C would update ${updatedC} LayerFeature row${updatedC === 1 ? "" : "s"}.`);
+  } else if (sNew !== sLegacy || lfNew !== lfLegacy) {
     console.error(`\nVerification FAILED — counts differ. Re-run --dry-run to inspect.`);
     process.exitCode = 3;
   } else {
