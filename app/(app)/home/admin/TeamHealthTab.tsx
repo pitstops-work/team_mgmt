@@ -55,11 +55,13 @@ export function AdminTeamHealthTab({ personHealth, overdueActivities = [] }: {
   }
   function pmAllOverdueActs(pm: AdminPersonHealth): AdminOverdueActivity[] {
     const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
-    const pmRPs = rps.filter(r => pmZLs.some(z => z.userId === r.reportsToId));
+    const pmZLRPs = rps.filter(r => pmZLs.some(z => z.userId === r.reportsToId));
+    const pmDirectRPs = rps.filter(r => r.reportsToId === pm.userId);
     return [
       ...(overdueByOwner.get(pm.userId) ?? []),
       ...pmZLs.flatMap(z => overdueByOwner.get(z.userId) ?? []),
-      ...pmRPs.flatMap(r => overdueByOwner.get(r.userId) ?? []),
+      ...pmZLRPs.flatMap(r => overdueByOwner.get(r.userId) ?? []),
+      ...pmDirectRPs.flatMap(r => overdueByOwner.get(r.userId) ?? []),
     ];
   }
 
@@ -76,20 +78,25 @@ export function AdminTeamHealthTab({ personHealth, overdueActivities = [] }: {
 
   function pmAllDelayed(pm: AdminPersonHealth): (RPPitstopDetail & { ownerName: string })[] {
     const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
-    const pmRPs = rps.filter(r => pmZLs.some(z => z.userId === r.reportsToId));
+    const pmZLRPs = rps.filter(r => pmZLs.some(z => z.userId === r.reportsToId));
+    const pmDirectRPs = rps.filter(r => r.reportsToId === pm.userId);
     return [
       ...pm.delayedPitstops.map(p => ({ ...p, ownerName: pm.name ?? "Unnamed" })),
       ...pmZLs.flatMap(z => z.delayedPitstops.map(p => ({ ...p, ownerName: z.name ?? "Unnamed" }))),
-      ...pmRPs.flatMap(r => r.delayedPitstops.map(p => ({ ...p, ownerName: r.name ?? "Unnamed" }))),
+      ...pmZLRPs.flatMap(r => r.delayedPitstops.map(p => ({ ...p, ownerName: r.name ?? "Unnamed" }))),
+      ...pmDirectRPs.flatMap(r => r.delayedPitstops.map(p => ({ ...p, ownerName: r.name ?? "Unnamed" }))),
     ];
   }
 
   function pmAgg(pm: AdminPersonHealth) {
     const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
-    const pmRPs = rps.filter(r => pmZLs.some(z => z.userId === r.reportsToId));
-    const team = [...pmZLs, ...pmRPs];
+    const pmZLRPs = rps.filter(r => pmZLs.some(z => z.userId === r.reportsToId));
+    const pmDirectRPs = rps.filter(r => r.reportsToId === pm.userId);
+    const team = [...pmZLs, ...pmZLRPs, ...pmDirectRPs];
     return {
-      zlCount: pmZLs.length, rpCount: pmRPs.length,
+      zlCount: pmZLs.length,
+      rpCount: pmZLRPs.length + pmDirectRPs.length,
+      directRPCount: pmDirectRPs.length,
       delayed: pm.overduePitstops + team.reduce((s, m) => s + m.overduePitstops, 0),
       overdueActs: pm.overdueActivities + team.reduce((s, m) => s + m.overdueActivities, 0),
       clDone: pm.doneChecklists + team.reduce((s, m) => s + m.doneChecklists, 0),
@@ -110,8 +117,12 @@ export function AdminTeamHealthTab({ personHealth, overdueActivities = [] }: {
 
   // ZLs not under any PM in the health list
   const unmanagedZLs = zls.filter(z => !pms.some(pm => pm.userId === z.reportsToId));
-  // RPs not under any ZL in the health list
-  const unmanagedRPs = rps.filter(r => !zls.some(z => z.userId === r.reportsToId));
+  // RPs not under any ZL AND not directly under any PM in the health list
+  // (RPs can report directly to a PM, skipping the ZL hop — Abdul → Shrinivas).
+  const unmanagedRPs = rps.filter(
+    r => !zls.some(z => z.userId === r.reportsToId)
+      && !pms.some(pm => pm.userId === r.reportsToId),
+  );
 
   function RPCard({ rp }: { rp: AdminPersonHealth }) {
     const isDelayedOpen = expandedDelayedRP === rp.userId;
@@ -177,6 +188,7 @@ export function AdminTeamHealthTab({ personHealth, overdueActivities = [] }: {
         const agg = pmAgg(pm);
         const isOpen = expandedPMs.has(pm.userId);
         const pmZLs = zls.filter(z => z.reportsToId === pm.userId);
+        const pmDirectRPs = rps.filter(r => r.reportsToId === pm.userId);
         const dot = agg.delayed > 0 ? "bg-red-500" : agg.overdueActs > 0 ? "bg-amber-400" : "bg-emerald-500";
         const clPct = agg.clTotal > 0 ? Math.round(agg.clDone / agg.clTotal * 100) : null;
         const pmDelayed = pmAllDelayed(pm);
@@ -230,15 +242,27 @@ export function AdminTeamHealthTab({ personHealth, overdueActivities = [] }: {
                 <HealthBar value={agg.clDone} total={agg.clTotal} color="bg-teal-500" />
               </div>
             )}
-            {pmZLs.length > 0 && (
+            {(pmZLs.length > 0 || pmDirectRPs.length > 0) && (
               <button type="button" onClick={() => togglePM(pm.userId)}
                 className="w-full text-xs text-sky-700 bg-sky-50 border-t border-sky-100 px-4 py-2 flex items-center justify-center gap-1 hover:bg-sky-100 transition-colors">
-                {isOpen ? "Hide" : "Show"} {pmZLs.length} ZL{pmZLs.length !== 1 ? "s" : ""}
+                {isOpen ? "Hide" : "Show"} {[
+                  pmZLs.length > 0 ? `${pmZLs.length} ZL${pmZLs.length !== 1 ? "s" : ""}` : null,
+                  pmDirectRPs.length > 0 ? `${pmDirectRPs.length} direct RP${pmDirectRPs.length !== 1 ? "s" : ""}` : null,
+                ].filter(Boolean).join(" · ")}
                 {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               </button>
             )}
             {isOpen && (
               <div className="border-t border-stone-100 bg-stone-50 px-3 py-3 space-y-2">
+                {pmDirectRPs.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Reports directly to PM</p>
+                    {pmDirectRPs.map(rp => <RPCard key={rp.userId} rp={rp} />)}
+                    {pmZLs.length > 0 && (
+                      <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide pt-1">Via Zone Leads</p>
+                    )}
+                  </>
+                )}
                 {pmZLs.map(zl => {
                   const zAgg = zlAgg(zl);
                   const zlRPs = rps.filter(r => r.reportsToId === zl.userId);
