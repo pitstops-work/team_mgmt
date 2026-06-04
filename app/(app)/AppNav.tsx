@@ -14,7 +14,7 @@ import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
 // Routes that belong to the Operations world
-const OPERATIONS_ROUTES = ["/home", "/activities", "/threads", "/notifications"];
+const OPERATIONS_ROUTES = ["/home", "/activities", "/visits", "/threads", "/notifications"];
 
 interface User {
   id?: string;
@@ -80,7 +80,6 @@ export default function AppNav({
     { href: "/route",      icon: <Route className="w-3.5 h-3.5" />,            label: "Route Planner"  },
     { href: "/gantt",      icon: <GanttChartSquare className="w-3.5 h-3.5" />, label: "Gantt"          },
     { href: "/planner",    icon: <BookOpen className="w-3.5 h-3.5" />,         label: "Planner"        },
-    { href: "/visits",     icon: <CalendarRange className="w-3.5 h-3.5" />,    label: "Visit calendar" },
     { href: "/quarters",   icon: <CalendarRange className="w-3.5 h-3.5" />,    label: "Quarters"       },
     { href: "/models",     icon: <Calculator className="w-3.5 h-3.5" />,       label: "Models"         },
     { href: "/people",     icon: <Users className="w-3.5 h-3.5" />,            label: "People"         },
@@ -102,6 +101,7 @@ export default function AppNav({
   const operationsNav = [
     { href: "/home",          icon: <CalendarClock className="w-3.5 h-3.5" />, label: "Home"          },
     { href: "/activities",    icon: <CalendarClock className="w-3.5 h-3.5" />, label: "Activities"    },
+    { href: "/visits",        icon: <CalendarRange className="w-3.5 h-3.5" />, label: "Visit calendar"},
     { href: "/threads",       icon: <MessageSquare className="w-3.5 h-3.5" />, label: "Threads"       },
     { href: "/notifications", icon: null,                                       label: "Notifications" },
   ];
