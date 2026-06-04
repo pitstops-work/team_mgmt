@@ -1,14 +1,24 @@
 /**
- * Reschedule a whole pitstop "visit" — shift its startDate + targetDate by a
- * day delta and cascade the same shift to every non-Done activity's
- * scheduledAt (time-of-day preserved per activity).
+ * Reschedule a pitstop "visit". Two modes:
  *
- * Designed for the field-RP pattern where a pitstop represents one site visit
- * (e.g. Abdul's monthly creche round). One date picker, one click, the whole
- * visit moves. For SLA=0 pitstops the window collapses to the new day; for
- * windowed pitstops the relative spread of activities is preserved.
+ *   1. In-window (preferred for windowed pitstops): if shifting all non-Done
+ *      activities by deltaMs keeps every one inside the existing
+ *      [pitstop.startDate, pitstop.targetDate] window, ONLY the activities
+ *      move. The pitstop window stays put. No goal-deadline impact. This is
+ *      what gives a windowed pitstop (SLA > 0) a real reschedule buffer —
+ *      RP can move the visit day within the SLA without rippling forward.
  *
- * Body: { startDate: ISO }   — the new pitstop startDate
+ *   2. Window-shift (fallback / SLA=0): if any activity would fall outside
+ *      the current window after the shift, the whole visit moves — pitstop
+ *      startDate + targetDate shift by deltaMs and activities cascade. This
+ *      is the legacy behaviour; it still applies for SLA=0 pitstops (their
+ *      window is a single day, so anything but unchanged is out-of-window)
+ *      and for windowed pitstops that genuinely need to overflow. Subject
+ *      to the newTarget > goal.targetDate guard.
+ *
+ * Body: { startDate: ISO }   — the new pitstop startDate (in window-shift
+ *                              mode) OR the new anchor date (in-window mode).
+ * Response: { ok, mode: "in_window" | "window_shift", ... }
  *
  * Auth: PATCH /api/pitstop-events/[id] has no scope check today (known gap per
  * [[pitstop-event-update-scope]]); we match that surface here. viewerForbidden
@@ -50,28 +60,79 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     return Response.json({ error: "Cannot reschedule a pitstop without a startDate" }, { status: 400 });
   }
 
-  // Compute delta in milliseconds — same delta applied to target + every activity.
+  // Compute delta in milliseconds — same delta applied to every activity (and
+  // to the window in window-shift mode).
   const deltaMs = newStart.getTime() - existing.startDate.getTime();
   if (deltaMs === 0) {
     return Response.json({ ok: true, unchanged: true });
   }
 
+  const actorId = session.user.id;
+
+  // Load non-Done / non-Cancelled activities once — both modes need them.
+  const events = await prisma.$queryRaw<{ id: string; scheduledAt: Date }[]>`
+    SELECT pe.id, pe."scheduledAt"
+    FROM "PitstopEvent" pe
+    JOIN "PitstopEventPitstop" pep ON pep."eventId" = pe.id
+    WHERE pep."pitstopId" = ${pitstopId}
+      AND pe."deletedAt" IS NULL
+      AND pe.status NOT IN ('Done', 'Cancelled')
+  `;
+
+  // Decide mode: would shifting every activity by deltaMs keep all of them
+  // inside the current pitstop window? If so, run in-window mode. The window
+  // must have a real width (targetDate present and > startDate) for this to
+  // mean anything — single-day pitstops fall through to window-shift.
+  const winStart = existing.startDate.getTime();
+  const winEnd = existing.targetDate ? existing.targetDate.getTime() : winStart;
+  const hasWindow = winEnd > winStart;
+  const allShiftedFitInWindow = events.length > 0 && hasWindow && events.every((ev) => {
+    const t = ev.scheduledAt.getTime() + deltaMs;
+    return t >= winStart && t <= winEnd;
+  });
+
+  if (allShiftedFitInWindow) {
+    // ── In-window mode ──────────────────────────────────────────────────
+    // Only activities move. Pitstop window untouched. Goal untouched.
+    let activitiesShifted = 0;
+    for (const ev of events) {
+      const newSched = new Date(ev.scheduledAt.getTime() + deltaMs);
+      await prisma.$executeRaw`
+        UPDATE "PitstopEvent"
+        SET "scheduledAt" = ${newSched}, "updatedAt" = NOW()
+        WHERE id = ${ev.id}
+      `;
+      auditLog({
+        entityType: "Activity", entityId: ev.id, userId: actorId,
+        action: "visit_reschedule_in_window", field: "scheduledAt",
+        oldValue: ev.scheduledAt.toISOString(), newValue: newSched.toISOString(),
+      });
+      activitiesShifted++;
+    }
+    return Response.json({
+      ok: true,
+      pitstopId,
+      mode: "in_window",
+      newStartDate: existing.startDate.toISOString(),
+      newTargetDate: existing.targetDate?.toISOString() ?? null,
+      activitiesShifted,
+    });
+  }
+
+  // ── Window-shift mode (fallback) ──────────────────────────────────────
+  // Either there are no activities, the pitstop has no real window (SLA=0),
+  // or the shift would push at least one activity outside the window. Shift
+  // the whole visit and apply the goal-deadline guard.
   const newTarget = existing.targetDate
     ? new Date(existing.targetDate.getTime() + deltaMs)
     : null;
 
-  // Soft validation: new target shouldn't push past the goal deadline. Pitstop
-  // PATCH does this same check; mirror it here so the user sees the same error
-  // shape whether they used the inline edit or the visit-reschedule button.
   if (newTarget && existing.goal?.targetDate && newTarget > existing.goal.targetDate) {
     return Response.json({
       error: "New pitstop target would land after the goal deadline. Push the goal deadline first.",
     }, { status: 400 });
   }
 
-  const actorId = session.user.id;
-
-  // 1. Update the pitstop
   await prisma.pitstop.update({
     where: { id: pitstopId },
     data: {
@@ -86,16 +147,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     oldValue: existing.startDate.toISOString(), newValue: newStart.toISOString(),
   });
 
-  // 2. Cascade to non-Done / non-Cancelled activities. Time-of-day preserved
-  //    per activity (just shift the millisecond delta).
-  const events = await prisma.$queryRaw<{ id: string; scheduledAt: Date }[]>`
-    SELECT pe.id, pe."scheduledAt"
-    FROM "PitstopEvent" pe
-    JOIN "PitstopEventPitstop" pep ON pep."eventId" = pe.id
-    WHERE pep."pitstopId" = ${pitstopId}
-      AND pe."deletedAt" IS NULL
-      AND pe.status NOT IN ('Done', 'Cancelled')
-  `;
   let activitiesShifted = 0;
   for (const ev of events) {
     const newSched = new Date(ev.scheduledAt.getTime() + deltaMs);
@@ -115,6 +166,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
   return Response.json({
     ok: true,
     pitstopId,
+    mode: "window_shift",
     newStartDate: newStart.toISOString(),
     newTargetDate: newTarget?.toISOString() ?? null,
     activitiesShifted,
