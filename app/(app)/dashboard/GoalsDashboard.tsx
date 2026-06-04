@@ -24,6 +24,8 @@ import { orderProgressTags, progressTagColor } from "@/lib/progressTags";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type CityRef = { id: string; name: string };
+type PartnerRef = { id: string; name: string; color: string | null } | null;
+
 type Goal = {
   id: string;
   title: string;
@@ -36,9 +38,17 @@ type Goal = {
   programs: { program: { id: string; title: string } }[];
   needsCity: CityRef | null;
   needsZone: { id: string; name: string; city: CityRef | null } | null;
-  needsCluster: { id: string; name: string; zone: { id: string; name: string; city: CityRef | null } } | null;
+  needsCluster: { id: string; name: string; zone: { id: string; name: string; city: CityRef | null }; partnerOrg: PartnerRef } | null;
+  // Resolved by linkedFacility relation (when the goal targets a specific
+  // creche / centre). Partner can be sourced from the facility OR from the
+  // cluster; the GoalCard helper picks the first non-null.
+  linkedFacility: { id: string; name: string; partnerOrg: PartnerRef } | null;
   coOwners?: { userId: string }[];
 };
+
+function pickPartner(g: Pick<Goal, "linkedFacility" | "needsCluster">): PartnerRef {
+  return g.linkedFacility?.partnerOrg ?? g.needsCluster?.partnerOrg ?? null;
+}
 
 type GeoRef = { id: string; title: string; needsDomain: string | null; needsZoneId: string | null; needsClusterId: string | null };
 type Thread = {
@@ -982,6 +992,19 @@ function GoalCard({
               <AlertTriangle className="w-2.5 h-2.5" /> No domain linked
             </span>
           )}
+          {(() => {
+            const p = pickPartner(goal);
+            return p ? (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border flex-shrink-0"
+                style={{ borderColor: `${p.color ?? "#6b7280"}33`, backgroundColor: `${p.color ?? "#6b7280"}14`, color: p.color ?? "#6b7280" }}
+                title={`Partner: ${p.name}`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color ?? "#6b7280" }} />
+                {p.name}
+              </span>
+            ) : null;
+          })()}
         </div>
         {goal.description && (
           <p className="text-xs text-stone-500 truncate">{goal.description}</p>

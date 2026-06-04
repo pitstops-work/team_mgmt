@@ -51,6 +51,8 @@ type Pitstop = {
 };
 type Recurrence = "None" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
 type CoOwner = { userId: string; user: User };
+type PartnerRef = { id: string; name: string; color: string | null } | null;
+
 type Goal = {
   id: string;
   title: string;
@@ -72,6 +74,9 @@ type Goal = {
   attachments: Attachment[];
   pitstops: Pitstop[];
   coOwners: CoOwner[];
+  // Partner-org resolution chain (facility wins, cluster fallback).
+  linkedFacility?: { id: string; name: string; partnerOrg: PartnerRef } | null;
+  needsCluster?: { id: string; name: string; partnerOrg: PartnerRef } | null;
 };
 
 export default function GoalDetail({
@@ -280,9 +285,26 @@ export default function GoalDetail({
       <div className="mb-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h1 className="text-xl font-semibold text-stone-900">{goal.title}</h1>
               <GoalStatusBadge status={goal.status} />
+              {(() => {
+                const p = goal.linkedFacility?.partnerOrg ?? goal.needsCluster?.partnerOrg ?? null;
+                return p ? (
+                  <span
+                    className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border"
+                    style={{
+                      borderColor: `${p.color ?? "#6b7280"}33`,
+                      backgroundColor: `${p.color ?? "#6b7280"}14`,
+                      color: p.color ?? "#6b7280",
+                    }}
+                    title={`Partner: ${p.name}`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color ?? "#6b7280" }} />
+                    {p.name}
+                  </span>
+                ) : null;
+              })()}
             </div>
             {goal.description && (
               <p className="text-sm text-stone-500 mt-1">{goal.description}</p>

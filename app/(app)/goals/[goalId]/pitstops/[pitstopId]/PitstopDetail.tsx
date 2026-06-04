@@ -103,7 +103,13 @@ type Pitstop = {
   verifiedAt?: string | null;
   verifiedBy?: User | null;
   dateChanges: DateChange[];
-  goal: { id: string; title: string; targetDate?: string | null };
+  goal: {
+    id: string;
+    title: string;
+    targetDate?: string | null;
+    linkedFacility?: { id: string; name: string; partnerOrg: { id: string; name: string; color: string | null } | null } | null;
+    needsCluster?: { id: string; name: string; partnerOrg: { id: string; name: string; color: string | null } | null } | null;
+  };
   attachments: Attachment[];
   checklistItems: ChecklistItem[];
   blockedBy: Dependency[];
@@ -1216,6 +1222,23 @@ export default function PitstopDetail({
                 <Pencil className="w-3.5 h-3.5" />
               </button>
             </div>
+            {(() => {
+              const p = pitstop.goal.linkedFacility?.partnerOrg ?? pitstop.goal.needsCluster?.partnerOrg ?? null;
+              return p ? (
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] mt-1.5 px-1.5 py-0.5 rounded-full border"
+                  style={{
+                    borderColor: `${p.color ?? "#6b7280"}33`,
+                    backgroundColor: `${p.color ?? "#6b7280"}14`,
+                    color: p.color ?? "#6b7280",
+                  }}
+                  title={`Partner: ${p.name}`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color ?? "#6b7280" }} />
+                  {p.name}
+                </span>
+              ) : null;
+            })()}
             <div className="flex items-center gap-2 mt-1.5">
               <PitstopStatusBadge status={pitstop.status} />
               {isBlocked && (

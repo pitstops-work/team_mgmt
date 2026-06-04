@@ -18,7 +18,17 @@ export default async function PitstopPage({
       where: { id: pitstopId, deletedAt: null },
       include: {
         owner: { select: { id: true, name: true, image: true } },
-        goal: { select: { id: true, title: true, targetDate: true } },
+        goal: {
+          select: {
+            id: true, title: true, targetDate: true,
+            linkedFacility: {
+              select: { id: true, name: true, partnerOrg: { select: { id: true, name: true, color: true } } },
+            },
+            needsCluster: {
+              select: { id: true, name: true, partnerOrg: { select: { id: true, name: true, color: true } } },
+            },
+          },
+        },
         attachments: true,
         checklistItems: { orderBy: { order: "asc" } },
         blockedBy: {

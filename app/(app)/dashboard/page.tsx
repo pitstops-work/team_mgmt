@@ -49,7 +49,19 @@ export default async function DashboardPage({
         programs: { include: { program: { select: { id: true, title: true } } } },
         needsCity: { select: { id: true, name: true } },
         needsZone: { select: { id: true, name: true, city: { select: { id: true, name: true } } } },
-        needsCluster: { select: { id: true, name: true, zone: { select: { id: true, name: true, city: { select: { id: true, name: true } } } } } },
+        needsCluster: {
+          select: {
+            id: true, name: true,
+            zone: { select: { id: true, name: true, city: { select: { id: true, name: true } } } },
+            partnerOrg: { select: { id: true, name: true, color: true } },
+          },
+        },
+        linkedFacility: {
+          select: {
+            id: true, name: true,
+            partnerOrg: { select: { id: true, name: true, color: true } },
+          },
+        },
         coOwners: { select: { userId: true } },
       },
       orderBy: { updatedAt: "desc" },
