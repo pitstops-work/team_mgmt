@@ -90,23 +90,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     const t = ev.scheduledAt.getTime() + deltaMs;
     return t >= winStart && t <= winEnd;
   });
-  // Temporary debug: log mode-decision inputs so we can diagnose why an
-  // expected in-window reschedule falls through to window-shift. Remove
-  // once verified on prod.
-  console.log("[reschedule] decision", {
-    pitstopId,
-    existingStart: existing.startDate.toISOString(),
-    existingTarget: existing.targetDate?.toISOString() ?? null,
-    goalTarget: existing.goal?.targetDate?.toISOString() ?? null,
-    newStart: newStart.toISOString(),
-    deltaDays: deltaMs / 86_400_000,
-    eventCount: events.length,
-    eventsScheduledAt: events.map((e) => e.scheduledAt.toISOString()),
-    eventsShifted: events.map((e) => new Date(e.scheduledAt.getTime() + deltaMs).toISOString()),
-    hasWindow,
-    allShiftedFitInWindow,
-    chose: allShiftedFitInWindow ? "in_window" : "window_shift",
-  });
 
   if (allShiftedFitInWindow) {
     // ── In-window mode ──────────────────────────────────────────────────
