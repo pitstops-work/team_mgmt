@@ -411,6 +411,19 @@ export default function MapView({
     mapRef.current = map;
     if (sharedMapRef) sharedMapRef.current = map;
 
+    // Geolocate control — tap once to prompt for browser permission, then a
+    // blue pulsing dot tracks the user (with heading on supporting devices).
+    // Helpful when an RP is in the field and wants to see which settlement /
+    // facility they're standing in relative to the programme polygons.
+    map.addControl(
+      new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showAccuracyCircle: true,
+      }),
+      "top-right",
+    );
+
     map.on("load", () => {
       if (mapRef.current !== map) return; // map was removed before style finished loading
 
