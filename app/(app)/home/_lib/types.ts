@@ -48,7 +48,7 @@ export type ActivityGoal = {
    */
   linkedFacility?: {
     name: string;
-    cluster: { name: string } | null;
+    cluster: { id: string; name: string } | null;
   } | null;
 };
 export type Activity = {
@@ -91,6 +91,10 @@ export type ChecklistItem = {
       linkedFacilityId?: string | null;
       needsCluster: { id: string; name: string } | null;
       needsSettlement?: { id: string; name: string } | null;
+      linkedFacility?: {
+        name: string;
+        cluster: { id: string; name: string } | null;
+      } | null;
     };
   };
 };

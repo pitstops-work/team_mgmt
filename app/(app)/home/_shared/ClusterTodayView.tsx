@@ -164,8 +164,16 @@ export function ClusterTodayView({
     if (!b) { b = { id, name, overdue: [], today: [], checklists: [], week: [] , earliestMs: Infinity}; bucketMap.set(id, b); }
     return b;
   };
-  const activityCluster = (a: Activity) => a.pitstops?.[0]?.pitstop?.goal?.needsCluster ?? null;
-  const checklistCluster = (ci: ChecklistItem) => ci.pitstop.goal.needsCluster ?? null;
+  // Fall back through the facility chain: many "existing"-facility goals only
+  // have linkedFacility set (no needsCluster), but the facility itself
+  // carries its cluster. Without this fallback those goals all collapse into
+  // the "No cluster" bucket on PM / Leader Today.
+  const activityCluster = (a: Activity) => {
+    const goal = a.pitstops?.[0]?.pitstop?.goal;
+    return goal?.needsCluster ?? goal?.linkedFacility?.cluster ?? null;
+  };
+  const checklistCluster = (ci: ChecklistItem) =>
+    ci.pitstop.goal.needsCluster ?? ci.pitstop.goal.linkedFacility?.cluster ?? null;
   for (const a of overdueItems)        ensureBucket(activityCluster(a)).overdue.push(a);
   for (const a of todayItems)          ensureBucket(activityCluster(a)).today.push(a);
   for (const ci of openChecklists)     ensureBucket(checklistCluster(ci)).checklists.push(ci);
