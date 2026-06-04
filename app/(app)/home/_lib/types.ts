@@ -39,6 +39,17 @@ export type ActivityGoal = {
   needsCluster:    { id: string; name: string } | null;
   needsSettlement: { id: string; name: string } | null;
   needsZone:       { id: string; name: string } | null;
+  /**
+   * Resolved linked facility (LayerFeature). Populated when the goal points
+   * at a specific facility (creche, centre, water ATM, etc.). Carries the
+   * facility's own cluster — many goals don't set `needsCluster` directly
+   * but the facility does, so ActivityCard falls back through this chain
+   * to surface "where is this visit" reliably.
+   */
+  linkedFacility?: {
+    name: string;
+    cluster: { name: string } | null;
+  } | null;
 };
 export type Activity = {
   id: string; title: string; type: string; scheduledAt: string;

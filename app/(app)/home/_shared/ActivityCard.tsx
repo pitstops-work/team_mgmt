@@ -83,8 +83,11 @@ export function ActivityCard({
   const ps = activity.pitstops?.[0]?.pitstop;
   const goal = ps?.goal;
   const domain = goal?.needsDomain ? fmtDomain(goal.needsDomain) : null;
-  const cluster = goal?.needsCluster?.name ?? null;
-  const settlement = goal?.needsSettlement?.name ?? null;
+  // Fall back through the facility chain: most "existing" goals only set
+  // linkedFacility (not needsCluster / needsSettlement), but the facility
+  // itself carries its own cluster + name. Order: direct → via facility.
+  const cluster = goal?.needsCluster?.name ?? goal?.linkedFacility?.cluster?.name ?? null;
+  const settlement = goal?.needsSettlement?.name ?? goal?.linkedFacility?.name ?? null;
 
   // Activity-type completion goes through CompleteActivityModal (modal owns
   // the PATCH Done). Voice / Upload paths server-side mark the activity Done

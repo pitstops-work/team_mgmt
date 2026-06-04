@@ -406,6 +406,7 @@ export default async function HomePage() {
                     id: true, title: true, needsDomain: true, linkedFacilityId: true,
                     needsCluster:    { select: { id: true, name: true } },
                     needsSettlement: { select: { id: true, name: true } },
+                    linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                     needsZone:       { select: { id: true, name: true } },
                   },
                 },
@@ -451,6 +452,7 @@ export default async function HomePage() {
                     id: true, title: true, needsDomain: true, linkedFacilityId: true,
                     needsCluster:    { select: { id: true, name: true } },
                     needsSettlement: { select: { id: true, name: true } },
+                    linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                     needsZone:       { select: { id: true, name: true } },
                   },
                 },
@@ -486,7 +488,7 @@ export default async function HomePage() {
             id: true, title: true, targetDate: true, status: true,
             ownerId: true,
             owner: { select: { id: true, name: true } },
-            goal: { select: { id: true, title: true, needsDomain: true, linkedFacilityId: true, needsCluster: { select: { id: true, name: true } }, needsSettlement: { select: { id: true, name: true } } } },
+            goal: { select: { id: true, title: true, needsDomain: true, linkedFacilityId: true, needsCluster: { select: { id: true, name: true } }, needsSettlement: { select: { id: true, name: true } }, linkedFacility: { select: { name: true, cluster: { select: { name: true } } } } } },
           },
         },
       },
@@ -578,6 +580,7 @@ export default async function HomePage() {
                         id: true, title: true, needsDomain: true, linkedFacilityId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
+                        linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                         needsZone:       { select: { id: true, name: true } },
                       },
                     },
@@ -624,6 +627,7 @@ export default async function HomePage() {
                     id: true, title: true, needsDomain: true, linkedFacilityId: true,
                     needsCluster:    { select: { id: true, name: true } },
                     needsSettlement: { select: { id: true, name: true } },
+                    linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                     needsZone:       { select: { id: true, name: true } },
                   },
                 },
@@ -671,7 +675,7 @@ export default async function HomePage() {
                 pitstop: {
                   select: {
                     ownerId: true, targetDate: true,
-                    goal: { select: { id: true, title: true, needsDomain: true, linkedFacilityId: true, needsClusterId: true, needsCluster: { select: { id: true, name: true } }, needsSettlement: { select: { id: true, name: true } }, needsZone: { select: { id: true, name: true } } } },
+                    goal: { select: { id: true, title: true, needsDomain: true, linkedFacilityId: true, needsClusterId: true, needsCluster: { select: { id: true, name: true } }, needsSettlement: { select: { id: true, name: true } }, needsZone: { select: { id: true, name: true } }, linkedFacility: { select: { name: true, cluster: { select: { name: true } } } } } },
                   },
                 },
               },
@@ -711,6 +715,7 @@ export default async function HomePage() {
                         id: true, title: true, needsDomain: true, linkedFacilityId: true, needsClusterId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
+                        linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                         needsZone:       { select: { id: true, name: true } },
                       },
                     },
@@ -755,6 +760,7 @@ export default async function HomePage() {
                         id: true, title: true, needsDomain: true, linkedFacilityId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
+                        linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                         needsZone:       { select: { id: true, name: true } },
                       },
                     },
@@ -796,6 +802,7 @@ export default async function HomePage() {
                         id: true, title: true, needsDomain: true, linkedFacilityId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
+                        linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                         needsZone:       { select: { id: true, name: true } },
                       },
                     },
@@ -919,6 +926,7 @@ export default async function HomePage() {
           needsCluster:    { id: string; name: string } | null;
           needsSettlement: { id: string; name: string } | null;
           needsZone:       { id: string; name: string } | null;
+          linkedFacility:  { name: string; cluster: { name: string } | null } | null;
         };
       };
     }[];
@@ -946,6 +954,7 @@ export default async function HomePage() {
                     id: true, title: true, needsDomain: true, linkedFacilityId: true,
                     needsCluster:    { select: { id: true, name: true } },
                     needsSettlement: { select: { id: true, name: true } },
+                    linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                     needsZone:       { select: { id: true, name: true } },
                   },
                 },
@@ -1050,6 +1059,7 @@ export default async function HomePage() {
                       id: true, title: true, needsDomain: true,
                       needsCluster:    { select: { id: true, name: true } },
                       needsSettlement: { select: { id: true, name: true } },
+                      linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                     },
                   },
                 },
@@ -1404,6 +1414,7 @@ export default async function HomePage() {
                         id: true, title: true, needsDomain: true, linkedFacilityId: true, needsClusterId: true,
                         needsCluster:    { select: { id: true, name: true } },
                         needsSettlement: { select: { id: true, name: true } },
+                        linkedFacility:  { select: { name: true, cluster: { select: { name: true } } } },
                         needsZone:       { select: { id: true, name: true } },
                       },
                     },
