@@ -238,7 +238,8 @@ export function VisitsPlanner({
       <div className="px-5 sm:px-8 pt-6 pb-4 border-b border-stone-100">
         <h1 className="text-xl font-semibold text-stone-900">Monthly visits</h1>
         <p className="text-sm text-stone-400 mt-0.5 leading-snug">
-          Drag a visit onto a different day to reschedule. The whole pitstop — all its activities — moves with it.
+          <span className="hidden sm:inline">Drag a visit onto a different day to reschedule. The whole pitstop — all its activities — moves with it.</span>
+          <span className="sm:hidden">Tap a visit to reschedule. Drag-and-drop is available on larger screens.</span>
         </p>
       </div>
 
@@ -348,8 +349,8 @@ export function VisitsPlanner({
         <div className="mx-5 sm:mx-8 my-2 px-3 py-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded">{err}</div>
       )}
 
-      {/* Calendar grid */}
-      <div className="flex-1 px-5 sm:px-8 py-4">
+      {/* Calendar — desktop grid */}
+      <div className="hidden sm:block flex-1 px-5 sm:px-8 py-4">
         <div className="border border-stone-200 rounded-lg overflow-hidden bg-white">
           <div className="grid grid-cols-7 bg-stone-50 border-b border-stone-100 text-[10px] font-semibold text-stone-500 uppercase">
             {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => (
@@ -412,6 +413,35 @@ export function VisitsPlanner({
         )}
       </div>
 
+      {/* Calendar — mobile week-list. The 7-col grid is unreadable on phones
+          (~50px wide cells, text-[10px] cards). We collapse the same data to
+          a vertical week-by-week list: only days with visits render, and each
+          visit card gets full row width with comfortable text sizes. Drag/drop
+          isn't supported on mobile — tap opens the reschedule modal. */}
+      <div className="sm:hidden flex-1 px-4 py-3">
+        {visibleCount === 0 && !loading ? (
+          <p className="text-center text-xs text-stone-400 mt-6">
+            {rows && rows.length > 0
+              ? "No visits match these filters."
+              : "No visits scheduled this month."}
+          </p>
+        ) : (
+          <MobileWeekList
+            days={days}
+            month={month}
+            cardsByDay={cardsByDay}
+            todayYmd={todayYmd}
+            onClickReschedule={setTarget}
+            showOwner={selectedUserIds.length > 1}
+          />
+        )}
+        {loading && (
+          <p className="text-center text-xs text-stone-400 mt-4 flex items-center justify-center gap-1.5">
+            <Loader2 className="w-3 h-3 animate-spin" /> Loading…
+          </p>
+        )}
+      </div>
+
       {target && target.startDate && (
         <RescheduleVisitModal
           pitstopId={target.id}
@@ -437,23 +467,30 @@ function VisitCard({
   const cluster = card.goal.needsCluster?.name;
   const settlement = card.goal.needsSettlement?.name;
   // Three-line shape: pitstop title (what's happening) → goal title (which
-  // creche / programme) → cluster (where, geographically). RP request: pitstop
-  // title is the most useful at-a-glance signal because the goal name is often
-  // long ("Creche Programme — Lumbini Slum") while the pitstop is short
-  // ("Monthly Creche Round") and tells you what work you're walking into.
+  // creche / programme) → cluster (where, geographically). The standalone
+  // "Open" row was folded into a small icon on the title row to fit more
+  // cards per cell (tighter desktop, 2026-06-04).
   return (
     <div
       draggable
       onDragStart={e => { e.dataTransfer.setData("text/pitstop-id", card.id); e.dataTransfer.effectAllowed = "move"; }}
       onClick={onClickReschedule}
-      className="px-1.5 py-1 rounded border border-sky-200 bg-sky-50 text-[10px] text-sky-900 leading-snug cursor-grab active:cursor-grabbing hover:bg-sky-100 hover:border-sky-300 transition-colors"
+      className="px-1.5 py-0.5 rounded border border-sky-200 bg-sky-50 text-[10px] text-sky-900 leading-tight cursor-grab active:cursor-grabbing hover:bg-sky-100 hover:border-sky-300 transition-colors group"
       title={`${card.title}\n${card.goal.title}${card.owner?.name ? `\nOwner: ${card.owner.name}` : ""}\nClick to open reschedule modal, drag to another day for quick move.`}
     >
-      <div className="flex items-start gap-1">
+      <div className="flex items-center gap-1">
         {showOwner && card.owner && (
           <Avatar name={card.owner.name} image={card.owner.image} size="xs" />
         )}
         <p className="font-semibold truncate flex-1 min-w-0">{card.title}</p>
+        <Link
+          href={`/goals/${card.goalId}/pitstops/${card.id}`}
+          onClick={e => e.stopPropagation()}
+          className="text-sky-600 hover:text-sky-800 opacity-60 hover:opacity-100 flex-shrink-0"
+          aria-label="Open pitstop"
+        >
+          <ExternalLink className="w-2.5 h-2.5" />
+        </Link>
       </div>
       <p className="text-sky-700 truncate">{card.goal.title}</p>
       {(cluster || settlement) && (
@@ -462,13 +499,122 @@ function VisitCard({
           {[settlement, cluster].filter(Boolean).join(", ")}
         </p>
       )}
-      <Link
-        href={`/goals/${card.goalId}/pitstops/${card.id}`}
-        onClick={e => e.stopPropagation()}
-        className="text-sky-600 hover:text-sky-800 hover:underline inline-flex items-center gap-0.5"
-      >
-        <ExternalLink className="w-2.5 h-2.5" /> Open
-      </Link>
+    </div>
+  );
+}
+
+/**
+ * Mobile week-list view. Walks the 6-week `days` array, groups by Mon-anchored
+ * week, and renders only weeks (and days within them) that have visits. Each
+ * visit becomes a full-width card with comfortable text sizes — the grid view
+ * is the source of truth, this is the same data shape unfolded vertically.
+ */
+function MobileWeekList({
+  days, month, cardsByDay, todayYmd, onClickReschedule, showOwner,
+}: {
+  days: Date[];
+  month: number;
+  cardsByDay: Map<string, PitstopCard[]>;
+  todayYmd: string;
+  onClickReschedule: (c: PitstopCard) => void;
+  showOwner: boolean;
+}) {
+  const weeks: { label: string; days: { date: Date; ymd: string; cards: PitstopCard[]; inMonth: boolean }[] }[] = [];
+  for (let w = 0; w < 6; w++) {
+    const weekDays = days.slice(w * 7, w * 7 + 7).map(d => {
+      const ymd = toYMD(d);
+      return { date: d, ymd, cards: cardsByDay.get(ymd) ?? [], inMonth: d.getMonth() === month };
+    });
+    if (weekDays.every(d => d.cards.length === 0)) continue;
+    const monday = weekDays[0].date;
+    const sunday = weekDays[6].date;
+    const sameMonth = monday.getMonth() === sunday.getMonth();
+    const label = sameMonth
+      ? `Week of ${monday.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+      : `${monday.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${sunday.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+    weeks.push({ label, days: weekDays.filter(d => d.cards.length > 0) });
+  }
+
+  return (
+    <div className="space-y-5">
+      {weeks.map(week => (
+        <section key={week.label}>
+          <h3 className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-2 px-1">
+            {week.label}
+          </h3>
+          <div className="space-y-3">
+            {week.days.map(day => {
+              const isToday = day.ymd === todayYmd;
+              const label = day.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+              return (
+                <div key={day.ymd}>
+                  <p className={`text-xs font-medium px-1 mb-1.5 ${
+                    isToday ? "text-sky-700" : day.inMonth ? "text-stone-700" : "text-stone-400"
+                  }`}>
+                    {label}{isToday && <span className="ml-1.5 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Today</span>}
+                  </p>
+                  <div className="space-y-1.5">
+                    {day.cards.map(c => (
+                      <MobileVisitCard
+                        key={c.id}
+                        card={c}
+                        onClick={() => onClickReschedule(c)}
+                        showOwner={showOwner}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Full-width visit card for mobile. Comfortable typography (text-sm title,
+ * text-xs body) at the cost of cell density we don't have on phones anyway.
+ * Tap-to-reschedule; no drag handles.
+ */
+function MobileVisitCard({
+  card, onClick, showOwner,
+}: {
+  card: PitstopCard;
+  onClick: () => void;
+  showOwner: boolean;
+}) {
+  const cluster = card.goal.needsCluster?.name;
+  const settlement = card.goal.needsSettlement?.name;
+  return (
+    <div
+      onClick={onClick}
+      className="px-3 py-2.5 rounded-lg border border-sky-200 bg-sky-50 hover:bg-sky-100 active:bg-sky-100 transition-colors cursor-pointer"
+    >
+      <div className="flex items-start gap-2">
+        {showOwner && card.owner && (
+          <Avatar name={card.owner.name} image={card.owner.image} size="xs" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-sky-900 truncate leading-snug">{card.title}</p>
+          <p className="text-xs text-sky-700 truncate mt-0.5 leading-snug">{card.goal.title}</p>
+          {(cluster || settlement) && (
+            <p className="text-[11px] text-sky-600 mt-1 flex items-center gap-1">
+              <MapPin className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{[settlement, cluster].filter(Boolean).join(", ")}</span>
+            </p>
+          )}
+        </div>
+        <Link
+          href={`/goals/${card.goalId}/pitstops/${card.id}`}
+          onClick={e => e.stopPropagation()}
+          className="p-1 text-sky-600 hover:text-sky-800 flex-shrink-0"
+          aria-label="Open pitstop"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+        </Link>
+      </div>
     </div>
   );
 }

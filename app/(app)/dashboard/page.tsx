@@ -352,7 +352,7 @@ export default async function DashboardPage({
         myPitstops={JSON.parse(JSON.stringify(myPitstops))}
         overviewData={JSON.parse(JSON.stringify(overviewData))}
         phaseData={JSON.parse(JSON.stringify(phaseRows))}
-        initialTab={(tab === "home" || tab === "goals" || tab === "team" || tab === "phase" ? tab : "home") as "home" | "goals" | "team" | "phase"}
+        initialTab={(tab === "home" || tab === "goals" || tab === "team" || tab === "phase" || tab === "ops" ? tab : "home") as "home" | "goals" | "team" | "phase" | "ops"}
         initialFilter={(["All","Mine","Active","Paused","Complete"].includes(filter ?? "") ? filter : "All") as "All" | "Mine" | "Active" | "Paused" | "Complete"}
       />
     </SurfaceProvider>

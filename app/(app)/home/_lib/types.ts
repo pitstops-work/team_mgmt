@@ -4,7 +4,8 @@ export type TabKey =
   | "today" | "past" | "health" | "zl-health" | "rp-health" | "coverage"
   | "clusters" | "goals" | "overview" | "geography" | "team" | "pipeline"
   | "attention" | "team-health" | "engagement" | "activity"
-  | "follow-ups";
+  | "follow-ups"
+  | "team-report";
 
 /**
  * Each row is one AuditLog "Activity / created" entry joined back to the

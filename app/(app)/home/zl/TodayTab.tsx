@@ -61,6 +61,10 @@ export function ZLTodayTab({
   const { ids: doneEventIds, add: addDoneEventId } = useSessionDoneIds(`zl-${userId}-done-events`);
   const { ids: doneChecklistIds, add: addDoneChecklistId } = useSessionDoneIds(`zl-${userId}-done-checklists`);
   const [showWeek, setShowWeek] = useState(false);
+  // Mirror RP: overdue collapses by default. The chevron + amber count keep the
+  // section visually loud while letting today lead the cockpit. Parity with
+  // home/rp/TodayTab.tsx (flipped 2026-06-04).
+  const [showOverdue, setShowOverdue] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
 
@@ -236,22 +240,31 @@ export function ZLTodayTab({
             <>
               {myOverdue.length > 0 && (
                 <div className="mt-2">
-                  <h4 className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider mb-2">
-                    Overdue ({myOverdue.length})
-                  </h4>
-                  <div className="space-y-2">
-                    {myOverdue.map(a => (
-                      <ActivityCard
-                        key={a.id}
-                        activity={a}
-                        linkedChecklist={activityChecklistMap.get(a.id) ?? null}
-                        onCompleted={handleCompleted}
-                        onRescheduled={onRescheduled}
-                        isOverdue
-                        variant="card"
-                      />
-                    ))}
-                  </div>
+                  <button
+                    onClick={() => setShowOverdue(v => !v)}
+                    className="w-full flex items-center justify-between gap-2 py-2 text-left"
+                    aria-expanded={showOverdue}
+                  >
+                    <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">
+                      Overdue ({myOverdue.length})
+                    </span>
+                    {showOverdue ? <ChevronUp className="w-3.5 h-3.5 text-amber-700" /> : <ChevronDown className="w-3.5 h-3.5 text-amber-700" />}
+                  </button>
+                  {showOverdue && (
+                    <div className="space-y-2">
+                      {myOverdue.map(a => (
+                        <ActivityCard
+                          key={a.id}
+                          activity={a}
+                          linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                          onCompleted={handleCompleted}
+                          onRescheduled={onRescheduled}
+                          isOverdue
+                          variant="card"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

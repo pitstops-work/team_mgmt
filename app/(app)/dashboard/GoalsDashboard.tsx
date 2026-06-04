@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Target, ChevronRight, ChevronDown, Layers, LayoutDashboard, ListChecks,
   MessageSquare, Home, Users, AlertTriangle, CheckCircle2, Flag, GitBranch,
-  CheckSquare, Trash2, Check,
+  CheckSquare, Trash2, Check, BarChart3,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { GoalStatusBadge } from "@/components/StatusBadge";
@@ -16,6 +16,7 @@ import TemplatePickerModal from "@/components/TemplatePickerModal";
 import { qk } from "@/lib/query-keys";
 import { fetchGoal, fetchGoals } from "@/lib/api-client";
 import OrgOverview, { type OverviewData } from "./OrgOverview";
+import { OperationsTab } from "./OperationsTab";
 import GeoFilter, { type GeoFilterValue } from "@/components/GeoFilter";
 import MultiSelect from "@/components/MultiSelect";
 import { orderProgressTags, progressTagColor } from "@/lib/progressTags";
@@ -123,7 +124,7 @@ interface Props {
   myPitstops: MyPitstop[];
   overviewData: OverviewData;
   phaseData?: PhaseRow[];
-  initialTab: "home" | "goals" | "team" | "phase";
+  initialTab: "home" | "goals" | "team" | "phase" | "ops" | "ops";
   initialFilter?: "All" | "Mine" | "Active" | "Paused" | "Complete";
 }
 
@@ -343,8 +344,8 @@ export default function GoalsDashboard({
   const queryClient = useQueryClient();
   const isMounted = useRef(false);
 
-  const [activeTab, setActiveTab] = useState<"home" | "goals" | "team" | "phase">(
-    (searchParams.get("tab") as "home" | "goals" | "team" | "phase") || initialTab
+  const [activeTab, setActiveTab] = useState<"home" | "goals" | "team" | "phase" | "ops">(
+    (searchParams.get("tab") as "home" | "goals" | "team" | "phase" | "ops") || initialTab
   );
   const [showCreate, setShowCreate] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
@@ -555,11 +556,12 @@ export default function GoalsDashboard({
         <div className="flex gap-0.5 bg-stone-100 rounded-lg p-0.5 w-fit">
           {(
             [
-              { key: "home",  label: "Home",  icon: <Home className="w-3.5 h-3.5" />,      show: true },
+              { key: "home",  label: "Home",  icon: <Home className="w-3.5 h-3.5" />,       show: true },
               { key: "goals", label: "Goals", icon: <ListChecks className="w-3.5 h-3.5" />, show: true },
+              { key: "ops",   label: "Ops",   icon: <BarChart3 className="w-3.5 h-3.5" />,  show: currentUserDesignation !== "RP" && currentUserDesignation !== "ZL" },
               { key: "team",  label: "Team",  icon: <Users className="w-3.5 h-3.5" />,      show: currentUserDesignation !== "RP" },
               { key: "phase", label: "Phase", icon: <GitBranch className="w-3.5 h-3.5" />,  show: currentUserDesignation !== "RP" },
-            ] as { key: "home" | "goals" | "team" | "phase"; label: string; icon: React.ReactNode; show: boolean }[]
+            ] as { key: "home" | "goals" | "team" | "phase" | "ops"; label: string; icon: React.ReactNode; show: boolean }[]
           ).filter(t => t.show).map(({ key, label, icon }) => (
             <button
               key={key}
@@ -877,6 +879,11 @@ export default function GoalsDashboard({
       {/* ── Phase tab ── */}
       {activeTab === "phase" && (
         <PhaseMatrix goals={filtered} phaseData={phaseData} users={users} currentUserRole={currentUserRole} />
+      )}
+
+      {/* ── Ops tab (PM/Leader/admin) ── */}
+      {activeTab === "ops" && currentUserDesignation !== "RP" && currentUserDesignation !== "ZL" && (
+        <OperationsTab currentUserId={currentUserId} users={users} />
       )}
 
       {showCreate && (
