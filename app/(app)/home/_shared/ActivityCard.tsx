@@ -325,6 +325,11 @@ export function ActivityCard({
             </span>
           )}
         </div>
+        {goal?.title && (
+          <p className={`text-[11px] mt-0.5 truncate ${isDone ? "text-stone-400" : "text-stone-600"}`}>
+            {goal.title}
+          </p>
+        )}
         {(domain || cluster || settlement || rescheduleCount >= 2 || pulledToToday || showAddPatternChip) && (
           <p className="text-[11px] text-stone-400 mt-0.5 truncate flex items-center gap-1.5">
             <span className="truncate">{[settlement, cluster, domain].filter(Boolean).join(" · ")}</span>
