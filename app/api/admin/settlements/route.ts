@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { adminForbidden } from "@/lib/roleGuard";
+import { recomputeClusterBoundary, recomputeZoneBoundary } from "@/lib/geo";
 
 const SELECT = {
   id: true,
@@ -98,5 +99,17 @@ export async function POST(req: NextRequest) {
     },
     select: SELECT,
   });
+
+  // Newly registered settlement contributes a hull point to its cluster
+  // (and the cluster's zone). Recompute boundaries best-effort — boundary
+  // updates aren't critical to the create succeeding.
+  try {
+    await recomputeClusterBoundary(clusterId, prisma);
+    const zoneId = cluster?.zoneId ?? null;
+    if (zoneId) await recomputeZoneBoundary(zoneId, prisma);
+  } catch (e) {
+    console.error("[settlements] boundary recompute failed", e);
+  }
+
   return NextResponse.json(shape(row), { status: 201 });
 }

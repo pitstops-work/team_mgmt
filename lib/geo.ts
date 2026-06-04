@@ -43,12 +43,25 @@ function extractPoints(geometry: unknown): [number, number][] {
   return [];
 }
 
+// Collect the richest signal each settlement has: polygon perimeter when
+// available, otherwise the single centroid point. Centroid-only settlements
+// used to be excluded from the hull (the where clause skipped them), which
+// meant a new cluster of N centroid-only settlements got no polygon at all.
+function pointsForSettlement(s: {
+  polygon: unknown; centroidLat: number | null; centroidLng: number | null;
+}): [number, number][] {
+  const polyPts = extractPoints(s.polygon);
+  if (polyPts.length > 0) return polyPts;
+  if (s.centroidLat != null && s.centroidLng != null) return [[s.centroidLng, s.centroidLat]];
+  return [];
+}
+
 export async function recomputeClusterBoundary(clusterId: string, prisma: PrismaClient): Promise<void> {
   const settlements = await prisma.settlement.findMany({
-    where: { clusterId, deletedAt: null, polygon: { not: undefined } },
-    select: { polygon: true },
+    where: { clusterId, deletedAt: null },
+    select: { polygon: true, centroidLat: true, centroidLng: true },
   });
-  const pts = settlements.flatMap(s => extractPoints(s.polygon));
+  const pts = settlements.flatMap(pointsForSettlement);
   if (pts.length < 3) return;
   const geometry = { type: "Polygon", coordinates: [convexHull(pts)] };
   await prisma.$executeRaw`UPDATE "Cluster" SET geometry = ${JSON.stringify(geometry)}::jsonb WHERE id = ${clusterId}`;
@@ -61,10 +74,10 @@ export async function recomputeZoneBoundary(zoneId: string, prisma: PrismaClient
   })).map(c => c.id);
 
   const settlements = await prisma.settlement.findMany({
-    where: { clusterId: { in: clusterIds }, deletedAt: null, polygon: { not: undefined } },
-    select: { polygon: true },
+    where: { clusterId: { in: clusterIds }, deletedAt: null },
+    select: { polygon: true, centroidLat: true, centroidLng: true },
   });
-  const pts = settlements.flatMap(s => extractPoints(s.polygon));
+  const pts = settlements.flatMap(pointsForSettlement);
   if (pts.length < 3) return;
   const geometry = { type: "Polygon", coordinates: [convexHull(pts)] };
   await prisma.$executeRaw`UPDATE "Zone" SET geometry = ${JSON.stringify(geometry)}::jsonb WHERE id = ${zoneId}`;
