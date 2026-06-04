@@ -17,7 +17,7 @@ export default async function PeoplePage() {
   const userWhere: Record<string, unknown> = userScope ?? { id: "__none__" };
   const goalWhere: Record<string, unknown> = goalScope ?? { id: "__none__" };
 
-  const [users, goals, partners] = await Promise.all([
+  const [users, goals] = await Promise.all([
     prisma.user.findMany({
       where: userWhere,
       select: {
@@ -45,7 +45,6 @@ export default async function PeoplePage() {
       select: { id: true, title: true, status: true, targetDate: true },
       orderBy: { title: "asc" },
     }),
-    prisma.mapPartner.findMany({ orderBy: [{ isBuiltIn: "desc" }, { label: "asc" }] }),
   ]);
 
   return (
@@ -53,7 +52,6 @@ export default async function PeoplePage() {
       <PeopleDashboard
         users={JSON.parse(JSON.stringify(users))}
         goals={JSON.parse(JSON.stringify(goals))}
-        partners={partners.map(p => ({ id: p.id, key: p.key, label: p.label, color: p.color, isBuiltIn: p.isBuiltIn }))}
       />
     </SurfaceProvider>
   );

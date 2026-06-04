@@ -3,13 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, Plus, Pencil, Trash2, Check, X, MapPin, SquarePen, ClipboardList, Download } from "lucide-react";
-import { LAYERS } from "@/lib/layers";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
-// Built-in NGO partners from LAYERS config (always show, even if MapPartner table is empty)
-const BUILT_IN_PARTNERS = LAYERS
-  .filter(l => l.type === "polygon" && l.key !== "custom_settlements")
-  .map(l => ({ id: l.key, key: l.key, label: l.label, color: l.color }));
+// Partners come from /api/map/partners (Org rows where kind="partner") —
+// no hardcoded LAYERS-derived list. After the Org migration (2026-06-04)
+// every partner is an admin-edited row.
 
 // Known centre types per layer key — used as suggestions; falls back to text input for unknown keys
 const CENTRE_TYPES: Record<string, string[]> = {
@@ -112,11 +110,8 @@ function LFForm({
   const [form, setForm] = useState(initial);
   const set = (k: keyof typeof form, v: string | number) => setForm((f) => ({ ...f, [k]: v }));
 
-  // Merged partner list: built-ins always present, DB partners added on top
-  const allPartners = [
-    ...BUILT_IN_PARTNERS,
-    ...partners.filter(d => !BUILT_IN_PARTNERS.some(b => b.key === d.key)),
-  ];
+  // Partner list comes straight from the DB now.
+  const allPartners = partners;
 
   // Zone → filter clusters; cluster → infer zone
   const visibleClusters = form.zoneId

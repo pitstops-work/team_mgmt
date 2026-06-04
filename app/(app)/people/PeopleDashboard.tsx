@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import { PitstopStatusBadge, GoalStatusBadge } from "@/components/StatusBadge";
-import { AlertCircle, CheckCircle2, Clock, Circle, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Circle, ChevronDown, ChevronRight } from "lucide-react";
 
 type Goal = { id: string; title: string; status: string; targetDate: string | null };
 type Pitstop = {
@@ -23,13 +23,6 @@ type User = {
   image: string | null;
   ownedPitstops: Pitstop[];
 };
-type Partner = {
-  id: string;
-  key: string;
-  label: string;
-  color: string;
-  isBuiltIn: boolean;
-};
 
 function isOverdue(p: Pitstop) {
   return p.status !== "Done" && p.targetDate && new Date(p.targetDate) < new Date();
@@ -42,9 +35,7 @@ function statusIcon(p: Pitstop) {
   return <Circle className="w-3.5 h-3.5 text-stone-300 flex-shrink-0" />;
 }
 
-export default function PeopleDashboard({ users, goals, partners }: { users: User[]; goals: Goal[]; partners: Partner[] }) {
-  const [activeTab, setActiveTab] = useState<"team" | "partners">("team");
-
+export default function PeopleDashboard({ users }: { users: User[]; goals: Goal[] }) {
   // Only show users who have at least one pitstop
   const activeUsers = users.filter((u) => u.ownedPitstops.length > 0);
 
@@ -53,69 +44,23 @@ export default function PeopleDashboard({ users, goals, partners }: { users: Use
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-lg font-semibold text-stone-900">Directory</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Team members and partner organisations</p>
+          <p className="text-sm text-stone-500 mt-0.5">Team members and their work.</p>
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-0.5 bg-stone-100 rounded-lg p-0.5 w-fit mb-6">
-        <button onClick={() => setActiveTab("team")}
-          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === "team" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}>
-          Team
-        </button>
-        <button onClick={() => setActiveTab("partners")}
-          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === "partners" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}>
-          Partners
-        </button>
+      {/* Summary bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        <SummaryCard label="Total pitstops" value={users.reduce((s, u) => s + u.ownedPitstops.length, 0)} color="stone" />
+        <SummaryCard label="In progress" value={users.reduce((s, u) => s + u.ownedPitstops.filter((p) => p.status === "InProgress").length, 0)} color="sky" />
+        <SummaryCard label="Overdue" value={users.reduce((s, u) => s + u.ownedPitstops.filter(isOverdue).length, 0)} color="red" />
+        <SummaryCard label="Done" value={users.reduce((s, u) => s + u.ownedPitstops.filter((p) => p.status === "Done").length, 0)} color="emerald" />
       </div>
-
-      {/* Team tab */}
-      {activeTab === "team" && (
-        <>
-          {/* Summary bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-            <SummaryCard label="Total pitstops" value={users.reduce((s, u) => s + u.ownedPitstops.length, 0)} color="stone" />
-            <SummaryCard label="In progress" value={users.reduce((s, u) => s + u.ownedPitstops.filter((p) => p.status === "InProgress").length, 0)} color="sky" />
-            <SummaryCard label="Overdue" value={users.reduce((s, u) => s + u.ownedPitstops.filter(isOverdue).length, 0)} color="red" />
-            <SummaryCard label="Done" value={users.reduce((s, u) => s + u.ownedPitstops.filter((p) => p.status === "Done").length, 0)} color="emerald" />
-          </div>
-          <div className="space-y-4">
-            {activeUsers.map((user) => <PersonCard key={user.id} user={user} />)}
-            {activeUsers.length === 0 && (
-              <div className="text-center py-16 text-stone-400 text-sm">No pitstops assigned yet.</div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Partners tab */}
-      {activeTab === "partners" && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-stone-400">{partners.length} organisations on the Programme Map</p>
-            <Link href="/partners" className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-700">
-              Full config <ExternalLink className="w-3 h-3" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {partners.map(p => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-800 truncate">{p.label}</p>
-                  <p className="text-[11px] text-stone-400 font-mono">{p.key}</p>
-                </div>
-                {p.isBuiltIn && (
-                  <span className="text-[10px] text-stone-400 border border-stone-200 rounded px-1.5 py-0.5">built-in</span>
-                )}
-              </div>
-            ))}
-            {partners.length === 0 && (
-              <p className="text-sm text-stone-400 col-span-2 py-12 text-center">No partners configured yet.</p>
-            )}
-          </div>
-        </div>
-      )}
+      <div className="space-y-4">
+        {activeUsers.map((user) => <PersonCard key={user.id} user={user} />)}
+        {activeUsers.length === 0 && (
+          <div className="text-center py-16 text-stone-400 text-sm">No pitstops assigned yet.</div>
+        )}
+      </div>
     </div>
   );
 }

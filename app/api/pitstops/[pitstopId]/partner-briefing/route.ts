@@ -31,18 +31,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pit
   const since = new Date(sinceDate);
   const today = new Date();
 
-  // 1. Partner + settlements
-  const partner = await prisma.mapPartner.findUnique({
+  // 1. Partner + settlements. Partners are now Org rows (kind="partner");
+  // partnerId from the client is the Org id.
+  const partner = await prisma.org.findUnique({
     where: { id: partnerId },
-    include: { settlements: { select: { id: true, name: true } } },
+    select: {
+      id: true, name: true, kind: true,
+      settlementsAsPartner: { select: { id: true, name: true } },
+    },
   });
-  if (!partner) return Response.json({ error: "Partner not found" }, { status: 404 });
+  if (!partner || partner.kind !== "partner") {
+    return Response.json({ error: "Partner not found" }, { status: 404 });
+  }
+  const partnerLabel = partner.name;
 
-  const settlementIds = partner.settlements.map((s) => s.id);
-  const settlementNameMap = new Map(partner.settlements.map((s) => [s.id, s.name]));
+  const settlementIds = partner.settlementsAsPartner.map((s) => s.id);
+  const settlementNameMap = new Map(partner.settlementsAsPartner.map((s) => [s.id, s.name]));
 
   if (settlementIds.length === 0) {
-    return Response.json({ text: `No settlements mapped for ${partner.label}.` });
+    return Response.json({ text: `No settlements mapped for ${partnerLabel}.` });
   }
 
   // 2. Goals in those settlements (raw SQL — completedAt on pitstop is a new column)
@@ -107,7 +114,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pit
   const sep = "─".repeat(50);
 
   lines.push(`PARTNER REVIEW BRIEFING`);
-  lines.push(`Partner: ${partner.label}`);
+  lines.push(`Partner: ${partnerLabel}`);
   lines.push(`Period: ${fmtDate(since)} — ${fmtDate(today)}`);
   lines.push(`Generated: ${fmtDate(today)}`);
   lines.push(``);
@@ -115,9 +122,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pit
   lines.push(``);
 
   if (goalRows.length === 0) {
-    lines.push(`No active goals found in ${partner.label}'s settlements.`);
+    lines.push(`No active goals found in ${partnerLabel}'s settlements.`);
   } else {
-    lines.push(`GOALS IN ${partner.label.toUpperCase()}'S SETTLEMENTS`);
+    lines.push(`GOALS IN ${partnerLabel.toUpperCase()}'S SETTLEMENTS`);
     lines.push(``);
 
     // Group goals by settlement
@@ -200,5 +207,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pit
   lines.push(sep);
   lines.push(`Generated from Pitstops`);
 
-  return Response.json({ text: lines.join("\n"), partnerLabel: partner.label });
+  return Response.json({ text: lines.join("\n"), partnerLabel: partnerLabel });
 }

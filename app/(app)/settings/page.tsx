@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages, LayoutTemplate, Layers, Bell, BellOff, BellRing, Activity, Cloud, ScrollText } from "lucide-react";
+import { Copy, Check, RefreshCw, Users, KeyRound, CalendarDays, Target, ChevronRight, ShieldCheck, Map, Languages, LayoutTemplate, Layers, Bell, BellOff, BellRing, Activity, Cloud, ScrollText, Briefcase } from "lucide-react";
 import Link from "next/link";
 import Avatar from "@/components/Avatar";
 import { useSession } from "next-auth/react";
@@ -412,6 +412,19 @@ export default function SettingsPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-stone-800">Map Features</p>
                   <p className="text-xs text-stone-400">Centre points · settlement polygons</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Link>
+            )}
+            {canMapFeatures && (
+              <Link
+                href="/settings/partners"
+                className="flex items-center gap-3 px-4 py-3 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors"
+              >
+                <Briefcase className="w-4 h-4 text-rose-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800">Partners</p>
+                  <p className="text-xs text-stone-400">Partner organisations · settlements · centres</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-stone-300" />
               </Link>

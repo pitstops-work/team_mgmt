@@ -1036,6 +1036,9 @@ model Cluster {
   deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   isHealthCluster Boolean   @default(false)
+  // Partner that runs this cluster. Added 2026-06-04 as part of the Org
+  // migration — previously inferred from each settlement's partner.
+  partnerOrgId    String?
 
   zone          Zone           @relation(fields: [zoneId], references: [id], onDelete: Cascade)
   settlements   Settlement[]
@@ -1043,6 +1046,9 @@ model Cluster {
   needsPitstops Pitstop[]      @relation("PitstopNeedsCluster")
   layerFeatures LayerFeature[]
   rps           User[]         @relation("RPClusters")
+  partnerOrg    Org?           @relation("ClusterPartnerOrg", fields: [partnerOrgId], references: [id], onDelete: SetNull)
+
+  @@index([partnerOrgId])
 }
 
 model LayerFeature {
@@ -1050,7 +1056,12 @@ model LayerFeature {
   name         String
   layerKey     String // creches | children_centres | youth_centres | resource_centres
   centreType   String?
+  // Legacy free-text partner identifier (e.g. "CFAR Creches", "actionaid").
+  // Kept during the Org migration so backfill can resolve to partnerOrgId.
+  // To be dropped once partnerOrg is fully populated.
   partner      String?
+  // Partner-org FK (added 2026-06-04). Backfilled from `partner` free-text.
+  partnerOrgId String?
   lat          Float
   lng          Float
   settlementId String?
@@ -1064,6 +1075,9 @@ model LayerFeature {
   cluster     Cluster?    @relation(fields: [clusterId], references: [id], onDelete: SetNull)
   zone        Zone?       @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   linkedGoals Goal[]      @relation("GoalLinkedFacility")
+  partnerOrg  Org?        @relation("LayerFeaturePartnerOrg", fields: [partnerOrgId], references: [id], onDelete: SetNull)
+
+  @@index([partnerOrgId])
 }
 
 model Settlement {
@@ -1082,12 +1096,15 @@ model Settlement {
   // City direct FK — denormalised for fast city-scoped queries (backfilled from cluster→zone→city)
   cityId String?
 
-  // Partner organisation (1:1 — one partner covers this settlement)
-  partnerId String?
+  // Partner organisation (1:1 — one partner covers this settlement). Legacy
+  // MapPartner FK kept during the Org migration; new code reads partnerOrg.
+  partnerId    String?
+  partnerOrgId String?
 
   cluster            Cluster                  @relation(fields: [clusterId], references: [id], onDelete: Cascade)
   city               City?                    @relation(fields: [cityId], references: [id])
   partner            MapPartner?              @relation(fields: [partnerId], references: [id])
+  partnerOrg         Org?                     @relation("SettlementPartnerOrg", fields: [partnerOrgId], references: [id], onDelete: SetNull)
   assessments        SettlementAssessment[]
   profile            SettlementProfile?
   note               SettlementNote?
@@ -1103,6 +1120,8 @@ model Settlement {
   facilityIndicators FacilityIndicator[]
   // Layer 3 programme journeys
   programmeJourneys  ProgrammeJourney[]
+
+  @@index([partnerOrgId])
 }
 
 // Government / programme health centre
@@ -2298,6 +2317,19 @@ model Org {
   name      String
   slug      String   @unique
   kind      String // "internal" | "partner"
+  // Partner-identity columns. Lifted from the old MapPartner model so every
+  // partner-shaped reference (Settlement, Cluster, LayerFeature, Wiki, User)
+  // can point at the same row. mapKey is the legacy LAYERS slug used to
+  // colorise polygons — nullable for internal orgs and any partner that
+  // doesn't have its own map layer. archivedAt is the soft-delete signal;
+  // partner FKs use SetNull so historical references survive removal.
+  color        String?   @default("#6366f1")
+  mapKey       String?   @unique
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  notes        String?
+  archivedAt   DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2306,6 +2338,11 @@ model Org {
   wikiPracticeGaps      WikiPracticeGap[]          @relation("WikiPracticeGapPartnerOrg")
   wikiObservations      WikiPracticeObservation[]  @relation("WikiPracticeObservationPartnerOrg")
   wikiPracticeEntries   WikiPracticeEntry[]        @relation("WikiPracticeEntryPartnerOrg")
+  // Partner-org geo bindings (added 2026-06-04, replaces MapPartner relations
+  // and LayerFeature.partner free-text). See migration M2.
+  settlementsAsPartner  Settlement[]               @relation("SettlementPartnerOrg")
+  clustersAsPartner     Cluster[]                  @relation("ClusterPartnerOrg")
+  facilitiesAsPartner   LayerFeature[]             @relation("LayerFeaturePartnerOrg")
 }
 
 // ── Wiki module ──────────────────────────────────────────────────────────────
