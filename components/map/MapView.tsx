@@ -162,11 +162,68 @@ function getPolygonEnvelope(feature: { geometry: { type: string; coordinates: nu
   }
 }
 
-function makePolygonPopup(name: string, layer: LayerConfig, desc: string, zone?: string, cluster?: string) {
+// Partner-org index loaded once at mount from /api/map/partner-index, used by
+// the popup builders below to render a "Partner: <name>" row with the org's
+// own colour — instead of the older path of reading partner identity from
+// LAYERS config / GeoJSON tile properties / a regex against the name. The
+// index keys settlements + clusters + features by their normalised names
+// (matching GeoJSON tile properties) and partners by their mapKey.
+type PartnerRef = { id: string; name: string; color: string; mapKey: string | null };
+type PartnerIndex = {
+  bySettlementName: Record<string, PartnerRef>;
+  byClusterName:    Record<string, PartnerRef>;
+  byFeatureName:    Record<string, PartnerRef>;
+  byMapKey:         Record<string, PartnerRef>;
+};
+function normalisePartnerKey(name: string): string {
+  return name.toLowerCase().trim().replace(/\s+/g, " ").replace(/[._-]+/g, " ");
+}
+function resolvePartner(
+  index: PartnerIndex | null,
+  hints: { settlementName?: string; clusterName?: string; featureName?: string; mapKey?: string },
+): PartnerRef | null {
+  if (!index) return null;
+  if (hints.featureName) {
+    const f = index.byFeatureName[normalisePartnerKey(hints.featureName)];
+    if (f) return f;
+  }
+  if (hints.settlementName) {
+    const s = index.bySettlementName[normalisePartnerKey(hints.settlementName)];
+    if (s) return s;
+  }
+  if (hints.clusterName) {
+    const c = index.byClusterName[normalisePartnerKey(hints.clusterName)];
+    if (c) return c;
+  }
+  if (hints.mapKey) {
+    const k = index.byMapKey[hints.mapKey];
+    if (k) return k;
+  }
+  return null;
+}
+function partnerRowHtml(p: PartnerRef): string {
+  const bg = `${p.color}1f`; // ~12% alpha
+  return `<div class="info" style="display:inline-flex;align-items:center;gap:6px;margin-top:5px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${bg};color:${p.color}">
+    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${p.color}"></span>
+    ${p.name}
+  </div>`;
+}
+
+function makePolygonPopup(
+  name: string, layer: LayerConfig, desc: string,
+  zone: string | undefined, cluster: string | undefined,
+  partnerIndex: PartnerIndex | null,
+) {
+  const partner = resolvePartner(partnerIndex, {
+    settlementName: name,
+    clusterName: cluster,
+    mapKey: layer.key,
+  });
   return `
     <div class="map-popup">
       <span class="badge" style="background:${layer.color}">${layer.label}</span>
       <h3>${name}</h3>
+      ${partner ? partnerRowHtml(partner) : ""}
       ${zone ? `<div class="info" style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
         <span style="background:#e0e7ff;color:#4338ca;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700">${zone}</span>
         ${cluster ? `<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600">${cluster.replace(/_/g, " ")}</span>` : ""}
@@ -177,29 +234,53 @@ function makePolygonPopup(name: string, layer: LayerConfig, desc: string, zone?:
   `;
 }
 
-function makeRCPopup(name: string, desc: string) {
-  const orgMatch = name.match(/(Sangama|Actionaid|CFAR|Thamate|SIEDS|Janashayog|Maarga|Sama|Gubbachi)/i);
-  const org = orgMatch ? orgMatch[1] : "";
+function makeRCPopup(
+  name: string, desc: string,
+  partnerIndex: PartnerIndex | null,
+) {
+  // DB-driven partner lookup — replaces the older hardcoded regex against a
+  // list of known org names. The resource-centre feature name often follows
+  // the convention "<Partner> Resource Centre — <Location>", so we let the
+  // feature-name lookup hit first; falls back to a substring-against-mapKey
+  // for the legacy "Sangama RC #4" style.
+  let partner = partnerIndex ? resolvePartner(partnerIndex, { featureName: name }) : null;
+  if (!partner && partnerIndex) {
+    const lower = name.toLowerCase();
+    for (const [mapKey, ref] of Object.entries(partnerIndex.byMapKey)) {
+      if (lower.includes(mapKey.toLowerCase())) { partner = ref; break; }
+    }
+  }
   return `
     <div class="map-popup">
       <span class="badge" style="background:#1d4ed8">Resource Centre</span>
       <h3>${name}</h3>
-      ${org ? `<div class="info" style="font-weight:600;color:#1d4ed8;margin-top:4px">${org}</div>` : ""}
+      ${partner ? partnerRowHtml(partner) : ""}
       ${desc ? `<div class="info">${desc}</div>` : ""}
     </div>
   `;
 }
 
 function makeProgrammeCentrePopup(
-  centreType: string, name: string, partner: string,
-  zone: string, cluster: string, color: string, note?: string
+  centreType: string, name: string, partnerRaw: string,
+  zone: string, cluster: string, color: string,
+  partnerIndex: PartnerIndex | null,
+  note?: string,
 ) {
+  // Prefer the DB-resolved partner (canonical name + live colour); fall
+  // through to the raw GeoJSON `partner` string when the feature isn't
+  // in the index yet (newly added feature, name drift, etc.).
+  const partner = resolvePartner(partnerIndex, { featureName: name, mapKey: partnerRaw });
+  const partnerLabel = partner?.name ?? partnerRaw;
+  const partnerColor = partner?.color ?? "#374151";
   return `
     <div class="map-popup">
       <span class="badge" style="background:${color}">${centreType}</span>
       <h3>${name}</h3>
-      ${partner ? `<div class="info" style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
-        <span style="background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">${partner}</span>
+      ${partnerLabel ? `<div class="info" style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:center;gap:6px;background:${partnerColor}1f;color:${partnerColor};padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">
+          <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${partnerColor}"></span>
+          ${partnerLabel}
+        </span>
         ${zone ? `<span style="background:#e0e7ff;color:#4338ca;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">${zone}</span>` : ""}
         ${cluster ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">${cluster.replace(/_/g, " ")}</span>` : ""}
       </div>` : ""}
@@ -299,6 +380,20 @@ export default function MapView({
   const clusterFeaturesRef = useRef<any[]>([]);
 
   const activePopupRef = useRef<maplibregl.Popup | null>(null);
+  // Partner-index ref; popup builders read .current at click-time so the
+  // DB-driven partner row appears once the index has loaded (even though
+  // the event handlers were bound earlier).
+  const partnerIndexRef = useRef<PartnerIndex | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/map/partner-index")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: PartnerIndex | null) => {
+        if (!cancelled && data) partnerIndexRef.current = data;
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const routerRef = useRef(router);
   useEffect(() => { routerRef.current = router; }, [router]);
   const mapFilterRef = useRef(mapFilter);
@@ -374,7 +469,7 @@ export default function MapView({
               .setHTML(makeProgrammeCentrePopup(
                 props.centre_type || fl.label, name,
                 props.partner || "", props.zone || "", props.cluster || "",
-                fl.color, props.note || ""
+                fl.color, partnerIndexRef.current, props.note || ""
               ))
               .addTo(map);
             if (onCentreClickRef.current) {
@@ -513,11 +608,11 @@ export default function MapView({
               activePopupRef.current = new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
                 .setLngLat(lngLat)
                 .setHTML(isRC
-                  ? makeRCPopup(name, (props.description as string) || "")
+                  ? makeRCPopup(name, (props.description as string) || "", partnerIndexRef.current)
                   : makeProgrammeCentrePopup(
                       (props.centre_type as string) || label, name,
                       (props.partner as string) || "", (props.zone as string) || "", (props.cluster as string) || "",
-                      color, (props.note as string) || ""
+                      color, partnerIndexRef.current, (props.note as string) || ""
                     ))
                 .addTo(map);
 
@@ -590,7 +685,7 @@ export default function MapView({
         const name = (props.name as string) || "Unnamed";
         activePopupRef.current = new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
           .setLngLat(e.lngLat)
-          .setHTML(makePolygonPopup(name, layerConfig, (props.description as string) || "", props.zone as string, props.cluster as string))
+          .setHTML(makePolygonPopup(name, layerConfig, (props.description as string) || "", props.zone as string, props.cluster as string, partnerIndexRef.current))
           .addTo(map);
 
         // Wire up "Click for full details" button in the popup
@@ -774,9 +869,9 @@ export default function MapView({
                   ? makeProgrammeCentrePopup(
                       props.centre_type || layerConfig.label, name,
                       props.partner || "", props.zone || "", props.cluster || "",
-                      layerConfig.color, props.note || ""
+                      layerConfig.color, partnerIndexRef.current, props.note || ""
                     )
-                  : makeRCPopup(name, props.description || "");
+                  : makeRCPopup(name, props.description || "", partnerIndexRef.current);
 
                 activePopupRef.current?.remove();
                 activePopupRef.current = new maplibregl.Popup({ maxWidth: "300px", className: "maplibre-popup-clean" })
@@ -1087,10 +1182,11 @@ export default function MapView({
       if (!layerConfig) return;
       const props = feature.properties ?? {};
       const html = layerConfig.type === "polygon"
-        ? makePolygonPopup(props.name || "Unnamed", layerConfig, props.description || "", props.zone, props.cluster)
+        ? makePolygonPopup(props.name || "Unnamed", layerConfig, props.description || "", props.zone, props.cluster, partnerIndexRef.current)
         : makeProgrammeCentrePopup(
             props.centre_type || layerConfig.label, props.name || layerConfig.label,
-            props.partner || "", props.zone || "", props.cluster || "", layerConfig.color
+            props.partner || "", props.zone || "", props.cluster || "", layerConfig.color,
+            partnerIndexRef.current
           );
 
       setTimeout(() => {
