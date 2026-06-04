@@ -55,3 +55,7 @@ next-env.d.ts
 /app/generated/prisma
 Inventory_Images/
 .env*.local
+
+# Build artifacts + temporary working dirs
+tmp/
+workshop-decks.pdf
