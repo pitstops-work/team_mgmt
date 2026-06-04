@@ -10,20 +10,21 @@
  */
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CalendarClock, CalendarRange, CheckCircle2, RefreshCw } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarRange, CalendarPlus, CheckCircle2, RefreshCw } from "lucide-react";
 import { ActionPointCard } from "@/components/action-points/ActionPointCard";
 import { MarkAPDoneModal } from "@/components/action-points/MarkAPDoneModal";
 import { EditAPModal } from "@/components/action-points/EditAPModal";
 import type { ActionPoint } from "@/components/action-points/types";
 import { EmptyState, SectionTitle } from "./Primitives";
 
-type Bucket = "overdue" | "today" | "week" | "done";
-const ORDER: Bucket[] = ["overdue", "today", "week", "done"];
+type Bucket = "overdue" | "today" | "week" | "later" | "done";
+const ORDER: Bucket[] = ["overdue", "today", "week", "later", "done"];
 
 const BUCKET_META: Record<Bucket, { label: string; icon: typeof AlertTriangle; tone: string }> = {
   overdue: { label: "Overdue",       icon: AlertTriangle, tone: "text-red-700" },
   today:   { label: "Today",         icon: CalendarClock, tone: "text-amber-700" },
   week:    { label: "This week",     icon: CalendarRange, tone: "text-stone-700" },
+  later:   { label: "Later",         icon: CalendarPlus,  tone: "text-stone-500" },
   done:    { label: "Done (last 30d)", icon: CheckCircle2, tone: "text-emerald-700" },
 };
 
@@ -43,7 +44,7 @@ export function FollowUpsTab({
     const results = await Promise.all(ORDER.map(b =>
       fetch(`/api/action-points?scope=${scope}&bucket=${b}`).then(r => r.ok ? r.json() : [])
     ));
-    setData({ overdue: results[0], today: results[1], week: results[2], done: results[3] });
+    setData({ overdue: results[0], today: results[1], week: results[2], later: results[3], done: results[4] });
     setLoading(false);
   }
 
@@ -53,7 +54,7 @@ export function FollowUpsTab({
   // (week vs done involves date math we'd otherwise duplicate).
   function refresh() { load(); }
 
-  const totalOpen = data ? data.overdue.length + data.today.length + data.week.length : 0;
+  const totalOpen = data ? data.overdue.length + data.today.length + data.week.length + data.later.length : 0;
   const totalDone = data?.done.length ?? 0;
 
   return (

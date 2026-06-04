@@ -99,6 +99,13 @@ export async function GET(req: NextRequest) {
     where.status = "open";
     const weekEnd = new Date(dayEnd.getTime() + 6 * 24 * 60 * 60 * 1000);
     where.dueDate = { gte: dayStart, lte: weekEnd };
+  } else if (bucket === "later") {
+    // Open APs scheduled more than 6 days out. Catches anything the
+    // close-out modal pushed to the next visit cycle (commonly 7-30 days
+    // ahead) that would otherwise fall off the bottom of "This week".
+    where.status = "open";
+    const weekEnd = new Date(dayEnd.getTime() + 6 * 24 * 60 * 60 * 1000);
+    where.dueDate = { gt: weekEnd };
   } else if (bucket === "done") {
     where.status = "done";
     const thirtyAgo = new Date(dayStart.getTime() - 30 * 24 * 60 * 60 * 1000);
