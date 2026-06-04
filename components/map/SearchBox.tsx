@@ -51,9 +51,11 @@ export default function SearchBox({ geoData, flyToRef, openPopupRef }: SearchBox
   }
 
   return (
-    // Mobile: full width with small margins (left-3 right-3, no centering)
-    // Desktop: fixed 320px wide, horizontally centred
-    <div className="absolute top-3 z-20 left-3 right-3 sm:left-1/2 sm:right-auto sm:w-80 sm:-translate-x-1/2">
+    // Mobile: full width minus a 48px right reservation so MapLibre's
+    // top-right GeolocateControl (the blue self-location button) stays
+    // tappable. Desktop centres a fixed 320px box — the geolocate control
+    // sits outside that footprint anyway.
+    <div className="absolute top-3 z-20 left-3 right-14 sm:left-1/2 sm:right-auto sm:w-80 sm:-translate-x-1/2">
       <div className="relative">
         <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-lg px-3 gap-2">
           <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
