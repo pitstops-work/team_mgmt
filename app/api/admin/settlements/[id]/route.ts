@@ -3,6 +3,47 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { adminForbidden } from "@/lib/roleGuard";
 
+const SELECT = {
+  id: true,
+  name: true,
+  polygon: true,
+  centroidLat: true,
+  centroidLng: true,
+  partnerOrgId: true,
+  clusterId: true,
+  cluster: { select: { id: true, name: true, zone: { select: { id: true, name: true } } } },
+  partnerOrg: { select: { id: true, name: true, color: true, mapKey: true } },
+} as const;
+
+type SettlementRow = {
+  id: string;
+  name: string;
+  polygon: unknown;
+  centroidLat: number | null;
+  centroidLng: number | null;
+  partnerOrgId: string | null;
+  clusterId: string;
+  cluster: { id: string; name: string; zone: { id: string; name: string } };
+  partnerOrg: { id: string; name: string; color: string | null; mapKey: string | null } | null;
+};
+
+function shape(row: SettlementRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    polygon: row.polygon,
+    centroidLat: row.centroidLat,
+    centroidLng: row.centroidLng,
+    partnerId: row.partnerOrgId,
+    partnerOrgId: row.partnerOrgId,
+    clusterId: row.clusterId,
+    cluster: row.cluster,
+    partner: row.partnerOrg
+      ? { id: row.partnerOrg.id, key: row.partnerOrg.mapKey ?? row.partnerOrg.id, label: row.partnerOrg.name, color: row.partnerOrg.color ?? "#6366f1" }
+      : null,
+  };
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -10,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { name, clusterId, partnerId, polygon, centroidLat, centroidLng } = body;
+  const { name, clusterId, partnerId, partnerOrgId, polygon, centroidLat, centroidLng } = body;
 
   // If clusterId changes, re-derive cityId
   let cityId: string | null | undefined = undefined;
@@ -22,30 +63,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     cityId = cluster?.zone?.city?.id ?? null;
   }
 
+  // Accept both new (partnerOrgId) and legacy (partnerId) names — both refer
+  // to Org.id after the partner consolidation. Empty string → null clear.
+  const partnerOrgIdInput =
+    partnerOrgId !== undefined ? partnerOrgId :
+    partnerId !== undefined ? partnerId :
+    undefined;
+
   const row = await prisma.settlement.update({
     where: { id },
     data: {
-      ...(name !== undefined       && { name }),
-      ...(clusterId !== undefined  && { clusterId }),
-      ...(cityId !== undefined     && { cityId }),
-      ...(partnerId !== undefined  && { partnerId: partnerId || null }),
-      ...(polygon !== undefined    && { polygon }),
+      ...(name !== undefined        && { name }),
+      ...(clusterId !== undefined   && { clusterId }),
+      ...(cityId !== undefined      && { cityId }),
+      ...(partnerOrgIdInput !== undefined && { partnerOrgId: partnerOrgIdInput || null }),
+      ...(polygon !== undefined     && { polygon }),
       ...(centroidLat !== undefined && { centroidLat: centroidLat != null ? parseFloat(centroidLat) : null }),
       ...(centroidLng !== undefined && { centroidLng: centroidLng != null ? parseFloat(centroidLng) : null }),
     },
-    select: {
-      id: true,
-      name: true,
-      polygon: true,
-      centroidLat: true,
-      centroidLng: true,
-      partnerId: true,
-      clusterId: true,
-      cluster: { select: { id: true, name: true, zone: { select: { id: true, name: true } } } },
-      partner:  { select: { id: true, key: true, label: true, color: true } },
-    },
+    select: SELECT,
   });
-  return NextResponse.json(row);
+  return NextResponse.json(shape(row));
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
