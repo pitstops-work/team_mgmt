@@ -6,18 +6,31 @@
  *      [pitstop.startDate, pitstop.targetDate] window, ONLY the activities
  *      move. The pitstop window stays put. No goal-deadline impact. This is
  *      what gives a windowed pitstop (SLA > 0) a real reschedule buffer —
- *      RP can move the visit day within the SLA without rippling forward.
+ *      RP can move the visit day within the SLA without rippling forward or
+ *      drifting recurring cadence.
  *
  *   2. Window-shift (fallback / SLA=0): if any activity would fall outside
  *      the current window after the shift, the whole visit moves — pitstop
  *      startDate + targetDate shift by deltaMs and activities cascade. This
  *      is the legacy behaviour; it still applies for SLA=0 pitstops (their
- *      window is a single day, so anything but unchanged is out-of-window)
- *      and for windowed pitstops that genuinely need to overflow. Subject
- *      to the newTarget > goal.targetDate guard.
+ *      window is a single day) and for windowed pitstops that genuinely
+ *      need to overflow. Subject to the newTarget > goal.targetDate guard.
  *
- * Body: { startDate: ISO }   — the new pitstop startDate (in window-shift
- *                              mode) OR the new anchor date (in-window mode).
+ * The body's `startDate` is interpreted as the new ANCHOR — i.e., the new
+ * scheduledAt of the earliest non-Done activity on the pitstop. deltaMs is
+ * the difference between that anchor and the picked date. For SLA=0 visits
+ * (single-day, where activity.scheduledAt == pitstop.startDate) this is
+ * identical to the legacy "newStart = new pitstop startDate" semantic so
+ * existing callers keep working. For windowed visits it does what users
+ * actually mean by "move this visit to <date>": the activity ends up on the
+ * picked date, regardless of where in the window it started — and the
+ * /visits card position (also anchored on activity scheduledAt) follows,
+ * which prevents the "I drag, nothing happens visually, drag again" loop
+ * that lets the shift accumulate across repeated drags.
+ *
+ * Body: { startDate: ISO }   — the picked new date (field name kept as
+ *                              `startDate` so existing clients don't break;
+ *                              semantically it is the new anchor date).
  * Response: { ok, mode: "in_window" | "window_shift", ... }
  *
  * Auth: PATCH /api/pitstop-events/[id] has no scope check today (known gap per
@@ -60,16 +73,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     return Response.json({ error: "Cannot reschedule a pitstop without a startDate" }, { status: 400 });
   }
 
-  // Compute delta in milliseconds — same delta applied to every activity (and
-  // to the window in window-shift mode).
-  const deltaMs = newStart.getTime() - existing.startDate.getTime();
-  if (deltaMs === 0) {
-    return Response.json({ ok: true, unchanged: true });
-  }
-
   const actorId = session.user.id;
 
-  // Load non-Done / non-Cancelled activities once — both modes need them.
+  // Load non-Done / non-Cancelled activities once — both modes need them and
+  // the earliest one is the delta anchor.
   const events = await prisma.$queryRaw<{ id: string; scheduledAt: Date }[]>`
     SELECT pe.id, pe."scheduledAt"
     FROM "PitstopEvent" pe
@@ -78,6 +85,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
       AND pe."deletedAt" IS NULL
       AND pe.status NOT IN ('Done', 'Cancelled')
   `;
+
+  // Anchor = earliest non-Done activity's scheduledAt, or pitstop.startDate
+  // if there are no activities. For SLA=0 visits the activity sits at
+  // startDate, so the two coincide and the legacy contract holds.
+  const anchorMs = events.length > 0
+    ? events.reduce((m, e) => Math.min(m, e.scheduledAt.getTime()), events[0].scheduledAt.getTime())
+    : existing.startDate.getTime();
+  const deltaMs = newStart.getTime() - anchorMs;
+  if (deltaMs === 0) {
+    return Response.json({ ok: true, unchanged: true });
+  }
 
   // Decide mode: would shifting every activity by deltaMs keep all of them
   // inside the current pitstop window? If so, run in-window mode. The window
@@ -122,7 +140,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
   // ── Window-shift mode (fallback) ──────────────────────────────────────
   // Either there are no activities, the pitstop has no real window (SLA=0),
   // or the shift would push at least one activity outside the window. Shift
-  // the whole visit and apply the goal-deadline guard.
+  // the whole visit (and activities) by deltaMs so the activity anchor lands
+  // on the picked date. Apply the goal-deadline guard.
+  const newPitstopStart = new Date(existing.startDate.getTime() + deltaMs);
   const newTarget = existing.targetDate
     ? new Date(existing.targetDate.getTime() + deltaMs)
     : null;
@@ -136,7 +156,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
   await prisma.pitstop.update({
     where: { id: pitstopId },
     data: {
-      startDate: newStart,
+      startDate: newPitstopStart,
       ...(newTarget ? { targetDate: newTarget } : {}),
       updatedAt: new Date(),
     },
@@ -144,7 +164,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
   auditLog({
     entityType: "Pitstop", entityId: pitstopId, userId: actorId,
     action: "visit_reschedule", field: "startDate",
-    oldValue: existing.startDate.toISOString(), newValue: newStart.toISOString(),
+    oldValue: existing.startDate.toISOString(), newValue: newPitstopStart.toISOString(),
   });
 
   let activitiesShifted = 0;
@@ -167,7 +187,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ pi
     ok: true,
     pitstopId,
     mode: "window_shift",
-    newStartDate: newStart.toISOString(),
+    newStartDate: newPitstopStart.toISOString(),
     newTargetDate: newTarget?.toISOString() ?? null,
     activitiesShifted,
   });

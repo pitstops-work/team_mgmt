@@ -90,6 +90,28 @@ export async function GET(req: NextRequest) {
     orderBy: { startDate: "asc" },
     take: 500,
   });
+  if (rows.length === 0) return Response.json([]);
 
-  return Response.json(rows);
+  // Earliest non-Done activity scheduledAt per pitstop. The /visits card
+  // positions on this — for SLA=0 visits it collapses to startDate, for
+  // windowed visits it reflects where the activity actually sits within
+  // the SLA window (so an in-window reschedule visibly moves the card).
+  const ids = rows.map((r) => r.id);
+  const firstSched = await prisma.$queryRaw<{ pitstopId: string; firstScheduledAt: Date | null }[]>`
+    SELECT pep."pitstopId", MIN(pe."scheduledAt") AS "firstScheduledAt"
+    FROM "PitstopEventPitstop" pep
+    JOIN "PitstopEvent" pe ON pe.id = pep."eventId"
+    WHERE pep."pitstopId" = ANY(${ids})
+      AND pe."deletedAt" IS NULL
+      AND pe.status NOT IN ('Done', 'Cancelled')
+    GROUP BY pep."pitstopId"
+  `;
+  const firstByPid = new Map(firstSched.map((r) => [r.pitstopId, r.firstScheduledAt]));
+
+  const enriched = rows.map((r) => ({
+    ...r,
+    firstActivityScheduledAt: firstByPid.get(r.id) ?? null,
+  }));
+
+  return Response.json(enriched);
 }

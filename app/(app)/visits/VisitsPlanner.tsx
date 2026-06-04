@@ -39,6 +39,10 @@ type PitstopCard = {
   recurrence: string;
   startDate: string | null;
   targetDate: string | null;
+  // Earliest non-Done activity's scheduledAt (added 2026-06-04 to anchor the
+  // card on the activity rather than the pitstop window, so an in-window
+  // reschedule visibly moves the card). Null when no activities exist.
+  firstActivityScheduledAt: string | null;
   ownerId: string | null;
   goalId: string;
   goal: {
@@ -50,6 +54,13 @@ type PitstopCard = {
   };
   owner: { id: string; name: string | null; image: string | null } | null;
 };
+
+// The card sits on its activity day when one exists, otherwise on the
+// pitstop's startDate (covers SLA=0 visits where they coincide anyway, plus
+// the "no activities yet" edge case).
+function cardAnchorIso(c: PitstopCard): string | null {
+  return c.firstActivityScheduledAt ?? c.startDate;
+}
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -167,12 +178,15 @@ export function VisitsPlanner({
     });
   }, [rows, search, domainFilter, clusterFilter]);
 
-  // Group filtered pitstops by their visit YMD.
+  // Group filtered pitstops by their visit YMD — the activity day, falling
+  // back to pitstop startDate. For SLA=0 visits these match; for windowed
+  // visits the activity day is what the user picked / drag-dropped to.
   const cardsByDay = useMemo(() => {
     const m = new Map<string, PitstopCard[]>();
     for (const r of filtered) {
-      if (!r.startDate) continue;
-      const ymd = ymdFromIso(r.startDate);
+      const anchor = cardAnchorIso(r);
+      if (!anchor) continue;
+      const ymd = ymdFromIso(anchor);
       const arr = m.get(ymd) ?? [];
       arr.push(r);
       m.set(ymd, arr);
@@ -200,12 +214,15 @@ export function VisitsPlanner({
   // re-fetch after the request completes (cheap; one cell per month).
   async function rescheduleVia(id: string, newYmd: string) {
     const row = rows?.find(r => r.id === id);
-    if (!row || !row.startDate) return;
-    const currentYmd = ymdFromIso(row.startDate);
+    if (!row) return;
+    const anchor = cardAnchorIso(row);
+    if (!anchor) return;
+    const currentYmd = ymdFromIso(anchor);
     if (currentYmd === newYmd) return;
-    // Preserve time-of-day from the current scheduledAt — endpoint computes
-    // delta in ms, so passing newYmd at original HH:MM is the cleanest contract.
-    const current = new Date(row.startDate);
+    // Preserve time-of-day from the anchor scheduledAt — server computes
+    // delta in ms vs the same anchor, so the activity ends up exactly on
+    // the picked day.
+    const current = new Date(anchor);
     const [y, m, d] = newYmd.split("-").map(Number);
     const newDate = new Date(y, m - 1, d, current.getHours(), current.getMinutes(), 0, 0);
     setLoading(true);
@@ -442,11 +459,11 @@ export function VisitsPlanner({
         )}
       </div>
 
-      {target && target.startDate && (
+      {target && cardAnchorIso(target) && (
         <RescheduleVisitModal
           pitstopId={target.id}
           pitstopTitle={target.title}
-          currentStartIso={target.startDate}
+          currentStartIso={cardAnchorIso(target)!}
           currentTargetIso={target.targetDate ?? null}
           onClose={() => setTarget(null)}
           onRescheduled={() => { setTarget(null); load(); }}
