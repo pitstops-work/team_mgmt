@@ -7,6 +7,7 @@ import type { Activity } from "../_lib/types";
 import { fmtDate, fmtDateShort, fmtDomain, fmtTime } from "../_lib/helpers";
 import { ACTIVITY_TYPE_STYLE } from "../_lib/constants";
 import { EmptyState, SectionTitle } from "../_shared/Primitives";
+import { useCan } from "@/components/rbac/RbacProviders";
 
 /**
  * RP "Done log" — replaces the legacy `Past` tab for the RP designation.
@@ -104,6 +105,7 @@ function DoneEntry({
   activity: Activity;
   onOpenLightbox: (img: { url: string; name: string }) => void;
 }) {
+  const canReadPitstop = useCan("pitstop", "read");
   const goal = activity.pitstops?.[0]?.pitstop.goal;
   const ps = activity.pitstops?.[0]?.pitstop;
   const ci = activity.checklistItem ?? null;
@@ -143,7 +145,7 @@ function DoneEntry({
       {/* Body */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {ps?.id ? (
+          {ps?.id && canReadPitstop ? (
             <Link href={`/pitstops/${ps.id}`} className="text-sm font-medium text-stone-800 hover:text-sky-700 truncate">
               {activity.title}
             </Link>

@@ -9,6 +9,7 @@ import { ACTIVITY_TYPE_STYLE } from "../_lib/constants";
 import { RescheduleSheet } from "./RescheduleSheet";
 import { CompleteActivityModal } from "@/components/action-points/CompleteActivityModal";
 import { fetchJson, FetchJsonError } from "@/lib/fetchJson";
+import { useCan } from "@/components/rbac/RbacProviders";
 
 /**
  * The unified activity row used across the new RP/ZL Today cockpits.
@@ -38,6 +39,7 @@ export function ActivityCard({
   activity, linkedChecklist, onCompleted, onRescheduled,
   variant = "row", isOverdue = false, isDone = false,
 }: Props) {
+  const canReadPitstop = useCan("pitstop", "read");
   const [busy, setBusy] = useState<null | "done" | "voice-recording" | "voice-processing" | "upload">(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -313,7 +315,7 @@ export function ActivityCard({
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {ps?.id ? (
+          {ps?.id && canReadPitstop ? (
             <Link href={`/pitstops/${ps.id}`} className={`text-sm font-medium truncate hover:text-sky-700 ${isDone ? "text-stone-500 line-through" : "text-stone-800"}`}>
               {activity.title}
             </Link>
