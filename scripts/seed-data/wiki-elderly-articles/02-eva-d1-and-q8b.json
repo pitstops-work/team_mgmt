@@ -1,0 +1,175 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-eva-q6",
+      "title": "Q6 — Caregiving support",
+      "kind": "question",
+      "naturalOrder": 301,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "How adequate is the caregiving support for the elder's health and dependency needs?",
+        { "h": 2, "text": "Response options (Domain 1 weight ×2.0)" },
+        { "ul": [
+          "**Adequate (0)** — dependable caregiving support consistently available",
+          "**Minor gaps (1)** — occasional caregiving gaps identified",
+          "**Significant gaps (2)** — caregiving support inconsistent or insufficient",
+          "**Severely inadequate (3)** — serious caregiving inadequacy affecting safety or functioning"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q6-appendix"],
+        "care_plan": ["elderly-eva-q6-derivation", "elderly-pathway-caregiving"],
+        "action_manual": ["elderly-chapter-1-family-meeting", "elderly-chapter-2-training-caregiver", "elderly-chapter-4-no-caregiver"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q6-appendix",
+      "title": "Q6 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 302,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Adequate", "Dependable caregiving support consistently available."],
+            ["Minor gaps", "Occasional caregiving gaps identified."],
+            ["Significant gaps", "Caregiving support inconsistent or insufficient."],
+            ["Severely inadequate", "Serious caregiving inadequacy affecting safety or functioning."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q6-derivation",
+      "title": "Q6 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 303,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q6 = 2 (significant gaps)", "Family meeting to clarify caregiving responsibilities; identify primary + backup caregivers; document agreement", "M", "CO", "Within 14 days"],
+            ["Q6 = 3 (severely inadequate)", "**Critical flag review.** Settlement-level caregiving plan; identify community caregiver if no family member; home-help linkage if budget permits", "H", "CO + Sup", "Within 7 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q6b",
+      "title": "Q6b — Caregiver burden [Sensitive]",
+      "kind": "question",
+      "naturalOrder": 304,
+      "content": [
+        { "h": 2, "text": "Question [V] [Sensitive]" },
+        "How is the primary caregiver coping with caregiving demands? **Asked privately of the caregiver, not the elder.** Where possible, speak to the caregiver alone — even a few minutes outside the house.",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Coping well (0)** — no significant strain; caregiver managing demands",
+          "**Mild strain (1)** — manageable but tiring; some impact on caregiver's daily life",
+          "**Moderate strain (2)** — sleep loss, health affected, struggling to manage",
+          "**Severe burnout (3)** — caregiver showing exhaustion, resentment, or risk of breakdown",
+          "**Not applicable (NA)** — elder lives alone or has no identified primary caregiver"
+        ] },
+        { "h": 2, "text": "Critical flag" },
+        "Score **3 (severe burnout)** is a critical risk flag → automatic Profound Need + respite within 14 days.",
+        { "h": 2, "text": "Training note" },
+        "A daughter-in-law caring for a bed-ridden elder while raising children is at extreme burnout risk. An aged spouse caring for another aged spouse is similarly vulnerable. Look for fatigue, weight loss, irritability, sleep deprivation in the caregiver."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q6b-appendix", "elderly-framework-sensitive-fields"],
+        "care_plan": ["elderly-eva-q6b-derivation", "elderly-flag-protocol-caregiver-burnout"],
+        "action_manual": ["elderly-chapter-3-caregiver-respite"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q6b-appendix",
+      "title": "Q6b — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 305,
+      "content": [
+        "Burnout precedes neglect. Q6 measures caregiving adequacy from the elder's side; Q6b adds the caregiver's voice. Catching strain early enables respite before harm.",
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Coping well", "No significant strain reported; caregiver managing demands."],
+            ["Mild strain", "Manageable but tiring; some impact on caregiver's daily life."],
+            ["Moderate strain", "Sleep loss, health affected, struggling to manage."],
+            ["Severe burnout", "Caregiver showing exhaustion, resentment, or risk of breakdown."],
+            ["Not applicable", "Elder lives alone or has no identified primary caregiver."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q6b-derivation",
+      "title": "Q6b — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 306,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q6b = 2 (moderate strain)", "Caregiver support group enrolment; respite arrangement (a few hours per week); peer connection to other caregivers", "M", "CO + CI", "Within 21 days"],
+            ["Q6b = 3 (severe burnout)", "**Critical flag — see §11.1 protocol.** Respite within 14 days; counselling referral; family task-sharing meeting", "H", "Sup + CO", "Within 14 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q8b",
+      "title": "Q8b — IADL dependence",
+      "kind": "question",
+      "naturalOrder": 322,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "For how many of the following does the elder need help from another person? Tick each: cooking, shopping, managing money, managing medicines, transport / going out.",
+        { "h": 2, "text": "Scoring (count of ticks)" },
+        { "ul": [
+          "**0 activities (0)** — fully independent in all IADLs",
+          "**1 activity (1)** — needs help with one activity",
+          "**2–3 activities (2)** — moderate IADL dependency",
+          "**4 or more (3)** — significant IADL dependency"
+        ] },
+        { "h": 2, "text": "Why this matters" },
+        "IADL covers higher-order tasks needed to live independently. Loss often precedes ADL loss (ADL = Q8a) and signals coming dependency."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q8b-appendix"],
+        "care_plan": ["elderly-eva-q8b-derivation", "elderly-pathway-mobility"],
+        "action_manual": ["elderly-chapter-11-medicines-regularly", "elderly-chapter-20-community-kitchen"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q8b-appendix",
+      "title": "Q8b — IADL dependence: how to count",
+      "kind": "guideline_appendix",
+      "naturalOrder": 323,
+      "content": [
+        { "table": {
+          "head": ["Activities ticked", "Score", "Interpretation"],
+          "rows": [
+            ["0 (independent)", "0", "Fully independent in all IADLs"],
+            ["1", "1", "Needs help with one activity"],
+            ["2–3", "2", "Moderate IADL dependency"],
+            ["4 or more", "3", "Significant IADL dependency"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q8b-derivation",
+      "title": "Q8b — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 324,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q8b = 2 (2–3 IADL deps)", "Community kitchen enrolment if cooking affected; medication management plan (family member or pill organiser); shopping support arrangement", "M", "CO + KI", "Within 21 days"],
+            ["Q8b = 3 (4+ IADL deps)", "Full meal support via community kitchen; medication and money management transferred to identified family member or settlement leader", "H", "CO + KI", "Within 14 days"]
+          ]
+        } }
+      ]
+    }
+  ]
+}

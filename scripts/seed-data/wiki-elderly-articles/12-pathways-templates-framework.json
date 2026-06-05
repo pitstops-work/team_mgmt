@@ -1,0 +1,382 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-pathway-caregiving",
+      "title": "Domain 1 Pathway — Caregiving Adequacy",
+      "kind": "pathway",
+      "naturalOrder": 710,
+      "content": [
+        { "table": {
+          "head": ["Phase", "Action", "Owner"],
+          "rows": [
+            ["Week 1", "Identify primary caregiver + backup; family meeting if needed; document agreement", "CO"],
+            ["Week 2", "Caregiver assessment (Q6b asked privately); peer connection to one experienced caregiver", "CO"],
+            ["Week 3–4", "Caregiver basic skills training (bathing, lifting, medication, bed-sore prevention)", "CO + CI"],
+            ["Month 2", "Caregiver support group introduction; respite arrangement if burden detected", "CO + CI"],
+            ["Month 3", "Re-assess Q6 and Q6b; adjust support if gaps remain", "CO"],
+            ["Quarterly", "Family meeting to renew task-sharing; rotate caregiving burden if multiple family members available", "CO"]
+          ]
+        } },
+        { "h": 2, "text": "Expected outcome" },
+        "Q6 and Q6b scores at 1 or below by Month 6; primary caregiver identifies as coping."
+      ]
+    },
+    {
+      "slug": "elderly-pathway-health",
+      "title": "Domain 3 Pathway — Health & Medical",
+      "kind": "pathway",
+      "naturalOrder": 730,
+      "content": [
+        { "table": {
+          "head": ["Phase", "Action", "Owner"],
+          "rows": [
+            ["Week 1", "PHC/UPHC enrolment confirmed; consolidated medication list created with family", "CO"],
+            ["Week 2", "First clinical follow-up scheduled; transport arranged if elder cannot travel alone", "CO"],
+            ["Week 3–4", "Medication supply addressed (PHC stockout escalation, Janaushadhi linkage, family budget conversation)", "CO"],
+            ["Month 2", "Sensory function check (Q13a); refer to next eye/ENT camp if needed", "CO"],
+            ["Month 3", "Re-assess Q11, Q12, Q13a, Q13b; document medication adherence trajectory", "CO"],
+            ["Quarterly", "Clinical review with PHC; entitlements team verification on disability certificate if applicable", "CO + ET"]
+          ]
+        } },
+        { "h": 2, "text": "Expected outcome" },
+        "≥80% medication adherence (Q12 ≤1); NCDs under control where applicable; vision/hearing addressed where operable."
+      ]
+    },
+    {
+      "slug": "elderly-pathway-cognitive",
+      "title": "Domain 4 Pathway — Cognitive & Emotional",
+      "kind": "pathway",
+      "naturalOrder": 740,
+      "content": [
+        { "table": {
+          "head": ["Phase", "Action", "Owner"],
+          "rows": [
+            ["Week 1", "Q15a/b assessed privately; mental health screening explained; consent for referral if positive", "CO"],
+            ["Week 2", "Referral made (PHC counsellor / NIMHANS DMHP / NGO partner); centre engagement arranged for isolation", "CO + CI"],
+            ["Week 3–4", "Confirm referral attended; centre attendance for ambulant elders; home-based engagement for non-ambulant", "CO + CI"],
+            ["Month 2", "Re-assess Q15a and Q15b; if cognitive concerns (Q14), reversible-cause workup at PHC", "CO"],
+            ["Month 3", "Continuing counselling check; peer mentor pairing for Tier 3 stable elders; family conversation about visit patterns", "CO + CI"],
+            ["Quarterly", "Full re-EVA; mental health trajectory documented", "CO"]
+          ]
+        } },
+        { "h": 2, "text": "Expected outcome" },
+        "Q15a and Q15b trending toward 0–1 over 6 months; reduced isolation through centre or community contact; referrals kept."
+      ]
+    },
+    {
+      "slug": "elderly-pathway-safety",
+      "title": "Domain 5 Pathway — Safety, Abuse & Protection",
+      "kind": "pathway",
+      "naturalOrder": 750,
+      "content": [
+        "**Safety pathway differs from other domains:** the elder's safety overrides standard care pathway timelines. Steps below are minimum standards; the supervisor and city lead may compress or intensify as the case demands.",
+        { "table": {
+          "head": ["Phase", "Action", "Owner"],
+          "rows": [
+            ["Day 0 (assessment)", "Critical flag noted; supervisor informed same day; restricted log entry created; CO does not act alone", "CO → Sup"],
+            ["Day 1–2", "Risk assessment by Sup + City Lead; safety plan drafted; helplines briefed if needed", "Sup + City Lead"],
+            ["Day 3–7", "Safety plan implemented; trusted contact identified; safe placement arranged if at immediate risk", "Sup + City Lead"],
+            ["Week 2", "Counselling referral arranged for elder; family conversation if appropriate (only if perpetrator not in household)", "Sup"],
+            ["Weeks 3–8", "Weekly home visits (or settlement neutral location); safety plan reviewed weekly; de-escalation requires supervisor validation", "CO + Sup"],
+            ["Month 3", "Re-assess Q16, Q17; case may move from active crisis to monitored if stable for 8 weeks", "Sup"]
+          ]
+        } },
+        { "h": 2, "text": "Expected outcome" },
+        "Elder safe; safety plan documented and operational; no further safety incidents for 8 consecutive weeks before de-escalation."
+      ]
+    },
+    {
+      "slug": "elderly-pathway-food-financial",
+      "title": "Domain 6 Pathway — Food & Financial Security",
+      "kind": "pathway",
+      "naturalOrder": 760,
+      "content": [
+        { "table": {
+          "head": ["Phase", "Action", "Owner"],
+          "rows": [
+            ["Week 1", "Food triage: which meal is missing? Who cooks? Why is access disrupted? Dry ration kit if emergency", "CO + KI"],
+            ["Week 2", "Community kitchen enrolment if home-bound or family-cooking unreliable; centre attendance if mobile", "CO + KI + CI"],
+            ["Week 3–4", "Q18a addressed if relevant: soft food adaptation; dental referral; supplement if available", "CO + KI"],
+            ["Month 2", "Re-assess Q18a, Q18b, Q19; review whether kitchen meal is being received and adequate", "CO + KI"],
+            ["Month 3", "Entitlements team status check on referred items (ration card, pension); CO documents resolution or escalation", "CO ↔ ET"],
+            ["Quarterly", "Full re-EVA on food and financial security; kitchen attendance reviewed; family financial situation if changed", "CO"]
+          ]
+        } },
+        { "h": 2, "text": "Expected outcome" },
+        "Q18a and Q18b at 0 or 1; daily food access secured through one of: family / community kitchen / centre."
+      ]
+    },
+    {
+      "slug": "elderly-pathway-emergency",
+      "title": "Domain 7 Pathway — Emergency & Social Support",
+      "kind": "pathway",
+      "naturalOrder": 770,
+      "content": [
+        { "table": {
+          "head": ["Phase", "Action", "Owner"],
+          "rows": [
+            ["Week 1", "Identify one trusted contact in settlement or family; phone number recorded; introductions made", "CO"],
+            ["Week 2", "Emergency response plan: who is called first, second, third in case of fall/illness/distress; written and explained", "CO"],
+            ["Week 3–4", "Community kitchen and/or centre attendance to build daily contact; settlement leader briefed", "CO + KI + CI"],
+            ["Month 2", "Test the emergency contact chain (mock or actual minor event); refine if gaps", "CO"],
+            ["Month 3", "Re-assess Q21; if trusted contact not working, identify alternative", "CO"],
+            ["Quarterly", "Full re-EVA; emergency response chain refreshed", "CO"]
+          ]
+        } },
+        { "h": 2, "text": "Expected outcome" },
+        "Q21 at 0 or 1; elder has at least one reliable contact within 5 minutes' walk; CO contact known to elder and family."
+      ]
+    },
+    {
+      "slug": "elderly-template-high",
+      "title": "High Need — Template care plan",
+      "kind": "template",
+      "naturalOrder": 820,
+      "content": [
+        "High Need elders have multiple vulnerabilities but are usually mobile or partially mobile.",
+        { "h": 2, "text": "Visit pattern" },
+        { "ul": [
+          "**Fortnightly** home visit by CO (full visit ~30 min)",
+          "Weekly community kitchen contact (delivery or in-person)",
+          "Monthly centre visit encouraged if mobility permits",
+          "Fortnightly supervisor case review"
+        ] },
+        { "h": 2, "text": "Core components" },
+        { "ul": [
+          "Caregiver identified and supported (if present); caregiver burden assessed monthly",
+          "PHC/UPHC enrolment + regular follow-up; medication adherence monitored",
+          "Mobility aid procured if needed; home hazards addressed",
+          "Community kitchen if food access affected; centre attendance if mobile",
+          "Emergency contact chain in place",
+          "Entitlements team referral active for any missing benefit"
+        ] },
+        { "h": 2, "text": "Reassessment cadence" },
+        "Full EVRAT quarterly. Event-triggered within 7 days of any deterioration event. Move to Moderate possible after 12 weeks of stable improvement."
+      ]
+    },
+    {
+      "slug": "elderly-template-moderate",
+      "title": "Moderate Need — Template care plan",
+      "kind": "template",
+      "naturalOrder": 830,
+      "content": [
+        "Moderate Need elders have identifiable vulnerabilities but are managing day-to-day. The plan focuses on closing specific gaps and preventing deterioration.",
+        { "h": 2, "text": "Visit pattern" },
+        { "ul": [
+          "**Monthly** home visit by CO (full visit ~25 min)",
+          "Centre attendance recommended (twice weekly minimum) if mobile",
+          "Community kitchen if food access requires it",
+          "Quarterly supervisor case review"
+        ] },
+        { "h": 2, "text": "Core components" },
+        { "ul": [
+          "PHC linkage if NCDs present; medication routine confirmed",
+          "Mobility aids procured if needed",
+          "Centre engagement for social connection and meal",
+          "Emergency contact known",
+          "Entitlements referrals on any missing benefit"
+        ] },
+        { "h": 2, "text": "Reassessment cadence" },
+        "Full EVRAT quarterly. Event-triggered immediate. Move to Low Need after 6 months of sustained improvement."
+      ]
+    },
+    {
+      "slug": "elderly-template-low",
+      "title": "Low Need — Template care plan",
+      "kind": "template",
+      "naturalOrder": 840,
+      "content": [
+        "Low Need elders are largely managing well with minor gaps. The plan keeps a light touch but maintains relationship.",
+        { "h": 2, "text": "Visit pattern" },
+        { "ul": [
+          "**Quarterly** home visit by CO (~20 min)",
+          "Centre attendance optional but encouraged",
+          "Annual supervisor review"
+        ] },
+        { "h": 2, "text": "Core components" },
+        { "ul": [
+          "Identification of any unaddressed entitlement gap",
+          "Encouragement to participate in centre activities",
+          "Preventive health awareness (NCDs, falls, mental health)",
+          "Emergency contact verified annually"
+        ] },
+        { "h": 2, "text": "Reassessment cadence" },
+        "Full EVRAT twice yearly. Event-triggered escalation. Move to Stable possible after 12 months of stability."
+      ]
+    },
+    {
+      "slug": "elderly-template-stable",
+      "title": "Stable & Self-Managing — Template care plan",
+      "kind": "template",
+      "naturalOrder": 850,
+      "content": [
+        "Stable elders are functioning well. The programme's role is light-touch monitoring, preventive engagement, and peer-mentor enrolment for those willing.",
+        { "h": 2, "text": "Visit pattern" },
+        { "ul": [
+          "**3-monthly** home visit or centre contact (~15 min)",
+          "Centre engagement encouraged; potential peer-mentor role for other elders"
+        ] },
+        { "h": 2, "text": "Core components" },
+        { "ul": [
+          "Light wellness check; IVS only (unless trigger detected)",
+          "Peer-mentor enrolment if willing — pairs with 2–3 Tier 2 or 3 elders",
+          "Annual entitlements check",
+          "Preventive health awareness"
+        ] },
+        { "h": 2, "text": "Reassessment cadence" },
+        "Full EVRAT annually unless event triggers earlier. Status reviewed every 3 months — Stable cannot remain unreviewed beyond 3 months.",
+        { "quote": "Stable elders are an asset to the programme. Their lived experience, mobility, and time make them ideal peer mentors. A flourishing peer-mentor cohort reduces CO load significantly and dignifies the Stable cohort with purpose." }
+      ]
+    },
+    {
+      "slug": "elderly-framework-sensitive-fields",
+      "title": "Framework — Sensitive fields & restricted access",
+      "kind": "framework",
+      "naturalOrder": 1040,
+      "content": [
+        "Sensitive fields are visible to the CO conducting the assessment and to the programme manager / city lead. They are **not** visible on:",
+        { "ul": [
+          "Field-level printouts carried by COs",
+          "Peer dashboards or shared MIS views accessible to non-elderly-team staff",
+          "External reports (anonymised aggregate indicators only)"
+        ] },
+        { "h": 2, "text": "Marked [Sensitive] fields" },
+        { "ul": [
+          "**Q6b** — Caregiver burden (caregiver's voice; must not be shown to elder or other family)",
+          "**Q15a** — Depression screen (mental health stigma)",
+          "**Q15b** — Loneliness (privacy of personal state)",
+          "**Q16** — Abuse or neglect (could put elder at greater risk if disclosed)",
+          "Any Section E observations naming violence, financial exploitation, or family conflict"
+        ] },
+        { "h": 2, "text": "Physical security" },
+        "If the instrument is paper-based, sensitive-marked pages are kept in the locked office file; not discussed with neighbours, other family members, or other COs except the supervisor. If digital, sensitive fields are encrypted and access-controlled per the MIS specification."
+      ]
+    },
+    {
+      "slug": "elderly-framework-calibration",
+      "title": "Framework — Calibration & inter-rater reliability",
+      "kind": "framework",
+      "naturalOrder": 1050,
+      "content": [
+        "EVRAT relies on assessor judgement for many items. Two assessors observing the same elder may produce different scores. The calibration protocol reduces variation before rollout and detects drift during operation.",
+        { "h": 2, "text": "Pre-rollout calibration (once, before any CO uses EVRAT)" },
+        { "ul": [
+          "Identify 5 elders across the vulnerability spectrum (1 likely Stable, 2 likely Moderate, 1 likely High, 1 likely Profound)",
+          "Three COs and one supervisor assess each elder independently, on the same day, without consulting each other",
+          "Scores compared item by item. Items where COs disagree by ≥2 points are flagged for discussion",
+          "Refine the operational definition in the guidelines if needed, or refine training if the definition is fine but applied inconsistently",
+          "Repeat with a fresh set of 5 elders until **agreement on ≥80% of items** is achieved"
+        ] },
+        { "h": 2, "text": "Quarterly calibration (during operation)" },
+        { "ul": [
+          "Each quarter, two COs jointly visit 2 elders together — one in the calmer middle of the day, after the regular assessment is done",
+          "Each CO completes the EVRAT independently from observation",
+          "Scores compared at the next team meeting. Disagreements ≥2 points discussed and definitions refined",
+          "Results documented; major drift triggers a refresher training"
+        ] },
+        { "quote": "Calibration is a tool-improvement exercise, not a performance evaluation of COs. Disagreement is expected and useful — it reveals where the tool is weak, not where the CO is wrong." }
+      ]
+    },
+    {
+      "slug": "elderly-framework-living-arrangement",
+      "title": "Framework — Living arrangement (contextual modifier)",
+      "kind": "framework",
+      "naturalOrder": 1060,
+      "content": [
+        "Living arrangement is captured as a **baseline contextual field** (in Section A), not a scored item. It modifies how other findings are interpreted: a high dependency score in an elder living alone requires a different response from the same score in a household with adult children.",
+        { "h": 2, "text": "Structured options" },
+        { "ul": [
+          "Lives alone",
+          "With spouse only",
+          "With children / family",
+          "With grandchildren only (skip-generation)",
+          "With relatives (non-children)",
+          "With non-kin / neighbour",
+          "Institutional / shelter",
+          "Homeless / unstable housing"
+        ] },
+        "Living arrangement was free text in v3 (Section B only, Stable elders only). Vulnerable elders going through EVA had no living arrangement field at all. v4 captures it for everyone as a structured baseline field."
+      ]
+    },
+    {
+      "slug": "elderly-framework-reassessment-cadence",
+      "title": "Framework — Reassessment cadence & event triggers",
+      "kind": "framework",
+      "naturalOrder": 1070,
+      "content": [
+        { "h": 2, "text": "Cadence by category" },
+        { "table": {
+          "head": ["Category", "Visit frequency", "Nature of engagement", "Supervisor review"],
+          "rows": [
+            ["Stable & Self-Managing", "3-monthly", "Preventive engagement and monitoring", "As required"],
+            ["Low Need", "Quarterly", "Periodic support and follow-up", "Quarterly"],
+            ["Moderate Need", "Monthly", "Structured engagement and referrals", "Monthly"],
+            ["High Need", "Weekly / Fortnightly", "Intensive monitoring and support", "Fortnightly"],
+            ["Profound Need", "2–3 × per week", "Crisis response and intensive support", "Weekly"]
+          ]
+        } },
+        { "h": 2, "text": "Event triggers (immediate reassessment regardless of cadence)" },
+        { "ul": [
+          "Fall or fracture",
+          "Hospitalisation",
+          "Death of caregiver",
+          "Widowhood",
+          "Violence or abuse",
+          "Visible health deterioration",
+          "Severe emotional distress",
+          "New dependency",
+          "Food insecurity",
+          "Unsafe shelter",
+          "Major illness diagnosis",
+          "Displacement or eviction"
+        ] }
+      ]
+    },
+    {
+      "slug": "elderly-framework-supervisor-validation",
+      "title": "Framework — Supervisor validation & downgrade protection",
+      "kind": "framework",
+      "naturalOrder": 1080,
+      "content": [
+        "Downgrade from severe categories (High or Profound Need) requires:",
+        { "ul": [
+          "Reassessment",
+          "Documentation",
+          "**Supervisor validation**"
+        ] },
+        "This prevents underestimation of severe vulnerability and protects against premature de-escalation. Sustained 8 weeks of stability minimum before considering Profound → High; 12 weeks before High → Moderate; 6 months before Moderate → Low.",
+        { "h": 2, "text": "What supervisor validation requires" },
+        { "ul": [
+          "Review the previous Section E2 tasks: how many are closed? How many are stuck?",
+          "Co-visit the elder with the CO before signing off the downgrade",
+          "Document the reason on the case file",
+          "Set the next reassessment cadence per the new category"
+        ] }
+      ]
+    },
+    {
+      "slug": "elderly-framework-dynamic-reassessment",
+      "title": "Framework — Dynamic reassessment philosophy",
+      "kind": "framework",
+      "naturalOrder": 1090,
+      "content": [
+        "The assessment framework is dynamic and editable. Categories may change over time based on:",
+        { "ul": [
+          "Health deterioration",
+          "Falls or accidents",
+          "Hospitalisation",
+          "Caregiving collapse",
+          "Emotional deterioration",
+          "Bereavement",
+          "Violence or abuse",
+          "Environmental change",
+          "Food insecurity",
+          "Field observations"
+        ] },
+        { "h": 2, "text": "Authority" },
+        "Any authorised staff member with access to elder records may: trigger reassessment, raise concern alerts, recommend escalation, request supervisor review.",
+        "Stable & Self-Managing status **should not remain unreviewed beyond 3 months**."
+      ]
+    }
+  ]
+}

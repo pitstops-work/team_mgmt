@@ -1,0 +1,139 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-chapter-15-mental-health",
+      "title": "Ch 15 — Mental health support",
+      "kind": "chapter",
+      "naturalOrder": 915,
+      "content": [
+        "Helping an elder who is low, hopeless, or not themselves — getting them seen by the clinical psychologist at the weekly camp and making sure the plan that follows actually happens.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the assessment raises a mental health concern. **Severe** (low nearly every day, or any talk of wanting to die) — tell the supervisor the SAME DAY, do not wait for the camp. **Moderate** — route to the next weekly camp.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Flag it to the supervisor and note it sensitively — this is private; it stays in the restricted file, not shared with neighbours or other family.",
+          "Mark the elder for the weekly camp at the centre. The clinician is Kannada-speaking; if the elder speaks another language, the supervisor arranges a clinician who shares it — no elder is sent to someone they cannot speak to.",
+          "Bring the elder to the camp — this is the hard part. Do not call it a 'mental camp.' Say there is someone good to talk to, people feel lighter after, you will come along.",
+          "Be there when the psychologist gives the plan (with the elder's consent), so you know what you are now responsible for: either a psychiatrist referral, or counselling sessions plus an activity plan.",
+          "If psychiatrist referral: make the appointment actually happen, ensure medicines are taken, visit home a few days after to check.",
+          "If counselling + activity: make sure they attend each session and the activity plan runs between sessions.",
+          "Keep watching. Mental health does not 'close.' Set a check-in rhythm and reopen at once if they slip."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Distress hides — as body aches, as anger, as 'I am a burden,' as simply stopping. Learn to see it behind these masks. And the family's shame is often the biggest barrier to the camp — work on that gently before forcing anything.",
+        { "h": 2, "text": "DIGNITY" },
+        "Never name it as madness. Sit with the elder, not above them. Ask privately, never in front of family who may be part of the pain.",
+        { "h": 2, "text": "DO NOT" },
+        "If there is ANY talk of wanting to die, any plan to self-harm — this stops being this chapter and becomes the Safety Pathway. Tell the supervisor the same day. Do not wait for the camp. Do not carry it alone.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder has been seen by the psychologist, the plan is actually running, the elder is participating, the distress is not worsening, and a check-in rhythm is set."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-16-dementia-confusion",
+      "title": "Ch 16 — Dementia & confusion — keeping the elder safe",
+      "kind": "chapter",
+      "naturalOrder": 916,
+      "content": [
+        "Protecting an elder whose memory and thinking are failing — keeping them safe from the dangers confusion brings, and supporting the family who care for them.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder has memory loss or confusion (Q14 = 2), or severe confusion or unsafe wandering (Q14 = 3).",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "First, get a medical check — some confusion is reversible. A urine infection, a medicine reaction, low B12, or thyroid trouble can cause sudden confusion that clears when treated. Do not assume it is permanent dementia. Route to the PHC.",
+          "Make the home safe for someone who forgets: control access to the stove and matches, lock away dangerous things and medicines, secure money, prevent wandering out and getting lost.",
+          "Put identification on the elder — a band or a card with their name, the family's phone number, and address — so a wandering elder is brought home.",
+          "Set up a simple, steady routine — same times, same faces, calm surroundings. Confusion worsens with chaos and change.",
+          "Support the family heavily — caring for a confused elder is exhausting and frightening. Teach them not to argue with or shame the elder for forgetting; it only distresses everyone.",
+          "Keep the elder engaged and calm — familiar music, old photos, simple tasks, gentle company. Engagement slows the slide."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Sudden confusion (over days) is usually a treatable illness — treat it as urgent and medical. Slow confusion (over months and years) is more likely dementia. Knowing which changes everything you do.",
+        { "h": 2, "text": "DIGNITY" },
+        "A confused elder is still a person, still feels fear and love and shame. Never mock, never talk about them as if absent, never restrain harshly. Meet confusion with calm and patience, not correction.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "Reversible causes have been checked at the PHC, the home is safe and the elder has ID on them, a calm routine is in place, and the family is supported and taught how to cope."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-17-loneliness",
+      "title": "Ch 17 — Loneliness & bringing an elder back into life",
+      "kind": "chapter",
+      "naturalOrder": 917,
+      "content": [
+        "Reconnecting an elder who has become isolated — because for an old person, being unseen and unspoken-to for days is a real harm to body and mind, not just a sad mood.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder is often lonely (Q15b = 2) or severely isolated (Q15b = 3) — going days without meaningful conversation.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "First, tell loneliness apart from solitude. Some elders are content alone and do not want 'fixing.' Ask them. Push only where there is real, painful disconnection.",
+          "Bring them into the centre — the single best tool. Meals, company, activity, other elders. Arrange the way there if walking is hard.",
+          "Use the community kitchen as daily human contact — the delivery is a face and a few words every day.",
+          "Pair them with a peer mentor (Ch 25) — another elder who visits, talks, includes them.",
+          "Talk to the family about visiting and calling — sometimes children far away do not realise how much a weekly call means, or how silent the house has become.",
+          "For a bedridden elder who cannot come out, bring life to them — a volunteer or neighbour who sits, a radio, their bed moved to where people pass."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Loneliness can look like 'just old age' or be dismissed as the elder being difficult. It is neither — it genuinely harms health. Take it as seriously as a physical problem.",
+        { "h": 2, "text": "DIGNITY" },
+        "Do not force company on someone at peace alone, and do not treat a lonely elder as pathetic. Offer connection as something good on its own, an elder among equals — not charity for the abandoned.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder has regular, real human contact — through the centre, the kitchen, a peer mentor, or family — and the painful isolation has genuinely eased, by their own account."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-18-abuse-neglect",
+      "title": "Ch 18 — When you suspect abuse or neglect",
+      "kind": "chapter",
+      "naturalOrder": 918,
+      "content": [
+        "Protecting an elder you believe is being harmed, neglected, or exploited — carefully, because done wrong it can put them in more danger.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "Any sign of abuse, neglect, abandonment, or exploitation (Q16 = 1 mild suspicion, 2 repeated, or 3 severe). The more serious, the faster and higher it goes.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Tell your supervisor the same day. You do NOT handle abuse alone — this is the firmest rule in this manual. Serious cases go to the supervisor and City Lead.",
+          "Keep what you see in the restricted file only. Do not discuss it with neighbours, with other family, or with the suspected person.",
+          "Do not confront the suspected abuser. Confrontation can make them punish the elder after you leave.",
+          "Talk to the elder gently and privately, away from the household, at their pace. Do not push them to accuse anyone — let them say what they can.",
+          "For serious or immediate danger, the supervisor and City Lead activate the helplines (Women 181, Elder 14567, Police 100) and arrange safe placement if the elder is at risk now.",
+          "A safety plan is made (by the supervisor and lead) within 72 hours: who the elder can turn to, more frequent visits, how to protect them from the abuser learning they spoke.",
+          "Keep watching closely — weekly — until the case is genuinely stable. De-escalating needs the supervisor's agreement, not yours alone."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "What looks like 'abandonment' is often a family drowning in a tiny home with no money and no rest — exhaustion, not cruelty. Real abuse also exists. Do not judge from the doorway; observe, and let the supervisor help weigh it. Either way, the elder's safety comes first.",
+        { "h": 2, "text": "DIGNITY" },
+        "The elder may love and depend on the person hurting them, and may not want them punished. Respect that this is complicated for them. Protect them without forcing them to destroy their own family ties unless safety demands it.",
+        { "h": 2, "text": "DO NOT" },
+        "Do not act alone, do not confront the abuser, do not disclose to the household that the elder spoke, and do not promise the elder things you cannot guarantee. Wrong moves here cause real harm.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The supervisor and (for serious cases) City Lead are involved, a safety plan exists, the elder is safe, the record is restricted, and close monitoring is in place."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-19-unsafe-housing",
+      "title": "Ch 19 — Unsafe housing & homelessness",
+      "kind": "chapter",
+      "naturalOrder": 919,
+      "content": [
+        "Making an elder's shelter safe enough to live in, or finding shelter when they have none.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When housing has moderate risks (Q17 = 2) or is dangerous, or the elder faces homelessness (Q17 = 3).",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Look at the real dangers: bad wiring and fire risk, no ventilation, a roof or wall that could fall, flooding in monsoon, no safe place to cook, no light.",
+          "Fix the cheap, fast safety things — lighting, a safer cooking spot, clearing a fire hazard.",
+          "For structural problems, talk to the settlement leader and the supervisor — some need community or municipal action beyond what you can do.",
+          "If the elder is homeless or the home is genuinely unliveable, raise it urgently with the supervisor; explore shelter options and any housing scheme they qualify for through the Entitlements Team.",
+          "Watch for the property angle — an elder pushed out of their own home by relatives is both a housing and an abuse matter (Ch 18). Handle accordingly."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Monsoon turns a marginal home dangerous — flooding, collapse, damp, illness. Check frail elders' homes before the rains, not after.",
+        { "h": 2, "text": "DIGNITY" },
+        "It is their home, however poor — made with their own years. Do not speak of it with disgust. Improve it with respect for what it means to them.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The immediate dangers are fixed, structural issues are with the settlement leader and supervisor, and a homeless elder has a real shelter plan in motion."
+      ]
+    }
+  ]
+}

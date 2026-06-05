@@ -1,0 +1,186 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-chapter-20-community-kitchen",
+      "title": "Ch 20 — Enrolling an elder in the community kitchen",
+      "kind": "chapter",
+      "naturalOrder": 920,
+      "content": [
+        "Getting a hot daily meal to an elder who cannot cook or is not eating enough — and using that daily delivery as a daily check that they are alright.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder cannot cook (Q8b), eats irregularly (Q18b = 2), faces food insecurity (Q18b = 3), or is home-bound and alone.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Confirm the real food situation: are meals missing, or coming but poor? Who cooks now? Why has it broken down? This decides whether the kitchen is the answer.",
+          "Enrol the elder with the Kitchen In-charge — add them to the delivery list for their settlement.",
+          "For a home-bound elder, daily delivery to the home; for a mobile elder, they can come to the centre for the meal and the company.",
+          "Make sure the food suits them — soft food if they cannot chew (Ch 22), and culturally familiar, not strange to them.",
+          "Use the delivery as a daily wellness check — brief the kitchen women to notice and report if the elder does not come to the door, seems unwell, or something has changed.",
+          "Check the meal is actually being eaten and is enough — not given away to grandchildren or skipped."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Sometimes the elder's food goes to feed the family's children — the elder quietly goes without so the young eat. Watch for this; it means the household is food-insecure and needs more than one elder's meal solved.",
+        { "h": 2, "text": "DIGNITY" },
+        "A shared meal is connection, not a handout. Frame the kitchen as the community feeding its elders — which is what it is — not charity for the destitute.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder reliably gets an adequate daily meal they can eat, the kitchen women are watching over them daily, and you have confirmed the food is actually eaten."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-21-emergency-food",
+      "title": "Ch 21 — Emergency food / dry ration",
+      "kind": "chapter",
+      "naturalOrder": 921,
+      "content": [
+        "Getting food into the house FAST when an elder has none — the stop-gap before the kitchen or entitlements catch up.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "Severe food insecurity (Q18b = 3) or severe undernutrition (Q18a = 3) — act within 48 hours. This is an emergency, not a routine task.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Get a dry ration kit to the home within two days — do not let an elder go hungry while longer solutions are arranged.",
+          "Start the community kitchen daily meal at the same time (Ch 20).",
+          "Refer the ration-card gap to the Entitlements Team (Ch 23) so the long-term entitlement is fixed, not just the emergency.",
+          "If the elder is severely wasted, this is also a medical matter — link the PHC to rule out an underlying illness (Ch 22).",
+          "Check back within days — emergencies need eyes on them until stable."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "An elder who is severely wasted has often been quietly hungry for a long time — they rarely ask. By the time it shows, it is urgent. Move fast and do not wait for the next scheduled visit.",
+        { "h": 2, "text": "DIGNITY" },
+        "Deliver emergency food quietly and respectfully, not as a public spectacle of someone's destitution. Protect their standing in front of neighbours.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "Food reached the home within 48 hours, the daily kitchen meal has started, the ration-card gap is referred, and any medical cause is being checked."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-22-nutrition-soft-food",
+      "title": "Ch 22 — When an elder cannot eat well — nutrition, soft food, teeth",
+      "kind": "chapter",
+      "naturalOrder": 922,
+      "content": [
+        "Making sure an elder is actually nourished — not just fed — by solving the reasons they cannot eat properly.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder shows thinness, weight loss, or chewing difficulty (Q18a = 2), or is visibly wasting (Q18a = 3).",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Look, do not just ask — thin arms, loose clothes, a face grown gaunt. Ask the family if clothes have got loose over recent months.",
+          "Find out why they cannot eat: no teeth or painful teeth so they cannot chew; the food is too hard; no appetite; an illness eating them; or simply not enough food.",
+          "For chewing trouble: get soft food made — talk to the cook (family or kitchen) about softer, mashable meals — and refer to the PHC for dental help.",
+          "For no appetite or wasting despite food: link the PHC to look for an illness (TB, untreated diabetes, other) — wasting with enough food is a medical warning.",
+          "For not enough food: solve the access problem — kitchen, ration, entitlements (Ch 20, 21, 23).",
+          "Follow up — is the weight loss stopping, is the elder eating more? Nutrition is judged over weeks, by the body, not by one meal seen."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "'They are eating fine' from the family can be true while the elder still wastes — because they cannot chew it, or an illness is taking it. Trust the body you see over the report you hear.",
+        { "h": 2, "text": "DIGNITY" },
+        "Not being able to chew, or having no teeth, is quietly humiliating. Solve it practically and kindly, without making the elder feel diminished.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "You know why the elder was not eating well, you have fixed that reason (soft food, teeth, illness, or access), and the wasting has stopped and weight is steadying."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-23-entitlements-referral",
+      "title": "Ch 23 — Referring entitlements to the Entitlements Team",
+      "kind": "chapter",
+      "naturalOrder": 923,
+      "content": [
+        "Handing a pension, ration card, or other entitlement gap to the separate Entitlements Team — and then tracking it so it does not vanish into a queue.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder is not getting a pension or benefit they are entitled to (Q20 = 2 or 3), or any missing entitlement: pension, ration card, Aadhaar, bank account, senior citizen card, disability certificate, widow pension.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Identify the specific gap clearly — which entitlement, and what exactly is blocking it (no Aadhaar, no bank account, application stuck, never applied).",
+          "Refer it to the Entitlements Team with the full details — the elder, the settlement, the entitlement, the known blocker, how urgent. A vague referral stalls; a precise one moves.",
+          "Remember: the elderly team does NOT process entitlements — the Entitlements Team does. Your job is a clean handover and then tracking.",
+          "Track it at every visit — ask the elder if it has come, check with the Entitlements Team. Do not assume it is moving.",
+          "If it stays stuck beyond a month, raise it jointly with the supervisor and the Entitlements Team — do not let it sit silently for a year.",
+          "When it comes through, confirm with the elder that the money or card actually reached them — not just that it was 'approved.'"
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Entitlements get stuck for small, fixable reasons — a missing document, a name spelt differently across papers, a dormant bank account. The pension that is 'approved' but not in the account is not done. Track to the **money**, not the approval.",
+        { "h": 2, "text": "DIGNITY" },
+        "A pension is the elder's right, earned by a lifetime as a citizen — not a favour. Help them claim it as something owed to them. Frame it that way to them, too; it changes how they carry themselves.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The gap is clearly referred to the Entitlements Team, you are tracking it, and — when it comes — you have confirmed the benefit actually reached the elder."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-24-emergency-contact-chain",
+      "title": "Ch 24 — Building an emergency contact chain",
+      "kind": "chapter",
+      "naturalOrder": 924,
+      "content": [
+        "Making sure that when something goes wrong for an elder — a fall, sudden illness, distress — there is a clear, known chain of who gets called, in order.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder's emergency support is uncertain (Q21 = 2) or absent (Q21 = 3). Do it for every frail elder, especially those living alone.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Identify who can be called in trouble: family, a close neighbour, the settlement leader, you. Write down names and phone numbers.",
+          "Put them in order — who is called first, second, third. The first should be someone close by who will actually answer and act.",
+          "Make sure each person knows they are on the list and agrees, and has the others' numbers.",
+          "Write the chain clearly and leave it in the home where it can be found — and make sure the elder and a neighbour both know where it is.",
+          "Include the real emergency numbers: **108** for ambulance, your number, the supervisor's.",
+          "Test it — even a small real event shows whether the chain works. Fix the gaps you find."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "A contact chain written and forgotten is useless. The test is whether, at 2am when the elder falls, someone is actually reached and comes. Build it for that moment, and check it works.",
+        { "h": 2, "text": "DIGNITY" },
+        "Building this with the elder — asking whom THEY trust — respects their judgement about their own people. Do not just assign contacts over their head.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "There is a written, ordered contact chain in the home, everyone on it knows and agrees, the elder and a neighbour know where it is, and it has been tested."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-25-peer-mentor",
+      "title": "Ch 25 — Making an elder a peer mentor",
+      "kind": "chapter",
+      "naturalOrder": 925,
+      "content": [
+        "Inviting an active, capable elder to support other elders — giving them purpose and role, while extending the programme's reach through someone the community trusts.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "For Stable and able elders who have time, mobility, and willingness. Especially good for an elder who is lonely but capable — being needed heals.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Spot the elders who are doing well and still have energy and warmth — the ones who naturally look out for others.",
+          "Invite them, do not assign — frame it as their experience being valued, which it is. Many will be glad to matter again.",
+          "Pair them with two or three more vulnerable elders nearby — to visit, talk, include, keep a friendly eye on.",
+          "Brief them simply: be a friend and a regular visitor, and tell the CO if something is wrong with the elder they watch. They are not doing your job — they are a caring neighbour with a light role.",
+          "Bring the mentors together at the centre now and then — to share, to feel part of something, to be thanked.",
+          "Notice and honour their contribution. A mentor who feels appreciated continues; one taken for granted drifts away."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Do not overload a willing mentor or turn them into unpaid staff. Keep the role light and joyful. The point is mutual — the mentor gains purpose as much as the mentored gains support.",
+        { "h": 2, "text": "DIGNITY" },
+        "This is the chapter that most says what we believe: an old person is not a problem to be managed but a person with something to give. A mentor is proof that age is not only need — it is also wisdom, time, and care to offer.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder is happily paired with two or three others, visiting and watching over them, connected to the other mentors, and visibly enjoying being useful again."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-26-palliative-care",
+      "title": "Ch 26 — Palliative care & dignity at the end of life",
+      "kind": "chapter",
+      "naturalOrder": 926,
+      "content": [
+        "Accompanying an elder who is nearing the end — not trying to cure, but easing pain, keeping them comfortable and respected, and supporting the family through it.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When an elder has a terminal or advanced illness, or is in irreversible decline. Handle with the supervisor; this is tender, serious work.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Confirm with the supervisor and a medical opinion that this is end-of-life care — the goal shifts from cure to comfort and dignity.",
+          "Talk with the family gently — led by the supervisor or Centre In-charge: understand what they know, what the elder wants if they can say, and what comfort and dignity mean here.",
+          "Refer to a palliative care partner if available — for pain relief and home-based comfort care. No elder should die in unmanaged pain.",
+          "Set up comfort care: pain relief access, keeping them clean and turned (Ch 8), mouth and skin care, the things that ease the body.",
+          "Support the caregiver heavily — this is exhausting and grief-filled. Watch their burnout (Ch 3) closely.",
+          "Honour the elder's wishes — where they want to be, who they want near, their faith and rituals. Do not impose interventions they do not want.",
+          "After death, visit the family — a bereavement visit. Sit with them. Their grief matters, and your presence honours the elder you both knew."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Families may not know death is near, or may not be able to speak of it. Move at their pace, with great gentleness. And watch your own heart — this work is heavy; debrief with your supervisor, you do not carry it alone.",
+        { "h": 2, "text": "DIGNITY" },
+        "This is the deepest meaning of everything in this manual. We believe ageing is a completion, not only a decline — and the end of life is the final stretch of that road. We walk it beside the elder with respect, easing pain, never abandoning them, never treating dying as failure. We help them leave with dignity, among people who see them fully to the last.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder is comfortable and free of unmanaged pain, their wishes are honoured, the family is supported, and after death you have sat with the family in their grief."
+      ]
+    }
+  ]
+}

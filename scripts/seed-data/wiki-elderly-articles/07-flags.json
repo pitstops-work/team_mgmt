@@ -1,0 +1,471 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-flag-palliative",
+      "title": "Critical flag — Palliative or end-of-life care need",
+      "kind": "question",
+      "naturalOrder": 520,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Severe chronic illness, progressive decline, or terminal condition identified. Goal shifts from cure to comfort and dignity.",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Palliative referral (govt palliative unit / NGO partner)",
+          "Family communicated; dignity-in-dying plan opened",
+          "**Timeframe:** Within 14 days · **Owner:** Sup + CO"
+        ] }
+      ],
+      "links": {
+        "guideline": [],
+        "care_plan": ["elderly-flag-protocol-palliative", "elderly-template-profound"],
+        "action_manual": ["elderly-chapter-26-palliative-care"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-palliative",
+      "title": "Flag Protocol — Palliative / end-of-life",
+      "kind": "flag_protocol",
+      "naturalOrder": 521,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Palliative or end-of-life care need"],
+            ["Mandatory action", "Palliative referral; family communicated; dignity-in-dying plan opened"],
+            ["Timeframe", "Within 14 days"],
+            ["Owner", "Sup + CO"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-neglect",
+      "title": "Critical flag — Severe neglect or abandonment",
+      "kind": "question",
+      "naturalOrder": 522,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Serious lack of caregiving, food, medicines, supervision, or safety. CO does **not** act alone.",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Supervisor informed **same day**",
+          "Safety plan documented within **72 hours**",
+          "Emergency caregiver arranged if elder at immediate risk",
+          "**Owner:** Sup + City Lead"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-framework-sensitive-fields"],
+        "care_plan": ["elderly-flag-protocol-neglect", "elderly-template-profound"],
+        "action_manual": ["elderly-chapter-18-abuse-neglect"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-neglect",
+      "title": "Flag Protocol — Severe neglect / abandonment",
+      "kind": "flag_protocol",
+      "naturalOrder": 523,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Severe neglect or abandonment"],
+            ["Mandatory action", "Same-day supervisor brief; safety plan within 72 hrs; emergency caregiver arranged if elder at immediate risk"],
+            ["Timeframe", "Same day → 72 hrs"],
+            ["Owner", "Sup + City Lead"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-no-caregiver",
+      "title": "Critical flag — No dependable caregiver available",
+      "kind": "question",
+      "naturalOrder": 524,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "No dependable support despite visible dependency.",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Settlement-level caregiving plan opened",
+          "Neighbour/community contact identified",
+          "Emergency contact established",
+          "**Timeframe:** Within 7 days · **Owner:** CO + Sup"
+        ] }
+      ],
+      "links": {
+        "guideline": [],
+        "care_plan": ["elderly-flag-protocol-no-caregiver"],
+        "action_manual": ["elderly-chapter-4-no-caregiver", "elderly-chapter-24-emergency-contact-chain"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-no-caregiver",
+      "title": "Flag Protocol — No dependable caregiver",
+      "kind": "flag_protocol",
+      "naturalOrder": 525,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "No dependable caregiver available"],
+            ["Mandatory action", "Settlement caregiving plan; community contact; emergency contact"],
+            ["Timeframe", "Within 7 days"],
+            ["Owner", "CO + Sup"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-dementia-wandering",
+      "title": "Critical flag — Severe dementia or unsafe wandering",
+      "kind": "question",
+      "naturalOrder": 526,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Severe confusion or unsafe wandering affecting safety.",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Family safety brief",
+          "Identification band on elder",
+          "PHC / NIMHANS referral if available",
+          "**Timeframe:** Within 14 days · **Owner:** CO + Sup"
+        ] }
+      ],
+      "links": {
+        "guideline": [],
+        "care_plan": ["elderly-flag-protocol-dementia-wandering"],
+        "action_manual": ["elderly-chapter-16-dementia-confusion"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-dementia-wandering",
+      "title": "Flag Protocol — Severe dementia / unsafe wandering",
+      "kind": "flag_protocol",
+      "naturalOrder": 527,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Severe dementia or unsafe wandering"],
+            ["Mandatory action", "Family safety brief; ID band; PHC/NIMHANS referral"],
+            ["Timeframe", "Within 14 days"],
+            ["Owner", "CO + Sup"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-abuse",
+      "title": "Critical flag — Abuse or violence concerns",
+      "kind": "question",
+      "naturalOrder": 528,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Indicators of physical, emotional, financial, or caregiving abuse. **CO does NOT act alone.**",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Supervisor informed **same day**",
+          "Helplines: Women 181 / Elder 14567 / Police 100",
+          "Safety plan that **protects elder from disclosure to perpetrator**",
+          "**Owner:** Sup + City Lead"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-framework-sensitive-fields"],
+        "care_plan": ["elderly-flag-protocol-abuse"],
+        "action_manual": ["elderly-chapter-18-abuse-neglect"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-abuse",
+      "title": "Flag Protocol — Abuse / violence concerns",
+      "kind": "flag_protocol",
+      "naturalOrder": 529,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Abuse or violence concerns"],
+            ["Mandatory action", "Same-day supervisor brief; helplines (181/14567/100); safety plan that protects elder from disclosure to perpetrator"],
+            ["Timeframe", "Same day"],
+            ["Owner", "Sup + City Lead (CO does NOT act alone)"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-food-insecurity",
+      "title": "Critical flag — Severe food insecurity",
+      "kind": "question",
+      "naturalOrder": 530,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Serious lack of reliable food access identified.",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Emergency ration arranged",
+          "Community kitchen enrolment",
+          "Ration/pension pipeline opened",
+          "**Timeframe:** Within 48 hours · **Owner:** CO"
+        ] }
+      ],
+      "links": {
+        "guideline": [],
+        "care_plan": ["elderly-flag-protocol-food-insecurity"],
+        "action_manual": ["elderly-chapter-21-emergency-food", "elderly-chapter-20-community-kitchen", "elderly-chapter-23-entitlements-referral"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-food-insecurity",
+      "title": "Flag Protocol — Severe food insecurity",
+      "kind": "flag_protocol",
+      "naturalOrder": 531,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Severe food insecurity"],
+            ["Mandatory action", "Emergency ration; community kitchen; entitlements pipeline"],
+            ["Timeframe", "Within 48 hours"],
+            ["Owner", "CO"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-unsafe-shelter",
+      "title": "Critical flag — Unsafe shelter / homelessness risk",
+      "kind": "question",
+      "naturalOrder": 532,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Unsafe or unstable shelter conditions identified.",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Settlement leader briefed",
+          "Shelter referral if homeless",
+          "Housing safety assessment",
+          "**Timeframe:** Within 7 days · **Owner:** CO + Sup"
+        ] }
+      ],
+      "links": {
+        "guideline": [],
+        "care_plan": ["elderly-flag-protocol-unsafe-shelter"],
+        "action_manual": ["elderly-chapter-19-unsafe-housing"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-unsafe-shelter",
+      "title": "Flag Protocol — Unsafe shelter / homelessness",
+      "kind": "flag_protocol",
+      "naturalOrder": 533,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Unsafe shelter / homelessness risk"],
+            ["Mandatory action", "Settlement leader briefed; shelter referral; housing safety assessment"],
+            ["Timeframe", "Within 7 days"],
+            ["Owner", "CO + Sup"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-acute-medical",
+      "title": "Critical flag — Urgent medical / acute deterioration",
+      "kind": "question",
+      "naturalOrder": 534,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Immediate medical attention or emergency follow-up required.",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "PHC / UPHC contacted **same day**",
+          "Transport arranged if needed",
+          "Family informed",
+          "**108** if life-threatening · **Owner:** CO + Sup"
+        ] }
+      ],
+      "links": {
+        "guideline": [],
+        "care_plan": ["elderly-flag-protocol-acute-medical"],
+        "action_manual": ["elderly-chapter-14-medical-emergency", "elderly-chapter-12-hospital-referral"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-acute-medical",
+      "title": "Flag Protocol — Urgent medical / acute deterioration",
+      "kind": "flag_protocol",
+      "naturalOrder": 535,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Urgent medical concern or acute deterioration"],
+            ["Mandatory action", "PHC contact same day; transport; family informed; 108 if life-threatening"],
+            ["Timeframe", "Same day"],
+            ["Owner", "CO + Sup"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-sensory-loss",
+      "title": "Critical flag — Severe untreated vision or hearing loss",
+      "kind": "question",
+      "naturalOrder": 536,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Operable cataract or hearing aid candidate identified; disability-eligible.",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Eye camp / cataract referral or ENT camp scheduled",
+          "Disability certificate workflow opened if eligible",
+          "**Timeframe:** Within 30 days · **Owner:** CO + Entitlements Team"
+        ] }
+      ],
+      "links": {
+        "guideline": [],
+        "care_plan": ["elderly-flag-protocol-sensory-loss"],
+        "action_manual": ["elderly-chapter-13-eye-ear-camps", "elderly-chapter-23-entitlements-referral"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-sensory-loss",
+      "title": "Flag Protocol — Severe untreated vision/hearing",
+      "kind": "flag_protocol",
+      "naturalOrder": 537,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Severe untreated vision or hearing loss"],
+            ["Mandatory action", "Eye/ENT camp scheduled; disability certificate workflow"],
+            ["Timeframe", "Within 30 days"],
+            ["Owner", "CO + ET"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-undernutrition",
+      "title": "Critical flag — Severe undernutrition or visible wasting",
+      "kind": "question",
+      "naturalOrder": 538,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Visible wasting, rapid weight loss, or chewing difficulty preventing intake.",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Emergency nutrition support",
+          "Medical referral to rule out underlying illness",
+          "Family negotiation if intake issue",
+          "**Timeframe:** Within 7 days · **Owner:** CO + Sup"
+        ] }
+      ],
+      "links": {
+        "guideline": [],
+        "care_plan": ["elderly-flag-protocol-undernutrition"],
+        "action_manual": ["elderly-chapter-22-nutrition-soft-food", "elderly-chapter-21-emergency-food"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-undernutrition",
+      "title": "Flag Protocol — Severe undernutrition / wasting",
+      "kind": "flag_protocol",
+      "naturalOrder": 539,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Severe undernutrition or visible wasting"],
+            ["Mandatory action", "Emergency nutrition; medical referral; family negotiation if intake issue"],
+            ["Timeframe", "Within 7 days"],
+            ["Owner", "CO + Sup"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-depression",
+      "title": "Critical flag — Severe depression",
+      "kind": "question",
+      "naturalOrder": 540,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "**Q15a = 3** (low mood / loss of interest **nearly every day** for past 2 weeks).",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Mental health referral (PHC counsellor / NIMHANS DMHP / NGO partner)",
+          "Weekly check-ins until stable",
+          "Rule out self-harm risk through gentle conversation, not formal screening",
+          "**Timeframe:** Within 14 days · **Owner:** CO + Sup"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-framework-sensitive-fields"],
+        "care_plan": ["elderly-flag-protocol-depression"],
+        "action_manual": ["elderly-chapter-15-mental-health"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-depression",
+      "title": "Flag Protocol — Severe depression",
+      "kind": "flag_protocol",
+      "naturalOrder": 541,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Severe depression"],
+            ["Mandatory action", "Mental health referral; weekly check-ins; rule out self-harm risk"],
+            ["Timeframe", "Within 14 days"],
+            ["Owner", "CO + Sup"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-caregiver-burnout",
+      "title": "Critical flag — Severe caregiver burnout",
+      "kind": "question",
+      "naturalOrder": 542,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "**Q6b = 3** (caregiver showing exhaustion, resentment, or risk of breakdown).",
+        { "h": 2, "text": "Mandatory action" },
+        { "ul": [
+          "Respite support arranged",
+          "Family task-sharing meeting",
+          "Caregiver counselling if available",
+          "**Timeframe:** Within 14 days · **Owner:** CO + Sup"
+        ] },
+        "Burnout precedes neglect. Treat the caregiver's exhaustion as urgent — it protects the elder."
+      ],
+      "links": {
+        "guideline": ["elderly-framework-sensitive-fields"],
+        "care_plan": ["elderly-flag-protocol-caregiver-burnout"],
+        "action_manual": ["elderly-chapter-3-caregiver-respite"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-caregiver-burnout",
+      "title": "Flag Protocol — Severe caregiver burnout",
+      "kind": "flag_protocol",
+      "naturalOrder": 543,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Severe caregiver burnout"],
+            ["Mandatory action", "Respite; task-sharing meeting; counselling if available"],
+            ["Timeframe", "Within 14 days"],
+            ["Owner", "CO + Sup"]
+          ]
+        } }
+      ]
+    }
+  ]
+}

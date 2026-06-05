@@ -1,0 +1,721 @@
+{
+  "programDomain": "Elderly",
+  "spine": {
+    "slug": "elderly-evrat-v4",
+    "title": "EVRAT v4 — Elder Vulnerability Assessment",
+    "entries": [
+      { "ordinal": 100, "sectionLabel": "Section A — Basic Assessment Information", "articleSlug": "elderly-section-a" },
+
+      { "ordinal": 200, "sectionLabel": "Part A — Initial Vulnerability Screening (IVS)", "articleSlug": "elderly-ivs-q1" },
+      { "ordinal": 210, "articleSlug": "elderly-ivs-q2" },
+      { "ordinal": 220, "articleSlug": "elderly-ivs-q3a" },
+      { "ordinal": 221, "articleSlug": "elderly-ivs-q3b" },
+      { "ordinal": 222, "articleSlug": "elderly-ivs-q3c" },
+      { "ordinal": 230, "articleSlug": "elderly-ivs-q4a" },
+      { "ordinal": 231, "articleSlug": "elderly-ivs-q4b" },
+      { "ordinal": 232, "articleSlug": "elderly-ivs-q4c" },
+      { "ordinal": 240, "articleSlug": "elderly-ivs-q5" },
+
+      { "ordinal": 301, "sectionLabel": "Part B — EVA · Domain 1 — Caregiving Adequacy (×2.0)", "articleSlug": "elderly-eva-q6" },
+      { "ordinal": 302, "articleSlug": "elderly-eva-q6b" },
+
+      { "ordinal": 310, "sectionLabel": "Domain 2 — Functional Dependency & Mobility (×1.75)", "articleSlug": "elderly-eva-q7" },
+      { "ordinal": 320, "articleSlug": "elderly-eva-q8a" },
+      { "ordinal": 321, "articleSlug": "elderly-eva-q8b" },
+      { "ordinal": 330, "articleSlug": "elderly-eva-q9" },
+      { "ordinal": 340, "articleSlug": "elderly-eva-q10a" },
+      { "ordinal": 350, "articleSlug": "elderly-eva-q10b" },
+
+      { "ordinal": 361, "sectionLabel": "Domain 3 — Health & Medical Vulnerability (×1.5)", "articleSlug": "elderly-eva-q11" },
+      { "ordinal": 362, "articleSlug": "elderly-eva-q12" },
+      { "ordinal": 363, "articleSlug": "elderly-eva-q13a" },
+      { "ordinal": 364, "articleSlug": "elderly-eva-q13b" },
+
+      { "ordinal": 371, "sectionLabel": "Domain 4 — Cognitive & Emotional Wellbeing (×1.0)", "articleSlug": "elderly-eva-q14" },
+      { "ordinal": 372, "articleSlug": "elderly-eva-q15a" },
+      { "ordinal": 373, "articleSlug": "elderly-eva-q15b" },
+
+      { "ordinal": 381, "sectionLabel": "Domain 5 — Safety, Abuse & Protection (×2.0)", "articleSlug": "elderly-eva-q16" },
+      { "ordinal": 382, "articleSlug": "elderly-eva-q17" },
+
+      { "ordinal": 391, "sectionLabel": "Domain 6 — Food & Financial Security (×1.5)", "articleSlug": "elderly-eva-q18a" },
+      { "ordinal": 392, "articleSlug": "elderly-eva-q18b" },
+      { "ordinal": 393, "articleSlug": "elderly-eva-q19" },
+      { "ordinal": 394, "articleSlug": "elderly-eva-q20" },
+
+      { "ordinal": 401, "sectionLabel": "Domain 7 — Emergency & Social Support (×1.0)", "articleSlug": "elderly-eva-q21" },
+
+      { "ordinal": 500, "sectionLabel": "Section C — Critical Risk Flags", "articleSlug": "elderly-flag-bedridden" },
+      { "ordinal": 501, "articleSlug": "elderly-flag-palliative" },
+      { "ordinal": 502, "articleSlug": "elderly-flag-neglect" },
+      { "ordinal": 503, "articleSlug": "elderly-flag-no-caregiver" },
+      { "ordinal": 504, "articleSlug": "elderly-flag-dementia-wandering" },
+      { "ordinal": 505, "articleSlug": "elderly-flag-abuse" },
+      { "ordinal": 506, "articleSlug": "elderly-flag-food-insecurity" },
+      { "ordinal": 507, "articleSlug": "elderly-flag-unsafe-shelter" },
+      { "ordinal": 508, "articleSlug": "elderly-flag-acute-medical" },
+      { "ordinal": 509, "articleSlug": "elderly-flag-sensory-loss" },
+      { "ordinal": 510, "articleSlug": "elderly-flag-undernutrition" },
+      { "ordinal": 511, "articleSlug": "elderly-flag-depression" },
+      { "ordinal": 512, "articleSlug": "elderly-flag-caregiver-burnout" },
+
+      { "ordinal": 600, "sectionLabel": "Section D — Category Assignment", "articleSlug": "elderly-section-d" },
+
+      { "ordinal": 701, "sectionLabel": "Section E — Care Plan & Follow-up", "articleSlug": "elderly-section-e1" },
+      { "ordinal": 702, "articleSlug": "elderly-section-e2" },
+      { "ordinal": 703, "articleSlug": "elderly-section-e3" },
+      { "ordinal": 704, "articleSlug": "elderly-section-e4" },
+      { "ordinal": 705, "articleSlug": "elderly-section-e5" }
+    ]
+  },
+  "articles": [
+    {
+      "slug": "elderly-section-a",
+      "title": "Section A — Basic Assessment Information",
+      "kind": "question",
+      "naturalOrder": 100,
+      "content": [
+        { "h": 2, "text": "Purpose" },
+        "Capture identification, consent, household basics, and living arrangement at the start of every first assessment. Most fields are **baseline** (captured once); a few refresh at every visit.",
+        { "h": 2, "text": "Consent statement" },
+        { "quote": "This assessment is being conducted to understand your situation and support you better. The information you share will be kept confidential and used only by the programme team to help you access care, services, and entitlements. You can choose not to answer any question, and you can ask us to remove your information at any time. Do you agree to participate?" },
+        "Read aloud in the elder's preferred language at first assessment. Re-confirm annually.",
+        { "h": 2, "text": "Living arrangement [B/V]" },
+        "Tick one — not scored, but used as a contextual modifier for interpreting every other finding. A bedridden elder living alone needs an entirely different response from a bedridden elder living with family — same EVA score, different care plan.",
+        { "ul": [
+          "Lives alone",
+          "With spouse only",
+          "With children / family",
+          "With grandchildren only (skip-generation)",
+          "With relatives (non-children)",
+          "With non-kin / neighbour",
+          "Institutional / shelter",
+          "Homeless / unstable housing"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-framework-consent"],
+        "care_plan": [],
+        "action_manual": []
+      }
+    },
+    {
+      "slug": "elderly-ivs-q1",
+      "title": "IVS Q1 — Independent functioning",
+      "kind": "question",
+      "naturalOrder": 210,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Is the elder currently functioning independently in day-to-day life?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Fully independent (0)** — manages mobility, food, toileting, medicines, routine life activities independently",
+          "**Minor support needed (1)** — occasional assistance; remains largely independent",
+          "**Regular support needed (2)** — regularly depends on another person for multiple activities",
+          "**Highly dependent (3)** — substantially dependent on others for day-to-day functioning"
+        ] },
+        { "h": 2, "text": "Trigger" },
+        "Score **2 or 3** → proceed to Expanded Vulnerability Assessment (EVA)."
+      ],
+      "links": {
+        "guideline": ["elderly-ivs-q1-appendix", "elderly-framework-philosophy"],
+        "care_plan": [],
+        "action_manual": []
+      }
+    },
+    {
+      "slug": "elderly-ivs-q1-appendix",
+      "title": "IVS Q1 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 211,
+      "content": [
+        "Operational definitions for each Q1 response (from EVRAT v4 Operational Guidelines §5).",
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Fully Independent", "Independently manages mobility, food, toileting, medicines, and routine life activities."],
+            ["Minor Support Needed", "Occasional assistance required; remains largely independent."],
+            ["Regular Support Needed", "Regularly depends on another person for multiple activities."],
+            ["Highly Dependent", "Substantially dependent on others for day-to-day functioning."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q7",
+      "title": "Q7 — Bedridden or restricted movement",
+      "kind": "question",
+      "naturalOrder": 311,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Is the elder bedridden or restricted in movement?",
+        { "h": 2, "text": "Response options (Domain 2 weight ×1.75)" },
+        { "ul": [
+          "**No (0)** — independent movement maintained",
+          "**Mild restriction (1)** — reduced mobility but largely independent",
+          "**Mostly confined (2)** — confined indoors or to bed/chair for substantial periods",
+          "**Completely bedridden (3)** — fully bedridden, unable to independently move"
+        ] },
+        { "h": 2, "text": "Critical flag" },
+        "Score 3 (completely bedridden) with high dependency → automatic **Profound Need** + bed-sore prevention protocol within 7 days."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q7-appendix"],
+        "care_plan": ["elderly-eva-q7-derivation", "elderly-pathway-mobility", "elderly-template-profound"],
+        "action_manual": ["elderly-chapter-8-bedridden-care", "elderly-chapter-5-home-hazards"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q7-appendix",
+      "title": "Q7 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 312,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "Independent movement maintained."],
+            ["Mild restriction", "Reduced mobility but largely independent."],
+            ["Mostly confined", "Confined indoors or to bed/chair for substantial periods."],
+            ["Completely bedridden", "Fully bedridden and unable to independently move."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q7-derivation",
+      "title": "Q7 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 313,
+      "content": [
+        "Triggered responses per score (Ops & Care Plan Part 1, §1.2).",
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q7 = 2 (mostly confined)", "Home environment assessment; mobility adaptations (mats, handrails, bedside commode); physiotherapy referral if available", "M", "CO", "Within 30 days"],
+            ["Q7 = 3 (completely bedridden)", "**Critical flag review.** Bed-sore prevention protocol with caregiver training; PHC home-visit linkage; air mattress/pillow procurement if needed", "H", "CO + Sup", "Within 7 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q8a",
+      "title": "Q8a — ADL dependence",
+      "kind": "question",
+      "naturalOrder": 314,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "For how many of the following does the elder need help from another person? Tick each: bathing, dressing, toileting, transferring (bed to chair), feeding, continence.",
+        { "h": 2, "text": "Scoring (count of ticks)" },
+        { "ul": [
+          "**0 activities ticked (0)** — fully independent in all ADLs",
+          "**1 activity (1)** — needs help with one activity",
+          "**2–3 activities (2)** — moderate ADL dependency",
+          "**4 or more (3)** — significant dependency; near-total care required"
+        ] },
+        { "h": 2, "text": "Training note" },
+        "Ask about activities the elder *actually does or doesn't do* in the last week, not what they *could* do in theory. If the elder says \"I can bathe myself but my daughter helps,\" that counts as needing help."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q8a-appendix"],
+        "care_plan": ["elderly-eva-q8a-derivation", "elderly-pathway-mobility"],
+        "action_manual": ["elderly-chapter-8-bedridden-care", "elderly-chapter-9-continence-diapers"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q8a-appendix",
+      "title": "Q8a — ADL dependence: how to count",
+      "kind": "guideline_appendix",
+      "naturalOrder": 315,
+      "content": [
+        "ADL/IADL counts are the global geriatric standard (Katz Index, Lawton Scale). They produce **objective** dependency numbers, granular care-plan signals (the CO knows *which* activities need help, not just an impression), and trajectory sensitivity — going from 2 ADL dependencies to 4 in three months is visible deterioration.",
+        { "table": {
+          "head": ["Activities ticked", "Score", "Interpretation"],
+          "rows": [
+            ["0 (independent)", "0", "Fully independent in all ADLs"],
+            ["1", "1", "Needs help with one activity"],
+            ["2–3", "2", "Moderate ADL dependency"],
+            ["4 or more", "3", "Significant ADL dependency; near-total care required"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q8a-derivation",
+      "title": "Q8a — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 316,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q8a = 2 (2–3 ADL dependencies)", "Caregiver protocol established; supplies stocked (diapers if needed); home modifications discussed", "M", "CO", "Within 21 days"],
+            ["Q8a = 3 (4+ ADL dependencies)", "Intensive caregiver protocol; consider home-help linkage; PHC nurse home visit; diaper supply if continence affected", "H", "CO + Sup", "Within 7 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q9",
+      "title": "Q9 — Difficulty walking",
+      "kind": "question",
+      "naturalOrder": 317,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does the elder have difficulty in walking or moving around?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No difficulty (0)** — independent walking maintained",
+          "**Mild difficulty (1)** — minor discomfort or slowing",
+          "**Needs support (2)** — requires assistance or walking aid",
+          "**Unable to walk (3)** — unable to walk independently"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q9-appendix"],
+        "care_plan": ["elderly-eva-q9-derivation", "elderly-pathway-mobility"],
+        "action_manual": ["elderly-chapter-6-mobility-aid", "elderly-chapter-5-home-hazards"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q9-appendix",
+      "title": "Q9 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 318,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No difficulty", "Independent walking maintained."],
+            ["Mild difficulty", "Minor mobility discomfort or slowing."],
+            ["Needs support", "Requires assistance or walking aid."],
+            ["Unable to walk", "Unable to walk independently."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q9-derivation",
+      "title": "Q9 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 319,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q9 = 2 (needs walking support)", "Walking aid procured (stick, walker, or wheelchair based on need); home assessment for tripping hazards", "M", "CO", "Within 14 days"],
+            ["Q9 = 3 (unable to walk)", "Wheelchair procurement; immobility complications protocol (bed sores, contractures, DVT awareness for caregiver); physiotherapy if available", "H", "CO + Sup", "Within 14 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q10a",
+      "title": "Q10a — Falls in past 6 months",
+      "kind": "question",
+      "naturalOrder": 320,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "How many falls has the elder had in the past 6 months?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**None (0)** — no falls reported",
+          "**One fall (1)** — one fall in past 6 months",
+          "**Two falls (2)** — two falls in past 6 months",
+          "**3+ falls or recurrent (3)** — three or more falls, or recurrent falling"
+        ] },
+        { "h": 2, "text": "Why this matters" },
+        "Falls history is the strongest predictor of next fall, addressed with **physical** interventions (aids, modifications, medication review). Q10b separately captures fear of falling, addressed with **psychosocial** interventions (confidence-building, supervised walking)."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q10a-appendix"],
+        "care_plan": ["elderly-eva-q10a-derivation", "elderly-pathway-mobility"],
+        "action_manual": ["elderly-chapter-7-preventing-falls", "elderly-chapter-5-home-hazards", "elderly-chapter-6-mobility-aid"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q10a-appendix",
+      "title": "Q10a — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 321,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["None", "No falls reported."],
+            ["One fall", "One fall in past 6 months."],
+            ["2 falls", "Two falls in past 6 months."],
+            ["3+ falls or recurrent", "Three or more falls, or recurrent falling."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q10a-derivation",
+      "title": "Q10a — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 322,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q10a = 1 (one fall)", "Fall prevention counselling; home hazard reduction (lighting, mats, footwear); medication review for postural hypotension via PHC", "M", "CO", "Within 21 days"],
+            ["Q10a = 2 (two falls)", "Walking aid + home modification + medication review; flagged for fortnightly monitoring", "H", "CO", "Within 14 days"],
+            ["Q10a = 3 (3+ falls / recurrent)", "Intensive fall prevention; medical workup for underlying cause (cardiac, neurological); home rearrangement; consider supervised mobility only", "H", "CO + Sup", "Within 7 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q10b",
+      "title": "Q10b — Fear of falling",
+      "kind": "question",
+      "naturalOrder": 323,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does fear of falling affect daily activity?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No (0)** — no fear; activity not restricted",
+          "**Mild (1)** — some caution but mostly normal activity",
+          "**Moderate (2)** — avoids some activities or going out due to fear",
+          "**Severe (3)** — substantially restricts movement due to fear of falling"
+        ] },
+        { "h": 2, "text": "Watch for" },
+        "The elder who stops moving from fear gets weaker and falls more. Gentle, steady, supported movement is the medicine — not rest."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q10b-appendix"],
+        "care_plan": ["elderly-eva-q10b-derivation", "elderly-pathway-mobility"],
+        "action_manual": ["elderly-chapter-7-preventing-falls"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q10b-appendix",
+      "title": "Q10b — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 324,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No fear; activity not restricted by fear."],
+            ["Mild", "Some caution but mostly normal activity."],
+            ["Moderate", "Avoids some activities or going out due to fear."],
+            ["Severe", "Substantially restricts movement due to fear of falling."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q10b-derivation",
+      "title": "Q10b — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 325,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q10b = 2 (moderate fear)", "Confidence-building walking sessions; buddy walking arrangement; community kitchen visit as social motivator", "M", "CO + CI", "Within 30 days"],
+            ["Q10b = 3 (severe fear restricting movement)", "Counselling support; supervised walking programme; address underlying anxiety; combat isolation via centre/kitchen visits", "M", "CO + CI", "Within 30 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-flag-bedridden",
+      "title": "Critical flag — Bedridden elder with high dependency",
+      "kind": "question",
+      "naturalOrder": 510,
+      "content": [
+        { "h": 2, "text": "Definition" },
+        "Requires extensive assistance for movement and daily functioning. Any tick of this flag = automatic **Profound Need** regardless of weighted score.",
+        { "h": 2, "text": "Mandatory action" },
+        "Caregiver protocol established; PHC home-visit linkage; bed-sore prevention check.",
+        { "ul": [
+          "**Timeframe:** Within 7 days",
+          "**Owner:** CO + Supervisor"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-framework-philosophy"],
+        "care_plan": ["elderly-flag-protocol-bedridden", "elderly-template-profound"],
+        "action_manual": ["elderly-chapter-8-bedridden-care"]
+      }
+    },
+    {
+      "slug": "elderly-flag-protocol-bedridden",
+      "title": "Flag Protocol — Bedridden with high dependency",
+      "kind": "flag_protocol",
+      "naturalOrder": 511,
+      "content": [
+        { "table": {
+          "head": ["Field", "Value"],
+          "rows": [
+            ["Flag", "Bedridden with high dependency"],
+            ["Mandatory action", "Caregiver protocol established; PHC home-visit linkage; bed sore prevention check"],
+            ["Timeframe", "Within 7 days"],
+            ["Owner", "CO + Sup"]
+          ]
+        } },
+        "Failure to act within timeframe must be reviewed by the supervisor at the next weekly review meeting. Delays are recorded in the case file with reason."
+      ]
+    },
+    {
+      "slug": "elderly-pathway-mobility",
+      "title": "Domain 2 Pathway — Functional Dependency & Mobility",
+      "kind": "pathway",
+      "naturalOrder": 720,
+      "content": [
+        "Standard weekly progression for elders with mobility/dependency concerns. The CO adapts to the elder while staying within the standard; deviation is documented in Section E5 with reason.",
+        { "table": {
+          "head": ["Phase", "Action", "Owner"],
+          "rows": [
+            ["Week 1", "Mobility aid procured (stick / walker / wheelchair / commode based on need); home hazard reduction (mats, lighting, footwear, clutter)", "CO"],
+            ["Week 2", "PHC linkage for medication review (postural hypotension, sedatives, polypharmacy); physiotherapy referral if available", "CO"],
+            ["Week 3–4", "Caregiver trained on transfer techniques, bed sore prevention, range-of-motion exercises", "CO + Sup"],
+            ["Month 2", "Re-assess Q7, Q8a, Q8b, Q9; adjust aids and support; if bed-ridden, weekly bed sore check protocol", "CO"],
+            ["Month 3", "Re-assess Q10a and Q10b; if falls continue, intensified review; if no falls, confidence-building activity", "CO"],
+            ["Quarterly", "Full re-EVA; mobility trajectory documented (improving / stable / declining)", "CO"]
+          ]
+        } },
+        { "h": 2, "text": "Expected outcome at 6 months" },
+        "Zero repeat falls in elders given aids; ADL/IADL trajectory stable or improving; caregiver competent on bed sore prevention."
+      ]
+    },
+    {
+      "slug": "elderly-template-profound",
+      "title": "Profound Need — Template care plan",
+      "kind": "template",
+      "naturalOrder": 810,
+      "content": [
+        "Most intensive tier. Either the elder has crossed the weighted-score threshold (≥84) **or** has at least one critical risk flag. The care plan presumes immediacy, intensity, and frequent reassessment.",
+        { "h": 2, "text": "Visit pattern" },
+        { "ul": [
+          "2–3 home visits per week by CO (one brief well-being check ~15 min; one full visit ~45 min)",
+          "Daily food delivery via community kitchen, doubling as wellness check (kitchen women report changes to CO)",
+          "Weekly supervisor review of the case in CO weekly huddle",
+          "Monthly family meeting to align caregiving"
+        ] },
+        { "h": 2, "text": "Core components (always present)" },
+        { "ul": [
+          "Caregiver protocol — primary + backup caregiver identified, trained on this elder's needs",
+          "PHC home-visit linkage — ANM or doctor visits monthly minimum",
+          "Mobility / continence support — wheelchair/commode/diapers stocked; air mattress if at bed sore risk",
+          "Nutrition support — daily community kitchen meal; soft food adaptation if needed",
+          "Emergency response chain — written plan, all caregivers + CO contacts known to family, neighbour, settlement leader",
+          "Restricted-access case file — sensitive observations (mental health, abuse, palliative) stored separately"
+        ] },
+        { "h": 2, "text": "Reassessment cadence" },
+        "Full EVRAT re-run monthly. Event-triggered re-assessment within 48 hours of any fall, hospitalisation, caregiver death, or visible deterioration. Supervisor validation required to de-escalate to High Need; sustained 8 weeks of stability minimum."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-5-home-hazards",
+      "title": "Ch 5 — Checking the home for hazards & fixing them",
+      "kind": "chapter",
+      "naturalOrder": 905,
+      "content": [
+        "Walking through the elder's home with their eyes — finding the things that will make them fall or get hurt, and fixing the cheap, simple ones.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When an elder is unsteady, has fallen, is mostly confined (Q7 = 2), or whenever you see a clear hazard. Do it early for any frail elder.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Walk the path the elder actually takes every day: bed to toilet, bed to door, sitting place to kitchen. Crouch to their height and pace.",
+          "Look for the common killers: no light at night, a high threshold to trip on, a loose mat, a wet slippery toilet area, clutter on the floor path, nothing to hold while standing up.",
+          "Fix the easy ones on the spot or within days: a night light or torch by the bed, remove the loose mat, clear the path, add a sturdy thing to hold near the bed and toilet.",
+          "For bigger fixes — a handrail, a raised toilet seat — arrange them through the programme; talk to the settlement leader for any structural issue.",
+          "Check footwear. Worn-out slippers cause falls. A good pair of non-slip slippers is one of the cheapest, best things you can give.",
+          "Come back and confirm the changes are still in place — mats reappear, lights stop working."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "In a one-room home you cannot rearrange much, and the floor may flood in monsoon. Work with what is real. Even one night light and a cleared path to the toilet prevents the night fall that breaks a hip.",
+        { "h": 2, "text": "DIGNITY" },
+        "Ask before you move or remove anything — it is their home, not your project. Explain why. An elder who agrees to the change keeps it; one who feels overruled puts the mat back.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The daily path is clear and lit, there is something safe to hold near bed and toilet, footwear is safe, and the elder agreed to every change."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-6-mobility-aid",
+      "title": "Ch 6 — Getting the right mobility aid",
+      "kind": "chapter",
+      "naturalOrder": 906,
+      "content": [
+        "Putting the right walking aid — stick, walker, wheelchair, or commode — into the elder's hands, fitted to them and actually used.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder needs support to walk (Q9 = 2), cannot walk (Q9 = 3), or after falls. A commode when reaching the toilet is hard or dangerous.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Match the aid to the need, not to what is in stock: a stick for mild unsteadiness; a walker for more; a wheelchair if they cannot walk; a bedside commode if the toilet is far or unsafe.",
+          "Get the size and height right. A stick or walker at the wrong height does more harm than good — elbow slightly bent, wrist at hip height when standing.",
+          "Show them how to use it properly and watch them try. Many elders use a stick wrongly and it makes them less safe.",
+          "Procure it through the programme stock or partner. Open the disability-certificate route with the Entitlements Team if they qualify — it unlocks free aids and schemes.",
+          "Make sure it is actually used, not stood in the corner out of pride or habit. Ask why if it is not, and solve that reason.",
+          "Check it stays in good repair — worn rubber tips on a stick make it slip."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Pride stops many elders using an aid — 'people will think I am finished.' Acknowledge that feeling rather than dismissing it. Sometimes a walking stick that looks dignified is used where a walker is refused.",
+        { "h": 2, "text": "DIGNITY" },
+        "An aid is a tool for independence, not a badge of decline — frame it that way. 'This lets you go out again,' not 'this is because you are weak.'",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder has the right aid, fitted correctly, knows how to use it, and is actually using it day to day."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-7-preventing-falls",
+      "title": "Ch 7 — Preventing falls",
+      "kind": "chapter",
+      "naturalOrder": 907,
+      "content": [
+        "Stopping the next fall — because for an old person one fall often begins the slide into being bedridden, and the second fall is more likely than the first.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "After any fall (Q10a = 1, 2, or 3), or when an elder is unsteady or afraid of falling (Q10b).",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Take a fall seriously even if there was no injury. One fall roughly doubles the chance of the next. Find out how and where it happened.",
+          "Do the home hazard check (Ch 5) — most falls happen at home, at night, on the way to the toilet.",
+          "Get the right walking aid (Ch 6) and safe footwear.",
+          "Ask the PHC to review medicines — some BP and sleeping medicines make elders dizzy when they stand up and cause falls. This is often missed.",
+          "For repeated falls, push for a medical check of the cause — heart, blood pressure, weakness, vision — through the PHC. Repeated falls are a signal, not bad luck.",
+          "If the elder is now afraid to move, do not let fear freeze them into a chair — that weakens them and causes more falls. Build confidence with short, supported walks; a walking buddy; a reason to go out, like the centre."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Fear of falling is its own problem. The elder who stops moving gets weaker and falls more. Gentle, steady, supported movement is the medicine — not rest.",
+        { "h": 2, "text": "DIGNITY" },
+        "Do not scold an elder for falling or wrap them in cotton wool. Help them keep moving safely — a life lived sitting in one chair from fear is its own kind of harm.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The home is safer, the right aid and footwear are in use, medicines have been reviewed for dizziness, and the elder is moving with confidence rather than frozen by fear."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-8-bedridden-care",
+      "title": "Ch 8 — Caring for a bedridden elder & preventing bed sores",
+      "kind": "chapter",
+      "naturalOrder": 908,
+      "content": [
+        "Keeping a bedridden elder comfortable, clean, and free of bed sores — the painful, dangerous wounds that form fast when someone cannot shift their own weight.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When an elder is mostly confined or completely bedridden (Q7 = 2 or 3). This is high-priority, hands-on work — act within a week.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Turn the elder regularly — from side to back to other side every two to three hours, day and night. This is the single most important thing to prevent bed sores. Teach the caregiver this above all.",
+          "Check the skin daily at the pressure points — lower back, hips, heels, shoulders, back of head. Redness that does not fade is the first warning. Catch it here.",
+          "Keep skin clean and dry. Wetness from sweat or urine breaks skin down fast. Change and clean promptly; let skin air.",
+          "Use a soft surface — an air mattress or even folded soft cloth and pillows to take pressure off the bony points. Arrange an air mattress through the programme if there is bed-sore risk.",
+          "Link the PHC for a home visit — the ANM or nurse should see a bedridden elder. If a sore has already formed, it needs proper dressing, not home remedies.",
+          "Keep them part of life — move the bed where they can see people, be talked to, see daylight. A bedridden elder facing a blank wall dies in spirit before the body.",
+          "Watch for the dangers: a sore that is deepening, fever, the elder not eating or drinking, sudden confusion — these need the PHC the same day."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Families often do not know that turning prevents sores, and discover the wound only when it is bad and smells. Teach turning early and check the skin yourself — do not just ask, look, with the elder's permission.",
+        { "h": 2, "text": "DIGNITY" },
+        "Bathing, turning, cleaning an elder who cannot do it themselves is where dignity is most easily lost. Cover them, be gentle, explain what you are doing, never expose or rush them, never speak of them as a burden in their hearing.",
+        { "h": 2, "text": "DO NOT" },
+        "Do not let a bedridden elder lie unturned for hours, lie in wetness, or be tucked away facing a wall. Each of these causes real, fast harm.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The caregiver turns the elder every 2–3 hours and checks skin daily, the skin is clean and dry on a soft surface, the PHC is linked, and the elder is part of the household's life, not hidden away."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-9-continence-diapers",
+      "title": "Ch 9 — Continence & diaper support",
+      "kind": "chapter",
+      "naturalOrder": 909,
+      "content": [
+        "Helping an elder who cannot always control urine or stool stay clean, dry, and — above all — dignified.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When an elder has continence difficulty, often alongside being bedridden or having dementia. Diapers may be part of the care plan.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "First ask whether it can be improved, not just managed. Reaching the toilet in time may be a mobility or distance problem — a bedside commode can restore control and pride.",
+          "Rule out a quick medical cause with the PHC — a urine infection causes sudden leaking and confusion and is easily treated. Do not assume it is 'just old age.'",
+          "If diapers are needed, arrange a regular supply through the programme — do not let the family run out, which leads to the elder lying in wetness.",
+          "Teach the caregiver to change promptly and keep skin clean and dry — wetness causes rashes and bed sores quickly.",
+          "Set up a routine — regular toilet or commode times can reduce accidents and the number of diapers needed."
+        ] },
+        { "h": 2, "text": "DIGNITY" },
+        "Never speak of this in front of others, never show distaste, never scold an elder for an accident. Handle it as ordinary care. Your calm, unembarrassed manner lets the elder keep their dignity.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "A medical cause has been ruled out, the elder uses a commode or has a reliable diaper supply, skin is kept clean and dry, and the matter is handled with complete discretion."
+      ]
+    },
+    {
+      "slug": "elderly-framework-consent",
+      "title": "Framework — Consent & sensitive field handling",
+      "kind": "framework",
+      "naturalOrder": 1010,
+      "content": [
+        { "h": 2, "text": "Consent" },
+        "Verbal consent is captured at baseline (Section A). The CO reads the consent statement aloud in the elder's preferred language. **Annual re-confirmation** is required.",
+        "For elders with cognitive impairment, seek consent from the elder where possible and from the primary caregiver. If an elder later asks to be removed from the programme, the request is honoured and documented.",
+        { "h": 2, "text": "Sensitive fields" },
+        "The following fields are marked [Sensitive] in the Instrument:",
+        { "ul": [
+          "**Q6b** — Caregiver burden (the caregiver's voice; must not be shown to elder or other family)",
+          "**Q15a** — Depression screen (mental health stigma)",
+          "**Q15b** — Loneliness (privacy of personal state)",
+          "**Q16** — Abuse or neglect (could put elder at greater risk if disclosed)",
+          "Any Section E observations naming violence, financial exploitation, or family conflict"
+        ] },
+        { "h": 2, "text": "Restricted access" },
+        "Sensitive fields are visible to the CO conducting the assessment and to the programme manager / city lead. They are **not** visible on field-level printouts, peer dashboards, or external reports (anonymised aggregate indicators only)."
+      ]
+    },
+    {
+      "slug": "elderly-framework-scoring",
+      "title": "Framework — Scoring & category cutoffs",
+      "kind": "framework",
+      "naturalOrder": 1020,
+      "content": [
+        { "h": 2, "text": "Formula" },
+        "Each EVA response option is mapped to a 0–3 vulnerability score. Total = Σ (item score × domain weight) across all 22 EVA items. Maximum possible = **103.5**.",
+        { "h": 2, "text": "Domain weights" },
+        { "table": {
+          "head": ["Domain", "Items", "Weight"],
+          "rows": [
+            ["1. Caregiving Adequacy", "Q6, Q6b", "×2.0"],
+            ["2. Functional Dependency & Mobility", "Q7, Q8a, Q8b, Q9, Q10a, Q10b", "×1.75"],
+            ["3. Health & Medical Vulnerability", "Q11, Q12, Q13a, Q13b", "×1.5"],
+            ["4. Cognitive & Emotional Wellbeing", "Q14, Q15a, Q15b", "×1.0"],
+            ["5. Safety, Abuse & Protection", "Q16, Q17", "×2.0"],
+            ["6. Food & Financial Security", "Q18a, Q18b, Q19, Q20", "×1.5"],
+            ["7. Emergency & Social Support", "Q21", "×1.0"]
+          ]
+        } },
+        { "h": 2, "text": "Category cutoffs" },
+        { "table": {
+          "head": ["Category", "Score range", "% of max"],
+          "rows": [
+            ["Stable & Self-Managing", "0–21", "≤20%"],
+            ["Low Need", "22–41", "21–40%"],
+            ["Moderate Need", "42–62", "41–60%"],
+            ["High Need", "63–83", "61–80%"],
+            ["Profound Need", "84+", "81%+"],
+            ["Profound (override)", "Any", "Any critical-risk flag ticked"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-framework-philosophy",
+      "title": "Framework — Assessment philosophy",
+      "kind": "framework",
+      "naturalOrder": 1030,
+      "content": [
+        "All elders experience varying degrees of vulnerability, dependency, social risk, health burden, caregiving gaps, and emotional needs.",
+        "The purpose of assessment is **not** to prove vulnerability. It is to understand intensity, prioritise engagement, and ensure that severe needs are not missed.",
+        { "h": 2, "text": "Principles" },
+        { "ul": [
+          "Dignity and contextual sensitivity",
+          "Reduction of unnecessary questioning",
+          "Progressive layered assessment",
+          "Dynamic reassessment",
+          "Prevention-oriented caregiving",
+          "Reduction of subjective variation through operational definitions",
+          "Informed consent and data dignity"
+        ] }
+      ]
+    }
+  ]
+}

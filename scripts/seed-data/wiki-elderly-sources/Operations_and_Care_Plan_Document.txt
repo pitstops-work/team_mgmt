@@ -1,0 +1,1317 @@
+
+JANADHIKARA
+Urban Initiatives — Elderly Care Programme
+Operations & Care Plan Document
+Bangalore | Chennai  •  Version 1.0
+Programme delivery framework, care plan logic, resourcing assumptions,
+and partner operating standard for the Elderly Care Programme.
+Companion documents: EVRAT v4 Instrument | EVRAT v4 Operational Guidelines | Resourcing & Unit Cost Calculator (Excel)
+
+Contents
+This document is structured in seven parts. A reader may navigate sections independently; cross-references point to specific subsections where needed.
+Part
+Contents
+Part 1
+Care Plan Derivation Logic — EVA item × answer → response, priority, owner, timeframe
+Part 2
+Domain-Wise Standard Care Pathways — seven pathways with timeframes
+Part 3
+Care Plan by Category — Stable, Low, Moderate, High, Profound templates
+Part 4
+A Year in Three Elders — month-by-month walkthroughs of three concrete cases
+Part 5
+Flow Diagrams — master flow plus decision trees for high-stakes scenarios
+Part 6
+Operations & Resourcing — three-layer model, partner ecosystem, governance, referral protocols
+Part 7
+Year-One Workplan — month-by-month rollout calendar
+
+Executive Note
+This document accompanies the Elder Vulnerability Rapid Assessment Tool (EVRAT v4) and its Operational Guidelines. EVRAT identifies and categorises elders by vulnerability; this document specifies what the programme does in response.
+Three operational principles run through the document:
+	•	Categorisation must produce response. An elder labelled Tier 1 or Profound Need has the right to specific actions within specific timeframes. The category is a commitment, not a description.
+	•	Response must be standardised but applied with judgement. Standard pathways are provided per domain; care plans are tailored to the elder. The programme exists in the space between the standard and the person.
+	•	Programme delivery is layered, not heroic. A single Community Organiser cannot serve 500 elders at the cadences EVRAT defines. The operations model distributes responsibility across a Centre In-charge, Kitchen In-charge, Community Organisers, community kitchen women, and referral partners. The unit-cost calculator surfaces the resourcing implications for transparent decision-making.
+Janadhikara is the donor and the implementer through partners. This document is the operating standard that partners are funded against and reviewed by. It is prescriptive about what must happen and permissive about how each partner organises to do it.
+
+Part 1  •  Care Plan Derivation Logic
+Every EVA item, at meaningful response levels, triggers a specific response with a priority, owner, and timeframe. This table converts assessment scores into action. It is the reference COs and supervisors use after every assessment to populate Section E2 of the EVRAT (Care Plan task table).
+Notes on the table:
+	•	Owner abbreviations: CO = Community Organiser; KI = Kitchen In-charge; CI = Centre In-charge; ET = Entitlements Team (separate from elderly team, by referral); Sup = Supervisor.
+	•	Timeframes are maximum acceptable response times from assessment date.
+	•	Priority: H = High (within 1 week); M = Medium (within 1 month); L = Low (opportunistic).
+	•	Multiple triggers may produce overlapping tasks; the CO consolidates and avoids duplication when populating Section E2.
+	•	All entitlement-related responses are referrals to the Entitlements Team; the elderly team does not process entitlements directly.
+1.1  Domain 1 — Caregiving Adequacy
+Item & Score
+Triggered Response
+Priority
+Owner
+Timeframe
+Q6 = 2 (significant gaps)
+Family meeting to clarify caregiving responsibilities; identify primary and backup caregivers; document agreement
+M
+CO
+Within 14 days
+Q6 = 3 (severely inadequate)
+Critical flag review; settlement-level caregiving plan; identify community caregiver if no family member available; home-help linkage if budget permits
+H
+CO + Sup
+Within 7 days
+Q6b = 2 (caregiver moderate strain)
+Caregiver support group enrolment; respite arrangement (a few hours per week); peer connection to other caregivers
+M
+CO + CI
+Within 21 days
+Q6b = 3 (severe burnout)
+Critical flag — see Section 11.1 Protocol. Respite within 14 days; counselling referral; family task-sharing meeting
+H
+Sup + CO
+Within 14 days
+1.2  Domain 2 — Functional Dependency & Mobility
+Item & Score
+Triggered Response
+Priority
+Owner
+Timeframe
+Q7 = 2 (mostly confined)
+Home environment assessment; mobility adaptations (mats, handrails, bedside commode); physiotherapy referral if available
+M
+CO
+Within 30 days
+Q7 = 3 (completely bedridden)
+Critical flag review. Bed-sore prevention protocol with caregiver training; PHC home-visit linkage; air mattress/pillow procurement if needed
+H
+CO + Sup
+Within 7 days
+Q8a = 2 (2–3 ADL dependencies)
+Caregiver protocol established; supplies stocked (diapers if needed); home modifications discussed
+M
+CO
+Within 21 days
+Q8a = 3 (4+ ADL dependencies)
+Intensive caregiver protocol; consider home-help linkage; PHC nurse home visit; diaper supply if continence affected
+H
+CO + Sup
+Within 7 days
+Q8b = 2 (2–3 IADL dependencies)
+Community kitchen enrolment for meals if cooking affected; medication management plan (family member or pill organiser); shopping support arrangement
+M
+CO + KI
+Within 21 days
+Q8b = 3 (4+ IADL dependencies)
+Full meal support via community kitchen; medication and money management transferred to identified family member or settlement leader
+H
+CO + KI
+Within 14 days
+Q9 = 2 (needs walking support)
+Walking aid procured (stick, walker, or wheelchair based on need); home assessment for tripping hazards
+M
+CO
+Within 14 days
+Q9 = 3 (unable to walk)
+Wheelchair procurement; immobility complications protocol (bed sores, contractures, deep vein thrombosis awareness for caregiver); physiotherapy if available
+H
+CO + Sup
+Within 14 days
+Q10a = 1 (one fall in 6m)
+Fall prevention counselling; home hazard reduction (lighting, mats, footwear); medication review for postural hypotension via PHC
+M
+CO
+Within 21 days
+Q10a = 2 (two falls)
+Walking aid + home modification + medication review; flagged for fortnightly monitoring
+H
+CO
+Within 14 days
+Q10a = 3 (3+ falls / recurrent)
+Intensive fall prevention; medical workup for underlying cause (cardiac, neurological); home rearrangement; consider supervised mobility only
+H
+CO + Sup
+Within 7 days
+Q10b = 2 (moderate fear)
+Confidence-building walking sessions; buddy walking arrangement; community kitchen visit as social motivator
+M
+CO + CI
+Within 30 days
+Q10b = 3 (severe fear restricting movement)
+Counselling support; supervised walking programme; address underlying anxiety; combat isolation via centre/kitchen visits
+M
+CO + CI
+Within 30 days
+1.3  Domain 3 — Health & Medical Vulnerability
+Item & Score
+Triggered Response
+Priority
+Owner
+Timeframe
+Q11 = 2 (multiple illnesses)
+PHC/UPHC linkage confirmed; consolidated medication list with family; quarterly clinical review schedule
+M
+CO
+Within 30 days
+Q11 = 3 (severe/untreated)
+Urgent medical referral; transport arranged; family briefed; supervisor informed
+H
+CO + Sup
+Within 7 days
+Q12 = 2 (frequently irregular)
+Diagnose cause: cost, stockout, dislike, forgetting. Address specifically: cost → PHC linkage or Janaushadhi; stockout → escalate to PHC officer; forgetting → family supervision or pill organiser
+H
+CO
+Within 14 days
+Q12 = 3 (not taking despite need)
+Same as above + family conversation about importance; counselling if elder refuses for psychological reasons; supervisor involvement
+H
+CO + Sup
+Within 7 days
+Q13a = 2 (moderate sensory loss)
+Refer to next eye/ENT camp (or set one up via partner); disability certificate workflow opened if eligible (referral to Entitlements Team)
+M
+CO + ET
+Within 30 days
+Q13a = 3 (severe untreated)
+Critical flag review. Priority surgical referral (cataract) or hearing aid procurement; disability certificate fast-track
+H
+CO + Sup + ET
+Within 30 days
+Q13b = 2 (referral required)
+Specialist referral with accompaniment if elder alone; transport arranged; follow-up within 14 days of referral
+H
+CO
+Within 7 days
+Q13b = 3 (urgent attention)
+Critical flag — see Acute Deterioration protocol (Part 5). Same-day PHC contact; 108 if life-threatening
+H
+CO + Sup
+Same day
+1.4  Domain 4 — Cognitive & Emotional Wellbeing
+Item & Score
+Triggered Response
+Priority
+Owner
+Timeframe
+Q14 = 2 (frequent confusion)
+Family safety briefing (wandering, stove, medications, money); identification details on elder's person (band or card); cognitive engagement at centre if mobile
+M
+CO + CI
+Within 21 days
+Q14 = 3 (severe confusion)
+Critical flag review. Safety-proofing of home; constant supervision arrangement; medical referral to rule out reversible causes (UTI, medication effects, B12 deficiency)
+H
+CO + Sup
+Within 14 days
+Q15a = 2 (depression — most days)
+Mental health referral (PHC counsellor / NIMHANS DMHP / NGO partner); follow-up to confirm referral kept; centre engagement to address isolation
+M
+CO + CI
+Within 21 days
+Q15a = 3 (depression — nearly every day)
+Critical flag — severe depression. Same-day supervisor brief; mental health referral within 14 days; weekly check-ins until stable; rule out self-harm risk through gentle conversation, not formal screening
+H
+CO + Sup
+Within 14 days
+Q15b = 2 (often lonely)
+Centre enrolment (visit at least twice a week if mobile); peer mentor pairing; family conversation about visit/call frequency
+M
+CO + CI
+Within 21 days
+Q15b = 3 (severely lonely/isolated)
+Centre or community kitchen daily attendance arranged; settlement-level connection to one neighbour or community member; weekly home visits intensified
+H
+CO + CI
+Within 14 days
+1.5  Domain 5 — Safety, Abuse & Protection
+Item & Score
+Triggered Response
+Priority
+Owner
+Timeframe
+Q16 = 1 (mild suspicion)
+Sensitive observation continued; private conversation with elder at next visit; supervisor informed; record kept in restricted file only
+M
+CO + Sup
+Within 14 days
+Q16 = 2 (repeated concern)
+Critical flag review. See Abuse Protocol (Part 5). Supervisor + City Lead same day; safety plan within 72 hours
+H
+Sup + City Lead
+Same day
+Q16 = 3 (severe abuse/abandonment)
+Critical flag. Helpline activation (Women 181 / Elder 14567 / Police 100); emergency safe placement if at immediate risk
+H
+Sup + City Lead
+Same day
+Q17 = 2 (moderate housing risks)
+Hazard reduction (lighting, electrical safety, ventilation, fall hazards); coordinate with settlement leader for structural issues
+M
+CO
+Within 30 days
+Q17 = 3 (dangerous housing / homelessness)
+Critical flag. Emergency shelter referral; settlement leader and supervisor briefed; medium-term housing solution explored
+H
+CO + Sup
+Within 7 days
+1.6  Domain 6 — Food & Financial Security
+Item & Score
+Triggered Response
+Priority
+Owner
+Timeframe
+Q18a = 2 (visible thinness / chewing difficulty)
+Soft food adaptation discussed with cook (family or kitchen); dental referral via PHC if chewing affected; nutrition supplement if available
+M
+CO + KI
+Within 21 days
+Q18a = 3 (severe wasting)
+Critical flag — severe undernutrition. Emergency nutrition support (dry ration kit + community kitchen daily meals); medical workup to rule out underlying illness (TB, diabetes, malignancy)
+H
+CO + Sup
+Within 7 days
+Q18b = 2 (irregular meals)
+Community kitchen enrolment (priority); family negotiation if family-cooked meals are inconsistent; dry ration kit if needed in interim
+H
+CO + KI
+Within 14 days
+Q18b = 3 (severe food insecurity)
+Critical flag. Emergency ration within 48 hours; community kitchen daily; ration card pipeline (referral to Entitlements Team)
+H
+CO + KI + ET
+Within 48 hours
+Q19 = 2 (frequent affordability gap)
+Identify which expense — food, medicine, fuel — and address: community kitchen for food; PHC/Janaushadhi for medicine; entitlements team for pension expediting
+M
+CO + ET
+Within 21 days
+Q19 = 3 (severe inability)
+Immediate triage of unmet essential expense; emergency support fund if available; entitlements team for pension/widow scheme expediting; community kitchen for daily food
+H
+CO + Sup + ET
+Within 14 days
+Q20 = 2 (frequently disrupted benefits)
+Entitlements team referred to follow up specific scheme (which pension/which card); CO tracks resolution at next visit
+M
+CO → ET
+Within 14 days
+Q20 = 3 (not receiving despite eligibility)
+Priority referral to Entitlements Team with full documentation of the specific entitlement and known blocker; expected resolution timeline tracked
+H
+CO → ET
+Within 7 days
+1.7  Domain 7 — Emergency & Social Support
+Item & Score
+Triggered Response
+Priority
+Owner
+Timeframe
+Q21 = 2 (uncertain support)
+Identify one trusted contact (neighbour, settlement leader, distant relative); ensure phone number on file; introduce CO contact details to elder and that contact
+M
+CO
+Within 30 days
+Q21 = 3 (no dependable support)
+Critical flag review. Settlement-level emergency arrangement; CO acts as primary contact; community kitchen attendance for daily check; periodic supervisor home visit
+H
+CO + Sup
+Within 14 days
+1.8  Critical Risk Flag Response Protocol
+When any critical flag is ticked, the response below is mandatory. This section reproduces the protocol from EVRAT Operational Guidelines Section 11.1 for self-contained reference.
+Flag
+Mandatory Action
+Timeframe
+Owner
+Bedridden with high dependency
+Caregiver protocol; PHC home-visit linkage; bed sore prevention
+7 days
+CO + Sup
+Palliative / end-of-life need
+Palliative referral; family communication; dignity-in-dying plan
+14 days
+Sup + CO
+Severe neglect / abandonment
+Same-day supervisor brief; safety plan; emergency caregiver if needed
+Same day → 72 hrs
+Sup + City Lead
+No dependable caregiver available
+Settlement caregiving plan; community contact; emergency contact
+7 days
+CO + Sup
+Severe dementia / unsafe wandering
+Family safety brief; ID band; PHC/NIMHANS referral
+14 days
+CO + Sup
+Abuse / violence concerns
+Same-day supervisor brief; helplines; safety plan protecting elder from disclosure
+Same day
+Sup + City Lead (CO not alone)
+Severe food insecurity
+Emergency ration; community kitchen; entitlements pipeline
+48 hours
+CO
+Unsafe shelter / homelessness
+Settlement leader briefed; shelter referral; housing safety assessment
+7 days
+CO + Sup
+Urgent medical / acute deterioration
+PHC contact same day; transport; family informed
+Same day
+CO + Sup
+Severe untreated vision/hearing loss
+Eye/ENT camp scheduled; disability certificate workflow
+30 days
+CO + ET
+Severe undernutrition / wasting
+Emergency nutrition; medical referral; family negotiation if intake issue
+7 days
+CO + Sup
+Severe depression
+Mental health referral; weekly check-ins; rule out self-harm risk
+14 days
+CO + Sup
+Severe caregiver burnout
+Respite; task-sharing meeting; counselling if available
+14 days
+CO + Sup
+Failure to act within timeframe must be reviewed by the supervisor at the next weekly review meeting. Delays are recorded in the case file with reason; chronic delays trigger programme-level review.
+
+Part 2  •  Domain-Wise Standard Care Pathways
+For each EVA domain, a standard pathway specifies the sequence of interventions, the timeframe, and the expected outcome. Pathways are templates — the CO adapts to the elder while staying within the standard. Deviation from the pathway is documented in Section E5 with reason.
+2.1  Caregiving Adequacy Pathway
+Phase
+Action
+Owner
+Week 1
+Identify primary caregiver and backup; family meeting if needed; document agreement
+CO
+Week 2
+Caregiver assessment (Q6b asked privately); peer connection to one experienced caregiver
+CO
+Week 3–4
+Caregiver basic skills training (bathing, lifting, medication, bed sore prevention if applicable)
+CO + CI
+Month 2
+Caregiver support group introduction; respite arrangement if burden detected
+CO + CI
+Month 3
+Re-assess Q6 and Q6b; adjust support if gaps remain
+CO
+Quarterly
+Family meeting to renew task-sharing; rotate caregiving burden if multiple family members available
+CO
+Expected outcome
+Q6 and Q6b scores at 1 or below by Month 6; primary caregiver identifies as coping
+
+2.2  Functional Dependency & Mobility Pathway
+Phase
+Action
+Owner
+Week 1
+Mobility aid procured (stick / walker / wheelchair / commode based on need); home hazard reduction (mats, lighting, footwear, clutter)
+CO
+Week 2
+PHC linkage for medication review (postural hypotension, sedatives, polypharmacy); physiotherapy referral if available
+CO
+Week 3–4
+Caregiver trained on transfer techniques, bed sore prevention, range-of-motion exercises
+CO + Sup
+Month 2
+Re-assess Q7, Q8a, Q8b, Q9; adjust aids and support; if bed-ridden, weekly bed sore check protocol
+CO
+Month 3
+Re-assess Q10a and Q10b; if falls continue, intensified review; if no falls, confidence-building activity
+CO
+Quarterly
+Full re-EVA; mobility trajectory documented (improving / stable / declining)
+CO
+Expected outcome
+Zero repeat falls in elders given aids; ADL/IADL trajectory stable or improving; caregiver competent on bed sore prevention
+
+2.3  Health & Medical Pathway
+Phase
+Action
+Owner
+Week 1
+PHC/UPHC enrolment confirmed; consolidated medication list created with family
+CO
+Week 2
+First clinical follow-up scheduled; transport arranged if elder cannot travel alone
+CO
+Week 3–4
+Medication supply addressed (PHC stockout escalation, Janaushadhi linkage, family budget conversation)
+CO
+Month 2
+Sensory function check (Q13a); refer to next eye/ENT camp if needed
+CO
+Month 3
+Re-assess Q11, Q12, Q13a, Q13b; document medication adherence trajectory
+CO
+Quarterly
+Clinical review with PHC; entitlements team verification on disability certificate if applicable
+CO + ET
+Expected outcome
+≥80% medication adherence (Q12 ≤1); NCDs under control where applicable; vision/hearing addressed where operable
+
+2.4  Cognitive & Emotional Pathway
+Phase
+Action
+Owner
+Week 1
+Q15a/b assessed privately; mental health screening explained; consent for referral if positive
+CO
+Week 2
+Referral made (PHC counsellor / NIMHANS DMHP / NGO partner); centre engagement arranged for isolation/loneliness
+CO + CI
+Week 3–4
+Confirm referral attended; centre attendance for ambulant elders; home-based engagement for non-ambulant (community volunteer visit or radio/storytelling)
+CO + CI
+Month 2
+Re-assess Q15a and Q15b; if cognitive concerns (Q14), reversible-cause workup at PHC (UTI, medications, B12, thyroid)
+CO
+Month 3
+Continuing counselling check; peer mentor pairing for Tier 3 stable elders; family conversation about visit/call patterns
+CO + CI
+Quarterly
+Full re-EVA; mental health trajectory documented
+CO
+Expected outcome
+Q15a and Q15b trending toward 0–1 over 6 months; reduced isolation through centre or community contact; referrals kept
+
+2.5  Safety, Abuse & Protection Pathway
+Safety pathway differs from other domains: the elder's safety overrides standard care pathway timelines. Steps below are minimum standards; the supervisor and city lead may compress or intensify as the case demands.
+Phase
+Action
+Owner
+Day 0 (assessment)
+Critical flag noted; supervisor informed same day; restricted log entry created; CO does not act alone
+CO → Sup
+Day 1–2
+Risk assessment by Sup + City Lead; safety plan drafted; helplines briefed if needed
+Sup + City Lead
+Day 3–7
+Safety plan implemented; trusted contact identified; safe placement arranged if at immediate risk
+Sup + City Lead
+Week 2
+Counselling referral arranged for elder; family conversation if appropriate (only if perpetrator not in household)
+Sup
+Weeks 3–8
+Weekly home visits (or settlement neutral location); safety plan reviewed weekly; de-escalation requires supervisor validation
+CO + Sup
+Month 3
+Re-assess Q16, Q17; case may move from active crisis to monitored if stable for 8 weeks
+Sup
+Ongoing
+Case file in restricted access only; never discussed publicly; CO debrief if emotionally affected
+Sup + City Lead
+Expected outcome
+Elder safe; safety plan documented and operational; no further safety incidents for 8 consecutive weeks before de-escalation
+
+2.6  Food & Financial Security Pathway
+Phase
+Action
+Owner
+Week 1
+Food triage: which meal is missing? Who cooks? Why is access disrupted? Dry ration kit if emergency
+CO + KI
+Week 2
+Community kitchen enrolment if home-bound or family-cooking unreliable; centre attendance if mobile
+CO + KI + CI
+Week 3–4
+Q18a (nutrition status) addressed if relevant: soft food adaptation; dental referral; supplement if available
+CO + KI
+Month 2
+Re-assess Q18a, Q18b, Q19; review whether kitchen meal is being received and adequate
+CO + KI
+Month 3
+Entitlements team status check on referred items (ration card, pension); CO documents resolution or escalation
+CO ↔ ET
+Quarterly
+Full re-EVA on food and financial security; kitchen attendance reviewed; family financial situation if changed
+CO
+Expected outcome
+Q18a and Q18b at 0 or 1; daily food access secured through one of: family / community kitchen / centre
+
+2.7  Emergency & Social Support Pathway
+Phase
+Action
+Owner
+Week 1
+Identify one trusted contact in settlement or family; phone number recorded; introductions made
+CO
+Week 2
+Emergency response plan: who is called first, second, third in case of fall/illness/distress; written and explained
+CO
+Week 3–4
+Community kitchen and/or centre attendance to build daily contact; settlement leader briefed
+CO + KI + CI
+Month 2
+Test the emergency contact chain (mock or actual minor event); refine if gaps
+CO
+Month 3
+Re-assess Q21; if trusted contact not working, identify alternative
+CO
+Quarterly
+Full re-EVA; emergency response chain refreshed
+CO
+Expected outcome
+Q21 at 0 or 1; elder has at least one reliable contact within 5 minutes' walk; CO contact known to elder and family
+
+
+Part 3  •  Care Plan by Category
+Part 1 derived responses from individual assessment items. Part 2 specified domain-wise pathways. This part assembles them into a complete care plan template for each EVRAT category. The template is what every elder in that category is entitled to as a minimum; specifics are tailored.
+Categories and their indicative caseloads (at the default 15/20/30/20/15% distribution for a 500-elder catchment) are:
+Category
+Expected % of catchment
+Indicative count (per 500)
+Visit cadence
+Coverage by
+Profound Need
+15%
+75 elders
+2–3× per week
+CO (home) + KI (kitchen) + Sup oversight
+High Need
+20%
+100 elders
+Fortnightly (every 2 weeks)
+CO + KI
+Moderate Need
+30%
+150 elders
+Monthly
+CO + CI (centre engagement)
+Low Need
+20%
+100 elders
+Quarterly
+CO (light touch) + CI
+Stable & Self-Managing
+15%
+75 elders
+3-monthly
+CO (periodic) + peer mentor role available
+3.1  Profound Need — Template Care Plan
+Profound Need is the most intensive tier. Either the elder has crossed the weighted-score threshold (≥84) or has at least one critical risk flag. The care plan presumes immediacy, intensity, and frequent reassessment.
+Visit pattern
+	•	2–3 home visits per week by CO (one of which may be a brief well-being check ~15 minutes; one a full visit ~45 minutes).
+	•	Daily food delivery via community kitchen, with at least one delivery acting as a wellness check (kitchen women report changes to CO).
+	•	Weekly supervisor review of the case in CO weekly huddle.
+	•	Monthly family meeting to align caregiving.
+Core components (always present)
+	•	Caregiver protocol — primary and backup caregiver identified, trained on the specific elder's needs (bed sore prevention, transfer, medication, comfort).
+	•	PHC home-visit linkage — ANM or doctor visits monthly minimum; supplies coordinated.
+	•	Mobility / continence support — wheelchair/commode/diapers stocked; air mattress if at bed sore risk.
+	•	Nutrition support — daily community kitchen meal; soft food adaptation if needed.
+	•	Emergency response chain — written plan, all caregivers and CO contacts known to family, neighbour, settlement leader.
+	•	Restricted-access case file — sensitive observations (mental health, abuse, palliative) stored separately, supervisor + city lead access only.
+Variable components (added based on EVA findings)
+	•	If palliative flag: dignity-in-dying plan, palliative partner referral, pain relief access, bereavement protocol on hand.
+	•	If severe abuse flag: see Part 5 abuse protocol — case migrates to Sup + City Lead ownership.
+	•	If severe depression: weekly mental health check; counsellor visits; self-harm risk monitored.
+	•	If no dependable caregiver: community caregiver arrangement (paid neighbour); intensified CO visits act as partial substitute.
+Reassessment cadence
+	•	Full EVRAT re-run monthly.
+	•	Event-triggered re-assessment within 48 hours of any fall, hospitalisation, caregiver death, or visible deterioration.
+	•	Supervisor validation required to de-escalate to High Need; sustained 8 weeks of stability minimum.
+Expected outcomes at 6 months
+	•	Bed sores prevented or healing where present.
+	•	Nutrition status (Q18a) at 1 or lower.
+	•	No medication interruption beyond 48 hours at any point.
+	•	Caregiver burden (Q6b) at 2 or lower with respite arrangement.
+	•	Dignity preserved through every intervention.
+3.2  High Need — Template Care Plan
+High Need elders have multiple vulnerabilities but are usually mobile or partially mobile. The care plan addresses each vulnerability with structured response and monitors closely.
+Visit pattern
+	•	Fortnightly home visit by CO (full visit ~30 minutes).
+	•	Weekly community kitchen contact (delivery or in-person visit if mobile).
+	•	Monthly centre visit encouraged if mobility permits.
+	•	Fortnightly supervisor review of the case.
+Core components
+	•	Caregiver identified and supported (if present); caregiver burden assessed monthly.
+	•	PHC/UPHC enrolment and regular follow-up; medication adherence monitored.
+	•	Mobility aid procured if needed; home hazards addressed.
+	•	Community kitchen enrolment if food access affected; centre attendance if mobile.
+	•	Emergency contact chain in place.
+	•	Entitlements team referral active for any missing benefit.
+Variable components
+	•	Falls history: confidence-building, home modifications, fall prevention counselling.
+	•	NCD load: structured medication review; quarterly clinical follow-up.
+	•	Sensory loss: eye/ENT camp referral; disability certificate workflow.
+	•	Mental health: counselling referral; centre attendance for engagement.
+Reassessment cadence
+	•	Full EVRAT re-run quarterly.
+	•	Event-triggered re-assessment within 7 days of any deterioration event.
+	•	Movement to Moderate Need possible after 12 weeks of stable improvement.
+3.3  Moderate Need — Template Care Plan
+Moderate Need elders have identifiable vulnerabilities but are managing day-to-day. The plan focuses on closing specific gaps and preventing deterioration.
+Visit pattern
+	•	Monthly home visit by CO (full visit ~25 minutes).
+	•	Centre attendance recommended (twice weekly minimum) if mobile.
+	•	Community kitchen if food access requires it.
+	•	Quarterly supervisor review of the case.
+Core components
+	•	PHC linkage if NCDs present; medication routine confirmed.
+	•	Mobility aids procured if needed.
+	•	Centre engagement for social connection and meal.
+	•	Emergency contact known.
+	•	Entitlements referrals on any missing benefit.
+Reassessment cadence
+	•	Full EVRAT re-run quarterly.
+	•	Event-triggered immediate reassessment.
+	•	Movement to Low Need after 6 months of sustained improvement.
+3.4  Low Need — Template Care Plan
+Low Need elders are largely managing well with minor gaps. The plan keeps a light touch but maintains relationship.
+Visit pattern
+	•	Quarterly home visit by CO (~20 minutes).
+	•	Centre attendance optional but encouraged.
+	•	Annual supervisor review.
+Core components
+	•	Identification of any unaddressed entitlement gap.
+	•	Encouragement to participate in centre activities.
+	•	Preventive health awareness (NCDs, falls, mental health).
+	•	Emergency contact verified annually.
+Reassessment cadence
+	•	Full EVRAT re-run twice yearly.
+	•	Event-triggered escalation.
+	•	Movement to Stable possible after 12 months of stability.
+3.5  Stable & Self-Managing — Template Care Plan
+Stable elders are functioning well. The programme's role is light-touch monitoring, preventive engagement, and peer mentorship enrolment for those willing.
+Visit pattern
+	•	3-monthly home visit or centre contact (~15 minutes).
+	•	Centre engagement encouraged; potential peer mentor role for other elders.
+Core components
+	•	Light wellness check; IVS only (unless trigger detected).
+	•	Peer mentor enrolment if elder is willing — pairs with 2–3 Tier 2 or 3 elders.
+	•	Annual entitlements check.
+	•	Preventive health awareness.
+Reassessment cadence
+	•	Full EVRAT re-run annually unless event triggers earlier.
+	•	Status reviewed every 3 months — Stable cannot remain unreviewed beyond 3 months (per EVRAT Guidelines).
+Stable elders are an asset to the programme. Their lived experience, mobility, and time make them ideal peer mentors and community contacts for less able elders. A flourishing peer mentor cohort reduces CO load significantly and dignifies the Stable cohort with purpose.
+
+Part 4  •  A Year in Three Elders
+Three composite elders are tracked month by month through Year 1 of the programme. Names are illustrative; situations are typical of slum-elder populations in Bangalore and Chennai. The intent is to show how the framework applies in messy reality — including things that go wrong, change, and have to be adjusted.
+The three elders are deliberately chosen to span the tier system: one Profound Need (Lakshmamma), one Moderate Need (Sarojamma), and one Stable transitioning to Low Need (Muniyappa).
+4.1  Lakshmamma — Tier 1, Profound Need
+Profile at baseline (April):
+	•	78 years old, female, lives alone in a single-room dwelling in JBN settlement, Bangalore.
+	•	Widow for 12 years; one daughter married and living in another city, visits twice yearly.
+	•	BP and Sugar diagnosed but irregular medication due to cost; one fall in last 6 months; visible thinness; cataract in right eye; widow-pension applied 2 years ago, never received.
+	•	EVA total: 91 (Profound Need); critical flag: Severe untreated vision loss; widow-property pressure noted in Q16.
+Month-by-month trajectory
+Month
+Events & Visits
+Tasks Opened
+Tasks Closed
+Status
+April
+Baseline EVRAT. Critical flags reviewed: cataract referral and Q16 mild suspicion (widow-property pressure from late husband's brother). Supervisor briefed; case file restricted. Daily community kitchen enrolment started Day 3.
+T-001 Old Age Pension (referral to ET); T-002 Widow Pension follow-up (ET — already applied); T-003 Cataract referral; T-004 Medication assistance; T-005 Family conversation with brother-in-law re: housing pressure (Sup-led)
+—
+EVA 91; Profound; 2 visits/week initiated
+May
+Cataract camp 17 May; surgery scheduled 12 June. Widow pension found stuck at Tahsildar stage — ET escalates. Brother-in-law conversation held; he agrees to stop pressuring (Sup present). BP improved with regular medication.
+T-006 Mobility aid (walking stick); T-007 Soft food adaptation with community kitchen
+T-004 Medication assistance — PHC supply secured
+EVA 81; still Profound (cataract pending); 2 visits/week
+June
+Cataract surgery 12 June; recovery good. Widow pension first instalment received (₹6,000 arrears). Brother-in-law issue stable.
+T-008 Post-surgery follow-up
+T-003 Cataract; T-005 Brother-in-law conversation closed
+EVA 71; downgrade considered but cataract recovery means staying Profound 1 more month
+July
+Vision improved. Walking confidence returning. Q15b (loneliness) score had been 3; now 2 with kitchen women's daily visit. First centre visit attempted — mobility too tiring, abandoned.
+—
+T-008 Surgery follow-up
+EVA 58; moved to HIGH NEED (Sup validated); fortnightly visits
+August
+Fall on uneven floor; minor — no fracture but shaken. EVRAT re-run within 48 hrs (event trigger). Confidence dropped. Home hazard reduction: night light, threshold mat removed.
+T-010 Home hazard reduction; T-011 Confidence-building walks (CO accompanies twice)
+—
+EVA 67; escalated back to PROFOUND temporarily
+September
+Recovery slow. Daughter visits from out of town for 2 weeks — helps stabilise. CO uses daughter's visit to build family-CO contact going forward.
+T-012 Daughter monthly phone-call plan
+T-010 Home hazard; T-011 Walks (now confident)
+EVA 54; HIGH NEED
+October
+Stable. Walking within house and to community kitchen unassisted. NCDs controlled. Mental health (Q15a) at 1.
+T-013 Old Age Pension still stuck at scheme office — ET re-escalating
+—
+EVA 49; HIGH NEED
+November
+Old Age Pension finally approved (T-013 closed). ₹1,000/month now coming. Daughter sends ₹500/month additional. Mood (Q15a) at 0, Q15b at 1.
+T-014 Centre visit attempt — auto-rickshaw arranged once weekly
+T-013 Old Age Pension; T-001, T-002 closed
+EVA 44; MODERATE NEED (Sup validated)
+December
+Festive season; daughter visits again. Centre attended once. Some chest discomfort — PHC consulted, ECG normal.
+T-015 PHC follow-up on chest discomfort
+—
+EVA 42; MODERATE NEED
+January
+Chest discomfort resolved (anxiety attribution). Centre visit twice this month. Started attending community kitchen lunch with neighbour.
+—
+T-015 PHC follow-up closed
+EVA 39; MODERATE NEED; downgrade to LOW considered
+February
+Steady. Cataract in left eye now becoming visible — surgery deferred to next camp.
+T-016 Left eye cataract referral
+—
+EVA 37; MODERATE NEED
+March
+Annual review. Outcomes: cataract done, widow + old age pension secured, kitchen daily, falls down from 1 to 0 over year, mood significantly improved. Programme commitment continues at MODERATE NEED cadence into Year 2.
+—
+T-007 Soft food (no longer needed); T-012 daughter call plan operational
+EVA 35; MODERATE NEED stable
+Lakshmamma's year illustrates the rhythm of intensive engagement: rapid baseline action in Month 1, milestone gains in Months 2–4 (cataract, pension), one setback (fall in August requiring re-escalation), and stabilisation by year-end. Total tasks opened in Year 1: 16. Total closed: 13. Three open at year-end (left-eye cataract, daughter's call plan, MODERATE NEED maintenance). The cost in CO-hours over the year is high — roughly 4 hours/month average — but it is what Profound Need means.
+4.2  Sarojamma — Tier 2, Moderate Need
+Profile at baseline (April):
+	•	71 years old, female, lives with married son's family (DIL Geeta, two grandchildren) in Havadi settlement, Bangalore.
+	•	Type 2 diabetes and arthritis; regular medication through PHC; mild low vision.
+	•	Mostly cared for; Geeta is primary caregiver and reports moderate strain (Q6b = 2).
+	•	EVA total: 47 (Moderate Need); no critical flags.
+Month-by-month trajectory
+Month
+Events & Visits
+Tasks Opened
+Tasks Closed
+Status
+April
+Baseline EVRAT. Family meeting held; Geeta's caregiving burden acknowledged. Senior citizen card applied via ET. Centre visit twice this month.
+T-020 Senior Citizen Card; T-021 Caregiver support for Geeta
+—
+EVA 47; MODERATE
+May
+Senior Citizen Card received. Geeta attends one caregiver support session at centre. Sarojamma started walking with Geeta to centre twice weekly.
+—
+T-020 Senior Citizen Card
+EVA 44; MODERATE
+June
+Routine visit. NCDs controlled. Geeta reports improved coping after support group.
+—
+—
+EVA 42; MODERATE
+July
+Joint pain flare-up. PHC consulted; medication adjusted. Sarojamma misses centre for 2 weeks.
+T-022 PHC follow-up on joint pain
+—
+EVA 45; MODERATE
+August
+Joint pain controlled. Back at centre. Annual eye check arranged at next camp.
+T-023 Eye camp referral (light)
+T-022 PHC follow-up
+EVA 41; MODERATE
+September
+Routine. Granddaughter started school nearby — Sarojamma escorts her some mornings. Q15b (loneliness) at 0.
+—
+—
+EVA 38; MODERATE / LOW border
+October
+Eye camp attended; mild prescription change (glasses). NCDs stable.
+—
+T-023 Eye camp
+EVA 36; LOW NEED (Sup validated downgrade)
+November
+Quarterly visit. Stable. Geeta now copes well; caregiver support group continued as peer.
+—
+T-021 Caregiver support — Geeta now peer-supporting others
+EVA 34; LOW
+December
+Family event — daughter visited. No issues.
+—
+—
+EVA 33; LOW
+January
+Annual review. Stable through Year 1. Considered for peer mentor role for other Moderate elders.
+T-024 Peer mentor enrolment (optional)
+—
+EVA 32; LOW; trajectory positive
+February
+Routine.
+—
+—
+EVA 32; LOW
+March
+Year-end review. Moved to LOW NEED definitively. Geeta no longer flagged for burnout; Sarojamma now mentors two other elders informally.
+—
+T-024 Peer mentor (now informal active)
+EVA 31; LOW stable
+Sarojamma's year illustrates the rhythm of a moderate case: stable household, identifiable specific tasks, a setback (joint flare) handled routinely, and gradual improvement enabling tier reduction. Total tasks opened: 5. The household-level work — supporting the caregiver — was as important as the elder-level work. Caregiver Geeta moving from burden to peer-supporter is a programme-level success not captured in EVA scoring.
+4.3  Muniyappa — Tier 3, Stable transitioning to Low Need
+Profile at baseline (April):
+	•	82 years old, male, lives with wife Saroja in JBN settlement, Bangalore.
+	•	Heart condition (controlled), BP (controlled), all medication regular at Government Hospital.
+	•	Mobile within slum; sells small items occasionally; receives Old Age Pension regularly.
+	•	IVS triggered EVA due to Q4 (heart condition) but EVA showed strong stability.
+	•	EVA total: 18 (Stable & Self-Managing).
+Month-by-month trajectory
+Month
+Events & Visits
+Tasks Opened
+Tasks Closed
+Status
+April
+Baseline. Marked Stable. Peer mentor role offered and accepted (paired with Ramaiah, a Tier 1 elder in nearby lane).
+T-030 Peer mentor pairing
+—
+EVA 18; STABLE
+May–June
+3-monthly cadence. Routine engagement; visiting Ramaiah weekly. Continues hospital visits self-managed.
+—
+—
+EVA 17; STABLE
+July
+Wife Saroja hospitalised briefly for fever. Muniyappa managed home alone for 4 days; CO checked in twice; settlement leader briefed.
+T-031 Wife illness — Saroja own EVA initiated
+—
+EVA 19; STABLE
+August
+Saroja recovered. Muniyappa unaffected. Quarterly visit.
+—
+T-031 Saroja recovered
+EVA 17; STABLE
+Sept–Nov
+Routine. Mentor role active — Ramaiah's family appreciates Muniyappa's regular visits. Programme cites this informally at quarterly review.
+—
+—
+EVA 17; STABLE
+December
+Festive season. Both well.
+—
+—
+EVA 16; STABLE
+Jan–March
+Annual EVRAT re-run in March. Muniyappa stable. Saroja still well. Continues peer mentor role.
+—
+—
+EVA 16; STABLE confirmed
+Muniyappa's year illustrates that the Stable category is not 'nothing happens.' He is doing programme work — mentoring Ramaiah — that the programme could not afford to do at the same intensity for him directly. His engagement extends programme reach and dignifies his role. Total programme-led tasks: 1 (mentor pairing). His informal contribution to Ramaiah's case is significantly more than the programme's direct work on his case.
+
+Part 5  •  Flow Diagrams
+Four flow diagrams visualise the operational logic. The master flow shows the complete assessment → care plan → reassessment cycle. Three sub-flows address high-stakes scenarios where deviation from the standard cadence is required: abuse/safety concerns, acute medical deterioration, and palliative care.
+5.1  Master Flow — Assessment to Care Plan to Reassessment
+This is the complete cycle every elder goes through, from first identification to ongoing reassessment. Yellow nodes are forms or items completed; green nodes are categorical outcomes; orange nodes are critical-path actions; diamonds are decisions.
+
+5.2  Abuse / Safety Flag Protocol
+When abuse or violence concerns are flagged (EVA Q16 score ≥2 or critical risk flag ticked), the protocol below is mandatory. The CO does not act alone — supervisor and city lead carry case ownership. The elder's safety, and protection from disclosure to the perpetrator, override all other timelines.
+
+5.3  Acute Deterioration / Urgent Medical Protocol
+When urgent medical concern is flagged or EVA Q13b scores 3 (urgent attention needed), or any visible acute deterioration is observed at a visit, the protocol below activates.
+
+5.4  Palliative / End-of-Life Pathway
+When palliative or end-of-life need is flagged — through severe chronic illness, progressive decline, or terminal condition identification — the pathway shifts from cure-oriented care to comfort, dignity, and family support.
+
+
+Part 6  •  Operations & Resourcing
+The Elderly Programme operates through three delivery layers — the Centre, the Community Kitchens, and Home Visits — supported by a partner ecosystem of government services, NGOs, and helplines. This part specifies how each layer functions, the staffing pattern, the partnership map, and the governance cadence. The resourcing math is exposed so it can be challenged, refined, and replanned. A companion Excel calculator allows the reader to vary assumptions and see resourcing implications change in real time.
+6.1  The Three Delivery Layers
+Layer 1 — The Centre (9 AM to 5 PM)
+One dedicated Elderly Resource Centre serves the catchment area of 500 elders. The centre is staffed by a Centre In-charge and a Helper, with a Kitchen In-charge overseeing community kitchen operations across the settlements.
+Function
+Description
+Daily nutrition
+Breakfast, lunch, and snack served to ~30–60 ambulant elders who choose to visit (10–15% of catchment)
+Engagement activities
+Reading, games, exercise, conversation, festival celebrations, group medical check-ups when arranged
+Walk-in support
+Elders or family members can drop in for help with referrals, queries, or just to talk
+Caregiver support groups
+Monthly group sessions for caregivers; respite venue if needed
+Group medical camps
+Periodic blood pressure, sugar, eye, and ENT camps in partnership with PHC/NGOs
+Peer mentor coordination
+Stable elders enrolled as mentors meet here for briefing and debrief
+Programme team workspace
+COs use the centre as base when not in field; weekly team huddle held here
+Layer 2 — Community Kitchens (in slum)
+Community kitchens are run by women identified and supervised by the elderly team. They prepare and deliver daily meals to home-bound elders within the settlement. The Kitchen In-charge (₹25k/month role) is responsible for setting up, training, and overseeing kitchen operations across the catchment.
+Function
+Description
+Daily meal delivery
+One hot meal delivered to home-bound elders enrolled (Profound + High Need primary beneficiaries; Moderate Need on need basis)
+Wellness check
+Kitchen women report any concerns observed during delivery — non-response at door, distress, change in condition — to CO same day
+Soft food adaptation
+For elders with chewing difficulty, customised preparation
+Locally rooted
+Women cooks are from the same settlement as the elders they serve, ensuring cultural fit and continuity
+Operational oversight
+Kitchen In-charge inspects each kitchen at least weekly; supplies, hygiene, payments, quality monitored
+Typical configuration: 3–5 community kitchens per centre catchment, each serving 15–25 home-bound elders, run by 1–2 women per kitchen.
+Layer 3 — Home Visits
+Home visits are conducted by Community Organisers at cadences defined by EVRAT category. This is where assessment, reassessment, care plan progression, and most direct elder contact happens.
+Visit Type
+Duration
+Frequency by Category
+Full EVRAT / reassessment
+45–60 minutes
+At baseline; per cadence below
+Routine care plan visit
+25–30 minutes
+Profound: 2–3×/week | High: fortnightly | Moderate: monthly | Low: quarterly | Stable: 3-monthly
+Wellbeing check (brief)
+10–15 minutes
+Profound: 1 brief check + 1–2 full visits/week | Others: as part of routine
+Event-triggered visit
+Variable
+Within 48 hours of fall/hospitalisation/abuse/caregiver crisis
+Joint visit with supervisor
+60 minutes
+Quarterly for Profound + flagged cases
+6.2  Staffing Pattern (per 500-elder catchment)
+The current budget (₹32.65 lakh/year, supervisory costs excluded) provides for the following staffing pattern. The resourcing calculator allows variation.
+Role
+Number
+Reports to
+Primary responsibility
+Centre In-charge (Elderly Resource Centre)
+1
+Supervisor / Programme Manager (outside this budget)
+Centre operations, daily activities, caregiver groups, walk-in support, team coordination
+Community Organiser – Elderly (CO)
+1 currently budgeted
+Centre In-charge
+Home visits, assessments, care plan execution, kitchen liaison, entitlements referrals
+Community Kitchen In-charge (KI)
+1
+Centre In-charge
+Kitchen women recruitment, training, supervision, supplies, quality
+Community Kitchen Women (paid honorarium)
+4–8 across kitchens
+Kitchen In-charge
+Daily meal preparation and delivery; wellness check during delivery
+Centre Helper
+Implied in budget (community volunteers honoraria pool may include this)
+Centre In-charge
+Centre cleaning, food serving, supporting activities
+Community Volunteers / Peer Mentors
+Variable (Stable elders + community members)
+CO + Centre In-charge
+Light-touch support, mentoring of vulnerable elders, settlement-level connection
+6.3  Resourcing Math — A Direct Conversation
+This section surfaces a known tension in the current resourcing plan. The math is exposed so it can be discussed transparently. The companion Excel calculator allows assumptions to be varied; the conclusions below use defaults aligned with EVRAT cadences.
+CO load calculation at EVRAT cadences
+Assuming a 500-elder catchment distributed 15/20/30/20/15% across Profound/High/Moderate/Low/Stable:
+Category
+Count
+Visits per week per elder
+Total weekly visits
+Avg time per visit (incl. travel + doc)
+Profound Need
+75
+2.5 (avg of 2–3)
+187.5
+50 min
+High Need
+100
+0.5 (fortnightly)
+50
+50 min
+Moderate Need
+150
+0.25 (monthly)
+37.5
+50 min
+Low Need
+100
+0.077 (quarterly)
+7.7
+50 min
+Stable & Self-Managing
+75
+0.058 (3-monthly)
+4.4
+50 min
+TOTAL
+500
+—
+≈ 287 visits/week
+—
+At ≈287 visits per week × 50 minutes per visit = 239 CO-hours of visit work per week. Add roughly 20% for case notes, team meetings, kitchen liaison, and unscheduled events = 287 hours/week of elderly-team work.
+A single CO realistically delivers about 30 productive hours per week (accounting for leave, training, meetings, travel between sites). At this rate, 287 hours / 30 hours = approximately 9–10 COs needed for 500 elders at the EVRAT-defined cadences.
+The current budget funds 1 CO. The gap is structural — not a matter of effort, but of arithmetic.
+Three response scenarios
+There are three honest ways to close this gap. The calculator implements all three so the donor-implementer team can model and choose.
+Scenario
+Approach
+Implication on unit cost
+Scenario A — Honour the cadences as defined
+Fund 8–10 COs per 500-elder catchment. Maintain visit frequencies per EVRAT.
+Programme delivery cost rises significantly (≈ 4× current budget for staffing). Per-catchment-elder unit cost rises from ₹6,530/year to roughly ₹25,000–₹30,000/year.
+Scenario B — Soften the cadences
+Reduce Profound from 2–3×/week to weekly; High from fortnightly to monthly; Moderate to quarterly. Maintains 1–2 COs per centre.
+Unit cost stays near current. Risk: programme commitments in EVRAT Guidelines Section 17 are not honoured. Quality of Profound Need response weakens.
+Scenario C — Hybrid with community volunteers and peer mentors
+Funded COs handle Profound + High + first-contact Moderate. Stable peers and trained settlement volunteers handle Low + Stable check-ins under CO supervision. Kitchen women act as daily check for Profound.
+Unit cost moderate. Requires investment in volunteer training, peer mentor honorarium, and supervisory structure for non-staff actors. CO count ~3–4 per 500-elder catchment.
+Janadhikara has stated that money is not the constraint; unit cost is. The decision is therefore not 'can we afford it' but 'what unit cost is defensible for the depth of care committed in EVRAT.' Scenarios A and C produce defensible cost-per-elder figures that fund the care promised. Scenario B reduces cost by reducing care. The calculator allows the team to test each.
+Centre and Kitchen In-charge load
+The Centre In-charge oversees one centre serving ~30–60 daily attendees, coordinates the team, manages caregiver groups, and handles walk-ins. At 30–60 attendees daily plus team coordination, the 1-Centre-In-charge + 1-Helper model is feasible if the centre's scope stays at daily activities, not entitlement processing or clinical work.
+The Kitchen In-charge oversees 3–5 community kitchens. At weekly inspection per kitchen + supply coordination + payments + quality issues, this is roughly 25 hours/week of work — feasible as a full role. Caution: if kitchens scale beyond 5, a second Kitchen In-charge becomes necessary.
+6.4  Partner Ecosystem — Required Referral Pathways
+The elderly team cannot deliver care alone. The following partnerships must be established and maintained for the programme to function:
+Partner Type
+Specific Partners (examples)
+Purpose
+Status
+Primary Health Care
+PHC / UPHC (Bangalore: BBMP UPHCs; Chennai: Greater Chennai Corporation PHCs); BBMP / GCC referrals
+NCD management, home visits for frail elders, medication continuity, referrals
+Active — formalise MoU
+Geriatric specialty
+NPHCE-linked geriatric clinics at CHC level; AIIMS-NIMHANS for cognitive concerns
+Specialised geriatric assessment and follow-up
+To be mapped per city
+Eye care
+Aravind Eye Hospital outreach (TN); Sankara Eye Hospital (KA); Govt eye hospitals; LV Prasad
+Cataract camps, surgeries, vision aids
+Approach for quarterly camps
+ENT / hearing
+Govt hospital ENT departments; NGOs distributing hearing aids
+Hearing aid procurement; ENT referrals
+Establish quarterly camp arrangement
+Mental health
+PHC counsellors (DMHP); NIMHANS Centre for Wellbeing (KA); SCARF (TN); Manas Foundation; Anjali
+Depression, dementia, counselling, family support
+Identify city-specific partner
+Palliative care
+Pallium India; Karunashraya (KA); RMD Pain & Palliative (TN); HelpAge India home-based programmes
+Palliative referrals, pain relief, dignity-in-dying support
+Identify partner; MoU for case-by-case referrals
+Women's safety / GBV
+Women's Helpline 181; SAKHI One-Stop Centres; local women's NGOs
+GBV cases involving elder women
+Verify helpline reach and response time
+Elder helpline
+Elder Line 14567 (national); HelpAge India Helpline
+General elder distress, abuse, isolation
+Brief COs on use cases
+Disability certification
+Govt disability board; UDID portal
+Sensory and mobility disability certificates
+Referral pathway via Entitlements Team
+Entitlements
+Internal — Janadhikara Entitlements Team
+Aadhaar, Voter ID, Ration, Pension, SC card, Bank, Disability certificate, Widow pension etc.
+Active — protocol below
+Settlement leadership
+Settlement leaders / RWAs / informal community leaders
+Emergency response, neighbour identification, kitchen women recruitment
+Built case-by-case
+Mobility aids supply
+Govt distribution schemes; NGO partners (HelpAge, BBA); commercial vendors
+Sticks, walkers, wheelchairs, commodes, diapers, air mattresses
+Bulk procurement arrangement
+6.5  Elderly Team → Entitlements Team Referral Protocol
+The Entitlements Team is a separate Janadhikara team operating in parallel. The elderly team identifies entitlement gaps during EVRAT and refers cases. The protocol governing this handoff:
+Step
+Action
+Owner
+Timeline
+Identification
+CO identifies entitlement gap during EVRAT (Q20 score 2+, or critical flag, or self-report)
+CO
+At assessment
+Referral creation
+CO opens Section E2 task with type 'Referral to Entitlements Team' and full case detail (elder ID, settlement, specific entitlement, known blocker if any, urgency)
+CO
+Same day
+Handoff
+Referral logged in shared MIS (Pitstops or equivalent); ET acknowledges within 3 working days
+CO → ET
+3 days
+ET processes
+ET conducts entitlement workflow (e-Sevai / Seva Sindhu / scheme office / bank); progress logged in shared MIS
+ET
+Per entitlement SLA
+CO tracks
+CO checks task status at each visit; if ET status is 'stuck' beyond 30 days, CO + ET joint review
+CO + ET
+Monthly
+Resolution
+When entitlement is received, ET updates task to 'Done'; CO confirms at next visit and updates elder's record
+ET → CO
+On resolution
+Failure escalation
+If entitlement stuck >90 days without progress, joint escalation to Sup + ET Lead; review whether the case needs external escalation (RTI, grievance officer, MLA office, media as last resort)
+Sup + ET Lead
+Quarterly review
+6.6  Governance Cadence
+Frequency
+Forum
+Attendees
+Purpose
+Daily (informal)
+Kitchen women → CO check-in
+Kitchen women, CO
+Any concerns observed during meal delivery
+Weekly
+Team huddle at centre
+Centre In-charge, CO, Kitchen In-charge
+Week's caseload, overdue visits, stuck tasks, urgent flags
+Fortnightly
+Supervisor case review
+Supervisor, Centre In-charge, CO
+Profound + High + critical-flag cases in depth
+Monthly
+Programme review
+Programme Manager, Centre In-charge, Sup, ET Lead
+Dashboard metrics, partner relationships, escalations, staffing
+Quarterly
+Programme + community review
+Programme Manager, City Lead, CO team, settlement representatives, partner reps
+Outcomes vs targets, community feedback, qualitative review with elders, partnership effectiveness
+Annually
+Outcome and resourcing review
+City Lead, Programme Manager, donor team, partners
+Year's outcomes, unit cost analysis, scenario re-planning, calibration check
+6.7  Material Resources
+Beyond staffing and food, the programme requires standing supplies. Recommended baseline (some are in current budget; others recommended additions):
+Item
+Estimated annual requirement (per 500-elder catchment)
+Status in current budget
+Walking sticks
+30–40 units
+Not separately budgeted; suggest add
+Walkers / wheelchairs
+10–15 units
+Not separately budgeted; suggest add
+Commodes / bedside aids
+10–15 units
+Not separately budgeted; suggest add
+Diapers (adult)
+≈ 150 packs/month for Profound Need
+Not separately budgeted; suggest add
+Air mattresses / pressure relief
+5–10 units
+Not separately budgeted; suggest add
+Emergency dry ration kits
+20–30 kits/year for crisis response
+Partial — under Dry Ration line
+First-aid + dressing supplies
+Centre stock + CO carry kit
+Not separately budgeted; suggest add
+BP machines + glucometers
+1–2 per centre; strips for ongoing use
+Not separately budgeted; suggest add
+Identification bands (for dementia)
+20–30 units
+Not separately budgeted; suggest add
+MIS / data tools (Pitstops licence, mobile devices)
+Per CO and team
+Not separately budgeted; suggest add
+Transport contingency (for elder emergencies)
+Annual fund
+Not separately budgeted; suggest add
+Training & calibration (annualised)
+Once-off + quarterly
+Not separately budgeted; suggest add
+
+Part 7  •  Year-One Workplan
+This is the month-by-month rollout calendar for Year 1 of the programme in any new catchment (or for the first formalised year in an existing catchment moving to the EVRAT framework). Adjust dates to actual programme calendar.
+Month
+Key Activities
+Outputs
+Month 0 (preparation)
+Centre identified and set up. CO + Centre In-charge + Kitchen In-charge recruited and oriented. Partner mapping initiated (PHC, eye/ENT, mental health, palliative, entitlements). Pre-rollout calibration of EVRAT — 3 COs assess 5 elders independently; agreement measured; definitions refined.
+Centre operational; team in place; partner contact list drafted; calibration passed
+Month 1
+Settlement mapping with informal community leaders. First-pass household listing of elders. Begin baseline EVRATs (target 80 elders in Month 1). Kitchen women identification begins.
+Elder Registry initiated; first 80 baselines complete
+Month 2
+Continue baselines (target cumulative 140). First community kitchens set up (1–2). Centre activities begin (community kitchen meal delivery + 9–5 engagement). Caregiver support group first session.
+140 baselines; 2 kitchens running; centre engagement begun
+Month 3
+Continue baselines (target cumulative 200). Third kitchen set up. First quarterly review — outcomes, partner status, case stuck-task analysis.
+200 baselines; 3 kitchens; first quarterly review held
+Month 4
+Mapping nearing completion (target cumulative 260). Care plans in execution. First wave of Profound cases reassessed (fortnightly cadence by now). Eye/ENT camp first attempt.
+260 baselines; eye/ENT camp delivered; first reassessments complete
+Month 5
+Cumulative 340. Centre attendance pattern visible. Kitchen operations stable. First entitlement pipeline outcomes (pension/ration) for Tier 1 referrals.
+340 baselines; first entitlement wins documented
+Month 6
+Cumulative 400. Second quarterly review — half-year outcomes vs targets. First downgrades possible (with supervisor validation). Peer mentor cohort first formal cohort (8–12 Stable elders).
+400 baselines; peer mentor cohort active
+Month 7
+Cumulative 460. Mapping near completion. Quarterly calibration of EVRAT (2 COs jointly assess same elder).
+460 baselines; quarterly calibration passed
+Month 8
+Mapping complete (500 elders). Full catchment in active programme. Care plans steady-state.
+500 elders in active programme
+Month 9
+Third quarterly review — three-quarter outcomes. Identify cases stuck (entitlements, referrals, family resistance) for escalation.
+Q3 review; escalation list resolved
+Month 10
+Steady-state. Annual eye/ENT camp second iteration. Caregiver support groups now established as monthly rhythm.
+Second eye/ENT camp; ongoing operations
+Month 11
+Steady-state. Pre-annual review data gathering — outcomes, unit cost, scenario re-planning.
+Annual review data ready
+Month 12
+Annual review. Outcomes documented. Unit cost computed against budget. Scenarios for Year 2 modelled in calculator. Community feedback session with elders themselves.
+Annual review complete; Year 2 plan drafted
+Annual Outcome Indicators
+These are the headline indicators against which Year 1 is reviewed.
+Domain
+Indicator
+Year 1 Target
+Coverage
+Catchment elders mapped with baseline EVRAT
+≥95% (475 of 500)
+Coverage
+Catchment elders with at least one reassessment
+≥85% (425 of 500)
+Cadence
+Profound Need cases meeting visit schedule (≤7 days deviation)
+≥80%
+Cadence
+High Need cases meeting visit schedule
+≥85%
+Care plan
+Tasks closed (Done) as % of tasks opened
+≥60%
+Care plan
+Tasks stuck >90 days as % of open tasks
+≤15%
+Entitlements
+Entitlements referrals resolved within 90 days
+≥50%
+Health
+Profound Need elders with regular PHC linkage
+100%
+Health
+NCD elders with regular medication (Q12 ≤ 1)
+≥75%
+Sensory
+Identified cataract cases completed surgery within 90 days
+≥70%
+Nutrition
+Severe undernutrition cases (Q18a=3) improved by ≥1 score within 90 days
+≥80%
+Safety
+Critical safety flags with safety plan documented within 72 hours
+100%
+Mental health
+Severe depression cases with mental health referral within 14 days
+100%
+Caregiver
+Caregiver burnout flagged cases with respite arranged within 14 days
+≥80%
+Programme
+Tier downgrades (Profound → High, etc.) with supervisor validation
+100% (no unvalidated downgrades)
+Operations
+Quarterly calibration sessions held
+All 4 quarters
+Operations
+Annual elder feedback session held
+Yes
+These indicators are illustrative defaults. The donor-implementer team and partner organisations will set agreed targets at the start of each year. Achievement against targets is the primary annual review currency, alongside the unit cost analysis from the resourcing calculator.
+
+Closing Note
+This operations document, the EVRAT assessment instrument and operational guidelines (v4 redrafts), and the Resourcing & Unit Cost Calculator together form the programme operating standard for Janadhikara's Elderly Care Programme across Bangalore and Chennai.
+The documents are designed to be living: revised annually based on field learning, calibration findings, and outcome data. Changes are reviewed by the donor-implementer team in consultation with partner organisations and, where possible, with elder representatives themselves.
+The core commitment is this: vulnerability identified is vulnerability acted on, within timeframes that honour the dignity of the elder and the realities of the field. The categorisation system, the care plan logic, the partner ecosystem, and the resourcing math exist to make that commitment operational and reviewable.
+
+— End of document —

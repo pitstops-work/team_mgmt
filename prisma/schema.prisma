@@ -123,6 +123,11 @@ model User {
   manualSectionsEdited      WikiManualSection[]            @relation("WikiManualSectionEditor")
   manualEntriesObserved     WikiPracticeEntry[]            @relation("WikiPracticeEntryObserver")
   manualEntriesPromoted     WikiPracticeEntry[]            @relation("WikiPracticeEntryPromoter")
+  // Wiki articles (v2 — programme-spine reference content; replaces /wiki landing)
+  wikiArticlesCreated       WikiArticle[]                  @relation("WikiArticleCreator")
+  wikiArticlesUpdated       WikiArticle[]                  @relation("WikiArticleUpdater")
+  wikiArticlesArchived      WikiArticle[]                  @relation("WikiArticleArchiver")
+  wikiArticleVersionsSaved  WikiArticleVersion[]           @relation("WikiArticleVersionSaver")
   // Action points (visit follow-ups)
   ownedActionPoints         ActionPoint[]                  @relation("ActionPointOwner")
   createdActionPoints       ActionPoint[]                  @relation("ActionPointCreator")
@@ -3000,4 +3005,118 @@ model ActionPoint {
   @@index([pitstopId])
   @@index([goalId])
   @@index([status, dueDate])
+}
+
+// ── Wiki v2 — Articles + Spine ─────────────────────────────────────────────
+// New programme-reference wiki. Each programme has a spine (e.g. the EVRAT
+// questionnaire for Elderly) of question articles; each question links to
+// companion articles in 3 panels (guideline / care_plan / action_manual).
+// Articles are atomic units of content: edit once → reflected everywhere they
+// appear. The Fork action duplicates an article when a question genuinely
+// needs divergent content. See /Users/vishnuharikumar/.claude/plans/async-snacking-hippo.md.
+
+model WikiArticle {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  title         String
+  // 'question' | 'guideline_appendix' | 'care_plan_derivation' | 'pathway'
+  // | 'template' | 'chapter' | 'framework' | 'flag_protocol'
+  kind          String
+  // Matches NeedsFormulaConfig.domain. 'Elderly' for v1.
+  programDomain String
+  // TipTap JSON doc. Preserves mentions (wikilinks), tables, formatting.
+  contentJson   Json
+  // Sort within kind for category pages.
+  naturalOrder  Int       @default(0)
+
+  // Soft-delete. Lists, spines, categories, search all filter archivedAt: null.
+  archivedAt   DateTime?
+  archivedById String?
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedById  String
+  updatedAt    DateTime  @updatedAt
+  // Set on Fork — points to the article this one was forked from. Lets us
+  // trace lineage; does NOT propagate edits.
+  forkedFromId String?
+
+  createdBy   User                 @relation("WikiArticleCreator", fields: [createdById], references: [id])
+  updatedBy   User                 @relation("WikiArticleUpdater", fields: [updatedById], references: [id])
+  archivedBy  User?                @relation("WikiArticleArchiver", fields: [archivedById], references: [id])
+  forkedFrom  WikiArticle?         @relation("WikiArticleForks", fields: [forkedFromId], references: [id])
+  forks       WikiArticle[]        @relation("WikiArticleForks")
+  versions    WikiArticleVersion[]
+  // Links FROM this article (where this is the question; targets show in fork panels).
+  outboundLinks WikiArticleLink[]  @relation("WikiArticleLinkFrom")
+  // Links TO this article (where this article appears in someone else's fork panel).
+  inboundLinks  WikiArticleLink[]  @relation("WikiArticleLinkTo")
+  spineEntries  WikiSpineEntry[]
+
+  @@index([programDomain, kind, naturalOrder])
+  @@index([archivedAt])
+  @@index([forkedFromId])
+}
+
+model WikiArticleVersion {
+  id            String   @id @default(cuid())
+  articleId     String
+  versionNumber Int
+  title         String
+  contentJson   Json
+  savedAt       DateTime @default(now())
+  savedById     String
+  // Optional change note ("first draft", "fixed typo in para 3", etc.)
+  summary       String?
+
+  article WikiArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  savedBy User        @relation("WikiArticleVersionSaver", fields: [savedById], references: [id])
+
+  @@unique([articleId, versionNumber])
+  @@index([savedById])
+}
+
+model WikiArticleLink {
+  id            String @id @default(cuid())
+  // The question article (where the fork buttons live).
+  fromArticleId String
+  // The content article shown in the panel.
+  toArticleId   String
+  // 'guideline' | 'care_plan' | 'action_manual'
+  panel         String
+  // Order within the panel for this question.
+  ordinal       Int    @default(0)
+
+  from WikiArticle @relation("WikiArticleLinkFrom", fields: [fromArticleId], references: [id], onDelete: Cascade)
+  to   WikiArticle @relation("WikiArticleLinkTo",   fields: [toArticleId],   references: [id], onDelete: Cascade)
+
+  @@unique([fromArticleId, toArticleId, panel])
+  // Backlinks ("appears on N questions") + reverse fork-panel lookups.
+  @@index([toArticleId, panel])
+  @@index([fromArticleId, panel, ordinal])
+}
+
+model WikiSpine {
+  id            String @id @default(cuid())
+  // e.g. 'elderly-evrat-v4'
+  slug          String @unique
+  title         String
+  programDomain String
+
+  entries WikiSpineEntry[]
+  @@index([programDomain])
+}
+
+model WikiSpineEntry {
+  id           String  @id @default(cuid())
+  spineId      String
+  ordinal      Int
+  articleId    String
+  // Null = no header break; otherwise render as section header above this entry.
+  sectionLabel String?
+
+  spine   WikiSpine   @relation(fields: [spineId], references: [id], onDelete: Cascade)
+  article WikiArticle @relation(fields: [articleId], references: [id])
+
+  @@unique([spineId, ordinal])
+  @@index([spineId])
 }

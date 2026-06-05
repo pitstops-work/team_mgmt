@@ -1,0 +1,111 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-chapter-1-family-meeting",
+      "title": "Ch 1 — Holding a family meeting & caregiving agreement",
+      "kind": "chapter",
+      "naturalOrder": 901,
+      "content": [
+        "Getting the family together to agree, out loud, on who looks after the elder and how — so care does not fall on one exhausted person or fall through the cracks entirely.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When caregiving is patchy or unclear (Q6 = 2), or when one family member is carrying everything and others are absent.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Find out first, quietly, who actually does the caring now — not who is supposed to, but who really does. It is often one woman: a wife, a daughter-in-law.",
+          "Ask the elder who they trust and who they want help from. Their answer comes first.",
+          "Pick a time the working family members are home — usually evening. Tell them it is a short, friendly conversation about amma/appa, not a complaint session.",
+          "Sit with the whole family together. Name the care tasks plainly: meals, medicines, bathing, toilet, company, money. Ask: who can take which?",
+          "Push gently for backup. If only one person is named for everything, that person will break. Ask who is the second pair of hands.",
+          "Write the agreement down simply — who does what, on what days — and read it back so everyone hears it. Leave a copy in the house.",
+          "Set a date to check back. An agreement nobody revisits dies in a week."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "In a 180-sq-ft home with everyone working daily wage, there may be no slack at all — the family is not unwilling, they are stretched to breaking. Do not moralise. Look for what is actually possible, and fill the rest with kitchen, centre, and your own visits.",
+        { "h": 2, "text": "DIGNITY" },
+        "Talk about the elder, with the elder present and included — never over their head as if they are furniture. Ask their view at every step. They ran a household once; they are not a task on a list.",
+        { "h": 2, "text": "DO NOT" },
+        "Do not shame the family or take sides in front of everyone. If you turn the meeting into blame, the door closes and the elder loses their advocate inside the house.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The family has named who does what, there is a written copy in the home, a backup person exists, and you have a date to check it is holding."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-2-training-caregiver",
+      "title": "Ch 2 — Training a caregiver",
+      "kind": "chapter",
+      "naturalOrder": 902,
+      "content": [
+        "Teaching the family member (or paid helper) who looks after the elder the practical skills to do it safely and without hurting themselves or the elder.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "Whenever an elder needs hands-on help — bathing, lifting, medicines, a bedridden elder. Especially when a fall, illness, or new dependency has just changed things.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Watch how the caregiver does it now, before teaching. They have been managing; respect that, and build on it.",
+          "Teach the few things that matter most, by showing, not lecturing: how to help an elder up without hurting either back; how to turn a bedridden elder; how to keep skin dry; how to give medicines on time.",
+          "Have the caregiver do it while you watch, and correct gently. People learn with their hands, not their ears.",
+          "Write or draw the medicine routine and stick it on the wall where it is seen daily.",
+          "Tell them plainly what danger signs mean 'call me or the PHC today' — fever, a wound, not passing urine, sudden confusion, a fall.",
+          "Come back within a week to check the skills stuck, and to encourage. Praise what they are doing right."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "The caregiver is often herself tired, unwell, or also caring for children. Teaching her is also caring for her — ask how she is managing. A caregiver who feels seen will keep going; one who feels used will not.",
+        { "h": 2, "text": "DIGNITY" },
+        "Teach in a way that lets the elder keep doing what they still can. Never train the caregiver to do FOR the elder what the elder can still do themselves — that steals independence and speeds decline.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The caregiver can do the key tasks safely while you watch, knows the danger signs and whom to call, and the medicine routine is on the wall."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-3-caregiver-respite",
+      "title": "Ch 3 — Arranging caregiver respite & support",
+      "kind": "chapter",
+      "naturalOrder": 903,
+      "content": [
+        "Giving the main caregiver a break and a circle of support, so they do not burn out and start — without meaning to — neglecting the elder.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the caregiver shows strain (Q6b = 2) or burnout (Q6b = 3): exhausted, short-tempered, sleepless, unwell, or saying they cannot manage.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Talk to the caregiver alone, kindly. Ask how THEY are — not how the elder is. Let them say the hard thing.",
+          "Find a few hours of relief: another family member to take a shift, a neighbour to sit, or the elder attending the centre for a day.",
+          "Connect them to other caregivers — the caregiver support group at the centre. Knowing others carry the same weight lightens it.",
+          "If burnout is severe, treat it as urgent: arrange the respite within two weeks, bring in the supervisor, and look at sharing the load across the family.",
+          "Check the medicines and the elder's basic care are still happening while the caregiver is stretched — burnout is where quiet neglect begins.",
+          "Keep checking on the caregiver, not just the elder, at every visit."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "The daughter-in-law caring for a bedridden elder while raising children is at the highest risk and the least likely to complain — complaining can cause family trouble for her. Ask her directly and privately. An aged spouse caring for another aged spouse is just as fragile.",
+        { "h": 2, "text": "DIGNITY" },
+        "Respite is not a luxury or a weakness. Say so plainly to a guilty caregiver: 'Resting so you can keep caring is part of caring.'",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The caregiver has real, regular relief; is connected to other caregivers; and the elder's basic care is confirmed to be holding."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-4-no-caregiver",
+      "title": "Ch 4 — When there is no caregiver",
+      "kind": "chapter",
+      "naturalOrder": 904,
+      "content": [
+        "Building a patchwork of support around an elder who lives alone or has no one reliable — so they are not left to manage a failing body by themselves.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder lives alone with no dependable support (Q21 = 3), or the critical flag 'no dependable caregiver' is raised.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Map who is already nearby: a neighbour who looks in, a shopkeeper who knows them, a distant relative, the settlement leader. Even loose connections matter.",
+          "Ask the elder who they would call in trouble — and whether that person actually answers.",
+          "Build a daily touch-point: the community kitchen meal delivery doubles as a daily check that the elder is alright; centre attendance if they can walk there.",
+          "Identify one willing neighbour as the 'first call' and make sure they have your number and the elder agrees.",
+          "Where there is genuinely no one and the elder is dependent, raise with the supervisor whether a paid community caregiver (a trusted local woman, small honorarium) can be arranged.",
+          "Make your own visits more frequent and reliable — for this elder, you are part of the safety net."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "An elder living alone is not always lonely or in danger — some are at peace and capable. Do not impose help that wounds their pride. But a dependent elder living alone with no one is a quiet emergency. Tell the two apart by watching, and by asking them.",
+        { "h": 2, "text": "DIGNITY" },
+        "Living alone can be a choice and a strength, not only a problem. Honour the elder who manages alone and wants to. Offer the net without insisting they are helpless.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder has at least one reliable contact within a few minutes' reach, a daily touch-point exists, and you and a named neighbour both watch over them."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-chapter-10-phc-linkage",
+      "title": "Ch 10 — Linking an elder to the PHC / UPHC",
+      "kind": "chapter",
+      "naturalOrder": 910,
+      "content": [
+        "Connecting the elder to the government primary health centre so their ongoing conditions — BP, sugar, heart, joints — are actually being watched and treated, not just named.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When an elder has chronic illness or several conditions (Q11 = 2), or any health need that the public system should be managing.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Find out where the nearest PHC or urban PHC is, its timings, and which days the doctor sits. Know this for your settlement before you need it.",
+          "Make one consolidated list of the elder's conditions and all medicines, with the family. Confusion about medicines is dangerous and common.",
+          "Take the elder for a first visit — accompany them if they are alone or unsure. The first visit sets whether they will keep going.",
+          "Set up the routine: when is the next check, how often, who takes them. Write it down.",
+          "For a bedridden or frail elder, ask the PHC for a home visit by the ANM or nurse — this is their job and they will often come if asked properly.",
+          "Keep a simple record of visits and what the doctor said, so care continues even if a different CO visits."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Elders drop out of PHC care because it is far, the queue is long, the staff are brusque, or no one reminds them. Your job is to smooth all of that — know the staff, pick the quiet day, arrange the company.",
+        { "h": 2, "text": "DIGNITY" },
+        "The PHC is the elder's right as a citizen, not a charity. Carry yourself — and help them carry themselves — as someone claiming what is theirs, not begging a favour.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder is enrolled at the PHC, has a clear check-up routine that is being kept, a consolidated medicine list exists, and a bedridden elder has a home-visit arrangement."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-11-medicines-regularly",
+      "title": "Ch 11 — Helping an elder take medicines regularly",
+      "kind": "chapter",
+      "naturalOrder": 911,
+      "content": [
+        "Closing the gap between medicines prescribed and medicines actually taken — the gap where most chronic-illness harm happens.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When medicines are taken irregularly (Q12 = 2) or not at all despite being needed (Q12 = 3).",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "First find out WHY they are not taking them — the reason decides the fix. The common reasons: cost, the PHC ran out of stock, they dislike how it makes them feel, they forget, or no one reminds them.",
+          "If cost: link to the PHC for free supply, or to a Janaushadhi store for cheap generics.",
+          "If PHC stockout: escalate to the PHC officer; this is a system failure, not the elder's fault.",
+          "If they dislike a side-effect: do not dismiss it — take them back to the doctor to adjust. A medicine that makes them feel worse will not be taken.",
+          "If forgetting: set up a simple system — a pill box with day compartments, linking doses to daily habits (with morning tea, after dinner), a family member who reminds.",
+          "If no one reminds and they live alone: build the reminder into your visits and the kitchen delivery, and into a neighbour's daily look-in.",
+          "Check back that the fix worked — do not assume. Look at the pill box, count what is left."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "'Are you taking your medicines?' almost always gets 'yes.' Instead, look — count the pills left against the days passed. The truth is in the strip, not the answer.",
+        { "h": 2, "text": "DIGNITY" },
+        "Do not treat an elder like a forgetful child about medicines. Find the real obstacle and remove it. Most 'non-compliance' is a cost or supply or side-effect problem, not stubbornness.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "You know why doses were missed, you have fixed that specific reason, and a check of the actual pills shows the elder is now taking them regularly."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-12-hospital-referral",
+      "title": "Ch 12 — Making a hospital / specialist referral work",
+      "kind": "chapter",
+      "naturalOrder": 912,
+      "content": [
+        "Making sure a referral to a hospital or specialist actually happens — not just that a piece of paper was handed over.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder needs specialist care or a referral is required (Q13b = 2), or any condition the PHC sends onward.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Get clear on exactly where they must go, for what, and by when. A vague referral goes nowhere.",
+          "Sort out the practical barriers before the date: how they will travel, who goes with them, whether they can manage the distance, what it costs.",
+          "Accompany the elder if they are alone, frail, or unsure — a confused, frightened elder sent alone to a big hospital simply turns back. Transport cost is reimbursable.",
+          "Carry the medicine list and any records. Hospitals ask; an elder may not know.",
+          "After the visit, find out what happened and what was advised — follow up at home within a few days. Get the discharge slip or prescription, photograph it.",
+          "Make sure the next step the hospital advised actually gets done — the referral is not finished until its instructions are carried out."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "The referral that fails is almost always the one where no one solved transport and company. An elder will not, cannot, navigate a government hospital alone. That accompaniment is the whole job here.",
+        { "h": 2, "text": "DIGNITY" },
+        "Stay beside the elder in an intimidating hospital — speak for them only when they want you to, never about them as if absent. Let them keep their voice even when frightened.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder actually attended, you know what was advised, the advice is being acted on, and a home follow-up has happened."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-13-eye-ear-camps",
+      "title": "Ch 13 — Eye & ear camps, cataract & hearing aids",
+      "kind": "chapter",
+      "naturalOrder": 913,
+      "content": [
+        "Getting an elder's failing eyes and ears checked and fixed — because cataract blindness and deafness are common, reversible, and quietly destroy an elder's independence and connection.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "When the elder has vision or hearing trouble (Q13a = 2 or 3). High priority when severe — the fix changes their whole life.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Notice the signs: bumping into things, not recognising faces, cloudy eyes (cataract); asking for repetition, speaking too loud, withdrawing from talk (hearing).",
+          "Refer to the next eye or ENT camp, or ask the supervisor to arrange one with a partner hospital for a cluster of elders.",
+          "For cataract: this is day surgery, often free at government or partner eye hospitals, and it gives sight back. Make the surgery actually happen — arrange the date, the travel, the company, the follow-up.",
+          "For hearing: a basic hearing aid is cheap or free through schemes. Get the elder fitted and shown how to use and maintain it.",
+          "Open the disability-certificate route with the Entitlements Team where the loss qualifies — it unlocks aids and benefits.",
+          "Follow through to the actual outcome — the elder seeing, the elder hearing — not just the camp attended."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "An elder 'gone simple' or 'gone quiet' in old age is very often just not seeing or hearing — and is being written off for something fixable. Always check the eyes and ears before assuming the mind.",
+        { "h": 2, "text": "DIGNITY" },
+        "Restoring sight or hearing restores a person to their family and their own life. Treat this as among the most powerful things you can do — because it is.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder has been seen, the cataract operated or the hearing aid fitted, and they can actually see or hear better — confirmed, not assumed."
+      ]
+    },
+    {
+      "slug": "elderly-chapter-14-medical-emergency",
+      "title": "Ch 14 — A medical emergency / sudden deterioration",
+      "kind": "chapter",
+      "naturalOrder": 914,
+      "content": [
+        "Acting fast and right when an elder is suddenly very unwell — the moments where speed saves a life.",
+        { "h": 2, "text": "WHEN YOU DO IT" },
+        "Urgent attention needed (Q13b = 3), or any sudden change: collapse, chest pain, breathing trouble, sudden confusion, a bad fall, stroke signs (face drooping, arm weakness, slurred speech), not waking properly.",
+        { "h": 2, "text": "How to do it" },
+        { "ul": [
+          "Decide fast: is this life-threatening? If yes — call **108** for the ambulance immediately. Do not wait, do not arrange a camp, do not call a meeting.",
+          "Stay with the elder. Keep them calm and comfortable. Do not leave them alone.",
+          "Call the family at once. Call your supervisor as you go.",
+          "If not immediately life-threatening but serious, contact the PHC the same day, arrange transport, and get them seen — do not let it wait for the next scheduled visit.",
+          "Go with them if the family cannot, or follow to the hospital. A frightened elder should not face an emergency alone.",
+          "Afterwards: write down what happened the same day, get the discharge details, and within two days visit home to check medicines and recovery. A hospital stay often changes everything — reassess."
+        ] },
+        { "h": 2, "text": "IN THE SLUM, WATCH FOR" },
+        "Stroke and heart attack are time-critical — every minute counts. Learn the stroke signs (face, arm, speech) and the heart signs (chest pain, sweating, breathlessness) by heart. When unsure, treat it as an emergency.",
+        { "h": 2, "text": "DO NOT" },
+        "Do not try home remedies, do not wait 'to see if it passes,' and do not delay the ambulance to first reach a family member. Call 108 first, then call the family.",
+        { "h": 2, "text": "YOU'RE DONE WHEN" },
+        "The elder got emergency care fast, the family and supervisor were informed, you stayed with them or followed, and you have done the after-care visit and reassessment."
+      ]
+    }
+  ]
+}

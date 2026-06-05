@@ -1,0 +1,596 @@
+
+Chennai Elderly Care Programme
+Elder Vulnerability Rapid Assessment Tool (EVRAT)
+Version 4 — Draft
+Assessment Instrument
+Companion to: EVRAT v4 Operational Guidelines  |  Operations & Care Plan Document  |  Resourcing & Unit Cost Calculator
+Reviewer: Vishnu Harikumar
+All changes from v3 are visibly marked. See 'Summary of Changes' for the full edit list.
+
+Summary of Changes from v3 to v4
+This page lists every change made to EVRAT v3, with reference to where each change appears in the document. Each change is also highlighted inline where it occurs — green blocks indicate additions, red strikethrough blocks indicate removals or replacements, and yellow-shaded comments by Vishnu Harikumar explain rationale at the point of change.
+#
+Change
+Location in v4
+Rationale (short)
+1
+Numeric domain weightages added; scoring formula made explicit
+Implicit in score; explicit in Guidelines Section 8 & 11
+Replaces decorative 'Very High / High' labels with multipliers that actually weight the score
+2
+IVS Q3 split into Q3a / Q3b / Q3c; IVS Q4 split into Q4a / Q4b / Q4c
+Part A: IVS table
+Compound items hurt inter-rater reliability; splitting forces each domain into its own score
+3
+Baseline-once vs. visit-update markers added to every field ([B] / [V] / [B/V])
+All sections
+Converts the tool from snapshot to longitudinal; tells COs which fields to re-fill each visit
+4
+Q10 split into Q10a (falls history) and Q10b (fear of falling)
+Domain 2: Functional Dependency & Mobility
+Falls history is the strongest predictor of future falls; fear of falling needs different response
+5
+Q15 split into Q15a (PHQ-2 depression screen) and Q15b (loneliness/isolation); 2-week anchor; severe depression added as critical-risk flag; privacy note added
+Domain 4: Cognitive & Emotional
+Depression and loneliness are distinct; 2-week anchor improves reliability; sensitive — ask privately
+6
+Q8 replaced with Q8a (ADL count, 6 activities) and Q8b (IADL count, 5 activities)
+Domain 2: Functional Dependency & Mobility
+ADL/IADL are global geriatric standards; produces an objective dependency number
+7
+Q13a added (sensory function — vision and hearing); critical-risk flag added for severe untreated sensory loss
+Domain 3: Health & Medical
+Cataract and presbycusis are major preventable disability drivers in Indian slum elders; both operable
+8
+Q18a added (nutrition status — visible wasting and chewing difficulty); critical-risk flag added for severe undernutrition
+Domain 6: Food & Financial Security
+Food access ≠ nutrition status; wasting can occur even when meals are coming. No measurement required
+9
+Q6b added (caregiver burden, asked of the caregiver privately); critical-risk flag added for severe caregiver burnout
+Domain 1: Caregiving Adequacy
+Burnout precedes neglect; the existing tool measured neglect outcome, not the leading indicator
+10
+Q20 (pensions/entitlements) retained unchanged
+Domain 6
+Per programme decision — entitlements team handles, no checklist needed in EVRAT
+11
+Living Arrangement added as structured baseline field in Section A
+Section A: Basic Assessment Information
+Modifies how every other finding is interpreted; was free-text in Stable section only
+12
+Consent statement added at start of Section A; [Sensitive] tag added to Q6b, Q15a, Q15b, Q16; sensitive-field handling note
+Section A (consent), inline tags on items
+Ethical baseline; safeguards information that could put elder/caregiver at risk if disclosed
+13
+Section E restructured into E1–E5 with structured care-plan task table
+Section E: Care Plan & Follow-up
+Replaces free-text with trackable tasks: type, priority, owner, target date, status
+14
+Reference to Critical Flag Response Protocol added in Section C; mandatory action / timeframe / owner per flag
+Section C (Critical Risk Flags) + reference to Guidelines 11.1
+Critical flags must trigger time-bound action, not just category override
+15
+Inter-rater calibration footnote added
+End of document
+Tool requires calibration before rollout and quarterly thereafter
+
+Elder Vulnerability Rapid Assessment Tool (EVRAT) v4
+The EVRAT is a structured community caregiving assessment tool for identification, categorisation, prioritisation, follow-up planning, and dynamic reassessment of elders living in urban poor settlements and resettlement communities under the Chennai Elderly Care Programme.
+The tool follows a progressive layered assessment structure:
+	•	Part A — Initial Vulnerability Screening (IVS)
+	•	Part B — Expanded Vulnerability Assessment (EVA)
+	•	Critical Risk Flag Assessment
+	•	Category Assignment
+	•	Care Plan & Follow-up (Section E, restructured in v4)
++ NEW SECTION  •  Field markers added in v4
+Every field is tagged with one of three markers:
+	•	[B] — Baseline: captured once; updated only on life-state change (address, household composition, entitlement obtained, tier reassigned).
+	•	[V] — Visit: captured fresh at every assessment, including reassessments. Trajectory is read from these.
+	•	[B/V] — Captured at baseline; refreshed at visit if changed.
+Reassessment generates a new record — never overwrite previous data. Trajectory is read by comparing visits.
+Vishnu Harikumar: Recommendation 3 — Adds baseline/visit markers to every field so COs know which to re-fill at each visit. The change is structural: it converts the tool from a snapshot into a longitudinal instrument without adding any new fields.
+
+Section A: Basic Assessment Information
++ NEW SECTION  •  Consent Statement (added in v4)
+Read to the elder at the start of every first assessment (translated to local language as needed):
+"This assessment is being conducted to understand your situation and support you better. The information you share will be kept confidential and used only by the programme team to help you access care, services, and entitlements. You can choose not to answer any question, and you can ask us to remove your information at any time. Do you agree to participate?"
+Field
+Response
+Verbal consent given [B]
+☐ Yes  ☐ No
+Signed / thumbprint consent [B]
+____________  Date: ______
+Witness (if signed by thumbprint) [B]
+____________
+Annual re-confirmation date [V]
+____________
+Vishnu Harikumar: Recommendation 12 — Consent is the ethical baseline. The current v3 proceeds straight to assessment without asking. This is below the standard expected of any community programme and exposes the organisation to legitimate criticism. 30-second cost; meaningful safeguarding gain.
+
+Identification & Household
+Field
+Marker
+Details
+Date of Assessment
+[V]
+
+Household ID
+[B]
+
+Elder ID
+[B]
+
+Assessor Name (CO)
+[V]
+
+Elder Name
+[B]
+
+Age
+[B/V]
+
+Gender
+[B]
+☐ Female  ☐ Male  ☐ Other / Prefer not to say
+Phone (self or proxy)
+[B/V]
+
+Settlement / Address
+[B/V]
+
+Primary Caregiver Identified
+[B/V]
+Name & relation
+Emergency Contact Available
+[B/V]
+Name, relation, phone
+Current Category
+[V]
+Stable / Low / Moderate / High / Profound
+Previous Category (if reassessment)
+[V]
+Auto-pulled from last assessment
++ NEW SECTION  •  Living Arrangement (added in v4)
+Tick one. Not scored — used as contextual modifier for interpreting other findings.
+Living Arrangement [B/V]
+
+☐ Lives alone
+☐ With grandchildren only (skip-generation)
+☐ With spouse only
+☐ With relatives (non-children)
+☐ With children / family
+☐ With non-kin / neighbour
+☐ Institutional / shelter
+☐ Homeless / unstable housing
+Vishnu Harikumar: Recommendation 11 — Living arrangement is the single biggest contextual variable shaping how every other finding is interpreted. A bedridden elder living alone needs an entirely different response from a bedridden elder living with family — same EVA score, different care plan. v3 captured this only for Stable elders, and even there as free text.
+
+Part A: Initial Vulnerability Screening (IVS)
+The IVS is a first-level screening to determine whether expanded vulnerability assessment is immediately required.
+~ MODIFIED  •  IVS expanded from 5 items to 9 items (Q3 and Q4 split)
+Vishnu Harikumar: Recommendation 2 — Compound items in v3 (Q3 bundling 5 domains, Q4 bundling 5 event types) produced poor inter-rater reliability. Splitting Q3 → Q3a/b/c and Q4 → Q4a/b/c adds ~90 seconds to the screen and substantially improves consistency across COs.
+IVS Items
+#
+Question
+Response Options
+Score
+Q1
+Is the elder currently functioning independently in day-to-day life? [V]
+Fully independent / Minor support needed / Regular support needed / Highly dependent
+0 / 1 / 2 / 3
+Q2
+Is the elder currently engaged in work, household responsibilities, social participation, or routine activities? [V]
+Actively engaged / Limited engagement / Rarely engaged / Completely disengaged
+0 / 1 / 2 / 3
+Q3 (v3 — REMOVED)
+Are there any visible health, emotional, caregiving, dependency, or safety concerns requiring support?
+No / Mild / Moderate / Severe concerns
+0 / 1 / 2 / 3
+Q3a
+Visible health or medical concern? [V]
+No / Mild / Moderate / Severe
+0 / 1 / 2 / 3
+Q3b
+Visible emotional distress or isolation? [V]
+No / Mild / Moderate / Severe
+0 / 1 / 2 / 3
+Q3c
+Visible safety, caregiving, or dependency concern? [V]
+No / Mild / Moderate / Severe
+0 / 1 / 2 / 3
+Q4 (v3 — REMOVED)
+Has the elder experienced hospitalisation, fall, major illness, dependency, or caregiving concerns during past 6 months?
+No / One / Multiple / Severe or repeated
+0 / 1 / 2 / 3
+Q4a
+Hospitalisation in past 6 months? [V]
+No / Once / Multiple / Prolonged or repeated
+0 / 1 / 2 / 3
+Q4b
+Fall or fracture in past 6 months? [V]
+No / One / Multiple / Severe
+0 / 1 / 2 / 3
+Q4c
+New or worsening dependency in past 6 months? [V]
+No / Mild / Moderate / Severe
+0 / 1 / 2 / 3
+Q5
+Does the elder currently have dependable support available when needed for daily life or emergencies? [V]
+Consistently / Occasional gaps / Limited / No dependable support
+0 / 1 / 2 / 3
+Possible Outcomes:
+	•	Stable & Self-Managing → proceed to Section B
+	•	Trigger detected → proceed to Expanded Vulnerability Assessment (EVA)
+Trigger logic: Any IVS item ≥1 (for split items Q3a/b/c and Q4a/b/c) OR Q1/Q2/Q5 ≥2 proceeds to EVA. Precautionary principle preserved.
+
+Section B: Stable Elder Snapshot
+Light data capture for elders categorised as Stable & Self-Managing after IVS. Re-screen at 3-monthly cadence.
+Vishnu Harikumar: Recommendation note — Section B renamed from 'Light Data Capture' to 'Stable Elder Snapshot' to avoid confusion with Part B (EVA). No content change.
+Field
+Marker
+Observation
+Known chronic illness
+[B/V]
+
+Current medicines
+[V]
+
+Pension / entitlement access
+[B/V]
+
+Living arrangement (refer Section A field above)
+[B/V]
+
+Emergency contact availability
+[B/V]
+
+Social / community participation
+[V]
+
+Peer mentor role (optional)
+[V]
+
+Any concerns observed
+[V]
+
+
+Part B: Expanded Vulnerability Assessment (EVA)
+~ MODIFIED  •  EVA expanded from 16 items to 22 items across 7 domains
+Items added or modified in v4 are highlighted. Operational definitions for every response option are in the Operational Guidelines (Appendix).
+
+Domain 1 — Caregiving Adequacy
+Weight: ×2.0 (Very High)
+Q#
+Question
+Response Options
+Score
+Notes
+Q6
+How adequate is the caregiving support for the elder's health and dependency needs? [V]
+Adequate / Minor gaps / Significant gaps / Severely inadequate
+0 / 1 / 2 / 3
+
+Q6b [Sensitive]
+How is the primary caregiver coping with caregiving demands? [V] — Asked privately of the caregiver, not the elder.
+Coping well / Mild strain / Moderate strain / Severe burnout / Not applicable (elder lives alone)
+0 / 1 / 2 / 3 / NA
+Critical flag if severe burnout
+Vishnu Harikumar: Recommendation 9 — Q6 measures caregiving adequacy from the elder's side. Q6b adds the caregiver's voice. Burnout precedes neglect; catching it early enables respite before harm. Asking privately matters — the daughter-in-law cannot answer honestly with the household listening.
+
+Domain 2 — Functional Dependency & Mobility
+Weight: ×1.75 (Very High)
+Vishnu Harikumar: Weight set at ×1.75 (per your decision) — preserves emphasis on mobility while preventing this domain from solo-driving categorisation.
+Q#
+Question
+Response Options
+Score
+Q7
+Is the elder bedridden or restricted in movement? [V]
+No / Mild restriction / Mostly confined / Completely bedridden
+0 / 1 / 2 / 3
+Q8 (v3 — REPLACED)
+Does the elder need help for bathing, toileting, dressing, eating, or taking medicines?
+Independent / Some help / Regular help / Fully dependent
+0/1/2/3
+Q8a
+ADL Dependence — For how many of the following does the elder need help? Tick each: ☐ Bathing  ☐ Dressing  ☐ Toileting  ☐ Transferring (bed to chair)  ☐ Feeding  ☐ Continence  [V]
+0 activities = 0  /  1 = 1  /  2–3 = 2  /  4+ = 3
+0 / 1 / 2 / 3
+Q8b
+IADL Dependence — For how many of the following does the elder need help? Tick each: ☐ Cooking  ☐ Shopping  ☐ Managing money  ☐ Managing medicines  ☐ Transport / going out  [V]
+0 = 0  /  1 = 1  /  2–3 = 2  /  4+ = 3
+0 / 1 / 2 / 3
+Q9
+Does the elder have difficulty in walking or moving around? [V]
+No difficulty / Mild / Needs support / Unable to walk
+0 / 1 / 2 / 3
+Q10 (v3 — REPLACED)
+Has the elder experienced falls or fear of falling?
+No / Occasional / Repeated / Severe risk
+0/1/2/3
+Q10a
+Falls in past 6 months [V]
+None / One fall / Two falls / 3+ or recurrent
+0 / 1 / 2 / 3
+Q10b
+Fear of falling affecting daily activity [V]
+No / Mild / Moderate (avoids some activity) / Severe (restricts movement)
+0 / 1 / 2 / 3
+Vishnu Harikumar: Recommendations 4 and 6 — Q10 split because falls history (strongest predictor of next fall, needs physical response: aid, modification, medication review) and fear of falling (psychosocial response: confidence-building, buddy walking) are different things needing different actions. Q8 replaced with ADL/IADL counts because these are the global geriatric standard and produce an objective dependency number rather than an assessor impression.
+
+Domain 3 — Health & Medical Vulnerability
+Weight: ×1.5 (High)
+Q#
+Question
+Response Options
+Score
+Q11
+Does the elder have serious chronic illness or multiple health conditions? [V]
+No / Controlled / Multiple / Severe or untreated
+0 / 1 / 2 / 3
+Q12
+Is the elder taking medicines regularly? [V]
+Regular / Occasional miss / Frequently irregular / Not taking despite need
+0 / 1 / 2 / 3
+Q13a
+Sensory function — does the elder have vision or hearing problems affecting daily life? [V] Tick which: ☐ Vision  ☐ Hearing  ☐ Both
+No issues (or corrected with glasses/hearing aid) / Mild / Moderate (needs cataract surgery / hearing aid) / Severe
+0 / 1 / 2 / 3
+Q13b
+Does the elder currently require immediate medical attention? [V] (renumbered from v3 Q13)
+No / Monitoring / Referral / Urgent
+0 / 1 / 2 / 3
+Vishnu Harikumar: Recommendation 7 — Q13a added because untreated cataract and hearing loss are major preventable disability drivers in Indian slum elders and both are operable. Current EVRAT scores the consequences (mobility limitation, isolation) but never points to the cause. v3 Q13 renumbered to Q13b. One combined item with tick-which keeps instrument bloat low while preserving the specific-referral signal.
+
+Domain 4 — Cognitive & Emotional Wellbeing
+Weight: ×1.0 (Moderate to High)
+Q#
+Question
+Response Options
+Score
+Q14
+Does the elder have memory loss, confusion, or cognitive concerns? [V]
+No / Mild forgetfulness / Frequent confusion / Severe
+0 / 1 / 2 / 3
+Q15 (v3 — REPLACED)
+Does the elder appear emotionally distressed, lonely, or socially isolated?
+No / Mild / Moderate / Severe
+0/1/2/3
+Q15a [Sensitive]
+Low mood / depression screen [V] — Ask: "In the last 2 weeks, has the elder felt down, depressed, or hopeless, or had little interest or pleasure in doing things?" Ask privately where possible.
+Neither / Sometimes / Most days / Nearly every day
+0 / 1 / 2 / 3
+Q15b [Sensitive]
+Loneliness / social isolation [V] — Ask: "In the last 2 weeks, has the elder felt lonely or gone days without meaningful conversation with anyone?"
+No, regular contact / Occasionally / Often / Severely disconnected
+0 / 1 / 2 / 3
+Vishnu Harikumar: Recommendation 5 — Q15 replaced with PHQ-2-style 2-week-anchored items because depression in elders is one of the most underdiagnosed conditions in primary care, and the PHQ-2 is the most validated brief screen globally. Q15a positive (nearly every day) is now a critical-risk flag. Both marked [Sensitive] and noted for private asking.
+
+Domain 5 — Safety, Abuse & Protection
+Weight: ×2.0 (Very High)
+Q#
+Question
+Response Options
+Score
+Q16 [Sensitive]
+Is there any indication of abuse, neglect, abandonment, or unsafe caregiving? [V]
+No concern / Mild suspicion / Repeated concern / Severe concern
+0 / 1 / 2 / 3
+Q17
+Is the elder's housing and environment safe? [V]
+Safe / Minor risks / Moderate risks / Dangerous
+0 / 1 / 2 / 3
+Vishnu Harikumar: v4: Q16 marked [Sensitive] — observations of abuse must be kept in restricted log only and never disclosed to the perpetrator.
+
+Domain 6 — Food & Financial Security
+Weight: ×1.5 (High)
+Q#
+Question
+Response Options
+Score
+Q18a
+Nutrition status — does the elder show signs of undernutrition or significant weight loss? Observation-based, no measurement required. [V]
+No signs / Mild thinness / Moderate (visibly thin, clothes loose, chewing difficulty) / Severe (visibly wasted, unable to chew most foods, rapid weight loss)
+0 / 1 / 2 / 3
+Q18b
+Food and nutritional access — does the elder have regular food access? [V] (renumbered from v3 Q18)
+Adequate / Occasional gaps / Irregular / Severe food insecurity
+0 / 1 / 2 / 3
+Q19
+Can the elder afford medicines and basic needs? [V]
+Yes / Occasional difficulty / Frequent / Unable
+0 / 1 / 2 / 3
+Q20
+Is the elder receiving pension or eligible entitlements regularly? [V]
+Regular / Minor delays / Frequently disrupted / Not receiving despite eligibility
+0 / 1 / 2 / 3
+Vishnu Harikumar: Recommendation 8 — Q18a added because food access and nutrition status are different. An elder can be receiving three meals daily but still wasting due to dental loss, chewing difficulty, or chronic disease. Observation-based per your decision (no MUAC measurement). v3 Q18 renumbered to Q18b. Q20 retained unchanged per your decision (Recommendation 10 declined).
+
+Domain 7 — Emergency & Social Support
+Weight: ×1.0 (High)
+Q#
+Question
+Response Options
+Score
+Q21
+Does the elder have reliable emergency support if needed? [V]
+Reliable / Limited / Uncertain / No support
+0 / 1 / 2 / 3
+
+Section C: Critical Risk Flags
+~ MODIFIED  •  Four new flags added in v4 (severe depression, severe sensory loss, severe undernutrition, severe caregiver burnout). Mandatory action protocol added — see Guidelines 11.1.
+
+Critical Risk Flag
+☐
+Bedridden elder with high dependency
+☐
+Palliative or end-of-life care need
+☐
+Severe neglect or abandonment
+☐
+No dependable caregiver available
+☐
+Severe dementia or unsafe wandering
+☐
+Abuse or violence concerns
+☐
+Severe food insecurity
+☐
+Unsafe shelter or homelessness risk
+☐
+Urgent medical concern or acute deterioration
+☐
+Severe untreated vision or hearing loss — operable cataract or hearing aid candidate
+☐
+Severe undernutrition or visible wasting
+☐
+Severe depression (Q15a = 3 — nearly every day)
+☐
+Severe caregiver burnout (Q6b = 3)
+When any critical risk flag is ticked, refer to the Critical Flag Response Protocol (Operational Guidelines, Section 11.1) for mandatory action, timeframe, and owner. Each action must be entered as a care-plan task in Section E2.
+Vishnu Harikumar: Recommendation 14 — Critical flags now have a binding response protocol with timeframes and owners. The flag is not just a category override; it is a commitment that specific action will happen within a specific time. See Guidelines Section 11.1 for the full protocol table.
+
+Section D: Category Assignment
+~ MODIFIED  •  Category cut-offs updated in v4 (numeric weightages now applied; new max = 103.5)
+Category
+Score Range
+Override
+Tick
+Stable & Self-Managing
+0–21
+—
+☐
+Low Need
+22–41
+—
+☐
+Moderate Need
+42–62
+—
+☐
+High Need
+63–83
+—
+☐
+Profound Need
+84+
+Any critical risk flag ticked = automatic Profound regardless of score
+☐
+Vishnu Harikumar: Recommendation 1 — Cut-offs recomputed because numeric weights are now applied (×2.0 for Caregiving/Mobility/Safety; ×1.75 for Functional Dependency per your decision; ×1.5 for Health and Food/Finance; ×1.0 for Cognitive/Emotional and Emergency Support). New maximum score is 103.5, so cut-offs preserve the ≤20% / 21–40% / 41–60% / 61–80% / 81%+ proportions from v3.
+
+Section E: Care Plan & Follow-up
+~ MODIFIED  •  Section E restructured into E1–E5 — replaces v3's free-text fields with a structured care-plan task table
+E1 — Immediate Action Protocol
+If any critical risk flag in Section C is ticked, the mandatory action from Guidelines Section 11.1 must be initiated. Record below:
+Flag ticked (from Section C)
+Action initiated
+Owner
+By when
+
+
+
+
+
+
+
+
+
+
+
+
+E2 — Care Plan Tasks
+One row per task generated from this assessment. Status updated at each subsequent visit. See Operations & Care Plan Document Part 1 for derivation logic from EVA items.
+Task #
+Task description
+Type
+Priority
+Owner
+Target close date
+Status
+1
+
+
+
+
+
+
+2
+
+
+
+
+
+
+3
+
+
+
+
+
+
+4
+
+
+
+
+
+
+5
+
+
+
+
+
+
+6
+
+
+
+
+
+
+7
+
+
+
+
+
+
+8
+
+
+
+
+
+
+Task Type options: Entitlement (referral to ET) / Health-NCD / Health-referral / Health-mental / Mobility aid / Nutrition / Caregiver support / Safety / Other. Priority: H (within 1 week) / M (within 1 month) / L (opportunistic). Status at opening: Not started. At reassessment, update to: In progress / Stuck (with reason) / Done / Closed.
+E3 — Reassessment Cadence (auto from Section D category)
+Category
+Visit Frequency
+Stable & Self-Managing
+3-monthly
+Low Need
+Quarterly
+Moderate Need
+Monthly
+High Need
+Fortnightly
+Profound Need
+2–3 times per week
+E4 — Supervisor Escalation
+Required when category is High or Profound, or any critical-risk flag is ticked.
+Escalation required?
+If yes — reason and to whom
+☐ Yes  ☐ No
+
+E5 — Additional Observations
+Free text. Anything not captured above; family dynamics; community context; CO's own reflections.
+Observations
+
+
+Vishnu Harikumar: Recommendation 13 — Section E restructured because v3's free-text fields cannot be tracked across visits. The task table generates work that can be reviewed, escalated, and closed. At reassessment, the CO opens the previous Section E2, updates each open task, and only then proceeds to fresh EVA. This is what makes the tool longitudinal.
+
+Calibration Note
++ NEW SECTION  •  Inter-rater reliability footnote added in v4
+This tool requires inter-rater calibration before rollout and quarterly thereafter (see Operational Guidelines Section 19). Without calibration, the same elder may be scored differently by different COs, and trajectory comparisons become noise rather than signal. Calibration is a tool-improvement exercise, not a performance evaluation of COs.
+Vishnu Harikumar: Recommendation 15 — Calibration footnote added. Full protocol in Guidelines Section 19.
+
+— End of EVRAT v4 Instrument —

@@ -100,6 +100,18 @@ export const SURFACES: ReadonlyArray<SurfaceDef> = [
   { id: "wiki.translation_queue", label: "Wiki translation queue" },
   { id: "wiki.observations",      label: "Wiki observations" },
 
+  // ── Wiki v2 (programme-spine reference) ─────────────────────────────────
+  { id: "wiki.programs",        label: "Wiki programmes grid" },
+  { id: "wiki.elderly_spine",   label: "Elderly EVRAT spine" },
+  { id: "wiki.fork_panel",      label: "Wiki fork panel",      description: "Side panel showing guideline / care plan / action manual content for a question" },
+  { id: "wiki.article_view",    label: "Wiki article direct view" },
+  { id: "wiki.article_edit",    label: "Wiki article editor" },
+  { id: "wiki.category",        label: "Wiki category page" },
+  { id: "wiki.search",          label: "Wiki search" },
+  { id: "wiki.version_history", label: "Wiki version history modal" },
+  { id: "wiki.fork_modal",      label: "Wiki fork-article confirm modal" },
+  { id: "wiki.link_manager",    label: "Wiki link manager modal" },
+
   // ── Manual ───────────────────────────────────────────────────────────────
   { id: "manual.list",   label: "Manual list page" },
   { id: "manual.reader", label: "Manual entry reader" },

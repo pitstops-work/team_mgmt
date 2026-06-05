@@ -1,0 +1,440 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-ivs-q2",
+      "title": "IVS Q2 — Engagement",
+      "kind": "question",
+      "naturalOrder": 220,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Is the elder currently engaged in work, household responsibilities, social participation, or routine activities?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Actively engaged (0)** — regular engagement in work, household roles, social participation, caregiving, or routine activities",
+          "**Limited engagement (1)** — participates occasionally; reduced activity levels",
+          "**Rarely engaged (2)** — very limited engagement in routine or social activity",
+          "**Completely disengaged (3)** — largely disengaged from routine or meaningful activities"
+        ] },
+        { "h": 2, "text": "Trigger" },
+        "Score **2 or 3** → proceed to EVA."
+      ],
+      "links": { "guideline": ["elderly-ivs-q2-appendix"], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-ivs-q2-appendix",
+      "title": "IVS Q2 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 221,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Actively Engaged", "Regularly engages in work, household roles, social participation, caregiving, or routine activities."],
+            ["Limited Engagement", "Participates occasionally; reduced activity levels."],
+            ["Rarely Engaged", "Very limited engagement in routine or social activity."],
+            ["Completely Disengaged", "Largely disengaged from routine or meaningful activities."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-ivs-q3a",
+      "title": "IVS Q3a — Visible health concern",
+      "kind": "question",
+      "naturalOrder": 222,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Visible health or medical concern?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No (0)** — no visible health/medical concern",
+          "**Mild (1)** — minor visible concern; not significantly affecting functioning",
+          "**Moderate (2)** — visible health concern affecting wellbeing or functioning",
+          "**Severe (3)** — severe visible health vulnerability or distress"
+        ] },
+        { "h": 2, "text": "Trigger" },
+        "Score **1, 2, or 3** → proceed to EVA. (Precautionary principle: any visible concern triggers full assessment.)"
+      ],
+      "links": { "guideline": ["elderly-ivs-q3a-appendix"], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-ivs-q3a-appendix",
+      "title": "IVS Q3a — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 223,
+      "content": [
+        "v3 bundled health/emotional/caregiving into one Q3. v4 splits them into Q3a/b/c so each domain is rated independently — improves inter-rater reliability significantly.",
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No visible health/medical concern."],
+            ["Mild", "Minor visible concern; not significantly affecting functioning."],
+            ["Moderate", "Visible health concern affecting wellbeing or functioning."],
+            ["Severe", "Severe visible health vulnerability or distress."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-ivs-q3b",
+      "title": "IVS Q3b — Visible emotional distress or isolation",
+      "kind": "question",
+      "naturalOrder": 224,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Visible emotional distress or isolation?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No (0)** — no visible emotional distress or isolation",
+          "**Mild (1)** — minor emotional distress or social withdrawal",
+          "**Moderate (2)** — visible distress affecting wellbeing",
+          "**Severe (3)** — severe psychological distress or social isolation"
+        ] },
+        { "h": 2, "text": "Trigger" },
+        "Score **1, 2, or 3** → proceed to EVA."
+      ],
+      "links": { "guideline": ["elderly-ivs-q3b-appendix"], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-ivs-q3b-appendix",
+      "title": "IVS Q3b — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 225,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No visible emotional distress or isolation."],
+            ["Mild", "Minor emotional distress or social withdrawal."],
+            ["Moderate", "Visible emotional distress or isolation affecting wellbeing."],
+            ["Severe", "Severe psychological distress or social isolation."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-ivs-q3c",
+      "title": "IVS Q3c — Visible safety, caregiving, or dependency concern",
+      "kind": "question",
+      "naturalOrder": 226,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Visible safety, caregiving, or dependency concern?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No (0)** — no visible safety, caregiving, or dependency concern",
+          "**Mild (1)** — minor concern; not significantly affecting elder's situation",
+          "**Moderate (2)** — visible caregiving or dependency concern",
+          "**Severe (3)** — severe caregiving inadequacy, abandonment, or dependency crisis"
+        ] }
+      ],
+      "links": { "guideline": ["elderly-ivs-q3c-appendix"], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-ivs-q3c-appendix",
+      "title": "IVS Q3c — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 227,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No visible safety, caregiving, or dependency concern."],
+            ["Mild", "Minor concern; not significantly affecting elder's situation."],
+            ["Moderate", "Visible caregiving or dependency concern."],
+            ["Severe", "Severe caregiving inadequacy, abandonment, or dependency crisis."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-ivs-q4a",
+      "title": "IVS Q4a — Hospitalisation in past 6 months",
+      "kind": "question",
+      "naturalOrder": 230,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Hospitalisation in past 6 months?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No (0)** — no hospitalisation in past 6 months",
+          "**Once (1)** — one hospitalisation in past 6 months",
+          "**Multiple (2)** — more than one hospitalisation",
+          "**Prolonged or repeated (3)** — prolonged hospitalisation or repeated admissions affecting condition"
+        ] },
+        { "h": 2, "text": "Trigger" },
+        "Score **1, 2, or 3** → proceed to EVA. Any hospitalisation in 6 months is a vulnerability signal."
+      ],
+      "links": { "guideline": ["elderly-ivs-q4a-appendix"], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-ivs-q4a-appendix",
+      "title": "IVS Q4a — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 231,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No hospitalisation in past 6 months."],
+            ["Once", "One hospitalisation in past 6 months."],
+            ["Multiple", "More than one hospitalisation."],
+            ["Prolonged or repeated", "Prolonged hospitalisation or repeated admissions affecting condition."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-ivs-q4b",
+      "title": "IVS Q4b — Fall or fracture in past 6 months",
+      "kind": "question",
+      "naturalOrder": 232,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Fall or fracture in past 6 months?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No (0)** — no falls or fractures",
+          "**One (1)** — one fall (no fracture) in past 6 months",
+          "**Multiple (2)** — multiple falls in past 6 months",
+          "**Severe (3)** — fall with fracture, hospitalisation, or significant injury"
+        ] }
+      ],
+      "links": { "guideline": ["elderly-ivs-q4b-appendix"], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-ivs-q4b-appendix",
+      "title": "IVS Q4b — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 233,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No falls or fractures."],
+            ["One", "One fall (no fracture) in past 6 months."],
+            ["Multiple", "Multiple falls in past 6 months."],
+            ["Severe", "Fall with fracture, hospitalisation, or significant injury."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-ivs-q4c",
+      "title": "IVS Q4c — New or worsening dependency",
+      "kind": "question",
+      "naturalOrder": 234,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "New or worsening dependency in past 6 months?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No (0)** — no new dependency identified",
+          "**Mild (1)** — some new dependency but managing with existing support",
+          "**Moderate (2)** — significant new dependency requiring additional support",
+          "**Severe (3)** — severe new dependency or caregiving collapse"
+        ] }
+      ],
+      "links": { "guideline": ["elderly-ivs-q4c-appendix"], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-ivs-q4c-appendix",
+      "title": "IVS Q4c — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 235,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No new dependency identified."],
+            ["Mild", "Some new dependency but managing with existing support."],
+            ["Moderate", "Significant new dependency requiring additional support."],
+            ["Severe", "Severe new dependency or caregiving collapse."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-ivs-q5",
+      "title": "IVS Q5 — Dependable support",
+      "kind": "question",
+      "naturalOrder": 240,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does the elder currently have dependable support available when needed for daily life or emergencies?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Consistently available (0)** — dependable support regularly available for routine, emergencies, illness",
+          "**Occasional gaps (1)** — support generally available but occasional delays or absence",
+          "**Limited or unreliable (2)** — support exists but inconsistent or insufficient",
+          "**No dependable support (3)** — no reliable support system despite visible need"
+        ] },
+        { "h": 2, "text": "Trigger" },
+        "Score **2 or 3** → proceed to EVA."
+      ],
+      "links": { "guideline": ["elderly-ivs-q5-appendix"], "care_plan": [], "action_manual": ["elderly-chapter-4-no-caregiver"] }
+    },
+    {
+      "slug": "elderly-ivs-q5-appendix",
+      "title": "IVS Q5 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 241,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Consistently available", "Dependable support regularly available for routine needs, emergencies, illness, or crises."],
+            ["Occasional gaps", "Support generally available but occasional delays or absence."],
+            ["Limited or unreliable", "Support exists but is inconsistent, unreliable, or insufficient."],
+            ["No dependable support", "No reliable or dependable support system despite visible need."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-section-d",
+      "title": "Section D — Category Assignment",
+      "kind": "question",
+      "naturalOrder": 600,
+      "content": [
+        { "h": 2, "text": "Purpose" },
+        "Convert the weighted EVA total into a vulnerability category. Any critical risk flag overrides the score to **Profound Need** regardless of total.",
+        { "h": 2, "text": "Category cut-offs (max possible = 103.5)" },
+        { "table": {
+          "head": ["Category", "Score range", "% of max"],
+          "rows": [
+            ["Stable & Self-Managing", "0–21", "≤20%"],
+            ["Low Need", "22–41", "21–40%"],
+            ["Moderate Need", "42–62", "41–60%"],
+            ["High Need", "63–83", "61–80%"],
+            ["Profound Need", "84+", "81%+"],
+            ["Profound Need (override)", "Any score", "Any critical risk flag ticked"]
+          ]
+        } },
+        { "h": 2, "text": "Reassessment cadence by category" },
+        { "table": {
+          "head": ["Category", "Visit frequency"],
+          "rows": [
+            ["Stable & Self-Managing", "3-monthly"],
+            ["Low Need", "Quarterly"],
+            ["Moderate Need", "Monthly"],
+            ["High Need", "Weekly / Fortnightly"],
+            ["Profound Need", "2–3 times per week"]
+          ]
+        } },
+        { "h": 2, "text": "Supervisor validation" },
+        "Downgrade from severe categories (High or Profound) requires reassessment + documentation + supervisor validation. This prevents underestimation of severe vulnerability and protects against premature de-escalation."
+      ],
+      "links": {
+        "guideline": ["elderly-framework-scoring"],
+        "care_plan": ["elderly-template-profound", "elderly-template-stable"],
+        "action_manual": []
+      }
+    },
+    {
+      "slug": "elderly-section-e1",
+      "title": "Section E1 — Immediate Action Protocol",
+      "kind": "question",
+      "naturalOrder": 701,
+      "content": [
+        { "h": 2, "text": "Purpose" },
+        "If any critical risk flag in Section C is ticked, the mandatory action from Guidelines §11.1 must be initiated and recorded here.",
+        { "h": 2, "text": "Fields" },
+        { "table": {
+          "head": ["Field", "Detail"],
+          "rows": [
+            ["Flag ticked", "From Section C"],
+            ["Action initiated", "Free text — what was started"],
+            ["Owner", "CO / Sup / City Lead per protocol"],
+            ["By when", "Per §11.1 timeframe"]
+          ]
+        } },
+        "Each entry here MUST also be entered as a care-plan task in Section E2 with corresponding priority. Failure to act within timeframe is reviewed by the supervisor at the next weekly meeting."
+      ],
+      "links": { "guideline": [], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-section-e2",
+      "title": "Section E2 — Care Plan Tasks",
+      "kind": "question",
+      "naturalOrder": 702,
+      "content": [
+        { "h": 2, "text": "Purpose" },
+        "One row per task generated from this assessment. Status updated at each subsequent visit. **The reassessment opens this section first** — review each open task before starting a fresh EVA. This is what makes the tool longitudinal.",
+        { "h": 2, "text": "Task taxonomy" },
+        { "table": {
+          "head": ["Field", "Values"],
+          "rows": [
+            ["Type", "Entitlement / Health-NCD / Health-referral / Health-mental / Mobility aid / Nutrition / Caregiver support / Safety / Other"],
+            ["Priority", "H (within 1 week) / M (within 1 month) / L (opportunistic)"],
+            ["Owner", "Specific staff member"],
+            ["Target close date", "Calculated from priority"],
+            ["Status", "Not started / In progress / Stuck (with reason) / Done / Closed"]
+          ]
+        } },
+        { "h": 2, "text": "Status sub-codes" },
+        { "ul": [
+          "**In progress** — documents being gathered  /  submitted, awaiting response",
+          "**Stuck** — missing document  /  portal issue  /  elder unable/unwilling  /  family resistance  /  awaiting PHC referral",
+          "**Done** — benefit received  /  linkage confirmed",
+          "**Closed** — not pursued  /  elder deceased / migrated"
+        ] }
+      ],
+      "links": { "guideline": [], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-section-e3",
+      "title": "Section E3 — Reassessment Cadence",
+      "kind": "question",
+      "naturalOrder": 703,
+      "content": [
+        "Auto-derived from Section D category. Same cadence table as Section D.",
+        { "table": {
+          "head": ["Category", "Visit frequency"],
+          "rows": [
+            ["Stable & Self-Managing", "3-monthly"],
+            ["Low Need", "Quarterly"],
+            ["Moderate Need", "Monthly"],
+            ["High Need", "Weekly / Fortnightly"],
+            ["Profound Need", "2–3 times per week"]
+          ]
+        } },
+        { "h": 2, "text": "Event triggers" },
+        "Regardless of cadence, immediate reassessment is triggered by: fall, hospitalisation, death of caregiver, widowhood, violence/abuse, visible deterioration, severe distress, new dependency, food insecurity, unsafe shelter, major illness diagnosis, displacement."
+      ],
+      "links": { "guideline": ["elderly-framework-reassessment-cadence"], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-section-e4",
+      "title": "Section E4 — Supervisor Escalation",
+      "kind": "question",
+      "naturalOrder": 704,
+      "content": [
+        "**Required** when:",
+        { "ul": [
+          "Category is High or Profound",
+          "Any critical-risk flag is ticked",
+          "Abuse, safety, or caregiver-collapse signals during the visit"
+        ] },
+        { "h": 2, "text": "Record" },
+        { "ul": [
+          "Yes / No",
+          "If yes — reason + to whom (Sup / City Lead)"
+        ] }
+      ],
+      "links": { "guideline": [], "care_plan": [], "action_manual": [] }
+    },
+    {
+      "slug": "elderly-section-e5",
+      "title": "Section E5 — Additional Observations",
+      "kind": "question",
+      "naturalOrder": 705,
+      "content": [
+        "Free text. Anything not captured above: family dynamics, community context, CO's own reflections.",
+        { "quote": "Use this space for the things that don't fit a structured field but matter to understanding this elder's situation. Six months later, this is the prose that reminds you of the texture of the case." },
+        "Sensitive observations (abuse, violence, financial exploitation, family conflict) go in the **restricted file** — not here."
+      ],
+      "links": { "guideline": ["elderly-framework-sensitive-fields"], "care_plan": [], "action_manual": [] }
+    }
+  ]
+}

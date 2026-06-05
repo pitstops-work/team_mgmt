@@ -1,0 +1,170 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-eva-q14",
+      "title": "Q14 — Cognitive concerns",
+      "kind": "question",
+      "naturalOrder": 371,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does the elder have memory loss, confusion, or cognitive concerns?",
+        { "h": 2, "text": "Response options (Domain 4 weight ×1.0)" },
+        { "ul": [
+          "**No (0)** — no major cognitive concerns",
+          "**Mild forgetfulness (1)** — occasional forgetfulness",
+          "**Frequent confusion (2)** — frequent confusion affecting functioning",
+          "**Severe confusion (3)** — major cognitive impairment affecting safety"
+        ] },
+        { "h": 2, "text": "Watch for" },
+        "**Sudden** confusion (over days) is usually a treatable illness — UTI, medicine reaction, low B12, thyroid. **Slow** confusion (over months/years) is more likely dementia. Knowing which changes everything you do."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q14-appendix"],
+        "care_plan": ["elderly-eva-q14-derivation", "elderly-pathway-cognitive"],
+        "action_manual": ["elderly-chapter-16-dementia-confusion"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q14-appendix",
+      "title": "Q14 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 372,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No major cognitive concerns."],
+            ["Mild forgetfulness", "Occasional forgetfulness."],
+            ["Frequent confusion", "Frequent confusion affecting functioning."],
+            ["Severe confusion", "Major cognitive impairment affecting safety."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q14-derivation",
+      "title": "Q14 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 373,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q14 = 2 (frequent confusion)", "Family safety briefing (wandering, stove, medications, money); identification details on elder's person (band or card); cognitive engagement at centre if mobile", "M", "CO + CI", "Within 21 days"],
+            ["Q14 = 3 (severe confusion)", "**Critical flag review.** Safety-proofing of home; constant supervision arrangement; medical referral to rule out reversible causes (UTI, medication effects, B12 deficiency)", "H", "CO + Sup", "Within 14 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q15a",
+      "title": "Q15a — Depression screen [Sensitive]",
+      "kind": "question",
+      "naturalOrder": 374,
+      "content": [
+        { "h": 2, "text": "Question [V] [Sensitive]" },
+        "**Ask:** 'In the last 2 weeks, has the elder felt down, depressed, or hopeless, or had little interest or pleasure in doing things?' Ask **privately** where possible — not in front of family members who may be implicated.",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Neither (0)** — neither low mood nor loss of interest observed",
+          "**Sometimes (1)** — symptoms present some days; not predominant",
+          "**Most days (2)** — symptoms predominant; affecting wellbeing",
+          "**Nearly every day (3)** — symptoms severe and persistent — **CRITICAL FLAG**"
+        ] },
+        { "h": 2, "text": "Why this anchor matters" },
+        "The 2-week anchor (from validated PHQ-2 screen) forces a thought about pattern, not appearance. Depression in slum elders is heavily underdiagnosed and treatable."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q15a-appendix", "elderly-framework-sensitive-fields"],
+        "care_plan": ["elderly-eva-q15a-derivation", "elderly-flag-protocol-depression"],
+        "action_manual": ["elderly-chapter-15-mental-health"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q15a-appendix",
+      "title": "Q15a — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 375,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Neither", "Neither low mood nor loss of interest observed."],
+            ["Sometimes", "Symptoms present some days; not predominant."],
+            ["Most days", "Symptoms predominant; affecting wellbeing."],
+            ["Nearly every day", "Symptoms severe and persistent — CRITICAL FLAG."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q15a-derivation",
+      "title": "Q15a — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 376,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q15a = 2 (most days)", "Mental health referral (PHC counsellor / NIMHANS DMHP / NGO partner); follow-up to confirm referral kept; centre engagement to address isolation", "M", "CO + CI", "Within 21 days"],
+            ["Q15a = 3 (nearly every day)", "**Critical flag — severe depression.** Same-day supervisor brief; mental health referral within 14 days; weekly check-ins until stable; rule out self-harm risk through gentle conversation, not formal screening", "H", "CO + Sup", "Within 14 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q15b",
+      "title": "Q15b — Loneliness / social isolation [Sensitive]",
+      "kind": "question",
+      "naturalOrder": 377,
+      "content": [
+        { "h": 2, "text": "Question [V] [Sensitive]" },
+        "**Ask:** 'In the last 2 weeks, has the elder felt lonely, or gone days without meaningful conversation with anyone?'",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No, regular contact (0)** — regular social contact; no loneliness reported",
+          "**Occasionally (1)** — occasional loneliness; meaningful contact most days",
+          "**Often (2)** — frequent loneliness or isolation; meaningful contact rare",
+          "**Severely disconnected (3)** — no meaningful conversation in days; profoundly isolated"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q15b-appendix", "elderly-framework-sensitive-fields"],
+        "care_plan": ["elderly-eva-q15b-derivation"],
+        "action_manual": ["elderly-chapter-17-loneliness", "elderly-chapter-25-peer-mentor"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q15b-appendix",
+      "title": "Q15b — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 378,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No, regular contact", "Regular social contact; no loneliness reported."],
+            ["Occasionally", "Occasional loneliness; meaningful contact most days."],
+            ["Often", "Frequent loneliness or isolation; meaningful contact rare."],
+            ["Severely disconnected", "No meaningful conversation in days; profoundly isolated."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q15b-derivation",
+      "title": "Q15b — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 379,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q15b = 2 (often lonely)", "Centre enrolment (visit at least twice a week if mobile); peer mentor pairing; family conversation about visit/call frequency", "M", "CO + CI", "Within 21 days"],
+            ["Q15b = 3 (severely lonely)", "Centre or community kitchen daily attendance; settlement-level connection to one neighbour or community member; weekly home visits intensified", "H", "CO + CI", "Within 14 days"]
+          ]
+        } }
+      ]
+    }
+  ]
+}

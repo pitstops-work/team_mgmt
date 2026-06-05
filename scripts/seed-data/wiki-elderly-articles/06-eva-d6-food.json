@@ -1,0 +1,225 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-eva-q18a",
+      "title": "Q18a — Nutrition status",
+      "kind": "question",
+      "naturalOrder": 391,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does the elder show signs of undernutrition or significant weight loss? **Observation-based — no measurement required.** Look at arms, face, and how clothes fit. Ask family or elder if clothes have become loose over recent months.",
+        { "h": 2, "text": "Response options (Domain 6 weight ×1.5)" },
+        { "ul": [
+          "**No signs (0)** — appears adequately nourished",
+          "**Mild (1)** — some thinness or weight loss reported",
+          "**Moderate (2)** — visibly thin, clothes loose, chewing difficulty affecting intake",
+          "**Severe (3)** — visibly wasted, unable to chew most foods, recent rapid weight loss — **CRITICAL FLAG**"
+        ] },
+        { "h": 2, "text": "Training note" },
+        "Severe wasting is visible without any measurement. Observe before asking. Three failure modes: (1) access — meals not coming; (2) intake — meals come but can't eat (dental, dysphagia); (3) illness-driven loss (TB, untreated diabetes, malignancy). All three may produce the same observation; the response differs."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q18a-appendix"],
+        "care_plan": ["elderly-eva-q18a-derivation", "elderly-flag-protocol-undernutrition"],
+        "action_manual": ["elderly-chapter-22-nutrition-soft-food", "elderly-chapter-21-emergency-food"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q18a-appendix",
+      "title": "Q18a — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 392,
+      "content": [
+        "Food access ≠ nutrition status. An elder receiving daily meals can still be wasting due to dental loss, chewing difficulty, or chronic disease. Observation-based per programme decision (no MUAC measurement).",
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No signs", "Appears adequately nourished."],
+            ["Mild", "Some thinness or weight loss reported."],
+            ["Moderate", "Visibly thin, clothes loose, chewing difficulty affecting intake."],
+            ["Severe", "Visibly wasted, unable to chew most foods, recent rapid weight loss — CRITICAL FLAG."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q18a-derivation",
+      "title": "Q18a — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 393,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q18a = 2 (visible thinness / chewing difficulty)", "Soft food adaptation discussed with cook (family or kitchen); dental referral via PHC if chewing affected; nutrition supplement if available", "M", "CO + KI", "Within 21 days"],
+            ["Q18a = 3 (severe wasting)", "**Critical flag — severe undernutrition.** Emergency nutrition support (dry ration kit + community kitchen daily meals); medical workup to rule out underlying illness (TB, diabetes, malignancy)", "H", "CO + Sup", "Within 7 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q18b",
+      "title": "Q18b — Food and nutritional access",
+      "kind": "question",
+      "naturalOrder": 394,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does the elder have regular food access?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Adequate (0)** — adequate food access maintained",
+          "**Occasional gaps (1)** — occasional food insecurity",
+          "**Irregular meals (2)** — frequent food access gaps",
+          "**Severe food insecurity (3)** — serious food insecurity affecting wellbeing — **CRITICAL FLAG**"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q18b-appendix"],
+        "care_plan": ["elderly-eva-q18b-derivation", "elderly-flag-protocol-food-insecurity"],
+        "action_manual": ["elderly-chapter-20-community-kitchen", "elderly-chapter-21-emergency-food"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q18b-appendix",
+      "title": "Q18b — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 395,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Adequate", "Adequate food access maintained."],
+            ["Occasional gaps", "Occasional food insecurity."],
+            ["Irregular meals", "Frequent food access gaps identified."],
+            ["Severe food insecurity", "Serious food insecurity affecting wellbeing."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q18b-derivation",
+      "title": "Q18b — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 396,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q18b = 2 (irregular meals)", "Community kitchen enrolment (priority); family negotiation if family-cooked meals are inconsistent; dry ration kit if needed in interim", "H", "CO + KI", "Within 14 days"],
+            ["Q18b = 3 (severe food insecurity)", "**Critical flag.** Emergency ration within 48 hours; community kitchen daily; ration card pipeline (referral to Entitlements Team)", "H", "CO + KI + ET", "Within 48 hours"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q19",
+      "title": "Q19 — Ability to afford basic needs",
+      "kind": "question",
+      "naturalOrder": 397,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Can the elder afford medicines and basic needs?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Yes (0)** — able to manage essential expenses",
+          "**Occasional difficulty (1)** — occasional financial stress identified",
+          "**Frequent difficulty (2)** — frequent inability to manage essential expenses",
+          "**Unable to afford (3)** — severe financial inability affecting survival or treatment"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q19-appendix"],
+        "care_plan": ["elderly-eva-q19-derivation"],
+        "action_manual": ["elderly-chapter-23-entitlements-referral", "elderly-chapter-20-community-kitchen"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q19-appendix",
+      "title": "Q19 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 398,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Yes", "Able to manage essential expenses."],
+            ["Occasional difficulty", "Occasional financial stress identified."],
+            ["Frequent difficulty", "Frequent inability to manage essential expenses."],
+            ["Unable to afford", "Severe financial inability affecting survival or treatment."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q19-derivation",
+      "title": "Q19 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 399,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q19 = 2 (frequent affordability gap)", "Identify which expense — food, medicine, fuel — and address: community kitchen for food; PHC/Janaushadhi for medicine; ET for pension expediting", "M", "CO + ET", "Within 21 days"],
+            ["Q19 = 3 (severe inability)", "Immediate triage of unmet essential expense; emergency support fund if available; ET for pension/widow scheme expediting; community kitchen for daily food", "H", "CO + Sup + ET", "Within 14 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q20",
+      "title": "Q20 — Pension and entitlement access",
+      "kind": "question",
+      "naturalOrder": 400,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Is the elder receiving pension or eligible entitlements regularly?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Regular (0)** — benefits received consistently",
+          "**Minor delays (1)** — occasional interruption identified",
+          "**Frequently disrupted (2)** — repeated disruption identified",
+          "**Not receiving despite eligibility (3)** — eligible but not receiving benefits"
+        ] },
+        { "h": 2, "text": "Programme note" },
+        "All Q20 responses are referred to the **Entitlements Team** (separate from elderly team). CO's job is clean handover + tracking. Track to the **money in the account**, not to 'approved.'"
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q20-appendix"],
+        "care_plan": ["elderly-eva-q20-derivation"],
+        "action_manual": ["elderly-chapter-23-entitlements-referral"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q20-appendix",
+      "title": "Q20 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 401,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Regular", "Benefits received consistently."],
+            ["Minor delays", "Occasional interruption identified."],
+            ["Frequently disrupted", "Repeated disruption identified."],
+            ["Not receiving despite eligibility", "Eligible but not receiving benefits."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q20-derivation",
+      "title": "Q20 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 402,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q20 = 2 (frequently disrupted)", "ET referred to follow up specific scheme (which pension/which card); CO tracks resolution at next visit", "M", "CO → ET", "Within 14 days"],
+            ["Q20 = 3 (not receiving despite eligibility)", "Priority referral to ET with full documentation of the specific entitlement and known blocker; expected resolution timeline tracked", "H", "CO → ET", "Within 7 days"]
+          ]
+        } }
+      ]
+    }
+  ]
+}

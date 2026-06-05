@@ -1,0 +1,225 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-eva-q11",
+      "title": "Q11 — Chronic illness burden",
+      "kind": "question",
+      "naturalOrder": 361,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does the elder have serious chronic illness or multiple health conditions?",
+        { "h": 2, "text": "Response options (Domain 3 weight ×1.5)" },
+        { "ul": [
+          "**No (0)** — no major chronic illness identified",
+          "**Controlled (1)** — illness reasonably controlled",
+          "**Multiple (2)** — multiple chronic conditions identified",
+          "**Severe or untreated (3)** — severe or progressive illness affecting wellbeing"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q11-appendix"],
+        "care_plan": ["elderly-eva-q11-derivation", "elderly-pathway-health"],
+        "action_manual": ["elderly-chapter-10-phc-linkage", "elderly-chapter-12-hospital-referral"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q11-appendix",
+      "title": "Q11 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 362,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No major chronic illness identified."],
+            ["Controlled illness", "Illness reasonably controlled."],
+            ["Multiple illnesses", "Multiple chronic conditions identified."],
+            ["Severe or untreated", "Severe or progressive illness affecting wellbeing."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q11-derivation",
+      "title": "Q11 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 363,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q11 = 2 (multiple illnesses)", "PHC/UPHC linkage confirmed; consolidated medication list with family; quarterly clinical review schedule", "M", "CO", "Within 30 days"],
+            ["Q11 = 3 (severe/untreated)", "Urgent medical referral; transport arranged; family briefed; supervisor informed", "H", "CO + Sup", "Within 7 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q12",
+      "title": "Q12 — Medicine continuity",
+      "kind": "question",
+      "naturalOrder": 364,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Is the elder taking medicines regularly?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Regular (0)** — medicines taken consistently",
+          "**Occasional miss (1)** — minor irregularity identified",
+          "**Frequently irregular (2)** — frequent interruption in medicines",
+          "**Not taking despite need (3)** — required medicines not being taken"
+        ] },
+        { "h": 2, "text": "Watch for" },
+        "Asking 'Are you taking your medicines?' almost always gets 'yes.' Look — count the pills left against the days passed. The truth is in the strip."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q12-appendix"],
+        "care_plan": ["elderly-eva-q12-derivation", "elderly-pathway-health"],
+        "action_manual": ["elderly-chapter-11-medicines-regularly", "elderly-chapter-10-phc-linkage"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q12-appendix",
+      "title": "Q12 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 365,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Regular", "Medicines taken consistently."],
+            ["Occasional miss", "Minor irregularity identified."],
+            ["Frequently irregular", "Frequent interruption in medicines."],
+            ["Not taking despite need", "Required medicines not being taken."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q12-derivation",
+      "title": "Q12 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 366,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q12 = 2 (frequently irregular)", "Diagnose cause: cost / stockout / dislike / forgetting. Address specifically: cost → PHC supply or Janaushadhi; stockout → escalate PHC officer; forgetting → family supervision or pill organiser", "H", "CO", "Within 14 days"],
+            ["Q12 = 3 (not taking despite need)", "Same + family conversation re importance; counselling if elder refuses for psychological reasons; supervisor involvement", "H", "CO + Sup", "Within 7 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q13a",
+      "title": "Q13a — Sensory function (vision and hearing)",
+      "kind": "question",
+      "naturalOrder": 367,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does the elder have vision or hearing problems affecting daily life? Tick which: ☐ Vision  ☐ Hearing  ☐ Both. Score reflects the more severe of the two.",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No issues (0)** — no issues, or fully corrected with glasses/hearing aid",
+          "**Mild (1)** — manages but with some difficulty",
+          "**Moderate (2)** — significantly affects daily activity; cataract surgery or hearing aid candidate",
+          "**Severe (3)** — functionally blind, profoundly deaf, or compounding other disability — **CRITICAL FLAG**"
+        ] },
+        { "h": 2, "text": "Training note" },
+        "Test simply — can the elder read a newspaper headline at arm's length (vision)? Does the elder ask for repetition or speak loudly without realising (hearing)? Cataract and hearing loss are major preventable disability drivers in Indian slum elders; both operable."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q13a-appendix"],
+        "care_plan": ["elderly-eva-q13a-derivation", "elderly-flag-protocol-sensory-loss"],
+        "action_manual": ["elderly-chapter-13-eye-ear-camps"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q13a-appendix",
+      "title": "Q13a — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 368,
+      "content": [
+        "Q13a added in v4 because cataract and hearing loss are major preventable disability drivers in Indian slum elders. Cataract prevalence reaches 50–60% in over-70 populations, mostly operable. Hearing loss drives social withdrawal, family conflict, and cognitive decline, and is addressable with a basic hearing aid.",
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No issues", "No issues, or fully corrected with glasses/hearing aid."],
+            ["Mild", "Manages but with some difficulty."],
+            ["Moderate", "Significantly affects daily activity; cataract surgery or hearing aid candidate."],
+            ["Severe", "Functionally blind, profoundly deaf, or compounding other disability."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q13a-derivation",
+      "title": "Q13a — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 369,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q13a = 2 (moderate sensory loss)", "Refer to next eye/ENT camp (or set one up via partner); disability certificate workflow opened if eligible (referral to Entitlements Team)", "M", "CO + ET", "Within 30 days"],
+            ["Q13a = 3 (severe untreated)", "**Critical flag review.** Priority surgical referral (cataract) or hearing aid procurement; disability certificate fast-track", "H", "CO + Sup + ET", "Within 30 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q13b",
+      "title": "Q13b — Immediate medical attention",
+      "kind": "question",
+      "naturalOrder": 370,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does the elder currently require immediate medical attention?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**No (0)** — no immediate medical concern",
+          "**Monitoring required (1)** — requires monitoring and follow-up",
+          "**Referral required (2)** — medical referral needed",
+          "**Urgent attention needed (3)** — immediate medical response required — **CRITICAL FLAG**"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q13b-appendix"],
+        "care_plan": ["elderly-eva-q13b-derivation", "elderly-flag-protocol-acute-medical"],
+        "action_manual": ["elderly-chapter-12-hospital-referral", "elderly-chapter-14-medical-emergency"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q13b-appendix",
+      "title": "Q13b — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 371,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No", "No immediate medical concern."],
+            ["Monitoring required", "Requires monitoring and follow-up."],
+            ["Referral required", "Medical referral needed."],
+            ["Urgent attention needed", "Immediate medical response required."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q13b-derivation",
+      "title": "Q13b — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 372,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q13b = 2 (referral required)", "Specialist referral with accompaniment if elder alone; transport arranged; follow-up within 14 days of referral", "H", "CO", "Within 7 days"],
+            ["Q13b = 3 (urgent attention)", "**Critical flag — Acute Deterioration protocol.** Same-day PHC contact; 108 if life-threatening", "H", "CO + Sup", "Same day"]
+          ]
+        } }
+      ]
+    }
+  ]
+}

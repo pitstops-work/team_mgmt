@@ -1,0 +1,169 @@
+{
+  "articles": [
+    {
+      "slug": "elderly-eva-q16",
+      "title": "Q16 — Abuse or neglect [Sensitive]",
+      "kind": "question",
+      "naturalOrder": 381,
+      "content": [
+        { "h": 2, "text": "Question [V] [Sensitive]" },
+        "Is there any indication of abuse, neglect, abandonment, or unsafe caregiving?",
+        { "h": 2, "text": "Response options (Domain 5 weight ×2.0)" },
+        { "ul": [
+          "**No concern (0)** — no visible indication of abuse or neglect",
+          "**Mild suspicion (1)** — minor concern observed",
+          "**Repeated concern (2)** — repeated indicators identified — **CRITICAL FLAG**",
+          "**Severe concern (3)** — serious abuse, abandonment, or neglect — **CRITICAL FLAG**"
+        ] },
+        { "h": 2, "text": "Critical safeguarding" },
+        "**Observations of abuse must be kept in restricted log only and never disclosed to the perpetrator.** CO does not act alone — Sup + City Lead carry case ownership."
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q16-appendix", "elderly-framework-sensitive-fields"],
+        "care_plan": ["elderly-eva-q16-derivation", "elderly-flag-protocol-abuse", "elderly-flag-protocol-neglect"],
+        "action_manual": ["elderly-chapter-18-abuse-neglect"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q16-appendix",
+      "title": "Q16 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 382,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["No concern", "No visible indication of abuse or neglect."],
+            ["Mild suspicion", "Minor concern observed."],
+            ["Repeated concern", "Repeated indicators identified."],
+            ["Severe concern", "Serious abuse, abandonment, or neglect concern identified."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q16-derivation",
+      "title": "Q16 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 383,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q16 = 1 (mild suspicion)", "Sensitive observation continued; private conversation with elder at next visit; supervisor informed; record kept in restricted file only", "M", "CO + Sup", "Within 14 days"],
+            ["Q16 = 2 (repeated concern)", "**Critical flag review.** Supervisor + City Lead same day; safety plan within 72 hours", "H", "Sup + City Lead", "Same day"],
+            ["Q16 = 3 (severe abuse/abandonment)", "**Critical flag.** Helpline activation (Women 181 / Elder 14567 / Police 100); emergency safe placement if at immediate risk", "H", "Sup + City Lead", "Same day"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q17",
+      "title": "Q17 — Housing and environment safety",
+      "kind": "question",
+      "naturalOrder": 384,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Is the elder's housing and environment safe?",
+        { "h": 2, "text": "Response options" },
+        { "ul": [
+          "**Safe (0)** — environment appears reasonably safe",
+          "**Minor risks (1)** — minor environmental concerns",
+          "**Moderate risks (2)** — multiple environmental risks identified",
+          "**Dangerous or unsafe (3)** — severely unsafe environment — **CRITICAL FLAG**"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q17-appendix"],
+        "care_plan": ["elderly-eva-q17-derivation", "elderly-flag-protocol-unsafe-shelter"],
+        "action_manual": ["elderly-chapter-19-unsafe-housing", "elderly-chapter-5-home-hazards"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q17-appendix",
+      "title": "Q17 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 385,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Safe", "Environment appears reasonably safe."],
+            ["Minor risks", "Minor environmental concerns."],
+            ["Moderate risks", "Multiple environmental risks identified."],
+            ["Dangerous or unsafe", "Severely unsafe environment identified."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q17-derivation",
+      "title": "Q17 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 386,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q17 = 2 (moderate housing risks)", "Hazard reduction (lighting, electrical safety, ventilation, fall hazards); coordinate with settlement leader for structural issues", "M", "CO", "Within 30 days"],
+            ["Q17 = 3 (dangerous housing / homelessness)", "**Critical flag.** Emergency shelter referral; settlement leader + supervisor briefed; medium-term housing solution explored", "H", "CO + Sup", "Within 7 days"]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q21",
+      "title": "Q21 — Emergency support",
+      "kind": "question",
+      "naturalOrder": 401,
+      "content": [
+        { "h": 2, "text": "Question [V]" },
+        "Does the elder have reliable emergency support if needed?",
+        { "h": 2, "text": "Response options (Domain 7 weight ×1.0)" },
+        { "ul": [
+          "**Reliable (0)** — dependable emergency support available",
+          "**Limited (1)** — some support available but inconsistent",
+          "**Uncertain (2)** — support unreliable or unclear",
+          "**No support (3)** — no dependable emergency support — **CRITICAL FLAG** (no dependable caregiver)"
+        ] }
+      ],
+      "links": {
+        "guideline": ["elderly-eva-q21-appendix"],
+        "care_plan": ["elderly-eva-q21-derivation", "elderly-pathway-emergency", "elderly-flag-protocol-no-caregiver"],
+        "action_manual": ["elderly-chapter-24-emergency-contact-chain", "elderly-chapter-4-no-caregiver"]
+      }
+    },
+    {
+      "slug": "elderly-eva-q21-appendix",
+      "title": "Q21 — Operational definitions",
+      "kind": "guideline_appendix",
+      "naturalOrder": 402,
+      "content": [
+        { "table": {
+          "head": ["Response", "Operational definition"],
+          "rows": [
+            ["Reliable", "Dependable emergency support available."],
+            ["Limited", "Some support available but inconsistent."],
+            ["Uncertain", "Support unreliable or unclear."],
+            ["No support", "No dependable emergency support available."]
+          ]
+        } }
+      ]
+    },
+    {
+      "slug": "elderly-eva-q21-derivation",
+      "title": "Q21 — Care plan derivation",
+      "kind": "care_plan_derivation",
+      "naturalOrder": 403,
+      "content": [
+        { "table": {
+          "head": ["Score", "Triggered response", "Priority", "Owner", "Timeframe"],
+          "rows": [
+            ["Q21 = 2 (uncertain support)", "Identify one trusted contact (neighbour, settlement leader, distant relative); ensure phone number on file; introduce CO contact details to elder + contact", "M", "CO", "Within 30 days"],
+            ["Q21 = 3 (no dependable support)", "**Critical flag review.** Settlement-level emergency arrangement; CO acts as primary contact; community kitchen attendance for daily check; periodic supervisor home visit", "H", "CO + Sup", "Within 14 days"]
+          ]
+        } }
+      ]
+    }
+  ]
+}

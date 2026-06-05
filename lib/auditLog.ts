@@ -7,7 +7,8 @@ export type AuditEntityType =
   | "System"
   | "Activity"     // PitstopEvent
   | "Checklist"    // ChecklistItem
-  | "ActionPoint"; // ActionPoint — follow-ups raised from a visit
+  | "ActionPoint"  // ActionPoint — follow-ups raised from a visit
+  | "WikiArticle"; // Wiki v2 — programme-spine reference articles
 
 export type AuditEntry = {
   entityType: AuditEntityType;

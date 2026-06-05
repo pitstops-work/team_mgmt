@@ -1,61 +1,20 @@
 import { auth } from "@/lib/auth";
-import prisma from "@/lib/prisma";
-import { isWikiSteward, isWikiCurator } from "@/lib/wiki/auth";
-import WikiListView from "./WikiListView";
-import { SurfaceProvider } from "@/components/rbac/RbacProviders";
+import { getProgrammeBadges } from "@/lib/wiki/articles";
+import { ProgramBadgesGrid } from "./_components/ProgramBadgesGrid";
 
+/**
+ * Wiki landing (v2). Programme-organised reference content. Each programme
+ * with a spine is a live entry; others are stubs.
+ *
+ * Replaces the previous WikiListView (legacy wiki models + routes still
+ * exist for direct URL access — see /wiki/[slug], /wiki/circles, etc.).
+ */
 export default async function WikiIndexPage() {
   const session = await auth();
-  const userId = session?.user?.id ?? null;
+  if (!session?.user?.id) {
+    return <div className="p-6 text-sm text-stone-500">Sign in to view the wiki.</div>;
+  }
 
-  const [pages, steward, curator, ownedCount] = await Promise.all([
-    prisma.wikiPage.findMany({
-      where: { archivedAt: null, status: { not: "retired" } },
-      orderBy: { lastEditedAt: "desc" },
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        type: true,
-        canonicalLang: true,
-        status: true,
-        lastEditedAt: true,
-        nextReviewDue: true,
-        owner: { select: { id: true, name: true, image: true } },
-        tags: { select: { tagType: true, tagValue: true } },
-        _count: {
-          select: {
-            flags: { where: { status: { not: "resolved" } } },
-            comments: { where: { resolvedAt: null } },
-          },
-        },
-      },
-      take: 200,
-    }),
-    userId ? isWikiSteward(userId) : Promise.resolve(false),
-    userId ? isWikiCurator(userId) : Promise.resolve(false),
-    userId
-      ? prisma.wikiPage.count({
-          where: { ownerId: userId, archivedAt: null, status: { not: "retired" } },
-        })
-      : Promise.resolve(0),
-  ]);
-
-  const decorated = pages.map((p) => ({
-    ...p,
-    openFlagCount: p._count.flags,
-    unresolvedCommentCount: p._count.comments,
-  }));
-
-  return (
-    <SurfaceProvider id="wiki.list">
-      <WikiListView
-        initialPages={JSON.parse(JSON.stringify(decorated))}
-        canCreate={steward}
-        hasDashboard={steward || curator || ownedCount > 0}
-        isStaff={steward || curator}
-        isStewardOnly={steward}
-      />
-    </SurfaceProvider>
-  );
+  const badges = await getProgrammeBadges();
+  return <ProgramBadgesGrid badges={badges} />;
 }
