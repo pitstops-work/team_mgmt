@@ -1305,6 +1305,30 @@ export default function MapView({
       map.setPaintProperty(fillId, "fill-opacity", ["case", ["==", ["get", "filterMatch"], 1], 0.55, offOpacity]);
       map.setPaintProperty(lineId, "line-width", ["case", ["==", ["get", "filterMatch"], 1], 2.5, offLineWidth]);
     });
+
+    // Cluster + zone boundary layers — when a filter is active with
+    // hideNonMatching, drop the non-matching clusters/zones via a layer
+    // filter so only the in-scope shapes remain. setFilter(_, null)
+    // clears the filter and restores the full set.
+    const hasFilter = filter && (filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0);
+    const hideOthers = !!(hasFilter && filter?.hideNonMatching);
+
+    const clusterNames = filter ? Array.from(filter.clusters) : [];
+    const zoneNames = filter ? Array.from(filter.zones) : [];
+
+    const clusterMatchExpr = hideOthers && clusterNames.length > 0
+      ? (["in", ["get", "cluster"], ["literal", clusterNames]] as maplibregl.FilterSpecification)
+      : null;
+    const zoneMatchExpr = hideOthers && zoneNames.length > 0
+      ? (["in", ["get", "zone"], ["literal", zoneNames]] as maplibregl.FilterSpecification)
+      : null;
+
+    for (const id of ["clusters-fill", "clusters-line", "clusters-label"]) {
+      if (map.getLayer(id)) map.setFilter(id, clusterMatchExpr);
+    }
+    for (const id of ["zones-fill", "zones-line", "zones-label"]) {
+      if (map.getLayer(id)) map.setFilter(id, zoneMatchExpr);
+    }
   }
 
   // ── Register new facility layers if they arrive after map is loaded ───────
