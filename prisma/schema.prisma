@@ -1008,14 +1008,18 @@ model City {
 }
 
 model Zone {
-  id        String    @id @default(cuid())
-  name      String
-  cityId    String?
-  leadId    String?
-  geometry  Json?
-  color     String?
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
+  id             String    @id @default(cuid())
+  name           String
+  cityId         String?
+  leadId         String?
+  geometry       Json?
+  // 'manual' = hand-drawn / seeded polygon (locked, recompute skips it).
+  // 'auto'   = convex hull of settlement points (recompute is allowed to
+  // refresh it). Defaults to 'manual' so existing seeded shapes stay safe.
+  geometrySource String    @default("manual")
+  color          String?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
 
   city          City?                @relation(fields: [cityId], references: [id], onDelete: SetNull)
   lead          User?                @relation("ZoneLead", fields: [leadId], references: [id], onDelete: SetNull)
@@ -1031,6 +1035,10 @@ model Cluster {
   name            String
   zoneId          String
   geometry        Json?
+  // 'manual' = hand-drawn / seeded polygon (locked, recompute skips it).
+  // 'auto'   = convex hull of settlement points (recompute is allowed to
+  // refresh it). Defaults to 'manual' so existing seeded shapes stay safe.
+  geometrySource  String    @default("manual")
   color           String?
   label           String?
   deletedAt       DateTime?
@@ -2313,10 +2321,10 @@ model RolePermission {
 // Internal" org seeded via prisma/seed-wiki.ts. Partner NGO orgs are added
 // later when partner-user onboarding ships.
 model Org {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  kind      String // "internal" | "partner"
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  kind         String // "internal" | "partner"
   // Partner-identity columns. Lifted from the old MapPartner model so every
   // partner-shaped reference (Settlement, Cluster, LayerFeature, Wiki, User)
   // can point at the same row. mapKey is the legacy LAYERS slug used to
@@ -2330,8 +2338,8 @@ model Org {
   contactEmail String?
   notes        String?
   archivedAt   DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   users                 User[]
   partnerReviewMeetings WikiPartnerReviewMeeting[] @relation("WikiPartnerReviewMeetingOrg")
@@ -2701,7 +2709,7 @@ model WikiPracticeGap {
 // optional drift flag, optional primary page touched. See module 6 of the
 // practice-documentation training.
 model WikiPracticeObservation {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   kind           String // "shadow" | "onboarding"
   observerId     String
   observedUserId String?
@@ -2709,18 +2717,18 @@ model WikiPracticeObservation {
   vertical       String
   city           String?
   happenedAt     DateTime
-  notes          String   @default("")
+  notes          String    @default("")
   openQuestions  String?
   // True when the observation revealed drift between page and practice — the
   // observer also files a flag against the page. Useful for the dashboard.
-  driftFlagged   Boolean  @default(false)
+  driftFlagged   Boolean   @default(false)
   // Single page this observation primarily touched. Nullable: onboarding may
   // span many pages, shadow visits may touch none yet (gap incoming).
   primaryPageId  String?
   // Soft-delete. Lists, dashboards, crons all filter archivedAt: null.
   archivedAt     DateTime?
   archivedById   String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   observer    User      @relation("WikiPracticeObservationObserver", fields: [observerId], references: [id], onDelete: Restrict)
   observed    User?     @relation("WikiPracticeObservationObserved", fields: [observedUserId], references: [id], onDelete: SetNull)
@@ -2744,12 +2752,12 @@ model WikiPracticeObservation {
 // One row per (manual, sectionNumber). Section content is markdown, matching
 // WikiPage.canonicalContent conventions so the same renderer applies.
 model WikiManualSection {
-  id              String   @id @default(cuid())
-  pageId          String
-  sectionNumber   Int // 1..8, see lib/wiki/manual.ts SECTION_LABELS
-  content         String   @default("") // markdown (canonical lang of the parent page)
-  lastEditedAt    DateTime @default(now())
-  lastEditedById  String?
+  id             String   @id @default(cuid())
+  pageId         String
+  sectionNumber  Int // 1..8, see lib/wiki/manual.ts SECTION_LABELS
+  content        String   @default("") // markdown (canonical lang of the parent page)
+  lastEditedAt   DateTime @default(now())
+  lastEditedById String?
 
   page       WikiPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
   lastEditor User?    @relation("WikiManualSectionEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
@@ -2782,11 +2790,11 @@ model WikiPracticeEntry {
   archivedById            String?
   createdAt               DateTime  @default(now())
 
-  page        WikiPage            @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  observer    User                @relation("WikiPracticeEntryObserver", fields: [observerId], references: [id], onDelete: Restrict)
-  partnerOrg  Org?                @relation("WikiPracticeEntryPartnerOrg", fields: [partnerOrgId], references: [id], onDelete: SetNull)
-  promoter    User?               @relation("WikiPracticeEntryPromoter", fields: [promotedById], references: [id], onDelete: SetNull)
-  circle      WikiPracticeCircle? @relation("WikiPracticeEntryCircle", fields: [circleId], references: [id], onDelete: SetNull)
+  page       WikiPage            @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  observer   User                @relation("WikiPracticeEntryObserver", fields: [observerId], references: [id], onDelete: Restrict)
+  partnerOrg Org?                @relation("WikiPracticeEntryPartnerOrg", fields: [partnerOrgId], references: [id], onDelete: SetNull)
+  promoter   User?               @relation("WikiPracticeEntryPromoter", fields: [promotedById], references: [id], onDelete: SetNull)
+  circle     WikiPracticeCircle? @relation("WikiPracticeEntryCircle", fields: [circleId], references: [id], onDelete: SetNull)
 
   @@index([pageId, sectionNumber])
   @@index([pageId, status])
@@ -2975,9 +2983,9 @@ model ActionPoint {
   completedById   String?
 
   // Bookkeeping
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime @default(now())
   createdById     String
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime @updatedAt
   lastUpdatedById String?
 
   // Relations

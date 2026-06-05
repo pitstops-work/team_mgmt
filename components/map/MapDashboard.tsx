@@ -146,6 +146,12 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
   const searchParams = useSearchParams();
   const settlementParam = searchParams.get("settlement");
   const clusterParam = searchParams.get("cluster");
+  // Visual-diff overlay: ?derived=1 renders the PostGIS-view-computed
+  // cluster + zone polygons on top of the stored ones in a bright dashed
+  // stroke, so we can eyeball where derived diverges from hand-drawn
+  // before committing to the cutover. See migration
+  // 20260605010000_derived_cluster_zone_views + /api/admin/derived-boundaries.
+  const derivedOverlay = searchParams.get("derived") === "1";
 
   // Ref so the deep-link effect can call handleSettlementClick without it
   // needing to be in the dependency array (handleSettlementClick depends on geoData
@@ -493,6 +499,89 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
       .filter(c => c.zoneId && cityZoneIds.has(c.zoneId))
       .reduce((sum, c) => sum + (c.settlementCount ?? 0), 0);
   }, [geoDb, activeCity]);
+
+  // ── Derived-boundary overlay (?derived=1) ──────────────────────────
+  // Adds two layer pairs (derived-clusters / derived-zones) using the
+  // PostGIS-view-computed polygons from /api/admin/derived-boundaries.
+  // Stroked dashed orange so it visually pops above the stored polygons.
+  useEffect(() => {
+    if (!derivedOverlay) return;
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const ensureLayers = async () => {
+      const map = sharedMapRef.current;
+      if (!map || !map.isStyleLoaded()) {
+        pollTimer = setTimeout(ensureLayers, 200);
+        return;
+      }
+      try {
+        const r = await fetch("/api/admin/derived-boundaries");
+        if (!r.ok) { console.warn("[derived overlay] fetch failed", r.status); return; }
+        if (cancelled) return;
+        const data = (await r.json()) as {
+          clusters: { id: string; name: string; geometry: unknown }[];
+          zones: { id: string; name: string; geometry: unknown }[];
+        };
+        const toFC = (rows: { id: string; name: string; geometry: unknown }[]) =>
+          ({
+            type: "FeatureCollection",
+            features: rows.filter(x => x.geometry).map(x => ({
+              type: "Feature",
+              properties: { id: x.id, name: x.name },
+              geometry: x.geometry,
+            })),
+          } as unknown as GeoJSON.FeatureCollection);
+        // Cluster overlay — orange dashed
+        if (!map.getSource("derived-clusters-source")) {
+          map.addSource("derived-clusters-source", { type: "geojson", data: toFC(data.clusters) });
+          map.addLayer({
+            id: "derived-clusters-line",
+            type: "line",
+            source: "derived-clusters-source",
+            paint: { "line-color": "#ea580c", "line-width": 2.4, "line-opacity": 0.95, "line-dasharray": [3, 2] },
+          });
+          map.addLayer({
+            id: "derived-clusters-fill",
+            type: "fill",
+            source: "derived-clusters-source",
+            paint: { "fill-color": "#ea580c", "fill-opacity": 0.06 },
+          }, "derived-clusters-line");
+        } else {
+          (map.getSource("derived-clusters-source") as maplibregl.GeoJSONSource).setData(toFC(data.clusters));
+        }
+        // Zone overlay — magenta dashed
+        if (!map.getSource("derived-zones-source")) {
+          map.addSource("derived-zones-source", { type: "geojson", data: toFC(data.zones) });
+          map.addLayer({
+            id: "derived-zones-line",
+            type: "line",
+            source: "derived-zones-source",
+            paint: { "line-color": "#be185d", "line-width": 3, "line-opacity": 0.85, "line-dasharray": [6, 4] },
+          });
+        } else {
+          (map.getSource("derived-zones-source") as maplibregl.GeoJSONSource).setData(toFC(data.zones));
+        }
+      } catch (err) {
+        console.warn("[derived overlay] error:", err);
+      }
+    };
+
+    ensureLayers();
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearTimeout(pollTimer);
+      const map = sharedMapRef.current;
+      if (!map) return;
+      for (const id of ["derived-clusters-fill", "derived-clusters-line", "derived-zones-line"]) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      for (const id of ["derived-clusters-source", "derived-zones-source"]) {
+        if (map.getSource(id)) map.removeSource(id);
+      }
+    };
+  }, [derivedOverlay]);
 
   return (
     <div ref={containerRef} className="flex h-full w-full overflow-hidden bg-slate-100">

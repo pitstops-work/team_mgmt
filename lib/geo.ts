@@ -56,7 +56,25 @@ function pointsForSettlement(s: {
   return [];
 }
 
-export async function recomputeClusterBoundary(clusterId: string, prisma: PrismaClient): Promise<void> {
+// Cluster.geometrySource / Zone.geometrySource is the lock. 'manual' rows
+// were hand-drawn (or seeded from the curated geojson files in
+// public/data/) and must never be overwritten by the convex-hull
+// recompute. Pass { force: true } only when an admin explicitly opts a
+// row back into auto mode (e.g. a "reset to auto" button in the
+// map-features UI); the call also flips the source to 'auto'.
+
+export async function recomputeClusterBoundary(
+  clusterId: string,
+  prisma: PrismaClient,
+  opts: { force?: boolean } = {},
+): Promise<void> {
+  if (!opts.force) {
+    const row = await prisma.cluster.findUnique({
+      where: { id: clusterId },
+      select: { geometrySource: true },
+    });
+    if (row?.geometrySource === "manual") return;
+  }
   const settlements = await prisma.settlement.findMany({
     where: { clusterId, deletedAt: null },
     select: { polygon: true, centroidLat: true, centroidLng: true },
@@ -64,10 +82,21 @@ export async function recomputeClusterBoundary(clusterId: string, prisma: Prisma
   const pts = settlements.flatMap(pointsForSettlement);
   if (pts.length < 3) return;
   const geometry = { type: "Polygon", coordinates: [convexHull(pts)] };
-  await prisma.$executeRaw`UPDATE "Cluster" SET geometry = ${JSON.stringify(geometry)}::jsonb WHERE id = ${clusterId}`;
+  await prisma.$executeRaw`UPDATE "Cluster" SET geometry = ${JSON.stringify(geometry)}::jsonb, "geometrySource" = 'auto' WHERE id = ${clusterId}`;
 }
 
-export async function recomputeZoneBoundary(zoneId: string, prisma: PrismaClient): Promise<void> {
+export async function recomputeZoneBoundary(
+  zoneId: string,
+  prisma: PrismaClient,
+  opts: { force?: boolean } = {},
+): Promise<void> {
+  if (!opts.force) {
+    const row = await prisma.zone.findUnique({
+      where: { id: zoneId },
+      select: { geometrySource: true },
+    });
+    if (row?.geometrySource === "manual") return;
+  }
   const clusterIds = (await prisma.cluster.findMany({
     where: { zoneId, deletedAt: null },
     select: { id: true },
@@ -80,5 +109,5 @@ export async function recomputeZoneBoundary(zoneId: string, prisma: PrismaClient
   const pts = settlements.flatMap(pointsForSettlement);
   if (pts.length < 3) return;
   const geometry = { type: "Polygon", coordinates: [convexHull(pts)] };
-  await prisma.$executeRaw`UPDATE "Zone" SET geometry = ${JSON.stringify(geometry)}::jsonb WHERE id = ${zoneId}`;
+  await prisma.$executeRaw`UPDATE "Zone" SET geometry = ${JSON.stringify(geometry)}::jsonb, "geometrySource" = 'auto' WHERE id = ${zoneId}`;
 }

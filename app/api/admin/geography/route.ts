@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
     });
     if (exists) return Response.json({ error: "A zone with that name already exists in this city" }, { status: 409 });
     const zone = await prisma.zone.create({
-      data: { name, cityId: body.cityId },
+      data: { name, cityId: body.cityId, geometrySource: "auto" },
       select: { id: true, name: true, cityId: true, city: { select: { name: true } } },
     });
     return Response.json({
@@ -197,7 +197,7 @@ export async function POST(req: NextRequest) {
     });
     if (exists) return Response.json({ error: "A cluster with that name already exists in this zone" }, { status: 409 });
     const cluster = await prisma.cluster.create({
-      data: { name, zoneId: body.zoneId },
+      data: { name, zoneId: body.zoneId, geometrySource: "auto" },
       select: { id: true, name: true, zoneId: true },
     });
     return Response.json({
