@@ -1066,6 +1066,10 @@ export default function MapView({
             onZoneSelectRef.current(e.features[0].properties?.id ?? null);
           });
           // cursor managed by the global mousemove handler
+          // Re-apply the active filter — if mapFilter was set before the
+          // zone layers finished loading, the previous applyFilterHighlight
+          // call skipped them (map.getLayer returned undefined).
+          if (mapFilterRef.current) applyFilterHighlight(map, mapFilterRef.current, visibleLayersRef.current);
         } catch (err) {
           console.warn("[MapView] zones layer setup skipped:", err instanceof Error ? err.message : err);
         }
@@ -1140,6 +1144,8 @@ export default function MapView({
             onClusterSelectRef.current(e.features[0].properties?.cluster ?? null);
           });
           // cursor managed by the global mousemove handler
+          // Re-apply the active filter — see the zones-source block above.
+          if (mapFilterRef.current) applyFilterHighlight(map, mapFilterRef.current, visibleLayersRef.current);
         } catch (err) {
           console.warn("[MapView] clusters layer setup skipped:", err instanceof Error ? err.message : err);
         }
@@ -1310,18 +1316,43 @@ export default function MapView({
     // hideNonMatching, drop the non-matching clusters/zones via a layer
     // filter so only the in-scope shapes remain. setFilter(_, null)
     // clears the filter and restores the full set.
-    const hasFilter = filter && (filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0);
-    const hideOthers = !!(hasFilter && filter?.hideNonMatching);
+    //
+    // Names get normalised before the membership check because the
+    // cluster_geometry / zone_geometry view endpoints return the DB form
+    // ("JJR Nagar"), while filter.clusters / filter.zones populate from
+    // settlement-feature properties (sometimes "JJR_Nagar" with
+    // underscores from the partner geojson files). Both forms must
+    // match. We do that by expanding the membership set to include
+    // every normalised + underscore + space variant we can derive.
+    const hasFilter2 = filter && (filter.partnerKeys.size > 0 || filter.zones.size > 0 || filter.clusters.size > 0);
+    const hideOthers = !!(hasFilter2 && filter?.hideNonMatching);
 
-    const clusterNames = filter ? Array.from(filter.clusters) : [];
-    const zoneNames = filter ? Array.from(filter.zones) : [];
+    const expand = (s: string): string[] => {
+      const cleaned = (s ?? "").trim();
+      if (!cleaned) return [];
+      const spaced = cleaned.replace(/[_\-]+/g, " ").trim();
+      const underscored = cleaned.replace(/\s+/g, "_");
+      return Array.from(new Set([cleaned, spaced, underscored, spaced.toLowerCase(), cleaned.toLowerCase()]));
+    };
 
-    const clusterMatchExpr = hideOthers && clusterNames.length > 0
-      ? (["in", ["get", "cluster"], ["literal", clusterNames]] as maplibregl.FilterSpecification)
-      : null;
-    const zoneMatchExpr = hideOthers && zoneNames.length > 0
-      ? (["in", ["get", "zone"], ["literal", zoneNames]] as maplibregl.FilterSpecification)
-      : null;
+    const clusterNames = filter ? Array.from(filter.clusters).flatMap(expand) : [];
+    const zoneNames = filter ? Array.from(filter.zones).flatMap(expand) : [];
+
+    // Filter expression: ["any", ["==", get(prop), val], ...]. This form
+    // is unambiguous in maplibre v5 and avoids the historical confusion
+    // between legacy ["in", "prop", val…] and modern ["in", val, arr].
+    const buildExpr = (prop: "cluster" | "zone", values: string[]): maplibregl.FilterSpecification | null => {
+      if (!hideOthers || values.length === 0) return null;
+      if (values.length === 1) return ["==", ["get", prop], values[0]] as maplibregl.FilterSpecification;
+      const clauses: unknown[] = [
+        "any",
+        ...values.map(v => ["==", ["get", prop], v]),
+      ];
+      return clauses as maplibregl.FilterSpecification;
+    };
+
+    const clusterMatchExpr = buildExpr("cluster", clusterNames);
+    const zoneMatchExpr = buildExpr("zone", zoneNames);
 
     for (const id of ["clusters-fill", "clusters-line", "clusters-label"]) {
       if (map.getLayer(id)) map.setFilter(id, clusterMatchExpr);
