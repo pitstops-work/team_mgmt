@@ -509,6 +509,19 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     let cancelled = false;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // Keep the derived layers above any cluster/zone fill+line layers
+    // that MapView adds async after we've painted ours. Without this, when
+    // the user toggles Clusters/Zones visibility on, the stored polygons
+    // render on top and hide the overlay. moveLayer(id) without a beforeId
+    // moves to the top; calling it on every styledata event covers all
+    // ordering races (initial async fetch, visibility toggles, etc.).
+    const DERIVED_IDS = ["derived-clusters-fill", "derived-clusters-line", "derived-zones-line"];
+    const restack = () => {
+      const m = sharedMapRef.current;
+      if (!m) return;
+      for (const id of DERIVED_IDS) if (m.getLayer(id)) m.moveLayer(id);
+    };
+
     const ensureLayers = async () => {
       const map = sharedMapRef.current;
       if (!map || !map.isStyleLoaded()) {
@@ -562,6 +575,8 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
         } else {
           (map.getSource("derived-zones-source") as maplibregl.GeoJSONSource).setData(toFC(data.zones));
         }
+        restack();
+        map.on("styledata", restack);
       } catch (err) {
         console.warn("[derived overlay] error:", err);
       }
@@ -574,7 +589,8 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
       if (pollTimer) clearTimeout(pollTimer);
       const map = sharedMapRef.current;
       if (!map) return;
-      for (const id of ["derived-clusters-fill", "derived-clusters-line", "derived-zones-line"]) {
+      map.off("styledata", restack);
+      for (const id of DERIVED_IDS) {
         if (map.getLayer(id)) map.removeLayer(id);
       }
       for (const id of ["derived-clusters-source", "derived-zones-source"]) {
