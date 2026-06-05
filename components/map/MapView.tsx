@@ -1032,9 +1032,8 @@ export default function MapView({
             source: "zones-source",
             paint: {
               "line-color": ["get", "color"],
-              "line-width": 2.5,
-              "line-opacity": 0.85,
-              "line-dasharray": [8, 5],
+              "line-width": 3.5,
+              "line-opacity": 0.9,
             },
             layout: { visibility: "none" },
           });
@@ -1107,9 +1106,8 @@ export default function MapView({
             source: "clusters-source",
             paint: {
               "line-color": ["get", "color"],
-              "line-width": 1.8,
-              "line-opacity": 0.8,
-              "line-dasharray": [5, 4],
+              "line-width": 2.5,
+              "line-opacity": 1.0,
             },
             layout: { visibility: "none" },
           });
@@ -1534,7 +1532,7 @@ export default function MapView({
       // Always neutralize zone borders when needs mode is active; restore when off
       if (map.getLayer("zones-line")) {
         map.setPaintProperty("zones-line", "line-color", active ? DIM_LINE : ["get", "color"]);
-        map.setPaintProperty("zones-line", "line-opacity", active ? 0.45 : 0.85);
+        map.setPaintProperty("zones-line", "line-opacity", active ? 0.45 : 0.9);
       }
 
       if (!active || needsLevel !== "zone") {
@@ -1564,7 +1562,7 @@ export default function MapView({
       // Always neutralize cluster borders when needs mode is active; restore when off
       if (map.getLayer("clusters-line")) {
         map.setPaintProperty("clusters-line", "line-color", active ? DIM_LINE : ["get", "color"]);
-        map.setPaintProperty("clusters-line", "line-opacity", active ? 0.45 : 0.8);
+        map.setPaintProperty("clusters-line", "line-opacity", active ? 0.45 : 1.0);
       }
 
       if (!active || needsLevel !== "cluster") {
