@@ -9,8 +9,10 @@ export interface MapFilter {
   source: "zone" | "cluster" | "settlement" | "partner" | "centre" | "mine";
   label: string;                     // human-readable description of active filter
   /** When true, hide non-matching settlements/centres entirely (opacity 0)
-   *  instead of dimming them. Used by the "Mine" toggle so the RP sees
-   *  only their territory. */
+   *  instead of dimming them. Default for every filter source — selecting
+   *  a partner / zone / cluster / settlement / centre in the panel or on
+   *  the map should make the rest disappear so the chosen scope is
+   *  readable. */
   hideNonMatching?: boolean;
 }
 
@@ -67,6 +69,7 @@ export function computeMapFilter(
         centrePartnerLabels: new Set(
           allCentres.filter(c => c.zone === zone).map(c => c.partner).filter(Boolean)
         ),
+        hideNonMatching: true,
       };
     }
 
@@ -83,6 +86,7 @@ export function computeMapFilter(
         centrePartnerLabels: new Set(
           allCentres.filter(c => c.cluster === cluster).map(c => c.partner).filter(Boolean)
         ),
+        hideNonMatching: true,
       };
     }
 
@@ -99,6 +103,7 @@ export function computeMapFilter(
         centrePartnerLabels: new Set(
           allCentres.filter(c => c.cluster === s.cluster).map(c => c.partner).filter(Boolean)
         ),
+        hideNonMatching: true,
       };
     }
 
@@ -113,6 +118,7 @@ export function computeMapFilter(
         zones: new Set(s.map(x => x.zone).filter(Boolean)),
         clusters: new Set(s.map(x => x.cluster).filter(Boolean)),
         centrePartnerLabels: new Set([label]),
+        hideNonMatching: true,
       };
     }
 
@@ -128,6 +134,7 @@ export function computeMapFilter(
         zones: centreZone ? new Set([centreZone]) : new Set(),
         clusters: centreCluster ? new Set([centreCluster]) : new Set(),
         centrePartnerLabels: centrePartner ? new Set([centrePartner]) : new Set(),
+        hideNonMatching: true,
       };
     }
 
