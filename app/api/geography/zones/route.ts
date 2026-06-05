@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (!name?.trim()) return Response.json({ error: "name required" }, { status: 400 });
 
   const zone = await prisma.zone.create({
-    data: { name: name.trim(), cityId: cityId ?? null, geometrySource: "auto" },
+    data: { name: name.trim(), cityId: cityId ?? null },
   });
   return Response.json(zone);
 }

@@ -1,8 +1,11 @@
 /**
- * Seed spatial data into DB:
- * 1. Zone.geometry + color from zones.geojson
- * 2. Cluster.geometry + color + label from clusters.geojson
- * 3. LayerFeature rows from creches, children_centres, youth_centres, resource_centres GeoJSON
+ * Seed spatial data into DB.
+ *
+ * Zone + Cluster polygons are NOT seeded — they're derived live from
+ * settlement coverage via the cluster_geometry / zone_geometry PostGIS
+ * views (migration 20260605010000_derived_cluster_zone_views). Only
+ * LayerFeature rows (creches, children_centres, youth_centres,
+ * resource_centres) are seeded here.
  */
 import { PrismaClient } from "../app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -29,58 +32,6 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-async function seedZones() {
-  const gj = readGeoJSON("zones.geojson");
-  const zones = await prisma.zone.findMany({ include: { city: true } });
-  let updated = 0;
-  for (const feature of gj.features) {
-    const rawName = feature.properties?.zone as string;
-    const color = feature.properties?.color as string | undefined;
-
-    // GeoJSON uses "Chennai – Zonename" prefix for Chennai zones; Bangalore zones have no prefix
-    const isChennai = rawName?.startsWith("Chennai");
-    const zoneName = isChennai
-      ? rawName.replace(/^Chennai\s*[–-]\s*/u, "").trim()
-      : rawName;
-    const cityFilter = isChennai ? "chennai" : "bangalore";
-
-    const zone = zones.find((z) => {
-      const nameMatch = z.name.toLowerCase() === zoneName?.toLowerCase();
-      const cityMatch = z.city?.name?.toLowerCase().includes(cityFilter);
-      return nameMatch && cityMatch;
-    });
-    if (!zone) { console.warn("Zone not found:", rawName); continue; }
-    await prisma.$executeRaw`
-      UPDATE "Zone" SET geometry = ${JSON.stringify(feature.geometry)}::jsonb, color = ${color ?? null}
-      WHERE id = ${zone.id}
-    `;
-    updated++;
-  }
-  console.log(`Zones: ${updated}/${gj.features.length} updated`);
-}
-
-async function seedClusters() {
-  const gj = readGeoJSON("clusters.geojson");
-  const clusters = await prisma.cluster.findMany({ include: { zone: true } });
-  let updated = 0;
-  for (const feature of gj.features) {
-    const name = feature.properties?.cluster as string;
-    const color = feature.properties?.color as string | undefined;
-    const label = feature.properties?.label as string | undefined;
-    // Match by name (case-insensitive, ignoring underscores/hyphens)
-    const normalize = (s: string) => s.toLowerCase().replace(/[_\-\s]+/g, " ").trim();
-    const cluster = clusters.find((c) => normalize(c.name) === normalize(name ?? ""));
-    if (!cluster) { console.warn("Cluster not found:", name); continue; }
-    await prisma.$executeRaw`
-      UPDATE "Cluster" SET geometry = ${JSON.stringify(feature.geometry)}::jsonb,
-        color = ${color ?? null}, label = ${label ?? null}
-      WHERE id = ${cluster.id}
-    `;
-    updated++;
-  }
-  console.log(`Clusters: ${updated}/${gj.features.length} updated`);
 }
 
 async function seedLayerFeatures() {
@@ -172,8 +123,6 @@ async function seedLayerFeatures() {
 
 async function main() {
   console.log("=== Seeding spatial data ===\n");
-  await seedZones();
-  await seedClusters();
   await seedLayerFeatures();
   await prisma.$disconnect();
   console.log("\nDone.");

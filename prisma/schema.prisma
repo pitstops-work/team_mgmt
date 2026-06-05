@@ -1007,19 +1007,18 @@ model City {
   users       User[]       @relation("UserCity")
 }
 
+// Polygon for this zone is derived live by the `zone_geometry` view
+// (ST_Union of every settlement's polygon + 300m buffer around
+// centroid-only settlements). See migration
+// 20260605010000_derived_cluster_zone_views.
 model Zone {
-  id             String    @id @default(cuid())
-  name           String
-  cityId         String?
-  leadId         String?
-  geometry       Json?
-  // 'manual' = hand-drawn / seeded polygon (locked, recompute skips it).
-  // 'auto'   = convex hull of settlement points (recompute is allowed to
-  // refresh it). Defaults to 'manual' so existing seeded shapes stay safe.
-  geometrySource String    @default("manual")
-  color          String?
-  deletedAt      DateTime?
-  createdAt      DateTime  @default(now())
+  id        String    @id @default(cuid())
+  name      String
+  cityId    String?
+  leadId    String?
+  color     String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
 
   city          City?                @relation(fields: [cityId], references: [id], onDelete: SetNull)
   lead          User?                @relation("ZoneLead", fields: [leadId], references: [id], onDelete: SetNull)
@@ -1030,15 +1029,14 @@ model Zone {
   wikiCircles   WikiPracticeCircle[]
 }
 
+// Polygon for this cluster is derived live by the `cluster_geometry`
+// view (ST_Union of its settlements' polygons + 300m buffer around
+// centroid-only settlements). See migration
+// 20260605010000_derived_cluster_zone_views.
 model Cluster {
   id              String    @id @default(cuid())
   name            String
   zoneId          String
-  geometry        Json?
-  // 'manual' = hand-drawn / seeded polygon (locked, recompute skips it).
-  // 'auto'   = convex hull of settlement points (recompute is allowed to
-  // refresh it). Defaults to 'manual' so existing seeded shapes stay safe.
-  geometrySource  String    @default("manual")
   color           String?
   label           String?
   deletedAt       DateTime?

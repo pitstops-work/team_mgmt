@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { adminForbidden } from "@/lib/roleGuard";
-import { recomputeClusterBoundary, recomputeZoneBoundary } from "@/lib/geo";
 
 const SELECT = {
   id: true,
@@ -54,23 +53,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json();
   const { name, clusterId, partnerId, partnerOrgId, polygon, centroidLat, centroidLng } = body;
 
-  // Capture the pre-update cluster + zone so we can recompute both old and
-  // new boundaries when the cluster changes.
-  const before = await prisma.settlement.findUnique({
-    where: { id },
-    select: { clusterId: true, cluster: { select: { zoneId: true } } },
-  });
-
   // If clusterId changes, re-derive cityId
   let cityId: string | null | undefined = undefined;
-  let newZoneId: string | null = null;
   if (clusterId !== undefined) {
     const cluster = await prisma.cluster.findUnique({
       where: { id: clusterId },
       include: { zone: { include: { city: true } } },
     });
     cityId = cluster?.zone?.city?.id ?? null;
-    newZoneId = cluster?.zoneId ?? null;
   }
 
   // Accept both new (partnerOrgId) and legacy (partnerId) names — both refer
@@ -94,27 +84,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     select: SELECT,
   });
 
-  // Recompute cluster + zone hulls when geometry-relevant fields changed:
-  // cluster reassignment, polygon edit, or centroid edit. Skipping when only
-  // partner/name/etc. changed keeps the route cheap.
-  const geometryAffected =
-    clusterId !== undefined || polygon !== undefined ||
-    centroidLat !== undefined || centroidLng !== undefined;
-  if (geometryAffected) {
-    const affectedClusterIds = new Set<string>([row.clusterId]);
-    if (before?.clusterId && before.clusterId !== row.clusterId) affectedClusterIds.add(before.clusterId);
-    const affectedZoneIds = new Set<string>();
-    if (newZoneId) affectedZoneIds.add(newZoneId);
-    if (before?.cluster?.zoneId) affectedZoneIds.add(before.cluster.zoneId);
-    try {
-      await Promise.all([
-        ...Array.from(affectedClusterIds).map((cid) => recomputeClusterBoundary(cid, prisma)),
-        ...Array.from(affectedZoneIds).map((zid) => recomputeZoneBoundary(zid, prisma)),
-      ]);
-    } catch (e) {
-      console.error("[settlements] boundary recompute failed", e);
-    }
-  }
+  // No boundary recompute. Cluster + zone polygons are derived live by
+  // the cluster_geometry / zone_geometry PostGIS views — the next read
+  // of /api/map/geojson/{clusters,zones} sees this change automatically.
 
   return NextResponse.json(shape(row));
 }
@@ -125,19 +97,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const veto = adminForbidden(session); if (veto) return veto;
 
   const { id } = await params;
-  const before = await prisma.settlement.findUnique({
-    where: { id },
-    select: { clusterId: true, cluster: { select: { zoneId: true } } },
-  });
-  // Soft delete
+  // Soft delete. Cluster + zone polygons derive live from active
+  // settlements via the PostGIS views; the removal is reflected on the
+  // next /api/map/geojson/{clusters,zones} read.
   await prisma.settlement.update({ where: { id }, data: { deletedAt: new Date() } });
-  if (before?.clusterId) {
-    try {
-      await recomputeClusterBoundary(before.clusterId, prisma);
-      if (before.cluster?.zoneId) await recomputeZoneBoundary(before.cluster.zoneId, prisma);
-    } catch (e) {
-      console.error("[settlements] boundary recompute failed", e);
-    }
-  }
   return NextResponse.json({ ok: true });
 }

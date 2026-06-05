@@ -1100,11 +1100,14 @@ export default async function HomePage() {
   let rpClusterDeck: RPClusterDeckCluster[] = [];
   let facilityLayerConfigs: FacilityLayerConfigLite[] = [];
   if (designation === "RP") {
-    const [clustersRaw, configsRaw] = await Promise.all([
+    // Cluster.geometry lives in the cluster_geometry view (derived from
+    // settlement coverage); fetch with raw SQL alongside the regular
+    // relations.
+    const [baseClusters, geomRows, configsRaw] = await Promise.all([
       prisma.cluster.findMany({
         where: { deletedAt: null, rps: { some: { id: userId } } },
         select: {
-          id: true, name: true, geometry: true, color: true,
+          id: true, name: true, color: true,
           settlements: {
             where: { deletedAt: null },
             select: { id: true, name: true, polygon: true, centroidLat: true, centroidLng: true },
@@ -1115,12 +1118,19 @@ export default async function HomePage() {
         },
         orderBy: { name: "asc" },
       }),
+      prisma.$queryRaw<{ clusterId: string; geometry: string }[]>`
+        SELECT "clusterId", geometry::text AS geometry FROM cluster_geometry
+      `,
       prisma.facilityLayerConfig.findMany({
         where: { isActive: true },
         select: { layerKey: true, label: true, color: true },
       }),
     ]);
-    rpClusterDeck = clustersRaw as unknown as RPClusterDeckCluster[];
+    const geomById = new Map(geomRows.map(r => [r.clusterId, JSON.parse(r.geometry)]));
+    rpClusterDeck = baseClusters.map(c => ({
+      ...c,
+      geometry: geomById.get(c.id) ?? null,
+    })) as unknown as RPClusterDeckCluster[];
     facilityLayerConfigs = configsRaw;
   }
 

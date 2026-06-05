@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   const { name, zoneId } = await req.json();
   if (!name?.trim() || !zoneId) return Response.json({ error: "name and zoneId required" }, { status: 400 });
 
-  const cluster = await prisma.cluster.create({ data: { name: name.trim(), zoneId, geometrySource: "auto" } });
+  const cluster = await prisma.cluster.create({ data: { name: name.trim(), zoneId } });
   return Response.json(cluster);
 }
 
