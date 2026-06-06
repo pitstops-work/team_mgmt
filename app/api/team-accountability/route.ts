@@ -244,7 +244,6 @@ export async function GET(req: NextRequest) {
         AND p."targetDate" IS NOT NULL
         AND p."targetDate" >= ${fromTs}
         AND p."targetDate" <= ${toTs}
-        AND p."status" != 'Cancelled'
         AND (
           COALESCE(p."ownerId", g."ownerId") = ANY(${userArr})
           OR EXISTS (SELECT 1 FROM "PitstopCoOwner" co WHERE co."pitstopId" = p.id AND co."userId" = ANY(${userArr}))
