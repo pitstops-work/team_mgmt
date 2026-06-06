@@ -375,6 +375,7 @@ export async function GET(req: NextRequest) {
         0                 AS child_count
       FROM ci_due
       LEFT JOIN "User" u ON u.id = COALESCE(ci_due."completedById", ci_due."assigneeId", ci_due.pitstop_owner_id)
+      LEFT JOIN "Cluster" cl ON cl.id = ci_due.cluster_id
       WHERE ci_due.due_at IS NOT NULL
         AND ci_due.due_at >= ${fromTs}
         AND ci_due.due_at <= ${toTs}
