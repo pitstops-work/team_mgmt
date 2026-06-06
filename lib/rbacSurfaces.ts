@@ -52,6 +52,7 @@ export const SURFACES: ReadonlyArray<SurfaceDef> = [
   { id: "home.rp_health",   label: "RP Health tab" },
   { id: "home.health",      label: "Health tab" },
   { id: "home.past",        label: "Past tab" },
+  { id: "home.accountability", label: "Accountability tab", description: "Due-anchored team accountability across goal/pitstop/checklist/activity/follow-up layers" },
 
   // ── Pitstop ──────────────────────────────────────────────────────────────
   { id: "pitstop.list",          label: "Pitstops list" },

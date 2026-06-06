@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   CalendarClock, CheckCircle2, Target, MapPin, BarChart3,
   LayoutDashboard, Users, TrendingUp, AlertTriangle, Activity, ListTree,
-  ClipboardList,
+  ClipboardList, Gauge,
 } from "lucide-react";
 import type {
   DomainStat, ClusterStat, ClusterStatus, RPHealthStat, ZLHealthStat,
@@ -44,6 +44,7 @@ import { GoalsTab } from "./_shared/GoalsTab";
 import { DoneLog } from "./rp/DoneLog";
 import { FollowUpsTab } from "./_shared/FollowUpsTab";
 import { TeamReportTab } from "./_shared/TeamReportTab";
+import { AccountabilityTab } from "./_shared/AccountabilityTab";
 import type { ActivityModalPitstopRef, ActivityModalUser } from "./_shared/AddActivityModal";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
@@ -61,52 +62,57 @@ const RP_TABS = [
 ] as const;
 
 const ZL_TABS = [
-  { key: "today",       label: "Today",          icon: CalendarClock },
-  { key: "follow-ups",  label: "Follow-ups",     icon: ListTree },
-  { key: "past",        label: "Past",           icon: CheckCircle2 },
-  { key: "team-report", label: "Team Report",    icon: ClipboardList },
-  { key: "health",      label: "Team Health",    icon: Activity },
-  { key: "coverage",    label: "Field Coverage", icon: BarChart3 },
-  { key: "clusters",    label: "Cluster Status", icon: MapPin },
-  { key: "goals",       label: "Goals",          icon: Target },
+  { key: "today",          label: "Today",          icon: CalendarClock },
+  { key: "follow-ups",     label: "Follow-ups",     icon: ListTree },
+  { key: "past",           label: "Past",           icon: CheckCircle2 },
+  { key: "team-report",    label: "Team Report",    icon: ClipboardList },
+  { key: "accountability", label: "Accountability", icon: Gauge },
+  { key: "health",         label: "Team Health",    icon: Activity },
+  { key: "coverage",       label: "Field Coverage", icon: BarChart3 },
+  { key: "clusters",       label: "Cluster Status", icon: MapPin },
+  { key: "goals",          label: "Goals",          icon: Target },
 ] as const;
 
 const ADMIN_TABS = [
-  { key: "today",       label: "Today",         icon: CalendarClock },
-  { key: "follow-ups",  label: "Follow-ups",    icon: ListTree },
-  { key: "past",        label: "Past",          icon: CheckCircle2 },
-  { key: "team-report", label: "Team Report",   icon: ClipboardList },
-  { key: "overview",    label: "Overview",      icon: LayoutDashboard },
-  { key: "attention",   label: "Attention",     icon: AlertTriangle },
-  { key: "team-health", label: "Team Health",   icon: Activity },
-  { key: "engagement",  label: "Engagement",    icon: TrendingUp },
-  { key: "goals",       label: "Goals",         icon: Target },
-  { key: "coverage",    label: "Field Coverage", icon: BarChart3 },
-  { key: "geography",   label: "Geography",     icon: MapPin },
-  { key: "team",        label: "Team",          icon: Users },
+  { key: "today",          label: "Today",         icon: CalendarClock },
+  { key: "follow-ups",     label: "Follow-ups",    icon: ListTree },
+  { key: "past",           label: "Past",          icon: CheckCircle2 },
+  { key: "team-report",    label: "Team Report",   icon: ClipboardList },
+  { key: "accountability", label: "Accountability", icon: Gauge },
+  { key: "overview",       label: "Overview",      icon: LayoutDashboard },
+  { key: "attention",      label: "Attention",     icon: AlertTriangle },
+  { key: "team-health",    label: "Team Health",   icon: Activity },
+  { key: "engagement",     label: "Engagement",    icon: TrendingUp },
+  { key: "goals",          label: "Goals",         icon: Target },
+  { key: "coverage",       label: "Field Coverage", icon: BarChart3 },
+  { key: "geography",      label: "Geography",     icon: MapPin },
+  { key: "team",           label: "Team",          icon: Users },
 ] as const;
 
 const PM_TABS = [
-  { key: "today",       label: "Today",          icon: CalendarClock },
-  { key: "follow-ups",  label: "Follow-ups",     icon: ListTree },
-  { key: "past",        label: "Past",           icon: CheckCircle2 },
-  { key: "team-report", label: "Team Report",    icon: ClipboardList },
-  { key: "zl-health",   label: "ZL Health",      icon: Users },
-  { key: "rp-health",   label: "RP Health",      icon: Activity },
-  { key: "coverage",    label: "Field Coverage", icon: BarChart3 },
-  { key: "clusters",    label: "Cluster Status", icon: MapPin },
-  { key: "goals",       label: "Goals",          icon: Target },
+  { key: "today",          label: "Today",          icon: CalendarClock },
+  { key: "follow-ups",     label: "Follow-ups",     icon: ListTree },
+  { key: "past",           label: "Past",           icon: CheckCircle2 },
+  { key: "team-report",    label: "Team Report",    icon: ClipboardList },
+  { key: "accountability", label: "Accountability", icon: Gauge },
+  { key: "zl-health",      label: "ZL Health",      icon: Users },
+  { key: "rp-health",      label: "RP Health",      icon: Activity },
+  { key: "coverage",       label: "Field Coverage", icon: BarChart3 },
+  { key: "clusters",       label: "Cluster Status", icon: MapPin },
+  { key: "goals",          label: "Goals",          icon: Target },
 ] as const;
 
-// Leader + Other share OTHER_TABS. Team Report is gated to non-Other below
-// via the dispatcher (Other has no team in practice but it's harmless if so).
+// Leader + Other share OTHER_TABS. Team Report + Accountability are gated to
+// non-Other below via the dispatcher (Other has no team in practice but it's
+// harmless if so).
 const OTHER_TABS = [
-  { key: "today",       label: "Today",        icon: CalendarClock },
-  { key: "follow-ups",  label: "Follow-ups",   icon: ListTree },
-  { key: "past",        label: "Past",         icon: CheckCircle2 },
-  { key: "team-report", label: "Team Report",  icon: ClipboardList },
-  { key: "activity",    label: "Activity log", icon: ListTree },
-  { key: "goals",       label: "Goals",        icon: Target },
+  { key: "today",          label: "Today",          icon: CalendarClock },
+  { key: "follow-ups",     label: "Follow-ups",     icon: ListTree },
+  { key: "past",           label: "Past",           icon: CheckCircle2 },
+  { key: "team-report",    label: "Team Report",    icon: ClipboardList },
+  { key: "accountability", label: "Accountability", icon: Gauge },
+  { key: "activity",       label: "Activity log",   icon: ListTree },
+  { key: "goals",          label: "Goals",          icon: Target },
 ] as const;
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────
@@ -352,6 +358,32 @@ export default function HomeView({
 
         {activeTab === "activity" && !isAdmin && designation !== "RP" && designation !== "ZL" && designation !== "PM" && (
           <LeaderActivityTab activities={leaderActivityCreated} />
+        )}
+
+        {/* Accountability — same audience + team-member roster as Team Report.
+            Server enforces team_metrics.read scope; this client gate just hides
+            the tab dispatch on RP (RP_TABS doesn't include it). */}
+        {activeTab === "accountability" && designation !== "RP" && (
+          <AccountabilityTab
+            currentUserId={userId}
+            teamMembers={(() => {
+              const self = { id: userId, name: userName, image: null };
+              if (isAdmin && adminDash) {
+                return [self, ...adminDash.users
+                  .filter(u => u.id !== userId)
+                  .map(u => ({ id: u.id, name: u.name, image: u.image }))];
+              }
+              if (designation === "ZL") {
+                return [self, ...teamMembers.map(m => ({ id: m.id, name: m.name, image: m.image }))];
+              }
+              if (designation === "PM") {
+                const dedup = new Map<string, { id: string; name: string | null; image: string | null }>();
+                for (const m of [...pmZLMembers, ...pmRPMembers]) dedup.set(m.id, { id: m.id, name: m.name, image: m.image });
+                return [self, ...[...dedup.values()].filter(m => m.id !== userId)];
+              }
+              return [self, ...leaderTeam.filter(m => m.id !== userId).map(m => ({ id: m.id, name: m.name, image: m.image }))];
+            })()}
+          />
         )}
 
         {activeTab === "coverage" && designation === "RP" && <RPCoverageTab clusterStats={rpClusterStats} />}
