@@ -96,6 +96,8 @@ export default function TemplatePickerModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState("");
+  const [isCustom, setIsCustom] = useState(false);
   const [recurrence, setRecurrence] = useState<"None"|"Weekly"|"Monthly"|"Quarterly"|"Yearly">("None");
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<PreviewPitstop[]>([]);
@@ -274,6 +276,7 @@ export default function TemplatePickerModal({
   }, []);
 
   const selectTemplate = (t: Template) => {
+    setIsCustom(false);
     setSelected(t);
     setTitle(t.name);
     const init: Record<string, string> = {};
@@ -283,6 +286,20 @@ export default function TemplatePickerModal({
     setLinkedFacilityIds(new Set());
     setFacilityStartDates(new Map());
     setFacilitySearch("");
+    setStep("geo");
+  };
+
+  const startCustom = () => {
+    setIsCustom(true);
+    setSelected(null);
+    setTitle("");
+    setParamValues({});
+    setPreview([]);
+    setLinkedFacilityIds(new Set());
+    setFacilityStartDates(new Map());
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + 90);
+    setEndDate(d.toISOString().split("T")[0]);
     setStep("geo");
   };
 
@@ -331,8 +348,13 @@ export default function TemplatePickerModal({
 
   const isValid = () => {
     if (!title.trim() || !startDate) return false;
-    if (!selected) return false;
     if (!isGeoValid()) return false;
+    if (isCustom) {
+      if (!endDate) return false;
+      if (new Date(endDate) < new Date(startDate)) return false;
+      return true;
+    }
+    if (!selected) return false;
     if (selected.linkedFacilityLayerKey && linkedFacilityIds.size === 0) return false;
     // When multi-selecting, every chosen facility must have its own startDate
     // (so the resulting goals don't all land on the same day). Single-select
@@ -358,7 +380,42 @@ export default function TemplatePickerModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid() || !selected) return;
+    if (!isValid()) return;
+
+    if (isCustom) {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch("/api/goals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: description.trim() || null,
+            startDate,
+            targetDate: endDate,
+            recurrence,
+            needsSettlementId: geoVal.settlementId || null,
+            needsClusterId: geoVal.clusterId || null,
+            needsZoneId: geoVal.zoneId || null,
+            needsCityId: geoVal.cityId || null,
+            ...(canPickOwner && selectedOwnerId && selectedOwnerId !== currentUserId
+              ? { ownerId: selectedOwnerId }
+              : {}),
+          }),
+        });
+        if (!res.ok) throw new Error("Failed");
+        const goal = await res.json();
+        onCreated(goal);
+      } catch {
+        setError("Something went wrong. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (!selected) return;
     setLoading(true);
     setError("");
     try {
@@ -465,9 +522,10 @@ export default function TemplatePickerModal({
             <Layers className="w-4 h-4 text-stone-400" />
             <div>
               <h2 className="text-base font-semibold text-stone-900 leading-tight">
-                {step === "pick" ? "Create Goal from Template"
+                {step === "pick" ? "Create Goal"
                   : step === "redirect" ? "Programme Note"
                   : step === "geo" ? "Where is this goal?"
+                  : isCustom ? "Custom goal"
                   : selected?.name}
               </h2>
               {geographyLabel && (
@@ -708,11 +766,29 @@ export default function TemplatePickerModal({
                   </div>
                 </div>
               ))}
+
+              {/* Custom goal — escape hatch when no template fits */}
+              {domainTemplates.length === 0 && templates.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">Other</p>
+                  <button
+                    onClick={startCustom}
+                    className="w-full text-left flex items-start gap-4 px-4 py-4 bg-white hover:bg-stone-50 border border-dashed border-stone-300 hover:border-stone-400 rounded-xl transition-all group"
+                  >
+                    <span className="text-2xl flex-shrink-0 mt-0.5">✏️</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-stone-900 mb-0.5">Custom goal</p>
+                      <p className="text-xs text-stone-500 leading-relaxed">Start blank — no template. Add pitstops yourself on the goal page.</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-stone-500 flex-shrink-0 mt-1" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           {/* Configure */}
-          {step === "configure" && selected && (
+          {step === "configure" && (selected || isCustom) && (
             <form id="template-form" onSubmit={handleSubmit} className="p-6 space-y-5">
 
               {/* Owner selection carried forward from geo step — show summary if not creating for self */}
@@ -751,7 +827,7 @@ export default function TemplatePickerModal({
               </div>
 
               {/* Linked facility picker — multi-select */}
-              {selected.linkedFacilityLayerKey && (
+              {selected?.linkedFacilityLayerKey && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
@@ -837,7 +913,7 @@ export default function TemplatePickerModal({
                       <div className="mt-4">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
-                            Assign each {facilityLayerLabels[selected.linkedFacilityLayerKey ?? ""] ?? "facility"} a visit day
+                            Assign each {facilityLayerLabels[selected?.linkedFacilityLayerKey ?? ""] ?? "facility"} a visit day
                           </p>
                           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                             allAssigned ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"
@@ -866,7 +942,7 @@ export default function TemplatePickerModal({
               )}
 
               {/* Parameters */}
-              {selected.parameters.length > 0 && (
+              {selected && selected.parameters.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Setup Questions</p>
                   <div className="space-y-4">
@@ -911,7 +987,7 @@ export default function TemplatePickerModal({
               <div className="flex gap-3 items-start">
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-stone-600 mb-1">
-                    Programme Start <span className="text-red-400">*</span>
+                    {isCustom ? "Start date" : "Programme Start"} <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="date"
@@ -920,15 +996,32 @@ export default function TemplatePickerModal({
                     required
                     className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
                   />
-                  <p className="text-xs text-stone-400 mt-1">
-                    End date from SLA:{" "}
-                    <span className="text-stone-600 font-medium">
-                      {startDate
-                        ? new Date(computedTargetDate()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-                        : "—"}
-                    </span>
-                  </p>
+                  {!isCustom && (
+                    <p className="text-xs text-stone-400 mt-1">
+                      End date from SLA:{" "}
+                      <span className="text-stone-600 font-medium">
+                        {startDate
+                          ? new Date(computedTargetDate()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                          : "—"}
+                      </span>
+                    </p>
+                  )}
                 </div>
+                {isCustom && (
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-stone-600 mb-1">
+                      End date <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      min={startDate}
+                      required
+                      className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent"
+                    />
+                  </div>
+                )}
                 <div className="w-36 flex-shrink-0">
                   <label className="block text-xs font-medium text-stone-600 mb-1">Recurrence</label>
                   <select

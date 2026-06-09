@@ -37,13 +37,15 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const veto = viewerForbidden(session); if (veto) return veto;
 
-  const { title, description, status, startDate, targetDate, needsDomain, parameter, recurrence, needsSettlementId, needsClusterId, needsZoneId, needsCityId } = await req.json();
+  const { title, description, status, startDate, targetDate, needsDomain, parameter, recurrence, needsSettlementId, needsClusterId, needsZoneId, needsCityId, ownerId } = await req.json();
   if (!title) return Response.json({ error: "Title required" }, { status: 400 });
   if (!targetDate) return Response.json({ error: "Target date required" }, { status: 400 });
 
+  const goalOwnerId = ownerId ?? session.user.id;
+
   const goal = await prisma.goal.create({
     data: {
-      title, description, status: status ?? "Active", ownerId: session.user.id,
+      title, description, status: status ?? "Active", ownerId: goalOwnerId,
       startDate: startDate ? new Date(startDate) : new Date(),
       targetDate: new Date(targetDate),
       ...(needsDomain && { needsDomain }),
@@ -60,12 +62,19 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Goal owner auto-follows their own goal
+  // Auto-follow: goal owner always follows; creator also follows if creating on behalf of someone else
   await prisma.goalFollow.upsert({
-    where: { userId_goalId: { userId: session.user.id, goalId: goal.id } },
-    create: { userId: session.user.id, goalId: goal.id },
+    where: { userId_goalId: { userId: goalOwnerId, goalId: goal.id } },
+    create: { userId: goalOwnerId, goalId: goal.id },
     update: {},
   });
+  if (goalOwnerId !== session.user.id) {
+    await prisma.goalFollow.upsert({
+      where: { userId_goalId: { userId: session.user.id, goalId: goal.id } },
+      create: { userId: session.user.id, goalId: goal.id },
+      update: {},
+    });
+  }
 
   auditLog({
     entityType: "Goal", entityId: goal.id, userId: session.user.id,
