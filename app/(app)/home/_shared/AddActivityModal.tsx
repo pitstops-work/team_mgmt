@@ -26,6 +26,7 @@ export type ActivityModalEvent = {
   location: string | null;
   pitstops: { pitstop: ActivityModalPitstopRef }[];
   attendees: { id: string; userId: string; status: string; user: ActivityModalUser }[];
+  checklistItem?: { id: string; text: string } | null;
 };
 
 function toYMD(d: Date) {
@@ -66,7 +67,7 @@ export default function AddActivityModal({
   const initialGoalId = initial?.pitstops?.[0]?.pitstop.goal.id ?? "";
   const [selectedGoalId, setSelectedGoalId] = useState(initialGoalId);
   const [selectedPitstopId, setSelectedPitstopId] = useState(initialPitstopId);
-  const [selectedChecklistItemId, setSelectedChecklistItemId] = useState("");
+  const [selectedChecklistItemId, setSelectedChecklistItemId] = useState(initial?.checklistItem?.id ?? "");
   const [checklistItems, setChecklistItems] = useState<{ id: string; text: string; checked: boolean }[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
 
@@ -81,10 +82,12 @@ export default function AddActivityModal({
       .then(r => r.json())
       .then((items: { id: string; text: string; checked: boolean }[]) => {
         setChecklistItems(items);
-        const first = items.find(i => !i.checked);
-        if (first) {
-          setSelectedChecklistItemId(first.id);
-          if (!title || title === initial?.title) setTitle(first.text);
+        if (!selectedChecklistItemId) {
+          const first = items.find(i => !i.checked);
+          if (first) {
+            setSelectedChecklistItemId(first.id);
+            if (!title) setTitle(first.text);
+          }
         }
       })
       .catch(() => {})

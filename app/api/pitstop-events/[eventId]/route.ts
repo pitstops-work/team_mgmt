@@ -13,13 +13,22 @@ const include = {
         select: {
           id: true, title: true,
           owner: { select: { id: true, name: true, image: true } },
-          goal: { select: { id: true, title: true } },
+          goal: {
+            select: {
+              id: true, title: true,
+              needsCluster: { select: { id: true, name: true } },
+            },
+          },
         },
       },
     },
   },
   createdBy: { select: { id: true, name: true, image: true } },
   attendees: { select: { id: true, userId: true, status: true, user: { select: { id: true, name: true, image: true } } } },
+  // Must mirror the /activities page seed shape: handleSaved swaps the PATCH
+  // response into calendar state wholesale, so a missing checklistItem here
+  // makes the edit modal lose the link on the next open.
+  checklistItem: { select: { id: true, completionType: true, text: true } },
 } as const;
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
@@ -30,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
   const { eventId } = await params;
   const actorId = session.user.id;
   const {
-    title, description, type, scheduledAt, endsAt, location, pitstopIds, attendeeIds,
+    title, description, type, scheduledAt, endsAt, location, pitstopIds, attendeeIds, checklistItemId,
     // Lifecycle fields
     status, cancellationReason, rescheduleReason, rescheduleReasonCode, reschedule,
   } = await req.json();
@@ -332,6 +341,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
       endsAt: endsAt !== undefined ? (endsAt ? new Date(endsAt) : null) : undefined,
       location: location !== undefined ? (location || null) : undefined,
+      ...(checklistItemId !== undefined ? { checklistItemId: checklistItemId || null } : {}),
       lastUpdatedById: actorId,
       ...(pitstopIds !== undefined ? {
         pitstops: {
@@ -352,6 +362,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
     },
     include,
   });
+
+  if (checklistItemId) {
+    await prisma.$executeRaw`
+      UPDATE "ChecklistItem"
+      SET status = 'Scheduled'::"ChecklistItemStatus",
+          "lastUpdatedById" = ${actorId},
+          "updatedAt" = NOW()
+      WHERE id = ${checklistItemId}
+        AND status = 'NotStarted'::"ChecklistItemStatus"
+    `;
+  }
 
   // Invite newly added attendees (anyone not in prev list, excluding the editor)
   if (desiredIds !== undefined) {

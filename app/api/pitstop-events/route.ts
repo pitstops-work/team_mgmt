@@ -11,13 +11,22 @@ const include = {
         select: {
           id: true, title: true,
           owner: { select: { id: true, name: true, image: true } },
-          goal: { select: { id: true, title: true } },
+          goal: {
+            select: {
+              id: true, title: true,
+              needsCluster: { select: { id: true, name: true } },
+            },
+          },
         },
       },
     },
   },
   createdBy: { select: { id: true, name: true, image: true } },
   attendees: { select: { id: true, userId: true, status: true, user: { select: { id: true, name: true, image: true } } } },
+  // Must mirror the /activities page seed shape: handleSaved swaps the POST
+  // response into calendar state wholesale, so a missing checklistItem here
+  // makes the edit modal lose the link when a just-created event is edited.
+  checklistItem: { select: { id: true, completionType: true, text: true } },
 } as const;
 
 export async function GET() {
