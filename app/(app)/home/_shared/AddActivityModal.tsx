@@ -121,8 +121,11 @@ export default function AddActivityModal({
     if (!selectedPitstopId) { setError("Select a pitstop."); return; }
     if (!selectedChecklistItemId) { setError("Select a checklist item to link this activity to."); return; }
     setLoading(true); setError("");
-    const scheduledAt = `${date}T${time}:00`;
-    const endsAt = isMultiDay && endDate && endDate > date ? `${endDate}T23:59:00` : null;
+    // Parse in the browser so the user's timezone is baked in; a bare
+    // "YYYY-MM-DDTHH:mm" string would be reinterpreted in the server's TZ
+    // (UTC on Vercel) and shift every saved time. RescheduleSheet does the same.
+    const scheduledAt = new Date(`${date}T${time}:00`).toISOString();
+    const endsAt = isMultiDay && endDate && endDate > date ? new Date(`${endDate}T23:59:00`).toISOString() : null;
     const attendeeIds = Array.from(extraAttendeeIds);
     const body = {
       title: title.trim(), description: description.trim() || null, type, scheduledAt, endsAt,
