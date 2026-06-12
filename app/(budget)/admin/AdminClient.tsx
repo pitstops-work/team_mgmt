@@ -1035,6 +1035,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     // Saved BudgetLine rows from the partner budget — the authoritative source
     // for Yours-column values (includes salary-stub fill-ins + manual edits).
     lines: Array<{
+      id: string;
       templateKey: string | null;
       domain: string | null;
       section: BudgetSection;
@@ -1071,7 +1072,21 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     next.has(templateKey) ? next.delete(templateKey) : next.add(templateKey);
     return next;
   });
-  const showAllStandard = () => setExcludedTemplateKeys(new Set());
+  // Symmetric exclude — Yours-only "your addition" rows can also be dropped
+  // from the Yours sums so the Δ vs Standard reads as a strict like-for-like
+  // rate check. Keyed by BudgetLine.id since orphans don't have templateKey.
+  const [excludedOrphanIds, setExcludedOrphanIds] = useState<Set<string>>(new Set());
+  const toggleExcludeOrphan = (lineId: string) => setExcludedOrphanIds(p => {
+    const next = new Set(p);
+    next.has(lineId) ? next.delete(lineId) : next.add(lineId);
+    return next;
+  });
+  // Unified "show all" clears both sides — keeps the header bar simple.
+  const showAllStandard = () => {
+    setExcludedTemplateKeys(new Set());
+    setExcludedOrphanIds(new Set());
+  };
+  const totalExclusions = excludedTemplateKeys.size + excludedOrphanIds.size;
 
   // ── Scenario picker state ──────────────────────────────────────────────────
   const [geoLevel, setGeoLevel]             = useState<GeoLevel>("city");
@@ -1325,6 +1340,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
    *  no longer active). Surfaced as "your addition" rows in the per-domain table
    *  so the comparison doesn't silently roll them into the subtotal. */
   type OrphanLine = {
+    id: string;
     templateKey: string | null;
     domain: string | null;
     section: BudgetSection;
@@ -1552,10 +1568,13 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
               className="text-xs border border-sky-200 text-sky-700 bg-sky-50 rounded px-2 py-1 hover:bg-sky-100">
               Match my budget
             </button>
-            {excludedTemplateKeys.size > 0 && (
+            {totalExclusions > 0 && (
               <>
                 <span className="text-xs text-stone-500">
-                  <span className="font-medium text-amber-700">{excludedTemplateKeys.size}</span> line{excludedTemplateKeys.size === 1 ? "" : "s"} excluded
+                  <span className="font-medium text-amber-700">{totalExclusions}</span> line{totalExclusions === 1 ? "" : "s"} excluded
+                  {excludedOrphanIds.size > 0 && excludedTemplateKeys.size > 0 && (
+                    <span className="text-stone-400 ml-1">({excludedTemplateKeys.size} Std · {excludedOrphanIds.size} Yours)</span>
+                  )}
                 </span>
                 <button onClick={showAllStandard}
                   className="text-xs text-stone-400 hover:text-stone-700">Show all</button>
@@ -1791,10 +1810,14 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
           to expand a formula-breakdown sub-row pulled from the LineTemplate. */}
       <div className="space-y-6">
         {grouped.map(g => {
-          // Per-domain Yours-Y1 sums the partner's saved lines for that domain.
-          // Includes manual additions (no templateKey) since we filter by domain.
+          // Per-domain Yours-Y1 sums the partner's saved lines for that domain,
+          // dropping any orphan the user excluded via the symmetric ✕. Matched
+          // lines (templateKey ∈ std set) stay since the Std side handles
+          // its own exclusions independently.
           const youGroupY1 = compareData
-            ? compareData.lines.filter(l => l.domain === g.domain).reduce((s, l) => s + l.y1Total, 0)
+            ? compareData.lines
+                .filter(l => l.domain === g.domain && !excludedOrphanIds.has(l.id))
+                .reduce((s, l) => s + l.y1Total, 0)
             : 0;
           // Std-side excluded contribution for this domain. Subtracted from
           // the visible group-Y1 + Δ-vs-Yours so the comparison reflects the
@@ -1932,28 +1955,43 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                           either manual additions or templates that have since been
                           deactivated. Standard column shows "—"; Yours column carries
                           the partner's saved total. Rolled into the section subtotal. */}
-                      {compareData && orphans.map((o, oi) => (
-                        <tr key={`orphan-${oi}`} className="border-b border-stone-50 bg-sky-50/20 hover:bg-sky-50/40">
+                      {compareData && orphans.map((o, oi) => {
+                        const oExcluded = excludedOrphanIds.has(o.id);
+                        const yMutedCls = oExcluded ? "line-through text-stone-300" : "text-sky-700";
+                        return (
+                        <tr key={`orphan-${o.id}-${oi}`} className={`group border-b border-stone-50 hover:bg-sky-50/40 ${oExcluded ? "bg-stone-50/60" : "bg-sky-50/20"}`}>
                           <td className="px-4 py-2 text-stone-700">
                             <span className="mr-1 inline-block w-3 text-[10px] text-stone-200" title="No standard template">·</span>
-                            {o.description}
-                            <span className="ml-2 text-[10px] uppercase tracking-widest text-sky-600">your addition</span>
+                            <span className={oExcluded ? "text-stone-400" : ""}>{o.description}</span>
+                            {oExcluded
+                              ? <span className="ml-2 text-[10px] uppercase tracking-widest text-stone-400">excluded</span>
+                              : <span className="ml-2 text-[10px] uppercase tracking-widest text-sky-600">your addition</span>}
+                            {oExcluded
+                              ? <button onClick={() => toggleExcludeOrphan(o.id)}
+                                  className="ml-2 text-xs text-sky-600 hover:text-sky-800">↺ restore</button>
+                              : <button onClick={() => toggleExcludeOrphan(o.id)}
+                                  className="ml-2 text-xs text-stone-300 hover:text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Drop this line from the Yours scope">✕ exclude</button>}
                           </td>
                           <td className="px-3 py-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SECTION_BADGE[o.section] ?? "bg-stone-50 text-stone-600"}`}>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SECTION_BADGE[o.section] ?? "bg-stone-50 text-stone-600"} ${oExcluded ? "opacity-50" : ""}`}>
                               {o.section}
                             </span>
                           </td>
                           <td className="px-3 py-2 text-right text-stone-300 tabular-nums">—</td>
                           <td className="px-3 py-2 text-right text-stone-300 tabular-nums">—</td>
                           <td className="px-3 py-2 text-right text-stone-300 tabular-nums">—</td>
-                          <td className="px-3 py-2 text-right text-sky-700 font-medium tabular-nums">{fmtCost(o.y1Total)}</td>
-                          <td className="px-3 py-2 text-right text-[10px] text-sky-600 tabular-nums">new</td>
+                          <td className={`px-3 py-2 text-right font-medium tabular-nums ${yMutedCls}`}>{fmtCost(o.y1Total)}</td>
+                          <td className={`px-3 py-2 text-right text-[10px] tabular-nums ${oExcluded ? "text-stone-300" : "text-sky-600"}`}>{oExcluded ? "" : "new"}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                       {(() => {
-                        const oSum = (yr: "y1Total" | "y2Total" | "y3Total") =>
-                          orphans.reduce((s, o) => s + o[yr], 0);
+                        // Orphan Yours contribution drops any orphan the user
+                        // excluded — same like-for-like reasoning as Std side.
+                        const oSumY1 = orphans.reduce(
+                          (s, o) => excludedOrphanIds.has(o.id) ? s : s + o.y1Total, 0
+                        );
                         // Excluded Std-Y1 within this section. Subtracted from
                         // the visible Standard subtotal so the row reads
                         // "what counts toward the comparison".
@@ -1967,7 +2005,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                           <td className="px-3 py-1.5 text-right text-xs font-semibold text-stone-700 tabular-nums">{fmtCost(sectionStdY1)}</td>
                           {compareData ? <>
                             {(() => {
-                              const sYou = sLines.reduce((s, l) => s + (youLineMap.get(l.templateKey)?.y1Total ?? 0), 0) + oSum("y1Total");
+                              const sYou = sLines.reduce((s, l) => s + (youLineMap.get(l.templateKey)?.y1Total ?? 0), 0) + oSumY1;
                               return <>
                                 <td className="px-3 py-1.5 text-right text-xs font-medium text-sky-700 tabular-nums">{fmtCost(sYou)}</td>
                                 <td className="px-3 py-1.5 text-right tabular-nums">{renderDelta(sectionStdY1, sYou)}</td>
@@ -2029,7 +2067,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
               // templateKey) are included via domain filter.
               const visibleDomains = new Set<string | null>(grouped.map(g => g.domain));
               const youGrand = compareData.lines
-                .filter(l => visibleDomains.has(l.domain))
+                .filter(l => visibleDomains.has(l.domain) && !excludedOrphanIds.has(l.id))
                 .reduce((s, l) => s + l.y1Total, 0);
               const stdY1 = grand.y1 - totalExcludedStdY1;
               return (

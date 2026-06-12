@@ -611,6 +611,7 @@ export async function loadBudgetForCompare(budgetId: string): Promise<{
   // analysis tab reads these for the Yours column instead of re-running the
   // generator, which can't reproduce salary-stub fill-ins or manual edits.
   lines: Array<{
+    id: string;
     templateKey: string | null;
     domain: string | null;
     section: BudgetSection;
@@ -629,7 +630,7 @@ export async function loadBudgetForCompare(budgetId: string): Promise<{
       name: true, inputs: true, costOverrides: true,
       lines: {
         select: {
-          templateKey: true, domain: true, section: true, description: true,
+          id: true, templateKey: true, domain: true, section: true, description: true,
           y1Total: true, y2Total: true, y3Total: true,
         },
       },
