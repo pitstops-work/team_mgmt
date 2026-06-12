@@ -2,8 +2,6 @@ import prisma from "@/lib/prisma";
 import NewBudgetForm from "./NewBudgetForm";
 
 const FIXED_VARS = new Set(["fixed_1", "fixed_12", "cosTotal", ""]);
-// Always shown in "Programme scale" regardless of domain selection
-const ALWAYS_CROSS_CUTTING = new Set(["nSettlements", "nClusters"]);
 
 export type DomainInputField = {
   key: string;
@@ -11,6 +9,9 @@ export type DomainInputField = {
   unit: string;
   defaultValue: number;
   isRent: boolean;
+  // null  → truly cross-cutting (always shown, no domain reference)
+  // []    → only shown when listed domains are selected. Form filters at render.
+  requiredByDomains: string[] | null;
 };
 
 export type DomainOption = {
@@ -48,10 +49,15 @@ export default async function NewBudgetPage() {
     const slot = `${t.city}:${t.domain}`;
     if (!domainKeyMap[slot]) domainKeyMap[slot] = {};
 
+    // No ALWAYS_CROSS_CUTTING filter here: nSettlements / nClusters / cosPerCluster
+    // are picked up via the templates that actually need them (Welfare Rights,
+    // Food, Sanitation Complex). The form gates cross-cutting visibility by
+    // the requiredByDomains carried on each input, so single-domain CLC or YRC
+    // budgets no longer see settlement / cluster prompts.
     const candidates: KeyEntry[] = [];
-    if (t.inputVar && !FIXED_VARS.has(t.inputVar) && !ALWAYS_CROSS_CUTTING.has(t.inputVar))
+    if (t.inputVar && !FIXED_VARS.has(t.inputVar))
       candidates.push({ key: t.inputVar, isRent: false });
-    if (t.userInputCost && !ALWAYS_CROSS_CUTTING.has(t.userInputCost))
+    if (t.userInputCost)
       candidates.push({ key: t.userInputCost, isRent: true });
 
     for (const entry of candidates) {
@@ -65,18 +71,21 @@ export default async function NewBudgetPage() {
     const slot = `${d.city}:${d.key}`;
     const inputs: DomainInputField[] = Object.values(domainKeyMap[slot] ?? {})
       .filter(e => (keyDomainCount[e.key]?.size ?? 0) < 2 && inputMeta[e.key])
-      .map(e => ({ key: e.key, isRent: e.isRent, ...inputMeta[e.key] }));
+      .map(e => ({ key: e.key, isRent: e.isRent, requiredByDomains: [d.key], ...inputMeta[e.key] }));
     return { key: d.key, label: d.label, description: d.description, city: d.city, inputs };
   });
 
-  // Cross-cutting = always-shown keys + any key used by 2+ domains
-  const crossCuttingKeySet = new Set([
-    ...ALWAYS_CROSS_CUTTING,
-    ...Object.entries(keyDomainCount).filter(([, s]) => s.size >= 2).map(([k]) => k),
-  ]);
-  const crossCuttingInputs: DomainInputField[] = [...crossCuttingKeySet]
-    .filter(k => inputMeta[k])
-    .map(k => ({ key: k, isRent: false, ...inputMeta[k] }));
+  // Cross-cutting = any key referenced by 2+ domains' templates. requiredByDomains
+  // is the union of those domains so the form can hide an input when the user
+  // hasn't selected any of its consuming domains. Inputs referenced by zero
+  // templates are dropped: nothing in the generated lines would use them.
+  const crossCuttingInputs: DomainInputField[] = Object.entries(keyDomainCount)
+    .filter(([, s]) => s.size >= 2)
+    .filter(([k]) => inputMeta[k])
+    .map(([k, s]) => ({
+      key: k, isRent: false, requiredByDomains: [...s],
+      ...inputMeta[k],
+    }));
 
   return (
     <div className="max-w-2xl mx-auto">
