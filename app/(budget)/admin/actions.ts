@@ -614,6 +614,7 @@ export async function loadBudgetForCompare(budgetId: string): Promise<{
     templateKey: string | null;
     domain: string | null;
     section: BudgetSection;
+    description: string;
     y1Total: number;
     y2Total: number;
     y3Total: number;
@@ -628,7 +629,7 @@ export async function loadBudgetForCompare(budgetId: string): Promise<{
       name: true, inputs: true, costOverrides: true,
       lines: {
         select: {
-          templateKey: true, domain: true, section: true,
+          templateKey: true, domain: true, section: true, description: true,
           y1Total: true, y2Total: true, y3Total: true,
         },
       },

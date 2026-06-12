@@ -1038,6 +1038,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
       templateKey: string | null;
       domain: string | null;
       section: BudgetSection;
+      description: string;
       y1Total: number;
       y2Total: number;
       y3Total: number;
@@ -1309,30 +1310,64 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     return result;
   }, [domainOp, domains, effectiveInp, estHH]);
 
+  /** Partner line a Standard template can't anchor (manual addition or template
+   *  no longer active). Surfaced as "your addition" rows in the per-domain table
+   *  so the comparison doesn't silently roll them into the subtotal. */
+  type OrphanLine = {
+    templateKey: string | null;
+    domain: string | null;
+    section: BudgetSection;
+    description: string;
+    y1Total: number; y2Total: number; y3Total: number;
+  };
+
   type DomainGroup = {
     domain: string | null;
     label: string;
-    bySection: { section: string; lines: AnalysisLine[]; y1: number; y2: number; y3: number }[];
+    bySection: {
+      section: BudgetSection;
+      lines: AnalysisLine[];
+      orphans: OrphanLine[];
+      y1: number; y2: number; y3: number;
+    }[];
     y1: number; y2: number; y3: number;
   };
 
   const grouped = useMemo<DomainGroup[]>(() => {
+    const stdTemplateKeys = new Set(templates.filter(t => t.isActive).map(t => t.templateKey));
+    const orphansByDomain = new Map<string | null, OrphanLine[]>();
+    if (compareData) {
+      for (const l of compareData.lines) {
+        if (l.templateKey && stdTemplateKeys.has(l.templateKey)) continue;
+        const arr = orphansByDomain.get(l.domain) ?? [];
+        arr.push(l);
+        orphansByDomain.set(l.domain, arr);
+      }
+    }
+
     const domainOrder = [...ALL_DOMAINS, null] as (string | null)[];
     return domainOrder.flatMap(domain => {
       // Domain chips at the top decide which per-domain tables render. Cross-cutting
       // (null) is always included so admin / travel / shared lines stay visible.
       if (domain !== null && !selectedDomains.has(domain)) return [];
       const allDomLines = indicativeLines.filter(l => l.domain === domain);
-      // Only show domain if at least one variable-driven (non-fixed) line has units > 0
       const hasVariableLine = allDomLines.some(l => !FIXED_INPUT_VARS.has(l.inputVar) && l.y1Units > 0);
-      if (!hasVariableLine) return [];
+      const domOrphans = orphansByDomain.get(domain) ?? [];
+      // Surface the domain if either side contributes — standard scenario or
+      // partner orphan lines. Skipping when only standard is empty would
+      // hide the partner's manual additions entirely.
+      if (!hasVariableLine && domOrphans.length === 0) return [];
       const domLines = allDomLines.filter(l => l.y1Total > 0);
-      if (!domLines.length) return [];
-      const sections = [...new Set(domLines.map(l => l.section))];
-      const bySection = sections.map(s => {
+      if (!domLines.length && domOrphans.length === 0) return [];
+      const sections = new Set<BudgetSection>([
+        ...domLines.map(l => l.section),
+        ...domOrphans.map(l => l.section),
+      ]);
+      const bySection = [...sections].map(s => {
         const sl = domLines.filter(l => l.section === s);
+        const ol = domOrphans.filter(l => l.section === s);
         return {
-          section: s, lines: sl,
+          section: s, lines: sl, orphans: ol,
           y1: sl.reduce((acc, l) => acc + l.y1Total, 0),
           y2: sl.reduce((acc, l) => acc + l.y2Total, 0),
           y3: sl.reduce((acc, l) => acc + l.y3Total, 0),
@@ -1347,7 +1382,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
         y3: domLines.reduce((acc, l) => acc + l.y3Total, 0),
       }];
     });
-  }, [indicativeLines, selectedDomains, domains, ALL_DOMAINS]);
+  }, [indicativeLines, selectedDomains, domains, ALL_DOMAINS, templates, compareData]);
 
   // Grand total derives from `grouped` (which already filters by selectedDomains
   // + drops domains with no variable-driven activity) so the bar reflects the
@@ -1722,7 +1757,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                   </tr>
                 </thead>
                 <tbody>
-                  {g.bySection.map(({ section, lines: sLines, y1: sy1, y2: sy2, y3: sy3 }) => (
+                  {g.bySection.map(({ section, lines: sLines, orphans, y1: sy1, y2: sy2, y3: sy3 }) => (
                     <Fragment key={section}>
                       <tr className="border-b border-stone-50">
                         <td colSpan={cols} className="px-4 pt-3 pb-1 text-xs font-semibold text-stone-400 uppercase tracking-wide bg-stone-50/50">
@@ -1797,22 +1832,53 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                           </Fragment>
                         );
                       })}
-                      <tr className="border-b border-stone-100 bg-stone-50/70">
-                        <td colSpan={4} className="px-4 py-1.5 text-xs text-stone-400 text-right italic">{section} subtotal</td>
-                        <td className="px-3 py-1.5 text-right text-xs font-semibold text-stone-700 tabular-nums">{fmtCost(sy1)}</td>
-                        {compareData ? <>
-                          {(() => {
-                            const sYou = sLines.reduce((s, l) => s + (youLineMap.get(l.templateKey)?.y1Total ?? 0), 0);
-                            return <>
-                              <td className="px-3 py-1.5 text-right text-xs font-medium text-sky-700 tabular-nums">{fmtCost(sYou)}</td>
-                              <td className="px-3 py-1.5 text-right tabular-nums">{renderDelta(sy1, sYou)}</td>
-                            </>;
-                          })()}
-                        </> : <>
-                          <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy2)}</td>
-                          <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy3)}</td>
-                        </>}
-                      </tr>
+                      {/* Yours-only rows: partner lines no Standard template anchors —
+                          either manual additions or templates that have since been
+                          deactivated. Standard column shows "—"; Yours column carries
+                          the partner's saved total. Rolled into the section subtotal. */}
+                      {compareData && orphans.map((o, oi) => (
+                        <tr key={`orphan-${oi}`} className="border-b border-stone-50 bg-sky-50/20 hover:bg-sky-50/40">
+                          <td className="px-4 py-2 text-stone-700">
+                            <span className="mr-1 inline-block w-3 text-[10px] text-stone-200" title="No standard template">·</span>
+                            {o.description}
+                            <span className="ml-2 text-[10px] uppercase tracking-widest text-sky-600">your addition</span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SECTION_BADGE[o.section] ?? "bg-stone-50 text-stone-600"}`}>
+                              {o.section}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-right text-stone-300 tabular-nums">—</td>
+                          <td className="px-3 py-2 text-right text-stone-300 tabular-nums">—</td>
+                          <td className="px-3 py-2 text-right text-stone-300 tabular-nums">—</td>
+                          <td className="px-3 py-2 text-right text-sky-700 font-medium tabular-nums">{fmtCost(o.y1Total)}</td>
+                          <td className="px-3 py-2 text-right text-[10px] text-sky-600 tabular-nums">new</td>
+                        </tr>
+                      ))}
+                      {(() => {
+                        const oSum = (yr: "y1Total" | "y2Total" | "y3Total") =>
+                          orphans.reduce((s, o) => s + o[yr], 0);
+                        const sectionStdSubtotal = (yr: "y1" | "y2" | "y3") =>
+                          yr === "y1" ? sy1 : yr === "y2" ? sy2 : sy3;
+                        return (
+                        <tr className="border-b border-stone-100 bg-stone-50/70">
+                          <td colSpan={4} className="px-4 py-1.5 text-xs text-stone-400 text-right italic">{section} subtotal</td>
+                          <td className="px-3 py-1.5 text-right text-xs font-semibold text-stone-700 tabular-nums">{fmtCost(sectionStdSubtotal("y1"))}</td>
+                          {compareData ? <>
+                            {(() => {
+                              const sYou = sLines.reduce((s, l) => s + (youLineMap.get(l.templateKey)?.y1Total ?? 0), 0) + oSum("y1Total");
+                              return <>
+                                <td className="px-3 py-1.5 text-right text-xs font-medium text-sky-700 tabular-nums">{fmtCost(sYou)}</td>
+                                <td className="px-3 py-1.5 text-right tabular-nums">{renderDelta(sectionStdSubtotal("y1"), sYou)}</td>
+                              </>;
+                            })()}
+                          </> : <>
+                            <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sectionStdSubtotal("y2"))}</td>
+                            <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sectionStdSubtotal("y3"))}</td>
+                          </>}
+                        </tr>
+                        );
+                      })()}
                     </Fragment>
                   ))}
                   <tr className="bg-stone-100">
