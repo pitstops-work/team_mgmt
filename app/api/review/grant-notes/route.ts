@@ -1,5 +1,7 @@
 import { sql, ok, bad } from '@/lib/review/db';
 import { snapshotVersion } from '@/lib/review/versions';
+import { auth } from '@/lib/auth';
+import { loadCrecheBudgetSnapshot } from '@/lib/review/budget-bridge';
 
 export const runtime = 'nodejs';
 
@@ -10,9 +12,12 @@ async function ensureMetadataTable() {
       vitals jsonb DEFAULT '{}',
       diagrams jsonb DEFAULT '[]',
       source_documents jsonb DEFAULT '[]',
-      staff_notes text DEFAULT ''
+      staff_notes text DEFAULT '',
+      budget_comparison jsonb
     )
   `;
+  // Older deployments may have the table without the budget_comparison column.
+  await sql`ALTER TABLE grant_note_metadata ADD COLUMN IF NOT EXISTS budget_comparison jsonb`;
 }
 
 export async function GET() {
@@ -32,7 +37,7 @@ export async function POST(req: Request) {
   const {
     org_name, org_city, meeting, theme, grant_number, grant_amount, grant_duration,
     doc_type, draft_text, submitted_by, status,
-    source_documents, staff_notes,
+    source_documents, staff_notes, linked_budget_id,
   } = body;
 
   if (!org_name?.trim()) return bad('org_name required');
@@ -57,14 +62,35 @@ export async function POST(req: Request) {
 
   const noteId = rows[0].id;
 
-  if (hasSourceDocs) {
+  // Snapshot the linked budget's comparison at create time so the note's
+  // deviation table doesn't drift if the budget is later edited.
+  let budgetComparison: unknown = null;
+  if (linked_budget_id) {
+    try {
+      const session = await auth();
+      if (session?.user?.id) {
+        budgetComparison = await loadCrecheBudgetSnapshot(linked_budget_id, session.user.id);
+      }
+    } catch (e: any) {
+      // Don't fail note creation if the budget snapshot can't be built —
+      // surface the reason in the response and let the user retry from the
+      // design page.
+      budgetComparison = { error: e?.message || 'budget snapshot failed' };
+    }
+  }
+
+  if (hasSourceDocs || budgetComparison) {
     await ensureMetadataTable();
     await sql`
-      INSERT INTO grant_note_metadata (note_id, source_documents, staff_notes)
-      VALUES (${noteId}::uuid, ${JSON.stringify(source_documents)}::jsonb, ${staff_notes || ''})
+      INSERT INTO grant_note_metadata (note_id, source_documents, staff_notes, budget_comparison)
+      VALUES (${noteId}::uuid,
+              ${JSON.stringify(source_documents || [])}::jsonb,
+              ${staff_notes || ''},
+              ${budgetComparison ? JSON.stringify(budgetComparison) : null}::jsonb)
       ON CONFLICT (note_id) DO UPDATE
-        SET source_documents = ${JSON.stringify(source_documents)}::jsonb,
-            staff_notes = ${staff_notes || ''}
+        SET source_documents = ${JSON.stringify(source_documents || [])}::jsonb,
+            staff_notes = ${staff_notes || ''},
+            budget_comparison = COALESCE(${budgetComparison ? JSON.stringify(budgetComparison) : null}::jsonb, grant_note_metadata.budget_comparison)
     `;
   }
 

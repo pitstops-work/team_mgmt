@@ -238,6 +238,30 @@ function renderChunksForModel(chunks: RetrievedChunk[]): string {
   return parts.join('\n');
 }
 
+async function fetchBudgetComparisonBlock(
+  noteId: string,
+  docTypeKey: string,
+): Promise<string> {
+  if (docTypeKey !== 'creche_approval' && docTypeKey !== 'creche_renewal') return '';
+  const rows = await sql`
+    SELECT budget_comparison FROM grant_note_metadata WHERE note_id = ${noteId}::uuid
+  `.catch(() => [] as any[]);
+  const snap = (rows as any[])[0]?.budget_comparison as
+    | { tableHtml?: string; budgetName?: string; nCreches?: number; error?: string }
+    | null;
+  if (!snap || snap.error || !snap.tableHtml) return '';
+  const guidance = docTypeKey === 'creche_approval'
+    ? 'For creche_approval: paste the rendered HTML table verbatim into the "Deviation from the standard budget" section (Section VI(b)). Do not synthesise unit costs.'
+    : 'For creche_renewal: fold the deviation notes from this table into the Remark column of the Detailed Budget table. Do not add a separate (b) deviation table.';
+  return [
+    'LINKED BUDGET COMPARISON SNAPSHOT — taken at note-create time from the Budget tool.',
+    `Budget: ${snap.budgetName || '(unnamed)'} · ${snap.nCreches ?? '?'} creches.`,
+    guidance,
+    'Rendered HTML (use verbatim where instructed):',
+    snap.tableHtml,
+  ].join('\n');
+}
+
 async function fetchSourceCorpusForInitialDraft(noteId: string): Promise<any[]> {
   // Only used on the initial-draft turn — sends the full corpus with cache_control.
   const metaRows = await sql`
@@ -454,9 +478,9 @@ export async function runOrchestrator(input: OrchestrateInput): Promise<Orchestr
   `.catch(() => [] as any[]);
   const sticky: string[] = (stickyRows as any[])[0]?.capability_ids || [];
   const docTypeRows = await sql`
-    SELECT apply_financial_rules FROM doc_types WHERE key = ${before.doc_type}
+    SELECT key, apply_financial_rules FROM doc_types WHERE key = ${before.doc_type}
   `.catch(() => [] as any[]);
-  const docTypeRow = (docTypeRows as any[])[0] || { apply_financial_rules: true };
+  const docTypeRow = (docTypeRows as any[])[0] || { key: before.doc_type, apply_financial_rules: true };
   const fallback = defaultCapabilityIdsForDocType(docTypeRow);
   const activeIds = input.scopeOverride && input.scopeOverride.length > 0
     ? input.scopeOverride
@@ -517,10 +541,13 @@ export async function runOrchestrator(input: OrchestrateInput): Promise<Orchestr
   const docBlock = renderDocumentStateForModel(before, { focusKeys: input.sectionFilter });
   const chunksBlock = renderChunksForModel(chunks);
 
+  const budgetBlock = await fetchBudgetComparisonBlock(input.noteId, before.doc_type);
+
   const userTextParts: string[] = [];
   userTextParts.push('CURRENT DOCUMENT:');
   userTextParts.push(docBlock);
   if (chunksBlock) { userTextParts.push(''); userTextParts.push(chunksBlock); }
+  if (budgetBlock) { userTextParts.push(''); userTextParts.push(budgetBlock); }
   userTextParts.push('');
   userTextParts.push(`ACTIVE SCOPE: ${activeIds.join(', ') || '(empty)'}`);
   if (input.sectionFilter && input.sectionFilter.length > 0) {

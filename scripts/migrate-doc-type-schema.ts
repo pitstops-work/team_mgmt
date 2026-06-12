@@ -10,16 +10,22 @@
  */
 
 import { neon } from '@neondatabase/serverless';
+import {
+  DEFAULT_CRECHE_APPROVAL_TEMPLATE,
+  DEFAULT_CRECHE_RENEWAL_TEMPLATE,
+} from '../lib/review/rulebook';
 
 type Field = {
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'select' | 'checkbox' | 'number';
+  type: 'text' | 'textarea' | 'select' | 'checkbox' | 'number' | 'budget_picker';
   group?: string;
   placeholder?: string;
   rows?: number;
   options?: string[];
   required?: boolean;
+  // budget_picker-specific: filter the user's budgets by domain key (e.g. "Creche")
+  budgetDomain?: string;
 };
 
 const GRANT_NOTE_FIELDS: Field[] = [
@@ -67,6 +73,55 @@ const PROGRAMME_DESIGN_FIELDS: Field[] = [
   { key: 'staffNotes',     label: 'Our sense of their capacity', type: 'textarea', group: 'narrative', rows: 8, required: true },
 ];
 
+const CRECHE_APPROVAL_FIELDS: Field[] = [
+  { key: 'meeting',           label: 'Meeting',                  type: 'text',     group: 'context', placeholder: "30th Apr'26 SGM" },
+  { key: 'orgName',           label: 'Organisation',             type: 'text',     group: 'context', placeholder: 'CINI / WOSCA / Samarthan', required: true },
+  { key: 'orgCity',           label: 'City',                     type: 'text',     group: 'context', placeholder: 'Ranchi / Keonjhar' },
+  { key: 'state',             label: 'State',                    type: 'text',     group: 'context', placeholder: 'Jharkhand / Odisha' },
+  { key: 'block',             label: 'Block',                    type: 'text',     group: 'context', placeholder: 'Thethaitangar' },
+  { key: 'district',          label: 'District',                 type: 'text',     group: 'context', placeholder: 'Simdega' },
+  { key: 'theme',             label: 'Theme',                    type: 'text',     group: 'context', placeholder: 'Creche Initiative — Jharkhand' },
+  { key: 'presentedBy',       label: 'Presented by',             type: 'text',     group: 'people',  placeholder: 'Rakesh, Pritam, Purushottam' },
+  { key: 'visitedBy',         label: 'Visited by',               type: 'text',     group: 'people' },
+  { key: 'progVisitDate',     label: 'Programme visit date',     type: 'text',     group: 'dates' },
+  { key: 'finVisitDate',      label: 'Finance visit date',       type: 'text',     group: 'dates' },
+  { key: 'grmDate',           label: 'GRM / Debrief date',       type: 'text',     group: 'dates' },
+  { key: 'isExistingPartner', label: 'Existing partner',         type: 'checkbox', group: 'partner' },
+  { key: 'currentProjects',   label: 'Current projects with us', type: 'textarea', group: 'partner', rows: 3, placeholder: 'e.g. Community Nutrition Program in Harichandanpur since 2024' },
+  { key: 'crecheRpName',      label: 'Creche Resource Person',   type: 'text',     group: 'partner', placeholder: 'Purushottam' },
+  { key: 'numCreches',        label: 'No. of creches proposed',  type: 'number',   group: 'scale',   placeholder: '40' },
+  { key: 'numChildren',       label: 'Children 6m–3y in geography', type: 'number', group: 'scale' },
+  { key: 'numVillages',       label: 'Total villages in block',  type: 'number',   group: 'scale' },
+  { key: 'numGPs',            label: 'No. of Gram Panchayats',   type: 'number',   group: 'scale' },
+  { key: 'numAnganwadis',     label: 'No. of Anganwadi centres', type: 'number',   group: 'scale' },
+  { key: 'phaseRollout',      label: 'Phase rollout',            type: 'textarea', group: 'scale',   rows: 3, placeholder: '10 by June 2026; 20 from July–Dec 2026; 10 by March 2027' },
+  { key: 'grantAmount',       label: 'Grant amount',             type: 'text',     group: 'grant',   placeholder: '₹ 7.18 Cr' },
+  { key: 'grantDuration',     label: 'Duration (years)',         type: 'number',   group: 'grant',   placeholder: '3' },
+  { key: 'budgetPick',        label: 'Linked budget (Creche)',   type: 'budget_picker', group: 'grant', budgetDomain: 'Creche' },
+  { key: 'staffNotes',        label: 'Our sense of the org',     type: 'textarea', group: 'narrative', rows: 8, required: true,
+    placeholder: 'Field observations, leadership view, concerns, recommendation. What the AI cannot read from documents.' },
+];
+
+const CRECHE_RENEWAL_FIELDS: Field[] = [
+  { key: 'meeting',                label: 'Meeting',                       type: 'text',     group: 'context' },
+  { key: 'orgName',                label: 'Organisation',                  type: 'text',     group: 'context', placeholder: 'CFAR', required: true },
+  { key: 'orgCity',                label: 'City',                          type: 'text',     group: 'context', placeholder: 'Bangalore' },
+  { key: 'state',                  label: 'State',                         type: 'text',     group: 'context', placeholder: 'Karnataka' },
+  { key: 'theme',                  label: 'Theme',                         type: 'text',     group: 'context', placeholder: 'Creche Initiative — Bangalore' },
+  { key: 'presentedBy',            label: 'Presented by',                  type: 'text',     group: 'people' },
+  { key: 'parentBatchEndDate',     label: 'Parent batch grant end date',   type: 'text',     group: 'context', placeholder: "Feb'28" },
+  { key: 'grantDurationMonths',    label: 'Renewal duration (months)',     type: 'number',   group: 'grant',   placeholder: '26' },
+  { key: 'grantAmount',            label: 'Renewal grant amount',          type: 'text',     group: 'grant',   placeholder: '₹ 61.31 L (₹ 0.61 Cr)' },
+  { key: 'numCreches',             label: 'No. of creches to renew',       type: 'number',   group: 'scale',   placeholder: '2' },
+  { key: 'currentOperationalTable', label: 'Current operational creches (table)', type: 'textarea', group: 'scale', rows: 6,
+    placeholder: 'Org | Cluster | Operational | Transitioning\nCFAR | Peenya | 10 | 2\nCFAR | Kengeri | 3 | -' },
+  { key: 'prevGrantSource',        label: 'Previous grant source',         type: 'text',     group: 'context', placeholder: 'Bangalore Urban Programme' },
+  { key: 'transitionRationale',    label: 'Why transition now',            type: 'textarea', group: 'context', rows: 3 },
+  { key: 'budgetPick',             label: 'Linked budget (Creche)',        type: 'budget_picker', group: 'grant', budgetDomain: 'Creche' },
+  { key: 'staffNotes',             label: 'Our sense of the centres',      type: 'textarea', group: 'narrative', rows: 8, required: true,
+    placeholder: 'Enrolment numbers, daily routine, parent engagement, any concerns at the existing centres.' },
+];
+
 const EMAIL_FIELDS: Field[] = [
   { key: 'orgName',  label: 'Organisation (optional)', type: 'text',     group: 'context',
     placeholder: 'Used for DD lookup + cross-note retrieval' },
@@ -75,13 +130,24 @@ const EMAIL_FIELDS: Field[] = [
     placeholder: "Optional — anything not obvious from documents that should shape the draft" },
 ];
 
-const SEEDS = [
+type Seed = {
+  key: string;
+  label: string;
+  sections_mode: 'multi_section' | 'single_section';
+  default_capability_ids: string[];
+  field_schema: Field[];
+  template_rules?: string;
+  sort_order: number;
+};
+
+const SEEDS: Seed[] = [
   {
     key: 'grant_note',
     label: 'Grant note',
     sections_mode: 'multi_section',
     default_capability_ids: ['language', 'structure', 'format', 'financial', 'cost'],
     field_schema: GRANT_NOTE_FIELDS,
+    sort_order: 1,
   },
   {
     key: 'programme_design',
@@ -89,6 +155,25 @@ const SEEDS = [
     sections_mode: 'multi_section',
     default_capability_ids: ['language', 'structure', 'format'],
     field_schema: PROGRAMME_DESIGN_FIELDS,
+    sort_order: 2,
+  },
+  {
+    key: 'creche_approval',
+    label: 'Creche approval note',
+    sections_mode: 'multi_section',
+    default_capability_ids: ['language', 'creche_language', 'format', 'financial'],
+    field_schema: CRECHE_APPROVAL_FIELDS,
+    template_rules: DEFAULT_CRECHE_APPROVAL_TEMPLATE,
+    sort_order: 3,
+  },
+  {
+    key: 'creche_renewal',
+    label: 'Creche renewal note',
+    sections_mode: 'multi_section',
+    default_capability_ids: ['language', 'creche_language', 'format', 'financial'],
+    field_schema: CRECHE_RENEWAL_FIELDS,
+    template_rules: DEFAULT_CRECHE_RENEWAL_TEMPLATE,
+    sort_order: 4,
   },
   {
     key: 'email',
@@ -96,6 +181,7 @@ const SEEDS = [
     sections_mode: 'single_section',
     default_capability_ids: ['language', 'format'],
     field_schema: EMAIL_FIELDS,
+    sort_order: 5,
   },
 ];
 
@@ -118,12 +204,13 @@ async function main() {
         (key, label, template_rules, export_mode, apply_financial_rules,
          field_schema, default_capability_ids, sections_mode, sort_order)
       VALUES
-        (${s.key}, ${s.label}, '', ${s.sections_mode === 'multi_section' ? 'structured' : 'freeflow'},
+        (${s.key}, ${s.label}, ${s.template_rules ?? ''},
+         ${s.sections_mode === 'multi_section' ? 'structured' : 'freeflow'},
          ${s.default_capability_ids.includes('financial')},
          ${JSON.stringify(s.field_schema)}::jsonb,
          ${s.default_capability_ids as any},
          ${s.sections_mode},
-         ${s.key === 'grant_note' ? 1 : s.key === 'programme_design' ? 2 : 3})
+         ${s.sort_order})
       ON CONFLICT (key) DO UPDATE SET
         field_schema = CASE
           WHEN doc_types.field_schema = '[]'::jsonb THEN EXCLUDED.field_schema
@@ -136,6 +223,12 @@ async function main() {
         sections_mode = CASE
           WHEN doc_types.sections_mode IS NULL OR doc_types.sections_mode = '' THEN EXCLUDED.sections_mode
           ELSE doc_types.sections_mode
+        END,
+        template_rules = CASE
+          WHEN (doc_types.template_rules IS NULL OR doc_types.template_rules = '')
+            AND ${s.template_rules ?? ''} <> ''
+          THEN ${s.template_rules ?? ''}
+          ELSE doc_types.template_rules
         END,
         updated_at = now()
     `;

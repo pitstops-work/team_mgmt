@@ -16,6 +16,7 @@ import {
   DEFAULT_FINANCIAL_RULES,
   DEFAULT_TEMPLATE_RULES,
   DEFAULT_COST_NORMS,
+  DEFAULT_CRECHE_LANGUAGE,
 } from '../lib/review/rulebook';
 
 // ── Compose default prompt fragments from the existing constants ─────────────
@@ -96,6 +97,14 @@ const SEEDS = [
     prompt_fragment: COMPLIANCE_DEFAULT,
     config_json: {},
   },
+  {
+    id: 'creche_language',
+    label: 'Creche language',
+    category: 'language',
+    description: 'Creche-specific language additions — title/theme conventions, D/I marker meaning, donor-history sentence, dependency formula, NFHS/POSHAN citation style, standard 6-block budget terminology. Bundled with the base language capability on creche doc types.',
+    prompt_fragment: DEFAULT_CRECHE_LANGUAGE,
+    config_json: {},
+  },
 ];
 
 // Rulebook section keys → capability ids. Lets us import old admin edits.
@@ -126,7 +135,7 @@ async function main() {
     )
   `;
 
-  console.log('[capabilities] seeding 6 built-in rows…');
+  console.log(`[capabilities] seeding ${SEEDS.length} built-in rows…`);
   for (const c of SEEDS) {
     await sql`
       INSERT INTO capabilities

@@ -178,6 +178,148 @@ Row — Remarks + action points
 
 ANNEXURE 2 — Detailed Budget: line items from the budget file`;
 
+export const DEFAULT_CRECHE_APPROVAL_TEMPLATE = `CRECHE APPROVAL NOTE STRUCTURE — follow this exactly:
+
+HEADER BLOCK (plain text, before the table-of-contents):
+  Title: {Org name}, {City/District}, {State}
+  Theme: Creche Initiative — {State or Region}
+  Presented by: {names}
+
+TABLE OF CONTENTS (numbered Roman I–VII): list the seven sections below.
+
+Section I — Executive Summary
+  - Total operational creches in the state today (by district / partner if relevant).
+  - This proposal: org name, number of new creches, block + district + state, duration (typically 3 years), total budget (in ₹ Cr).
+  - Relationship history with the partner (existing partner or new — if existing, the prior grant/programme).
+  - Named Creche Resource Person (RP) for this geography.
+  - If phased rollout: month windows + creche counts ("10 by June 2026; 20 from July–Dec 2026; 10 by March 2027").
+
+Section II — About the Organization
+  a. Background: founding year, founder, headquarters, core areas of work, prior creche experience (years + donors + scale), other current projects.
+  b. Leadership & Staff:
+     - Director / founder profile (years of experience, role).
+     - State / district leads (named) and their experience.
+     - Total staff strength of the org.
+     - Staffing planned for this initiative — caregivers, supervisors, cluster coordinators, A&L manager, safety manager, capacity-building manager, programme manager, accountant.
+
+Section III — Programme Details (Context to the proposal)
+  - Block + District + State of the proposed creches.
+  - Population of the block; % ST and SC; PVTG community names if any.
+  - Total villages, GPs, Anganwadi centres in the block.
+  - Children in 6 months – 3 years age band (cite POSHAN Tracker data with extraction month, e.g. "POSHAN Tracker Data, Feb 2026").
+  - Why this block, what existing presence the org has there, where the field office will sit.
+
+Section IV — Financial Assessment & Dependency
+  - Donor diversity:
+    * Current funders (₹ in Cr) — list as "{Funder} ({D|I}) {amount}", D=Domestic, I=International.
+    * Past 2 years funders (same format).
+    * % domestic vs % international.
+    * Long-standing donors named: "Long-standing donors are X, Y, Z. They are funding {org} for more than 5 years."
+    * Note any spike or dip in year-on-year expenditure with the reason.
+  - Reported expenditure this FY (partial — note month, e.g. "₹10.14 Cr (Feb 2026)").
+  - Committed funding next FY.
+  - Corpus, if any.
+  - Accounting System & Process: one-line assessment (Basic / Acceptable / Good); mention any FCRA flags, policies in place (HR, Finance, POSH), areas of concern.
+  - Statutory compliances:
+    * FCRA: valid till {date}.
+    * 12A: valid till {date}.
+    * 80G: valid till {date}.
+    * Income tax demands: {None or list}.
+  - Average annual expenditure (3 years): show breakdown line for each of the 3 years AND the average.
+  - Proposed budget: {₹ Cr}. Dependency = (proposed budget ÷ avg annual expenditure × 100) = {X}%.
+  - Our conclusion & Recommendation: 2–3 lines on financial systems adequacy, programme understanding, ground presence, then "We recommend this grant for {org}."
+
+Section V — Team's views and recommendations
+  - Who visited (named team members) and what they observed in the field.
+  - Leadership quality and involvement.
+  - Field team strength, planning, review mechanisms.
+  - Existing community connect and government relationships.
+  - Any concern or open question stated plainly.
+  - End with a clear team-level recommendation.
+
+Section VI — Budget
+  (a) Detailed Budget (table): six programme components — One-time setup / Annual recurring / Supervisory & support / Capacity Building / Management / Other Cost. Pull from the Budget tool — paste the comparison output.
+  (b) Deviation from the standard budget (table): for every line, "Item | Proposed per creche (₹) | Standard per creche (₹) | Deviation (₹) | %", grouped by the three categories (One-time setup / Annual recurring / Supervisory & support). Add Sub-totals. Below the table, "Reasons for deviation:" — one numbered paragraph per non-zero deviation line. THIS TABLE IS INJECTED FROM THE BUDGET COMPARISON SNAPSHOT — do not synthesise unit costs.
+
+Section VII — About the District + Annexures
+  - About the District: location, neighbouring districts, when carved out, administrative divisions.
+  - Demography: total population, sex ratio, decadal growth, literacy (m/f), SC/ST/OBC %.
+  - Nutrition: POSHAN Tracker indicators (ICDS projects, sectors, AWCs, pregnant women, lactating mothers, 6m–3y children, children measured, stunting %, wasting %, severely wasted %, underweight %, overweight %).
+  - NFHS comparison (REQUIRED — render as a 3-column table):
+    | Indicator | NFHS-5 (2019–21) | NFHS-4 (2015–16) |
+    | Stunting (height for age) | | |
+    | Wasting (weight for height) | | |
+    | Severely Wasted | | |
+    | Underweight (weight for age) | | |
+    | Children 6–23 months receiving adequate diet | | |
+  - About the Block: population, GPs, villages, sex ratio, literacy, % SC/ST, PVTG presence, 0–6 yr child population.
+  - Map references (if image available).
+  - Annexure: list of proposed villages — "Sl No | Route / Gram Panchayat | Village | AW Sector | No. of Children". Use the village list provided in the source docs.`;
+
+export const DEFAULT_CRECHE_RENEWAL_TEMPLATE = `CRECHE RENEWAL NOTE STRUCTURE — follow this exactly:
+
+HEADER BLOCK (plain text):
+  Title: {Org name}, {City}, {State} — Renewal of {N} crèches under Creche Initiative ({duration in months})
+  Theme: Creche Initiative — {Region}
+
+Section 1 — Executive Summary
+  - Total creches approved this FY across all partners in this geography (table-style breakdown by partner if useful).
+  - REQUIRED TABLE — Current operational creches:
+    | Organisation | Cluster | No. of Operational Crèches | Creches to be transitioned to our Creche Initiative |
+    (use one row per org × cluster; include a Total row.)
+  - State plainly: the {N} crèches under renewal are in {cluster} cluster, operated by {org}, since {year}.
+  - Mention any onboarding-in-progress to ShishuGhar / MIS.
+  - This proposal: renewal funding of ₹{X} L / ₹{Y} Cr for {N} months, plus approval to formally integrate the centres into the Foundation's Creche Initiative framework.
+
+Section 2 — Background
+  - When and where the centres were originally established and under which programme.
+  - Year of operation start.
+  - Demonstrated outcomes (use concrete numbers): typical enrolment per centre, community acceptance, Anganwadi referrals, daily routine hours (e.g. "8:30 am to 6:00 pm"), parent engagement cadence.
+
+Section 3 — Purpose of Renewal
+  - Bullets: continuation of existing centres; formal transition from {prior programme} to Creche Initiative; budget alignment to approved creche norms; strengthening of supervision, monitoring, quality benchmarks.
+  - State that the centres are integral components of the Foundation's overall Creche Initiative in the city, not standalone units.
+
+Section 4 — Implementation Approach Under Creche Initiative
+  - Bullets: standardized one-time and recurring cost norms; defined supervisory structure; strengthened caregiver training; nutrition standards aligned with initiative benchmarks; monitoring and documentation systems.
+
+Section 5 — Financial Assessment & Dependency
+  - Same fields as the approval template's Section IV (donor diversity, accounting, statutory compliances, average annual expenditure, dependency %), but the renewal grant is shorter and the existing creches are already in the books — call that out in the narrative.
+  - If dependency exceeds the existing partner's prior dependency, explain.
+
+Section 6 — Detailed Budget
+  - Six programme components: One-time setup / Annual recurring / Supervisory & support / Capacity Building / Management / Other Cost.
+  - Renewal-specific: One-time setup is usually SMALLER than for new creches because equipment already exists at the centres. Show this in the Remark column: "Deviation from Standard Budget — {item} not included as the items already exist at these creches."
+  - Caregiver honorarium for renewals is usually budgeted at actuals (not at the new-creche standard) because these are already running centres. Show this in the Remark column.
+  - Total is over {N} months (not {N} years). State total in both ₹ L and ₹ Cr.
+  - Use the Budget tool's comparison snapshot for the deviation context — do not synthesise unit costs.
+  - No separate (b) Deviation table for renewals — keep deviation notes in the Remark column.
+
+Section 7 — Conclusion
+  - One paragraph: this proposal requests approval for renewal and integration of these {N} crèches into the Foundation's Creche Initiative framework for the next {N} months.`;
+
+export const DEFAULT_CRECHE_LANGUAGE = `CRECHE-SPECIFIC LANGUAGE RULES (apply in addition to the base language rules):
+
+- Title format (approval): "{Org name}, {City}, {State}". Theme line: "Creche Initiative — {State or Region}".
+- Title format (renewal): "{Org name}, {City}, {State} — Renewal of {N} crèches under Creche Initiative ({duration in months})". Note: renewal duration is reported in MONTHS, not years, to align with the parent batch end date (e.g. "26 months", not "2.17 years").
+- Use the spelling "crèche" (with grave accent) in formal headings; "creche" (no accent) is acceptable in body prose if the source docs use it that way. Pick one and use it consistently inside one document.
+- Donor diversity is reported with D / I markers — D = Domestic, I = International, ONLY. Do not introduce any other meaning (not direct/indirect, not donor/intermediary).
+- Long-standing donor sentence pattern: "Long-standing donors are {X}, {Y}, {Z}. They are funding {org} for more than 5 years." (or "since {YYYY}" if a specific year is in the source).
+- Dependency for creche notes is reported as a single ratio: "proposed budget ÷ avg annual expenditure × 100". Do NOT divide by years — the Bangalore Urban / creche proposals report dependency as a single ratio, not annualised. State the ratio in the Section IV header and in the Executive Summary if useful.
+- District / Block nutrition data must cite POSHAN Tracker with extraction month (e.g. "POSHAN Tracker Data, Feb 2026") AND show NFHS-5 vs NFHS-4 side by side as a 3-column table.
+- Standard creche budget terminology — use exactly these six top-level component names, in this order:
+  1. One-time support for setting up a creche
+  2. Annual Recurring operating cost
+  3. Supervisory and support cost
+  4. Capacity Building
+  5. Management Cost
+  6. Other Cost
+  Sub-items within each must use the exact labels from the Budget tool's creche cost registry (e.g. "Creche Caregiver Honorarium", "Food cost (Break Fast, Lunch, Evening snacks)", "Galvanised steel items"). Do not paraphrase line-item names.
+- Operating norms reference (use only when the source doc gives them): 20 children per creche; hours 8:30 am – 6:00 pm; 1 caregiver per creche; coverage rule of villages with ≥20 children in the 6m–3y age band.
+- Staff-ratio convention: state ratios as "1 Supervisor per ~8–10 creches", "1 Cluster Coordinator per ~20 creches", "1 A&L Manager per 200 creches (standard)", "1 Safety Manager per 200 creches (standard)". When a proposal deviates from these ratios — typically because operations at the proposed scale cannot share these roles across 200 creches — state the reason plainly in the deviation table's "Reasons for deviation" notes.
+- Renewal-specific: the "Current operational creches" table in the Executive Summary is REQUIRED and must include a Total row. Use the exact columns: Organisation | Cluster | No. of Operational Crèches | Creches to be transitioned to our Creche Initiative.
+- For renewals, when one-time setup or caregiver honorarium is budgeted differently from the standard (because equipment already exists, or honorarium is at actuals), note this inline in the Remark column of the budget table using the form: "Deviation from Standard Budget — {reason in one line}."`;
+
 export const DEFAULT_COST_NORMS = `COST NORMS BY THEME (for Remarks section — flag if outside range):
 
 Adolescent Girls — Centre-based intervention: ₹2,400–₹12,500 per person per year
@@ -221,7 +363,11 @@ export async function buildSystemPromptFromCaps(
   const caps = await getCapabilitiesByIds(ids);
 
   const fragmentsByCategory: Record<string, string> = {};
-  for (const c of caps) fragmentsByCategory[c.category] = c.prompt_fragment;
+  for (const c of caps) {
+    fragmentsByCategory[c.category] = fragmentsByCategory[c.category]
+      ? `${fragmentsByCategory[c.category]}\n\n${c.prompt_fragment}`
+      : c.prompt_fragment;
+  }
 
   const language = fragmentsByCategory.language || DEFAULT_LANGUAGE_RULES;
   const financialBlock = fragmentsByCategory.financial

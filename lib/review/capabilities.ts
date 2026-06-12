@@ -101,10 +101,21 @@ export async function archiveCapability(id: string): Promise<{ ok: boolean; reas
  * Phase 2 preserves the existing doc_types.apply_financial_rules semantics:
  * `language`, `structure`, `format` always; `financial` and `cost` only when the
  * doc-type opts in. Phase 5 replaces this with doc_types.default_capability_ids.
+ *
+ * Creche doc types bundle creche_language alongside the base language capability;
+ * structure comes from doc_types.template_rules (so no structure capability is
+ * added); cost norms are not used because deviation analysis comes from the
+ * Budget tool's comparison snapshot, not the rulebook.
  */
 export function defaultCapabilityIdsForDocType(docType: {
+  key?: string;
   apply_financial_rules?: boolean;
 }): string[] {
+  if (docType.key === 'creche_approval' || docType.key === 'creche_renewal') {
+    const ids = ['language', 'creche_language', 'format'];
+    if (docType.apply_financial_rules !== false) ids.push('financial');
+    return ids;
+  }
   const ids = ['language', 'structure', 'format'];
   if (docType.apply_financial_rules !== false) ids.push('financial', 'cost');
   return ids;

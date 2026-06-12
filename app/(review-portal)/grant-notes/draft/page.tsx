@@ -5,7 +5,7 @@ import { upload } from '@vercel/blob/client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type FieldType = 'text' | 'textarea' | 'select' | 'checkbox' | 'number';
+type FieldType = 'text' | 'textarea' | 'select' | 'checkbox' | 'number' | 'budget_picker';
 type FieldDef = {
   key: string;
   label: string;
@@ -15,7 +15,10 @@ type FieldDef = {
   rows?: number;
   options?: string[];
   required?: boolean;
+  budgetDomain?: string;
 };
+
+type BudgetOption = { id: string; name: string; city: string };
 
 type DocType = {
   key: string;
@@ -60,6 +63,11 @@ export default function NoteStartPage() {
 
   // Optional advanced fields (collapsible)
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Budget picker (per-domain async). Only loaded when the active doc type
+  // includes a budget_picker field.
+  const [budgetOptions, setBudgetOptions] = useState<BudgetOption[]>([]);
+  const [budgetLoadError, setBudgetLoadError] = useState('');
 
   // Scope (overrideable from doc-type defaults)
   const [scopeIds, setScopeIds] = useState<string[]>([]);
@@ -112,6 +120,27 @@ export default function NoteStartPage() {
   const activeDocType = docTypes.find(t => t.key === docTypeKey);
   useEffect(() => {
     if (activeDocType) setScopeIds(activeDocType.default_capability_ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docTypeKey, catalogLoaded]);
+
+  // Load budgets when active doc type has a budget_picker field.
+  useEffect(() => {
+    if (!activeDocType) return;
+    const bp = activeDocType.field_schema.find(f => f.type === 'budget_picker');
+    if (!bp) { setBudgetOptions([]); return; }
+    const domain = bp.budgetDomain || 'Creche';
+    setBudgetLoadError('');
+    fetch(`/api/budgets?domain=${encodeURIComponent(domain)}`)
+      .then(async r => {
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'failed to load budgets');
+        return j.budgets || [];
+      })
+      .then((rows: BudgetOption[]) => setBudgetOptions(rows))
+      .catch(e => {
+        setBudgetOptions([]);
+        setBudgetLoadError(e.message || 'failed to load budgets');
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docTypeKey, catalogLoaded]);
 
@@ -213,6 +242,11 @@ export default function NoteStartPage() {
       // Inject orgName explicitly (it's the hero field).
       if (orgName.trim()) meta.orgName = orgName.trim();
 
+      // Find the budget_picker field (if any) so the server can snapshot the
+      // comparison against the linked budget at note-create time.
+      const budgetField = activeDocType.field_schema.find(f => f.type === 'budget_picker');
+      const linkedBudgetId = budgetField ? (fieldValues[budgetField.key] as string) || '' : '';
+
       setBusyStatus('Creating note…');
       const createRes = await fetch('/api/review/grant-notes', {
         method: 'POST',
@@ -224,13 +258,14 @@ export default function NoteStartPage() {
           theme: meta.theme || '',
           grant_number: meta.grantNumber || '',
           grant_amount: meta.grantAmount || '',
-          grant_duration: meta.grantDuration || '',
+          grant_duration: meta.grantDuration || meta.grantDurationMonths || '',
           doc_type: docTypeKey,
           draft_text: pastedText || '',
           source_documents: blobUrls,
           staff_notes: (fieldValues.staffNotes as string) || '',
           submitted_by: submitterName,
           status: 'designing',
+          linked_budget_id: linkedBudgetId,
         }),
       });
       const created = await createRes.json();
@@ -337,6 +372,25 @@ export default function NoteStartPage() {
             <option value="">—</option>
             {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
           </select>
+        </div>
+      );
+    }
+    if (f.type === 'budget_picker') {
+      return (
+        <div key={f.key} className="ns-field">
+          <label htmlFor={id}>{f.label}{f.required && ' *'}</label>
+          <select id={id} value={String(fieldValue(f.key))} onChange={e => setFieldValue(f.key, e.target.value)}>
+            <option value="">— pick a budget —</option>
+            {budgetOptions.map(b => (
+              <option key={b.id} value={b.id}>{b.name} ({b.city})</option>
+            ))}
+          </select>
+          {budgetLoadError && <div className="ns-muted" style={{ color: '#8b2c25', marginTop: 4 }}>{budgetLoadError}</div>}
+          {!budgetLoadError && budgetOptions.length === 0 && (
+            <div className="ns-muted" style={{ marginTop: 4 }}>
+              No {f.budgetDomain || 'matching'} budgets found in your account. Create one under Pitstops → My Budgets.
+            </div>
+          )}
         </div>
       );
     }
