@@ -1062,6 +1062,17 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     return next;
   });
 
+  // Standard-side exclusions for like-for-like comparison. Session-only — does
+  // not touch the cost registry, does not persist across reloads. Keyed by
+  // templateKey since every generated standard line carries one.
+  const [excludedTemplateKeys, setExcludedTemplateKeys] = useState<Set<string>>(new Set());
+  const toggleExcludeLine = (templateKey: string) => setExcludedTemplateKeys(p => {
+    const next = new Set(p);
+    next.has(templateKey) ? next.delete(templateKey) : next.add(templateKey);
+    return next;
+  });
+  const showAllStandard = () => setExcludedTemplateKeys(new Set());
+
   // ── Scenario picker state ──────────────────────────────────────────────────
   const [geoLevel, setGeoLevel]             = useState<GeoLevel>("city");
   const [geoZoneId, setGeoZoneId]           = useState("");
@@ -1394,6 +1405,30 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     y3: grouped.reduce((s, g) => s + g.y3, 0),
   }), [grouped]);
 
+  // Per-domain sum of excluded Std-Y1 totals — subtracted from the displayed
+  // section / group / grand Standard totals to honour the user's like-for-like
+  // scope. Y2/Y3 stay full because they only appear in non-compare mode where
+  // exclusions are disabled.
+  const excludedY1ByDomain = useMemo(() => {
+    const m = new Map<string | null, number>();
+    if (excludedTemplateKeys.size === 0) return m;
+    for (const g of grouped) {
+      let sum = 0;
+      for (const sec of g.bySection) {
+        for (const l of sec.lines) {
+          if (excludedTemplateKeys.has(l.templateKey)) sum += l.y1Total;
+        }
+      }
+      m.set(g.domain, sum);
+    }
+    return m;
+  }, [grouped, excludedTemplateKeys]);
+
+  const totalExcludedStdY1 = useMemo(
+    () => [...excludedY1ByDomain.values()].reduce((s, v) => s + v, 0),
+    [excludedY1ByDomain]
+  );
+
   const hasIndicative = indicativeLines.some(l => l.isIndicative);
 
   // When the user narrows their selection, hide programme inputs that no
@@ -1410,6 +1445,22 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     for (const t of templates) m.set(t.templateKey, t);
     return m;
   }, [templates]);
+
+  /** Auto-exclude every standard line whose Yours counterpart is empty.
+   *  Useful one-click "compare like-for-like" — keeps Std lines that are
+   *  legitimately present on both sides, drops Std-only indicative entries. */
+  const matchMyBudgetScope = () => {
+    if (!compareData) return;
+    const next = new Set<string>();
+    for (const l of indicativeLines) {
+      // Skip rows the standard generator also drops (units=0 / fixed-only with no
+      // variable input) so we don't accumulate dead exclusions.
+      if (l.y1Total === 0) continue;
+      const you = youLineMap.get(l.templateKey);
+      if (!you || you.y1Total === 0) next.add(l.templateKey);
+    }
+    setExcludedTemplateKeys(next);
+  };
 
   /** Render a single formula component row inside the breakdown drawer. */
   const renderBreakdownComponent = (label: string, key: string) => {
@@ -1490,6 +1541,29 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
               className="text-xs text-stone-400 hover:text-stone-700">✕ clear</button>
           )}
         </div>
+        {/* Like-for-like controls only appear when a budget is loaded. The
+            "Match my budget" shortcut auto-excludes every standard line where
+            Yours is zero / missing — useful for stripping indicative-only Std
+            entries (e.g. unfilled salary stubs) from the comparison. */}
+        {compareData && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100">
+            <span className="text-xs text-stone-500">Standard scope:</span>
+            <button onClick={matchMyBudgetScope}
+              className="text-xs border border-sky-200 text-sky-700 bg-sky-50 rounded px-2 py-1 hover:bg-sky-100">
+              Match my budget
+            </button>
+            {excludedTemplateKeys.size > 0 && (
+              <>
+                <span className="text-xs text-stone-500">
+                  <span className="font-medium text-amber-700">{excludedTemplateKeys.size}</span> line{excludedTemplateKeys.size === 1 ? "" : "s"} excluded
+                </span>
+                <button onClick={showAllStandard}
+                  className="text-xs text-stone-400 hover:text-stone-700">Show all</button>
+              </>
+            )}
+            <span className="text-[10px] text-stone-400 ml-1">Session only · cost registry untouched</span>
+          </div>
+        )}
       </div>
 
       {/* Programme size assumptions — fully driven by displayGroup on each inp.* item */}
@@ -1722,6 +1796,11 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
           const youGroupY1 = compareData
             ? compareData.lines.filter(l => l.domain === g.domain).reduce((s, l) => s + l.y1Total, 0)
             : 0;
+          // Std-side excluded contribution for this domain. Subtracted from
+          // the visible group-Y1 + Δ-vs-Yours so the comparison reflects the
+          // scope the user trimmed to.
+          const excludedHere = excludedY1ByDomain.get(g.domain) ?? 0;
+          const effectiveGroupY1 = g.y1 - excludedHere;
           // colSpan for sub-rows + footers stays at 7 regardless of compare mode.
           const cols = 7;
           return (
@@ -1729,11 +1808,13 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
             <div className="flex items-baseline justify-between mb-2">
               <h3 className="text-sm font-semibold text-stone-700">{g.label}</h3>
               <div className="flex gap-6 text-xs text-stone-400">
-                <span>Y1 <span className="font-medium text-stone-600">{fmtCost(g.y1)}</span></span>
+                <span>Y1 <span className="font-medium text-stone-600">{fmtCost(effectiveGroupY1)}</span>
+                  {excludedHere > 0 && <span className="ml-1 text-[10px] text-amber-600">(−{fmtCost(excludedHere)} excluded)</span>}
+                </span>
                 {!compareData && <span>Y2 <span className="font-medium text-stone-600">{fmtCost(g.y2)}</span></span>}
                 {!compareData && <span>Y3 <span className="font-medium text-stone-600">{fmtCost(g.y3)}</span></span>}
                 {compareData && <>
-                  <span>Yours <span className="font-medium text-sky-700">{fmtCost(youGroupY1)}</span>{renderDelta(g.y1, youGroupY1)}</span>
+                  <span>Yours <span className="font-medium text-sky-700">{fmtCost(youGroupY1)}</span>{renderDelta(effectiveGroupY1, youGroupY1)}</span>
                 </>}
               </div>
             </div>
@@ -1770,6 +1851,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                         const t = templateByKey.get(l.templateKey);
                         const youLine = compareData ? youLineMap.get(l.templateKey) : undefined;
                         const youY1 = youLine?.y1Total;
+                        const excluded = excludedTemplateKeys.has(l.templateKey);
                         const components: { label: string; key: string }[] = [];
                         if (t?.costKey)  components.push({ label: "× ", key: t.costKey });
                         if (t?.costKey2) components.push({ label: "× ", key: t.costKey2 });
@@ -1778,9 +1860,14 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                         if (t?.workerRatioKey)    components.push({ label: "worker ratio", key: t.workerRatioKey });
                         if (t?.bufferKey)         components.push({ label: "buffer %", key: t.bufferKey });
                         const canExpand = components.length > 0;
+                        // Std side of an excluded row: strikethrough greys.
+                        // Δ vs Yours treats the excluded Std as 0 so the delta
+                        // becomes "added 100%" for any Yours-only contribution,
+                        // which is the intended like-for-like read.
+                        const stdMutedCls = excluded ? "line-through text-stone-300" : "";
                         return (
                           <Fragment key={i}>
-                          <tr className={`border-b border-stone-50 hover:bg-stone-50 ${l.isIndicative ? "bg-amber-50/30" : ""}`}>
+                          <tr className={`group border-b border-stone-50 hover:bg-stone-50 ${l.isIndicative ? "bg-amber-50/30" : ""} ${excluded ? "bg-stone-50/60" : ""}`}>
                             <td className="px-4 py-2 text-stone-800">
                               <button onClick={() => canExpand && toggleLineExpand(lineKey)}
                                 disabled={!canExpand}
@@ -1788,27 +1875,36 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                                 title={canExpand ? "Show formula" : "No formula breakdown"}>
                                 {canExpand ? (expanded ? "▾" : "▸") : "·"}
                               </button>
-                              {l.description}
-                              {l.isIndicative && <span className="ml-2 text-xs text-amber-500">~indicative · {l.salaryHint}</span>}
+                              <span className={excluded ? "text-stone-400" : ""}>{l.description}</span>
+                              {l.isIndicative && !excluded && <span className="ml-2 text-xs text-amber-500">~indicative · {l.salaryHint}</span>}
+                              {excluded && <span className="ml-2 text-[10px] uppercase tracking-widest text-stone-400">excluded</span>}
+                              {compareData && (
+                                excluded
+                                  ? <button onClick={() => toggleExcludeLine(l.templateKey)}
+                                      className="ml-2 text-xs text-sky-600 hover:text-sky-800">↺ restore</button>
+                                  : <button onClick={() => toggleExcludeLine(l.templateKey)}
+                                      className="ml-2 text-xs text-stone-300 hover:text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      title="Drop this line from the Standard scope">✕ exclude</button>
+                              )}
                             </td>
                             <td className="px-3 py-2">
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SECTION_BADGE[l.section] ?? "bg-stone-50 text-stone-600"}`}>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SECTION_BADGE[l.section] ?? "bg-stone-50 text-stone-600"} ${excluded ? "opacity-50" : ""}`}>
                                 {l.section}
                               </span>
                             </td>
-                            <td className={`px-3 py-2 text-right tabular-nums ${l.isIndicative ? "text-amber-600" : "text-stone-600"}`}>
+                            <td className={`px-3 py-2 text-right tabular-nums ${stdMutedCls} ${l.isIndicative && !excluded ? "text-amber-600" : "text-stone-600"}`}>
                               {l.isIndicative ? `~${fmtCost(l.y1UnitCost)}/mo` : fmtCost(l.y1UnitCost)}
                             </td>
-                            <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmt(l.y1Units)}</td>
-                            <td className="px-3 py-2 text-right font-medium text-stone-800 tabular-nums">{fmtCost(l.y1Total)}</td>
+                            <td className={`px-3 py-2 text-right tabular-nums ${stdMutedCls} text-stone-500`}>{fmt(l.y1Units)}</td>
+                            <td className={`px-3 py-2 text-right font-medium tabular-nums ${stdMutedCls} ${excluded ? "" : "text-stone-800"}`}>{fmtCost(l.y1Total)}</td>
                             {compareData ? <>
                               <td className="px-3 py-2 text-right text-sky-700 font-medium tabular-nums">
                                 {youY1 !== undefined ? fmtCost(youY1) : "—"}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums">{renderDelta(l.y1Total, youY1)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{renderDelta(excluded ? 0 : l.y1Total, youY1)}</td>
                             </> : <>
-                              <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmtCost(l.y2Total)}</td>
-                              <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmtCost(l.y3Total)}</td>
+                              <td className={`px-3 py-2 text-right tabular-nums ${stdMutedCls} text-stone-500`}>{fmtCost(l.y2Total)}</td>
+                              <td className={`px-3 py-2 text-right tabular-nums ${stdMutedCls} text-stone-500`}>{fmtCost(l.y3Total)}</td>
                             </>}
                           </tr>
                           {expanded && t && (
@@ -1858,23 +1954,28 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                       {(() => {
                         const oSum = (yr: "y1Total" | "y2Total" | "y3Total") =>
                           orphans.reduce((s, o) => s + o[yr], 0);
-                        const sectionStdSubtotal = (yr: "y1" | "y2" | "y3") =>
-                          yr === "y1" ? sy1 : yr === "y2" ? sy2 : sy3;
+                        // Excluded Std-Y1 within this section. Subtracted from
+                        // the visible Standard subtotal so the row reads
+                        // "what counts toward the comparison".
+                        const sectionExcluded = sLines.reduce(
+                          (s, l) => excludedTemplateKeys.has(l.templateKey) ? s + l.y1Total : s, 0
+                        );
+                        const sectionStdY1 = sy1 - sectionExcluded;
                         return (
                         <tr className="border-b border-stone-100 bg-stone-50/70">
                           <td colSpan={4} className="px-4 py-1.5 text-xs text-stone-400 text-right italic">{section} subtotal</td>
-                          <td className="px-3 py-1.5 text-right text-xs font-semibold text-stone-700 tabular-nums">{fmtCost(sectionStdSubtotal("y1"))}</td>
+                          <td className="px-3 py-1.5 text-right text-xs font-semibold text-stone-700 tabular-nums">{fmtCost(sectionStdY1)}</td>
                           {compareData ? <>
                             {(() => {
                               const sYou = sLines.reduce((s, l) => s + (youLineMap.get(l.templateKey)?.y1Total ?? 0), 0) + oSum("y1Total");
                               return <>
                                 <td className="px-3 py-1.5 text-right text-xs font-medium text-sky-700 tabular-nums">{fmtCost(sYou)}</td>
-                                <td className="px-3 py-1.5 text-right tabular-nums">{renderDelta(sectionStdSubtotal("y1"), sYou)}</td>
+                                <td className="px-3 py-1.5 text-right tabular-nums">{renderDelta(sectionStdY1, sYou)}</td>
                               </>;
                             })()}
                           </> : <>
-                            <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sectionStdSubtotal("y2"))}</td>
-                            <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sectionStdSubtotal("y3"))}</td>
+                            <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy2)}</td>
+                            <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy3)}</td>
                           </>}
                         </tr>
                         );
@@ -1883,10 +1984,10 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                   ))}
                   <tr className="bg-stone-100">
                     <td colSpan={4} className="px-4 py-2 text-xs font-bold text-stone-600 text-right">{g.label} total</td>
-                    <td className="px-3 py-2 text-right text-sm font-bold text-stone-900 tabular-nums">{fmtCost(g.y1)}</td>
+                    <td className="px-3 py-2 text-right text-sm font-bold text-stone-900 tabular-nums">{fmtCost(effectiveGroupY1)}</td>
                     {compareData ? <>
                       <td className="px-3 py-2 text-right text-sm font-bold text-sky-700 tabular-nums">{fmtCost(youGroupY1)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{renderDelta(g.y1, youGroupY1)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{renderDelta(effectiveGroupY1, youGroupY1)}</td>
                     </> : <>
                       <td className="px-3 py-2 text-right text-sm font-semibold text-stone-600 tabular-nums">{fmtCost(g.y2)}</td>
                       <td className="px-3 py-2 text-right text-sm font-semibold text-stone-600 tabular-nums">{fmtCost(g.y3)}</td>
@@ -1914,7 +2015,13 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
             </p>
           </div>
           <div className="flex gap-6 sm:gap-8">
-            <div><p className="text-xs text-stone-400">Year 1</p><p className="text-lg font-bold">{fmtCost(grand.y1)}</p></div>
+            <div>
+              <p className="text-xs text-stone-400">Year 1</p>
+              <p className="text-lg font-bold">{fmtCost(grand.y1 - totalExcludedStdY1)}</p>
+              {totalExcludedStdY1 > 0 && (
+                <p className="text-[10px] text-amber-300">−{fmtCost(totalExcludedStdY1)} excluded</p>
+              )}
+            </div>
             {compareData && (() => {
               // Sum Yours across the same domains the per-domain tables render
               // (i.e. selectedDomains + cross-cutting). Pulled from the
@@ -1924,10 +2031,11 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
               const youGrand = compareData.lines
                 .filter(l => visibleDomains.has(l.domain))
                 .reduce((s, l) => s + l.y1Total, 0);
+              const stdY1 = grand.y1 - totalExcludedStdY1;
               return (
                 <div>
                   <p className="text-xs text-sky-300">Yours Y1</p>
-                  <p className="text-lg font-bold text-sky-200">{fmtCost(youGrand)}{renderDelta(grand.y1, youGrand)}</p>
+                  <p className="text-lg font-bold text-sky-200">{fmtCost(youGrand)}{renderDelta(stdY1, youGrand)}</p>
                 </div>
               );
             })()}
