@@ -10,7 +10,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const { city = "Bangalore" } = await searchParams;
 
-  const [registry, templates, domains, cityRecords, needsDomains] = await Promise.all([
+  const [registry, templates, domains, cityRecords, needsDomains, cityBudgets] = await Promise.all([
     prisma.costRegistry.findMany({
       where: { city },
       orderBy: [{ domain: "asc" }, { itemKey: "asc" }],
@@ -28,6 +28,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       where: { isActive: true, domainType: { not: "entitlement" } },
       select: { domain: true, label: true },
       orderBy: { sortOrder: "asc" },
+    }),
+    // All budgets for this city, surfaced in the Cost Analysis "Compare with"
+    // dropdown. Most recent first so the active drafting cycle is at the top.
+    prisma.budget.findMany({
+      where: { city },
+      select: { id: true, name: true, createdAt: true, domains: true, horizonMonths: true },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -77,5 +84,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       })),
   ];
 
-  return <AdminClient costs={merged} isSeeded={isSeeded} city={city} templates={templates} domains={domains} zones={zones} needsDomains={needsDomains} budgetAdminOnly={budgetAdminOnly} />;
+  // Serialize Date to ISO so AdminClient stays a pure client component.
+  const cityBudgetsSerialized = cityBudgets.map(b => ({
+    id: b.id, name: b.name, createdAt: b.createdAt.toISOString(),
+    domains: b.domains, horizonMonths: b.horizonMonths,
+  }));
+
+  return <AdminClient costs={merged} isSeeded={isSeeded} city={city} templates={templates} domains={domains} zones={zones} needsDomains={needsDomains} cityBudgets={cityBudgetsSerialized} budgetAdminOnly={budgetAdminOnly} />;
 }
