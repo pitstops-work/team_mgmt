@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { buildBudgetWorkbook, type ExportLine } from "@/lib/budget/exportTemplate";
 import { extractCostComponents, type RegistryItem, type TemplateLike } from "@/lib/budget/costDriver";
+import { activeYearBands } from "@/lib/budget-generator";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -56,13 +57,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       y1Units: l.y1Units, y1UnitCost: l.y1UnitCost, y1AllocPct: l.y1AllocPct, y1Total: l.y1Total,
       y2Units: l.y2Units, y2UnitCost: l.y2UnitCost, y2AllocPct: l.y2AllocPct, y2Total: l.y2Total,
       y3Units: l.y3Units, y3UnitCost: l.y3UnitCost, y3AllocPct: l.y3AllocPct, y3Total: l.y3Total,
+      y4Units: l.y4Units, y4UnitCost: l.y4UnitCost, y4AllocPct: l.y4AllocPct, y4Total: l.y4Total,
+      y5Units: l.y5Units, y5UnitCost: l.y5UnitCost, y5AllocPct: l.y5AllocPct, y5Total: l.y5Total,
     };
   });
+
+  // years here is the count of year-band columns the xlsx should expose (1..5).
+  const horizonMonths = budget.horizonMonths ?? budget.years * 12;
+  const years = activeYearBands(horizonMonths);
 
   const buffer = await buildBudgetWorkbook({
     name: budget.name,
     domains: budget.domains,
-    years: budget.years,
+    years,
+    inflationRates: budget.applyInflation
+      ? {
+          Salary: budget.inflationSalaryPct / 100,
+          Other:  budget.inflationOtherPct / 100,
+          Nil:    budget.inflationNilPct / 100,
+        }
+      : { Salary: 0, Other: 0, Nil: 0 },
     lines,
   });
 

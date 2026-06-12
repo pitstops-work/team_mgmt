@@ -14,7 +14,7 @@ import type { BudgetSection, ReallocationDuration } from "@/app/generated/prisma
 
 type Line = {
   id: string; description: string; section: BudgetSection; domain: string | null;
-  y1Total: number; y2Total: number; y3Total: number;
+  y1Total: number; y2Total: number; y3Total: number; y4Total: number; y5Total: number;
 };
 type ReportLine = { budgetLineId: string; actualAmount: number; notes: string | null };
 type ReallocationRequest = {
@@ -129,7 +129,11 @@ export default function ReportForm({
     : periodFrom;
 
   function yearTotal(line: Line): number {
-    return slot.grantYear === 1 ? line.y1Total : slot.grantYear === 2 ? line.y2Total : line.y3Total;
+    return slot.grantYear === 1 ? line.y1Total
+      : slot.grantYear === 2 ? line.y2Total
+      : slot.grantYear === 3 ? line.y3Total
+      : slot.grantYear === 4 ? line.y4Total
+      : line.y5Total;
   }
 
   function revisedYearTotal(line: Line): number {

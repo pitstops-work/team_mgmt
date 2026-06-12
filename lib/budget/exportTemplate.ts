@@ -32,12 +32,18 @@ export type ExportLine = {
   y1Units: number; y1UnitCost: number; y1AllocPct: number; y1Total: number;
   y2Units: number; y2UnitCost: number; y2AllocPct: number; y2Total: number;
   y3Units: number; y3UnitCost: number; y3AllocPct: number; y3Total: number;
+  y4Units: number; y4UnitCost: number; y4AllocPct: number; y4Total: number;
+  y5Units: number; y5UnitCost: number; y5AllocPct: number; y5Total: number;
 };
 
 export type ExportBudget = {
   name: string;
   domains: string[];
+  /** Count of active year-bands (1..5). Used by emitDataRow to gate Y4/Y5 columns. */
   years: number;
+  /** Per-budget inflation rates as decimals (10% → 0.10). When applyInflation
+   * is false, all three should be 0 so the inflation formula collapses to 1. */
+  inflationRates?: { Salary: number; Other: number; Nil: number };
   lines: ExportLine[];
 };
 
@@ -182,7 +188,10 @@ const GUIDING_PRINCIPLES: string[] = [
   "Capture unit-cost justification in budget notes. In case of pooled cost, mention basis of allocation.",
 ];
 
-function buildInstructionsSheet(wb: ExcelJS.Workbook): void {
+function buildInstructionsSheet(
+  wb: ExcelJS.Workbook,
+  inflation: { Salary: number; Other: number; Nil: number } = { Salary: 0.10, Other: 0.05, Nil: 0 },
+): void {
   const ws = wb.addWorksheet("01.Instructions");
   ws.columns = [{ width: 6 }, { width: 30 }, { width: 14 }, { width: 60 }];
 
@@ -231,7 +240,12 @@ function buildInstructionsSheet(wb: ExcelJS.Workbook): void {
     c.alignment = { horizontal: "center" };
   });
 
-  const inflationRows: Array<[string, number]> = [["Salary", 0.10], ["Nil", 0], ["Other", 0.05]];
+  // Order kept stable so cell references in B${21..23} resolve the same key→row.
+  const inflationRows: Array<[string, number]> = [
+    ["Salary", inflation.Salary],
+    ["Nil",    inflation.Nil],
+    ["Other",  inflation.Other],
+  ];
   inflationRows.forEach(([k, v], i) => {
     const r = targetTableRow + 1 + i;
     ws.getCell(`B${r}`).value = k;
@@ -621,8 +635,8 @@ function emitDataRow(
   const yearData: Array<{ y: 2 | 3 | 4 | 5; u: number; c: number; a: number }> = [
     { y: 2, u: line.y2Units, c: line.y2UnitCost, a: line.y2AllocPct },
     { y: 3, u: line.y3Units, c: line.y3UnitCost, a: line.y3AllocPct },
-    { y: 4, u: 0, c: 0, a: 1 },
-    { y: 5, u: 0, c: 0, a: 1 },
+    { y: 4, u: line.y4Units, c: line.y4UnitCost, a: line.y4AllocPct },
+    { y: 5, u: line.y5Units, c: line.y5UnitCost, a: line.y5AllocPct },
   ];
   for (const d of yearData) {
     if (years < d.y) continue;
@@ -1031,7 +1045,7 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
   wb.creator = "Budget Builder";
   wb.created = new Date();
 
-  buildInstructionsSheet(wb);
+  buildInstructionsSheet(wb, budget.inflationRates);
 
   const domains = budget.domains.length > 0 ? budget.domains : ["__all__"];
 

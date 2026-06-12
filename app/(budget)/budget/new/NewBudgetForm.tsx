@@ -37,7 +37,11 @@ export default function NewBudgetForm({
   const [step, setStep]       = useState<1 | 2>(1);
   const [city, setCity]       = useState<"Bangalore" | "Chennai">("Bangalore");
   const [name, setName]       = useState("");
-  const [years, setYears]     = useState<1 | 3>(1);
+  // horizonMonths replaces years. Defaults to 12mo; presets cover the typical
+  // donor-budget shapes. 60mo is the cap (matches BudgetLine y1..y5 columns).
+  const [horizonMonths, setHorizonMonths] = useState<number>(12);
+  const [customMonths, setCustomMonths]   = useState<string>("");
+  const [applyInflation, setApplyInflation] = useState<boolean>(false);
   const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set());
   const [includeCrossCutting, setIncludeCrossCutting] = useState(true);
   const [programmeInputs, setProgrammeInputs] = useState<Record<string, number>>(() =>
@@ -60,9 +64,17 @@ export default function NewBudgetForm({
 
   const submit = () => {
     startTransition(async () => {
-      await createBudget({ name: name.trim(), city, domains: Array.from(selectedDomains), years, programmeInputs, includeCrossCutting });
+      await createBudget({
+        name: name.trim(), city, domains: Array.from(selectedDomains),
+        horizonMonths, applyInflation,
+        programmeInputs, includeCrossCutting,
+      });
     });
   };
+
+  const PERIOD_PRESETS = [6, 12, 18, 24, 36, 48, 60] as const;
+  const horizonLabel = (m: number) =>
+    m % 12 === 0 ? `${m / 12} year${m === 12 ? "" : "s"}` : `${m} months`;
 
   // Collect domain-specific sections for selected domains, deduping shared keys
   const domainSections = () => {
@@ -134,14 +146,50 @@ export default function NewBudgetForm({
 
           <div>
             <label className="block text-sm font-medium text-stone-700 mb-2">Budget period</label>
-            <div className="flex gap-3">
-              {([1, 3] as const).map(y => (
-                <button key={y} type="button" onClick={() => setYears(y)}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${years === y ? "border-sky-500 bg-sky-50 text-sky-700" : "border-stone-200 text-stone-700 hover:border-stone-300"}`}>
-                  {y === 1 ? "1 Year" : "3 Years (with inflation)"}
-                </button>
-              ))}
+            <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
+              {PERIOD_PRESETS.map(m => {
+                const active = horizonMonths === m && customMonths === "";
+                return (
+                  <button key={m} type="button"
+                    onClick={() => { setHorizonMonths(m); setCustomMonths(""); }}
+                    className={`py-2 rounded-lg border text-xs font-medium transition-all ${active ? "border-sky-500 bg-sky-50 text-sky-700" : "border-stone-200 text-stone-700 hover:border-stone-300"}`}>
+                    {horizonLabel(m)}
+                  </button>
+                );
+              })}
             </div>
+            <div className="mt-2 flex items-center gap-2">
+              <label className="text-xs text-stone-500">Custom (months, max 60):</label>
+              <input type="number" min={1} max={60} value={customMonths}
+                onChange={e => {
+                  const v = e.target.value;
+                  setCustomMonths(v);
+                  const n = Math.min(60, Math.max(1, parseInt(v) || 0));
+                  if (n > 0) setHorizonMonths(n);
+                }}
+                placeholder="e.g. 21"
+                className="w-24 border border-stone-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              <span className="text-xs text-stone-400">
+                → {horizonLabel(horizonMonths)}
+                {horizonMonths % 12 !== 0 && (
+                  <> · final year pro-rated to {((horizonMonths % 12) / 12 * 100).toFixed(0)}%</>
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-2">Inflation</label>
+            <button type="button" onClick={() => setApplyInflation(p => !p)}
+              className="flex items-center gap-3 w-full p-3 rounded-lg border text-left transition-all border-stone-200 hover:border-stone-300">
+              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${applyInflation ? "border-sky-500 bg-sky-500" : "border-stone-300"}`}>
+                {applyInflation && <span className="text-white text-xs">✓</span>}
+              </div>
+              <div>
+                <div className="text-sm font-medium text-stone-900">Apply year-on-year inflation</div>
+                <div className="text-xs text-stone-500">Salary 10% · Other 5% · Nil 0% per year. Uncheck to keep all year-band unit costs at Y1.</div>
+              </div>
+            </button>
           </div>
 
           <button type="button" disabled={!canProceed} onClick={() => setStep(2)}
