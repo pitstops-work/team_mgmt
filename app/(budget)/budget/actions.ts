@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { generateBudgetLines } from "@/lib/budget-generator";
+import { generateBudgetLines, DEFAULT_INFLATION_RATES, activeYearBands } from "@/lib/budget-generator";
 import type { BudgetSection, InflationType } from "@/app/generated/prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -11,7 +11,8 @@ export type CreateBudgetPayload = {
   name: string;
   city: string;
   domains: string[];
-  years: 1 | 3;
+  horizonMonths: number;
+  applyInflation: boolean;
   programmeInputs: Record<string, number>;
   includeCrossCutting: boolean;
 };
@@ -19,6 +20,11 @@ export type CreateBudgetPayload = {
 export async function createBudget(payload: CreateBudgetPayload) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const horizonMonths = Math.min(60, Math.max(1, Math.round(payload.horizonMonths)));
+  // Keep `years` in sync for legacy read paths (list pages, report-actions
+  // grantYear lookups, etc.). years = number of year-bands the horizon covers.
+  const years = activeYearBands(horizonMonths);
 
   const [registryRows, templates] = await Promise.all([
     prisma.costRegistry.findMany({ where: { city: payload.city } }),
@@ -29,7 +35,13 @@ export async function createBudget(payload: CreateBudgetPayload) {
   const eligibleTemplates = payload.includeCrossCutting
     ? templates
     : templates.filter(t => t.domain !== null);
-  const lines = generateBudgetLines(payload.domains, payload.programmeInputs, payload.years, registry, eligibleTemplates);
+  const lines = generateBudgetLines(
+    payload.domains,
+    payload.programmeInputs,
+    { horizonMonths, applyInflation: payload.applyInflation, inflationRates: DEFAULT_INFLATION_RATES },
+    registry,
+    eligibleTemplates,
+  );
 
   const pi = payload.programmeInputs;
   const budget = await prisma.budget.create({
@@ -38,7 +50,10 @@ export async function createBudget(payload: CreateBudgetPayload) {
       city: payload.city,
       partnerId: session.user.id,
       domains: payload.domains,
-      years: payload.years,
+      years,
+      horizonMonths,
+      applyInflation: payload.applyInflation,
+      // Inflation rates fall back to the Prisma schema defaults (10/5/0) if omitted.
       inputs: {
         create: {
           // Keep typed fields populated for backward compat with existing queries
@@ -82,6 +97,14 @@ export async function createBudget(payload: CreateBudgetPayload) {
           y3UnitCost: l.y3UnitCost,
           y3AllocPct: l.y3AllocPct,
           y3Total: l.y3Total,
+          y4Units: l.y4Units,
+          y4UnitCost: l.y4UnitCost,
+          y4AllocPct: l.y4AllocPct,
+          y4Total: l.y4Total,
+          y5Units: l.y5Units,
+          y5UnitCost: l.y5UnitCost,
+          y5AllocPct: l.y5AllocPct,
+          y5Total: l.y5Total,
         })),
       },
     },
@@ -94,15 +117,11 @@ export async function updateLine(
   lineId: string,
   updates: {
     description?: string;
-    y1Units?: number;
-    y1UnitCost?: number;
-    y1AllocPct?: number;
-    y2Units?: number;
-    y2UnitCost?: number;
-    y2AllocPct?: number;
-    y3Units?: number;
-    y3UnitCost?: number;
-    y3AllocPct?: number;
+    y1Units?: number; y1UnitCost?: number; y1AllocPct?: number;
+    y2Units?: number; y2UnitCost?: number; y2AllocPct?: number;
+    y3Units?: number; y3UnitCost?: number; y3AllocPct?: number;
+    y4Units?: number; y4UnitCost?: number; y4AllocPct?: number;
+    y5Units?: number; y5UnitCost?: number; y5AllocPct?: number;
   }
 ) {
   const session = await auth();
@@ -111,13 +130,16 @@ export async function updateLine(
   const line = await prisma.budgetLine.findUnique({ where: { id: lineId }, select: { budgetId: true, budget: { select: { partnerId: true } }, costCategory: true } });
   if (!line || line.budget.partnerId !== session.user.id) throw new Error("Not found");
 
-  const y1Total = Math.round((updates.y1Units ?? 0) * (updates.y1UnitCost ?? 0) * (updates.y1AllocPct ?? 1));
-  const y2Total = Math.round((updates.y2Units ?? 0) * (updates.y2UnitCost ?? 0) * (updates.y2AllocPct ?? 1));
-  const y3Total = Math.round((updates.y3Units ?? 0) * (updates.y3UnitCost ?? 0) * (updates.y3AllocPct ?? 1));
+  const total = (u?: number, c?: number, a?: number) => Math.round((u ?? 0) * (c ?? 0) * (a ?? 1));
+  const y1Total = total(updates.y1Units, updates.y1UnitCost, updates.y1AllocPct);
+  const y2Total = total(updates.y2Units, updates.y2UnitCost, updates.y2AllocPct);
+  const y3Total = total(updates.y3Units, updates.y3UnitCost, updates.y3AllocPct);
+  const y4Total = total(updates.y4Units, updates.y4UnitCost, updates.y4AllocPct);
+  const y5Total = total(updates.y5Units, updates.y5UnitCost, updates.y5AllocPct);
 
   await prisma.budgetLine.update({
     where: { id: lineId },
-    data: { ...updates, y1Total, y2Total, y3Total },
+    data: { ...updates, y1Total, y2Total, y3Total, y4Total, y5Total },
   });
   revalidatePath(`/budget/${line.budgetId}`);
 }
@@ -141,20 +163,46 @@ export async function addLine(
     where: { id: budgetId },
     select: {
       partnerId: true,
-      years: true,
+      horizonMonths: true,
+      applyInflation: true,
+      inflationSalaryPct: true,
+      inflationOtherPct: true,
+      inflationNilPct: true,
       lines: { select: { position: true }, orderBy: { position: "desc" }, take: 1 },
     },
   });
   if (!budget || budget.partnerId !== session.user.id) throw new Error("Not found");
 
-  const rate = data.costCategory === "Salary" ? 0.10 : data.costCategory === "Other" ? 0.05 : 0;
+  const ratePct =
+    data.costCategory === "Salary" ? budget.inflationSalaryPct
+    : data.costCategory === "Other" ? budget.inflationOtherPct
+    : budget.inflationNilPct;
+  const rate = budget.applyInflation ? ratePct / 100 : 0;
+
   const y1Units = data.y1Units ?? 0;
   const y1UnitCost = data.y1UnitCost ?? 0;
-  const y1Total = Math.round(y1Units * y1UnitCost);
-  const y2UnitCost = budget.years >= 3 ? Math.round(y1UnitCost * (1 + rate)) : 0;
-  const y3UnitCost = budget.years >= 3 ? Math.round(y2UnitCost * (1 + rate)) : 0;
-  const y2Total = budget.years >= 3 ? Math.round(y1Units * y2UnitCost) : 0;
-  const y3Total = budget.years >= 3 ? Math.round(y1Units * y3UnitCost) : 0;
+
+  const yearFactor = (k: number): number => {
+    const full = Math.floor(budget.horizonMonths / 12);
+    const tail = budget.horizonMonths - full * 12;
+    if (k <= full) return 1;
+    if (k === full + 1 && tail > 0) return tail / 12;
+    return 0;
+  };
+
+  const bandData = (k: number) => {
+    const factor = yearFactor(k);
+    if (factor === 0) return { units: 0, cost: 0, total: 0 };
+    const units = y1Units * factor;
+    const cost  = Math.round(y1UnitCost * Math.pow(1 + rate, k - 1));
+    return { units, cost, total: Math.round(units * cost) };
+  };
+
+  const b1 = { units: y1Units, cost: y1UnitCost, total: Math.round(y1Units * y1UnitCost * yearFactor(1)) };
+  const b2 = bandData(2);
+  const b3 = bandData(3);
+  const b4 = bandData(4);
+  const b5 = bandData(5);
 
   const nextPos = (budget.lines[0]?.position ?? 0) + 1;
   const line = await prisma.budgetLine.create({
@@ -167,11 +215,11 @@ export async function addLine(
       unitType: data.unitType,
       position: nextPos,
       isAutoGenerated: false,
-      y1Units, y1UnitCost, y1AllocPct: 1, y1Total,
-      y2Units: budget.years >= 3 ? y1Units : 0,
-      y2UnitCost, y2AllocPct: 1, y2Total,
-      y3Units: budget.years >= 3 ? y1Units : 0,
-      y3UnitCost, y3AllocPct: 1, y3Total,
+      y1Units: b1.units, y1UnitCost: b1.cost, y1AllocPct: 1, y1Total: b1.total,
+      y2Units: b2.units, y2UnitCost: b2.cost, y2AllocPct: 1, y2Total: b2.total,
+      y3Units: b3.units, y3UnitCost: b3.cost, y3AllocPct: 1, y3Total: b3.total,
+      y4Units: b4.units, y4UnitCost: b4.cost, y4AllocPct: 1, y4Total: b4.total,
+      y5Units: b5.units, y5UnitCost: b5.cost, y5AllocPct: 1, y5Total: b5.total,
     },
   });
   revalidatePath(`/budget/${budgetId}`);

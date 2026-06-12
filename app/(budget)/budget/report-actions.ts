@@ -177,7 +177,12 @@ export async function submitReport(slotId: string) {
       await Promise.all(requests.map(async req => {
         const fromLine = await prisma.budgetLine.findUnique({ where: { id: req.fromLineId } });
         if (!fromLine) return;
-        const yearTotal = slot.grantYear === 1 ? fromLine.y1Total : slot.grantYear === 2 ? fromLine.y2Total : fromLine.y3Total;
+        const yearTotal =
+          slot.grantYear === 1 ? fromLine.y1Total
+          : slot.grantYear === 2 ? fromLine.y2Total
+          : slot.grantYear === 3 ? fromLine.y3Total
+          : slot.grantYear === 4 ? fromLine.y4Total
+          : fromLine.y5Total;
         const ytdActual = (priorActuals[req.fromLineId] ?? 0) + (currentActuals[req.fromLineId] ?? 0);
         const sourceUnspent = Math.max(0, yearTotal - ytdActual);
         const willSustain = sourceUnspent >= req.requestedAmount;
@@ -344,7 +349,12 @@ export async function addReallocationRequest(
   const currentActuals: Record<string, number> = Object.fromEntries(report.lines.map(l => [l.budgetLineId, l.actualAmount]));
   const fromLine = await prisma.budgetLine.findUnique({ where: { id: req.fromLineId } });
   if (!fromLine) throw new Error("Source line not found");
-  const yearTotal = slot.grantYear === 1 ? fromLine.y1Total : slot.grantYear === 2 ? fromLine.y2Total : fromLine.y3Total;
+  const yearTotal =
+    slot.grantYear === 1 ? fromLine.y1Total
+    : slot.grantYear === 2 ? fromLine.y2Total
+    : slot.grantYear === 3 ? fromLine.y3Total
+    : slot.grantYear === 4 ? fromLine.y4Total
+    : fromLine.y5Total;
   const ytdActual = (priorActuals[req.fromLineId] ?? 0) + (currentActuals[req.fromLineId] ?? 0);
   const sourceUnspent = Math.max(0, yearTotal - ytdActual);
   const willSustain = sourceUnspent >= req.requestedAmount;

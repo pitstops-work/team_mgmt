@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { Fragment, useState, useTransition, useRef } from "react";
 import { updateLine, addLine, deleteLine, finalizeBudget, deleteBudget } from "../actions";
 import type { BudgetSection, InflationType } from "@/app/generated/prisma/client";
 
@@ -18,6 +18,8 @@ type Line = {
   y1Units: number; y1UnitCost: number; y1AllocPct: number; y1Total: number;
   y2Units: number; y2UnitCost: number; y2AllocPct: number; y2Total: number;
   y3Units: number; y3UnitCost: number; y3AllocPct: number; y3Total: number;
+  y4Units: number; y4UnitCost: number; y4AllocPct: number; y4Total: number;
+  y5Units: number; y5UnitCost: number; y5AllocPct: number; y5Total: number;
 };
 
 type Budget = {
@@ -25,11 +27,36 @@ type Budget = {
   name: string;
   domains: string[];
   years: number;
+  horizonMonths: number;
+  applyInflation: boolean;
+  inflationSalaryPct: number;
+  inflationOtherPct: number;
+  inflationNilPct: number;
   status: "draft" | "final" | "approved";
   lines: Line[];
   domainLabels?: Record<string, string>;
   inputs?: Record<string, number | string | null> | null;
 };
+
+type BandKey = 1 | 2 | 3 | 4 | 5;
+type Band = { k: BandKey; factor: number; label: string };
+
+/** Year-bands present in this horizon, including pro-rated tail. */
+function computeBands(horizonMonths: number): Band[] {
+  const fullYears = Math.floor(horizonMonths / 12);
+  const tail      = horizonMonths - fullYears * 12;
+  const out: Band[] = [];
+  for (let k = 1 as BandKey; k <= 5; k = (k + 1) as BandKey) {
+    if (k <= fullYears) out.push({ k, factor: 1, label: `Y${k}` });
+    else if (k === fullYears + 1 && tail > 0) out.push({ k, factor: tail / 12, label: `Y${k} (${tail}mo)` });
+  }
+  return out;
+}
+
+const yTotalKey = (k: BandKey) => `y${k}Total` as const;
+const yUnitsKey = (k: BandKey) => `y${k}Units` as const;
+const yCostKey  = (k: BandKey) => `y${k}UnitCost` as const;
+const yAllocKey = (k: BandKey) => `y${k}AllocPct` as const;
 
 const DOMAIN_LABELS: Record<string, string> = {
   Children: "Children", Youth: "Youth", Elderly: "Elderly + Kitchen",
@@ -54,12 +81,21 @@ const INFLATION_BADGE: Record<InflationType, string> = {
   Nil: "bg-stone-100 text-stone-500",
 };
 
-const INFLATION_RATE: Record<InflationType, number> = { Salary: 0.10, Other: 0.05, Nil: 0.00 };
-
 const fmt = (n: number) => n === 0 ? "–" : `₹${n.toLocaleString("en-IN")}`;
+
+const horizonLabel = (m: number) =>
+  m % 12 === 0 ? `${m / 12}-year` : `${m}-month`;
 
 export default function BudgetEditor({ budget }: { budget: Budget }) {
   const domainLabels: Record<string, string> = budget.domainLabels ?? DOMAIN_LABELS;
+  const bands = computeBands(budget.horizonMonths ?? budget.years * 12);
+  /** Inflation rate per category, as a decimal — gated by the budget's applyInflation flag. */
+  const inflationRate: Record<InflationType, number> = budget.applyInflation
+    ? { Salary: budget.inflationSalaryPct / 100, Other: budget.inflationOtherPct / 100, Nil: budget.inflationNilPct / 100 }
+    : { Salary: 0, Other: 0, Nil: 0 };
+  const showAlloc = bands.length > 1;
+  const showExtraBands = bands.length > 1;
+
   const [activeTab, setActiveTab] = useState<string>("master");
   const [lines, setLines] = useState<Line[]>(budget.lines);
   const [editing, setEditing] = useState<string | null>(null);
@@ -81,11 +117,14 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
     lines: visibleLines.filter(l => l.section === sec),
   })).filter(g => g.lines.length > 0 || ["admin_salary", "admin_other", "additional"].includes(g.section));
 
-  const sectionTotal = (sec: BudgetSection, yr: "y1" | "y2" | "y3") =>
-    lines.filter(l => l.section === sec).reduce((s, l) => s + l[`${yr}Total`], 0);
+  const sectionTotal = (sec: BudgetSection, k: BandKey) =>
+    lines.filter(l => l.section === sec).reduce((s, l) => s + l[yTotalKey(k)], 0);
 
-  const grandTotal = (yr: "y1" | "y2" | "y3") =>
-    visibleLines.reduce((s, l) => s + l[`${yr}Total`], 0);
+  const grandTotal = (k: BandKey) =>
+    visibleLines.reduce((s, l) => s + l[yTotalKey(k)], 0);
+
+  const horizonTotal = () =>
+    bands.reduce((s, b) => s + grandTotal(b.k), 0);
 
   const grandTotalLabel = activeTab === "master" ? "All domains" : (domainLabels[activeTab] ?? activeTab);
 
@@ -104,16 +143,23 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
       y1Units: l.y1Units, y1UnitCost: l.y1UnitCost, y1AllocPct: l.y1AllocPct,
       y2Units: l.y2Units, y2UnitCost: l.y2UnitCost, y2AllocPct: l.y2AllocPct,
       y3Units: l.y3Units, y3UnitCost: l.y3UnitCost, y3AllocPct: l.y3AllocPct,
+      y4Units: l.y4Units, y4UnitCost: l.y4UnitCost, y4AllocPct: l.y4AllocPct,
+      y5Units: l.y5Units, y5UnitCost: l.y5UnitCost, y5AllocPct: l.y5AllocPct,
     });
   };
 
   const saveEdit = (lineId: string) => {
     const updated = { ...editVals };
     // Recompute totals locally for immediate feedback
-    const y1Total = Math.round((updated.y1Units ?? 0) * (updated.y1UnitCost ?? 0) * (updated.y1AllocPct ?? 1));
-    const y2Total = Math.round((updated.y2Units ?? 0) * (updated.y2UnitCost ?? 0) * (updated.y2AllocPct ?? 1));
-    const y3Total = Math.round((updated.y3Units ?? 0) * (updated.y3UnitCost ?? 0) * (updated.y3AllocPct ?? 1));
-    setLines(prev => prev.map(l => l.id === lineId ? { ...l, ...updated, y1Total, y2Total, y3Total } : l));
+    const tot = (u?: number, c?: number, a?: number) => Math.round((u ?? 0) * (c ?? 0) * (a ?? 1));
+    const totals: Partial<Line> = {
+      y1Total: tot(updated.y1Units, updated.y1UnitCost, updated.y1AllocPct),
+      y2Total: tot(updated.y2Units, updated.y2UnitCost, updated.y2AllocPct),
+      y3Total: tot(updated.y3Units, updated.y3UnitCost, updated.y3AllocPct),
+      y4Total: tot(updated.y4Units, updated.y4UnitCost, updated.y4AllocPct),
+      y5Total: tot(updated.y5Units, updated.y5UnitCost, updated.y5AllocPct),
+    };
+    setLines(prev => prev.map(l => l.id === lineId ? { ...l, ...updated, ...totals } : l));
     setEditing(null);
     startTransition(() => updateLine(lineId, updated));
   };
@@ -152,7 +198,10 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
             <span className={`text-xs px-2 py-0.5 rounded-full ${budget.status === "approved" ? "bg-emerald-100 text-emerald-700" : budget.status === "final" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
               {budget.status === "approved" ? "Approved" : budget.status === "final" ? "Finalized" : "Draft"}
             </span>
-            <span className="text-xs text-stone-400">{budget.years === 3 ? "3-year" : "1-year"}</span>
+            <span className="text-xs text-stone-400">
+              {horizonLabel(budget.horizonMonths ?? budget.years * 12)}
+              {!budget.applyInflation && <span className="ml-1 text-stone-300">· flat</span>}
+            </span>
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             {budget.domains.map(d => <span key={d} className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded">{domainLabels[d] ?? d}</span>)}
@@ -210,12 +259,17 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
           <div className="self-center text-xs font-semibold text-sky-700 uppercase tracking-wide min-w-[100px]">
             {grandTotalLabel}
           </div>
-          <TotalCell label="Year 1 Total" value={grandTotal("y1")} big />
-          {budget.years === 3 && <>
-            <TotalCell label="Year 2 Total" value={grandTotal("y2")} />
-            <TotalCell label="Year 3 Total" value={grandTotal("y3")} />
-            <TotalCell label="3-Year Total" value={grandTotal("y1") + grandTotal("y2") + grandTotal("y3")} big />
-          </>}
+          {bands.map(b => (
+            <TotalCell key={b.k}
+              label={`${b.label} Total`}
+              value={grandTotal(b.k)}
+              big={b.k === 1}
+            />
+          ))}
+          {bands.length > 1 && (
+            <TotalCell label={`${horizonLabel(budget.horizonMonths ?? budget.years * 12)} Total`}
+              value={horizonTotal()} big />
+          )}
         </div>
       )}
 
@@ -251,32 +305,31 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
                   <th className="text-left px-2 py-2">Description</th>
                   <th className="text-right px-2 py-2 w-20">Units</th>
                   <th className="text-right px-2 py-2 w-28">Unit Cost</th>
-                  {budget.years === 3 && <th className="text-right px-2 py-2 w-16">Alloc%</th>}
-                  <th className="text-right px-2 py-2 w-28">Year 1</th>
-                  {budget.years === 3 && <>
-                    <th className="text-right px-2 py-2 w-28">Year 2</th>
-                    <th className="text-right px-2 py-2 w-28">Year 3</th>
-                  </>}
+                  {showAlloc && <th className="text-right px-2 py-2 w-16">Alloc%</th>}
+                  {bands.map(b => (
+                    <th key={b.k} className="text-right px-2 py-2 w-28">{b.label}</th>
+                  ))}
                   <th className="w-16 px-2 py-2"></th>
                 </tr>
               </thead>
               <tbody>
                 {sLines.map((l, i) => (
                   editing === l.id
-                    ? <EditRow key={l.id} line={l} vals={editVals} setVals={setEditVals} years={budget.years}
+                    ? <EditRow key={l.id} line={l} vals={editVals} setVals={setEditVals}
+                        bands={bands} showAlloc={showAlloc}
                         onSave={() => saveEdit(l.id)} onCancel={() => setEditing(null)} />
-                    : <ViewRow key={l.id} line={l} i={i + 1} years={budget.years}
+                    : <ViewRow key={l.id} line={l} i={i + 1} bands={bands} showAlloc={showAlloc}
                         onEdit={() => startEdit(l)} onDelete={() => handleDelete(l.id)} />
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t border-stone-200 bg-stone-50 font-medium text-stone-700">
-                  <td className="px-4 py-2" colSpan={budget.years === 3 ? 5 : 4}>Section total</td>
-                  <td className="text-right px-2 py-2">{fmt(sLines.reduce((s, l) => s + l.y1Total, 0))}</td>
-                  {budget.years === 3 && <>
-                    <td className="text-right px-2 py-2">{fmt(sLines.reduce((s, l) => s + l.y2Total, 0))}</td>
-                    <td className="text-right px-2 py-2">{fmt(sLines.reduce((s, l) => s + l.y3Total, 0))}</td>
-                  </>}
+                  <td className="px-4 py-2" colSpan={4 + (showAlloc ? 1 : 0)}>Section total</td>
+                  {bands.map(b => (
+                    <td key={b.k} className="text-right px-2 py-2">
+                      {fmt(sLines.reduce((s, l) => s + l[yTotalKey(b.k)], 0))}
+                    </td>
+                  ))}
                   <td />
                 </tr>
               </tfoot>
@@ -310,12 +363,16 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
                     placeholder="Unit cost ₹ (Y1)" className="w-36 border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none" />
                   {newUnits && newUnitCost && (
                     <span className="text-xs text-stone-500">
-                      Y1: ₹{Math.round((parseFloat(newUnits)||0)*(parseFloat(newUnitCost)||0)).toLocaleString("en-IN")}
-                      {budget.years === 3 && (() => {
-                        const rate = INFLATION_RATE[newCostCat];
-                        const y2c = Math.round((parseFloat(newUnitCost)||0) * (1+rate));
-                        const y2t = Math.round((parseFloat(newUnits)||0) * y2c);
-                        return <> · Y2: ₹{y2t.toLocaleString("en-IN")}</>;
+                      Y1: ₹{Math.round((parseFloat(newUnits)||0)*(parseFloat(newUnitCost)||0)*bands[0].factor).toLocaleString("en-IN")}
+                      {showExtraBands && (() => {
+                        const rate = inflationRate[newCostCat];
+                        const u = parseFloat(newUnits) || 0;
+                        const c = parseFloat(newUnitCost) || 0;
+                        return bands.slice(1).map(b => {
+                          const yc = c * Math.pow(1 + rate, b.k - 1);
+                          const yt = Math.round(u * yc * b.factor);
+                          return <Fragment key={b.k}> · {b.label}: ₹{yt.toLocaleString("en-IN")}</Fragment>;
+                        });
                       })()}
                     </span>
                   )}
@@ -344,12 +401,13 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
             <div className="text-xs text-stone-400 uppercase tracking-wide">Grand Total</div>
             <div className="text-sm font-semibold text-white">{grandTotalLabel}</div>
           </div>
-          <TotalCell label="Year 1" value={grandTotal("y1")} big white />
-          {budget.years === 3 && <>
-            <TotalCell label="Year 2" value={grandTotal("y2")} white />
-            <TotalCell label="Year 3" value={grandTotal("y3")} white />
-            <TotalCell label="3-Year Total" value={grandTotal("y1") + grandTotal("y2") + grandTotal("y3")} big white />
-          </>}
+          {bands.map(b => (
+            <TotalCell key={b.k} label={b.label} value={grandTotal(b.k)} big={b.k === 1} white />
+          ))}
+          {bands.length > 1 && (
+            <TotalCell label={`${horizonLabel(budget.horizonMonths ?? budget.years * 12)} Total`}
+              value={horizonTotal()} big white />
+          )}
         </div>
       )}
     </div>
@@ -367,8 +425,9 @@ function TotalCell({ label, value, big, white }: { label: string; value: number;
   );
 }
 
-function ViewRow({ line, i, years, onEdit, onDelete }: {
-  line: Line; i: number; years: number; onEdit: () => void; onDelete: () => void;
+function ViewRow({ line, i, bands, showAlloc, onEdit, onDelete }: {
+  line: Line; i: number; bands: Band[]; showAlloc: boolean;
+  onEdit: () => void; onDelete: () => void;
 }) {
   const [showDelete, setShowDelete] = useState(false);
   return (
@@ -386,12 +445,17 @@ function ViewRow({ line, i, years, onEdit, onDelete }: {
       </td>
       <td className="text-right px-2 py-2 text-stone-500 text-xs">{line.y1Units > 0 ? line.y1Units : "–"}</td>
       <td className="text-right px-2 py-2 text-stone-500 text-xs">{line.y1UnitCost > 0 ? `₹${line.y1UnitCost.toLocaleString("en-IN")}` : "–"}</td>
-      {years === 3 && <td className="text-right px-2 py-2 text-stone-400 text-xs">{line.y1AllocPct < 1 ? `${(line.y1AllocPct * 100).toFixed(0)}%` : "100%"}</td>}
-      <td className={`text-right px-2 py-2 font-medium ${line.y1Total === 0 ? "text-amber-500" : "text-stone-900"}`}>{fmt(line.y1Total)}</td>
-      {years === 3 && <>
-        <td className="text-right px-2 py-2 text-stone-600">{fmt(line.y2Total)}</td>
-        <td className="text-right px-2 py-2 text-stone-600">{fmt(line.y3Total)}</td>
-      </>}
+      {showAlloc && <td className="text-right px-2 py-2 text-stone-400 text-xs">{line.y1AllocPct < 1 ? `${(line.y1AllocPct * 100).toFixed(0)}%` : "100%"}</td>}
+      {bands.map(b => {
+        const total = line[yTotalKey(b.k)];
+        const isFirst = b.k === 1;
+        return (
+          <td key={b.k}
+            className={`text-right px-2 py-2 ${isFirst ? `font-medium ${total === 0 ? "text-amber-500" : "text-stone-900"}` : "text-stone-600"}`}>
+            {fmt(total)}
+          </td>
+        );
+      })}
       <td className="px-2 py-2">
         <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button onClick={onEdit} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
@@ -406,24 +470,39 @@ function ViewRow({ line, i, years, onEdit, onDelete }: {
   );
 }
 
-function EditRow({ line, vals, setVals, years, onSave, onCancel }: {
+function EditRow({ line, vals, setVals, bands, showAlloc, onSave, onCancel }: {
   line: Line; vals: Partial<Line>; setVals: (v: Partial<Line>) => void;
-  years: number; onSave: () => void; onCancel: () => void;
+  bands: Band[]; showAlloc: boolean;
+  onSave: () => void; onCancel: () => void;
 }) {
-  const rate = INFLATION_RATE[line.costCategory];
-
-  const setY1Units = (v: number) =>
-    setVals({ ...vals, y1Units: v, y2Units: v, y3Units: v });
-
-  const setY1UnitCost = (v: number) => {
-    const y2c = Math.round(v * (1 + rate));
-    const y3c = Math.round(y2c * (1 + rate));
-    setVals({ ...vals, y1UnitCost: v, y2UnitCost: y2c, y3UnitCost: y3c });
+  // Edit row keeps inflation-aware auto-fill but uses zero rate when applyInflation
+  // is off (band.factor stays 1 in those cases). The parent already gates extra
+  // bands on showAlloc / bands.length.
+  const setY1Units = (v: number) => {
+    const next: Partial<Line> = { ...vals, y1Units: v };
+    for (const b of bands) {
+      if (b.k === 1) continue;
+      next[yUnitsKey(b.k)] = v * b.factor;
+    }
+    setVals(next);
   };
 
-  const previewY1 = Math.round((vals.y1Units ?? 0) * (vals.y1UnitCost ?? 0) * (vals.y1AllocPct ?? 1));
-  const previewY2 = Math.round((vals.y2Units ?? 0) * (vals.y2UnitCost ?? 0) * (vals.y2AllocPct ?? 1));
-  const previewY3 = Math.round((vals.y3Units ?? 0) * (vals.y3UnitCost ?? 0) * (vals.y3AllocPct ?? 1));
+  const setY1UnitCost = (v: number) => {
+    const next: Partial<Line> = { ...vals, y1UnitCost: v };
+    // Re-compute Y2..Y5 from existing cost ratio. Use a conservative inflation
+    // pass: same rate per year as the line's current Y1→Y2 step.
+    const ratio = line.y1UnitCost > 0 ? line.y2UnitCost / line.y1UnitCost : 1;
+    let cur = v;
+    for (const b of bands) {
+      if (b.k === 1) continue;
+      cur = Math.round(cur * ratio);
+      next[yCostKey(b.k)] = cur;
+    }
+    setVals(next);
+  };
+
+  const preview = (k: BandKey) =>
+    Math.round((vals[yUnitsKey(k)] ?? 0) * (vals[yCostKey(k)] ?? 0) * (vals[yAllocKey(k)] ?? 1));
 
   return (
     <tr className="border-b border-sky-100 bg-sky-50">
@@ -446,28 +525,23 @@ function EditRow({ line, vals, setVals, years, onSave, onCancel }: {
           onChange={e => setY1UnitCost(parseFloat(e.target.value) || 0)}
           className="w-full border border-sky-300 rounded px-2 py-1 text-sm text-right focus:outline-none" />
       </td>
-      {years === 3 && (
+      {showAlloc && (
         <td className="px-2 py-1.5">
           <input type="number" value={(vals.y1AllocPct ?? 1) * 100 || ""} step="0.1"
             onChange={e => setVals({ ...vals, y1AllocPct: (parseFloat(e.target.value) || 100) / 100 })}
             className="w-full border border-sky-300 rounded px-2 py-1 text-xs text-right focus:outline-none" />
         </td>
       )}
-      <td className="text-right px-2 py-1.5 font-medium text-sky-700">{fmt(previewY1)}</td>
-      {years === 3 && <>
-        <td className="px-2 py-1.5">
-          <input type="number" value={vals.y2UnitCost || ""} placeholder="Y2 cost"
-            onChange={e => setVals({ ...vals, y2UnitCost: parseFloat(e.target.value) || 0 })}
+      {bands.map(b => b.k === 1 ? (
+        <td key={b.k} className="text-right px-2 py-1.5 font-medium text-sky-700">{fmt(preview(1))}</td>
+      ) : (
+        <td key={b.k} className="px-2 py-1.5">
+          <input type="number" value={vals[yCostKey(b.k)] || ""} placeholder={`${b.label} cost`}
+            onChange={e => setVals({ ...vals, [yCostKey(b.k)]: parseFloat(e.target.value) || 0 })}
             className="w-full border border-sky-200 rounded px-1.5 py-0.5 text-xs text-right focus:outline-none" />
-          <div className="text-right text-xs text-sky-600 mt-0.5">{fmt(previewY2)}</div>
+          <div className="text-right text-xs text-sky-600 mt-0.5">{fmt(preview(b.k))}</div>
         </td>
-        <td className="px-2 py-1.5">
-          <input type="number" value={vals.y3UnitCost || ""} placeholder="Y3 cost"
-            onChange={e => setVals({ ...vals, y3UnitCost: parseFloat(e.target.value) || 0 })}
-            className="w-full border border-sky-200 rounded px-1.5 py-0.5 text-xs text-right focus:outline-none" />
-          <div className="text-right text-xs text-sky-600 mt-0.5">{fmt(previewY3)}</div>
-        </td>
-      </>}
+      ))}
       <td className="px-2 py-1.5">
         <div className="flex gap-1">
           <button onClick={onSave} className="text-xs bg-sky-600 text-white px-2 py-0.5 rounded hover:bg-sky-700">Save</button>

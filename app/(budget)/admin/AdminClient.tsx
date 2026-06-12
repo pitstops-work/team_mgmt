@@ -1153,7 +1153,9 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
   );
 
   const lines = useMemo(
-    () => generateBudgetLines(ALL_DOMAINS, effectiveInp, 3, registry, templates),
+    // Cost-analysis scenario uses 36-month horizon with default inflation for
+    // benchmarking; per-budget overrides are out of scope here (PR-4 work).
+    () => generateBudgetLines(ALL_DOMAINS, effectiveInp, { horizonMonths: 36, applyInflation: true }, registry, templates),
     [effectiveInp, registry, templates]
   );
 

@@ -53,20 +53,37 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
   };
 
   const lines = budget.lines;
-  const years = budget.years;
+  // Year-bands derived from horizonMonths (legacy single-year budgets read 12 / 36 here).
+  const horizonMonths = budget.horizonMonths ?? budget.years * 12;
+  type BandKey = 1 | 2 | 3 | 4 | 5;
+  type Band = { k: BandKey; factor: number; label: string };
+  const computeBands = (h: number): Band[] => {
+    const full = Math.floor(h / 12); const tail = h - full * 12;
+    const out: Band[] = [];
+    for (let k = 1 as BandKey; k <= 5; k = (k + 1) as BandKey) {
+      if (k <= full) out.push({ k, factor: 1, label: `Year ${k}` });
+      else if (k === full + 1 && tail > 0) out.push({ k, factor: tail / 12, label: `Year ${k} (${tail}mo)` });
+    }
+    return out;
+  };
+  const bands = computeBands(horizonMonths);
+  const horizonDisplay = horizonMonths % 12 === 0
+    ? `${horizonMonths / 12}-Year`
+    : `${horizonMonths}-Month`;
 
-  const domainTotal = (domain: string | null, yr: "y1" | "y2" | "y3") =>
-    lines.filter(l => l.domain === domain).reduce((s, l) => s + l[`${yr}Total`], 0);
+  const yKey = (k: BandKey) => `y${k}Total` as const;
 
-  const sectionTotal = (section: BudgetSection, yr: "y1" | "y2" | "y3") =>
-    lines.filter(l => l.section === section).reduce((s, l) => s + l[`${yr}Total`], 0);
+  const domainTotal = (domain: string | null, k: BandKey) =>
+    lines.filter(l => l.domain === domain).reduce((s, l) => s + l[yKey(k)], 0);
 
-  const grandTotal = (yr: "y1" | "y2" | "y3") =>
-    lines.reduce((s, l) => s + l[`${yr}Total`], 0);
+  const sectionTotal = (section: BudgetSection, k: BandKey) =>
+    lines.filter(l => l.section === section).reduce((s, l) => s + l[yKey(k)], 0);
 
-  const gt1 = grandTotal("y1");
-  const gt2 = grandTotal("y2");
-  const gt3 = grandTotal("y3");
+  const grandTotal = (k: BandKey) =>
+    lines.reduce((s, l) => s + l[yKey(k)], 0);
+
+  const gt1 = grandTotal(1);
+  const horizonTotal = bands.reduce((s, b) => s + grandTotal(b.k), 0);
 
   // Dynamic beneficiary units from domain configs
   const benefUnits = budget.domains
@@ -81,7 +98,7 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
         label: config.beneficiaryLabel ?? config.label,
         count,
         description: `${rawCount} ${config.beneficiaryVar} × ${config.beneficiaryMult}`,
-        total: domainTotal(domainKey, "y1"),
+        total: domainTotal(domainKey, 1),
       };
     })
     .filter(Boolean) as (BenefUnit & { domain: string; total: number })[];
@@ -91,13 +108,13 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
   const sections: BudgetSection[] = ["salary", "capex", "travel", "programme", "admin_salary", "admin_other"];
   const headData = sections.map(s => ({
     section: s,
-    y1: sectionTotal(s, "y1"),
-    pct: gt1 > 0 ? sectionTotal(s, "y1") / gt1 * 100 : 0,
+    y1: sectionTotal(s, 1),
+    pct: gt1 > 0 ? sectionTotal(s, 1) / gt1 * 100 : 0,
   })).filter(h => h.y1 > 0);
 
-  const salaryTotal   = sectionTotal("salary", "y1");
-  const adminTotal    = sectionTotal("admin_salary", "y1") + sectionTotal("admin_other", "y1");
-  const programmeTotal = gt1 - salaryTotal - adminTotal - sectionTotal("capex", "y1") - sectionTotal("travel", "y1");
+  const salaryTotal   = sectionTotal("salary", 1);
+  const adminTotal    = sectionTotal("admin_salary", 1) + sectionTotal("admin_other", 1);
+  const programmeTotal = gt1 - salaryTotal - adminTotal - sectionTotal("capex", 1) - sectionTotal("travel", 1);
 
   return (
     <div>
@@ -108,12 +125,16 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <StatCard label="Year 1 Total" value={L(gt1)} sub={`${INR(gt1 / 12)} /month`} />
-        {years === 3 && <>
-          <StatCard label="Year 2 Total" value={L(gt2)} sub={`+${((gt2/gt1 - 1) * 100).toFixed(1)}% vs Y1`} />
-          <StatCard label="Year 3 Total" value={L(gt3)} sub={`+${((gt3/gt1 - 1) * 100).toFixed(1)}% vs Y1`} />
-          <StatCard label="3-Year Total" value={L(gt1 + gt2 + gt3)} sub="cumulative" highlight />
-        </>}
+        {bands.map(b => {
+          const total = grandTotal(b.k);
+          const sub = b.k === 1
+            ? `${INR(total / Math.round(12 * b.factor))} /month`
+            : `${gt1 > 0 ? `${total > gt1 ? "+" : ""}${((total / gt1 - 1) * 100).toFixed(1)}% vs Y1` : "—"}`;
+          return <StatCard key={b.k} label={`${b.label} Total`} value={L(total)} sub={sub} />;
+        })}
+        {bands.length > 1 && (
+          <StatCard label={`${horizonDisplay} Total`} value={L(horizonTotal)} sub="cumulative" highlight />
+        )}
         <StatCard label="Total beneficiaries" value={totalBeneficiaries.toLocaleString("en-IN")} sub="across all domains" />
       </div>
 
@@ -238,9 +259,9 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
           </section>
         )}
 
-        {years === 3 && (
+        {bands.length > 1 && (
           <section>
-            <h2 className="text-sm font-semibold text-stone-700 mb-3">3-Year Cost Projection</h2>
+            <h2 className="text-sm font-semibold text-stone-700 mb-3">{horizonDisplay} Cost Projection</h2>
             <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
               <table className="w-full min-w-[380px] text-sm">
@@ -253,25 +274,24 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { yr: "Year 1", total: gt1, base: gt1 },
-                    { yr: "Year 2", total: gt2, base: gt1 },
-                    { yr: "Year 3", total: gt3, base: gt1 },
-                  ].map(({ yr, total, base }) => (
-                    <tr key={yr} className="border-b border-stone-50">
-                      <td className="px-4 py-2.5 text-stone-700">{yr}</td>
-                      <td className="text-right px-3 py-2.5 font-medium text-stone-800">{L(total)}</td>
-                      <td className="text-right px-3 py-2.5 text-xs text-stone-500">
-                        {base > 0 && total !== base ? `+${((total/base - 1)*100).toFixed(1)}%` : "–"}
-                      </td>
-                      <td className="text-right px-3 py-2.5 text-stone-600">
-                        {totalBeneficiaries > 0 ? INR(total / totalBeneficiaries) : "–"}
-                      </td>
-                    </tr>
-                  ))}
+                  {bands.map(b => {
+                    const total = grandTotal(b.k);
+                    return (
+                      <tr key={b.k} className="border-b border-stone-50">
+                        <td className="px-4 py-2.5 text-stone-700">{b.label}</td>
+                        <td className="text-right px-3 py-2.5 font-medium text-stone-800">{L(total)}</td>
+                        <td className="text-right px-3 py-2.5 text-xs text-stone-500">
+                          {gt1 > 0 && total !== gt1 ? `${total > gt1 ? "+" : ""}${((total/gt1 - 1)*100).toFixed(1)}%` : "–"}
+                        </td>
+                        <td className="text-right px-3 py-2.5 text-stone-600">
+                          {totalBeneficiaries > 0 ? INR(total / totalBeneficiaries) : "–"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   <tr className="bg-stone-50 font-medium">
-                    <td className="px-4 py-2.5 text-stone-700">3-Year Total</td>
-                    <td className="text-right px-3 py-2.5 text-sky-700">{L(gt1 + gt2 + gt3)}</td>
+                    <td className="px-4 py-2.5 text-stone-700">{horizonDisplay} Total</td>
+                    <td className="text-right px-3 py-2.5 text-sky-700">{L(horizonTotal)}</td>
                     <td colSpan={2} />
                   </tr>
                 </tbody>

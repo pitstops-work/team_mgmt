@@ -1885,21 +1885,31 @@ enum BudgetSection {
 }
 
 model Budget {
-  id           String              @id @default(cuid())
-  name         String
-  partnerId    String
-  partner      User                @relation("BudgetPartner", fields: [partnerId], references: [id])
-  domains      String[]
-  city         String              @default("Bangalore")
-  years        Int                 @default(1)
-  status       BudgetStatus        @default(draft)
-  inputs       BudgetInputs?
-  lines        BudgetLine[]
-  reportConfig BudgetReportConfig?
-  reportSlots  BudgetReportSlot[]
-  reports      BudgetReport[]
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  id                 String              @id @default(cuid())
+  name               String
+  partnerId          String
+  partner            User                @relation("BudgetPartner", fields: [partnerId], references: [id])
+  domains            String[]
+  city               String              @default("Bangalore")
+  // years is kept for backward compat; horizonMonths is the source of truth.
+  // years = ceil(horizonMonths / 12) is maintained at write time so list/select
+  // queries that read `years` keep working without a sweep.
+  years              Int                 @default(1)
+  horizonMonths      Int                 @default(12)
+  applyInflation     Boolean             @default(true)
+  // Per-budget inflation rates as percentages (e.g. 10 = 10%). Defaults track
+  // the previously hard-coded values in lib/budget-generator.ts.
+  inflationSalaryPct Float               @default(10)
+  inflationOtherPct  Float               @default(5)
+  inflationNilPct    Float               @default(0)
+  status             BudgetStatus        @default(draft)
+  inputs             BudgetInputs?
+  lines              BudgetLine[]
+  reportConfig       BudgetReportConfig?
+  reportSlots        BudgetReportSlot[]
+  reports            BudgetReport[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([partnerId])
 }
@@ -1950,6 +1960,14 @@ model BudgetLine {
   y3UnitCost               Float                       @default(0)
   y3AllocPct               Float                       @default(1)
   y3Total                  Float                       @default(0)
+  y4Units                  Float                       @default(0)
+  y4UnitCost               Float                       @default(0)
+  y4AllocPct               Float                       @default(1)
+  y4Total                  Float                       @default(0)
+  y5Units                  Float                       @default(0)
+  y5UnitCost               Float                       @default(0)
+  y5AllocPct               Float                       @default(1)
+  y5Total                  Float                       @default(0)
   isReallocation           Boolean                     @default(false)
   sourceReallocationId     String?
   reportLines              BudgetReportLine[]

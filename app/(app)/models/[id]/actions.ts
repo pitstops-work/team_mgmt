@@ -184,6 +184,9 @@ export async function promoteToBudget(instanceId: string, outputKey: string, bud
   const cfg = (output.config ?? {}) as BudgetExportConfig;
   const domain = cfg.domainName ?? "Operating_Model";
   const years = (cfg.years === 3 ? 3 : 1) as 1 | 3;
+  const horizonMonths = years * 12;
+  // Legacy model-driven budgets only applied inflation when years was 3.
+  const applyInflation = years === 3;
 
   const template = toEngineTemplate(instance.template);
   const result = compute(template, (instance.inputsJson ?? {}) as InstanceInputs);
@@ -203,6 +206,8 @@ export async function promoteToBudget(instanceId: string, outputKey: string, bud
       partnerId: session.user!.id!,
       domains: [domain],
       years,
+      horizonMonths,
+      applyInflation,
       status: "draft",
       inputs: { create: {} },
     },

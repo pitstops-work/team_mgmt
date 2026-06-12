@@ -18,9 +18,39 @@ export type GeneratedLine = {
   y1Units: number; y1UnitCost: number; y1AllocPct: number; y1Total: number;
   y2Units: number; y2UnitCost: number; y2AllocPct: number; y2Total: number;
   y3Units: number; y3UnitCost: number; y3AllocPct: number; y3Total: number;
+  y4Units: number; y4UnitCost: number; y4AllocPct: number; y4Total: number;
+  y5Units: number; y5UnitCost: number; y5AllocPct: number; y5Total: number;
 };
 
-const INFLATION: Record<InflationType, number> = { Salary: 0.10, Other: 0.05, Nil: 0.00 };
+/** Inflation rates as decimal fractions per InflationType. */
+export type InflationRates = Record<InflationType, number>;
+
+/** Defaults track the previously hard-coded values. */
+export const DEFAULT_INFLATION_RATES: InflationRates = { Salary: 0.10, Other: 0.05, Nil: 0.00 };
+
+export type GeneratorOpts = {
+  /** Total horizon in months. 1..60. */
+  horizonMonths: number;
+  /** When false, every year-band uses the Y1 unit cost (no compounding). */
+  applyInflation: boolean;
+  /** Per-budget rates; falls back to DEFAULT_INFLATION_RATES. */
+  inflationRates?: InflationRates;
+};
+
+/** Fraction of a full year covered by year-band k (1-indexed). 0 outside horizon. */
+export function yearFactor(k: number, horizonMonths: number): number {
+  if (k < 1 || k > 5) return 0;
+  const fullYears = Math.floor(horizonMonths / 12);
+  const tailMonths = horizonMonths - fullYears * 12;
+  if (k <= fullYears) return 1;
+  if (k === fullYears + 1 && tailMonths > 0) return tailMonths / 12;
+  return 0;
+}
+
+/** Number of active year-bands for this horizon (1..5). */
+export function activeYearBands(horizonMonths: number): number {
+  return Math.min(5, Math.ceil(Math.max(1, horizonMonths) / 12));
+}
 
 function resolveInputVar(v: string, inp: BudgetGeneratorInputs): number {
   if (v === "fixed_1")  return 1;
@@ -72,27 +102,67 @@ function computeUnitCost(t: LineTemplate, inp: BudgetGeneratorInputs, reg: Recor
   return Math.round(cost);
 }
 
+/** Per-template applyYk for k=1..3 (legacy fields); Y4/Y5 default to true. */
+function templateAppliesToYear(t: LineTemplate, k: number): boolean {
+  if (k === 1) return t.applyY1 ?? true;
+  if (k === 2) return t.applyY2 ?? true;
+  if (k === 3) return t.applyY3 ?? true;
+  // No applyY4 / applyY5 fields on LineTemplate yet. Default to active so
+  // horizons > 36 months pick up these lines automatically.
+  return true;
+}
+
+/** Per-template unit scaling for k=2..3; k=1, 4, 5 always use the full unit count. */
+function templateUnitScale(t: LineTemplate, k: number): number {
+  if (k === 2 && t.y2UnitsScale != null) return t.y2UnitsScale;
+  if (k === 3 && t.y3UnitsScale != null) return t.y3UnitsScale;
+  return 1;
+}
+
 function templateToLine(
   t: LineTemplate,
   inp: BudgetGeneratorInputs,
   reg: Record<string, number>,
   position: number,
-  years: number,
+  opts: GeneratorOpts,
 ): GeneratedLine {
-  const fullUnits  = computeUnitCount(t, inp, reg);
-  const unitCost   = computeUnitCost(t, inp, reg);
-  const alloc      = 1;
-  const rate       = INFLATION[t.costCategory];
-  const y2UnitCost = unitCost * (1 + rate);
-  const y3UnitCost = y2UnitCost * (1 + rate);
+  const fullUnits   = computeUnitCount(t, inp, reg);
+  const unitCost    = computeUnitCost(t, inp, reg);
+  const allocPct    = 1;
+  const rates       = opts.inflationRates ?? DEFAULT_INFLATION_RATES;
+  const rate        = opts.applyInflation ? rates[t.costCategory] : 0;
+  const horizon     = opts.horizonMonths;
 
-  const applyY1 = t.applyY1 ?? true;
-  const applyY2 = (t.applyY2 ?? true) && years >= 3;
-  const applyY3 = (t.applyY3 ?? true) && years >= 3;
+  const computeYear = (k: number): { units: number; unitCost: number; allocPct: number; total: number } => {
+    const factor = yearFactor(k, horizon);
+    if (factor === 0 || !templateAppliesToYear(t, k)) {
+      return { units: 0, unitCost: 0, allocPct, total: 0 };
+    }
+    // Y1: y1UnitsZero override forces 0 units (e.g. CAPEX maintenance starting Y2).
+    if (k === 1 && t.y1UnitsZero) {
+      return { units: 0, unitCost, allocPct, total: 0 };
+    }
+    const scale     = templateUnitScale(t, k);
+    const proRated  = factor === 1 ? scale : scale * factor;
+    const rawUnits  = fullUnits * proRated;
+    // Round Y2/Y3 units when an explicit integer scale was set, otherwise keep float.
+    const units     = (k === 2 || k === 3) && (k === 2 ? t.y2UnitsScale != null : t.y3UnitsScale != null)
+      ? Math.round(rawUnits)
+      : rawUnits;
+    const yearCost  = unitCost * Math.pow(1 + rate, k - 1);
+    return {
+      units,
+      unitCost: yearCost,
+      allocPct,
+      total: Math.round(units * yearCost * allocPct),
+    };
+  };
 
-  const y1Units = applyY1 ? (t.y1UnitsZero ? 0 : fullUnits) : 0;
-  const y2Units = applyY2 ? (t.y2UnitsScale != null ? Math.round(fullUnits * t.y2UnitsScale) : fullUnits) : 0;
-  const y3Units = applyY3 ? (t.y3UnitsScale != null ? Math.round(fullUnits * t.y3UnitsScale) : fullUnits) : 0;
+  const y1 = computeYear(1);
+  const y2 = computeYear(2);
+  const y3 = computeYear(3);
+  const y4 = computeYear(4);
+  const y5 = computeYear(5);
 
   return {
     domain:          t.domain,
@@ -106,9 +176,11 @@ function templateToLine(
     salaryHint:      t.salaryHint,
     notes:           t.notes,
     templateKey:     t.templateKey,
-    y1Units, y1UnitCost: unitCost,   y1AllocPct: alloc, y1Total: Math.round(y1Units * unitCost * alloc),
-    y2Units, y2UnitCost: applyY2 ? y2UnitCost : 0, y2AllocPct: alloc, y2Total: Math.round(y2Units * y2UnitCost * alloc),
-    y3Units, y3UnitCost: applyY3 ? y3UnitCost : 0, y3AllocPct: alloc, y3Total: Math.round(y3Units * y3UnitCost * alloc),
+    y1Units: y1.units, y1UnitCost: y1.unitCost, y1AllocPct: y1.allocPct, y1Total: y1.total,
+    y2Units: y2.units, y2UnitCost: y2.unitCost, y2AllocPct: y2.allocPct, y2Total: y2.total,
+    y3Units: y3.units, y3UnitCost: y3.unitCost, y3AllocPct: y3.allocPct, y3Total: y3.total,
+    y4Units: y4.units, y4UnitCost: y4.unitCost, y4AllocPct: y4.allocPct, y4Total: y4.total,
+    y5Units: y5.units, y5UnitCost: y5.unitCost, y5AllocPct: y5.allocPct, y5Total: y5.total,
   };
 }
 
@@ -127,7 +199,7 @@ export function buildAugmentedRegistry(
 export function generateBudgetLines(
   domains: string[],
   inp: BudgetGeneratorInputs,
-  years: number,
+  opts: GeneratorOpts,
   registry: Record<string, number>,
   templates: LineTemplate[],
 ): GeneratedLine[] {
@@ -137,5 +209,5 @@ export function generateBudgetLines(
     .filter(t => t.domain === null || domains.includes(t.domain))
     .sort((a, b) => a.position - b.position);
 
-  return active.map((t, i) => templateToLine(t, inp, augmented, i, years));
+  return active.map((t, i) => templateToLine(t, inp, augmented, i, opts));
 }
