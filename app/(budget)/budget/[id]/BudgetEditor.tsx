@@ -107,6 +107,12 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
   const [newUnitType, setNewUnitType] = useState("Annual");
   const [newUnits, setNewUnits] = useState("");
   const [newUnitCost, setNewUnitCost] = useState("");
+  // newDomain controls which per-domain card the manual row joins. "" means
+  // cross-cutting (domain=null). Default tracks the active tab so adds from a
+  // specific domain tab stay scoped there unless the user picks otherwise.
+  const [newDomain, setNewDomain] = useState<string>(
+    activeTab !== "master" ? activeTab : (budget.domains[0] ?? "")
+  );
 
   const visibleLines = activeTab === "master"
     ? lines
@@ -140,6 +146,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
     setEditing(l.id);
     setEditVals({
       description: l.description,
+      domain: l.domain,
       y1Units: l.y1Units, y1UnitCost: l.y1UnitCost, y1AllocPct: l.y1AllocPct,
       y2Units: l.y2Units, y2UnitCost: l.y2UnitCost, y2AllocPct: l.y2AllocPct,
       y3Units: l.y3Units, y3UnitCost: l.y3UnitCost, y3AllocPct: l.y3AllocPct,
@@ -171,7 +178,9 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
 
   const handleAddLine = (section: BudgetSection) => {
     if (!newDesc.trim()) return;
-    const domain = activeTab === "master" ? undefined : activeTab;
+    // Empty string means cross-cutting (domain=null in the DB) so passes
+    // through as undefined to the server action.
+    const domain = newDomain || undefined;
     startTransition(async () => {
       const line = await addLine(budget.id, {
         section,
@@ -317,6 +326,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
                   editing === l.id
                     ? <EditRow key={l.id} line={l} vals={editVals} setVals={setEditVals}
                         bands={bands} showAlloc={showAlloc}
+                        domains={budget.domains} domainLabels={domainLabels}
                         onSave={() => saveEdit(l.id)} onCancel={() => setEditing(null)} />
                     : <ViewRow key={l.id} line={l} i={i + 1} bands={bands} showAlloc={showAlloc}
                         onEdit={() => startEdit(l)} onDelete={() => handleDelete(l.id)} />
@@ -353,6 +363,14 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
                     <option value="Other">Other inflation (5%)</option>
                     <option value="Nil">No inflation</option>
                   </select>
+                  <select value={newDomain} onChange={e => setNewDomain(e.target.value)}
+                    className="border border-stone-300 rounded px-2 py-1 text-xs focus:outline-none"
+                    title="Which per-domain card this row belongs to. Cross-cutting = shared admin / travel / shared.">
+                    <option value="">Cross-cutting</option>
+                    {budget.domains.map(d => (
+                      <option key={d} value={d}>{domainLabels[d] ?? d}</option>
+                    ))}
+                  </select>
                   <input value={newUnitType} onChange={e => setNewUnitType(e.target.value)}
                     placeholder="Unit label" className="w-28 border border-stone-300 rounded px-2 py-1 text-xs focus:outline-none" />
                 </div>
@@ -385,7 +403,12 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
               </div>
             ) : (
               <button
-                onClick={() => setAddingSection(section)}
+                onClick={() => {
+                  setAddingSection(section);
+                  // Refresh the default each time the form opens so it tracks
+                  // whichever tab the user is currently focused on.
+                  setNewDomain(activeTab !== "master" ? activeTab : (budget.domains[0] ?? ""));
+                }}
                 className="w-full text-left px-4 py-2 text-xs text-stone-400 hover:text-sky-600 hover:bg-sky-50 border-t border-stone-100 transition-colors">
                 + Add line
               </button>
@@ -470,9 +493,10 @@ function ViewRow({ line, i, bands, showAlloc, onEdit, onDelete }: {
   );
 }
 
-function EditRow({ line, vals, setVals, bands, showAlloc, onSave, onCancel }: {
+function EditRow({ line, vals, setVals, bands, showAlloc, domains, domainLabels, onSave, onCancel }: {
   line: Line; vals: Partial<Line>; setVals: (v: Partial<Line>) => void;
   bands: Band[]; showAlloc: boolean;
+  domains: string[]; domainLabels: Record<string, string>;
   onSave: () => void; onCancel: () => void;
 }) {
   // Edit row keeps inflation-aware auto-fill but uses zero rate when applyInflation
@@ -513,6 +537,17 @@ function EditRow({ line, vals, setVals, bands, showAlloc, onSave, onCancel }: {
           onChange={e => setVals({ ...vals, description: e.target.value })}
           className="w-full border border-sky-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
         />
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[10px] uppercase tracking-widest text-stone-400">Domain</span>
+          <select value={vals.domain ?? ""}
+            onChange={e => setVals({ ...vals, domain: e.target.value === "" ? null : e.target.value })}
+            className="border border-sky-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500 bg-white">
+            <option value="">Cross-cutting</option>
+            {domains.map(d => (
+              <option key={d} value={d}>{domainLabels[d] ?? d}</option>
+            ))}
+          </select>
+        </div>
         {line.salaryHint && <p className="text-xs text-amber-600 mt-0.5">Suggested: {line.salaryHint}</p>}
       </td>
       <td className="px-2 py-1.5">

@@ -134,6 +134,9 @@ export async function updateLine(
   lineId: string,
   updates: {
     description?: string;
+    // domain: pass null to mark the row as cross-cutting, string to attach it
+    // to a specific domain card. Omit to leave unchanged.
+    domain?: string | null;
     y1Units?: number; y1UnitCost?: number; y1AllocPct?: number;
     y2Units?: number; y2UnitCost?: number; y2AllocPct?: number;
     y3Units?: number; y3UnitCost?: number; y3AllocPct?: number;
