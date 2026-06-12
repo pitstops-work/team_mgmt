@@ -1284,10 +1284,14 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     [lines]
   );
 
-  // Operational lines only (no capex / admin_salary / admin_other)
+  // Operational lines only (no capex / admin_salary / admin_other). Std-side
+  // exclusions are honoured here so the per-beneficiary tiles reflect the
+  // user's like-for-like scope.
   const opLines = useMemo(
-    () => indicativeLines.filter(l => !EXCLUDED_FROM_PER_UNIT.has(l.section)),
-    [indicativeLines]
+    () => indicativeLines.filter(l =>
+      !EXCLUDED_FROM_PER_UNIT.has(l.section) && !excludedTemplateKeys.has(l.templateKey)
+    ),
+    [indicativeLines, excludedTemplateKeys]
   );
 
   // Total children derived from registry ratio
@@ -1309,32 +1313,63 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     return byDomain;
   }, [opLines, ALL_DOMAINS]);
 
-  // Per-unit costs computed from domain configs (beneficiaryVar × beneficiaryMult)
+  // Yours-side operational totals per domain — from the partner's saved
+  // BudgetLine rows, filtered to operational sections, minus any orphan the
+  // user excluded via the symmetric ✕. Powers the "Yours" line on each tile.
+  const domainOpYou = useMemo(() => {
+    const m: Record<string, number> = {};
+    if (!compareData) return m;
+    for (const d of ALL_DOMAINS) m[d] = 0;
+    m["total"] = 0;
+    for (const l of compareData.lines) {
+      if (EXCLUDED_FROM_PER_UNIT.has(l.section)) continue;
+      if (excludedOrphanIds.has(l.id)) continue;
+      if (l.domain && m[l.domain] !== undefined) m[l.domain] += l.y1Total;
+      m["total"] += l.y1Total;
+    }
+    return m;
+  }, [compareData, ALL_DOMAINS, excludedOrphanIds]);
+
+  // Per-unit costs computed from domain configs (beneficiaryVar × beneficiaryMult).
+  // When comparing, every tile carries a Yours value too so the Δ is visible
+  // alongside the Standard reading.
   const perUnit = useMemo(() => {
-    const result: { label: string; value: number | null; sub: string }[] = [];
+    const result: { label: string; std: number | null; you: number | null; sub: string }[] = [];
     for (const d of domains) {
       if (!d.beneficiaryVar || !d.beneficiaryLabel) continue;
-      const count = Math.round((effectiveInp[d.beneficiaryVar] ?? 0) * d.beneficiaryMult);
-      const domainTotal = domainOp[d.key] ?? 0;
+      const stdCount = Math.round((effectiveInp[d.beneficiaryVar] ?? 0) * d.beneficiaryMult);
+      const stdTotal = domainOp[d.key] ?? 0;
+      const youCount = compareData
+        ? Math.round((compareData.programmeInputs[d.beneficiaryVar] ?? 0) * d.beneficiaryMult)
+        : 0;
+      const youTotal = compareData ? (domainOpYou[d.key] ?? 0) : 0;
       result.push({
         label: `Per ${d.beneficiaryLabel.toLowerCase()}`,
-        value: count > 0 ? Math.round(domainTotal / count) : null,
-        sub: `${count.toLocaleString("en-IN")} ${d.beneficiaryLabel.toLowerCase()}`,
+        std: stdCount > 0 ? Math.round(stdTotal / stdCount) : null,
+        you: compareData && youCount > 0 ? Math.round(youTotal / youCount) : null,
+        sub: `${stdCount.toLocaleString("en-IN")} ${d.beneficiaryLabel.toLowerCase()}`,
       });
     }
-    // Always add cluster and HH
+    // Per-cluster + per-HH derive from total op spend. Yours uses partner's own
+    // cluster / settlement counts so the metric is internally consistent.
+    const youClusters = compareData ? (compareData.programmeInputs.nClusters ?? 0) : 0;
+    const youHH = compareData
+      ? Math.round((compareData.programmeInputs.nSettlements ?? 0) * hhPerSettlement)
+      : 0;
     result.push({
       label: "Per cluster",
-      value: (effectiveInp.nClusters ?? 0) > 0 ? Math.round((domainOp["total"] ?? 0) / effectiveInp.nClusters!) : null,
+      std: (effectiveInp.nClusters ?? 0) > 0 ? Math.round((domainOp["total"] ?? 0) / effectiveInp.nClusters!) : null,
+      you: compareData && youClusters > 0 ? Math.round((domainOpYou["total"] ?? 0) / youClusters) : null,
       sub: `${effectiveInp.nClusters ?? 0} clusters`,
     });
     result.push({
       label: "Per HH",
-      value: estHH > 0 ? Math.round((domainOp["total"] ?? 0) / estHH) : null,
+      std: estHH > 0 ? Math.round((domainOp["total"] ?? 0) / estHH) : null,
+      you: compareData && youHH > 0 ? Math.round((domainOpYou["total"] ?? 0) / youHH) : null,
       sub: `${estHH.toLocaleString("en-IN")} households`,
     });
     return result;
-  }, [domainOp, domains, effectiveInp, estHH]);
+  }, [domainOp, domainOpYou, domains, effectiveInp, estHH, hhPerSettlement, compareData]);
 
   /** Partner line a Standard template can't anchor (manual addition or template
    *  no longer active). Surfaced as "your addition" rows in the per-domain table
@@ -1788,12 +1823,23 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
           <span className="ml-2 normal-case font-normal text-sky-500">(excludes capex, admin salaries, admin other)</span>
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {perUnit.map(({ label, value, sub }) => (
+          {perUnit.map(({ label, std, you, sub }) => (
             <div key={label} className="bg-sky-900/50 rounded-lg p-3">
               <p className="text-xs text-sky-400">{label}</p>
               <p className="text-lg font-bold text-white mt-1">
-                {value != null ? fmtCost(value) : <span className="text-sky-600 text-sm">—</span>}
+                {std != null ? fmtCost(std) : <span className="text-sky-600 text-sm">—</span>}
               </p>
+              {compareData && (
+                <p className="text-xs text-sky-300 mt-0.5 tabular-nums">
+                  Yours {you != null ? fmtCost(you) : "—"}
+                  {std != null && you != null && std > 0 && you !== std && (() => {
+                    const pct = ((you - std) / std) * 100;
+                    const cls = pct < 0 ? "text-emerald-400" : "text-red-400";
+                    const sym = pct > 0 ? "▲" : "▼";
+                    return <span className={`ml-1 ${cls}`}>{sym}{Math.abs(pct).toFixed(0)}%</span>;
+                  })()}
+                </p>
+              )}
               <p className="text-xs text-sky-600 mt-0.5">{sub}</p>
             </div>
           ))}
