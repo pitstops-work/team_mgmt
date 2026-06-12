@@ -1197,15 +1197,18 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     [effectiveInp, registry, templates]
   );
 
-  // "You" projection — same generator with the partner's inputs layered on top
-  // and the partner's cost overrides merged into the registry. youLineMap is
-  // keyed by templateKey so per-line lookups in the per-domain table are O(1).
+  // "You" projection — generator runs with the partner's own programmeInputs
+  // (NOT layered on top of the calculator state) and the partner's cost
+  // overrides merged into the registry. Layering against effectiveInp let
+  // inputs the partner never tracked fall through to the registry defaults,
+  // inflating Yours-totals for unrelated domains (e.g. a Children-only test
+  // budget showing huge "Yours" non-Children sums). youLineMap is keyed by
+  // templateKey so per-line lookups in the per-domain table are O(1).
   const linesYou = useMemo(() => {
     if (!compareData) return [];
-    const inpYou = { ...effectiveInp, ...compareData.programmeInputs };
     const regYou = { ...registry, ...compareData.costOverrides };
-    return generateBudgetLines(ALL_DOMAINS, inpYou, { horizonMonths: 36, applyInflation: true }, regYou, templates);
-  }, [compareData, effectiveInp, registry, templates, ALL_DOMAINS]);
+    return generateBudgetLines(ALL_DOMAINS, compareData.programmeInputs, { horizonMonths: 36, applyInflation: true }, regYou, templates);
+  }, [compareData, registry, templates, ALL_DOMAINS]);
 
   const youLineMap = useMemo(() => {
     const m = new Map<string, ReturnType<typeof generateBudgetLines>[number]>();
@@ -1339,11 +1342,15 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     });
   }, [indicativeLines, selectedDomains, domains, ALL_DOMAINS]);
 
+  // Grand total derives from `grouped` (which already filters by selectedDomains
+  // + drops domains with no variable-driven activity) so the bar reflects the
+  // user's chip selection. Summing `indicativeLines` would sum across every
+  // domain regardless of selection.
   const grand = useMemo(() => ({
-    y1: indicativeLines.reduce((s, l) => s + l.y1Total, 0),
-    y2: indicativeLines.reduce((s, l) => s + l.y2Total, 0),
-    y3: indicativeLines.reduce((s, l) => s + l.y3Total, 0),
-  }), [indicativeLines]);
+    y1: grouped.reduce((s, g) => s + g.y1, 0),
+    y2: grouped.reduce((s, g) => s + g.y2, 0),
+    y3: grouped.reduce((s, g) => s + g.y3, 0),
+  }), [grouped]);
 
   const hasIndicative = indicativeLines.some(l => l.isIndicative);
 
@@ -1834,7 +1841,13 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
           <div className="flex gap-6 sm:gap-8">
             <div><p className="text-xs text-stone-400">Year 1</p><p className="text-lg font-bold">{fmtCost(grand.y1)}</p></div>
             {compareData && (() => {
-              const youGrand = linesYou.reduce((s, l) => s + l.y1Total, 0);
+              // Sum Yours across the same domains the per-domain tables render
+              // (i.e. selectedDomains + cross-cutting). Summing linesYou raw
+              // would include every domain regardless of chip selection.
+              const visibleDomains = new Set<string | null>(grouped.map(g => g.domain));
+              const youGrand = linesYou
+                .filter(l => visibleDomains.has(l.domain))
+                .reduce((s, l) => s + l.y1Total, 0);
               return (
                 <div>
                   <p className="text-xs text-sky-300">Yours Y1</p>
