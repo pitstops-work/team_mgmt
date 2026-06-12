@@ -875,7 +875,7 @@ function LineTemplatesTab({ templates, city, registryKeys, costs, domains }: {
           <p className="px-4 py-6 text-sm text-stone-400 text-center">No templates for this domain yet.</p>
         ) : (
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full sm:min-w-[640px] text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
                 <th className="w-6 px-2 py-2.5"></th>
@@ -1550,13 +1550,13 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     <>
       {/* Filter & Compare bar — domain chips drive what cascades below; compare
           dropdown overlays a real partner budget for benchmarking. */}
-      <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl space-y-3">
-        <div className="flex items-baseline justify-between gap-3">
+      <div className="mb-4 p-3 sm:p-4 bg-white border border-stone-200 rounded-xl space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
             What do you want to cost?
           </p>
           {compareData && (
-            <span className="text-xs text-sky-700 bg-sky-50 border border-sky-100 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs text-sky-700 bg-sky-50 border border-sky-100 px-2 py-0.5 rounded-full font-medium truncate max-w-full">
               comparing vs {compareData.name}
             </span>
           )}
@@ -1621,7 +1621,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
       </div>
 
       {/* Programme size assumptions — fully driven by displayGroup on each inp.* item */}
-      <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl space-y-4">
+      <div className="mb-4 p-3 sm:p-4 bg-white border border-stone-200 rounded-xl space-y-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Programme size assumptions</p>
           {scenarioLabel && (
@@ -1817,7 +1817,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
       </div>
 
       {/* Per-unit summary */}
-      <div className="mb-6 p-4 bg-sky-950 rounded-xl">
+      <div className="mb-6 p-3 sm:p-4 bg-sky-950 rounded-xl">
         <p className="text-xs font-semibold text-sky-300 uppercase tracking-wide mb-3">
           Cost per beneficiary / year — operational spend only
           <span className="ml-2 normal-case font-normal text-sky-500">(excludes capex, admin salaries, admin other)</span>
@@ -1874,9 +1874,9 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
           const cols = 7;
           return (
           <div key={g.domain ?? "cross"}>
-            <div className="flex items-baseline justify-between mb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2">
               <h3 className="text-sm font-semibold text-stone-700">{g.label}</h3>
-              <div className="flex gap-6 text-xs text-stone-400">
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-400">
                 <span>Y1 <span className="font-medium text-stone-600">{fmtCost(effectiveGroupY1)}</span>
                   {excludedHere > 0 && <span className="ml-1 text-[10px] text-amber-600">(−{fmtCost(excludedHere)} excluded)</span>}
                 </span>
@@ -1889,7 +1889,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
             </div>
             <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
+              <table className="w-full sm:min-w-[640px] text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
                     <th className="text-left px-4 py-2 font-medium">Description</th>
@@ -1952,7 +1952,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                                   ? <button onClick={() => toggleExcludeLine(l.templateKey)}
                                       className="ml-2 text-xs text-sky-600 hover:text-sky-800">↺ restore</button>
                                   : <button onClick={() => toggleExcludeLine(l.templateKey)}
-                                      className="ml-2 text-xs text-stone-300 hover:text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      className="ml-2 text-xs text-stone-300 hover:text-stone-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:transition-opacity"
                                       title="Drop this line from the Standard scope">✕ exclude</button>
                               )}
                             </td>
@@ -2016,7 +2016,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
                               ? <button onClick={() => toggleExcludeOrphan(o.id)}
                                   className="ml-2 text-xs text-sky-600 hover:text-sky-800">↺ restore</button>
                               : <button onClick={() => toggleExcludeOrphan(o.id)}
-                                  className="ml-2 text-xs text-stone-300 hover:text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="ml-2 text-xs text-stone-300 hover:text-stone-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:transition-opacity"
                                   title="Drop this line from the Yours scope">✕ exclude</button>}
                           </td>
                           <td className="px-3 py-2">
