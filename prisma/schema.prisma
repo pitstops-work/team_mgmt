@@ -1977,11 +1977,23 @@ model BudgetLine {
   y5Total                  Float                       @default(0)
   isReallocation           Boolean                     @default(false)
   sourceReallocationId     String?
+  // Timing profile for period-budget apportionment in reports.
+  //   monthly  → straight-line yearTotal/12 × monthsInPeriod (default).
+  //   one_time → full yearTotal lands in plannedMonths[0] (1..12 of grant year).
+  //   seasonal → yearTotal split evenly across plannedMonths (≥ 2 entries).
+  cadence                  BudgetLineCadence           @default(monthly)
+  plannedMonths            Int[]                       @default([])
   reportLines              BudgetReportLine[]
   reallocationRequestsFrom BudgetReallocationRequest[] @relation("ReallocationFrom")
   reallocationRequestsTo   BudgetReallocationRequest[] @relation("ReallocationTo")
 
   @@index([budgetId, position])
+}
+
+enum BudgetLineCadence {
+  monthly
+  one_time
+  seasonal
 }
 
 model BudgetReportConfig {

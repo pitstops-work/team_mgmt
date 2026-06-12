@@ -8,12 +8,13 @@ import {
 } from "../../../../budget/report-actions";
 import {
   SECTION_TO_HEAD, BUDGET_HEAD_ORDER,
-  proratedBudget, cumulativeProratedBudget, varianceFlag,
+  proratedBudget, cumulativeProratedBudget, varianceFlag, isDueInPeriod,
 } from "@/lib/budget-report-slots";
-import type { BudgetSection, ReallocationDuration } from "@/app/generated/prisma/client";
+import type { BudgetSection, BudgetLineCadence, ReallocationDuration } from "@/app/generated/prisma/client";
 
 type Line = {
   id: string; description: string; section: BudgetSection; domain: string | null;
+  cadence: BudgetLineCadence; plannedMonths: number[];
   y1Total: number; y2Total: number; y3Total: number; y4Total: number; y5Total: number;
 };
 type ReportLine = { budgetLineId: string; actualAmount: number; notes: string | null };
@@ -287,18 +288,33 @@ export default function ReportForm({
                     <tbody className="divide-y divide-stone-100">
                       {lines.map(line => {
                         const rvt = revisedYearTotal(line);
-                        const periodBudget = proratedBudget(rvt, periodFrom, periodTo);
-                        const ytdBudget = cumulativeProratedBudget(rvt, yearStart, periodTo);
+                        const cadenceLine = { yearTotal: rvt, cadence: line.cadence, plannedMonths: line.plannedMonths };
+                        const periodBudget = proratedBudget(cadenceLine, periodFrom, periodTo, yearStart);
+                        const ytdBudget = cumulativeProratedBudget(cadenceLine, yearStart, periodTo);
+                        const dueThisPeriod = isDueInPeriod(cadenceLine, periodFrom, periodTo, yearStart);
                         const thisActual = n(actuals[line.id] ?? "");
                         const priorActual = cumulativePrior[line.id] ?? 0;
                         const ytdActual = priorActual + thisActual;
-                        const flag = varianceFlag(ytdActual, ytdBudget);
-                        const varPct = ytdBudget > 0 ? ((ytdActual - ytdBudget) / ytdBudget * 100).toFixed(1) : null;
+                        // Only flag variance when the period actually has a budget against it.
+                        // Non-due lines (capex outside its planned month, etc.) get a neutral
+                        // "Not due" chip; the partner can still book early without an Under flag.
+                        const flag = dueThisPeriod ? varianceFlag(ytdActual, ytdBudget) : null;
+                        const varPct = dueThisPeriod && ytdBudget > 0
+                          ? ((ytdActual - ytdBudget) / ytdBudget * 100).toFixed(1) : null;
                         const isRevised = (revisedAdjustments[line.id] ?? 0) !== 0;
 
                         return (
                           <tr key={line.id} className="hover:bg-stone-50">
-                            <td className="px-4 py-2.5 text-stone-700">{line.description}</td>
+                            <td className="px-4 py-2.5 text-stone-700">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span>{line.description}</span>
+                                {line.cadence !== "monthly" && line.plannedMonths.length > 0 && (
+                                  <span className="text-[10px] uppercase tracking-wide text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">
+                                    Planned: {line.plannedMonths.map(m => `M${m}`).join(", ")}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className={`px-3 py-2.5 text-right text-xs tabular-nums ${isRevised ? "line-through text-stone-400" : "text-stone-600"}`}>
                               {fmt(yearTotal(line))}
                             </td>
@@ -310,7 +326,9 @@ export default function ReportForm({
                                 }
                               </td>
                             )}
-                            <td className="px-3 py-2.5 text-right text-stone-500">{fmt(Math.round(periodBudget))}</td>
+                            <td className="px-3 py-2.5 text-right text-stone-500">
+                              {dueThisPeriod ? fmt(Math.round(periodBudget)) : <span className="text-stone-300">—</span>}
+                            </td>
                             <td className="px-3 py-2.5 text-right">
                               {canEdit
                                 ? <input type="number" min={0} value={actuals[line.id] ?? ""}
@@ -323,12 +341,18 @@ export default function ReportForm({
                             <td className="px-3 py-2.5 text-right text-stone-500">{fmt(Math.round(ytdBudget))}</td>
                             <td className="px-3 py-2.5">
                               <div className="flex items-center gap-1.5">
-                                {varPct !== null && (
-                                  <span className={`text-xs ${flag ? "font-semibold" : "text-stone-400"}`}>
-                                    {varPct}%
-                                  </span>
+                                {!dueThisPeriod ? (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-stone-100 text-stone-500">Not due</span>
+                                ) : (
+                                  <>
+                                    {varPct !== null && (
+                                      <span className={`text-xs ${flag ? "font-semibold" : "text-stone-400"}`}>
+                                        {varPct}%
+                                      </span>
+                                    )}
+                                    <FlagChip flag={flag} />
+                                  </>
                                 )}
-                                <FlagChip flag={flag} />
                               </div>
                             </td>
                             {canEdit && (
@@ -372,8 +396,14 @@ export default function ReportForm({
                 const headLines = budget.lines.filter(l => SECTION_TO_HEAD[l.section] === head);
                 if (!headLines.length) return null;
                 const annualBudget = headLines.reduce((s, l) => s + revisedYearTotal(l), 0);
-                const periodBud = headLines.reduce((s, l) => s + proratedBudget(revisedYearTotal(l), periodFrom, periodTo), 0);
-                const ytdBud = headLines.reduce((s, l) => s + cumulativeProratedBudget(revisedYearTotal(l), yearStart, periodTo), 0);
+                const periodBud = headLines.reduce((s, l) => s + proratedBudget(
+                  { yearTotal: revisedYearTotal(l), cadence: l.cadence, plannedMonths: l.plannedMonths },
+                  periodFrom, periodTo, yearStart,
+                ), 0);
+                const ytdBud = headLines.reduce((s, l) => s + cumulativeProratedBudget(
+                  { yearTotal: revisedYearTotal(l), cadence: l.cadence, plannedMonths: l.plannedMonths },
+                  yearStart, periodTo,
+                ), 0);
                 const thisPeriodAct = headLines.reduce((s, l) => s + n(actuals[l.id] ?? ""), 0);
                 const priorAct = headLines.reduce((s, l) => s + (cumulativePrior[l.id] ?? 0), 0);
                 const ytdAct = priorAct + thisPeriodAct;
@@ -406,7 +436,10 @@ export default function ReportForm({
                   {fmt(Math.round(budget.lines.reduce((s, l) => s + revisedYearTotal(l), 0)))}
                 </td>
                 <td className="px-3 py-2.5 text-right text-stone-600">
-                  {fmt(Math.round(budget.lines.reduce((s, l) => s + proratedBudget(revisedYearTotal(l), periodFrom, periodTo), 0)))}
+                  {fmt(Math.round(budget.lines.reduce((s, l) => s + proratedBudget(
+                    { yearTotal: revisedYearTotal(l), cadence: l.cadence, plannedMonths: l.plannedMonths },
+                    periodFrom, periodTo, yearStart,
+                  ), 0)))}
                 </td>
                 <td className="px-3 py-2.5 text-right font-semibold text-stone-800">
                   {fmt(Math.round(totalActuals))}
@@ -415,7 +448,10 @@ export default function ReportForm({
                   {fmt(Math.round(budget.lines.reduce((s, l) => s + (n(actuals[l.id] ?? "") || 0) + (cumulativePrior[l.id] ?? 0), 0)))}
                 </td>
                 <td className="px-3 py-2.5 text-right text-stone-500">
-                  {fmt(Math.round(budget.lines.reduce((s, l) => s + cumulativeProratedBudget(revisedYearTotal(l), yearStart, periodTo), 0)))}
+                  {fmt(Math.round(budget.lines.reduce((s, l) => s + cumulativeProratedBudget(
+                    { yearTotal: revisedYearTotal(l), cadence: l.cadence, plannedMonths: l.plannedMonths },
+                    yearStart, periodTo,
+                  ), 0)))}
                 </td>
                 <td />
               </tr>

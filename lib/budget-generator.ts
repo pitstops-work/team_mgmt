@@ -1,4 +1,4 @@
-import type { BudgetSection, InflationType, LineTemplate } from "@/app/generated/prisma/client";
+import type { BudgetSection, BudgetLineCadence, InflationType, LineTemplate } from "@/app/generated/prisma/client";
 import { lookupCost } from "@/lib/budget-costs";
 
 export type BudgetGeneratorInputs = Record<string, number>;
@@ -15,6 +15,8 @@ export type GeneratedLine = {
   salaryHint?: string | null;
   notes?: string | null;
   templateKey: string;
+  cadence: BudgetLineCadence;
+  plannedMonths: number[];
   y1Units: number; y1UnitCost: number; y1AllocPct: number; y1Total: number;
   y2Units: number; y2UnitCost: number; y2AllocPct: number; y2Total: number;
   y3Units: number; y3UnitCost: number; y3AllocPct: number; y3Total: number;
@@ -164,6 +166,14 @@ function templateToLine(
   const y4 = computeYear(4);
   const y5 = computeYear(5);
 
+  // Capex is the one section where a default non-monthly cadence is safe:
+  // by convention these are paid upfront. All other sections default to
+  // monthly straight-line and rely on the partner to mark camps / TLM / etc.
+  // as one_time or seasonal in the editor.
+  const isCapex = t.section === "capex";
+  const cadence: BudgetLineCadence = isCapex ? "one_time" : "monthly";
+  const plannedMonths: number[]    = isCapex ? [1] : [];
+
   return {
     domain:          t.domain,
     section:         t.section,
@@ -176,6 +186,8 @@ function templateToLine(
     salaryHint:      t.salaryHint,
     notes:           t.notes,
     templateKey:     t.templateKey,
+    cadence,
+    plannedMonths,
     y1Units: y1.units, y1UnitCost: y1.unitCost, y1AllocPct: y1.allocPct, y1Total: y1.total,
     y2Units: y2.units, y2UnitCost: y2.unitCost, y2AllocPct: y2.allocPct, y2Total: y2.total,
     y3Units: y3.units, y3UnitCost: y3.unitCost, y3AllocPct: y3.allocPct, y3Total: y3.total,

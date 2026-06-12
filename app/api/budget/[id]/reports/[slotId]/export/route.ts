@@ -163,8 +163,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       slNo++;
 
       const annualBudget = headLines.reduce((s, l) => s + yearTotal(l, grantYear), 0);
-      const periodBud = headLines.reduce((s, l) => s + proratedBudget(yearTotal(l, grantYear), periodFrom, periodTo), 0);
-      const ytdBud = headLines.reduce((s, l) => s + cumulativeProratedBudget(yearTotal(l, grantYear), yearStart, periodTo), 0);
+      const periodBud = headLines.reduce((s, l) => s + proratedBudget(
+        { yearTotal: yearTotal(l, grantYear), cadence: l.cadence, plannedMonths: l.plannedMonths },
+        periodFrom, periodTo, yearStart,
+      ), 0);
+      const ytdBud = headLines.reduce((s, l) => s + cumulativeProratedBudget(
+        { yearTotal: yearTotal(l, grantYear), cadence: l.cadence, plannedMonths: l.plannedMonths },
+        yearStart, periodTo,
+      ), 0);
       const thisAct = headLines.reduce((s, l) => s + (actualMap[l.id] ?? 0), 0);
       const priorAct = headLines.reduce((s, l) => s + (cumulativePrior[l.id] ?? 0), 0);
       const ytdAct = priorAct + thisAct;
@@ -185,8 +191,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       // Sub-rows per line item
       for (const line of headLines) {
         const lAnnual = yearTotal(line, grantYear);
-        const lPeriodBud = proratedBudget(lAnnual, periodFrom, periodTo);
-        const lYtdBud = cumulativeProratedBudget(lAnnual, yearStart, periodTo);
+        const cl = { yearTotal: lAnnual, cadence: line.cadence, plannedMonths: line.plannedMonths };
+        const lPeriodBud = proratedBudget(cl, periodFrom, periodTo, yearStart);
+        const lYtdBud = cumulativeProratedBudget(cl, yearStart, periodTo);
         const lThis = actualMap[line.id] ?? 0;
         const lPrior = cumulativePrior[line.id] ?? 0;
         const lYtd = lPrior + lThis;
