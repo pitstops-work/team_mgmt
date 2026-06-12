@@ -127,7 +127,9 @@ const HEADER_LABELS = [
   "Total (Rs.)", "Budget Notes", "Allocation %", "Check", "Remarks", "Notes",
 ];
 
-const INFLATION_RANGE = "'01.Instructions'!$B$21:$C$23";
+// Inflation rates still ship in the Instructions sheet at B20:C23 for
+// reference (so the partner can see what was applied), but cell formulas no
+// longer read from there — totals are pre-inflated by the generator.
 
 type TemplateSection = {
   key: string;
@@ -172,7 +174,7 @@ const INSTRUCTION_LINES: string[] = [
   "Pls DO NOT CUT a cell. If you want to copy contents of one cell to another, use Copy + Paste instead.",
   "Columns marked 'Total' are auto-filled. The Summary sheet rolls up Budget category sub-totals automatically.",
   "To provide additional details like sub-line breakdown of a programme expense, use the 04.Working sheet.",
-  "Inflation is computed automatically in the annual cost based on the Cost Category. Salary = 10%, Other = 5%, Nil = 0%.",
+  "Inflation is pre-applied at budget creation: the Y2-Y5 Unit Cost cells already contain inflated values from the chosen budget's per-year rates. Edit any Unit Cost cell to override; the Total cell recalculates as Units × Unit Cost × Allocation%.",
   "Budget up to 5 years can be added in this sheet. Leave Y4/Y5 input cells blank if your grant is shorter. Y4 and Y5 columns are grouped — use the [-] button above column R to collapse them.",
   "Consultants (Full time / Part time) — categorize as per the programme need. Use 'Salary' inflation for retainers.",
   "Mention Asset details for Programme and Head office separately under section 2 (CAPEX).",
@@ -569,9 +571,13 @@ function totalRowFormula(rowNum: number): string {
   return `I${rowNum}+M${rowNum}+Q${rowNum}+U${rowNum}+Y${rowNum}`;
 }
 
-function inflationFormula(rowNum: number, yearCol: keyof typeof YEAR_INPUT_COLS): string {
+/** Total = Units × Unit Cost × Allocation%. Inflation is *not* applied here:
+ *  the generator already wrote inflated unit-cost values into the cell when
+ *  the budget's applyInflation flag was on. Applying inflation again via the
+ *  old (1+rate)^(year-1) factor double-counted Y2+ totals — this drops it. */
+function totalFormula(rowNum: number, yearCol: keyof typeof YEAR_INPUT_COLS): string {
   const y = YEAR_INPUT_COLS[yearCol];
-  return `${y.u}${rowNum}*${y.c}${rowNum}*IF(ISBLANK(${y.a}${rowNum}),100%,${y.a}${rowNum})*(1+VLOOKUP($D${rowNum},${INFLATION_RANGE},2,FALSE))^(RIGHT(${y.t}$${HEADER_ROW},1)-1)`;
+  return `${y.u}${rowNum}*${y.c}${rowNum}*IF(ISBLANK(${y.a}${rowNum}),100%,${y.a}${rowNum})`;
 }
 
 function applyDataRowStyling(r: ExcelJS.Row) {
@@ -630,7 +636,7 @@ function emitDataRow(
   r.getCell(6).value = line.y1Units || null;
   r.getCell(7).value = y1UnitCostFormula ? { formula: y1UnitCostFormula } : (line.y1UnitCost || null);
   r.getCell(8).value = line.y1AllocPct;
-  r.getCell(9).value = { formula: inflationFormula(rn, 1) };
+  r.getCell(9).value = { formula: totalFormula(rn, 1) };
 
   const yearData: Array<{ y: 2 | 3 | 4 | 5; u: number; c: number; a: number }> = [
     { y: 2, u: line.y2Units, c: line.y2UnitCost, a: line.y2AllocPct },
@@ -644,7 +650,7 @@ function emitDataRow(
     r.getCell(y.u).value = d.u || null;
     r.getCell(y.c).value = d.c || null;
     r.getCell(y.a).value = d.a;
-    r.getCell(y.t).value = { formula: inflationFormula(rn, d.y) };
+    r.getCell(y.t).value = { formula: totalFormula(rn, d.y) };
   }
 
   r.getCell(26).value = { formula: totalRowFormula(rn) };
@@ -877,7 +883,7 @@ export function buildMasterBudgetSheet(
         formula: domainSheets.map(d => quoteSheetRef(d.name, `${slot.mCol}${d.map[key]}`)).join("+"),
       };
       r.getCell(cols.a).value = 1;
-      r.getCell(cols.t).value = { formula: inflationFormula(rn, slot.y) };
+      r.getCell(cols.t).value = { formula: totalFormula(rn, slot.y) };
     }
     r.getCell(26).value = { formula: totalRowFormula(rn) };
     r.getCell(28).value = { formula: `Z${rn}/$Z$${grandTotalRow}` };
