@@ -1902,6 +1902,13 @@ model Budget {
   inflationSalaryPct Float               @default(10)
   inflationOtherPct  Float               @default(5)
   inflationNilPct    Float               @default(0)
+  // Per-budget cost customisation. Sparse map of CostRegistry.itemKey → value
+  // that the partner edited at create time; the snapshot is the full registry
+  // view at create time and is what the generator merges overrides on top of.
+  // Snapshot lets future "regenerate" or "scale up" actions reproduce the
+  // partner's basis even if the registry has changed.
+  costOverrides      Json                @default("{}")
+  costSnapshot       Json                @default("{}")
   status             BudgetStatus        @default(draft)
   inputs             BudgetInputs?
   lines              BudgetLine[]
