@@ -596,3 +596,49 @@ export async function seedLineTemplates(city: string) {
   );
   revalidatePath("/admin");
 }
+
+// ─── Cost-analysis comparison ────────────────────────────────────────────────
+// Loads a budget's stored programme inputs + sparse costOverrides so the admin
+// Cost Analysis tab can overlay "Your" values next to standard ones. Snapshot
+// is intentionally not returned: comparison only cares about what differed
+// from the live registry at create time.
+export async function loadBudgetForCompare(budgetId: string): Promise<{
+  name: string;
+  programmeInputs: Record<string, number>;
+  costOverrides: Record<string, number>;
+}> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const budget = await prisma.budget.findUnique({
+    where: { id: budgetId },
+    select: { name: true, inputs: true, costOverrides: true },
+  });
+  if (!budget) throw new Error("Budget not found");
+
+  const raw = budget.inputs;
+  const programmeInputs: Record<string, number> = {};
+  if (raw) {
+    // Typed fields first (backward compat) then extraInputs JSON wins on overlap.
+    programmeInputs.nSettlements              = raw.nSettlements;
+    programmeInputs.nClusters                 = raw.nClusters;
+    programmeInputs.nCLCs                     = raw.nCLCs;
+    programmeInputs.clcRentPerMonth           = raw.clcRentPerMonth;
+    programmeInputs.nYRCs                     = raw.nYRCs;
+    programmeInputs.yrcRentPerMonth           = raw.yrcRentPerMonth;
+    programmeInputs.nElderlyCentres           = raw.nElderlyCentres;
+    programmeInputs.nElderly                  = raw.nElderly;
+    programmeInputs.elderlyCentreRentPerMonth = raw.elderlyCentreRentPerMonth;
+    programmeInputs.cosPerCluster             = raw.cosPerCluster;
+    programmeInputs.rcRentPerMonth            = raw.rcRentPerMonth;
+    programmeInputs.nCreches                  = raw.nCreches;
+    programmeInputs.crecheRentPerMonth        = raw.crecheRentPerMonth;
+    Object.assign(programmeInputs, (raw.extraInputs ?? {}) as Record<string, number>);
+  }
+
+  return {
+    name: budget.name,
+    programmeInputs,
+    costOverrides: (budget.costOverrides ?? {}) as Record<string, number>,
+  };
+}

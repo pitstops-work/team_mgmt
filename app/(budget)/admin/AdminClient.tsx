@@ -7,7 +7,7 @@ import {
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
   reorderLineTemplates, seedLineTemplates,
   addDomain, updateDomain, toggleDomain, reorderDomains, seedDomains,
-  getGeoChildren, loadNeedsScenario,
+  getGeoChildren, loadNeedsScenario, loadBudgetForCompare,
   type LineTemplateFields, type DomainConfigFields,
 } from "./actions";
 import type { BudgetSection, InflationType, LineTemplate, BudgetDomainConfig } from "@/app/generated/prisma/client";
@@ -1005,14 +1005,51 @@ const METRIC_LABELS: Record<ScenarioMetric, string> = {
   need: "Need", addressable: "Addressable", existing: "Existing", plan: "Plan", gap: "Gap",
 };
 
-function CostAnalysisTab({ templates, costs, domains, city, zones }: {
+function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }: {
   templates: LineTemplate[]; costs: CostRow[]; domains: BudgetDomainConfig[];
   city: string; zones: GeoItem[];
+  cityBudgets: CompareBudget[];
 }) {
   const ALL_DOMAINS = domains.map(d => d.key);
   const [inp, setInp] = useState<BudgetGeneratorInputs>(() => makeDefaultInputs(costs));
   const setField = (k: string, v: number) =>
     setInp(p => ({ ...p, [k]: isNaN(v) ? 0 : v }));
+
+  // ── Domain filter — chips at top decide which domains drive the panel
+  //    below + which per-domain tables render. Initially all selected so the
+  //    landing experience matches today's "everything visible".
+  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(() => new Set(ALL_DOMAINS));
+  // Locally named to avoid shadowing the imported toggleDomain server action.
+  const toggleDomainFilter = (key: string) => setSelectedDomains(p => {
+    const next = new Set(p);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
+
+  // ── Compare-with-budget — null when none loaded.
+  const [compareBudgetId, setCompareBudgetId] = useState<string>("");
+  const [compareData, setCompareData] = useState<{
+    name: string;
+    programmeInputs: Record<string, number>;
+    costOverrides: Record<string, number>;
+  } | null>(null);
+  const [comparePending, startCompare] = useTransition();
+  const onCompareChange = (id: string) => {
+    setCompareBudgetId(id);
+    if (!id) { setCompareData(null); return; }
+    startCompare(async () => {
+      try { setCompareData(await loadBudgetForCompare(id)); }
+      catch { setCompareData(null); }
+    });
+  };
+
+  // Per-table-row expansion (formula breakdown drawer). Keyed by `${domain}:${position}`.
+  const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
+  const toggleLineExpand = (key: string) => setExpandedLines(p => {
+    const next = new Set(p);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
 
   // ── Scenario picker state ──────────────────────────────────────────────────
   const [geoLevel, setGeoLevel]             = useState<GeoLevel>("city");
@@ -1154,10 +1191,40 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
 
   const lines = useMemo(
     // Cost-analysis scenario uses 36-month horizon with default inflation for
-    // benchmarking; per-budget overrides are out of scope here (PR-4 work).
+    // benchmarking. Inflation horizon stays standard regardless of compare-with;
+    // we only overlay the partner's inputs + cost overrides, not their period.
     () => generateBudgetLines(ALL_DOMAINS, effectiveInp, { horizonMonths: 36, applyInflation: true }, registry, templates),
     [effectiveInp, registry, templates]
   );
+
+  // "You" projection — same generator with the partner's inputs layered on top
+  // and the partner's cost overrides merged into the registry. youLineMap is
+  // keyed by templateKey so per-line lookups in the per-domain table are O(1).
+  const linesYou = useMemo(() => {
+    if (!compareData) return [];
+    const inpYou = { ...effectiveInp, ...compareData.programmeInputs };
+    const regYou = { ...registry, ...compareData.costOverrides };
+    return generateBudgetLines(ALL_DOMAINS, inpYou, { horizonMonths: 36, applyInflation: true }, regYou, templates);
+  }, [compareData, effectiveInp, registry, templates, ALL_DOMAINS]);
+
+  const youLineMap = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof generateBudgetLines>[number]>();
+    for (const l of linesYou) m.set(l.templateKey, l);
+    return m;
+  }, [linesYou]);
+
+  // Which inp.* keys are referenced by selected-domain templates. Used to
+  // hide irrelevant programme-size inputs as the user narrows their selection.
+  const inpKeysBySelectedDomain = useMemo(() => {
+    const visible = new Set<string>();
+    for (const t of templates) {
+      if (!t.isActive || !t.domain) continue;
+      if (!selectedDomains.has(t.domain)) continue;
+      if (t.inputVar)       visible.add(t.inputVar);
+      if (t.userInputCost)  visible.add(t.userInputCost);
+    }
+    return visible;
+  }, [templates, selectedDomains]);
 
   type AnalysisLine = ReturnType<typeof generateBudgetLines>[number] & { isIndicative: boolean };
 
@@ -1242,6 +1309,9 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
   const grouped = useMemo<DomainGroup[]>(() => {
     const domainOrder = [...ALL_DOMAINS, null] as (string | null)[];
     return domainOrder.flatMap(domain => {
+      // Domain chips at the top decide which per-domain tables render. Cross-cutting
+      // (null) is always included so admin / travel / shared lines stay visible.
+      if (domain !== null && !selectedDomains.has(domain)) return [];
       const allDomLines = indicativeLines.filter(l => l.domain === domain);
       // Only show domain if at least one variable-driven (non-fixed) line has units > 0
       const hasVariableLine = allDomLines.some(l => !FIXED_INPUT_VARS.has(l.inputVar) && l.y1Units > 0);
@@ -1267,7 +1337,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
         y3: domLines.reduce((acc, l) => acc + l.y3Total, 0),
       }];
     });
-  }, [indicativeLines]);
+  }, [indicativeLines, selectedDomains, domains, ALL_DOMAINS]);
 
   const grand = useMemo(() => ({
     y1: indicativeLines.reduce((s, l) => s + l.y1Total, 0),
@@ -1277,8 +1347,102 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
 
   const hasIndicative = indicativeLines.some(l => l.isIndicative);
 
+  // When the user narrows their selection, hide programme inputs that no
+  // selected-domain template references. When all domains are picked (the
+  // default landing state), behave like before — every input is visible.
+  const allDomainsSelected = selectedDomains.size === domains.length;
+  const isVisibleInputKey = (key: string) =>
+    allDomainsSelected || inpKeysBySelectedDomain.has(key);
+
+  // Fast template lookup by templateKey, used by the formula-breakdown
+  // sub-row to render the cost-keys + their registry / override values.
+  const templateByKey = useMemo(() => {
+    const m = new Map<string, LineTemplate>();
+    for (const t of templates) m.set(t.templateKey, t);
+    return m;
+  }, [templates]);
+
+  /** Render a single formula component row inside the breakdown drawer. */
+  const renderBreakdownComponent = (label: string, key: string) => {
+    const std = registry[key] ?? 0;
+    const you = compareData?.costOverrides[key];
+    const isOverride = you !== undefined && you !== std;
+    return (
+      <div key={key} className="flex items-center justify-between text-xs py-0.5">
+        <span className="text-stone-500">
+          {label} <span className="font-mono text-[10px] text-stone-300 ml-1">{key}</span>
+        </span>
+        <span className="tabular-nums">
+          <span className={isOverride ? "text-stone-400 line-through mr-2" : "text-stone-700 font-medium"}>
+            {std.toLocaleString("en-IN")}
+          </span>
+          {isOverride && (
+            <span className="text-sky-700 font-medium">
+              {you!.toLocaleString("en-IN")}
+            </span>
+          )}
+        </span>
+      </div>
+    );
+  };
+
+  /** Compact delta badge shown beside Yours value. Green when lower, red when higher. */
+  const renderDelta = (std: number, you: number | undefined) => {
+    if (you === undefined || std <= 0 || you === std) return null;
+    const pct = ((you - std) / std) * 100;
+    const cls = pct < 0 ? "text-emerald-600" : "text-red-500";
+    const sym = pct > 0 ? "▲" : "▼";
+    return <span className={`text-[10px] ${cls} ml-1 tabular-nums`}>{sym}{Math.abs(pct).toFixed(0)}%</span>;
+  };
+
   return (
     <>
+      {/* Filter & Compare bar — domain chips drive what cascades below; compare
+          dropdown overlays a real partner budget for benchmarking. */}
+      <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
+            What do you want to cost?
+          </p>
+          {compareData && (
+            <span className="text-xs text-sky-700 bg-sky-50 border border-sky-100 px-2 py-0.5 rounded-full font-medium">
+              comparing vs {compareData.name}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {domains.map(d => {
+            const active = selectedDomains.has(d.key);
+            return (
+              <button key={d.key} onClick={() => toggleDomainFilter(d.key)}
+                className={`text-xs px-3 py-1 rounded-full border transition-colors ${active ? "bg-sky-600 text-white border-sky-600" : "bg-white text-stone-600 border-stone-200 hover:border-stone-400"}`}>
+                {active && <span className="mr-1">✓</span>}{d.label}
+              </button>
+            );
+          })}
+          {selectedDomains.size > 0 && (
+            <button onClick={() => setSelectedDomains(new Set())}
+              className="text-xs px-2 py-1 text-stone-400 hover:text-stone-700">Clear</button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-xs text-stone-500">Compare with budget:</label>
+          <select value={compareBudgetId} onChange={e => onCompareChange(e.target.value)}
+            disabled={comparePending}
+            className="text-xs border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500 bg-white max-w-xs">
+            <option value="">— Standard only —</option>
+            {cityBudgets.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+          {comparePending && <span className="text-xs text-stone-400">loading…</span>}
+          {compareData && (
+            <button onClick={() => onCompareChange("")}
+              className="text-xs text-stone-400 hover:text-stone-700">✕ clear</button>
+          )}
+        </div>
+      </div>
+
       {/* Programme size assumptions — fully driven by displayGroup on each inp.* item */}
       <div className="mb-4 p-4 bg-white border border-stone-200 rounded-xl space-y-4">
         <div className="flex items-center justify-between gap-3">
@@ -1291,8 +1455,13 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
           )}
         </div>
 
-        {/* Scenario picker */}
-        <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg space-y-2">
+        {/* Scenario picker — collapsed by default; opens into the city/zone/cluster/settlement cascade. */}
+        <details className="group rounded-lg border border-stone-200 bg-stone-50">
+          <summary className="cursor-pointer px-3 py-2 text-[11px] font-semibold text-stone-500 uppercase tracking-widest flex items-center justify-between">
+            <span>Load from geography</span>
+            <span className="text-stone-400 group-open:hidden text-[10px] font-normal normal-case">click to load need / addressable / plan / gap from a zone, cluster, or settlement</span>
+          </summary>
+        <div className="p-3 space-y-2 border-t border-stone-200">
           <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">Load from geography</p>
           {/* Level selector */}
           <div className="flex gap-1 flex-wrap">
@@ -1347,13 +1516,14 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
             Only inputs linked to a needs domain via Cost Registry will be populated. Geography counts (settlements, clusters) are always updated.
           </p>
         </div>
+        </details>
 
         {/* 1. Geography & Scale */}
-        {progByGroup.geography.length > 0 && (
+        {progByGroup.geography.some(g => isVisibleInputKey(g.key)) && (
           <div>
             <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Geography & Scale</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-              {progByGroup.geography.map(({ key, label }) => (
+              {progByGroup.geography.filter(g => isVisibleInputKey(g.key)).map(({ key, label }) => (
                 <Fragment key={key}>
                   <label className="block">
                     <span className="text-xs text-stone-500">{label}</span>
@@ -1382,10 +1552,10 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
           </div>
         )}
 
-        {progByGroup.facilities.length > 0 && <div className="border-t border-stone-100" />}
+        {progByGroup.facilities.some(g => isVisibleInputKey(g.key)) && <div className="border-t border-stone-100" />}
 
         {/* 2. Facilities — auto-paired: sorted list has count then rent for each type */}
-        {progByGroup.facilities.length > 0 && (
+        {progByGroup.facilities.some(g => isVisibleInputKey(g.key)) && (
           <div>
             <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Facilities</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -1394,7 +1564,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
                 const isRent = (k: string) => k.toLowerCase().includes("rent");
                 const strip = (s: string) =>
                   s.replace(/^Typical\s+/i, "").replace(/^No\.?\s*of\s+/i, "").replace(/\s*rent.*$/i, "").trim();
-                const items = progByGroup.facilities;
+                const items = progByGroup.facilities.filter(g => isVisibleInputKey(g.key));
                 const pairs: { heading: string; count?: FItem; rent?: FItem }[] = [];
                 let i = 0;
                 while (i < items.length) {
@@ -1435,16 +1605,20 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
         <div>
           <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-2">Coverage & Beneficiaries</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {/* Children: always derived */}
-            <div className="block">
-              <span className="text-xs text-stone-500">Children</span>
-              <div className={DERIVED_CLS}>
-                {totalChildren > 0 ? totalChildren.toLocaleString("en-IN") : <span className="italic text-stone-300">set children_per_clc</span>}
+            {/* Children: always derived. Only shown when a selected-domain template wires through nCLCs. */}
+            {(allDomainsSelected || inpKeysBySelectedDomain.has("nCLCs")) && (
+              <div className="block">
+                <span className="text-xs text-stone-500">Children</span>
+                <div className={DERIVED_CLS}>
+                  {totalChildren > 0 ? totalChildren.toLocaleString("en-IN") : <span className="italic text-stone-300">set children_per_clc</span>}
+                </div>
+                <p className="text-xs text-stone-300 mt-0.5">nCLCs × children_per_clc</p>
               </div>
-              <p className="text-xs text-stone-300 mt-0.5">nCLCs × children_per_clc</p>
-            </div>
-            {/* Beneficiary counts derived from domain config (beneficiaryVar × beneficiaryMult) */}
-            {domains.filter(d => d.beneficiaryVar && d.beneficiaryLabel && d.beneficiaryVar !== "nSettlements").map(d => {
+            )}
+            {/* Beneficiary counts derived from domain config (beneficiaryVar × beneficiaryMult).
+                Restricted to selected domains so the row matches the user's filter. */}
+            {domains.filter(d => d.beneficiaryVar && d.beneficiaryLabel && d.beneficiaryVar !== "nSettlements")
+                    .filter(d => allDomainsSelected || selectedDomains.has(d.key)).map(d => {
               const count = Math.round((effectiveInp[d.beneficiaryVar!] ?? 0) * d.beneficiaryMult);
               return (
                 <div key={d.key} className="block">
@@ -1455,7 +1629,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
               );
             })}
             {/* All inp.* items tagged as coverage — includes nElderly, nElderlyTotal, kitchens, etc. */}
-            {progByGroup.coverage.map(({ key, label }) => (
+            {progByGroup.coverage.filter(g => isVisibleInputKey(g.key)).map(({ key, label }) => (
               <label key={key} className="block">
                 <span className="text-xs text-stone-500">{label}</span>
                 {inpField(key)}
@@ -1489,16 +1663,27 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
         )}
       </div>
 
-      {/* Per-domain tables */}
+      {/* Per-domain tables. When comparing, Y2/Y3 columns get replaced by
+          Yours-Y1 + Δ so the table stays the same width. Click any row caret
+          to expand a formula-breakdown sub-row pulled from the LineTemplate. */}
       <div className="space-y-6">
-        {grouped.map(g => (
+        {grouped.map(g => {
+          const youGroupY1 = compareData
+            ? linesYou.filter(l => l.domain === g.domain).reduce((s, l) => s + l.y1Total, 0)
+            : 0;
+          // colSpan for sub-rows + footers stays at 7 regardless of compare mode.
+          const cols = 7;
+          return (
           <div key={g.domain ?? "cross"}>
             <div className="flex items-baseline justify-between mb-2">
               <h3 className="text-sm font-semibold text-stone-700">{g.label}</h3>
               <div className="flex gap-6 text-xs text-stone-400">
                 <span>Y1 <span className="font-medium text-stone-600">{fmtCost(g.y1)}</span></span>
-                <span>Y2 <span className="font-medium text-stone-600">{fmtCost(g.y2)}</span></span>
-                <span>Y3 <span className="font-medium text-stone-600">{fmtCost(g.y3)}</span></span>
+                {!compareData && <span>Y2 <span className="font-medium text-stone-600">{fmtCost(g.y2)}</span></span>}
+                {!compareData && <span>Y3 <span className="font-medium text-stone-600">{fmtCost(g.y3)}</span></span>}
+                {compareData && <>
+                  <span>Yours <span className="font-medium text-sky-700">{fmtCost(youGroupY1)}</span>{renderDelta(g.y1, youGroupY1)}</span>
+                </>}
               </div>
             </div>
             <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
@@ -1511,71 +1696,152 @@ function CostAnalysisTab({ templates, costs, domains, city, zones }: {
                     <th className="text-right px-3 py-2 font-medium w-28">Unit cost Y1</th>
                     <th className="text-right px-3 py-2 font-medium w-20">Units</th>
                     <th className="text-right px-3 py-2 font-medium w-28">Total Y1</th>
-                    <th className="text-right px-3 py-2 font-medium w-28">Total Y2</th>
-                    <th className="text-right px-3 py-2 font-medium w-28">Total Y3</th>
+                    {compareData ? <>
+                      <th className="text-right px-3 py-2 font-medium w-28 text-sky-700">Yours Y1</th>
+                      <th className="text-right px-3 py-2 font-medium w-16">Δ</th>
+                    </> : <>
+                      <th className="text-right px-3 py-2 font-medium w-28">Total Y2</th>
+                      <th className="text-right px-3 py-2 font-medium w-28">Total Y3</th>
+                    </>}
                   </tr>
                 </thead>
                 <tbody>
                   {g.bySection.map(({ section, lines: sLines, y1: sy1, y2: sy2, y3: sy3 }) => (
                     <Fragment key={section}>
                       <tr className="border-b border-stone-50">
-                        <td colSpan={7} className="px-4 pt-3 pb-1 text-xs font-semibold text-stone-400 uppercase tracking-wide bg-stone-50/50">
+                        <td colSpan={cols} className="px-4 pt-3 pb-1 text-xs font-semibold text-stone-400 uppercase tracking-wide bg-stone-50/50">
                           {section}
                         </td>
                       </tr>
-                      {sLines.map((l, i) => (
-                        <tr key={i} className={`border-b border-stone-50 hover:bg-stone-50 ${l.isIndicative ? "bg-amber-50/30" : ""}`}>
-                          <td className="px-4 py-2 text-stone-800">
-                            {l.description}
-                            {l.isIndicative && <span className="ml-2 text-xs text-amber-500">~indicative · {l.salaryHint}</span>}
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SECTION_BADGE[l.section] ?? "bg-stone-50 text-stone-600"}`}>
-                              {l.section}
-                            </span>
-                          </td>
-                          <td className={`px-3 py-2 text-right tabular-nums ${l.isIndicative ? "text-amber-600" : "text-stone-600"}`}>
-                            {l.isIndicative ? `~${fmtCost(l.y1UnitCost)}/mo` : fmtCost(l.y1UnitCost)}
-                          </td>
-                          <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmt(l.y1Units)}</td>
-                          <td className="px-3 py-2 text-right font-medium text-stone-800 tabular-nums">{fmtCost(l.y1Total)}</td>
-                          <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmtCost(l.y2Total)}</td>
-                          <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmtCost(l.y3Total)}</td>
-                        </tr>
-                      ))}
+                      {sLines.map((l, i) => {
+                        const lineKey = `${g.domain ?? "cross"}:${l.position}`;
+                        const expanded = expandedLines.has(lineKey);
+                        const t = templateByKey.get(l.templateKey);
+                        const youLine = compareData ? youLineMap.get(l.templateKey) : undefined;
+                        const youY1 = youLine?.y1Total;
+                        const components: { label: string; key: string }[] = [];
+                        if (t?.costKey)  components.push({ label: "× ", key: t.costKey });
+                        if (t?.costKey2) components.push({ label: "× ", key: t.costKey2 });
+                        if (t?.costKey3) components.push({ label: "× ", key: t.costKey3 });
+                        if (t?.supervisorRatioKey) components.push({ label: "supervisor ratio", key: t.supervisorRatioKey });
+                        if (t?.workerRatioKey)    components.push({ label: "worker ratio", key: t.workerRatioKey });
+                        if (t?.bufferKey)         components.push({ label: "buffer %", key: t.bufferKey });
+                        const canExpand = components.length > 0;
+                        return (
+                          <Fragment key={i}>
+                          <tr className={`border-b border-stone-50 hover:bg-stone-50 ${l.isIndicative ? "bg-amber-50/30" : ""}`}>
+                            <td className="px-4 py-2 text-stone-800">
+                              <button onClick={() => canExpand && toggleLineExpand(lineKey)}
+                                disabled={!canExpand}
+                                className={`mr-1 inline-block w-3 text-[10px] ${canExpand ? "text-stone-400 hover:text-stone-700" : "text-stone-200 cursor-default"}`}
+                                title={canExpand ? "Show formula" : "No formula breakdown"}>
+                                {canExpand ? (expanded ? "▾" : "▸") : "·"}
+                              </button>
+                              {l.description}
+                              {l.isIndicative && <span className="ml-2 text-xs text-amber-500">~indicative · {l.salaryHint}</span>}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SECTION_BADGE[l.section] ?? "bg-stone-50 text-stone-600"}`}>
+                                {l.section}
+                              </span>
+                            </td>
+                            <td className={`px-3 py-2 text-right tabular-nums ${l.isIndicative ? "text-amber-600" : "text-stone-600"}`}>
+                              {l.isIndicative ? `~${fmtCost(l.y1UnitCost)}/mo` : fmtCost(l.y1UnitCost)}
+                            </td>
+                            <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmt(l.y1Units)}</td>
+                            <td className="px-3 py-2 text-right font-medium text-stone-800 tabular-nums">{fmtCost(l.y1Total)}</td>
+                            {compareData ? <>
+                              <td className="px-3 py-2 text-right text-sky-700 font-medium tabular-nums">
+                                {youY1 !== undefined ? fmtCost(youY1) : "—"}
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums">{renderDelta(l.y1Total, youY1)}</td>
+                            </> : <>
+                              <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmtCost(l.y2Total)}</td>
+                              <td className="px-3 py-2 text-right text-stone-500 tabular-nums">{fmtCost(l.y3Total)}</td>
+                            </>}
+                          </tr>
+                          {expanded && t && (
+                            <tr className="border-b border-stone-100 bg-sky-50/40">
+                              <td colSpan={cols} className="px-8 py-3">
+                                <div className="text-[10px] uppercase tracking-widest text-stone-400 mb-1">Formula</div>
+                                <div className="font-mono text-xs text-stone-500 mb-2">{formulaSummary(t)}</div>
+                                {components.length > 0 && (
+                                  <div className="space-y-0.5 mt-1 max-w-md">
+                                    {components.map(c => renderBreakdownComponent(c.label, c.key))}
+                                    {t.userInputCost && (
+                                      <div className="text-xs text-stone-500 py-0.5">
+                                        Uses user input <span className="font-mono">{t.userInputCost}</span> (e.g. monthly rent)
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                          </Fragment>
+                        );
+                      })}
                       <tr className="border-b border-stone-100 bg-stone-50/70">
                         <td colSpan={4} className="px-4 py-1.5 text-xs text-stone-400 text-right italic">{section} subtotal</td>
                         <td className="px-3 py-1.5 text-right text-xs font-semibold text-stone-700 tabular-nums">{fmtCost(sy1)}</td>
-                        <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy2)}</td>
-                        <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy3)}</td>
+                        {compareData ? <>
+                          {(() => {
+                            const sYou = sLines.reduce((s, l) => s + (youLineMap.get(l.templateKey)?.y1Total ?? 0), 0);
+                            return <>
+                              <td className="px-3 py-1.5 text-right text-xs font-medium text-sky-700 tabular-nums">{fmtCost(sYou)}</td>
+                              <td className="px-3 py-1.5 text-right tabular-nums">{renderDelta(sy1, sYou)}</td>
+                            </>;
+                          })()}
+                        </> : <>
+                          <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy2)}</td>
+                          <td className="px-3 py-1.5 text-right text-xs font-medium text-stone-500 tabular-nums">{fmtCost(sy3)}</td>
+                        </>}
                       </tr>
                     </Fragment>
                   ))}
                   <tr className="bg-stone-100">
                     <td colSpan={4} className="px-4 py-2 text-xs font-bold text-stone-600 text-right">{g.label} total</td>
                     <td className="px-3 py-2 text-right text-sm font-bold text-stone-900 tabular-nums">{fmtCost(g.y1)}</td>
-                    <td className="px-3 py-2 text-right text-sm font-semibold text-stone-600 tabular-nums">{fmtCost(g.y2)}</td>
-                    <td className="px-3 py-2 text-right text-sm font-semibold text-stone-600 tabular-nums">{fmtCost(g.y3)}</td>
+                    {compareData ? <>
+                      <td className="px-3 py-2 text-right text-sm font-bold text-sky-700 tabular-nums">{fmtCost(youGroupY1)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{renderDelta(g.y1, youGroupY1)}</td>
+                    </> : <>
+                      <td className="px-3 py-2 text-right text-sm font-semibold text-stone-600 tabular-nums">{fmtCost(g.y2)}</td>
+                      <td className="px-3 py-2 text-right text-sm font-semibold text-stone-600 tabular-nums">{fmtCost(g.y3)}</td>
+                    </>}
                   </tr>
                 </tbody>
               </table>
               </div>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
-      {/* Grand total */}
+      {/* Grand total. Yours-Y1 surfaces when comparing; Y2/Y3 stay visible
+          so the standard-mode reading isn't lost. */}
       {grouped.length > 0 && (
         <div className="mt-6 p-4 bg-stone-900 text-white rounded-xl flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
           <div>
-            <p className="text-sm font-semibold">Grand Total — all domains</p>
+            <p className="text-sm font-semibold">
+              Grand Total — {selectedDomains.size === 0 || allDomainsSelected ? "all domains" : `${selectedDomains.size} selected`}
+            </p>
             <p className="text-xs text-stone-400 mt-0.5">
               {hasIndicative ? "Includes indicative salary estimates (marked ~)" : "Salary stubs not filled — add salary hints to templates for indicative totals"}
             </p>
           </div>
           <div className="flex gap-6 sm:gap-8">
             <div><p className="text-xs text-stone-400">Year 1</p><p className="text-lg font-bold">{fmtCost(grand.y1)}</p></div>
+            {compareData && (() => {
+              const youGrand = linesYou.reduce((s, l) => s + l.y1Total, 0);
+              return (
+                <div>
+                  <p className="text-xs text-sky-300">Yours Y1</p>
+                  <p className="text-lg font-bold text-sky-200">{fmtCost(youGrand)}{renderDelta(grand.y1, youGrand)}</p>
+                </div>
+              );
+            })()}
             <div><p className="text-xs text-stone-400">Year 2</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y2)}</p></div>
             <div><p className="text-xs text-stone-400">Year 3</p><p className="text-lg font-semibold text-stone-300">{fmtCost(grand.y3)}</p></div>
           </div>
@@ -1816,8 +2082,16 @@ function DomainsTab({ domains, city, progInputKeys }: { domains: BudgetDomainCon
 
 // ─── Root client component ────────────────────────────────────────────────────
 
+type CompareBudget = {
+  id: string;
+  name: string;
+  createdAt: string;
+  domains: string[];
+  horizonMonths: number;
+};
+
 export default function AdminClient({
-  costs, isSeeded, city, templates, domains, zones, needsDomains, budgetAdminOnly = false,
+  costs, isSeeded, city, templates, domains, zones, needsDomains, cityBudgets = [], budgetAdminOnly = false,
 }: {
   costs: CostRow[];
   isSeeded: boolean;
@@ -1826,6 +2100,7 @@ export default function AdminClient({
   domains: BudgetDomainConfig[];
   zones: GeoItem[];
   needsDomains: { domain: string; label: string | null }[];
+  cityBudgets?: CompareBudget[];
   budgetAdminOnly?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"registry" | "templates" | "analysis" | "domains">(budgetAdminOnly ? "analysis" : "registry");
@@ -1885,7 +2160,7 @@ export default function AdminClient({
 
       {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} domainOrder={domainOrder} domainLabels={domainLabels} needsDomains={needsDomains} />}
       {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} costs={costs} domains={domains} />}
-      {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} domains={domains} city={city} zones={zones} />}
+      {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} domains={domains} city={city} zones={zones} cityBudgets={cityBudgets} />}
       {activeTab === "domains"   && <DomainsTab domains={domains} city={city} progInputKeys={costs.filter(c => c.itemKey.startsWith("inp.")).map(c => c.itemKey)} />}
     </div>
   );
