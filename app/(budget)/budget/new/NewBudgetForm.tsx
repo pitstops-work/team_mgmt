@@ -12,9 +12,11 @@ const FALLBACK_DOMAINS: DomainOption[] = [
   { key: "Creche",       label: "Creche",                      description: "0–3 yr children, standard model",  city: "Bangalore", inputs: [] },
 ];
 
+// Fallback only used when CostRegistry hasn't been seeded yet. requiredByDomains
+// is set to settlement-driven domains so a CLC-only fallback still hides them.
 const FALLBACK_CROSS_CUTTING: DomainInputField[] = [
-  { key: "nSettlements", label: "No. of settlements", unit: "count", defaultValue: 0, isRent: false },
-  { key: "nClusters",    label: "No. of clusters",    unit: "count", defaultValue: 0, isRent: false },
+  { key: "nSettlements", label: "No. of settlements", unit: "count", defaultValue: 0, isRent: false, requiredByDomains: ["WelfareRights"] },
+  { key: "nClusters",    label: "No. of clusters",    unit: "count", defaultValue: 0, isRent: false, requiredByDomains: ["WelfareRights"] },
 ];
 
 function initInputs(crossCutting: DomainInputField[], allDomains: DomainOption[]): Record<string, number> {
@@ -50,6 +52,13 @@ export default function NewBudgetForm({
   const [pending, startTransition] = useTransition();
 
   const cityDomains = effectiveDomains.filter(d => d.city === city);
+
+  // Cross-cutting inputs only show when at least one of their consuming domains
+  // is selected. null = always show.
+  const visibleCrossCutting = effectiveCrossCutting.filter(f =>
+    f.requiredByDomains === null
+    || f.requiredByDomains.some(d => selectedDomains.has(d))
+  );
 
   const toggle = (key: string) => setSelectedDomains(prev => {
     const next = new Set(prev);
@@ -204,12 +213,12 @@ export default function NewBudgetForm({
           <button type="button" onClick={() => setStep(1)} className="text-xs text-stone-400 hover:text-stone-700">← Back</button>
 
           <p className="text-sm text-stone-500">
-            Enter the scale of your programme. All costs will be auto-calculated from these inputs. Salary rows will be left blank for you to fill.
+            Enter the scale of your programme. Only inputs relevant to your selected domains are shown — pick more domains in step 1 to expand this list. Salary rows will be left blank for you to fill.
           </p>
 
-          {effectiveCrossCutting.length > 0 && (
+          {visibleCrossCutting.length > 0 && (
             <Section title="Programme scale">
-              {effectiveCrossCutting.map(f => (
+              {visibleCrossCutting.map(f => (
                 <Field key={f.key} label={f.label} value={programmeInputs[f.key] ?? 0} onChange={setNum(f.key)}
                   hint={f.unit !== "count" ? `Unit: ${f.unit}` : undefined} />
               ))}
