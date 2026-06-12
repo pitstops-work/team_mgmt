@@ -1032,6 +1032,16 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     name: string;
     programmeInputs: Record<string, number>;
     costOverrides: Record<string, number>;
+    // Saved BudgetLine rows from the partner budget — the authoritative source
+    // for Yours-column values (includes salary-stub fill-ins + manual edits).
+    lines: Array<{
+      templateKey: string | null;
+      domain: string | null;
+      section: BudgetSection;
+      y1Total: number;
+      y2Total: number;
+      y3Total: number;
+    }>;
   } | null>(null);
   const [comparePending, startCompare] = useTransition();
   const onCompareChange = (id: string) => {
@@ -1197,24 +1207,21 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     [effectiveInp, registry, templates]
   );
 
-  // "You" projection — generator runs with the partner's own programmeInputs
-  // (NOT layered on top of the calculator state) and the partner's cost
-  // overrides merged into the registry. Layering against effectiveInp let
-  // inputs the partner never tracked fall through to the registry defaults,
-  // inflating Yours-totals for unrelated domains (e.g. a Children-only test
-  // budget showing huge "Yours" non-Children sums). youLineMap is keyed by
-  // templateKey so per-line lookups in the per-domain table are O(1).
-  const linesYou = useMemo(() => {
-    if (!compareData) return [];
-    const regYou = { ...registry, ...compareData.costOverrides };
-    return generateBudgetLines(ALL_DOMAINS, compareData.programmeInputs, { horizonMonths: 36, applyInflation: true }, regYou, templates);
-  }, [compareData, registry, templates, ALL_DOMAINS]);
-
+  // "You" projection sources directly from the partner budget's saved
+  // BudgetLine rows. Earlier versions re-ran the generator against the
+  // partner's inputs + overrides — but the generator can't reproduce
+  // salary-stub fill-ins or any manual unit-cost / category edits the partner
+  // made after creation, so Salary rows landed as ₹0 in Yours even when the
+  // partner had clearly entered them. The saved totals are authoritative.
+  // Keyed by templateKey for O(1) lookup from the per-domain table.
   const youLineMap = useMemo(() => {
-    const m = new Map<string, ReturnType<typeof generateBudgetLines>[number]>();
-    for (const l of linesYou) m.set(l.templateKey, l);
+    const m = new Map<string, { y1Total: number; y2Total: number; y3Total: number }>();
+    if (!compareData) return m;
+    for (const l of compareData.lines) {
+      if (l.templateKey) m.set(l.templateKey, l);
+    }
     return m;
-  }, [linesYou]);
+  }, [compareData]);
 
   // Which inp.* keys are referenced by selected-domain templates. Used to
   // hide irrelevant programme-size inputs as the user narrows their selection.
@@ -1675,8 +1682,10 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
           to expand a formula-breakdown sub-row pulled from the LineTemplate. */}
       <div className="space-y-6">
         {grouped.map(g => {
+          // Per-domain Yours-Y1 sums the partner's saved lines for that domain.
+          // Includes manual additions (no templateKey) since we filter by domain.
           const youGroupY1 = compareData
-            ? linesYou.filter(l => l.domain === g.domain).reduce((s, l) => s + l.y1Total, 0)
+            ? compareData.lines.filter(l => l.domain === g.domain).reduce((s, l) => s + l.y1Total, 0)
             : 0;
           // colSpan for sub-rows + footers stays at 7 regardless of compare mode.
           const cols = 7;
@@ -1842,10 +1851,11 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
             <div><p className="text-xs text-stone-400">Year 1</p><p className="text-lg font-bold">{fmtCost(grand.y1)}</p></div>
             {compareData && (() => {
               // Sum Yours across the same domains the per-domain tables render
-              // (i.e. selectedDomains + cross-cutting). Summing linesYou raw
-              // would include every domain regardless of chip selection.
+              // (i.e. selectedDomains + cross-cutting). Pulled from the
+              // partner's saved BudgetLine rows; manual additions (no
+              // templateKey) are included via domain filter.
               const visibleDomains = new Set<string | null>(grouped.map(g => g.domain));
-              const youGrand = linesYou
+              const youGrand = compareData.lines
                 .filter(l => visibleDomains.has(l.domain))
                 .reduce((s, l) => s + l.y1Total, 0);
               return (

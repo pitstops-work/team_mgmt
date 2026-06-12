@@ -606,13 +606,33 @@ export async function loadBudgetForCompare(budgetId: string): Promise<{
   name: string;
   programmeInputs: Record<string, number>;
   costOverrides: Record<string, number>;
+  // Authoritative per-line totals from the saved budget. Includes user edits
+  // (filled-in salary stubs, overridden unit costs, manual additions). The
+  // analysis tab reads these for the Yours column instead of re-running the
+  // generator, which can't reproduce salary-stub fill-ins or manual edits.
+  lines: Array<{
+    templateKey: string | null;
+    domain: string | null;
+    section: BudgetSection;
+    y1Total: number;
+    y2Total: number;
+    y3Total: number;
+  }>;
 }> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
   const budget = await prisma.budget.findUnique({
     where: { id: budgetId },
-    select: { name: true, inputs: true, costOverrides: true },
+    select: {
+      name: true, inputs: true, costOverrides: true,
+      lines: {
+        select: {
+          templateKey: true, domain: true, section: true,
+          y1Total: true, y2Total: true, y3Total: true,
+        },
+      },
+    },
   });
   if (!budget) throw new Error("Budget not found");
 
@@ -640,5 +660,6 @@ export async function loadBudgetForCompare(budgetId: string): Promise<{
     name: budget.name,
     programmeInputs,
     costOverrides: (budget.costOverrides ?? {}) as Record<string, number>,
+    lines: budget.lines,
   };
 }
