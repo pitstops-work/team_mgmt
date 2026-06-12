@@ -22,22 +22,52 @@ export type DomainOption = {
   inputs: DomainInputField[];
 };
 
+/** A unit cost or programme ratio the partner can customise per-budget. */
+export type CostItem = {
+  itemKey: string;
+  domain: string | null;
+  unit: string;
+  defaultValue: number;
+  label: string;
+  /** "cost" if unit includes "₹" (monetary), else "ratio". Mirrors the admin
+   *  CostRegistry split so the form can group the two visually. */
+  kind: "cost" | "ratio";
+};
+
 export default async function NewBudgetPage() {
-  const [domainRows, templateRows, costRows] = await Promise.all([
+  const [domainRows, templateRows, inpRows, allCostRows] = await Promise.all([
     prisma.budgetDomainConfig.findMany({ where: { isActive: true }, orderBy: { position: "asc" } }),
     prisma.lineTemplate.findMany({
       where: { isActive: true },
       select: { city: true, domain: true, inputVar: true, userInputCost: true },
     }),
     prisma.costRegistry.findMany({ where: { itemKey: { startsWith: "inp." } } }),
+    // Full registry minus inp.* items — these are the unit costs + programme
+    // ratios the customise accordion can edit.
+    prisma.costRegistry.findMany({
+      where: { NOT: { itemKey: { startsWith: "inp." } } },
+      select: { itemKey: true, domain: true, unit: true, unitCost: true, notes: true },
+    }),
   ]);
 
-  // bare key → label/unit/defaultValue
+  // bare key → label/unit/defaultValue (programme-scale inputs)
   const inputMeta: Record<string, { label: string; unit: string; defaultValue: number }> = {};
-  for (const r of costRows) {
+  for (const r of inpRows) {
     const key = r.itemKey.slice(4); // strip "inp."
     inputMeta[key] = { label: r.notes ?? key, unit: r.unit, defaultValue: r.unitCost };
   }
+
+  // Format an itemKey like "children.snack_per_child_per_day" → "snack per child per day"
+  const formatLabel = (k: string) => k.split(".").slice(1).join(".").replace(/_/g, " ");
+
+  const costItems: CostItem[] = allCostRows.map(r => ({
+    itemKey: r.itemKey,
+    domain: r.domain,
+    unit: r.unit,
+    defaultValue: r.unitCost,
+    label: r.notes ?? formatLabel(r.itemKey),
+    kind: r.unit.includes("₹") ? "cost" : "ratio",
+  }));
 
   // Per (city:domain): deduplicated inp keys with isRent flag
   type KeyEntry = { key: string; isRent: boolean };
@@ -93,7 +123,7 @@ export default async function NewBudgetPage() {
         <h1 className="text-xl font-semibold text-stone-900">New Budget</h1>
         <p className="text-sm text-stone-500 mt-1">Select domains and enter programme scale to auto-generate a draft budget.</p>
       </div>
-      <NewBudgetForm domains={domains} crossCuttingInputs={crossCuttingInputs} />
+      <NewBudgetForm domains={domains} crossCuttingInputs={crossCuttingInputs} costItems={costItems} />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { createBudget } from "../actions";
-import type { DomainOption, DomainInputField } from "./page";
+import type { DomainOption, DomainInputField, CostItem } from "./page";
 
 const FALLBACK_DOMAINS: DomainOption[] = [
   { key: "Children",     label: "Children",                    description: "CLCs, after-school, camps",            city: "Bangalore", inputs: [] },
@@ -29,9 +29,11 @@ function initInputs(crossCutting: DomainInputField[], allDomains: DomainOption[]
 export default function NewBudgetForm({
   domains: allDomains = [],
   crossCuttingInputs: allCrossCutting = [],
+  costItems = [],
 }: {
   domains?: DomainOption[];
   crossCuttingInputs?: DomainInputField[];
+  costItems?: CostItem[];
 }) {
   const effectiveDomains     = allDomains.length > 0     ? allDomains     : FALLBACK_DOMAINS;
   const effectiveCrossCutting = allCrossCutting.length > 0 ? allCrossCutting : FALLBACK_CROSS_CUTTING;
@@ -49,6 +51,11 @@ export default function NewBudgetForm({
   const [programmeInputs, setProgrammeInputs] = useState<Record<string, number>>(() =>
     initInputs(effectiveCrossCutting, effectiveDomains)
   );
+  // "standard" → costOverrides stays empty, generator reads the live registry.
+  // "customize" → form shows the per-domain unit-cost + ratio accordion and
+  // collects sparse overrides keyed by CostRegistry.itemKey.
+  const [costMode, setCostMode]           = useState<"standard" | "customize">("standard");
+  const [costOverrides, setCostOverrides] = useState<Record<string, number>>({});
   const [pending, startTransition] = useTransition();
 
   const cityDomains = effectiveDomains.filter(d => d.city === city);
@@ -77,9 +84,51 @@ export default function NewBudgetForm({
         name: name.trim(), city, domains: Array.from(selectedDomains),
         horizonMonths, applyInflation,
         programmeInputs, includeCrossCutting,
+        // Pass only when customising. Server snapshots the full registry either
+        // way and merges this delta on top.
+        costOverrides: costMode === "customize" ? costOverrides : {},
       });
     });
   };
+
+  // Customise accordion: group costItems by domain (selected ones + cross-cutting),
+  // then split each domain into cost vs ratio rows. Recomputes when selection
+  // changes so the accordion only ever exposes relevant lines.
+  const customisableGroups = useMemo(() => {
+    if (costMode !== "customize") return [];
+    type Group = { label: string; domain: string | null; costs: CostItem[]; ratios: CostItem[] };
+    const groups: Group[] = [];
+    for (const d of cityDomains) {
+      if (!selectedDomains.has(d.key)) continue;
+      const items = costItems.filter(c => c.domain === d.key);
+      if (items.length === 0) continue;
+      groups.push({
+        label: d.label, domain: d.key,
+        costs:  items.filter(c => c.kind === "cost"),
+        ratios: items.filter(c => c.kind === "ratio"),
+      });
+    }
+    if (includeCrossCutting) {
+      const items = costItems.filter(c => c.domain === null);
+      if (items.length > 0) groups.push({
+        label: "Cross-cutting", domain: null,
+        costs:  items.filter(c => c.kind === "cost"),
+        ratios: items.filter(c => c.kind === "ratio"),
+      });
+    }
+    return groups;
+  }, [costMode, cityDomains, selectedDomains, includeCrossCutting, costItems]);
+
+  const overriddenCount = Object.keys(costOverrides).length;
+  const setOverride = (key: string, value: number, defaultValue: number) =>
+    setCostOverrides(prev => {
+      const next = { ...prev };
+      // Removing the entry when the user returns to the standard value keeps
+      // the persisted overrides sparse — the server merges this onto snapshot.
+      if (value === defaultValue) delete next[key];
+      else next[key] = value;
+      return next;
+    });
 
   const PERIOD_PRESETS = [6, 12, 18, 24, 36, 48, 60] as const;
   const horizonLabel = (m: number) =>
@@ -201,6 +250,28 @@ export default function NewBudgetForm({
             </button>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-2">Unit costs & programme ratios</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(["standard", "customize"] as const).map(m => {
+                const active = costMode === m;
+                return (
+                  <button key={m} type="button" onClick={() => setCostMode(m)}
+                    className={`p-3 rounded-lg border text-left transition-all ${active ? "border-sky-500 bg-sky-50" : "border-stone-200 hover:border-stone-300"}`}>
+                    <div className="text-sm font-medium text-stone-900">
+                      {m === "standard" ? "Standard" : "Customize"}
+                    </div>
+                    <div className="text-xs text-stone-500 mt-0.5">
+                      {m === "standard"
+                        ? "Use the cost registry rates for your city."
+                        : "Override selected unit costs or ratios for this budget only. The registry stays untouched."}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <button type="button" disabled={!canProceed} onClick={() => setStep(2)}
             className="w-full bg-sky-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed">
             Next: Enter programme scale →
@@ -233,6 +304,64 @@ export default function NewBudgetForm({
               ))}
             </Section>
           ))}
+
+          {costMode === "customize" && customisableGroups.length > 0 && (
+            <div>
+              <div className="flex items-baseline justify-between mb-2">
+                <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Costs &amp; ratios (optional)</h3>
+                <div className="flex items-center gap-3">
+                  {overriddenCount > 0 && (
+                    <span className="text-xs text-amber-600">{overriddenCount} overridden</span>
+                  )}
+                  {overriddenCount > 0 && (
+                    <button type="button" onClick={() => setCostOverrides({})}
+                      className="text-xs text-stone-400 hover:text-stone-700">Reset all</button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-stone-500 mb-2">
+                Leave blank to use the standard rate from the cost registry. Edits apply to this budget only.
+              </p>
+              <div className="space-y-2">
+                {customisableGroups.map(g => (
+                  <details key={g.domain ?? "cross"} className="bg-stone-50 rounded-lg border border-stone-200 group">
+                    <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-stone-700 flex items-center justify-between">
+                      <span>{g.label}</span>
+                      <span className="text-xs text-stone-400 group-open:hidden">{g.costs.length + g.ratios.length} items</span>
+                    </summary>
+                    <div className="px-4 pb-3 pt-1 space-y-3">
+                      {g.costs.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-1">Unit costs</p>
+                          <div className="space-y-1.5">
+                            {g.costs.map(c => (
+                              <CostField key={c.itemKey} item={c}
+                                value={costOverrides[c.itemKey] ?? c.defaultValue}
+                                isOverridden={c.itemKey in costOverrides}
+                                onChange={v => setOverride(c.itemKey, v, c.defaultValue)} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {g.ratios.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-1">Programme ratios</p>
+                          <div className="space-y-1.5">
+                            {g.ratios.map(c => (
+                              <CostField key={c.itemKey} item={c}
+                                value={costOverrides[c.itemKey] ?? c.defaultValue}
+                                isOverridden={c.itemKey in costOverrides}
+                                onChange={v => setOverride(c.itemKey, v, c.defaultValue)} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button type="button" onClick={submit} disabled={pending}
             className="w-full bg-sky-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-sky-700 disabled:opacity-60">
@@ -267,6 +396,36 @@ function Field({ label, value, onChange, hint }: {
       <input type="number" value={value || ""} onChange={onChange} min={0}
         className="w-28 border border-stone-300 rounded-lg px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-sky-500"
         placeholder="0" />
+    </div>
+  );
+}
+
+function CostField({ item, value, isOverridden, onChange }: {
+  item: CostItem;
+  value: number;
+  isOverridden: boolean;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <label className="block text-sm text-stone-700 truncate">{item.label}</label>
+        <p className="text-xs text-stone-400">
+          {item.unit} · standard {item.defaultValue.toLocaleString("en-IN")}
+        </p>
+      </div>
+      <input type="number" min={0} value={value || ""}
+        onChange={e => onChange(parseFloat(e.target.value) || 0)}
+        className={`w-28 border rounded-lg px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-1 ${
+          isOverridden
+            ? "border-amber-400 bg-amber-50 text-amber-900 focus:ring-amber-500"
+            : "border-stone-300 focus:ring-sky-500"
+        }`}
+        placeholder={String(item.defaultValue)} />
+      {isOverridden ? (
+        <button type="button" onClick={() => onChange(item.defaultValue)}
+          className="text-stone-400 hover:text-stone-700 text-xs w-4 shrink-0" title="Reset to standard">↺</button>
+      ) : <span className="w-4 shrink-0" />}
     </div>
   );
 }

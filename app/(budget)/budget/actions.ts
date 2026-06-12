@@ -15,6 +15,8 @@ export type CreateBudgetPayload = {
   applyInflation: boolean;
   programmeInputs: Record<string, number>;
   includeCrossCutting: boolean;
+  /** Sparse delta keyed by CostRegistry.itemKey. {} when partner picked "Standard". */
+  costOverrides?: Record<string, number>;
 };
 
 export async function createBudget(payload: CreateBudgetPayload) {
@@ -30,7 +32,20 @@ export async function createBudget(payload: CreateBudgetPayload) {
     prisma.costRegistry.findMany({ where: { city: payload.city } }),
     prisma.lineTemplate.findMany({ where: { city: payload.city }, orderBy: { position: "asc" } }),
   ]);
-  const registry: Record<string, number> = Object.fromEntries(registryRows.map(r => [r.itemKey, r.unitCost]));
+  // Snapshot the full registry at create time. Stored on Budget.costSnapshot
+  // so future regenerate / scale-up actions reproduce the partner's basis
+  // even if the registry has since changed.
+  const costSnapshot: Record<string, number> = Object.fromEntries(registryRows.map(r => [r.itemKey, r.unitCost]));
+  // Drop overrides for keys not in the registry so we never persist orphan keys.
+  const rawOverrides = payload.costOverrides ?? {};
+  const costOverrides: Record<string, number> = {};
+  for (const [k, v] of Object.entries(rawOverrides)) {
+    if (typeof v === "number" && Number.isFinite(v) && k in costSnapshot) {
+      costOverrides[k] = v;
+    }
+  }
+  // Generator reads snapshot ∪ overrides — overrides win where present.
+  const mergedRegistry: Record<string, number> = { ...costSnapshot, ...costOverrides };
 
   const eligibleTemplates = payload.includeCrossCutting
     ? templates
@@ -39,7 +54,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
     payload.domains,
     payload.programmeInputs,
     { horizonMonths, applyInflation: payload.applyInflation, inflationRates: DEFAULT_INFLATION_RATES },
-    registry,
+    mergedRegistry,
     eligibleTemplates,
   );
 
@@ -53,6 +68,8 @@ export async function createBudget(payload: CreateBudgetPayload) {
       years,
       horizonMonths,
       applyInflation: payload.applyInflation,
+      costSnapshot,
+      costOverrides,
       // Inflation rates fall back to the Prisma schema defaults (10/5/0) if omitted.
       inputs: {
         create: {
