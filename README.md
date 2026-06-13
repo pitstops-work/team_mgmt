@@ -1,3 +1,11 @@
+# Pitstops
+
+APF field-operations app for urban-settlement work in Bangalore and Chennai. Next.js + Prisma + PostgreSQL, deployed on Vercel from `main`.
+
+Source: [github.com/pitstops-work/team_mgmt](https://github.com/pitstops-work/team_mgmt)
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
