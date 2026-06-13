@@ -190,6 +190,21 @@ async function main() {
   if (!url) throw new Error('REVIEW_DATABASE_URL not set');
   const sql = neon(url);
 
+  console.log('[doc-types] ensuring table…');
+  await sql`
+    CREATE TABLE IF NOT EXISTS doc_types (
+      key text PRIMARY KEY,
+      label text NOT NULL,
+      template_rules text NOT NULL DEFAULT '',
+      export_mode text NOT NULL DEFAULT 'structured',
+      apply_financial_rules boolean NOT NULL DEFAULT true,
+      field_schema jsonb NOT NULL DEFAULT '[]',
+      default_capability_ids text[] NOT NULL DEFAULT '{}',
+      sections_mode text NOT NULL DEFAULT 'multi_section',
+      sort_order int NOT NULL DEFAULT 99,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
   console.log('[doc-types] adding columns…');
   await sql`ALTER TABLE doc_types ADD COLUMN IF NOT EXISTS field_schema jsonb NOT NULL DEFAULT '[]'`;
   await sql`ALTER TABLE doc_types ADD COLUMN IF NOT EXISTS default_capability_ids text[] NOT NULL DEFAULT '{}'`;
