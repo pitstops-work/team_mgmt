@@ -49,19 +49,27 @@ export async function POST(req: NextRequest) {
   const { title, description, type, scheduledAt, endsAt, location, pitstopIds = [], attendeeIds = [], checklistItemId } = await req.json();
   if (!title || !scheduledAt) return Response.json({ error: "Title and date required" }, { status: 400 });
 
-  // Auto-add owners of all linked pitstops as attendees (accepted — they're already on the work)
+  // Auto-add pitstop owners + goal co-owners as attendees. Goal co-owners get
+  // the same downward visibility as goal owners (see RBAC scope flow); putting
+  // them on the attendee list keeps the activity visible on their calendar
+  // and lined up for their participation, not just for read-access.
   let ownerIds: string[] = [];
+  let goalCoOwnerIds: string[] = [];
   if (pitstopIds.length > 0) {
     const linked = await prisma.pitstop.findMany({
       where: { id: { in: pitstopIds } },
-      select: { ownerId: true },
+      select: {
+        ownerId: true,
+        goal: { select: { coOwners: { select: { userId: true } } } },
+      },
     });
     ownerIds = linked.filter(p => p.ownerId).map(p => p.ownerId!);
+    goalCoOwnerIds = linked.flatMap(p => p.goal?.coOwners?.map(co => co.userId) ?? []);
   }
 
   const creatorId = session.user.id;
-  // Only the creator is auto-accepted; everyone else (owners + tagged) needs to confirm
-  const allInvitedIds = Array.from(new Set([...ownerIds, ...attendeeIds])).filter(id => id !== creatorId);
+  // Only the creator is auto-accepted; everyone else (owners + co-owners + tagged) needs to confirm
+  const allInvitedIds = Array.from(new Set([...ownerIds, ...goalCoOwnerIds, ...attendeeIds])).filter(id => id !== creatorId);
 
   const newScheduledAt = new Date(scheduledAt);
   const event = await prisma.pitstopEvent.create({

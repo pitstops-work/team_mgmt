@@ -841,12 +841,21 @@ export async function applySync(
     if (plan.changes.length === 0) continue;
 
     // Snapshot the goal to derive per-pitstop scheduling context for new
-    // activities or new checklist items added by this sync.
-    const goal = await prisma.goal.findUnique({
+    // activities or new checklist items added by this sync. coOwners ride
+    // along on every event we create here — matches the rule applied
+    // everywhere else activities are materialised.
+    const goalRow = await prisma.goal.findUnique({
       where: { id: plan.goalId },
-      select: { id: true, title: true, status: true, startDate: true, targetDate: true, ownerId: true },
+      select: {
+        id: true, title: true, status: true, startDate: true, targetDate: true, ownerId: true,
+        coOwners: { select: { userId: true } },
+      },
     });
-    if (!goal) continue;
+    if (!goalRow) continue;
+    const goal = {
+      ...goalRow,
+      coOwnerIds: goalRow.coOwners.map(co => co.userId),
+    };
 
     const applicable = plan.changes.filter(c => !c.blocked);
     const blocked    = plan.changes.filter(c =>  c.blocked);
@@ -908,11 +917,16 @@ export async function applySync(
 
 async function applyGoalChanges(
   template: DbTemplate,
-  goal: { id: string; ownerId: string; startDate: Date | null; targetDate: Date | null },
+  goal: { id: string; ownerId: string; startDate: Date | null; targetDate: Date | null; coOwnerIds: string[] },
   plan: GoalSyncPlan,
   changes: SyncChange[],
   actorId: string,
 ): Promise<number> {
+  // Deduped attendee set used for every event we materialise below — goal owner
+  // plus every goal co-owner. Co-owners are seeded as accepted (visibility +
+  // calendar presence by design, no confirmation needed).
+  const eventAttendeeCreate = Array.from(new Set([goal.ownerId, ...goal.coOwnerIds]))
+    .map((userId) => ({ userId, status: "accepted" as const }));
   let applied = 0;
 
   // Group adds-of-pitstops first; we need their IDs for downstream adds.
@@ -1002,7 +1016,7 @@ async function applyGoalChanges(
                 // official template-apply route (app/api/templates/[id]/apply
                 // route.ts:323). Without this, sync-added activities are
                 // invisible on every user's calendar (no attendee match).
-                attendees: { create: [{ userId: goal.ownerId, status: "accepted" }] },
+                attendees: { create: eventAttendeeCreate },
               },
             });
             // Link to checklist item (Lambda-cache safety)
@@ -1054,7 +1068,7 @@ async function applyGoalChanges(
               templateKey: ak,
               pitstops: { create: [{ pitstopId: parentPt.id }] },
               // Attendee on the goal owner — see add-pitstop branch above.
-              attendees: { create: [{ userId: goal.ownerId, status: "accepted" }] },
+              attendees: { create: eventAttendeeCreate },
             },
             select: { id: true },
           });
@@ -1090,7 +1104,7 @@ async function applyGoalChanges(
             templateKey: ch.templateKey,
             pitstops: { create: [{ pitstopId: ch.pitstopInstanceId }] },
             // Attendee on the goal owner — see add-pitstop branch above.
-            attendees: { create: [{ userId: goal.ownerId, status: "accepted" }] },
+            attendees: { create: eventAttendeeCreate },
           },
           select: { id: true },
         });

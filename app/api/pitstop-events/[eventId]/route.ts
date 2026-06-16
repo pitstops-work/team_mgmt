@@ -309,8 +309,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
 
   // ── Standard field updates ───────────────────────────────────────────────────
 
-  // Resolve owners of all linked pitstops when pitstops or attendees change
+  // Resolve owners + goal co-owners of all linked pitstops when pitstops or
+  // attendees change. Goal co-owners ride along on every activity (matches
+  // the visibility model: co-ownership = downward access + calendar presence).
   let ownerIds: string[] = [];
+  let goalCoOwnerIds: string[] = [];
   if (pitstopIds !== undefined || attendeeIds !== undefined) {
     const resolvedIds: string[] = pitstopIds ?? (
       await prisma.pitstopEventPitstop.findMany({ where: { eventId }, select: { pitstopId: true } })
@@ -319,9 +322,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
     if (resolvedIds.length > 0) {
       const linked = await prisma.pitstop.findMany({
         where: { id: { in: resolvedIds } },
-        select: { ownerId: true },
+        select: {
+          ownerId: true,
+          goal: { select: { coOwners: { select: { userId: true } } } },
+        },
       });
       ownerIds = linked.filter(p => p.ownerId).map(p => p.ownerId!);
+      goalCoOwnerIds = linked.flatMap(p => p.goal?.coOwners?.map(co => co.userId) ?? []);
     }
   }
 
@@ -332,7 +339,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
   const prevStatusMap = new Map(prevAttendees.map(a => [a.userId, a.status]));
 
   const desiredIds = attendeeIds !== undefined
-    ? Array.from(new Set([...ownerIds, ...attendeeIds]))
+    ? Array.from(new Set([...ownerIds, ...goalCoOwnerIds, ...attendeeIds]))
     : undefined;
 
   const event = await prisma.pitstopEvent.update({
