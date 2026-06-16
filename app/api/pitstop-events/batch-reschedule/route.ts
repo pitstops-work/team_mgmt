@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     where: {
       id: { in: eventIds },
       deletedAt: null,
-      status: { in: ["Scheduled", "Rescheduled"] },
+      status: { in: ["Scheduled", "Rescheduled", "Flagged"] },
       ...scope,
     },
     select: { id: true, scheduledAt: true, checklistItemId: true },

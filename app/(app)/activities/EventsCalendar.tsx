@@ -377,7 +377,9 @@ function EventCard({ ev, onEdit, onDelete, onUpdated, currentUserId, users, even
         || ev.attendees.some(a => manageableTeamIds.includes(a.userId))
         || ev.pitstops.some(p => manageableTeamIds.includes(p.pitstop.owner.id))
       : isOwner;
-  const canComplete = ev.status === "Scheduled" && canManage;
+  // Flagged = morning-nudge cron caught nobody responded; the event still
+  // needs closing out. Same Mark-done path as Scheduled.
+  const canComplete = (ev.status === "Scheduled" || ev.status === "Flagged") && canManage;
   const canUndo = (isDone || isCancelled) && canManage;
   const canDrag = !isCancelled && !isDone && canManage;
   const ctype = ev.checklistItem?.completionType ?? "Activity";
