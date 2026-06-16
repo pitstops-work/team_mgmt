@@ -281,6 +281,7 @@ export default async function DashboardPage({
     id: string; goalId: string; goalTitle: string; title: string; progressTag: string | null; status: string;
     targetDate: Date | null; startDate: Date | null;
     ownerId: string | null; ownerName: string | null; ownerDesignation: string | null;
+    coOwnerIds: string[] | null;
     checklistTotal: bigint; checklistDone: bigint;
     activityTotal: bigint; activityDone: bigint;
   }[]>`
@@ -288,6 +289,7 @@ export default async function DashboardPage({
       p.id, p."goalId", g.title AS "goalTitle", p.title, p."progressTag", p.status::text,
       p."targetDate", p."startDate",
       p."ownerId", u.name AS "ownerName", u.designation AS "ownerDesignation",
+      co."coOwnerIds" AS "coOwnerIds",
       COALESCE(cl."checklistTotal", 0) AS "checklistTotal",
       COALESCE(cl."checklistDone", 0) AS "checklistDone",
       COALESCE(act."activityTotal", 0) AS "activityTotal",
@@ -295,6 +297,11 @@ export default async function DashboardPage({
     FROM "Pitstop" p
     JOIN "Goal" g ON p."goalId" = g.id
     LEFT JOIN "User" u ON p."ownerId" = u.id
+    LEFT JOIN (
+      SELECT "pitstopId", array_agg("userId") AS "coOwnerIds"
+      FROM "PitstopCoOwner"
+      GROUP BY "pitstopId"
+    ) co ON co."pitstopId" = p.id
     LEFT JOIN (
       SELECT "pitstopId",
         COUNT(*) FILTER (WHERE status <> 'Cancelled'::"ChecklistItemStatus") AS "checklistTotal",
@@ -318,6 +325,7 @@ export default async function DashboardPage({
       ...r,
       targetDate: r.targetDate ? r.targetDate.toISOString() : null,
       startDate:  r.startDate  ? r.startDate.toISOString()  : null,
+      coOwnerIds: r.coOwnerIds ?? [],
       checklistTotal: Number(r.checklistTotal),
       checklistDone:  Number(r.checklistDone),
       activityTotal:  Number(r.activityTotal),

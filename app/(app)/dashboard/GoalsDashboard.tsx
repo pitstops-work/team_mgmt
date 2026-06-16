@@ -88,6 +88,7 @@ type PhaseRow = {
   id: string; goalId: string; goalTitle: string; title: string; progressTag: string | null; status: string;
   targetDate: string | null; startDate: string | null;
   ownerId: string | null; ownerName: string | null; ownerDesignation: string | null;
+  coOwnerIds: string[];
   checklistTotal: number; checklistDone: number;
   activityTotal: number; activityDone: number;
 };
@@ -1242,7 +1243,7 @@ function DrillDownPanel({
 
   const filtered = tagRows.filter(r => {
     if (filterGoalId && r.goalId !== filterGoalId) return false;
-    if (filterUserId && r.ownerId !== filterUserId) return false;
+    if (filterUserId && r.ownerId !== filterUserId && !r.coOwnerIds.includes(filterUserId)) return false;
     if (filterDesig && r.ownerDesignation !== filterDesig) return false;
     return true;
   });
@@ -1254,12 +1255,26 @@ function DrillDownPanel({
     Done:    filtered.filter(r => r.status === "Done"),
   };
 
+  // Lookup for co-owner name/designation — rows only carry primary-owner display
+  // fields, so the rollup needs the users prop to render co-owners.
+  const userById = new Map(users.map(u => [u.id, u]));
+
+  // Credit every responsible owner — primary AND co-owners — when a pitstop is
+  // overdue. A pitstop with two responsible RPs counts toward both their slip
+  // tallies; the list is "who's involved in delay", not "who to blame solo".
   const overdueByOwner = new Map<string, { name: string | null; designation: string | null; count: number }>();
   for (const r of grouped.Overdue) {
-    if (!r.ownerId) continue;
-    const cur = overdueByOwner.get(r.ownerId) ?? { name: r.ownerName, designation: r.ownerDesignation, count: 0 };
-    cur.count++;
-    overdueByOwner.set(r.ownerId, cur);
+    const responsibleIds: { id: string; name: string | null; designation: string | null }[] = [];
+    if (r.ownerId) responsibleIds.push({ id: r.ownerId, name: r.ownerName, designation: r.ownerDesignation });
+    for (const uid of r.coOwnerIds) {
+      const u = userById.get(uid);
+      if (u) responsibleIds.push({ id: uid, name: u.name, designation: u.designation ?? null });
+    }
+    for (const owner of responsibleIds) {
+      const cur = overdueByOwner.get(owner.id) ?? { name: owner.name, designation: owner.designation, count: 0 };
+      cur.count++;
+      overdueByOwner.set(owner.id, cur);
+    }
   }
   const topDelayers = [...overdueByOwner.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 3);
 
@@ -1269,11 +1284,20 @@ function DrillDownPanel({
     .map(([id, title]) => ({ id, title }))
     .sort((a, b) => a.title.localeCompare(b.title));
 
-  const ownerDropdown = [...new Map(
-    tagRows
-      .filter(r => r.ownerId && r.ownerName)
-      .map(r => [r.ownerId!, { id: r.ownerId!, name: r.ownerName!, designation: r.ownerDesignation }])
-  ).values()].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+  const ownerDropdown = (() => {
+    const map = new Map<string, { id: string; name: string; designation: string | null }>();
+    for (const r of tagRows) {
+      if (r.ownerId && r.ownerName) {
+        map.set(r.ownerId, { id: r.ownerId, name: r.ownerName, designation: r.ownerDesignation });
+      }
+      for (const uid of r.coOwnerIds) {
+        if (map.has(uid)) continue;
+        const u = userById.get(uid);
+        if (u?.name) map.set(uid, { id: uid, name: u.name, designation: u.designation ?? null });
+      }
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  })();
 
   const availableDesigs = [...new Set(
     tagRows.map(r => r.ownerDesignation).filter(Boolean)
@@ -1474,15 +1498,45 @@ function PhaseMatrix({
     .filter((v, i, a) => a.findIndex(x => x.value === v.value) === i)
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  const userOptions = [...new Map(
-    visibleGoals.map(g => [g.owner.id, { value: g.owner.id, label: g.owner.name ?? "Unknown" }] as const)
-  ).values()].sort((a, b) => a.label.localeCompare(b.label));
+  // Pitstops-per-goal index, used both to expand the user filter to pitstop
+  // owners/co-owners and to power the involvement lookup below.
+  const pitstopsByGoal = new Map<string, PhaseRow[]>();
+  for (const r of phaseData) {
+    const list = pitstopsByGoal.get(r.goalId);
+    if (list) list.push(r);
+    else pitstopsByGoal.set(r.goalId, [r]);
+  }
+  function goalInvolvedUsers(g: Goal): Set<string> {
+    const ids = new Set<string>();
+    ids.add(g.owner.id);
+    (g.coOwners ?? []).forEach(co => ids.add(co.userId));
+    for (const r of pitstopsByGoal.get(g.id) ?? []) {
+      if (r.ownerId) ids.add(r.ownerId);
+      for (const uid of r.coOwnerIds) ids.add(uid);
+    }
+    return ids;
+  }
+
+  const userOptions = (() => {
+    const involved = new Set<string>();
+    for (const g of visibleGoals) for (const id of goalInvolvedUsers(g)) involved.add(id);
+    return users
+      .filter(u => involved.has(u.id))
+      .map(u => ({ value: u.id, label: u.name ?? "Unknown" }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  })();
 
   const goalOptions = visibleGoals.map(g => ({ value: g.id, label: g.title }));
 
   const displayGoals = visibleGoals.filter(g => {
     if (filterGoalIds.length    && !filterGoalIds.includes(g.id))                                                       return false;
-    if (filterUserIds.length    && !filterUserIds.includes(g.owner.id))                                                 return false;
+    if (filterUserIds.length) {
+      // A user is "involved" with a goal if they own/co-own the goal OR own/co-own
+      // any of its pitstops. Keeps the matrix view in sync with how RBAC + the
+      // dashboard-level user filter already treat co-owners.
+      const involved = goalInvolvedUsers(g);
+      if (!filterUserIds.some(id => involved.has(id))) return false;
+    }
     if (filterClusterId         && g.needsCluster?.id !== filterClusterId)                                              return false;
     if (filterZoneId && g.needsCluster?.zone?.id !== filterZoneId && g.needsZone?.id !== filterZoneId)                  return false;
     return true;
