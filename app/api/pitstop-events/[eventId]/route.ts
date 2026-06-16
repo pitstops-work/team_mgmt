@@ -180,6 +180,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
               "updatedAt" = NOW()
           WHERE id = ${current[0].checklistItemId}
         `;
+        // Cancelling the last open item may complete the pitstop — autoAdvance
+        // is forward-only so it's a no-op if other items are still open.
+        await autoAdvancePitstopFromItem(current[0].checklistItemId);
       }
     } else if (reschedule && scheduledAt) {
       try {

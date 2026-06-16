@@ -75,8 +75,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ it
     ));
   }
 
-  if (resolvedStatus === "Done") {
+  // Re-evaluate the parent pitstop on any status change — not just Done.
+  // Cancelling the last open item should also flip InProgress → Done if every
+  // remaining non-cancelled sibling is Done. autoAdvance is forward-only and
+  // idempotent, so it's safe to call on every transition.
+  if (resolvedStatus !== undefined) {
     await autoAdvancePitstopFromItem(itemId);
+  }
+  if (resolvedStatus === "Done") {
     if (indicatorValues && typeof indicatorValues === "object") {
       const values = indicatorValues as Record<string, number>;
       try {

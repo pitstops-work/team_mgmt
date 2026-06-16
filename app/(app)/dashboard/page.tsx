@@ -297,14 +297,14 @@ export default async function DashboardPage({
     LEFT JOIN "User" u ON p."ownerId" = u.id
     LEFT JOIN (
       SELECT "pitstopId",
-        COUNT(*) AS "checklistTotal",
+        COUNT(*) FILTER (WHERE status <> 'Cancelled'::"ChecklistItemStatus") AS "checklistTotal",
         COUNT(*) FILTER (WHERE status = 'Done'::"ChecklistItemStatus") AS "checklistDone"
       FROM "ChecklistItem"
       GROUP BY "pitstopId"
     ) cl ON cl."pitstopId" = p.id
     LEFT JOIN (
       SELECT pep."pitstopId",
-        COUNT(DISTINCT pe.id) AS "activityTotal",
+        COUNT(DISTINCT pe.id) FILTER (WHERE pe.status <> 'Cancelled'::"PitstopEventStatus") AS "activityTotal",
         COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'Done'::"PitstopEventStatus") AS "activityDone"
       FROM "PitstopEventPitstop" pep
       JOIN "PitstopEvent" pe ON pe.id = pep."eventId" AND pe."deletedAt" IS NULL
