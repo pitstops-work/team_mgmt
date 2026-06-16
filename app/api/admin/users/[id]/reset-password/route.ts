@@ -15,9 +15,14 @@ export async function POST(
 
   const { id } = await params;
 
-  // Admin can reset anyone except super-admin; only super-admin can reset super-admin.
-  const target = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+  // Admin can reset anyone except super-admin; only super-admin can reset
+  // super-admin; only the owner can reset the owner's password (account
+  // takeover prevention — even a peer super-admin cannot reset your password).
+  const target = await prisma.user.findUnique({ where: { id }, select: { role: true, isOwner: true } });
   if (!target) return Response.json({ error: "Not found" }, { status: 404 });
+  if (target.isOwner && id !== session?.user?.id) {
+    return Response.json({ error: "Only the owner can reset the owner's password" }, { status: 403 });
+  }
   if (target.role === "super-admin" && !isSuperAdmin(session)) {
     return Response.json({ error: "Only the super-admin can reset a super-admin's password" }, { status: 403 });
   }

@@ -25,13 +25,32 @@ export async function PATCH(
     return Response.json({ error: "Invalid designation" }, { status: 400 });
   }
 
+  // Look up the target + the actor's owner status once — both feed the
+  // role-transition + owner-protection guards below and the audit snapshot.
+  const targetUser = await prisma.user.findUnique({
+    where: { id },
+    select: { email: true, role: true, isOwner: true, designation: true, cityId: true, reportsToId: true },
+  });
+  const actorRow   = await prisma.user.findUnique({ where: { id: session!.user!.id! }, select: { isOwner: true } });
+  const actorIsOwner = actorRow?.isOwner === true;
+
+  // Owner-guard: only the owner can mutate the owner. Blocks demote, delete,
+  // password reset (handled in its own route), and any field change.
+  if (targetUser?.isOwner && id !== session?.user?.id) {
+    return Response.json({ error: "Only the owner can modify the owner's account" }, { status: 403 });
+  }
+
   // Only super-admin can grant, revoke, or change admin/super-admin roles
   if (role) {
-    const targetUser = await prisma.user.findUnique({ where: { id }, select: { role: true } });
     const involvesSuperAdmin = role === "super-admin" || targetUser?.role === "super-admin";
     const involvesAdmin = role === "admin" || targetUser?.role === "admin";
     if ((involvesSuperAdmin || involvesAdmin) && !isSuperAdmin(session)) {
       return Response.json({ error: "Only the super-admin can change admin or super-admin roles" }, { status: 403 });
+    }
+    // b2: minting super-admin is owner-only. Other super-admins can grant
+    // admin freely; only the owner expands the super-admin club.
+    if (role === "super-admin" && targetUser?.role !== "super-admin" && !actorIsOwner) {
+      return Response.json({ error: "Only the owner can grant super-admin" }, { status: 403 });
     }
     // Prevent removing super-admin from themselves
     if (targetUser?.role === "super-admin" && role !== "super-admin" && id === session?.user?.id) {
@@ -50,11 +69,8 @@ export async function PATCH(
     }
   }
 
-  // Snapshot before update so we can audit field-level changes
-  const before = await prisma.user.findUnique({
-    where: { id },
-    select: { email: true, role: true, designation: true, cityId: true, reportsToId: true },
-  });
+  // Audit snapshot — reuse the targetUser fetch from above (saves a round-trip).
+  const before = targetUser;
 
   const user = await prisma.user.update({
     where: { id },
@@ -128,8 +144,12 @@ export async function DELETE(
     return Response.json({ error: "Cannot delete your own account" }, { status: 400 });
   }
 
-  // Only super-admin can delete admin/super-admin users
-  const target = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+  // Only super-admin can delete admin/super-admin users; the owner can only
+  // be deleted by themselves (and even that is blocked by the self-check above).
+  const target = await prisma.user.findUnique({ where: { id }, select: { role: true, isOwner: true } });
+  if (target?.isOwner && id !== session?.user?.id) {
+    return Response.json({ error: "Only the owner can delete the owner's account" }, { status: 403 });
+  }
   if ((target?.role === "admin" || target?.role === "super-admin") && !isSuperAdmin(session)) {
     return Response.json({ error: "Only the super-admin can delete admin users" }, { status: 403 });
   }

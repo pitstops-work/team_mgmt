@@ -12,7 +12,7 @@ export async function GET() {
 
   const [users, allCities, zones, clusters] = await Promise.all([
     prisma.user.findMany({
-      select: { id: true, name: true, email: true, image: true, role: true, designation: true, createdAt: true, cityId: true, reportsToId: true },
+      select: { id: true, name: true, email: true, image: true, role: true, isOwner: true, designation: true, createdAt: true, cityId: true, reportsToId: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.city.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -68,12 +68,19 @@ export async function POST(req: Request) {
     return Response.json({ error: "Email already in use" }, { status: 400 });
   }
 
-  // Only super-admin can create admin users
-  const role = ["admin", "member", "viewer", "budget-admin"].includes(req_role) ? req_role : "member";
+  // Only super-admin can create admin users; only the owner can create
+  // super-admin users (matches the b2 minting policy in PATCH).
+  const role = ["super-admin", "admin", "member", "viewer", "budget-admin"].includes(req_role) ? req_role : "member";
   if (role === "admin" && !isSuperAdmin(session)) {
     return Response.json({ error: "Only the super-admin can create admin users" }, { status: 403 });
   }
-  const VALID_DESIGNATIONS = ["RP", "ZL", "PM", "Other"];
+  if (role === "super-admin") {
+    const actor = await prisma.user.findUnique({ where: { id: session!.user!.id! }, select: { isOwner: true } });
+    if (!actor?.isOwner) {
+      return Response.json({ error: "Only the owner can create super-admin users" }, { status: 403 });
+    }
+  }
+  const VALID_DESIGNATIONS = ["RP", "ZL", "PM", "Leader", "Other"];
   const designation = VALID_DESIGNATIONS.includes(req_designation) ? req_designation : "Other";
   const hashed = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({

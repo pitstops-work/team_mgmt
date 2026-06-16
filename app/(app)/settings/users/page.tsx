@@ -17,6 +17,7 @@ interface User {
   email: string;
   image: string | null;
   role: string;
+  isOwner: boolean;
   designation: string;
   createdAt: string;
   cityId: string | null;
@@ -56,8 +57,14 @@ export default function UserManagementPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isSuperAdmin = session?.user?.role === "super-admin";
+  // Owner status comes from the users list (we look up the row matching the
+  // current session). Used to gate (a) showing the super-admin role pill and
+  // (b) the can-edit-owner-row check. Cheap because the list is already loaded.
 
   const [users, setUsers] = useState<User[]>([]);
+  // Read-through: the currently signed-in user's owner flag, derived from the
+  // users list once it loads. Defaults to false during initial render.
+  const viewerIsOwner = users.find(u => u.id === session?.user?.id)?.isOwner ?? false;
   const [cities, setCities] = useState<City[]>([]);
   const [zones, setZones] = useState<ZoneRow[]>([]);
   const [clusters, setClusters] = useState<ClusterRow[]>([]);
@@ -252,7 +259,7 @@ export default function UserManagementPage() {
 
       {/* Role legend */}
       <div className="flex gap-2 mb-6 flex-wrap">
-        {ROLES.filter(r => r !== "super-admin" || isSuperAdmin).map(r => (
+        {ROLES.filter(r => r !== "super-admin" || viewerIsOwner).map(r => (
           <span key={r} className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${ROLE_STYLE[r]}`}>{r}</span>
         ))}
         <span className="text-xs text-stone-400 self-center ml-1">— viewer: read-only · budget-admin: budget tool only</span>
@@ -263,7 +270,11 @@ export default function UserManagementPage() {
         {users.map(u => {
           const isEditing = editId === u.id;
           const role = (ROLES.includes(u.role as Role) ? u.role : "member") as Role;
-          const canEditRole = u.role !== "super-admin" || isSuperAdmin;
+          // Owner row is read-only to anyone but the owner themselves — the
+          // server enforces this too (`/api/admin/users/[id]`), but hiding the
+          // icons keeps the UI honest. The owner can still see their own icons.
+          const isOwnerRowLocked = u.isOwner && u.id !== session?.user?.id;
+          const canEditRole = (u.role !== "super-admin" || isSuperAdmin) && !isOwnerRowLocked;
 
           // Derived geo data for this user's summary line
           const userZones = zones.filter(z => z.leadId === u.id);
@@ -292,6 +303,11 @@ export default function UserManagementPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-stone-800 truncate">{u.name ?? <span className="text-stone-400 italic">no name</span>}</p>
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full capitalize flex-shrink-0 ${ROLE_STYLE[role]}`}>{role}</span>
+                      {u.isOwner && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 bg-rose-100 text-rose-700" title="Owner — protected from modification by other super-admins">
+                          Owner
+                        </span>
+                      )}
                       {u.designation && u.designation !== "Other" && (
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${DESIGNATION_STYLE[(u.designation as Designation) ?? "Other"]}`}>{u.designation}</span>
                       )}
@@ -349,7 +365,12 @@ export default function UserManagementPage() {
                   {/* Role + Designation + City */}
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex gap-1.5">
-                      {ROLES.filter(r => r !== "super-admin" && (r !== "admin" || isSuperAdmin)).map(r => (
+                      {/* super-admin pill is owner-only (b2 minting policy);
+                          admin pill is super-admin-only; rest are open. */}
+                      {ROLES.filter(r =>
+                        (r !== "super-admin" || viewerIsOwner) &&
+                        (r !== "admin" || isSuperAdmin)
+                      ).map(r => (
                         <button
                           key={r}
                           type="button"
@@ -584,7 +605,10 @@ export default function UserManagementPage() {
               </button>
             </div>
             <div className="flex gap-1.5 flex-wrap">
-              {ROLES.filter(r => r !== "super-admin" && (r !== "admin" || isSuperAdmin)).map(r => (
+              {ROLES.filter(r =>
+                (r !== "super-admin" || viewerIsOwner) &&
+                (r !== "admin" || isSuperAdmin)
+              ).map(r => (
                 <button
                   key={r}
                   type="button"

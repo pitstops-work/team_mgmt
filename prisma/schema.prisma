@@ -15,6 +15,11 @@ model User {
   image               String?
   password            String?
   role                String    @default("member")
+  // Owner = "primordial" super-admin. Asymmetric protection: only the owner
+  // can mint new super-admins, and no other super-admin can demote, delete,
+  // or reset the password of the owner. Exactly one user should carry this.
+  // To transfer or relinquish ownership, do it via direct SQL update.
+  isOwner             Boolean   @default(false)
   designation         String    @default("Other") // RP | ZL | PM | Other
   bio                 String?
   notifyDigest        Boolean   @default(false)
