@@ -292,7 +292,9 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
     }
   },
   pitstop: ({ rule, ctx, teamIds }) => {
-    // Co-owners are treated like owners for visibility purposes.
+    // Co-owners are treated like owners for visibility purposes. Parent-goal
+    // ownership/co-ownership also flows down — a goal co-owner can see every
+    // pitstop under the goal, matching what the goal-detail page already shows.
     switch (rule.kind) {
       case "all":  return {};
       case "own":
@@ -300,6 +302,10 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
           OR: [
             { ownerId: ctx.userId },
             { coOwners: { some: { userId: ctx.userId } } },
+            { goal: { OR: [
+              { ownerId: ctx.userId },
+              { coOwners: { some: { userId: ctx.userId } } },
+            ] } },
           ],
         };
       case "team":
@@ -307,6 +313,10 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
           OR: [
             { ownerId: { in: teamIds } },
             { coOwners: { some: { userId: { in: teamIds } } } },
+            { goal: { OR: [
+              { ownerId: { in: teamIds } },
+              { coOwners: { some: { userId: { in: teamIds } } } },
+            ] } },
           ],
         };
       default: throw scopeUnsupported("pitstop", rule.kind);
@@ -327,7 +337,14 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
           OR: [
             { createdById: ctx.userId },
             { attendees: { some: { userId: ctx.userId } } },
-            { pitstops: { some: { pitstop: { OR: [{ ownerId: ctx.userId }, { coOwners: { some: { userId: ctx.userId } } }] } } } },
+            { pitstops: { some: { pitstop: { OR: [
+              { ownerId: ctx.userId },
+              { coOwners: { some: { userId: ctx.userId } } },
+              { goal: { OR: [
+                { ownerId: ctx.userId },
+                { coOwners: { some: { userId: ctx.userId } } },
+              ] } },
+            ] } } } },
           ],
         };
       case "self": return { attendees: { some: { userId: ctx.userId } } };
@@ -347,6 +364,10 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
             { pitstops: { some: { pitstop: { OR: [
               { ownerId: { in: teamIds } },
               { coOwners: { some: { userId: { in: teamIds } } } },
+              { goal: { OR: [
+                { ownerId: { in: teamIds } },
+                { coOwners: { some: { userId: { in: teamIds } } } },
+              ] } },
             ] } } } },
           ],
         };
@@ -369,6 +390,10 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
               OR: [
                 { ownerId: ctx.userId },
                 { coOwners: { some: { userId: ctx.userId } } },
+                { goal: { OR: [
+                  { ownerId: ctx.userId },
+                  { coOwners: { some: { userId: ctx.userId } } },
+                ] } },
               ],
             } },
           ],
@@ -382,6 +407,10 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
               OR: [
                 { ownerId: { in: teamIds } },
                 { coOwners: { some: { userId: { in: teamIds } } } },
+                { goal: { OR: [
+                  { ownerId: { in: teamIds } },
+                  { coOwners: { some: { userId: { in: teamIds } } } },
+                ] } },
               ],
             } },
           ],
@@ -389,8 +418,9 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
       default: throw scopeUnsupported("action_point", rule.kind);
     }
   },
-  // ChecklistItem inherits its scope from the parent Pitstop (owner / co-owners),
-  // mirroring the `pitstop` builder but nested through the `pitstop` relation.
+  // ChecklistItem inherits its scope from the parent Pitstop (owner / co-owners)
+  // and from the grandparent Goal (owner / co-owners) — mirroring the `pitstop`
+  // builder, nested through the `pitstop` relation.
   checklist_item: ({ rule, ctx, teamIds }) => {
     switch (rule.kind) {
       case "all":  return {};
@@ -400,6 +430,10 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
             OR: [
               { ownerId: ctx.userId },
               { coOwners: { some: { userId: ctx.userId } } },
+              { goal: { OR: [
+                { ownerId: ctx.userId },
+                { coOwners: { some: { userId: ctx.userId } } },
+              ] } },
             ],
           },
         };
@@ -409,6 +443,10 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
             OR: [
               { ownerId: { in: teamIds } },
               { coOwners: { some: { userId: { in: teamIds } } } },
+              { goal: { OR: [
+                { ownerId: { in: teamIds } },
+                { coOwners: { some: { userId: { in: teamIds } } } },
+              ] } },
             ],
           },
         };
