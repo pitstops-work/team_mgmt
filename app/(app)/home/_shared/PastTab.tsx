@@ -148,10 +148,13 @@ export function PastTab({
       return next;
     });
   };
-  // Per-owner display name + count rows
+  // Per-owner display name + count rows. Resolve the owner's name from the
+  // pitstop.owner relation directly — the previous attendee-lookup fallback
+  // failed silently when the pitstop owner wasn't also tagged as attendee
+  // (which is the norm for goal-co-owned work).
   const teamRows = [...teamByOwner.entries()]
     .map(([ownerId, items]) => {
-      const memberName = items.find(it => it.pitstops[0]?.pitstop)?.attendees?.find(at => at.user.id === ownerId)?.user.name
+      const memberName = items.find(it => it.pitstops[0]?.pitstop?.owner?.id === ownerId)?.pitstops[0]?.pitstop?.owner?.name
         ?? items.find(it => it.attendees.some(at => at.user.id === ownerId))?.attendees.find(at => at.user.id === ownerId)?.user.name
         ?? null;
       return { ownerId, name: memberName, count: items.length, items };

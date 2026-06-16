@@ -124,6 +124,7 @@ export type ZLTeamActivity = {
   pitstops: {
     pitstop: {
       ownerId: string;
+      owner?: { id: string; name: string | null } | null;
       targetDate: string | null;
       goal: {
         id: string; title: string; needsDomain: string | null; needsClusterId: string | null;

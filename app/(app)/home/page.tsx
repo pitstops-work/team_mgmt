@@ -890,6 +890,10 @@ export default async function HomePage() {
     pitstops: {
       pitstop: {
         id: string; title: string; ownerId: string;
+        // owner is included so the team rollup can name the person
+        // responsible without relying on attendee membership (which the
+        // pitstop owner often isn't on, especially for goal-co-owners).
+        owner: { id: string; name: string | null } | null;
         goal: {
           id: string; title: string; needsDomain: string | null;
           needsCluster:    { id: string; name: string } | null;
@@ -918,6 +922,7 @@ export default async function HomePage() {
             pitstop: {
               select: {
                 id: true, title: true, ownerId: true,
+                owner: { select: { id: true, name: true } },
                 goal: {
                   select: {
                     id: true, title: true, needsDomain: true, linkedFacilityId: true,

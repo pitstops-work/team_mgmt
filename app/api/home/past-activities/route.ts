@@ -15,6 +15,7 @@ const PITSTOP_EVENT_SELECT = {
       pitstop: {
         select: {
           id: true, title: true, ownerId: true,
+          owner: { select: { id: true, name: true } },
           goal: {
             select: {
               id: true, title: true, needsDomain: true,

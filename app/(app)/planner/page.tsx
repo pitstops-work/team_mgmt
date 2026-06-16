@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import PlannerView from "./PlannerView";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
+import { pitstopOwnedByAnyOf, eventOwnedByAnyOf } from "@/lib/ownership";
 
 export default async function PlannerPage() {
   const session = await auth();
@@ -40,18 +41,20 @@ export default async function PlannerPage() {
       orderBy: { name: "asc" },
     }),
 
-    // Pitstops active in this quarter for current user
+    // Pitstops active in this quarter the user owns / co-owns / goal-co-owns.
     prisma.pitstop.findMany({
       where: {
         deletedAt: null,
         goal: { deletedAt: null },
-        ownerId: currentUserId,
-        OR: [
-          { startDate:  { gte: qStart, lt: qEnd } },
-          { targetDate: { gte: qStart, lt: qEnd } },
-          // pitstops that span the quarter (start before, end after)
-          { startDate: { lt: qEnd }, targetDate: { gte: qStart } },
-        ],
+        ...pitstopOwnedByAnyOf([currentUserId]),
+        AND: [{
+          OR: [
+            { startDate:  { gte: qStart, lt: qEnd } },
+            { targetDate: { gte: qStart, lt: qEnd } },
+            // pitstops that span the quarter (start before, end after)
+            { startDate: { lt: qEnd }, targetDate: { gte: qStart } },
+          ],
+        }],
       },
       select: {
         id: true, title: true, status: true, type: true,
@@ -61,13 +64,14 @@ export default async function PlannerPage() {
       },
     }),
 
-    // Activities for current user in this quarter
+    // Activities for current user in this quarter — attendee OR pitstop
+    // owner/co-owner OR goal owner/co-owner.
     prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
         status: { not: "Cancelled" }, // hide struck-through cancelled rows from the planner
         scheduledAt: { gte: qStart, lt: qEnd },
-        attendees: { some: { userId: currentUserId } },
+        ...eventOwnedByAnyOf([currentUserId]),
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, endsAt: true, location: true,
