@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import StandupView from "./StandupView";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
+import { pitstopOwnedByAnyOf } from "@/lib/ownership";
 
 export default async function StandupPage() {
   const session = await auth();
@@ -38,13 +39,9 @@ export default async function StandupPage() {
     prisma.pitstop.findMany({
       where: {
         deletedAt: null,
-        // Co-owners of a pitstop are treated as owners.
-        OR: [
-          { ownerId: currentUserId },
-          { coOwners: { some: { userId: currentUserId } } },
-        ],
         status: "InProgress",
         goal: { deletedAt: null },
+        ...pitstopOwnedByAnyOf([currentUserId]),
       },
       select: { id: true, title: true, goal: { select: { id: true, title: true } } },
       orderBy: { updatedAt: "desc" },

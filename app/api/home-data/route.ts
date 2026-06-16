@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { pitstopOwnedByAnyOf, eventOwnedByAnyOf } from "@/lib/ownership";
 
 // Indian FY: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar
 function currentFYQuarter(now: Date): { year: number; quarter: number } {
@@ -62,10 +63,10 @@ export async function GET(req: NextRequest) {
     prisma.pitstop.findMany({
       where: {
         deletedAt: null,
-        ownerId: targetUserId,
         status: { in: ["Upcoming", "InProgress"] },
         targetDate: { lt: todayStart },
         goal: { deletedAt: null },
+        ...pitstopOwnedByAnyOf([targetUserId]),
       },
       select: {
         id: true, title: true, status: true, targetDate: true,
@@ -79,12 +80,14 @@ export async function GET(req: NextRequest) {
     prisma.pitstop.findMany({
       where: {
         deletedAt: null,
-        ownerId: targetUserId,
         goal: { deletedAt: null },
-        OR: [
-          { targetDate: { gte: weekStart, lte: weekEnd } },
-          { startDate:  { gte: weekStart, lte: weekEnd } },
-        ],
+        ...pitstopOwnedByAnyOf([targetUserId]),
+        AND: [{
+          OR: [
+            { targetDate: { gte: weekStart, lte: weekEnd } },
+            { startDate:  { gte: weekStart, lte: weekEnd } },
+          ],
+        }],
       },
       select: {
         id: true, title: true, status: true, targetDate: true, startDate: true,
@@ -112,7 +115,7 @@ export async function GET(req: NextRequest) {
       where: {
         deletedAt: null,
         scheduledAt: { gte: todayStart, lte: todayEnd },
-        attendees: { some: { userId: targetUserId } },
+        ...eventOwnedByAnyOf([targetUserId]),
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, location: true, status: true,
@@ -124,9 +127,9 @@ export async function GET(req: NextRequest) {
     prisma.pitstop.findMany({
       where: {
         deletedAt: null,
-        ownerId: targetUserId,
         status: "InProgress",
         goal: { deletedAt: null },
+        ...pitstopOwnedByAnyOf([targetUserId]),
       },
       select: {
         id: true, title: true, targetDate: true,
@@ -154,8 +157,8 @@ export async function GET(req: NextRequest) {
         pitstops: {
           some: {
             deletedAt: null,
-            ownerId: targetUserId,
             status: { in: ["Upcoming", "InProgress"] },
+            ...pitstopOwnedByAnyOf([targetUserId]),
           },
         },
       },
@@ -164,8 +167,8 @@ export async function GET(req: NextRequest) {
         pitstops: {
           where: {
             deletedAt: null,
-            ownerId: targetUserId,
             status: { in: ["Upcoming", "InProgress"] },
+            ...pitstopOwnedByAnyOf([targetUserId]),
           },
           select: { updatedAt: true },
           orderBy: { updatedAt: "desc" },
@@ -179,7 +182,7 @@ export async function GET(req: NextRequest) {
       where: {
         deletedAt: null,
         status: "Flagged",
-        attendees: { some: { userId: targetUserId } },
+        ...eventOwnedByAnyOf([targetUserId]),
       },
       select: {
         id: true, title: true, scheduledAt: true, type: true,
@@ -230,14 +233,14 @@ export async function GET(req: NextRequest) {
       take: 5,
     }),
 
-    // InProgress pitstops owned by target user with no check-in in 7 days
+    // InProgress pitstops the target user owns/co-owns with no check-in in 7 days
     prisma.pitstop.findMany({
       where: {
         deletedAt: null,
-        ownerId: targetUserId,
         status: "InProgress",
         goal: { deletedAt: null },
         checkins: { none: { createdAt: { gte: sevenDaysAgo } } },
+        ...pitstopOwnedByAnyOf([targetUserId]),
       },
       select: {
         id: true, title: true,

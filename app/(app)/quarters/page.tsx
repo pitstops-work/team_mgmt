@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import QuartersView from "./QuartersView";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
+import { goalOwnedByAnyOf } from "@/lib/ownership";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +18,8 @@ export default async function QuartersPage() {
     const team = await prisma.user.findMany({ where: { reportsToId: currentUserId }, select: { id: true } });
     teamIds = [currentUserId, ...team.map(m => m.id)];
   }
-  // Co-owners are treated as owners for visibility.
   const ownerFilter = (designation === "RP" || designation === "ZL")
-    ? {
-        OR: [
-          { ownerId: { in: teamIds } },
-          { coOwners: { some: { userId: { in: teamIds } } } },
-        ],
-      }
+    ? goalOwnedByAnyOf(teamIds)
     : {};
 
   const pitstopSelect = {

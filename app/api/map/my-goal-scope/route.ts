@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { goalOwnedByAnyOf } from "@/lib/ownership";
 
 /**
  * GET /api/map/my-goal-scope
@@ -16,13 +17,7 @@ export async function GET(_req: NextRequest) {
   const userId = session.user.id;
 
   const goals = await prisma.goal.findMany({
-    where: {
-      deletedAt: null,
-      OR: [
-        { ownerId: userId },
-        { coOwners: { some: { userId } } },
-      ],
-    },
+    where: { deletedAt: null, ...goalOwnedByAnyOf([userId]) },
     select: {
       needsClusterId: true,
       needsZoneId: true,

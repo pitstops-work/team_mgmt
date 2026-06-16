@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isAdminUser } from "@/lib/roleGuard";
 import { buildRbacContext, scopeWhere } from "@/lib/rbac";
+import { goalOwnedByAnyOf } from "@/lib/ownership";
 import ThreadsList from "./ThreadsList";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
@@ -102,14 +103,7 @@ export default async function ThreadsPage({ searchParams }: { searchParams: Prom
     isAdmin
       ? prisma.goal.findMany({ where: { deletedAt: null }, select: { id: true, title: true }, orderBy: { title: "asc" } })
       : prisma.goal.findMany({
-          where: {
-            deletedAt: null,
-            // Co-owners are treated as owners.
-            OR: [
-              { ownerId: { in: teamIds } },
-              { coOwners: { some: { userId: { in: teamIds } } } },
-            ],
-          },
+          where: { deletedAt: null, ...goalOwnedByAnyOf(teamIds) },
           select: { id: true, title: true },
           orderBy: { title: "asc" },
         }),

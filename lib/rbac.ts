@@ -14,6 +14,7 @@
 
 import prisma from "./prisma";
 import { SURFACE_HEADER } from "./rbacConstants";
+import { pitstopOwnedByAnyOf } from "./ownership";
 
 export { SURFACE_HEADER };
 
@@ -292,33 +293,13 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
     }
   },
   pitstop: ({ rule, ctx, teamIds }) => {
-    // Co-owners are treated like owners for visibility purposes. Parent-goal
-    // ownership/co-ownership also flows down — a goal co-owner can see every
-    // pitstop under the goal, matching what the goal-detail page already shows.
+    // Co-owners are treated like owners, and parent-goal ownership/co-ownership
+    // flows down — encoded once in lib/ownership.ts so every list query that
+    // needs "owned by" agrees on the same predicate.
     switch (rule.kind) {
       case "all":  return {};
-      case "own":
-        return {
-          OR: [
-            { ownerId: ctx.userId },
-            { coOwners: { some: { userId: ctx.userId } } },
-            { goal: { OR: [
-              { ownerId: ctx.userId },
-              { coOwners: { some: { userId: ctx.userId } } },
-            ] } },
-          ],
-        };
-      case "team":
-        return {
-          OR: [
-            { ownerId: { in: teamIds } },
-            { coOwners: { some: { userId: { in: teamIds } } } },
-            { goal: { OR: [
-              { ownerId: { in: teamIds } },
-              { coOwners: { some: { userId: { in: teamIds } } } },
-            ] } },
-          ],
-        };
+      case "own":  return pitstopOwnedByAnyOf([ctx.userId]);
+      case "team": return pitstopOwnedByAnyOf(teamIds);
       default: throw scopeUnsupported("pitstop", rule.kind);
     }
   },
@@ -337,14 +318,7 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
           OR: [
             { createdById: ctx.userId },
             { attendees: { some: { userId: ctx.userId } } },
-            { pitstops: { some: { pitstop: { OR: [
-              { ownerId: ctx.userId },
-              { coOwners: { some: { userId: ctx.userId } } },
-              { goal: { OR: [
-                { ownerId: ctx.userId },
-                { coOwners: { some: { userId: ctx.userId } } },
-              ] } },
-            ] } } } },
+            { pitstops: { some: { pitstop: pitstopOwnedByAnyOf([ctx.userId]) } } },
           ],
         };
       case "self": return { attendees: { some: { userId: ctx.userId } } };
@@ -361,14 +335,7 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
           OR: [
             { createdById: { in: teamIds } },
             { attendees: { some: { userId: { in: teamIds } } } },
-            { pitstops: { some: { pitstop: { OR: [
-              { ownerId: { in: teamIds } },
-              { coOwners: { some: { userId: { in: teamIds } } } },
-              { goal: { OR: [
-                { ownerId: { in: teamIds } },
-                { coOwners: { some: { userId: { in: teamIds } } } },
-              ] } },
-            ] } } } },
+            { pitstops: { some: { pitstop: pitstopOwnedByAnyOf(teamIds) } } },
           ],
         };
       default: throw scopeUnsupported("pitstop_event", rule.kind);
@@ -386,16 +353,7 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
           OR: [
             { ownerId: ctx.userId },
             { createdById: ctx.userId },
-            { pitstop: {
-              OR: [
-                { ownerId: ctx.userId },
-                { coOwners: { some: { userId: ctx.userId } } },
-                { goal: { OR: [
-                  { ownerId: ctx.userId },
-                  { coOwners: { some: { userId: ctx.userId } } },
-                ] } },
-              ],
-            } },
+            { pitstop: pitstopOwnedByAnyOf([ctx.userId]) },
           ],
         };
       case "team":
@@ -403,53 +361,19 @@ const resourceScopeBuilders: Record<string, (a: ScopeArgs) => WhereFragment> = {
           OR: [
             { ownerId: { in: teamIds } },
             { createdById: { in: teamIds } },
-            { pitstop: {
-              OR: [
-                { ownerId: { in: teamIds } },
-                { coOwners: { some: { userId: { in: teamIds } } } },
-                { goal: { OR: [
-                  { ownerId: { in: teamIds } },
-                  { coOwners: { some: { userId: { in: teamIds } } } },
-                ] } },
-              ],
-            } },
+            { pitstop: pitstopOwnedByAnyOf(teamIds) },
           ],
         };
       default: throw scopeUnsupported("action_point", rule.kind);
     }
   },
-  // ChecklistItem inherits its scope from the parent Pitstop (owner / co-owners)
-  // and from the grandparent Goal (owner / co-owners) — mirroring the `pitstop`
-  // builder, nested through the `pitstop` relation.
+  // ChecklistItem inherits its scope from the parent Pitstop — delegated to
+  // pitstopOwnedByAnyOf, which encodes the goal-flows-down rule once.
   checklist_item: ({ rule, ctx, teamIds }) => {
     switch (rule.kind) {
       case "all":  return {};
-      case "own":
-        return {
-          pitstop: {
-            OR: [
-              { ownerId: ctx.userId },
-              { coOwners: { some: { userId: ctx.userId } } },
-              { goal: { OR: [
-                { ownerId: ctx.userId },
-                { coOwners: { some: { userId: ctx.userId } } },
-              ] } },
-            ],
-          },
-        };
-      case "team":
-        return {
-          pitstop: {
-            OR: [
-              { ownerId: { in: teamIds } },
-              { coOwners: { some: { userId: { in: teamIds } } } },
-              { goal: { OR: [
-                { ownerId: { in: teamIds } },
-                { coOwners: { some: { userId: { in: teamIds } } } },
-              ] } },
-            ],
-          },
-        };
+      case "own":  return { pitstop: pitstopOwnedByAnyOf([ctx.userId]) };
+      case "team": return { pitstop: pitstopOwnedByAnyOf(teamIds) };
       default: throw scopeUnsupported("checklist_item", rule.kind);
     }
   },

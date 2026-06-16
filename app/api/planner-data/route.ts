@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { pitstopOwnedByAnyOf, eventOwnedByAnyOf } from "@/lib/ownership";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -23,12 +24,14 @@ export async function GET(req: NextRequest) {
       where: {
         deletedAt: null,
         goal: { deletedAt: null },
-        ownerId: userId,
-        OR: [
-          { startDate:  { gte: qStart, lt: qEnd } },
-          { targetDate: { gte: qStart, lt: qEnd } },
-          { startDate: { lt: qEnd }, targetDate: { gte: qStart } },
-        ],
+        ...pitstopOwnedByAnyOf([userId]),
+        AND: [{
+          OR: [
+            { startDate:  { gte: qStart, lt: qEnd } },
+            { targetDate: { gte: qStart, lt: qEnd } },
+            { startDate: { lt: qEnd }, targetDate: { gte: qStart } },
+          ],
+        }],
       },
       select: {
         id: true, title: true, status: true, type: true,
@@ -42,7 +45,7 @@ export async function GET(req: NextRequest) {
       where: {
         deletedAt: null,
         scheduledAt: { gte: qStart, lt: qEnd },
-        attendees: { some: { userId } },
+        ...eventOwnedByAnyOf([userId]),
       },
       select: {
         id: true, title: true, type: true, scheduledAt: true, endsAt: true, location: true,

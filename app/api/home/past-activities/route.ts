@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getTeamIds } from "@/lib/rbac";
+import { eventOwnedByAnyOf, pitstopOwnedByAnyOf } from "@/lib/ownership";
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 100;
@@ -45,12 +46,7 @@ export async function GET(request: NextRequest) {
 
   let whereScope: Record<string, unknown>;
   if (scope === "own") {
-    whereScope = {
-      OR: [
-        { attendees: { some: { userId } } },
-        { pitstops: { some: { pitstop: { deletedAt: null, OR: [{ ownerId: userId }, { coOwners: { some: { userId } } }] } } } },
-      ],
-    };
+    whereScope = eventOwnedByAnyOf([userId]);
   } else {
     const me = await prisma.user.findUnique({ where: { id: userId }, select: { designation: true } });
     const designation = me?.designation ?? "Other";
@@ -71,17 +67,7 @@ export async function GET(request: NextRequest) {
     }
     if (teamScopeIds.length === 0) return Response.json({ items: [] });
     whereScope = {
-      pitstops: {
-        some: {
-          pitstop: {
-            deletedAt: null,
-            OR: [
-              { ownerId: { in: teamScopeIds } },
-              { coOwners: { some: { userId: { in: teamScopeIds } } } },
-            ],
-          },
-        },
-      },
+      pitstops: { some: { pitstop: { deletedAt: null, ...pitstopOwnedByAnyOf(teamScopeIds) } } },
     };
   }
 

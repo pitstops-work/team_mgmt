@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { buildRbacContext, checklistUpdatablePitstopIds } from "@/lib/rbac";
+import { goalOwnedByAnyOf } from "@/lib/ownership";
 import GanttChart from "./GanttChart";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 
@@ -16,14 +17,8 @@ export default async function GanttPage() {
     const team = await prisma.user.findMany({ where: { reportsToId: userId }, select: { id: true } });
     teamIds = [userId, ...team.map(m => m.id)];
   }
-  // Co-owners are treated as owners for visibility.
   const ownerFilter = (designation === "RP" || designation === "ZL")
-    ? {
-        OR: [
-          { ownerId: { in: teamIds } },
-          { coOwners: { some: { userId: { in: teamIds } } } },
-        ],
-      }
+    ? goalOwnedByAnyOf(teamIds)
     : {};
 
   const goals = await prisma.goal.findMany({

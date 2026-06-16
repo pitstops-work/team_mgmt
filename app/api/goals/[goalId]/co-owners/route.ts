@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { backfillEventAttendeeForCoOwner } from "@/lib/coOwnerBackfill";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
@@ -15,6 +16,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ goa
     create: { goalId, userId },
     update: {},
   });
+
+  await backfillEventAttendeeForCoOwner(userId, { goalId });
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, image: true } });
   return Response.json({ goalId, userId, user });
