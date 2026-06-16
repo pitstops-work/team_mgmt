@@ -25,9 +25,11 @@ const include = {
         select: {
           id: true, title: true,
           owner: { select: { id: true, name: true, image: true } },
+          coOwners: { select: { userId: true } },
           goal: {
             select: {
-              id: true, title: true,
+              id: true, title: true, ownerId: true,
+              coOwners: { select: { userId: true } },
               needsCluster: { select: { id: true, name: true } },
             },
           },

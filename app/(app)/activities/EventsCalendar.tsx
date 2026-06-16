@@ -19,7 +19,13 @@ type PitstopOwner = { id: string; name: string | null; image: string | null };
 type PitstopRef = {
   id: string; title: string;
   owner: PitstopOwner;
-  goal: { id: string; title: string; needsCluster: { id: string; name: string } | null };
+  coOwners: { userId: string }[];
+  goal: {
+    id: string; title: string;
+    ownerId: string | null;
+    coOwners: { userId: string }[];
+    needsCluster: { id: string; name: string } | null;
+  };
 };
 type Attendee = { id: string; userId: string; status: string; user: User };
 type ChecklistItemRef = { id: string; completionType: string; text: string };
@@ -881,8 +887,19 @@ export default function EventsCalendar({ events: initialEvents, pitstops: initia
 
   const filteredEvents = events.filter(ev => {
     if (selectedUsers.size > 0) {
-      const ids = new Set(ev.attendees.map(a => a.userId));
-      if (![...selectedUsers].some(uid => ids.has(uid))) return false;
+      // Mirror the RBAC ownership predicate: a user is "involved" with an
+      // event if they're an attendee, OR own/co-own a linked pitstop, OR
+      // own/co-own that pitstop's parent goal. Attendees-only was the old
+      // rule and silently dropped every goal-co-owner-only event.
+      const involved = new Set<string>();
+      for (const a of ev.attendees) involved.add(a.userId);
+      for (const { pitstop } of ev.pitstops) {
+        involved.add(pitstop.owner.id);
+        for (const c of pitstop.coOwners) involved.add(c.userId);
+        if (pitstop.goal.ownerId) involved.add(pitstop.goal.ownerId);
+        for (const c of pitstop.goal.coOwners) involved.add(c.userId);
+      }
+      if (![...selectedUsers].some(uid => involved.has(uid))) return false;
     }
     if (selectedGoals.size > 0 && !ev.pitstops.some(({ pitstop }) => selectedGoals.has(pitstop.goal.id))) return false;
     if (geoFilter) {

@@ -78,9 +78,15 @@ export default async function ActivitiesPage({ searchParams }: { searchParams: P
               select: {
                 id: true, title: true,
                 owner: { select: { id: true, name: true, image: true } },
+                // Co-owner ids on both pitstop + goal feed the client-side user
+                // filter — "show me Hadhi's events" must match the same
+                // ownership predicate RBAC uses, otherwise goal-co-owner-only
+                // events vanish when an admin filters to that user.
+                coOwners: { select: { userId: true } },
                 goal: {
                   select: {
-                    id: true, title: true,
+                    id: true, title: true, ownerId: true,
+                    coOwners: { select: { userId: true } },
                     // Powers the day-level cluster-split banner in EventsCalendar.
                     needsCluster: { select: { id: true, name: true } },
                   },
