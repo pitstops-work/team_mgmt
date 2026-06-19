@@ -401,7 +401,7 @@ async function main() {
           lph: "plant_lph", tankCap: "tank_litres", cansCount: "cans_count",
           hh: "hh_count", adoption: "adoption_y3", lpd: "litres_per_adopting_hh",
           peak: "peak_concentration", price: "effective_price_per_litre", opexMonthly: "opex_monthly_steady",
-          operatingDays: "days_per_month",
+          operatingDays: "days_per_month", operatingHours: "operating_hours_per_day",
         },
       } },
   ];

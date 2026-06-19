@@ -123,7 +123,7 @@ export default function DaySim({ params }: { params: DaySimParams }) {
           <div style={{ color: C.cyan, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.18em" }}>Live plant telemetry · 24-hour cycle</div>
           <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, fontFamily: "var(--font-sans, system-ui), sans-serif" }}>RO Water — day in the life</div>
           <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
-            {fmtL(params.lph)} L/h RO · {fmtL(params.tankCap)} L tank · {params.cansCount} cans reserve · drinking water only
+            {fmtL(params.lph)} L/h RO · {fmtL(params.tankCap)} L tank · {params.cansCount} cans · {params.operatingHours >= 24 ? "24h" : `${Math.round(params.operatingHours)}h/day from 6am`}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
@@ -150,7 +150,7 @@ export default function DaySim({ params }: { params: DaySimParams }) {
           {/* 2 RO PLANT */}
           <Box x={220} y={110} w={130} h={120} title="RO PLANT">
             {[0, 1, 2].map(i => <rect key={i} x={250} y={150 + i * 18} width={70} height={10} rx={3} fill={plantOn ? C.cyan : C.pipe} opacity={plantOn ? 0.7 : 1} />)}
-            <text x={285} y={216} textAnchor="middle" fill={C.ink} fontSize="13" fontWeight={600}>{plantOn ? `${fmtL(params.lph)} L/h` : "service"}</text>
+            <text x={285} y={216} textAnchor="middle" fill={C.ink} fontSize="13" fontWeight={600}>{plantOn ? `${fmtL(params.lph)} L/h` : "off"}</text>
           </Box>
           <Pipe d="M350,170 H430" />
           <path d="M350,170 H430" fill="none" stroke={C.cyan} strokeWidth={4} strokeLinecap="round" style={flowStyle(plantOn, dur(prod))} />
@@ -265,11 +265,12 @@ export default function DaySim({ params }: { params: DaySimParams }) {
       </div>
 
       <p style={{ color: C.muted, fontSize: 12, lineHeight: 1.6, marginTop: 14, borderLeft: `2px solid ${C.line}`, paddingLeft: 13 }}>
-        The plant makes a steady {fmtL(params.lph)} L/h whenever it runs — banking into the tank overnight and pausing
-        for the midday service window. The tank is the buffer; the <b style={{ color: C.ink }}>cans are the reserve</b>,
-        filling off-peak and handed out when the tank can&apos;t keep up at the rush. Push adoption, households or the
-        peak up until the tank bottoms out — then add cans, or spread the peak. Per-day economics use the finance
-        model&apos;s monthly opex (÷30); <b style={{ color: C.ink }}>break-even</b> is the ₹/L that just covers cost.
+        The plant makes a steady {fmtL(params.lph)} L/h during its {params.operatingHours >= 24 ? "round-the-clock" : `${Math.round(params.operatingHours)}-hour`} operating
+        window {params.operatingHours >= 24 ? "" : "(from 6am) "}— banking into the tank — and pauses for the midday service window. Outside those hours,
+        demand is served from the tank and the <b style={{ color: C.ink }}>cans (the reserve)</b>. Cut the operating hours
+        and the evening draw leans harder on the buffer; push adoption, households or the peak up until the tank bottoms
+        out, then add cans or hours, or spread the peak. Per-day economics use the finance model&apos;s monthly opex
+        (÷ operating days); <b style={{ color: C.ink }}>break-even</b> is the ₹/L that just covers cost.
       </p>
     </div>
   );

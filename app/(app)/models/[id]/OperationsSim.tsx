@@ -40,7 +40,7 @@ export default function OperationsSim({ config, values }: { config: DaySimConfig
         lph: num(n.lph), tankCap: num(n.tankCap), cansCount: num(n.cansCount),
         hh: num(n.hh), adoption: num(n.adoption), lpd: num(n.lpd),
         peak: num(n.peak, 100), price: num(n.price), opexMonthly: num(n.opexMonthly),
-        operatingDays: num(n.operatingDays, 30),
+        operatingDays: num(n.operatingDays, 30), operatingHours: num(n.operatingHours, 24),
       },
     };
   }, [config, values]);

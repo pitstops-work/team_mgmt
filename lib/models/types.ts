@@ -85,7 +85,8 @@ export type RoDaySimConfig = {
     peak: string;         // peak-concentration lever
     price: string;        // effective price per litre (after pass discount)
     opexMonthly: string;  // total steady-state monthly opex (for per-day economics)
-    operatingDays?: string; // operating days per month (opex divisor); defaults to 30
+    operatingDays?: string;  // operating days per month (opex divisor); defaults to 30
+    operatingHours?: string; // hours/day the plant runs; defaults to 24 (round-the-clock)
   };
 };
 

@@ -24,6 +24,8 @@ export type DaySimParams = {
   opexMonthly: number;  // total steady-state monthly opex, ₹
   operatingDays: number; // operating days per month — opex spread over these, so
                          // per-operating-day economics reconcile with the finance KPIs
+  operatingHours: number; // hours/day the plant runs (contiguous window from 06:00);
+                          // outside it, demand is served from the tank + cans
 };
 
 export type DaySimEcon = {
@@ -57,9 +59,14 @@ const BASE = [
 ];
 // Midday maintenance window — production pauses (runs on stored water).
 const SERVICE_OFF = new Set([13, 14]);
+// The plant's operating window opens at 06:00 and runs `operatingHours` hours.
+const OPEN_HOUR = 6;
 
 export function runDaySim(p: DaySimParams): DaySimResult {
   const LPH = Math.max(0, p.lph);
+  // Hours the plant is staffed/running. ≥24 ⇒ round-the-clock (minus service).
+  const opHours = p.operatingHours > 0 ? Math.min(24, p.operatingHours) : 24;
+  const running = (h: number) => opHours >= 24 ? true : ((h - OPEN_HOUR + 24) % 24) < opHours;
   const TANK = Math.max(0, p.tankCap);
   const cansL = Math.max(0, p.cansCount) * 10;
   const activeHH = Math.max(0, p.hh) * Math.max(0, p.adoption);
@@ -87,7 +94,7 @@ export function runDaySim(p: DaySimParams): DaySimResult {
 
   for (let h = 0; h < 24; h++) {
     const d = dailyDemand * shaped[h];
-    const prod = SERVICE_OFF.has(h) ? 0 : LPH;
+    const prod = (running(h) && !SERVICE_OFF.has(h)) ? LPH : 0;
     const net = prod - d;
     let tankEnd: number;
     let cansEnd: number;
