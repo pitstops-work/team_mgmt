@@ -105,6 +105,7 @@ export type ComplexDaySimConfig = {
     opexMonthly: string;
     opexToilet?: string; opexBath?: string; opexLaundry?: string; opexRo?: string; opexShared?: string;
     seatThroughput?: string; bathThroughput?: string; machineThroughput?: string; roRecovery?: string;
+    roOperatingHours?: string; // hours/day the RO plant runs; defaults to 24
   };
 };
 

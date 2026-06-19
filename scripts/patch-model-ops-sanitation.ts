@@ -69,6 +69,7 @@ async function main() {
   const newNodes = [
     { groupId: capacity.id, key: "ro_tank_litres", label: "RO product tank size", dataType: "int", defaultJson: 4000, unit: "L", surface: "both", tier: "basic", uiJson: { min: 1000, max: 8000, step: 250 }, order: 901 },
     { groupId: capacity.id, key: "ro_cans_count", label: "RO pre-packed 10 L cans", dataType: "int", defaultJson: 50, unit: "cans", surface: "both", tier: "basic", uiJson: { min: 0, max: 150, step: 5 }, order: 902 },
+    { groupId: capacity.id, key: "ro_operating_hours", label: "RO plant daily operating hours", dataType: "number", defaultJson: 12, unit: "hours/day", notes: "Plant runs a window from 6am, banking into the RO tank", surface: "both", tier: "basic", uiJson: { min: 4, max: 24, step: 1 }, order: 908 },
     { groupId: ops.id, key: "peak_concentration", label: "Peak concentration", dataType: "number", defaultJson: 100, unit: "", notes: "Higher = sharper morning/evening rush", surface: "sim", tier: "basic", uiJson: { min: 60, max: 200, step: 5 }, order: 903 },
     { groupId: ops.id, key: "seat_throughput", label: "WC throughput", dataType: "number", defaultJson: 12, unit: "uses/h/seat", surface: "sim", tier: "advanced", uiJson: { min: 6, max: 20, step: 1 }, order: 904 },
     { groupId: ops.id, key: "bath_throughput", label: "Cubicle throughput", dataType: "number", defaultJson: 3, unit: "baths/h", surface: "sim", tier: "advanced", uiJson: { min: 1, max: 8, step: 0.5 }, order: 905 },
@@ -131,6 +132,7 @@ async function main() {
       opexToilet: "opex_toilet_monthly", opexBath: "opex_bath_monthly", opexLaundry: "opex_laundry_monthly",
       opexRo: "opex_ro_monthly", opexShared: "opex_shared_monthly",
       seatThroughput: "seat_throughput", bathThroughput: "bath_throughput", machineThroughput: "machine_throughput", roRecovery: "ro_recovery_rate",
+      roOperatingHours: "ro_operating_hours",
     },
   };
   const existingOut = await prisma.modelOutput.findFirst({ where: { templateId: tpl.id, key: "daysim_ops" } });

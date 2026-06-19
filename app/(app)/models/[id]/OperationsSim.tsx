@@ -30,6 +30,7 @@ export default function OperationsSim({ config, values }: { config: DaySimConfig
           opexRo: num(n.opexRo), opexShared: num(n.opexShared),
           seatThroughput: num(n.seatThroughput, 12), bathThroughput: num(n.bathThroughput, 3),
           machineThroughput: num(n.machineThroughput, 1.3), roRecovery: num(n.roRecovery, 0.55),
+          roOperatingHours: num(n.roOperatingHours, 24),
         },
       };
     }

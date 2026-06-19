@@ -22,6 +22,7 @@ export type ComplexSimParams = {
   // finance model). Used to give each service a cost-to-serve and margin.
   opexToilet: number; opexBath: number; opexLaundry: number; opexRo: number; opexShared: number;
   seatThroughput: number; bathThroughput: number; machineThroughput: number; roRecovery: number;
+  roOperatingHours: number; // hours/day the RO plant runs (contiguous window from 06:00)
 };
 
 export type ComplexService = {
@@ -49,6 +50,7 @@ export type ComplexSimResult = {
 const FLUSH_L = 5, HANDWASH_L = 1.5, BATH_L = 25, LOAD_L = 55, CLEANING_L = 500;
 const LOADS_PER_HH_WK = 2;
 const SERVICE_OFF = new Set([13, 14]); // RO midday service window
+const OPEN_HOUR = 6;                    // RO plant operating window opens at 06:00
 
 const PROF = {
   toilet: [0.005, 0.005, 0.005, 0.01, 0.025, 0.05, 0.09, 0.11, 0.08, 0.05, 0.04, 0.035, 0.03, 0.03, 0.03, 0.035, 0.05, 0.07, 0.085, 0.075, 0.05, 0.03, 0.015, 0.01],
@@ -76,13 +78,16 @@ function simServed(dailyDemand: number, prof: number[], hourlyCap: number) {
   return { served, servedDay };
 }
 
-/** RO two-buffer: tank banks production, cans absorb overflow / cover deficit. */
-function simRO(dailyDemand: number, prof: number[], lph: number, tankCap: number, cansCap: number) {
+/** RO two-buffer: tank banks production, cans absorb overflow / cover deficit.
+ *  The plant produces only during its operating window (from 06:00). */
+function simRO(dailyDemand: number, prof: number[], lph: number, tankCap: number, cansCap: number, opHours: number) {
   const served: number[] = [];
   let tank = tankCap, cans = cansCap, servedDay = 0;
+  const hours = opHours > 0 ? Math.min(24, opHours) : 24;
+  const running = (h: number) => hours >= 24 ? true : ((h - OPEN_HOUR + 24) % 24) < hours;
   for (let h = 0; h < 24; h++) {
     const d = dailyDemand * prof[h];
-    const p = SERVICE_OFF.has(h) ? 0 : lph;
+    const p = (running(h) && !SERVICE_OFF.has(h)) ? lph : 0;
     let s: number;
     if (p >= d) {
       const surplus = p - d;
@@ -123,7 +128,7 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const T = simServed(demUses, shape(PROF.toilet, gamma), capT);
   const B = simServed(demBaths, shape(PROF.bath, gamma), capB);
   const L = simServed(demLoads, shape(PROF.laundry, gamma), capL);
-  const R = simRO(demRO, shape(PROF.ro, gamma), p.roLph, p.roTankCap, Math.max(0, p.roCansCount) * 10);
+  const R = simRO(demRO, shape(PROF.ro, gamma), p.roLph, p.roTankCap, Math.max(0, p.roCansCount) * 10, p.roOperatingHours);
 
   const uses = T.servedDay, baths = B.servedDay, loads = L.servedDay, product = R.servedDay;
   const recovery = Math.min(0.95, Math.max(0.05, p.roRecovery));
