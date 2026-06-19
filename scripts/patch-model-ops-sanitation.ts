@@ -93,6 +93,30 @@ async function main() {
     }
   }
 
+  // ── Per-service opex split (formula nodes, upsert by key) ──────────────────
+  const opexGroup = tpl.groups.find(g => g.key === "opex");
+  if (!opexGroup) throw new Error("opex group missing — unexpected template shape.");
+  const formulaNodes = [
+    { key: "opex_toilet_monthly", label: "Toilet — direct opex (monthly)", formula: "opex_caretakers * 0.4 + cleaning_consumables_monthly * 0.55 + desludging_monthly_amortised + water_bwssb_monthly * 0.3", order: 920 },
+    { key: "opex_bath_monthly", label: "Bath — direct opex (monthly)", formula: "opex_caretakers * 0.25 + cleaning_consumables_monthly * 0.25 + water_bwssb_monthly * 0.45", order: 921 },
+    { key: "opex_laundry_monthly", label: "Laundry — direct opex (monthly)", formula: "salary_laundry_supervisor + laundry_detergent_monthly + electricity_monthly * 0.25 + water_bwssb_monthly * 0.15", order: 922 },
+    { key: "opex_ro_monthly", label: "RO water — direct opex (monthly)", formula: "salary_plant_operator * 0.5 + ro_consumables_monthly + electricity_monthly * 0.3", order: 923 },
+    { key: "opex_shared_monthly", label: "Shared / overhead opex (monthly)", formula: "opex_monthly_steady - opex_toilet_monthly - opex_bath_monthly - opex_laundry_monthly - opex_ro_monthly", order: 924 },
+  ];
+  for (const f of formulaNodes) {
+    if (seen.has(f.key)) {
+      await prisma.modelNode.updateMany({ where: { templateId: tpl.id, key: f.key }, data: { formula: f.formula } });
+    } else {
+      await prisma.modelNode.create({
+        data: {
+          templateId: tpl.id, groupId: opexGroup.id, key: f.key, label: f.label, kind: "formula",
+          dataType: "currency", shape: { kind: "scalar" }, formula: f.formula, unit: "INR/mo",
+          surface: "both", tier: "basic", order: f.order,
+        },
+      });
+    }
+  }
+
   // ── daySim output (upsert by key) ──────────────────────────────────────────
   const daySimConfig = {
     schematic: "sanitation_complex",
@@ -104,6 +128,8 @@ async function main() {
       priceToilet: "price_toilet", priceBath: "price_bath", priceLaundry: "price_laundry", priceRo: "price_ro_per_litre",
       passPrice: "monthly_pass_price", passShare: "pass_holder_share", freeQuota: "free_use_quota",
       opexMonthly: "opex_monthly_steady",
+      opexToilet: "opex_toilet_monthly", opexBath: "opex_bath_monthly", opexLaundry: "opex_laundry_monthly",
+      opexRo: "opex_ro_monthly", opexShared: "opex_shared_monthly",
       seatThroughput: "seat_throughput", bathThroughput: "bath_throughput", machineThroughput: "machine_throughput", roRecovery: "ro_recovery_rate",
     },
   };

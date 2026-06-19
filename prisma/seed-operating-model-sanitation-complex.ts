@@ -175,6 +175,22 @@ async function main() {
       unit: "INR/mo" },
     { group: "opex", key: "opex_annual_steady", label: "Annual opex (steady)", kind: "formula", dataType: "currency", formula: "opex_monthly_steady * 12", unit: "INR/yr" },
 
+    // Per-service direct opex split + shared/overhead residual. Direct costs are
+    // attributed by service; the residual (STP, plant ops, CBO, AMC, tech, lab,
+    // remaining utilities/cleaning) is the shared pool. Σ direct + shared =
+    // opex_monthly_steady exactly, so the sim's per-service P&L reconciles.
+    { group: "opex", key: "opex_toilet_monthly", label: "Toilet — direct opex (monthly)", kind: "formula", dataType: "currency",
+      formula: "opex_caretakers * 0.4 + cleaning_consumables_monthly * 0.55 + desludging_monthly_amortised + water_bwssb_monthly * 0.3", unit: "INR/mo" },
+    { group: "opex", key: "opex_bath_monthly", label: "Bath — direct opex (monthly)", kind: "formula", dataType: "currency",
+      formula: "opex_caretakers * 0.25 + cleaning_consumables_monthly * 0.25 + water_bwssb_monthly * 0.45", unit: "INR/mo" },
+    { group: "opex", key: "opex_laundry_monthly", label: "Laundry — direct opex (monthly)", kind: "formula", dataType: "currency",
+      formula: "salary_laundry_supervisor + laundry_detergent_monthly + electricity_monthly * 0.25 + water_bwssb_monthly * 0.15", unit: "INR/mo" },
+    { group: "opex", key: "opex_ro_monthly", label: "RO water — direct opex (monthly)", kind: "formula", dataType: "currency",
+      formula: "salary_plant_operator * 0.5 + ro_consumables_monthly + electricity_monthly * 0.3", unit: "INR/mo" },
+    { group: "opex", key: "opex_shared_monthly", label: "Shared / overhead opex (monthly)", kind: "formula", dataType: "currency",
+      formula: "opex_monthly_steady - opex_toilet_monthly - opex_bath_monthly - opex_laundry_monthly - opex_ro_monthly", unit: "INR/mo",
+      notes: "Residual: STP, plant ops, CBO, AMC, tech, lab, remaining utilities/cleaning" },
+
     // ── Monthly adoption curve (60-month vector) ───────────────────────────
     { group: "revenue", key: "adoption_monthly", label: "Adoption (monthly)", kind: "formula", dataType: "percent",
       shape: { kind: "vector", horizon: "monthly" },
@@ -479,6 +495,8 @@ async function main() {
           priceToilet: "price_toilet", priceBath: "price_bath", priceLaundry: "price_laundry", priceRo: "price_ro_per_litre",
           passPrice: "monthly_pass_price", passShare: "pass_holder_share", freeQuota: "free_use_quota",
           opexMonthly: "opex_monthly_steady",
+          opexToilet: "opex_toilet_monthly", opexBath: "opex_bath_monthly", opexLaundry: "opex_laundry_monthly",
+          opexRo: "opex_ro_monthly", opexShared: "opex_shared_monthly",
           seatThroughput: "seat_throughput", bathThroughput: "bath_throughput", machineThroughput: "machine_throughput", roRecovery: "ro_recovery_rate",
         },
       } },

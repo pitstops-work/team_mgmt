@@ -26,6 +26,8 @@ export default function OperationsSim({ config, values }: { config: DaySimConfig
           priceToilet: num(n.priceToilet), priceBath: num(n.priceBath), priceLaundry: num(n.priceLaundry), priceRo: num(n.priceRo),
           passPrice: num(n.passPrice), passShare: num(n.passShare), freeQuota: num(n.freeQuota),
           opexMonthly: num(n.opexMonthly),
+          opexToilet: num(n.opexToilet), opexBath: num(n.opexBath), opexLaundry: num(n.opexLaundry),
+          opexRo: num(n.opexRo), opexShared: num(n.opexShared),
           seatThroughput: num(n.seatThroughput, 12), bathThroughput: num(n.bathThroughput, 3),
           machineThroughput: num(n.machineThroughput, 1.3), roRecovery: num(n.roRecovery, 0.55),
         },

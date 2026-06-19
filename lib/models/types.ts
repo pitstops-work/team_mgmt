@@ -102,6 +102,7 @@ export type ComplexDaySimConfig = {
     priceToilet: string; priceBath: string; priceLaundry: string; priceRo: string;
     passPrice: string; passShare: string; freeQuota: string;
     opexMonthly: string;
+    opexToilet?: string; opexBath?: string; opexLaundry?: string; opexRo?: string; opexShared?: string;
     seatThroughput?: string; bathThroughput?: string; machineThroughput?: string; roRecovery?: string;
   };
 };

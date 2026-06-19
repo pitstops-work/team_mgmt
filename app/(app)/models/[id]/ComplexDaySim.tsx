@@ -169,21 +169,26 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginTop: 12 }}>
         {sim.services.map(s => {
           const short = s.demandDay > s.servedDay * 1.02;
+          const belowCost = s.marginDay < 0;
           const util = Math.min(1.5, s.peakUtil);
+          const chip = short ? "capacity short at peak" : belowCost ? "below cost — raise price" : "price covers cost ✓";
+          const chipBad = short || belowCost;
           return (
             <div key={s.key} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "11px 12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
                 <span style={{ width: 9, height: 9, borderRadius: 2, background: SVC_COLOR[s.key] }} />
                 <span style={{ fontSize: 12.5, fontWeight: 600 }}>{s.name}</span>
+                <span style={{ marginLeft: "auto", fontSize: 10, color: s.peakUtil > 1 ? C.alert : C.muted }}>{Math.round(s.peakUtil * 100)}% peak</span>
               </div>
               <Row k="served / day" v={`${fmt(s.servedDay)} ${s.unit}`} />
               <Row k="revenue / day" v={fmtINR(s.revDay)} />
-              <Row k="peak load" v={`${Math.round(s.peakUtil * 100)}%`} color={s.peakUtil > 1 ? C.alert : undefined} />
+              <Row k="op cost / day" v={fmtINR(s.opDay)} />
+              <Row k="margin / day" v={(s.marginDay >= 0 ? "+" : "−") + fmtINR(Math.abs(s.marginDay))} color={s.marginDay >= 0 ? C.greenBr : C.alert} />
               <div style={{ height: 5, borderRadius: 3, background: C.line, marginTop: 8, overflow: "hidden" }}>
                 <i style={{ display: "block", height: "100%", width: `${Math.min(100, util * 100)}%`, background: util > 1 ? C.alert : C.cyan }} />
               </div>
-              <div style={{ marginTop: 8, fontSize: 10, padding: "3px 7px", borderRadius: 5, display: "inline-block", border: `1px solid ${short ? "#7a3128" : "#2c6e58"}`, color: short ? C.alert : C.greenBr, background: short ? "rgba(240,106,90,0.08)" : "rgba(95,211,166,0.08)" }}>
-                {short ? "capacity short at peak" : "copes at peak ✓"}
+              <div style={{ marginTop: 8, fontSize: 10, padding: "3px 7px", borderRadius: 5, display: "inline-block", border: `1px solid ${chipBad ? "#7a3128" : "#2c6e58"}`, color: chipBad ? C.alert : C.greenBr, background: chipBad ? "rgba(240,106,90,0.08)" : "rgba(95,211,166,0.08)" }}>
+                {chip}
               </div>
             </div>
           );

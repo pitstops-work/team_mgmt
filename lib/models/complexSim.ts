@@ -18,6 +18,9 @@ export type ComplexSimParams = {
   priceToilet: number; priceBath: number; priceLaundry: number; priceRo: number;
   passPrice: number; passShare: number; freeQuota: number;
   opexMonthly: number;
+  // Per-service direct monthly opex + the shared/overhead residual (from the
+  // finance model). Used to give each service a cost-to-serve and margin.
+  opexToilet: number; opexBath: number; opexLaundry: number; opexRo: number; opexShared: number;
   seatThroughput: number; bathThroughput: number; machineThroughput: number; roRecovery: number;
 };
 
@@ -30,7 +33,9 @@ export type ComplexService = {
   demandDay: number;
   capPerHour: number;
   peakUtil: number;     // max hourly served / capacity (>1 ⇒ queued at peak)
-  revDay: number;
+  revDay: number;       // per-use revenue (pass income is a separate stream)
+  opDay: number;        // cost to serve = direct + share of overhead, ÷30
+  marginDay: number;    // revDay − opDay
 };
 
 export type ComplexSimResult = {
@@ -148,11 +153,24 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const opexDay = opexMonthly / 30;
   const surplusDay = revDay - opexDay;
 
+  // Per-service cost-to-serve: each service's direct opex plus a share of the
+  // shared/overhead pool (allocated by direct-opex weight, so it's stable and
+  // doesn't move with price). Sums back to total opexDay since shared is the
+  // finance model's residual = opexMonthly − Σ direct.
+  const direct = { toilet: Math.max(0, p.opexToilet), bath: Math.max(0, p.opexBath), laundry: Math.max(0, p.opexLaundry), ro: Math.max(0, p.opexRo) };
+  const sumDirect = direct.toilet + direct.bath + direct.laundry + direct.ro;
+  const loadFactor = sumDirect > 0 ? (sumDirect + Math.max(0, p.opexShared)) / sumDirect : 1;
+  const opDayOf = (d: number) => (sumDirect > 0 ? (d * loadFactor) / 30 : opexDay / 4);
+
+  const mk = (key: ComplexService["key"], name: string, unit: string, sv: { served: number[]; servedDay: number }, demandDay: number, cap: number, rev: number, dir: number): ComplexService => {
+    const opDay = opDayOf(dir);
+    return { key, name, unit, served: sv.served, servedDay: sv.servedDay, demandDay, capPerHour: cap, peakUtil: cap > 0 ? Math.max(...sv.served) / cap : 0, revDay: rev, opDay, marginDay: rev - opDay };
+  };
   const services: ComplexService[] = [
-    { key: "toilet", name: "Toilets", unit: "uses", served: T.served, servedDay: uses, demandDay: demUses, capPerHour: capT, peakUtil: capT > 0 ? Math.max(...T.served) / capT : 0, revDay: revT },
-    { key: "bath", name: "Bathing", unit: "baths", served: B.served, servedDay: baths, demandDay: demBaths, capPerHour: capB, peakUtil: capB > 0 ? Math.max(...B.served) / capB : 0, revDay: revB },
-    { key: "laundry", name: "Laundry", unit: "loads", served: L.served, servedDay: loads, demandDay: demLoads, capPerHour: capL, peakUtil: capL > 0 ? Math.max(...L.served) / capL : 0, revDay: revL },
-    { key: "ro", name: "RO Water", unit: "L", served: R.served, servedDay: product, demandDay: demRO, capPerHour: p.roLph, peakUtil: p.roLph > 0 ? Math.max(...R.served) / p.roLph : 0, revDay: revR },
+    mk("toilet", "Toilets", "uses", T, demUses, capT, revT, direct.toilet),
+    mk("bath", "Bathing", "baths", B, demBaths, capB, revB, direct.bath),
+    mk("laundry", "Laundry", "loads", L, demLoads, capL, revL, direct.laundry),
+    mk("ro", "RO Water", "L", R, demRO, p.roLph, revR, direct.ro),
   ];
 
   return {

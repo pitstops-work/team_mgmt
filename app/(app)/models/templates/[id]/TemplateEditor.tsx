@@ -7,7 +7,7 @@ import {
   compute, validateTemplate,
 } from "@/lib/models/engine";
 import type {
-  DataType, Horizon, ModelGroup, ModelNode, ModelOutput, ModelTemplate, NodeKind, NodeShape, NodeValue, OutputKind,
+  DataType, Horizon, ModelGroup, ModelNode, ModelOutput, ModelTemplate, NodeKind, NodeShape, NodeValue, OutputKind, Surface, Tier,
 } from "@/lib/models/types";
 import { deleteTemplate, replaceTemplateContent, updateTemplateMeta } from "../actions";
 
@@ -15,7 +15,9 @@ type Tab = "nodes" | "outputs" | "horizons" | "groups" | "danger";
 
 const KINDS: NodeKind[] = ["input", "formula", "constant"];
 const DATATYPES: DataType[] = ["number", "percent", "currency", "int", "boolean", "enum"];
-const OUTPUT_KINDS: OutputKind[] = ["kpi", "series", "seriesGroup", "table", "sensitivity", "scenarioGrid", "budgetExport"];
+const OUTPUT_KINDS: OutputKind[] = ["kpi", "series", "seriesGroup", "table", "sensitivity", "scenarioGrid", "budgetExport", "daySim"];
+const SURFACES: Surface[] = ["both", "finance", "sim"];
+const TIERS: Tier[] = ["basic", "advanced"];
 
 type EditableNode = ModelNode & { _id: string };
 type EditableGroup = ModelGroup & { _id: string };
@@ -79,11 +81,12 @@ export default function TemplateEditor({
       try {
         await updateTemplateMeta(templateId, { name, description, horizons });
         await replaceTemplateContent(templateId, {
-          groups: groups.map(g => ({ key: g.key, label: g.label, order: g.order ?? 0 })),
+          groups: groups.map(g => ({ key: g.key, label: g.label, order: g.order ?? 0, surface: g.surface ?? "both" })),
           nodes: nodes.map(n => ({
             key: n.key, label: n.label, notes: n.notes ?? null, unit: n.unit ?? null,
             kind: n.kind, dataType: n.dataType, shape: n.shape, default: n.default,
             formula: n.formula ?? null, groupKey: n.groupKey ?? null, order: n.order ?? 0,
+            surface: n.surface ?? "both", tier: n.tier ?? "basic", ui: n.ui ?? null,
           })),
           outputs: outputs.map(o => ({
             key: o.key, label: o.label, kind: o.kind, config: o.config ?? {}, order: o.order ?? 0,
@@ -388,6 +391,53 @@ function NodesEditor({
                       </div>
                     )}
                   </div>
+                  <div className="col-span-12 grid grid-cols-12 gap-3 pt-2 border-t border-stone-100">
+                    <div className="col-span-2">
+                      <label className="text-xs text-stone-500">Surface</label>
+                      <select
+                        value={n.surface ?? "both"}
+                        onChange={e => updateNode(n._id, { surface: e.target.value as Surface })}
+                        disabled={!canEdit}
+                        className="mt-1 w-full text-xs px-2 py-1 border border-stone-200 rounded outline-none focus:border-sky-400"
+                      >
+                        {SURFACES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-stone-500">Sim tier</label>
+                      <select
+                        value={n.tier ?? "basic"}
+                        onChange={e => updateNode(n._id, { tier: e.target.value as Tier })}
+                        disabled={!canEdit}
+                        className="mt-1 w-full text-xs px-2 py-1 border border-stone-200 rounded outline-none focus:border-sky-400"
+                      >
+                        {TIERS.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-span-8">
+                      <label className="text-xs text-stone-500">Sim slider — min / max / step (blank = typed input)</label>
+                      <div className="mt-1 flex gap-2">
+                        {(["min", "max", "step"] as const).map(field => (
+                          <input
+                            key={field}
+                            type="number"
+                            step="any"
+                            placeholder={field}
+                            value={n.ui?.[field] ?? ""}
+                            onChange={e => {
+                              const raw = e.target.value;
+                              const cur = n.ui ?? {};
+                              const next = { ...cur, [field]: raw === "" ? undefined : Number(raw) };
+                              const empty = next.min === undefined && next.max === undefined && next.step === undefined;
+                              updateNode(n._id, { ui: empty ? null : next });
+                            }}
+                            disabled={!canEdit}
+                            className="w-full text-xs px-2 py-1 border border-stone-200 rounded outline-none focus:border-sky-400"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                   <div className="col-span-12">
                     <label className="text-xs text-stone-500">Notes</label>
                     <textarea
@@ -523,7 +573,12 @@ function GroupsEditor({
             <input value={g.key} onChange={e => setGroups(groups.map(x => x._id === g._id ? { ...x, key: e.target.value } : x))} disabled={!canEdit}
               className="col-span-3 font-mono text-xs px-2 py-1 border border-transparent hover:border-stone-200 focus:border-sky-400 rounded outline-none" />
             <input value={g.label} onChange={e => setGroups(groups.map(x => x._id === g._id ? { ...x, label: e.target.value } : x))} disabled={!canEdit}
-              className="col-span-7 px-2 py-1 border border-transparent hover:border-stone-200 focus:border-sky-400 rounded outline-none" />
+              className="col-span-5 px-2 py-1 border border-transparent hover:border-stone-200 focus:border-sky-400 rounded outline-none" />
+            <select value={g.surface ?? "both"} onChange={e => setGroups(groups.map(x => x._id === g._id ? { ...x, surface: e.target.value as Surface } : x))} disabled={!canEdit}
+              title="Play-surface for this group's inputs"
+              className="col-span-2 text-xs px-1 py-1 border border-transparent hover:border-stone-200 focus:border-sky-400 rounded outline-none">
+              {SURFACES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
             <input type="number" value={g.order ?? 0} onChange={e => setGroups(groups.map(x => x._id === g._id ? { ...x, order: Number(e.target.value) } : x))} disabled={!canEdit}
               className="col-span-1 text-xs px-2 py-1 border border-transparent hover:border-stone-200 focus:border-sky-400 rounded outline-none" />
             <button onClick={() => setGroups(groups.filter(x => x._id !== g._id))} disabled={!canEdit}

@@ -43,8 +43,8 @@ export async function updateTemplateMeta(
 export async function replaceTemplateContent(
   id: string,
   payload: {
-    groups: Array<Pick<ModelGroup, "key" | "label" | "order">>;
-    nodes: Array<Pick<ModelNode, "key" | "label" | "notes" | "unit" | "kind" | "dataType" | "shape" | "default" | "formula" | "groupKey" | "order">>;
+    groups: Array<Pick<ModelGroup, "key" | "label" | "order" | "surface">>;
+    nodes: Array<Pick<ModelNode, "key" | "label" | "notes" | "unit" | "kind" | "dataType" | "shape" | "default" | "formula" | "groupKey" | "order" | "surface" | "tier" | "ui">>;
     outputs: Array<Pick<ModelOutput, "key" | "label" | "kind" | "config" | "order">>;
   },
 ) {
@@ -69,7 +69,7 @@ export async function replaceTemplateContent(
     const groupKeyToId = new Map<string, string>();
     for (const g of payload.groups) {
       const row = await tx.modelGroup.create({
-        data: { templateId: id, key: g.key, label: g.label, order: g.order ?? 0 },
+        data: { templateId: id, key: g.key, label: g.label, order: g.order ?? 0, surface: g.surface ?? "both" },
       });
       groupKeyToId.set(g.key, row.id);
     }
@@ -85,6 +85,9 @@ export async function replaceTemplateContent(
           shape: (n.shape ?? { kind: "scalar" }) as never,
           defaultJson: n.default === undefined ? undefined : (n.default as never),
           formula: n.formula ?? null,
+          surface: n.surface ?? "both",
+          tier: n.tier ?? "basic",
+          uiJson: n.ui == null ? undefined : (n.ui as never),
           order: n.order ?? 0,
         },
       });
