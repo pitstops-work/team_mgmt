@@ -2901,6 +2901,9 @@ model ModelGroup {
   key        String // unique within a template
   label      String
   order      Int           @default(0)
+  // Which play surface this group's inputs belong to: "finance" | "sim" | "both".
+  // Drives tab-filtering in the play workbench. Nodes inherit unless they override.
+  surface    String        @default("both")
   createdAt  DateTime      @default(now())
 
   nodes ModelNode[]
@@ -2932,6 +2935,17 @@ model ModelNode {
   formula     String?
   // For enum dataType: array of allowed values.
   enumValues  Json?
+  // Play-surface this node belongs to: "finance" | "sim" | "both". Overrides the
+  // group's surface when not "both". Finance-only nodes vanish on the sim tab and
+  // vice-versa; "both" nodes (e.g. plant capacity, price, tank size) show on both.
+  surface     String        @default("both")
+  // Detail tier for the sim tab's Basic/Advanced toggle: "basic" | "advanced".
+  // Advanced nodes (engineering constants) stay hidden until the toggle flips.
+  // Ignored on the finance/editor tabs, which always show every tier.
+  tier        String        @default("basic")
+  // Optional slider config for the sim tab: { min, max, step }. Present → render
+  // a slider+readout; absent → typed number input.
+  uiJson      Json?
   order       Int           @default(0)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

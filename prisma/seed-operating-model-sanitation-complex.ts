@@ -46,11 +46,19 @@ async function main() {
     ["revenue", "Revenue (derived)"],
     ["pnl", "P&L (derived)"],
     ["cost_recovery", "Cost Recovery"],
+    ["ops", "Operations (sim)"],
   ] as const;
+  // Capex/financial inputs are finance-only (vanish on the sim tab); ops is
+  // sim-only; everything else shows on both.
+  const groupSurface: Record<string, "finance" | "sim" | "both"> = {
+    capex_in: "finance", financial: "finance", ops: "sim",
+  };
   const groups: Record<string, string> = {};
   for (let i = 0; i < groupDefs.length; i++) {
     const [key, label] = groupDefs[i];
-    const g = await prisma.modelGroup.create({ data: { templateId: template.id, key, label, order: i } });
+    const g = await prisma.modelGroup.create({
+      data: { templateId: template.id, key, label, order: i, surface: groupSurface[key] ?? "both" },
+    });
     groups[key] = g.id;
   }
 
@@ -63,41 +71,48 @@ async function main() {
     unit?: string;
     notes?: string;
     group: string;
+    surface?: "finance" | "sim" | "both";
+    tier?: "basic" | "advanced";
+    ui?: { min?: number; max?: number; step?: number };
   };
 
   const nodes: NodeIn[] = [
     // ── 1. Site & Population ───────────────────────────────────────────────
-    { group: "site", key: "hh_count", label: "Households in service area", kind: "input", dataType: "int", defaultJson: 420, unit: "HH" },
-    { group: "site", key: "persons_per_hh", label: "Persons per household", kind: "input", dataType: "number", defaultJson: 5, unit: "persons" },
-    { group: "site", key: "daily_users_estimate", label: "Daily users (estimated)", kind: "input", dataType: "int", defaultJson: 500, unit: "users/day", notes: "At steady state" },
+    { group: "site", key: "hh_count", label: "Households in service area", kind: "input", dataType: "int", defaultJson: 420, unit: "HH", ui: { min: 100, max: 800, step: 10 } },
+    { group: "site", key: "persons_per_hh", label: "Persons per household", kind: "input", dataType: "number", defaultJson: 5, unit: "persons", ui: { min: 3, max: 8, step: 0.5 } },
+    { group: "site", key: "daily_users_estimate", label: "Daily users (estimated)", kind: "input", dataType: "int", defaultJson: 500, unit: "users/day", notes: "At steady state", surface: "finance" },
 
     // ── 2. Service Capacity ────────────────────────────────────────────────
-    { group: "capacity", key: "wc_seats", label: "Total WC seats (M+F+DA)", kind: "input", dataType: "int", defaultJson: 30, unit: "seats", notes: "Per SBM 1:20 ratio" },
-    { group: "capacity", key: "bath_cubicles", label: "Bathing cubicles", kind: "input", dataType: "int", defaultJson: 8, unit: "cubicles" },
-    { group: "capacity", key: "washing_machines", label: "Washing machines", kind: "input", dataType: "int", defaultJson: 4, unit: "machines" },
-    { group: "capacity", key: "ro_lph", label: "RO Water ATM capacity", kind: "input", dataType: "int", defaultJson: 1000, unit: "L/hour" },
-    { group: "capacity", key: "stp_kld", label: "Greywater treatment capacity", kind: "input", dataType: "number", defaultJson: 12, unit: "KL/day", notes: "MBBR-based packaged unit" },
+    { group: "capacity", key: "wc_seats", label: "Total WC seats (M+F+DA)", kind: "input", dataType: "int", defaultJson: 30, unit: "seats", notes: "Per SBM 1:20 ratio", ui: { min: 6, max: 60, step: 2 } },
+    { group: "capacity", key: "bath_cubicles", label: "Bathing cubicles", kind: "input", dataType: "int", defaultJson: 8, unit: "cubicles", ui: { min: 0, max: 20, step: 1 } },
+    { group: "capacity", key: "washing_machines", label: "Washing machines", kind: "input", dataType: "int", defaultJson: 4, unit: "machines", ui: { min: 0, max: 12, step: 1 } },
+    { group: "capacity", key: "ro_lph", label: "RO Water ATM capacity", kind: "input", dataType: "int", defaultJson: 1000, unit: "L/hour", ui: { min: 250, max: 2000, step: 50 } },
+    { group: "capacity", key: "stp_kld", label: "Greywater treatment capacity", kind: "input", dataType: "number", defaultJson: 12, unit: "KL/day", notes: "MBBR-based packaged unit", ui: { min: 4, max: 30, step: 1 } },
+    // RO buffers — sim-relevant but real spec, so "both".
+    { group: "capacity", key: "ro_tank_litres", label: "RO product tank size", kind: "input", dataType: "int", defaultJson: 4000, unit: "L", ui: { min: 1000, max: 8000, step: 250 } },
+    { group: "capacity", key: "ro_cans_count", label: "RO pre-packed 10 L cans", kind: "input", dataType: "int", defaultJson: 50, unit: "cans", ui: { min: 0, max: 150, step: 5 } },
 
     // ── 3. Service Usage Assumptions ───────────────────────────────────────
-    { group: "usage", key: "toilet_uses_per_person_per_day", label: "Toilet uses per active person/day", kind: "input", dataType: "number", defaultJson: 3, unit: "uses/day" },
-    { group: "usage", key: "bath_share", label: "% of active users who bathe", kind: "input", dataType: "percent", defaultJson: 0.20, unit: "%" },
-    { group: "usage", key: "laundry_loads_per_machine_per_day", label: "Laundry loads per machine per day", kind: "input", dataType: "number", defaultJson: 3.5, unit: "loads/day" },
-    { group: "usage", key: "ro_litres_per_active_hh_per_day", label: "RO litres per active HH/day", kind: "input", dataType: "number", defaultJson: 18, unit: "L/HH/day" },
+    { group: "usage", key: "toilet_uses_per_person_per_day", label: "Toilet uses per active person/day", kind: "input", dataType: "number", defaultJson: 3, unit: "uses/day", ui: { min: 1, max: 6, step: 0.5 } },
+    { group: "usage", key: "bath_share", label: "% of active users who bathe", kind: "input", dataType: "percent", defaultJson: 0.20, unit: "%", ui: { min: 0.05, max: 0.6, step: 0.05 } },
+    { group: "usage", key: "laundry_loads_per_machine_per_day", label: "Laundry loads per machine per day", kind: "input", dataType: "number", defaultJson: 3.5, unit: "loads/day", surface: "finance" },
+    { group: "usage", key: "ro_litres_per_active_hh_per_day", label: "RO litres per active HH/day", kind: "input", dataType: "number", defaultJson: 18, unit: "L/HH/day", ui: { min: 4, max: 25, step: 1 } },
 
     // ── 4. Adoption Curve ──────────────────────────────────────────────────
-    { group: "adoption", key: "adoption_m3", label: "Month 3 adoption", kind: "input", dataType: "percent", defaultJson: 0.25, unit: "% of HH" },
-    { group: "adoption", key: "adoption_m6", label: "Month 6 adoption", kind: "input", dataType: "percent", defaultJson: 0.45, unit: "% of HH" },
-    { group: "adoption", key: "adoption_m12", label: "Month 12 adoption", kind: "input", dataType: "percent", defaultJson: 0.65, unit: "% of HH" },
-    { group: "adoption", key: "adoption_y2", label: "Year 2 average adoption", kind: "input", dataType: "percent", defaultJson: 0.75, unit: "% of HH" },
-    { group: "adoption", key: "adoption_y3", label: "Year 3+ adoption (steady state)", kind: "input", dataType: "percent", defaultJson: 0.80, unit: "% of HH" },
+    // Ramp months are finance-only; the sim runs at steady adoption_y3.
+    { group: "adoption", key: "adoption_m3", label: "Month 3 adoption", kind: "input", dataType: "percent", defaultJson: 0.25, unit: "% of HH", surface: "finance" },
+    { group: "adoption", key: "adoption_m6", label: "Month 6 adoption", kind: "input", dataType: "percent", defaultJson: 0.45, unit: "% of HH", surface: "finance" },
+    { group: "adoption", key: "adoption_m12", label: "Month 12 adoption", kind: "input", dataType: "percent", defaultJson: 0.65, unit: "% of HH", surface: "finance" },
+    { group: "adoption", key: "adoption_y2", label: "Year 2 average adoption", kind: "input", dataType: "percent", defaultJson: 0.75, unit: "% of HH", surface: "finance" },
+    { group: "adoption", key: "adoption_y3", label: "Year 3+ adoption (steady state)", kind: "input", dataType: "percent", defaultJson: 0.80, unit: "% of HH", ui: { min: 0.2, max: 1, step: 0.05 } },
 
     // ── 5. Pricing per Service ─────────────────────────────────────────────
-    { group: "pricing", key: "price_toilet", label: "Toilet — per use", kind: "input", dataType: "currency", defaultJson: 2, unit: "INR/use" },
-    { group: "pricing", key: "price_bath", label: "Bath — per use", kind: "input", dataType: "currency", defaultJson: 8, unit: "INR/bath" },
-    { group: "pricing", key: "price_laundry", label: "Laundry — per load", kind: "input", dataType: "currency", defaultJson: 50, unit: "INR/load" },
-    { group: "pricing", key: "price_ro_per_litre", label: "RO water — per litre", kind: "input", dataType: "currency", defaultJson: 2, unit: "INR/L" },
-    { group: "pricing", key: "monthly_pass_price", label: "Monthly household pass", kind: "input", dataType: "currency", defaultJson: 150, unit: "INR/HH/mo" },
-    { group: "pricing", key: "pass_holder_share", label: "% active HH on monthly pass", kind: "input", dataType: "percent", defaultJson: 0.40, unit: "%" },
+    { group: "pricing", key: "price_toilet", label: "Toilet — per use", kind: "input", dataType: "currency", defaultJson: 2, unit: "INR/use", ui: { min: 0, max: 6, step: 0.5 } },
+    { group: "pricing", key: "price_bath", label: "Bath — per use", kind: "input", dataType: "currency", defaultJson: 8, unit: "INR/bath", ui: { min: 0, max: 25, step: 1 } },
+    { group: "pricing", key: "price_laundry", label: "Laundry — per load", kind: "input", dataType: "currency", defaultJson: 50, unit: "INR/load", ui: { min: 0, max: 100, step: 5 } },
+    { group: "pricing", key: "price_ro_per_litre", label: "RO water — per litre", kind: "input", dataType: "currency", defaultJson: 2, unit: "INR/L", ui: { min: 0, max: 5, step: 0.25 } },
+    { group: "pricing", key: "monthly_pass_price", label: "Monthly household pass", kind: "input", dataType: "currency", defaultJson: 150, unit: "INR/HH/mo", ui: { min: 0, max: 400, step: 10 } },
+    { group: "pricing", key: "pass_holder_share", label: "% active HH on monthly pass", kind: "input", dataType: "percent", defaultJson: 0.40, unit: "%", ui: { min: 0, max: 0.8, step: 0.05 } },
 
     // ── 6. Capex inputs ────────────────────────────────────────────────────
     { group: "capex_in", key: "capex_civil", label: "Civil construction", kind: "input", dataType: "currency", defaultJson: 5800000, unit: "INR" },
@@ -133,8 +148,8 @@ async function main() {
     { group: "opex_in", key: "lab_quarterly", label: "Water quality testing (NABL)", kind: "input", dataType: "currency", defaultJson: 5000, unit: "INR/quarter" },
 
     // ── 8. Equity & Social Access ──────────────────────────────────────────
-    { group: "equity", key: "free_use_quota", label: "Free-use quota (% of capacity)", kind: "input", dataType: "percent", defaultJson: 0.10, unit: "%", notes: "Reserved for poorest / disabled / elderly" },
-    { group: "equity", key: "pilot_free_first_3mo", label: "Year-1 first 3 months free pilot", kind: "input", dataType: "boolean", defaultJson: 1, notes: "1 = give first 3 months free; 0 = charge from M3" },
+    { group: "equity", key: "free_use_quota", label: "Free-use quota (% of capacity)", kind: "input", dataType: "percent", defaultJson: 0.10, unit: "%", notes: "Reserved for poorest / disabled / elderly", ui: { min: 0, max: 0.4, step: 0.05 } },
+    { group: "equity", key: "pilot_free_first_3mo", label: "Year-1 first 3 months free pilot", kind: "input", dataType: "boolean", defaultJson: 1, notes: "1 = give first 3 months free; 0 = charge from M3", surface: "finance" },
 
     // ── 9. Financial Parameters ────────────────────────────────────────────
     { group: "financial", key: "cost_inflation", label: "YoY cost inflation", kind: "input", dataType: "percent", defaultJson: 0.06, unit: "%" },
@@ -341,6 +356,14 @@ async function main() {
     { group: "cost_recovery", key: "community_surplus_annual", label: "Community surplus (EBITDA − reserves)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
       formula: "ebitda_annual - replacement_reserve_annual" },
+
+    // ── Operations (sim-only) ─────────────────────────────────────────────
+    { group: "ops", key: "peak_concentration", label: "Peak concentration", kind: "input", dataType: "number", defaultJson: 100, unit: "", notes: "Higher = sharper morning/evening rush", surface: "sim", ui: { min: 60, max: 200, step: 5 } },
+    // Engineering throughput / recovery — advanced tier (hidden until toggled).
+    { group: "ops", key: "seat_throughput", label: "WC throughput", kind: "input", dataType: "number", defaultJson: 12, unit: "uses/h/seat", surface: "sim", tier: "advanced", ui: { min: 6, max: 20, step: 1 } },
+    { group: "ops", key: "bath_throughput", label: "Cubicle throughput", kind: "input", dataType: "number", defaultJson: 3, unit: "baths/h", surface: "sim", tier: "advanced", ui: { min: 1, max: 8, step: 0.5 } },
+    { group: "ops", key: "machine_throughput", label: "Machine throughput", kind: "input", dataType: "number", defaultJson: 1.3, unit: "loads/h", surface: "sim", tier: "advanced", ui: { min: 0.5, max: 3, step: 0.1 } },
+    { group: "ops", key: "ro_recovery_rate", label: "RO recovery rate", kind: "input", dataType: "percent", defaultJson: 0.55, unit: "%", surface: "sim", tier: "advanced", ui: { min: 0.3, max: 0.8, step: 0.05 } },
   ];
 
   for (let i = 0; i < nodes.length; i++) {
@@ -353,6 +376,9 @@ async function main() {
         defaultJson: n.defaultJson === undefined ? undefined : (n.defaultJson as never),
         formula: n.formula ?? null,
         unit: n.unit ?? null, notes: n.notes ?? null,
+        surface: n.surface ?? "both",
+        tier: n.tier ?? "basic",
+        uiJson: n.ui === undefined ? undefined : (n.ui as never),
         order: i,
       },
     });
@@ -439,6 +465,22 @@ async function main() {
           { nodeKey: "tech_monthly", description: "Technology / monitoring", costCategory: "Other", months: 10 },
           { nodeKey: "opex_lab_monthly", description: "Water quality testing", costCategory: "Other", months: 10 },
         ],
+      } },
+
+    // Operations day-in-the-life sim (multi-service + DEWATS recycling).
+    { key: "daysim_ops", label: "Operations — day in the life", kind: "daySim", order: 40,
+      config: {
+        schematic: "sanitation_complex",
+        nodes: {
+          hh: "hh_count", personsPerHH: "persons_per_hh", adoption: "adoption_y3", peak: "peak_concentration",
+          seats: "wc_seats", baths: "bath_cubicles", machines: "washing_machines", roLph: "ro_lph", dewatsKld: "stp_kld",
+          roTankCap: "ro_tank_litres", roCansCount: "ro_cans_count",
+          toiletUses: "toilet_uses_per_person_per_day", bathShare: "bath_share", roLitresPerHH: "ro_litres_per_active_hh_per_day",
+          priceToilet: "price_toilet", priceBath: "price_bath", priceLaundry: "price_laundry", priceRo: "price_ro_per_litre",
+          passPrice: "monthly_pass_price", passShare: "pass_holder_share", freeQuota: "free_use_quota",
+          opexMonthly: "opex_monthly_steady",
+          seatThroughput: "seat_throughput", bathThroughput: "bath_throughput", machineThroughput: "machine_throughput", roRecovery: "ro_recovery_rate",
+        },
       } },
   ];
   for (const o of outputs) {

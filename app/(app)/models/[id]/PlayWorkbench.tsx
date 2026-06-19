@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { compute, computeSensitivity } from "@/lib/models/engine";
-import type { InstanceInputs, ModelOutput, ModelTemplate, NodeValue } from "@/lib/models/types";
+import type { DaySimConfig, InstanceInputs, ModelNode, ModelOutput, ModelTemplate, NodeValue } from "@/lib/models/types";
 import { forkScenario, promoteToBudget, saveInstanceInputs, searchPitstops, setInstancePitstop } from "./actions";
+import OperationsSim from "./OperationsSim";
 
 type Sibling = { id: string; name: string; scenarioName: string | null };
 
@@ -30,7 +31,8 @@ type Props = {
   canSeeDashboard: boolean;
 };
 
-type ViewMode = "dashboard" | "editor";
+type ViewMode = "dashboard" | "editor" | "sim";
+type SimTier = "basic" | "advanced";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -63,17 +65,20 @@ export default function PlayWorkbench({ instanceId, instanceName, scenarioName, 
   const dirtyRef = useRef(false);
   const [isForkPending, startFork] = useTransition();
 
-  // View mode: leadership users land on "dashboard" by default; everyone else
-  // is fixed in "editor". Per-user choice persists across reloads.
+  // View mode: leadership users land on "dashboard" by default; everyone else on
+  // "editor". "sim" (Operations) is available to all. Per-user choice persists.
   const [mode, setMode] = useState<ViewMode>(canSeeDashboard ? "dashboard" : "editor");
+  // Sim-tab Basic/Advanced toggle — Advanced reveals engineering-constant nodes.
+  const [simTier, setSimTier] = useState<SimTier>("basic");
   useEffect(() => {
-    if (!canSeeDashboard) return;
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("models:viewMode") : null;
-    if (saved === "dashboard" || saved === "editor") setMode(saved);
+    if (saved === "sim" || saved === "editor" || (saved === "dashboard" && canSeeDashboard)) {
+      setMode(saved as ViewMode);
+    }
   }, [canSeeDashboard]);
   useEffect(() => {
-    if (canSeeDashboard && typeof window !== "undefined") window.localStorage.setItem("models:viewMode", mode);
-  }, [mode, canSeeDashboard]);
+    if (typeof window !== "undefined") window.localStorage.setItem("models:viewMode", mode);
+  }, [mode]);
 
   // Debounced autosave. Triggers ~600ms after the last edit; cancels in-flight
   // saves implicitly because each call re-reads `inputs` from state.
@@ -95,8 +100,34 @@ export default function PlayWorkbench({ instanceId, instanceName, scenarioName, 
 
   const result = useMemo(() => compute(template, inputs), [template, inputs]);
 
+  // The daySim output (if any) carries the nodeKey map → sim params. OperationsSim
+  // resolves it against the computed values (one source of truth) and picks the
+  // matching schematic renderer.
+  const daySimConfig = useMemo<DaySimConfig | null>(() => {
+    const out = template.outputs.find(o => o.kind === "daySim");
+    return out ? (out.config as DaySimConfig) : null;
+  }, [template.outputs]);
+
   const groupsByKey = useMemo(() => Object.fromEntries(template.groups.map(g => [g.key, g])), [template.groups]);
-  const inputNodes = template.nodes.filter(n => n.kind === "input" || n.kind === "constant");
+
+  // Active surface drives which input groups/nodes show. Finance for the
+  // dashboard/editor tabs, sim for Operations. A node's effective surface is its
+  // own (when not "both") else its group's. On the sim tab, the Basic/Advanced
+  // toggle additionally hides tier="advanced" nodes until flipped.
+  const activeSurface: "finance" | "sim" = mode === "sim" ? "sim" : "finance";
+  const effSurface = (n: ModelNode): "finance" | "sim" | "both" => {
+    if (n.surface && n.surface !== "both") return n.surface;
+    const gs = groupsByKey[n.groupKey ?? ""]?.surface;
+    if (gs && gs !== "both") return gs;
+    return "both";
+  };
+  const inputNodes = template.nodes.filter(n => {
+    if (n.kind !== "input" && n.kind !== "constant") return false;
+    const es = effSurface(n);
+    if (es !== "both" && es !== activeSurface) return false;
+    if (mode === "sim" && simTier === "basic" && n.tier === "advanced") return false;
+    return true;
+  });
   const inputsByGroup = inputNodes.reduce<Record<string, typeof inputNodes>>((acc, n) => {
     const k = n.groupKey ?? "__ungrouped";
     (acc[k] = acc[k] ?? []).push(n);
@@ -123,22 +154,17 @@ export default function PlayWorkbench({ instanceId, instanceName, scenarioName, 
     setInputs({});
   };
 
-  const modeToggle = canSeeDashboard ? (
+  const tabBtn = (m: ViewMode) =>
+    `px-3 py-1 text-xs rounded ${mode === m ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`;
+  const modeToggle = (
     <div className="inline-flex rounded-md bg-stone-100 p-0.5">
-      <button
-        onClick={() => setMode("dashboard")}
-        className={`px-3 py-1 text-xs rounded ${mode === "dashboard" ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`}
-      >
-        Leadership
-      </button>
-      <button
-        onClick={() => setMode("editor")}
-        className={`px-3 py-1 text-xs rounded ${mode === "editor" ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`}
-      >
-        Editor
-      </button>
+      {canSeeDashboard && (
+        <button onClick={() => setMode("dashboard")} className={tabBtn("dashboard")}>Leadership</button>
+      )}
+      <button onClick={() => setMode("editor")} className={tabBtn("editor")}>Editor</button>
+      <button onClick={() => setMode("sim")} className={tabBtn("sim")}>Operations</button>
     </div>
-  ) : null;
+  );
 
   const scenarioChips = siblings && (
     <div className="flex items-center gap-1 flex-wrap">
@@ -309,6 +335,76 @@ export default function PlayWorkbench({ instanceId, instanceName, scenarioName, 
     );
   }
 
+  // ── Operations / sim layout (day-in-the-life; sliders; basic/advanced) ────
+  if (mode === "sim") {
+    return (
+      <div className="flex h-[calc(100vh-64px)] bg-stone-50">
+        <aside className="w-[360px] shrink-0 border-r border-stone-200 bg-white overflow-y-auto">
+          <div className="px-5 py-4 border-b border-stone-200 sticky top-0 bg-white z-10">
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="font-semibold text-stone-900 truncate">{instanceName}</h1>
+              {scenarioName && <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 shrink-0">{scenarioName}</span>}
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-xs text-stone-500">{template.name}</p>
+              {modeToggle}
+            </div>
+            {siblings && <div className="mt-3">{scenarioChips}</div>}
+            <div className="mt-3">{actionButtons}</div>
+          </div>
+          <div className="px-5 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs uppercase tracking-wide text-stone-400">Live parameters</h3>
+              <div className="inline-flex rounded-md bg-stone-100 p-0.5">
+                <button onClick={() => setSimTier("basic")} className={`px-2.5 py-0.5 text-[11px] rounded ${simTier === "basic" ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`}>Basic</button>
+                <button onClick={() => setSimTier("advanced")} className={`px-2.5 py-0.5 text-[11px] rounded ${simTier === "advanced" ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`}>Advanced</button>
+              </div>
+            </div>
+            {orderedGroupKeys.length === 0 ? (
+              <p className="text-xs text-stone-400">No simulation parameters on this template yet.</p>
+            ) : (
+              <div className="space-y-6">
+                {orderedGroupKeys.map(gk => (
+                  <div key={gk}>
+                    <h4 className="text-xs uppercase tracking-wide text-stone-400 mb-2">{groupsByKey[gk]?.label ?? "Other"}</h4>
+                    <div className="space-y-3">
+                      {inputsByGroup[gk]
+                        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                        .map(n => (
+                          <NodeField
+                            key={n.key}
+                            n={n}
+                            value={inputs[n.key]}
+                            isOverridden={inputs[n.key] !== undefined}
+                            slider={!!n.ui}
+                            onChange={raw => setInputVal(n.key, raw)}
+                          />
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <main className="flex-1 overflow-y-auto p-6">
+          {daySimConfig ? (
+            <OperationsSim config={daySimConfig} values={result.values} />
+          ) : (
+            <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center">
+              <div className="text-sm font-medium text-stone-700">No operations simulation</div>
+              <p className="mt-2 text-sm text-stone-500 max-w-md mx-auto">
+                This template has no <code className="bg-stone-100 px-1 rounded">daySim</code> output configured.
+              </p>
+            </div>
+          )}
+          {errorPanels}
+        </main>
+      </div>
+    );
+  }
+
   // ── Editor layout (default for non-leadership; switchable for leadership) ─
   return (
     <div className="flex h-[calc(100vh-64px)] bg-stone-50">
@@ -474,6 +570,57 @@ function PitstopAttachment({
         </div>
       )}
     </div>
+  );
+}
+
+function NodeField({ n, value, isOverridden, slider, onChange }: {
+  n: ModelNode;
+  value: NodeValue | undefined;
+  isOverridden: boolean;
+  slider: boolean;
+  onChange: (raw: string) => void;
+}) {
+  const displayVal = value !== undefined ? value : (n.default ?? "");
+  return (
+    <label className="block">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-sm text-stone-700 truncate" title={n.label}>{n.label}</span>
+        {n.unit && <span className="text-xs text-stone-400 shrink-0">{n.unit}</span>}
+      </div>
+      {slider && n.ui ? (
+        <div className="mt-1 flex items-center gap-2">
+          <input
+            type="range"
+            min={n.ui.min}
+            max={n.ui.max}
+            step={n.ui.step ?? "any"}
+            value={Number(displayVal)}
+            onChange={e => onChange(e.target.value)}
+            className="flex-1 accent-sky-500"
+          />
+          <input
+            type="number"
+            step={n.ui.step ?? "any"}
+            value={String(displayVal)}
+            onChange={e => onChange(e.target.value)}
+            className={`w-20 px-2 py-1 rounded-md border text-sm text-right tabular-nums ${
+              isOverridden ? "border-amber-300 bg-amber-50" : "border-stone-200"
+            } focus:border-sky-400 focus:ring-1 focus:ring-sky-400 outline-none`}
+          />
+        </div>
+      ) : (
+        <input
+          type="number"
+          step="any"
+          value={String(displayVal)}
+          onChange={e => onChange(e.target.value)}
+          className={`mt-1 w-full px-3 py-1.5 rounded-md border text-sm ${
+            isOverridden ? "border-amber-300 bg-amber-50" : "border-stone-200"
+          } focus:border-sky-400 focus:ring-1 focus:ring-sky-400 outline-none`}
+        />
+      )}
+      {n.notes && <p className="text-xs text-stone-400 mt-0.5">{n.notes}</p>}
+    </label>
   );
 }
 

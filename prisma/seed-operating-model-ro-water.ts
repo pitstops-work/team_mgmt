@@ -44,11 +44,19 @@ async function main() {
     ["revenue", "Revenue (derived)"],
     ["pnl", "P&L (derived)"],
     ["cost_recovery", "Cost Recovery"],
+    ["ops", "Operations (sim)"],
   ] as const;
+  // Group → play surface. Capex/financial are finance-only (vanish on the sim
+  // tab); the ops group is sim-only; everything else shows on both.
+  const groupSurface: Record<string, "finance" | "sim" | "both"> = {
+    capex_in: "finance", financial: "finance", ops: "sim",
+  };
   const groups: Record<string, string> = {};
   for (let i = 0; i < groupDefs.length; i++) {
     const [key, label] = groupDefs[i];
-    const g = await prisma.modelGroup.create({ data: { templateId: template.id, key, label, order: i } });
+    const g = await prisma.modelGroup.create({
+      data: { templateId: template.id, key, label, order: i, surface: groupSurface[key] ?? "both" },
+    });
     groups[key] = g.id;
   }
 
@@ -61,30 +69,40 @@ async function main() {
     unit?: string;
     notes?: string;
     group: string;
+    // Surface override (else inherits group). Sim Basic/Advanced tier. Slider range.
+    surface?: "finance" | "sim" | "both";
+    tier?: "basic" | "advanced";
+    ui?: { min?: number; max?: number; step?: number };
   };
 
   const nodes: NodeIn[] = [
     // ── 1. Site & Population ───────────────────────────────────────────────
-    { group: "site", key: "hh_count", label: "Households in service area", kind: "input", dataType: "int", defaultJson: 500, unit: "HH", notes: "Total households expected to benefit" },
+    { group: "site", key: "hh_count", label: "Households in service area", kind: "input", dataType: "int", defaultJson: 500, unit: "HH", notes: "Total households expected to benefit", ui: { min: 300, max: 1200, step: 20 } },
     { group: "site", key: "persons_per_hh", label: "Persons per household", kind: "input", dataType: "number", defaultJson: 5, unit: "persons" },
     { group: "site", key: "water_need_lppd", label: "Drinking water need per person", kind: "input", dataType: "number", defaultJson: 4, unit: "L/p/d", notes: "Per WHO and SBM guidelines" },
 
     // ── 2. Adoption Curve ─────────────────────────────────────────────────
-    { group: "adoption", key: "adoption_m3", label: "Month 3 adoption", kind: "input", dataType: "percent", defaultJson: 0.30, unit: "% of HH", notes: "Early adopters; cards distributed" },
-    { group: "adoption", key: "adoption_m6", label: "Month 6 adoption", kind: "input", dataType: "percent", defaultJson: 0.50, unit: "% of HH", notes: "After community campaign" },
-    { group: "adoption", key: "adoption_m12", label: "Month 12 adoption", kind: "input", dataType: "percent", defaultJson: 0.70, unit: "% of HH", notes: "Steady-state target year 1" },
-    { group: "adoption", key: "adoption_y2", label: "Year 2 average adoption", kind: "input", dataType: "percent", defaultJson: 0.78, unit: "% of HH", notes: "Mature operations" },
-    { group: "adoption", key: "adoption_y3", label: "Year 3+ adoption (steady state)", kind: "input", dataType: "percent", defaultJson: 0.82, unit: "% of HH", notes: "Plateau" },
-    { group: "adoption", key: "litres_per_adopting_hh", label: "Litres per adopting HH per day", kind: "input", dataType: "number", defaultJson: 18, unit: "L/HH/day", notes: "Actual purchase per active HH; usually below need" },
+    // The month-by-month ramp is finance-only; the sim runs at a single steady
+    // adoption (adoption_y3, kept "both") so it vanishes cleanly on the sim tab.
+    { group: "adoption", key: "adoption_m3", label: "Month 3 adoption", kind: "input", dataType: "percent", defaultJson: 0.30, unit: "% of HH", notes: "Early adopters; cards distributed", surface: "finance" },
+    { group: "adoption", key: "adoption_m6", label: "Month 6 adoption", kind: "input", dataType: "percent", defaultJson: 0.50, unit: "% of HH", notes: "After community campaign", surface: "finance" },
+    { group: "adoption", key: "adoption_m12", label: "Month 12 adoption", kind: "input", dataType: "percent", defaultJson: 0.70, unit: "% of HH", notes: "Steady-state target year 1", surface: "finance" },
+    { group: "adoption", key: "adoption_y2", label: "Year 2 average adoption", kind: "input", dataType: "percent", defaultJson: 0.78, unit: "% of HH", notes: "Mature operations", surface: "finance" },
+    { group: "adoption", key: "adoption_y3", label: "Year 3+ adoption (steady state)", kind: "input", dataType: "percent", defaultJson: 0.82, unit: "% of HH", notes: "Plateau", ui: { min: 0.2, max: 1, step: 0.05 } },
+    { group: "adoption", key: "litres_per_adopting_hh", label: "Litres per adopting HH per day", kind: "input", dataType: "number", defaultJson: 18, unit: "L/HH/day", notes: "Actual purchase per active HH; usually below need", ui: { min: 4, max: 25, step: 1 } },
 
     // ── 3. Plant Specifications ───────────────────────────────────────────
-    { group: "plant", key: "plant_lph", label: "Plant capacity", kind: "input", dataType: "int", defaultJson: 1000, unit: "L/hour" },
-    { group: "plant", key: "operating_hours_per_day", label: "Daily operating hours", kind: "input", dataType: "number", defaultJson: 10, unit: "hours/day" },
-    { group: "plant", key: "ro_recovery_rate", label: "RO recovery rate", kind: "input", dataType: "percent", defaultJson: 0.55, unit: "%", notes: "Litres produced / litres feed water" },
-    { group: "plant", key: "days_per_month", label: "Days operating per month", kind: "input", dataType: "number", defaultJson: 28, unit: "days/month", notes: "Allow for maintenance days" },
+    { group: "plant", key: "plant_lph", label: "Plant capacity", kind: "input", dataType: "int", defaultJson: 1000, unit: "L/hour", ui: { min: 250, max: 2000, step: 50 } },
+    { group: "plant", key: "operating_hours_per_day", label: "Daily operating hours", kind: "input", dataType: "number", defaultJson: 10, unit: "hours/day", ui: { min: 4, max: 24, step: 1 } },
+    // Buffers — sim-relevant but real spec, so "both": they show on finance too.
+    { group: "plant", key: "tank_litres", label: "Product tank size", kind: "input", dataType: "int", defaultJson: 2000, unit: "L", notes: "Primary buffer between plant and dispensing", ui: { min: 1000, max: 8000, step: 250 } },
+    { group: "plant", key: "cans_count", label: "Pre-packed 10 L cans (reserve)", kind: "input", dataType: "int", defaultJson: 50, unit: "cans", notes: "Off-peak reserve drawn down at the rush", ui: { min: 0, max: 150, step: 5 } },
+    // Engineering constants — advanced tier (hidden on the sim tab until toggled).
+    { group: "plant", key: "ro_recovery_rate", label: "RO recovery rate", kind: "input", dataType: "percent", defaultJson: 0.55, unit: "%", notes: "Litres produced / litres feed water", tier: "advanced", ui: { min: 0.3, max: 0.8, step: 0.05 } },
+    { group: "plant", key: "days_per_month", label: "Days operating per month", kind: "input", dataType: "number", defaultJson: 28, unit: "days/month", notes: "Allow for maintenance days", tier: "advanced", ui: { min: 20, max: 31, step: 1 } },
 
     // ── 4. Pricing ────────────────────────────────────────────────────────
-    { group: "pricing", key: "price_per_litre", label: "Price per litre", kind: "input", dataType: "currency", defaultJson: 2, unit: "INR/L", notes: "Slum benchmark INR 1–5 per litre" },
+    { group: "pricing", key: "price_per_litre", label: "Price per litre", kind: "input", dataType: "currency", defaultJson: 2, unit: "INR/L", notes: "Slum benchmark INR 1–5 per litre", ui: { min: 0, max: 5, step: 0.1 } },
     { group: "pricing", key: "pass_discount", label: "Pass holder discount", kind: "input", dataType: "percent", defaultJson: 0.20, unit: "%" },
     { group: "pricing", key: "pass_holder_share", label: "% adopters on monthly pass", kind: "input", dataType: "percent", defaultJson: 0.40, unit: "%" },
     { group: "pricing", key: "effective_price_per_litre", label: "Effective price per litre", kind: "formula", dataType: "currency", formula: "price_per_litre * (1 - pass_discount * pass_holder_share)", unit: "INR/L" },
@@ -267,6 +285,11 @@ async function main() {
     { group: "cost_recovery", key: "community_surplus_annual", label: "Community surplus (EBITDA − reserves)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
       formula: "ebitda_annual - replacement_reserve_annual" },
+
+    // ── Operations (sim-only) ─────────────────────────────────────────────
+    // Intra-day demand-shaping lever for the day-in-the-life simulation. Has no
+    // bearing on the 5-year finance roll-up, hence sim-only.
+    { group: "ops", key: "peak_concentration", label: "Peak concentration", kind: "input", dataType: "number", defaultJson: 100, unit: "", notes: "Higher = sharper morning/evening rush", surface: "sim", ui: { min: 60, max: 200, step: 5 } },
   ];
 
   for (let i = 0; i < nodes.length; i++) {
@@ -279,6 +302,9 @@ async function main() {
         defaultJson: n.defaultJson === undefined ? undefined : (n.defaultJson as never),
         formula: n.formula ?? null,
         unit: n.unit ?? null, notes: n.notes ?? null,
+        surface: n.surface ?? "both",
+        tier: n.tier ?? "basic",
+        uiJson: n.ui === undefined ? undefined : (n.ui as never),
         order: i,
       },
     });
@@ -364,6 +390,19 @@ async function main() {
           { nodeKey: "cleaning_monthly", description: "Cleaning supplies", costCategory: "Other", months: 10 },
           { nodeKey: "opex_steady_lab", description: "Water quality testing", costCategory: "Other", months: 10 },
         ],
+      } },
+
+    // Operations day-in-the-life sim. Reads the same instance inputs via this
+    // nodeKey map — rendered on the Operations tab only (see PlayWorkbench).
+    { key: "daysim_ops", label: "Operations — day in the life", kind: "daySim", order: 40,
+      config: {
+        schematic: "ro_water",
+        nodes: {
+          lph: "plant_lph", tankCap: "tank_litres", cansCount: "cans_count",
+          hh: "hh_count", adoption: "adoption_y3", lpd: "litres_per_adopting_hh",
+          peak: "peak_concentration", price: "effective_price_per_litre", opexMonthly: "opex_monthly_steady",
+          operatingDays: "days_per_month",
+        },
       } },
   ];
   for (const o of outputs) {
