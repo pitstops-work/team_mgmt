@@ -88,6 +88,7 @@ async function main() {
     { group: "capacity", key: "washing_machines", label: "Washing machines", kind: "input", dataType: "int", defaultJson: 4, unit: "machines", ui: { min: 0, max: 12, step: 1 } },
     { group: "capacity", key: "ro_lph", label: "RO Water ATM capacity", kind: "input", dataType: "int", defaultJson: 1000, unit: "L/hour", ui: { min: 250, max: 2000, step: 50 } },
     { group: "capacity", key: "ro_operating_hours", label: "RO plant daily operating hours", kind: "input", dataType: "number", defaultJson: 12, unit: "hours/day", notes: "Plant runs a window from 6am, banking into the RO tank", ui: { min: 4, max: 24, step: 1 } },
+    { group: "capacity", key: "facility_open_hours", label: "Complex open hours", kind: "input", dataType: "number", defaultJson: 16, unit: "hours/day", notes: "Toilet/bath/laundry only serve while open (from 6am); closed-hour demand shifts into the open window", ui: { min: 6, max: 24, step: 1 } },
     { group: "capacity", key: "stp_kld", label: "Greywater treatment capacity", kind: "input", dataType: "number", defaultJson: 12, unit: "KL/day", notes: "MBBR-based packaged unit", ui: { min: 4, max: 30, step: 1 } },
     // RO buffers — sim-relevant but real spec, so "both".
     { group: "capacity", key: "ro_tank_litres", label: "RO product tank size", kind: "input", dataType: "int", defaultJson: 4000, unit: "L", ui: { min: 1000, max: 8000, step: 250 } },
@@ -499,7 +500,7 @@ async function main() {
           opexToilet: "opex_toilet_monthly", opexBath: "opex_bath_monthly", opexLaundry: "opex_laundry_monthly",
           opexRo: "opex_ro_monthly", opexShared: "opex_shared_monthly",
           seatThroughput: "seat_throughput", bathThroughput: "bath_throughput", machineThroughput: "machine_throughput", roRecovery: "ro_recovery_rate",
-          roOperatingHours: "ro_operating_hours",
+          roOperatingHours: "ro_operating_hours", facilityOpenHours: "facility_open_hours",
         },
       } },
   ];

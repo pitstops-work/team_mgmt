@@ -22,7 +22,10 @@ export type ComplexSimParams = {
   // finance model). Used to give each service a cost-to-serve and margin.
   opexToilet: number; opexBath: number; opexLaundry: number; opexRo: number; opexShared: number;
   seatThroughput: number; bathThroughput: number; machineThroughput: number; roRecovery: number;
-  roOperatingHours: number; // hours/day the RO plant runs (contiguous window from 06:00)
+  roOperatingHours: number;     // hours/day the RO plant runs (contiguous window from 06:00)
+  facilityOpenHours: number;    // hours/day the complex is open (from 06:00); attended
+                                // services (toilet/bath/laundry) only serve while open —
+                                // closed-hour demand compresses into the open window
 };
 
 export type ComplexService = {
@@ -63,6 +66,17 @@ function shape(prof: number[], gamma: number): number[] {
   const s = prof.map(v => Math.pow(v, gamma));
   const t = s.reduce((a, b) => a + b, 0) || 1;
   return s.map(v => v / t);
+}
+
+/** Restrict a (normalised) demand profile to the facility's open window from
+ *  06:00, renormalising so the daily total is preserved — i.e. closed-hour
+ *  demand shifts into the open hours, concentrating the peak. */
+function openWindow(prof: number[], openHours: number): number[] {
+  const hours = openHours > 0 ? Math.min(24, openHours) : 24;
+  if (hours >= 24) return prof;
+  const masked = prof.map((v, h) => (((h - OPEN_HOUR + 24) % 24) < hours ? v : 0));
+  const s = masked.reduce((a, b) => a + b, 0) || 1;
+  return masked.map(v => v / s);
 }
 
 /** Capacity-limited service: each hour serves min(demand, hourlyCap). */
@@ -125,9 +139,12 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const capB = Math.max(0, p.baths) * Math.max(0, p.bathThroughput);
   const capL = Math.max(0, p.machines) * Math.max(0, p.machineThroughput);
 
-  const T = simServed(demUses, shape(PROF.toilet, gamma), capT);
-  const B = simServed(demBaths, shape(PROF.bath, gamma), capB);
-  const L = simServed(demLoads, shape(PROF.laundry, gamma), capL);
+  // Attended services only serve while the complex is open; their demand
+  // concentrates into the open window. RO dispensing is ATM-style (24h off the
+  // tank), so it keeps the full-day profile.
+  const T = simServed(demUses, openWindow(shape(PROF.toilet, gamma), p.facilityOpenHours), capT);
+  const B = simServed(demBaths, openWindow(shape(PROF.bath, gamma), p.facilityOpenHours), capB);
+  const L = simServed(demLoads, openWindow(shape(PROF.laundry, gamma), p.facilityOpenHours), capL);
   const R = simRO(demRO, shape(PROF.ro, gamma), p.roLph, p.roTankCap, Math.max(0, p.roCansCount) * 10, p.roOperatingHours);
 
   const uses = T.servedDay, baths = B.servedDay, loads = L.servedDay, product = R.servedDay;

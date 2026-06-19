@@ -52,11 +52,13 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
   const h = Math.min(23, Math.floor(minute / 60));
   const mm = Math.floor(minute % 60);
   const clock = `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+  const facilityOpen = params.facilityOpenHours >= 24 ? true : ((h - 6 + 24) % 24) < params.facilityOpenHours;
   let phase = "overnight";
   if (h === 13 || h === 14) phase = "midday service window";
   else if (h >= 6 && h <= 9) phase = "morning peak";
   else if (h >= 18 && h <= 21) phase = "evening peak";
   else if (h >= 10 && h <= 16) phase = "daytime";
+  if (!facilityOpen) phase = "complex closed";
   const dayish = minute > 360 && minute < 1140;
 
   const e = sim.econ;
@@ -97,7 +99,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
           <div style={{ color: C.cyan, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.18em" }}>Live operations · full complex · 24-hour cycle</div>
           <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, fontFamily: "var(--font-sans, system-ui), sans-serif" }}>Sanitation Complex — day in the life</div>
           <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
-            {params.seats} WC · {params.baths} bath · {params.machines} laundry · {fmt(params.roLph)} LPH RO · {params.dewatsKld} KLD DEWATS
+            {params.seats} WC · {params.baths} bath · {params.machines} laundry · {fmt(params.roLph)} LPH RO · {params.dewatsKld} KLD DEWATS · open {params.facilityOpenHours >= 24 ? "24h" : `${Math.round(params.facilityOpenHours)}h`}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
