@@ -338,9 +338,9 @@ export default function PlayWorkbench({ instanceId, instanceName, scenarioName, 
   // ── Operations / sim layout (day-in-the-life; sliders; basic/advanced) ────
   if (mode === "sim") {
     return (
-      <div className="flex h-[calc(100vh-64px)] bg-stone-50">
-        <aside className="w-[360px] shrink-0 border-r border-stone-200 bg-white overflow-y-auto">
-          <div className="px-5 py-4 border-b border-stone-200 sticky top-0 bg-white z-10">
+      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-64px)] bg-stone-50">
+        <aside className="w-full lg:w-[360px] shrink-0 border-b lg:border-b-0 lg:border-r border-stone-200 bg-white lg:overflow-y-auto">
+          <div className="px-5 py-4 border-b border-stone-200 lg:sticky lg:top-0 bg-white z-10">
             <div className="flex items-center justify-between gap-2">
               <h1 className="font-semibold text-stone-900 truncate">{instanceName}</h1>
               {scenarioName && <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 shrink-0">{scenarioName}</span>}
@@ -388,7 +388,7 @@ export default function PlayWorkbench({ instanceId, instanceName, scenarioName, 
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 lg:overflow-y-auto p-4 sm:p-6">
           {daySimConfig ? (
             <OperationsSim config={daySimConfig} values={result.values} />
           ) : (

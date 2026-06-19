@@ -166,7 +166,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
       </div>
 
       {/* per-service cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginTop: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
         {sim.services.map(s => {
           const short = s.demandDay > s.servedDay * 1.02;
           const belowCost = s.marginDay < 0;
@@ -209,7 +209,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
       </div>
 
       {/* water balance strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginTop: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginTop: 10 }}>
         <Mini k="Fresh water in" v={fmt(w.freshDay)} u="L/day" />
         <Mini k="Greywater made" v={fmt(w.greywaterDay)} u="L/day" />
         <Mini k="DEWATS load" v={`${Math.round(w.dewatsUtil * 100)}%`} u="of cap" color={dewOver ? C.alert : C.greenBr} />
@@ -218,7 +218,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
       </div>
 
       {/* economics */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginTop: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginTop: 10 }}>
         <Mini k="Revenue / day" v={fmtINR(e.revDay)} />
         <Mini k="Op cost / day" v={fmtINR(e.opexDay)} />
         <Mini k="Surplus / day" v={(e.surplusDay >= 0 ? "+" : "−") + fmtINR(Math.abs(e.surplusDay))} color={e.surplusDay >= 0 ? C.greenBr : C.alert} />

@@ -197,7 +197,7 @@ export default function DaySim({ params }: { params: DaySimParams }) {
       </div>
 
       {/* telemetry */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginTop: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginTop: 14 }}>
         <Cell k="Production" v={fmtL(prod)} u="L/h" />
         <Cell k="Demand now" v={fmtL(dem)} u="L/h" />
         <Cell k="Tank level" v={fmtL(tank)} u="L" />
@@ -211,7 +211,7 @@ export default function DaySim({ params }: { params: DaySimParams }) {
       <div style={{ color: C.muted, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.14em", marginTop: 16, marginBottom: 8 }}>
         Economics — at the current price &amp; cost settings
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10 }}>
         <Cell k="Revenue / day" v={fmtINR(e.revDay)} />
         <Cell k="Op cost / day" v={fmtINR(e.opexDay)} />
         <Cell k="Surplus / day" v={(e.surplusDay >= 0 ? "+" : "−") + fmtINR(Math.abs(e.surplusDay))} color={e.surplusDay >= 0 ? C.good : C.alert} />
