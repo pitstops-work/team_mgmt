@@ -35,6 +35,7 @@ type Budget = {
   inflationOtherPct: number;
   inflationNilPct: number;
   status: "draft" | "final" | "approved";
+  importedAt?: string | null;
   lines: Line[];
   domainLabels?: Record<string, string>;
   inputs?: Record<string, number | string | null> | null;
@@ -302,6 +303,14 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
             <span className={`text-xs px-2 py-0.5 rounded-full ${budget.status === "approved" ? "bg-emerald-100 text-emerald-700" : budget.status === "final" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
               {budget.status === "approved" ? "Approved" : budget.status === "final" ? "Finalized" : "Draft"}
             </span>
+            {budget.importedAt && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-700"
+                title="Created by importing a filled Excel template. Its lines were entered/edited by hand, so any future regenerate-from-inputs would replace them."
+              >
+                Imported
+              </span>
+            )}
             <span className="text-xs text-stone-400">
               {horizonLabel(budget.horizonMonths ?? budget.years * 12)}
               {!budget.applyInflation && <span className="ml-1 text-stone-300">· flat</span>}

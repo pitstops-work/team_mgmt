@@ -23,6 +23,8 @@ export type ParsedLine = {
   unitType: string;
   salaryHint: string | null;
   notes: string | null;
+  cadence: "monthly" | "one_time" | "seasonal";
+  plannedMonths: number[];
   y1Units: number; y1UnitCost: number; y1AllocPct: number; y1Total: number;
   y2Units: number; y2UnitCost: number; y2AllocPct: number; y2Total: number;
   y3Units: number; y3UnitCost: number; y3AllocPct: number; y3Total: number;
@@ -112,6 +114,49 @@ function stripSalaryHint(desc: string): string {
   return desc.replace(/\s*\[[^\]]*\]\s*$/, "").trim();
 }
 
+type YearAmt = { u: number; c: number; a: number; t: number };
+type LocationRead = {
+  description: string;
+  costCategory: "Salary" | "Other" | "Nil";
+  unitType: string;
+  notes: string | null;
+  amt: Record<"y1" | "y2" | "y3" | "y4" | "y5", YearAmt>;
+  grand: number;
+};
+
+/** Read one (sheet,row) occurrence of a line into resolved identity + amounts. */
+function readLocation(
+  wb: ExcelJS.Workbook, loc: { sheet: string; row: number }, ml: MetaLine, years: number,
+): LocationRead | null {
+  const ws = wb.getWorksheet(loc.sheet);
+  if (!ws) return null;
+  const row = ws.getRow(loc.row);
+
+  const descCell = cellString(row.getCell(2));
+  const description = descCell ? stripSalaryHint(descCell) : ml.description;
+  const catCell = cellString(row.getCell(3));
+  const costCategory = (catCell && VALID_CATEGORY.has(catCell) ? catCell : ml.costCategory) as "Salary" | "Other" | "Nil";
+  const unitType = cellString(row.getCell(5)) ?? ml.unitType;
+  const notes = cellString(row.getCell(27)) ?? ml.notes;
+
+  const amt = {} as Record<"y1" | "y2" | "y3" | "y4" | "y5", YearAmt>;
+  let grand = 0;
+  for (let y = 1; y <= 5; y++) {
+    const key = `y${y}` as "y1" | "y2" | "y3" | "y4" | "y5";
+    const base = ml.base[key];
+    if (y > years) { amt[key] = { u: 0, c: 0, a: 1, t: 0 }; continue; }
+    const cols = YEAR_INPUT_COLS[y as 1 | 2 | 3 | 4 | 5];
+    const u = cellNumber(row.getCell(cols.u)) ?? 0;
+    const c = cellNumber(row.getCell(cols.c)) ?? base.c;
+    const aRaw = cellNumber(row.getCell(cols.a));
+    const a = aRaw === null ? 1 : aRaw; // blank allocation = 100% (matches export formula)
+    const t = u * c * a;
+    amt[key] = { u, c, a, t };
+    grand += t;
+  }
+  return { description, costCategory, unitType, notes, amt, grand };
+}
+
 export async function parseBudgetWorkbook(buffer: ArrayBuffer): Promise<ParsedBudget> {
   const wb = new ExcelJS.Workbook();
   try {
@@ -123,56 +168,54 @@ export async function parseBudgetWorkbook(buffer: ArrayBuffer): Promise<ParsedBu
   const warnings: string[] = [];
   const years = Math.min(5, Math.max(1, meta.years || 1));
 
+  const baseGrandOf = (ml: MetaLine) =>
+    ml.base.y1.u * ml.base.y1.c * ml.base.y1.a + ml.base.y2.u * ml.base.y2.c * ml.base.y2.a +
+    ml.base.y3.u * ml.base.y3.c * ml.base.y3.a + ml.base.y4.u * ml.base.y4.c * ml.base.y4.a +
+    ml.base.y5.u * ml.base.y5.c * ml.base.y5.a;
+
   const lines: ParsedLine[] = [];
   for (const ml of meta.lines) {
-    const ws = wb.getWorksheet(ml.sheet);
-    if (!ws) { warnings.push(`Sheet "${ml.sheet}" missing — line "${ml.description}" kept at template values.`); }
-    const row = ws ? ws.getRow(ml.row) : null;
+    // Back-compat: pre-v2 meta carried a single { sheet, row } instead of locations.
+    const locs = ml.locations ?? (
+      (ml as unknown as { sheet?: string; row?: number }).sheet
+        ? [{ sheet: (ml as unknown as { sheet: string }).sheet, row: (ml as unknown as { row: number }).row }]
+        : []
+    );
+    const reads = locs.map(l => readLocation(wb, l, ml, years)).filter((r): r is LocationRead => r !== null);
+    if (reads.length === 0) { warnings.push(`Could not locate line "${ml.description}" — kept at template values.`); }
 
-    // Identity: prefer the (editable) cell value, fall back to the template meta.
-    const descCell = row ? cellString(row.getCell(2)) : null;
-    const description = descCell ? stripSalaryHint(descCell) : ml.description;
-    const catCell = row ? cellString(row.getCell(3)) : null;
-    const costCategory = (catCell && VALID_CATEGORY.has(catCell) ? catCell : ml.costCategory) as "Salary" | "Other" | "Nil";
-    const unitTypeCell = row ? cellString(row.getCell(5)) : null;
-    const unitType = unitTypeCell ?? ml.unitType;
-    const notesCell = row ? cellString(row.getCell(27)) : null;
-    const notes = notesCell ?? ml.notes;
-
-    // Amounts per active year: units & alloc% read straight; unit cost falls back
-    // to the formula result, then the template baseline if the cell is unreadable.
-    const amt: Record<string, { u: number; c: number; a: number; t: number }> = {};
-    for (let y = 1 as 1 | 2 | 3 | 4 | 5; y <= 5; y = (y + 1) as 1 | 2 | 3 | 4 | 5) {
-      const base = ml.base[`y${y}` as keyof MetaLine["base"]];
-      if (y > years) { amt[`y${y}`] = { u: 0, c: 0, a: 1, t: 0 }; continue; }
-      const cols = YEAR_INPUT_COLS[y];
-      const uCell = row?.getCell(cols.u);
-      const cCell = row?.getCell(cols.c);
-      const aCell = row?.getCell(cols.a);
-      const u = uCell ? (cellNumber(uCell) ?? 0) : base.u;
-      const c = cCell ? (cellNumber(cCell) ?? base.c) : base.c;
-      const aRaw = aCell ? cellNumber(aCell) : null;
-      const a = aRaw === null ? 1 : aRaw; // blank allocation = 100% (matches export formula)
-      const t = u * c * a;
-      amt[`y${y}`] = { u, c, a, t };
+    const baseGrand = baseGrandOf(ml);
+    // Across occurrences (cross-cutting lines repeat per domain sheet): prefer an
+    // edited one. If several disagree, take the first edited and warn.
+    const edits = reads.filter(r => Math.abs(r.grand - baseGrand) > 0.5 || r.description !== ml.description);
+    const distinctEditGrands = new Set(edits.map(r => Math.round(r.grand)));
+    if (distinctEditGrands.size > 1) {
+      warnings.push(`Line "${ml.description}" was edited differently on multiple sheets — using the first edit (₹${Math.round(edits[0].grand).toLocaleString("en-IN")}).`);
     }
-
-    const grand = amt.y1.t + amt.y2.t + amt.y3.t + amt.y4.t + amt.y5.t;
-    const baseGrand =
-      ml.base.y1.u * ml.base.y1.c * ml.base.y1.a + ml.base.y2.u * ml.base.y2.c * ml.base.y2.a +
-      ml.base.y3.u * ml.base.y3.c * ml.base.y3.a + ml.base.y4.u * ml.base.y4.c * ml.base.y4.a +
-      ml.base.y5.u * ml.base.y5.c * ml.base.y5.a;
-    const edited = Math.abs(grand - baseGrand) > 0.5 || description !== ml.description;
+    const chosen: LocationRead = edits[0] ?? reads[0] ?? {
+      description: ml.description, costCategory: ml.costCategory, unitType: ml.unitType, notes: ml.notes,
+      amt: {
+        y1: { u: ml.base.y1.u, c: ml.base.y1.c, a: ml.base.y1.a, t: ml.base.y1.u * ml.base.y1.c * ml.base.y1.a },
+        y2: { u: ml.base.y2.u, c: ml.base.y2.c, a: ml.base.y2.a, t: ml.base.y2.u * ml.base.y2.c * ml.base.y2.a },
+        y3: { u: ml.base.y3.u, c: ml.base.y3.c, a: ml.base.y3.a, t: ml.base.y3.u * ml.base.y3.c * ml.base.y3.a },
+        y4: { u: ml.base.y4.u, c: ml.base.y4.c, a: ml.base.y4.a, t: ml.base.y4.u * ml.base.y4.c * ml.base.y4.a },
+        y5: { u: ml.base.y5.u, c: ml.base.y5.c, a: ml.base.y5.a, t: ml.base.y5.u * ml.base.y5.c * ml.base.y5.a },
+      },
+      grand: baseGrand,
+    };
+    const a = chosen.amt;
 
     lines.push({
       position: ml.position, domain: ml.domain, section: ml.section, templateKey: ml.templateKey,
-      description, costCategory, unitType, salaryHint: ml.salaryHint, notes,
-      y1Units: amt.y1.u, y1UnitCost: amt.y1.c, y1AllocPct: amt.y1.a, y1Total: amt.y1.t,
-      y2Units: amt.y2.u, y2UnitCost: amt.y2.c, y2AllocPct: amt.y2.a, y2Total: amt.y2.t,
-      y3Units: amt.y3.u, y3UnitCost: amt.y3.c, y3AllocPct: amt.y3.a, y3Total: amt.y3.t,
-      y4Units: amt.y4.u, y4UnitCost: amt.y4.c, y4AllocPct: amt.y4.a, y4Total: amt.y4.t,
-      y5Units: amt.y5.u, y5UnitCost: amt.y5.c, y5AllocPct: amt.y5.a, y5Total: amt.y5.t,
-      edited,
+      description: chosen.description, costCategory: chosen.costCategory, unitType: chosen.unitType,
+      salaryHint: ml.salaryHint, notes: chosen.notes,
+      cadence: ml.cadence ?? "monthly", plannedMonths: ml.plannedMonths ?? [],
+      y1Units: a.y1.u, y1UnitCost: a.y1.c, y1AllocPct: a.y1.a, y1Total: a.y1.t,
+      y2Units: a.y2.u, y2UnitCost: a.y2.c, y2AllocPct: a.y2.a, y2Total: a.y2.t,
+      y3Units: a.y3.u, y3UnitCost: a.y3.c, y3AllocPct: a.y3.a, y3Total: a.y3.t,
+      y4Units: a.y4.u, y4UnitCost: a.y4.c, y4AllocPct: a.y4.a, y4Total: a.y4.t,
+      y5Units: a.y5.u, y5UnitCost: a.y5.c, y5AllocPct: a.y5.a, y5Total: a.y5.t,
+      edited: edits.length > 0,
     });
   }
 

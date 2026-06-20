@@ -128,7 +128,7 @@ export default function ImportBudgetClient() {
 
           <div className="px-5 py-4 border-t border-stone-100 flex items-center justify-between gap-3">
             <p className="text-xs text-stone-400">
-              Totals are recomputed as Units × Unit cost × Allocation%. Line cadence resets to monthly on import.
+              Totals are recomputed as Units × Unit cost × Allocation%.
             </p>
             <button
               onClick={onCommit}

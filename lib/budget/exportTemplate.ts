@@ -33,6 +33,9 @@ export type ExportLine = {
   userInputCost: string | null;
   workerRatioKey: string | null;   // present → non-standard formula, no linkage
   costPctOf: string | null;        // present → non-standard formula, no linkage
+  // Timing profile — not rendered on the sheet, carried in Meta for round-trip.
+  cadence: "monthly" | "one_time" | "seasonal";
+  plannedMonths: number[];
   y1Units: number; y1UnitCost: number; y1AllocPct: number; y1Total: number;
   y2Units: number; y2UnitCost: number; y2AllocPct: number; y2Total: number;
   y3Units: number; y3UnitCost: number; y3AllocPct: number; y3Total: number;
@@ -1073,18 +1076,24 @@ export function buildSummarySheet(
  *  repeats on every domain sheet (keep the first occurrence). */
 function buildMetaLines(sheetRows: Array<{ sheet: string; rows: ProgrammeRowRef[] }>): MetaLine[] {
   const out: MetaLine[] = [];
-  const seen = new Set<string>();
+  const byId = new Map<string, MetaLine>();
   let position = 0;
   for (const { sheet, rows } of sheetRows) {
     for (const { line, rowNum } of rows) {
       const id = `${line.section}|${line.templateKey ?? ""}|${line.description}|${line.domain ?? ""}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      out.push({
-        sheet, row: rowNum, position: position++,
+      const existing = byId.get(id);
+      if (existing) {
+        // Cross-cutting line repeated on another domain sheet — record the extra
+        // location so import can pick up an edit made on any sheet.
+        existing.locations.push({ sheet, row: rowNum });
+        continue;
+      }
+      const ml: MetaLine = {
+        locations: [{ sheet, row: rowNum }], position: position++,
         domain: line.domain, section: line.section, templateKey: line.templateKey,
         costCategory: line.costCategory, unitType: line.unitType,
         description: line.description, salaryHint: line.salaryHint, notes: line.notes,
+        cadence: line.cadence, plannedMonths: line.plannedMonths,
         base: {
           y1: { u: line.y1Units, c: line.y1UnitCost, a: line.y1AllocPct },
           y2: { u: line.y2Units, c: line.y2UnitCost, a: line.y2AllocPct },
@@ -1092,7 +1101,9 @@ function buildMetaLines(sheetRows: Array<{ sheet: string; rows: ProgrammeRowRef[
           y4: { u: line.y4Units, c: line.y4UnitCost, a: line.y4AllocPct },
           y5: { u: line.y5Units, c: line.y5UnitCost, a: line.y5AllocPct },
         },
-      });
+      };
+      byId.set(id, ml);
+      out.push(ml);
     }
   }
   return out;
@@ -1173,7 +1184,7 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
   // Step 5: write the hidden round-trip Meta sheet (only when meta is supplied).
   if (budget.meta) {
     const metaLines = buildMetaLines(metaSheetRows);
-    const budgetSheets = [...new Set(metaLines.map(l => l.sheet))];
+    const budgetSheets = [...new Set(metaLines.flatMap(l => l.locations.map(loc => loc.sheet)))];
     const meta: TemplateMeta = {
       v: LAYOUT_VERSION, kind: "apf-budget",
       name: budget.name, city: budget.meta.city, domains: budget.domains,

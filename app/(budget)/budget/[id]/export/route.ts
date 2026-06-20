@@ -54,6 +54,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       userInputCost: tmpl?.userInputCost ?? null,
       workerRatioKey: tmpl?.workerRatioKey ?? null,
       costPctOf: tmpl?.costPctOf ?? null,
+      cadence: l.cadence,
+      plannedMonths: l.plannedMonths,
       y1Units: l.y1Units, y1UnitCost: l.y1UnitCost, y1AllocPct: l.y1AllocPct, y1Total: l.y1Total,
       y2Units: l.y2Units, y2UnitCost: l.y2UnitCost, y2AllocPct: l.y2AllocPct, y2Total: l.y2Total,
       y3Units: l.y3Units, y3UnitCost: l.y3UnitCost, y3AllocPct: l.y3AllocPct, y3Total: l.y3Total,

@@ -190,6 +190,8 @@ export async function createBudgetFromImport(parsed: ParsedBudget): Promise<{ id
             salaryHint: l.salaryHint,
             notes: l.notes,
             templateKey: l.templateKey,
+            cadence: l.cadence as BudgetLineCadence,
+            plannedMonths: l.plannedMonths,
             y1Units: l.y1Units, y1UnitCost: l.y1UnitCost, y1AllocPct: l.y1AllocPct, y1Total: l.y1Total,
             y2Units: l.y2Units, y2UnitCost: l.y2UnitCost, y2AllocPct: l.y2AllocPct, y2Total: l.y2Total,
             y3Units: l.y3Units, y3UnitCost: l.y3UnitCost, y3AllocPct: l.y3AllocPct, y3Total: l.y3Total,

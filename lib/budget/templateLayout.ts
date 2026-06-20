@@ -36,16 +36,19 @@ export const COL = {
 export const META_SHEET = "00.Meta";
 /** Cell on the Meta sheet holding the JSON blob. */
 export const META_CELL = "A1";
-/** Bump when the on-sheet layout or meta schema changes incompatibly. */
-export const LAYOUT_VERSION = 1;
+/** Bump when the on-sheet layout or meta schema changes incompatibly.
+ *  v2: MetaLine carries `locations[]` (was sheet+row) + cadence/plannedMonths. */
+export const LAYOUT_VERSION = 2;
 
-/** One programme/section line's structural identity + location in the workbook.
- *  Amounts are intentionally NOT stored here — they live in the editable green
- *  cells (the partner's surface). `base` is a fallback only, used when a cell
- *  is unreadable (e.g. an un-opened file whose formulas have no cached result). */
+/** One programme/section line's structural identity + location(s) in the
+ *  workbook. Amounts are intentionally NOT stored here — they live in the
+ *  editable green cells (the partner's surface). `base` is a fallback only, used
+ *  when a cell is unreadable (e.g. an un-opened file whose formulas have no
+ *  cached result). */
 export type MetaLine = {
-  sheet: string;        // worksheet name the row lives on
-  row: number;          // 1-based row number of the data row
+  /** All (sheet,row) occurrences. A cross-cutting (domain=null) line is repeated
+   *  on every domain sheet in multi-domain exports, so it has >1 location. */
+  locations: { sheet: string; row: number }[];
   position: number;     // BudgetLine.position
   domain: string | null;
   section: BudgetSection;
@@ -55,6 +58,8 @@ export type MetaLine = {
   description: string;
   salaryHint: string | null;
   notes: string | null;
+  cadence: "monthly" | "one_time" | "seasonal";
+  plannedMonths: number[];
   base: {
     y1: { u: number; c: number; a: number };
     y2: { u: number; c: number; a: number };
