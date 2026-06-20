@@ -1,5 +1,9 @@
 import ExcelJS from "exceljs";
 import type { BudgetSection } from "@/app/generated/prisma/client";
+import {
+  META_SHEET, META_CELL, LAYOUT_VERSION,
+  type MetaLine, type TemplateMeta,
+} from "./templateLayout";
 
 /**
  * Cost-component for a programme line, sourced from CostRegistry items joined
@@ -45,6 +49,19 @@ export type ExportBudget = {
    * is false, all three should be 0 so the inflation formula collapses to 1. */
   inflationRates?: { Salary: number; Other: number; Nil: number };
   lines: ExportLine[];
+  /** When provided, a hidden 00.Meta sheet is written carrying the full
+   *  machine-readable budget state for a lossless round-trip on import.
+   *  Omit for anonymous/ad-hoc exports that won't be re-imported. */
+  meta?: {
+    city: string;
+    horizonMonths: number;
+    applyInflation: boolean;
+    /** Inflation rates as PERCENTAGES (10 = 10%). */
+    inflationPct: { Salary: number; Other: number; Nil: number };
+    inputs: Record<string, number>;
+    costOverrides: Record<string, number>;
+    costSnapshot: Record<string, number>;
+  };
 };
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -163,6 +180,9 @@ export type ProgrammeRowRef = {
 export type BudgetSheetResult = {
   map: SectionRowMap;
   programmeRows: ProgrammeRowRef[];
+  /** Every emitted data row (all sections) with its row number — used to build
+   *  the hidden Meta line index for round-trip import. */
+  dataRows: ProgrammeRowRef[];
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -761,6 +781,7 @@ export function buildBudgetSheet(
 
   const map: SectionRowMap = { grandTotal: 0 } as SectionRowMap;
   const programmeRows: ProgrammeRowRef[] = [];
+  const dataRows: ProgrammeRowRef[] = [];
 
   for (const p of sectionPlan) {
     if (p.banner) {
@@ -782,6 +803,7 @@ export function buildBudgetSheet(
         unitCostFormula = workingCellMap.get(`${domainKey}:${programmeIdxInDomain}`) ?? null;
       }
       emitDataRow(ws, line, sno++, years, grandTotalRow, unitCostFormula);
+      dataRows.push({ line, rowNum: ws.rowCount });
       if (p.key === "4") {
         programmeRows.push({ line, rowNum: ws.rowCount });
         programmeIdxInDomain++;
@@ -814,7 +836,7 @@ export function buildBudgetSheet(
   }
 
   ws.views = [{ state: "frozen", xSplit: 2, ySplit: 4, topLeftCell: "C5" }];
-  return { map, programmeRows };
+  return { map, programmeRows, dataRows };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1046,12 +1068,61 @@ export function buildSummarySheet(
 // Top-level builder
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Build the hidden Meta line index from each sheet's emitted data rows,
+ *  deduping cross-cutting (domain=null) lines that the multi-domain export
+ *  repeats on every domain sheet (keep the first occurrence). */
+function buildMetaLines(sheetRows: Array<{ sheet: string; rows: ProgrammeRowRef[] }>): MetaLine[] {
+  const out: MetaLine[] = [];
+  const seen = new Set<string>();
+  let position = 0;
+  for (const { sheet, rows } of sheetRows) {
+    for (const { line, rowNum } of rows) {
+      const id = `${line.section}|${line.templateKey ?? ""}|${line.description}|${line.domain ?? ""}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({
+        sheet, row: rowNum, position: position++,
+        domain: line.domain, section: line.section, templateKey: line.templateKey,
+        costCategory: line.costCategory, unitType: line.unitType,
+        description: line.description, salaryHint: line.salaryHint, notes: line.notes,
+        base: {
+          y1: { u: line.y1Units, c: line.y1UnitCost, a: line.y1AllocPct },
+          y2: { u: line.y2Units, c: line.y2UnitCost, a: line.y2AllocPct },
+          y3: { u: line.y3Units, c: line.y3UnitCost, a: line.y3AllocPct },
+          y4: { u: line.y4Units, c: line.y4UnitCost, a: line.y4AllocPct },
+          y5: { u: line.y5Units, c: line.y5UnitCost, a: line.y5AllocPct },
+        },
+      });
+    }
+  }
+  return out;
+}
+
+/** Write the JSON meta blob to a very-hidden sheet, chunked down column A to
+ *  stay under Excel's ~32,767-char per-cell limit. */
+function writeMetaSheet(wb: ExcelJS.Workbook, meta: TemplateMeta): void {
+  const ws = wb.addWorksheet(META_SHEET);
+  ws.state = "veryHidden";
+  const json = JSON.stringify(meta);
+  const CHUNK = 30000;
+  if (json.length <= CHUNK) {
+    ws.getCell(META_CELL).value = json;
+    return;
+  }
+  for (let i = 0, row = 1; i < json.length; i += CHUNK, row++) {
+    ws.getCell(`A${row}`).value = json.slice(i, i + CHUNK);
+  }
+}
+
 export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS.Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Budget Builder";
   wb.created = new Date();
 
   buildInstructionsSheet(wb, budget.inflationRates);
+
+  // Collect (sheet → emitted data rows) so we can write the round-trip Meta index.
+  const metaSheetRows: Array<{ sheet: string; rows: ProgrammeRowRef[] }> = [];
 
   const domains = budget.domains.length > 0 ? budget.domains : ["__all__"];
 
@@ -1079,7 +1150,8 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
     const linesForDomain = domainKey === "__all__"
       ? budget.lines
       : budget.lines.filter(l => l.domain === domainKey || l.domain === null);
-    const { map } = buildBudgetSheet(wb, "03.Budget", budget.name, linesForDomain, budget.years, domainKey, workingCellMap);
+    const { map, dataRows } = buildBudgetSheet(wb, "03.Budget", budget.name, linesForDomain, budget.years, domainKey, workingCellMap);
+    metaSheetRows.push({ sheet: "03.Budget", rows: dataRows });
     buildSummarySheet(wb, budget.name, "03.Budget", map);
   } else {
     const domainSheets: Array<{ name: string; map: SectionRowMap; label: string }> = [];
@@ -1087,7 +1159,8 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
       const label = DOMAIN_LABELS[domain] ?? domain;
       const sheetName = `Budget - ${label}`.substring(0, 31);
       const domainLines = budget.lines.filter(l => l.domain === domain || l.domain === null);
-      const { map } = buildBudgetSheet(wb, sheetName, `${label} – ${budget.name}`, domainLines, budget.years, domain, workingCellMap);
+      const { map, dataRows } = buildBudgetSheet(wb, sheetName, `${label} – ${budget.name}`, domainLines, budget.years, domain, workingCellMap);
+      metaSheetRows.push({ sheet: sheetName, rows: dataRows });
       domainSheets.push({ name: sheetName, map, label });
     }
     const masterMap = buildMasterBudgetSheet(wb, budget.name, budget.years, domainSheets);
@@ -1096,6 +1169,21 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
 
   // Step 4: build Working with the structured component layout.
   buildWorkingSheet(wb, workingPlan);
+
+  // Step 5: write the hidden round-trip Meta sheet (only when meta is supplied).
+  if (budget.meta) {
+    const metaLines = buildMetaLines(metaSheetRows);
+    const budgetSheets = [...new Set(metaLines.map(l => l.sheet))];
+    const meta: TemplateMeta = {
+      v: LAYOUT_VERSION, kind: "apf-budget",
+      name: budget.name, city: budget.meta.city, domains: budget.domains,
+      years: budget.years, horizonMonths: budget.meta.horizonMonths,
+      applyInflation: budget.meta.applyInflation, inflation: budget.meta.inflationPct,
+      inputs: budget.meta.inputs, costOverrides: budget.meta.costOverrides,
+      costSnapshot: budget.meta.costSnapshot, budgetSheets, lines: metaLines,
+    };
+    writeMetaSheet(wb, meta);
+  }
 
   // Reorder sheets to: 01.Instructions, 02.Summary, 03.Budget, 04.Working, then per-domain
   const desiredOrder = ["01.Instructions", "02.Summary", "03.Budget", "04.Working"];

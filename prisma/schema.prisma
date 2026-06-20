@@ -1914,6 +1914,10 @@ model Budget {
   // partner's basis even if the registry has changed.
   costOverrides      Json                @default("{}")
   costSnapshot       Json                @default("{}")
+  // Set when the budget was created by importing a filled Excel template rather
+  // than the parametric generator. Its lines carry hand edits, so a "regenerate
+  // from inputs" action must confirm before overwriting them.
+  importedAt         DateTime?
   status             BudgetStatus        @default(draft)
   inputs             BudgetInputs?
   lines              BudgetLine[]

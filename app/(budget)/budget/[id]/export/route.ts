@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const budget = await prisma.budget.findUnique({
     where: { id },
-    include: { lines: { orderBy: { position: "asc" } } },
+    include: { lines: { orderBy: { position: "asc" } }, inputs: true },
   });
   if (!budget || budget.partnerId !== session.user.id) return new NextResponse("Not found", { status: 404 });
 
@@ -66,6 +66,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const horizonMonths = budget.horizonMonths ?? budget.years * 12;
   const years = activeYearBands(horizonMonths);
 
+  // Flat programme-input map: prefer the full extraInputs blob (source of truth
+  // going forward); fall back to the typed columns for older rows.
+  const extra = (budget.inputs?.extraInputs ?? {}) as Record<string, number>;
+  const inputsFlat: Record<string, number> = Object.keys(extra).length > 0
+    ? extra
+    : budget.inputs
+      ? {
+          nSettlements: budget.inputs.nSettlements, nClusters: budget.inputs.nClusters,
+          nCLCs: budget.inputs.nCLCs, clcRentPerMonth: budget.inputs.clcRentPerMonth,
+          nYRCs: budget.inputs.nYRCs, yrcRentPerMonth: budget.inputs.yrcRentPerMonth,
+          nElderlyCentres: budget.inputs.nElderlyCentres, nElderly: budget.inputs.nElderly,
+          elderlyCentreRentPerMonth: budget.inputs.elderlyCentreRentPerMonth,
+          cosPerCluster: budget.inputs.cosPerCluster, rcRentPerMonth: budget.inputs.rcRentPerMonth,
+          nCreches: budget.inputs.nCreches, crecheRentPerMonth: budget.inputs.crecheRentPerMonth,
+        }
+      : {};
+
   const buffer = await buildBudgetWorkbook({
     name: budget.name,
     domains: budget.domains,
@@ -78,6 +95,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         }
       : { Salary: 0, Other: 0, Nil: 0 },
     lines,
+    meta: {
+      city: budget.city,
+      horizonMonths,
+      applyInflation: budget.applyInflation,
+      inflationPct: { Salary: budget.inflationSalaryPct, Other: budget.inflationOtherPct, Nil: budget.inflationNilPct },
+      inputs: inputsFlat,
+      costOverrides: (budget.costOverrides ?? {}) as Record<string, number>,
+      costSnapshot: (budget.costSnapshot ?? {}) as Record<string, number>,
+    },
   });
 
   const safeName = budget.name.replace(/[^a-z0-9]/gi, "_").substring(0, 40);

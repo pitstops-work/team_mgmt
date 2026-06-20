@@ -1,3 +1,4 @@
+import Link from "next/link";
 import prisma from "@/lib/prisma";
 import NewBudgetForm from "./NewBudgetForm";
 
@@ -119,9 +120,17 @@ export default async function NewBudgetPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-stone-900">New Budget</h1>
-        <p className="text-sm text-stone-500 mt-1">Select domains and enter programme scale to auto-generate a draft budget.</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-stone-900">New Budget</h1>
+          <p className="text-sm text-stone-500 mt-1">Select domains and enter programme scale to auto-generate a draft budget.</p>
+        </div>
+        <Link
+          href="/budget/import"
+          className="shrink-0 text-sm border border-stone-300 text-stone-700 px-3 py-2 rounded-lg hover:bg-stone-50"
+        >
+          Import from Excel →
+        </Link>
       </div>
       <NewBudgetForm domains={domains} crossCuttingInputs={crossCuttingInputs} costItems={costItems} />
     </div>
