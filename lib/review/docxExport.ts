@@ -133,13 +133,124 @@ function imageParas(entry: ImageEntry, caption: string): Paragraph[] {
   return paras;
 }
 
+// ── Depth-aware HTML table parsing (handles tables nested inside cells) ───────
+
+// From the '<' of a <table…> at openStart, return the index just past its
+// matching </table>, accounting for nested tables. -1 if unbalanced.
+function findMatchingTableEnd(html: string, openStart: number): number {
+  const re = /<table\b[^>]*>|<\/table\s*>/gi;
+  re.lastIndex = openStart;
+  let depth = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (m[0][1] === '/') { depth--; if (depth === 0) return m.index + m[0].length; }
+    else depth++;
+  }
+  return -1;
+}
+
+// Replace each TOP-LEVEL <table>…</table> with a placeholder, storing its raw
+// inner HTML (nested tables left intact for recursive rendering).
+function extractTopLevelTables(h: string, store: Map<string, string>): string {
+  let out = '';
+  let idx = 0;
+  for (;;) {
+    const rel = h.slice(idx).search(/<table\b/i);
+    if (rel === -1) { out += h.slice(idx); break; }
+    const start = idx + rel;
+    out += h.slice(idx, start);
+    const end = findMatchingTableEnd(h, start);
+    if (end === -1) { out += h.slice(start); break; } // malformed — leave as-is
+    const full = h.slice(start, end);
+    const inner = full.slice(full.indexOf('>') + 1, full.lastIndexOf('</table'));
+    const key = `__TABLE_${store.size}__`;
+    store.set(key, inner);
+    out += `\n${key}\n`;
+    idx = end;
+  }
+  return out;
+}
+
+// Top-level <tr> inner HTML within a table (ignores <tr> of nested tables).
+function topLevelRowHtmls(inner: string): string[] {
+  const rows: string[] = [];
+  const re = /<table\b[^>]*>|<\/table\s*>|<tr\b[^>]*>|<\/tr\s*>/gi;
+  let depth = 0, trStart = -1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(inner))) {
+    const t = m[0].toLowerCase();
+    if (t.startsWith('<table')) depth++;
+    else if (t.startsWith('</table')) depth--;
+    else if (depth === 0 && t.startsWith('<tr')) trStart = m.index + m[0].length;
+    else if (depth === 0 && t.startsWith('</tr') && trStart !== -1) { rows.push(inner.slice(trStart, m.index)); trStart = -1; }
+  }
+  return rows;
+}
+
+type CellParse = { html: string; isHeader: boolean; colspan: number };
+
+// Top-level <td>/<th> within a row (ignores cells of nested tables).
+function topLevelCells(rowHtml: string): CellParse[] {
+  const cells: CellParse[] = [];
+  const re = /<table\b[^>]*>|<\/table\s*>|<(td|th)\b([^>]*)>|<\/(?:td|th)\s*>/gi;
+  let depth = 0, start = -1, isHeader = false, colspan = 1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(rowHtml))) {
+    const t = m[0].toLowerCase();
+    if (t.startsWith('<table')) depth++;
+    else if (t.startsWith('</table')) depth--;
+    else if (depth === 0 && m[1]) {
+      start = m.index + m[0].length;
+      isHeader = m[1].toLowerCase() === 'th';
+      const cs = (m[2] || '').match(/colspan\s*=\s*['"]?(\d+)/i);
+      colspan = cs ? Math.max(1, parseInt(cs[1], 10)) : 1;
+    } else if (depth === 0 && (t.startsWith('</td') || t.startsWith('</th')) && start !== -1) {
+      cells.push({ html: rowHtml.slice(start, m.index), isHeader, colspan });
+      start = -1; isHeader = false; colspan = 1;
+    }
+  }
+  return cells;
+}
+
+function tableRowsFromInner(inner: string, imageCache: Map<string, ImageEntry>): TableRow[] {
+  const rows: TableRow[] = [];
+  for (const rowHtml of topLevelRowHtmls(inner)) {
+    const parsed = topLevelCells(rowHtml);
+    if (parsed.length === 0) continue;
+    const cells = parsed.map(c => {
+      // Header cells: one bold line. Body cells: recurse so nested tables, lists
+      // and paragraphs render correctly instead of being flattened.
+      const children: (Paragraph | Table)[] = c.isHeader
+        ? [new Paragraph({
+            children: [new TextRun({ text: decodeEntities(c.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()), bold: true, size: 20 })],
+            spacing: { before: 0, after: 0 },
+          })]
+        : htmlToParas(c.html, imageCache);
+      return new TableCell({
+        ...(c.colspan > 1 ? { columnSpan: c.colspan } : {}),
+        margins: { top: 80, bottom: 80, left: 100, right: 100 },
+        borders: { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER },
+        ...(c.isHeader ? { shading: { type: ShadingType.SOLID, color: 'F2F2EC', fill: 'F2F2EC' } } : {}),
+        children: children.length > 0 ? children : [new Paragraph('')],
+      });
+    });
+    rows.push(new TableRow({ children: cells }));
+  }
+  return rows;
+}
+
 export function htmlToParas(html: string, imageCache: Map<string, ImageEntry> = new Map()): (Paragraph | Table)[] {
   if (!html?.trim()) return [new Paragraph('')];
   const paras: (Paragraph | Table)[] = [];
 
-  // 0. Extract inline SVG blocks → render to PNG
+  // 0. Extract top-level tables FIRST so nested tables / cell markup survive for
+  //    recursive rendering (depth-aware — non-greedy regex cannot nest).
+  const tableInnerMap = new Map<string, string>();
+  let h = extractTopLevelTables(html, tableInnerMap);
+
+  // 0b. Extract inline SVG blocks → render to PNG
   const svgMap = new Map<string, string>();
-  let h = html.replace(/<svg[\s\S]*?<\/svg>/gi, (svgFull) => {
+  h = h.replace(/<svg[\s\S]*?<\/svg>/gi, (svgFull) => {
     const key = `__SVG_${svgMap.size}__`;
     svgMap.set(key, svgFull);
     return `\n${key}\n`;
@@ -181,37 +292,12 @@ export function htmlToParas(html: string, imageCache: Map<string, ImageEntry> = 
   h = h.replace(/<div[^>]*class="stat-row"[^>]*>/gi, '\n__STATROW__');
   h = h.replace(/__STATROW__([\s\S]*?)<\/div>/gi, (_m, inner) => `\n${inner.trim()}\n`);
 
-  // 5. HTML tables → Word Table placeholders
-  const tableMap = new Map<string, TableRow[]>();
-  h = h.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (_m, inner) => {
-    const wordRows: TableRow[] = [];
-    for (const trMatch of inner.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
-      const cells: TableCell[] = [];
-      const rowHtml = trMatch[1];
-      const isHeader = /<th/i.test(rowHtml);
-      for (const cellMatch of rowHtml.matchAll(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi)) {
-        const cellText = decodeEntities(cellMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-        cells.push(new TableCell({
-          margins: { top: 80, bottom: 80, left: 100, right: 100 },
-          borders: { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER },
-          ...(isHeader ? { shading: { type: ShadingType.SOLID, color: 'F2F2EC', fill: 'F2F2EC' } } : {}),
-          children: [new Paragraph({
-            children: [new TextRun({ text: cellText, bold: isHeader, size: 20 })],
-            spacing: { before: 0, after: 0 },
-          })],
-        }));
-      }
-      if (cells.length > 0) wordRows.push(new TableRow({ children: cells }));
-    }
-    if (wordRows.length === 0) return '';
-    const key = `__TABLE_${tableMap.size}__`;
-    tableMap.set(key, wordRows);
-    return `\n${key}\n`;
-  });
+  // (tables were already extracted in step 0)
 
   h = h.replace(/<li[^>]*>/gi, '\n__BULLET__');
   h = h.replace(/<\/p>|<\/li>|<br\s*\/?>/gi, '\n');
-  h = h.replace(/<[^>]+>/g, '');
+  // Strip tags but keep inline emphasis so parseInlineHtml can render it.
+  h = h.replace(/<(?!\/?(?:strong|b|em|i)\b)[^>]+>/gi, '');
   h = decodeEntities(h);
 
   for (const line of h.split('\n')) {
@@ -261,15 +347,18 @@ export function htmlToParas(html: string, imageCache: Map<string, ImageEntry> = 
       continue;
     }
 
-    // HTML table placeholder → Word Table
-    const tableRows = tableMap.get(trimmed);
-    if (tableRows) {
-      paras.push(new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        borders: { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER, insideHorizontal: THIN_BORDER, insideVertical: THIN_BORDER },
-        rows: tableRows,
-      }));
-      paras.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 80, after: 80 } }));
+    // HTML table placeholder → Word Table (depth-aware, recursive cells)
+    const tableInner = tableInnerMap.get(trimmed);
+    if (tableInner !== undefined) {
+      const tableRows = tableRowsFromInner(tableInner, imageCache);
+      if (tableRows.length > 0) {
+        paras.push(new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER, insideHorizontal: THIN_BORDER, insideVertical: THIN_BORDER },
+          rows: tableRows,
+        }));
+        paras.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 80, after: 80 } }));
+      }
       continue;
     }
 
@@ -383,6 +472,47 @@ function makeTable(rows: TableRow[]): Table {
     borders: { top: THIN_BORDER, bottom: THIN_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: THIN_BORDER, insideVertical: THIN_BORDER },
     rows,
   });
+}
+
+// True when a section's content is essentially one full-width table — the model
+// authored its own layout, so we render it directly at full width rather than
+// re-wrapping it in the narrow label|content column (which squeezes it).
+function isSingleTableContent(html: string): boolean {
+  const t = (html || '').trim();
+  if (!/^<table\b/i.test(t)) return false;
+  const end = findMatchingTableEnd(t, 0);
+  if (end === -1) return false;
+  return t.slice(end).replace(/<[^>]+>/g, '').trim().length === 0;
+}
+
+// Render a group of sections, preserving order: runs of text sections become a
+// label|content table (with the black header bar); a section whose content is a
+// single table is emitted full-width (it carries its own header row).
+function renderSectionGroup(
+  headerLabel: string,
+  secs: SectionRow[],
+  imageCache: Map<string, ImageEntry>,
+): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [];
+  let pending: TableRow[] = [];
+  const flush = () => {
+    if (pending.length === 0) return;
+    out.push(makeTable([tableHeaderRow(headerLabel), ...pending]));
+    out.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 160, after: 160 } }));
+    pending = [];
+  };
+  for (const s of secs) {
+    if (isSingleTableContent(s.content_html)) {
+      flush();
+      out.push(...htmlToParas(s.content_html, imageCache));
+      out.push(...blocksToParas(s.blocks || []));
+      out.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 160, after: 160 } }));
+    } else {
+      pending.push(sectionToRow(s.title, s.content_html, imageCache, s.blocks || []));
+    }
+  }
+  flush();
+  return out;
 }
 
 // ── Section classifier ───────────────────────────────────────────────────────
@@ -579,26 +709,14 @@ export async function buildGrantNoteDocx(note: NoteData, sections: SectionRow[])
   // Mermaid diagrams as images (async)
   children.push(...await diagramBlock(note.diagrams || []));
 
-  // Main content table
-  if (mainSections.length > 0 || !isProgDesign) {
-    const mainRows: TableRow[] = [
-      tableHeaderRow(isProgDesign ? 'Programme Design' : 'Grant Note'),
-      ...mainSections.map(s => sectionToRow(s.title, s.content_html, imageCache, s.blocks || [])),
-    ];
-    if (mainRows.length > 1) {
-      children.push(makeTable(mainRows));
-      children.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 200, after: 200 } }));
-    }
+  // Main content
+  if (mainSections.length > 0) {
+    children.push(...renderSectionGroup(isProgDesign ? 'Programme Design' : 'Grant Note', mainSections, imageCache));
   }
 
-  // Financial table (grant notes only)
+  // Financial (grant notes only)
   if (!isProgDesign && financialSections.length > 0) {
-    const finRows: TableRow[] = [
-      tableHeaderRow('ANNEXURE 1: Financial Assessment'),
-      ...financialSections.map(s => sectionToRow(s.title, s.content_html, imageCache, s.blocks || [])),
-    ];
-    children.push(makeTable(finRows));
-    children.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 200, after: 200 } }));
+    children.push(...renderSectionGroup('ANNEXURE 1: Financial Assessment', financialSections, imageCache));
   }
 
   // Annexure
