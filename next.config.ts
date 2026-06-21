@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
   },
   // Native .node bindings / WASM — must not be bundled by Turbopack
   serverExternalPackages: ["@resvg/resvg-js", "mupdf"],
+  // mupdf loads its .wasm via new URL("…", import.meta.url), which the file
+  // tracer misses — force-include the dist so PDF rasterization works at runtime.
+  outputFileTracingIncludes: {
+    "/api/**": ["./node_modules/mupdf/dist/**/*"],
+  },
 };
 
 export default nextConfig;
