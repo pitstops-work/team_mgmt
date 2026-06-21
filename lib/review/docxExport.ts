@@ -544,24 +544,29 @@ function metaPara(label: string, value: string): Paragraph {
 // ── Vitals block (from design path metadata) ─────────────────────────────────
 
 function vitalsBlock(vitals: Record<string, any>): Paragraph[] {
-  const paras: Paragraph[] = [];
-  if (!vitals || Object.keys(vitals).length === 0) return paras;
+  if (!vitals || Object.keys(vitals).length === 0) return [];
   const labelMap: Record<string, string> = {
     grant_amount: 'Grant Amount', duration: 'Duration', beneficiaries: 'Beneficiaries',
     staff_count: 'Staff', geography: 'Geography', grant_number: 'Grant Number',
     dependency_pct: 'Dependency %',
   };
-  paras.push(new Paragraph({
-    children: [new TextRun({ text: 'Key Facts', bold: true, size: 22, allCaps: true, color: '1F4D3A' })],
-    spacing: { before: 0, after: 80 },
-  }));
+  // Build the field rows first; only emit the "Key Facts" header if at least
+  // one field is present (otherwise we'd print a bare, empty heading).
+  const rows: Paragraph[] = [];
   for (const [k, label] of Object.entries(labelMap)) {
-    if (vitals[k] == null) continue;
+    if (vitals[k] == null || vitals[k] === '') continue;
     const val = k === 'dependency_pct' ? `${vitals[k]}%` : String(vitals[k]);
-    paras.push(metaPara(label, val));
+    rows.push(metaPara(label, val));
   }
-  paras.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 60, after: 0 } }));
-  return paras;
+  if (rows.length === 0) return [];
+  return [
+    new Paragraph({
+      children: [new TextRun({ text: 'Key Facts', bold: true, size: 22, allCaps: true, color: '1F4D3A' })],
+      spacing: { before: 0, after: 80 },
+    }),
+    ...rows,
+    new Paragraph({ children: [new TextRun('')], spacing: { before: 60, after: 0 } }),
+  ];
 }
 
 // ── Diagram block (mermaid → image via mermaid.ink) ─────────────────────────
