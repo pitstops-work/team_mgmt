@@ -276,11 +276,13 @@ async function fetchSourceCorpusForInitialDraft(noteId: string): Promise<any[]> 
   const urls: string[] = Array.isArray((metaRows as any[])[0]?.source_documents)
     ? (metaRows as any[])[0].source_documents
     : [];
+  console.log(`[review-ingest] initial-draft corpus: ${urls.length} source_documents url(s)`);
   if (urls.length === 0) return [];
   const { textDocs, imageDocs, pdfDocs, budgetParts, extractedImages } = await downloadAndProcess(urls, true);
   // Persist source figures (drawings, rasterized PDF pages, uploaded images) to
   // blob so the model can embed them via <img> and the exporter can fetch them later.
   const uploadedImages = await uploadImagesToBlob(extractedImages);
+  console.log(`[review-ingest] uploaded ${uploadedImages.length} image(s) to blob; with URL: ${uploadedImages.filter(i => i.blobUrl).length}`);
   const content = buildMessageContent(textDocs, imageDocs, pdfDocs, budgetParts, uploadedImages);
   // Attach cache_control to the last block so the whole corpus is cached.
   if (content.length > 0) {

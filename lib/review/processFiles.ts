@@ -37,10 +37,12 @@ export async function rasterizePdfFigurePages(buffer: Buffer, docName: string): 
     const mupdf: any = await import('mupdf');
     const doc = mupdf.Document.openDocument(new Uint8Array(buffer), 'application/pdf');
     const total = Math.min(doc.countPages(), PDF_MAX_PAGES_SCANNED);
+    const lens: number[] = [];
     for (let i = 0; i < total && images.length < PDF_MAX_FIGURES; i++) {
       const page = doc.loadPage(i);
       let pageText = '';
       try { pageText = page.toStructuredText('preserve-whitespace').asText() || ''; } catch { /* no text layer */ }
+      lens.push(pageText.trim().length);
       if (pageText.trim().length >= PDF_FIGURE_TEXT_THRESHOLD) continue; // prose page — skip
 
       const bounds = page.getBounds(); // [x0, y0, x1, y1] in points
@@ -52,8 +54,9 @@ export async function rasterizePdfFigurePages(buffer: Buffer, docName: string): 
       if (png.length < 1024 || png.length > PDF_RASTER_MAX_BYTES) continue; // blank or too heavy
       images.push({ name: `${docName}__page-${i + 1}.png`, buffer: png, mediaType: 'image/png' });
     }
+    console.log(`[review-ingest] rasterize ${docName}: ${doc.countPages()} pages, per-page text lens=[${lens.join(',')}], rasterized ${images.length}`);
   } catch (e) {
-    console.warn('PDF rasterization failed for', docName, (e as Error).message);
+    console.warn('[review-ingest] PDF rasterization FAILED for', docName, (e as Error).message, (e as Error).stack);
   }
   return images;
 }
@@ -213,6 +216,7 @@ export async function downloadAndProcess(
     if (result.extractedImages) extractedImages.push(...result.extractedImages);
   }));
 
+  console.log(`[review-ingest] downloadAndProcess: ${urls.length} url(s) → text=${textDocs.length} pdfDoc=${pdfDocs.length} img=${imageDocs.length} budget=${budgetParts.length} extractedImages=${extractedImages.length}`);
   return { textDocs, imageDocs, pdfDocs, budgetParts, extractedImages };
 }
 
