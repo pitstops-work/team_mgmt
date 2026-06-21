@@ -22,7 +22,10 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 // the real source drawing (via <img>) instead of redrawing it as a Mermaid graph.
 // A page is treated as a figure when it carries little extractable text — i.e.
 // it is a plan, elevation, section, sketch, map, or scan rather than prose.
-const PDF_FIGURE_TEXT_THRESHOLD = 200; // chars; below this a page is "a figure"
+// Below this a page is treated as "a figure". Set high because civil/CAD
+// drawings carry many dimension labels and notes yet are still drawings; a
+// genuine prose page typically runs 1,500+ chars.
+const PDF_FIGURE_TEXT_THRESHOLD = 900; // chars
 const PDF_MAX_PAGES_SCANNED = 60;
 const PDF_MAX_FIGURES = 15;
 const PDF_RASTER_TARGET_WIDTH = 1600; // px on the long-ish edge
