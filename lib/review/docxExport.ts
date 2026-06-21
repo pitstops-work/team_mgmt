@@ -438,7 +438,10 @@ function vitalsBlock(vitals: Record<string, any>): Paragraph[] {
 
 async function renderMermaidImage(definition: string): Promise<ImageEntry | null> {
   try {
-    const encoded = Buffer.from(definition.trim()).toString('base64');
+    // Mermaid does not interpret a literal backslash-n inside node labels — it
+    // renders it verbatim. Convert to <br/> so multi-line labels lay out right.
+    const cleaned = definition.replace(/\\n/g, '<br/>');
+    const encoded = Buffer.from(cleaned.trim()).toString('base64');
     const url = `https://mermaid.ink/img/${encoded}?type=png&width=900`;
     const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
     if (!res.ok) return null;
@@ -463,19 +466,11 @@ async function diagramBlock(diagrams: Array<{ title: string; definition: string 
     if (img) {
       paras.push(...imageParas(img, ''));
     } else {
+      // Render failed — show a clean placeholder, not a dump of raw Mermaid source.
       paras.push(new Paragraph({
-        children: [new TextRun({ text: '(Flowchart — see online review for visual)', italics: true, size: 18, color: '999999' })],
+        children: [new TextRun({ text: '(Diagram could not be rendered — see the online review for the visual.)', italics: true, size: 18, color: '999999' })],
         spacing: { before: 0, after: 60 },
       }));
-      for (const line of (d.definition || '').split('\n')) {
-        const t = line.trim();
-        if (!t) continue;
-        paras.push(new Paragraph({
-          children: [new TextRun({ text: t, font: 'Courier New', size: 17, color: '444444' })],
-          indent: { left: 360 },
-          spacing: { before: 0, after: 20 },
-        }));
-      }
     }
   }
   return paras;

@@ -100,7 +100,11 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'set_diagrams',
-    description: 'Replace the document diagrams (Mermaid definitions surfaced in the reviewer view).',
+    description:
+      'Replace the document diagrams — Mermaid definitions for genuine PROCESS / sequence / decision / org-flow charts only. ' +
+      'Do NOT use this for drawings, floor plans, elevations, sections, maps, or photos: Mermaid cannot represent spatial/architectural content. ' +
+      'Embed those as the real source image in a section via <figure class="doc-image"><img src="<source-url>"></figure> instead. ' +
+      'Use real newlines or <br/> for multi-line node labels — never a literal backslash-n.',
     input_schema: {
       type: 'object',
       properties: {

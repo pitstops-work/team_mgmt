@@ -7,8 +7,8 @@ const nextConfig: NextConfig = {
       static: 180,
     },
   },
-  // Native .node bindings — must not be bundled by Turbopack
-  serverExternalPackages: ["@resvg/resvg-js"],
+  // Native .node bindings / WASM — must not be bundled by Turbopack
+  serverExternalPackages: ["@resvg/resvg-js", "mupdf"],
 };
 
 export default nextConfig;

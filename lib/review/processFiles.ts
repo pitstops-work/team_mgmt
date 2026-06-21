@@ -18,6 +18,43 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
   return data.text;
 }
 
+// Rasterize the *drawing/figure* pages of a PDF to PNGs so the model can embed
+// the real source drawing (via <img>) instead of redrawing it as a Mermaid graph.
+// A page is treated as a figure when it carries little extractable text — i.e.
+// it is a plan, elevation, section, sketch, map, or scan rather than prose.
+const PDF_FIGURE_TEXT_THRESHOLD = 200; // chars; below this a page is "a figure"
+const PDF_MAX_PAGES_SCANNED = 60;
+const PDF_MAX_FIGURES = 15;
+const PDF_RASTER_TARGET_WIDTH = 1600; // px on the long-ish edge
+const PDF_RASTER_MAX_BYTES = 2_500_000;
+
+export async function rasterizePdfFigurePages(buffer: Buffer, docName: string): Promise<ExtractedImage[]> {
+  const images: ExtractedImage[] = [];
+  try {
+    const mupdf: any = await import('mupdf');
+    const doc = mupdf.Document.openDocument(new Uint8Array(buffer), 'application/pdf');
+    const total = Math.min(doc.countPages(), PDF_MAX_PAGES_SCANNED);
+    for (let i = 0; i < total && images.length < PDF_MAX_FIGURES; i++) {
+      const page = doc.loadPage(i);
+      let pageText = '';
+      try { pageText = page.toStructuredText('preserve-whitespace').asText() || ''; } catch { /* no text layer */ }
+      if (pageText.trim().length >= PDF_FIGURE_TEXT_THRESHOLD) continue; // prose page — skip
+
+      const bounds = page.getBounds(); // [x0, y0, x1, y1] in points
+      const ptWidth = Math.max(1, bounds[2] - bounds[0]);
+      const scale = Math.min(3, Math.max(1, PDF_RASTER_TARGET_WIDTH / ptWidth));
+      const pix = page.toPixmap(mupdf.Matrix.scale(scale, scale), mupdf.ColorSpace.DeviceRGB, false, true);
+      const png = Buffer.from(pix.asPNG());
+      pix.destroy?.();
+      if (png.length < 1024 || png.length > PDF_RASTER_MAX_BYTES) continue; // blank or too heavy
+      images.push({ name: `${docName}__page-${i + 1}.png`, buffer: png, mediaType: 'image/png' });
+    }
+  } catch (e) {
+    console.warn('PDF rasterization failed for', docName, (e as Error).message);
+  }
+  return images;
+}
+
 async function extractDocxText(buffer: Buffer): Promise<string> {
   const mammoth = await import('mammoth');
   const result = await mammoth.extractRawText({ buffer });
@@ -80,12 +117,19 @@ export async function processFileFromBuffer(
   const name = file.name.toLowerCase();
 
   if (name.endsWith('.pdf')) {
-    try {
-      const text = await extractPdfText(buffer);
-      if (text.trim().length >= 200) {
-        return { text: { name: file.name, text: text.slice(0, 80000) } };
-      }
-    } catch {}
+    let text = '';
+    try { text = await extractPdfText(buffer); } catch {}
+    // Rasterize drawing/figure pages so they can be embedded as real images.
+    const figures = await rasterizePdfFigurePages(buffer, file.name);
+    if (text.trim().length >= 200) {
+      // Prose PDF — send the text, plus any drawing pages as embeddable images.
+      return { text: { name: file.name, text: text.slice(0, 80000) }, extractedImages: figures };
+    }
+    // Scanned / drawing PDF — rasterized pages are both readable and embeddable
+    // (they carry blob URLs), so prefer them over the opaque document block.
+    if (figures.length > 0) {
+      return { extractedImages: figures };
+    }
     if (buffer.length < 4_000_000) {
       return { pdf: { name: file.name, base64: buffer.toString('base64') } };
     }
@@ -123,11 +167,12 @@ export async function processFileFromBuffer(
 
   if (name.endsWith('.jpg') || name.endsWith('.jpeg')) {
     if (buffer.length > 2_000_000) return { text: { name: file.name, text: `[JPEG image — ${(buffer.length / 1024 / 1024).toFixed(1)} MB, too large to embed]` } };
-    return { image: { name: file.name, mediaType: 'image/jpeg', base64: buffer.toString('base64') } };
+    // Surface as an extracted image so it receives a blob URL and can be embedded.
+    return { extractedImages: [{ name: file.name, buffer, mediaType: 'image/jpeg' }] };
   }
   if (name.endsWith('.png')) {
     if (buffer.length > 2_000_000) return { text: { name: file.name, text: `[PNG image — ${(buffer.length / 1024 / 1024).toFixed(1)} MB, too large to embed]` } };
-    return { image: { name: file.name, mediaType: 'image/png', base64: buffer.toString('base64') } };
+    return { extractedImages: [{ name: file.name, buffer, mediaType: 'image/png' }] };
   }
   if (name.endsWith('.txt') || name.endsWith('.md')) {
     return { text: { name: file.name, text: buffer.toString('utf-8').slice(0, 20000) } };

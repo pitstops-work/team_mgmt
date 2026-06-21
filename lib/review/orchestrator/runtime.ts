@@ -17,7 +17,7 @@ import {
 import { EDITOR_TOOLS } from './tools';
 import { snapshotVersion } from '../versions';
 import { embedQuery, toPgVector } from '../embedding';
-import { downloadAndProcess, buildMessageContent } from '../processFiles';
+import { downloadAndProcess, buildMessageContent, uploadImagesToBlob } from '../processFiles';
 import { tryFastPath } from './fastPath';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
@@ -123,6 +123,12 @@ const ORCHESTRATOR_BASE = `You are the editor of an internal review document for
  - the active capability scope — the rules and constraints currently in effect
 
 Your job is to APPLY the instruction by calling the editor tools below. You do not write content in conversational prose — every change must be expressed as a tool call. Use the smallest set of tool calls that satisfies the instruction.
+
+Figures and diagrams — read carefully:
+ - When the source material contains a DRAWING, PLAN, ELEVATION, SECTION, MAP, PHOTO, SKETCH, or any other visual that the reader needs to see as-is (e.g. an architect's floor plan or a civil/structural detail), EMBED THE SOURCE IMAGE. The source images you are given carry a line like "[Above image is stored at: <url> — use this URL in <img> tags]". Use that exact URL inside the section's content_html as:
+   <figure class="doc-image"><img src="<url>"><figcaption>Short caption</figcaption></figure>
+ - NEVER reconstruct a drawing, floor plan, elevation, section, map, or photo as a Mermaid diagram. Mermaid cannot represent spatial or architectural content and the result is wrong. If you have no source image for a spatial figure, describe it in prose or a small spec table instead — do not invent a Mermaid graph.
+ - Reserve \`set_diagrams\` (Mermaid) STRICTLY for genuine process / sequence / decision / org-flow diagrams that you author from text. A "floor plan" is never a Mermaid graph.
 
 Constraints:
  - Prefer modifying existing sections over creating new ones unless the instruction explicitly adds content.
@@ -271,8 +277,11 @@ async function fetchSourceCorpusForInitialDraft(noteId: string): Promise<any[]> 
     ? (metaRows as any[])[0].source_documents
     : [];
   if (urls.length === 0) return [];
-  const { textDocs, imageDocs, pdfDocs, budgetParts } = await downloadAndProcess(urls, true);
-  const content = buildMessageContent(textDocs, imageDocs, pdfDocs, budgetParts, []);
+  const { textDocs, imageDocs, pdfDocs, budgetParts, extractedImages } = await downloadAndProcess(urls, true);
+  // Persist source figures (drawings, rasterized PDF pages, uploaded images) to
+  // blob so the model can embed them via <img> and the exporter can fetch them later.
+  const uploadedImages = await uploadImagesToBlob(extractedImages);
+  const content = buildMessageContent(textDocs, imageDocs, pdfDocs, budgetParts, uploadedImages);
   // Attach cache_control to the last block so the whole corpus is cached.
   if (content.length > 0) {
     content[content.length - 1] = {
