@@ -104,12 +104,16 @@ export function extractImagesFromOfficeFile(buffer: Buffer, docName: string): Ex
 export async function uploadImagesToBlob(images: ExtractedImage[]): Promise<ExtractedImage[]> {
   if (images.length === 0) return images;
   const { put } = await import('@vercel/blob');
-  return Promise.all(images.map(async (img) => {
+  // Use the PUBLIC blob store (BLOBS_READ_WRITE_TOKEN); the default
+  // BLOB_READ_WRITE_TOKEN is a private store whose URLs the model/exporter
+  // can't fetch. Mirrors lib/review/blob-upload token selection.
+  const token = process.env.BLOBS_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN;
+  return Promise.all(images.map(async (img, i) => {
     try {
-      const blob = await put(`extracted-${Date.now()}-${img.name}`, img.buffer, { access: 'public' });
+      const blob = await put(`extracted-${Date.now()}-${i}-${img.name}`, img.buffer, { access: 'public', token });
       return { ...img, blobUrl: blob.url };
     } catch (e) {
-      console.warn('Blob upload failed for', img.name, (e as Error).message);
+      console.warn('[review-ingest] Blob upload FAILED for', img.name, (e as Error).message);
       return img;
     }
   }));
