@@ -1055,6 +1055,50 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     });
   };
 
+  const [exporting, setExporting] = useState(false);
+  const exportComparison = async () => {
+    if (!compareData || exporting) return;
+    setExporting(true);
+    try {
+      const summary = perUnit.map(r => ({ label: r.label, sub: r.sub, std: r.std, you: r.you }));
+      const stdKeys = new Set(indicativeLines.map(l => l.templateKey).filter(Boolean));
+      const lines: { domain: string; section: string; description: string; std: number | null; you: number | null }[] =
+        indicativeLines.map(l => ({
+          domain: l.domain ?? "Cross-cutting",
+          section: String(l.section),
+          description: l.description,
+          std: l.y1Total,
+          you: l.templateKey ? (youLineMap.get(l.templateKey)?.y1Total ?? 0) : 0,
+        }));
+      // Yours-only additions (no matching standard template)
+      for (const yl of compareData.lines) {
+        if (yl.templateKey && stdKeys.has(yl.templateKey)) continue;
+        lines.push({
+          domain: yl.domain ?? "Cross-cutting",
+          section: String(yl.section),
+          description: `${yl.description} (your addition)`,
+          std: null,
+          you: yl.y1Total,
+        });
+      }
+      const res = await fetch("/api/budget/cost-analysis-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ standardName: "Standard", compareName: compareData.name, summary, lines }),
+      });
+      if (!res.ok) throw new Error("export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cost-analysis_${compareData.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Per-table-row expansion (formula breakdown drawer). Keyed by `${domain}:${position}`.
   const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
   const toggleLineExpand = (key: string) => setExpandedLines(p => {
@@ -1590,6 +1634,12 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
           {compareData && (
             <button onClick={() => onCompareChange("")}
               className="text-xs text-stone-400 hover:text-stone-700">✕ clear</button>
+          )}
+          {compareData && (
+            <button onClick={exportComparison} disabled={exporting}
+              className="text-xs border border-emerald-200 text-emerald-700 bg-emerald-50 rounded px-2 py-1 hover:bg-emerald-100 disabled:opacity-60">
+              {exporting ? "Exporting…" : "↓ Export comparison (xlsx)"}
+            </button>
           )}
         </div>
         {/* Like-for-like controls only appear when a budget is loaded. The
