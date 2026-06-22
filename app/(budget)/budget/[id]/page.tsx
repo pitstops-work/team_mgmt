@@ -12,6 +12,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
     include: {
       inputs: true,
       lines: { orderBy: { position: "asc" } },
+      deliveryPartners: { orderBy: { sortOrder: "asc" } },
     },
   });
 

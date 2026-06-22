@@ -6,6 +6,7 @@ import type { BudgetSection, BudgetLineCadence, InflationType } from "@/app/gene
 
 type Line = {
   id: string;
+  deliveryPartnerId: string | null;
   domain: string | null;
   section: BudgetSection;
   position: number;
@@ -37,6 +38,8 @@ type Budget = {
   inflationNilPct: number;
   status: "draft" | "final" | "approved";
   importedAt?: string | null;
+  isMultiPartner?: boolean;
+  deliveryPartners?: { id: string; name: string; sortOrder: number; sharedPct: number }[];
   lines: Line[];
   domainLabels?: Record<string, string>;
   inputs?: Record<string, number | string | null> | null;
@@ -189,6 +192,10 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
   const showExtraBands = bands.length > 1;
 
   const [activeTab, setActiveTab] = useState<string>("master");
+  const partners = budget.deliveryPartners ?? [];
+  const isMultiPartner = !!budget.isMultiPartner && partners.length > 0;
+  // Which delivery partner is in view: "master" = shared lines + roll-up, else a partner id.
+  const [activePartner, setActivePartner] = useState<string>("master");
   const [lines, setLines] = useState<Line[]>(budget.lines);
   const [editing, setEditing] = useState<string | null>(null);
   const [editVals, setEditVals] = useState<Partial<Line>>({});
@@ -210,9 +217,28 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
   const [newCadence, setNewCadence] = useState<BudgetLineCadence>("monthly");
   const [newPlannedMonths, setNewPlannedMonths] = useState<number[]>([]);
 
-  const visibleLines = activeTab === "master"
+  // Multi-partner: filter to the active partner first (Master = shared lines only),
+  // then apply the existing domain tab filter within that slice.
+  const partnerLines = !isMultiPartner
     ? lines
-    : lines.filter(l => l.domain === activeTab || l.domain === null);
+    : activePartner === "master"
+      ? lines.filter(l => l.deliveryPartnerId == null)
+      : lines.filter(l => l.deliveryPartnerId === activePartner);
+  const visibleLines = activeTab === "master"
+    ? partnerLines
+    : partnerLines.filter(l => l.domain === activeTab || l.domain === null);
+
+  // Roll-up across partners for the Master panel: each partner's direct Y1 total,
+  // their allocated share of shared costs (by sharedPct, normalised), and total.
+  const sharedTotalY1 = lines.filter(l => l.deliveryPartnerId == null).reduce((s, l) => s + l.y1Total, 0);
+  const pctSum = partners.reduce((s, p) => s + (p.sharedPct || 0), 0);
+  const partnerRollup = partners.map(p => {
+    const direct = lines.filter(l => l.deliveryPartnerId === p.id).reduce((s, l) => s + l.y1Total, 0);
+    const shareFrac = pctSum > 0 ? (p.sharedPct || 0) / pctSum : (partners.length ? 1 / partners.length : 0);
+    const allocShared = Math.round(sharedTotalY1 * shareFrac);
+    return { ...p, direct, allocShared, total: direct + allocShared, shareFrac };
+  });
+  const activePartnerRollup = partnerRollup.find(p => p.id === activePartner) ?? null;
 
   const grouped = SECTION_ORDER.map(sec => ({
     section: sec,
@@ -295,6 +321,8 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
         plannedMonths: newPlannedMonths,
         y1Units: parseFloat(newUnits) || 0,
         y1UnitCost: parseFloat(newUnitCost) || 0,
+        // Tag to the active partner so it lands on the right tab (Master = shared).
+        deliveryPartnerId: isMultiPartner && activePartner !== "master" ? activePartner : null,
       });
       setLines(prev => [...prev, line as unknown as Line]);
       setAddingSection(null);
@@ -396,6 +424,67 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
         </div>
       )}
 
+      {/* Delivery-partner tabs (multi-partner budgets only) */}
+      {isMultiPartner && (
+        <div className="flex gap-1 mb-3 overflow-x-auto pb-1 border-b border-stone-200">
+          {(["master", ...partners.map(p => p.id)]).map(pid => {
+            const label = pid === "master" ? "Master" : (partners.find(p => p.id === pid)?.name ?? "Partner");
+            return (
+              <button key={pid} onClick={() => { setActivePartner(pid); setActiveTab("master"); }}
+                className={`text-sm px-4 py-1.5 rounded-t-lg whitespace-nowrap transition-all border-b-2 ${
+                  activePartner === pid ? "border-emerald-600 text-emerald-700 font-medium" : "border-transparent text-stone-500 hover:bg-stone-100"
+                }`}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Master roll-up across partners */}
+      {isMultiPartner && activePartner === "master" && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-4 mb-4 overflow-x-auto">
+          <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2">Roll-up (Y1) — direct + allocated shared</div>
+          <table className="text-sm min-w-[480px]">
+            <thead><tr className="text-stone-500 text-xs">
+              <th className="text-left pr-6 py-1">Partner</th><th className="text-right px-3">Direct</th>
+              <th className="text-right px-3">Shared %</th><th className="text-right px-3">Allocated shared</th><th className="text-right pl-3">Total</th>
+            </tr></thead>
+            <tbody>
+              {partnerRollup.map(p => (
+                <tr key={p.id} className="border-t border-emerald-100">
+                  <td className="pr-6 py-1">{p.name}</td>
+                  <td className="text-right px-3">{fmt(p.direct)}</td>
+                  <td className="text-right px-3 text-stone-500">{Math.round(p.shareFrac * 100)}%</td>
+                  <td className="text-right px-3">{fmt(p.allocShared)}</td>
+                  <td className="text-right pl-3 font-medium">{fmt(p.total)}</td>
+                </tr>
+              ))}
+              <tr className="border-t-2 border-emerald-300 font-semibold">
+                <td className="pr-6 py-1">All partners</td>
+                <td className="text-right px-3">{fmt(partnerRollup.reduce((s, p) => s + p.direct, 0))}</td>
+                <td className="text-right px-3"></td>
+                <td className="text-right px-3">{fmt(sharedTotalY1)}</td>
+                <td className="text-right pl-3">{fmt(partnerRollup.reduce((s, p) => s + p.total, 0))}</td>
+              </tr>
+            </tbody>
+          </table>
+          {pctSum !== 100 && partners.length > 0 && (
+            <p className="text-xs text-amber-600 mt-2">Shared % sums to {pctSum}% (not 100) — allocations are normalised proportionally.</p>
+          )}
+          <p className="text-xs text-stone-400 mt-1">Lines below are the shared / cross-cutting costs (editable). Switch tabs to edit each partner's direct lines.</p>
+        </div>
+      )}
+
+      {/* Active partner's allocated-shared note */}
+      {isMultiPartner && activePartnerRollup && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3 mb-4 text-sm flex flex-wrap gap-6">
+          <span><span className="text-stone-500">Direct (Y1): </span><span className="font-medium">{fmt(activePartnerRollup.direct)}</span></span>
+          <span><span className="text-stone-500">+ Allocated shared ({Math.round(activePartnerRollup.shareFrac * 100)}%): </span><span className="font-medium">{fmt(activePartnerRollup.allocShared)}</span></span>
+          <span><span className="text-stone-500">= Partner total: </span><span className="font-semibold">{fmt(activePartnerRollup.total)}</span></span>
+        </div>
+      )}
+
       {/* Domain tabs */}
       <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
         {(["master", ...budget.domains] as const).map(tab => (
@@ -406,7 +495,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
               activeTab === tab ? "bg-sky-600 text-white" : "text-stone-600 hover:bg-stone-100"
             }`}
           >
-            {tab === "master" ? "Master Summary" : (domainLabels[tab] ?? tab)}
+            {tab === "master" ? (isMultiPartner ? "All domains" : "Master Summary") : (domainLabels[tab] ?? tab)}
           </button>
         ))}
       </div>
