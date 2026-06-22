@@ -1303,8 +1303,18 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
   const youLineMap = useMemo(() => {
     const m = new Map<string, { y1Total: number; y2Total: number; y3Total: number; y4Total: number; y5Total: number }>();
     if (!compareData) return m;
+    // Multi-partner budgets carry one line per partner sharing the same
+    // templateKey — SUM them so the per-line/subtotal "Yours" reflects the whole
+    // budget, not just whichever partner's line was last (which undercounted).
     for (const l of compareData.lines) {
-      if (l.templateKey) m.set(l.templateKey, l);
+      if (!l.templateKey) continue;
+      const ex = m.get(l.templateKey);
+      if (ex) {
+        ex.y1Total += l.y1Total; ex.y2Total += l.y2Total; ex.y3Total += l.y3Total;
+        ex.y4Total += l.y4Total; ex.y5Total += l.y5Total;
+      } else {
+        m.set(l.templateKey, { y1Total: l.y1Total, y2Total: l.y2Total, y3Total: l.y3Total, y4Total: l.y4Total, y5Total: l.y5Total });
+      }
     }
     return m;
   }, [compareData]);
