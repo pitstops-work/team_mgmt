@@ -15,6 +15,7 @@ export type ComplexSimParams = {
   seats: number; baths: number; machines: number; roLph: number; dewatsKld: number;
   roTankCap: number; roCansCount: number;
   toiletUses: number; bathShare: number; roLitresPerHH: number;
+  laundryLoadsPerHHPerWeek: number; // laundry demand parameter (2 loads/HH/wk default)
   priceToilet: number; priceBath: number; priceLaundry: number; priceRo: number;
   passPrice: number; passShare: number; freeQuota: number;
   opexMonthly: number;
@@ -49,9 +50,9 @@ export type ComplexSimResult = {
   econ: { revDay: number; opexDay: number; opexMonthly: number; surplusDay: number; oss: number; surplusMo: number; passRevDay: number };
 };
 
-// Engineering water-use per event (litres) and laundry demand assumption.
+// Engineering water-use per event (litres). Laundry demand is now a parameter
+// (`laundryLoadsPerHHPerWeek`) — was a hardcoded 2 loads/HH/wk pre-rewrite.
 const FLUSH_L = 5, HANDWASH_L = 1.5, BATH_L = 25, LOAD_L = 55, CLEANING_L = 500;
-const LOADS_PER_HH_WK = 2;
 const SERVICE_OFF = new Set([13, 14]); // RO midday service window
 const OPEN_HOUR = 6;                    // RO plant operating window opens at 06:00
 
@@ -132,7 +133,7 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
 
   const demUses = persons * Math.max(0, p.toiletUses);
   const demBaths = persons * Math.max(0, p.bathShare);
-  const demLoads = activeHH * LOADS_PER_HH_WK / 7;
+  const demLoads = activeHH * Math.max(0, p.laundryLoadsPerHHPerWeek) / 7;
   const demRO = activeHH * Math.max(0, p.roLitresPerHH);
 
   const capT = Math.max(0, p.seats) * Math.max(0, p.seatThroughput);
@@ -161,15 +162,31 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const freshDay = baths * BATH_L + loads * LOAD_L + uses * HANDWASH_L + feed + Math.max(0, recycleDemand - recycledUsed);
   const dewatsUtil = dewatsCap > 0 ? greywater / dewatsCap : 0;
 
-  // Revenue per stream (paying users only). Toilet/bath discounted by free quota
-  // + pass share; laundry by pass share; RO charged per litre; pass is its own fee.
+  // Per-use revenue from non-pass-holders. Toilet/bath also lose the free-use
+  // quota; RO is metered (everyone pays, including pass holders — the pass does
+  // not cover RO).
   const payFac = (1 - Math.max(0, p.freeQuota)) * (1 - Math.max(0, p.passShare));
-  const revT = uses * p.priceToilet * payFac;
-  const revB = baths * p.priceBath * payFac;
-  const revL = loads * p.priceLaundry * (1 - Math.max(0, p.passShare));
+  const revT_use = uses * p.priceToilet * payFac;
+  const revB_use = baths * p.priceBath * payFac;
+  const revL_use = loads * p.priceLaundry * (1 - Math.max(0, p.passShare));
   const revR = product * p.priceRo;
+
+  // Pass revenue allocation — the monthly pass covers toilet+bath+laundry use,
+  // so its income belongs to those three streams, not as a separate bucket.
+  // Allocate by served-value share (uses × posted price), which mirrors how a
+  // pass-holder's foregone per-use fees would have weighed by service.
   const passRevDay = activeHH * Math.max(0, p.passShare) * Math.max(0, p.passPrice) / 30;
-  const revDay = revT + revB + revL + revR + passRevDay;
+  const vT = uses * p.priceToilet, vB = baths * p.priceBath, vL = loads * p.priceLaundry;
+  const vSum = vT + vB + vL;
+  const wT = vSum > 0 ? vT / vSum : 1 / 3;
+  const wB = vSum > 0 ? vB / vSum : 1 / 3;
+  const wL = vSum > 0 ? vL / vSum : 1 / 3;
+  const revT = revT_use + passRevDay * wT;
+  const revB = revB_use + passRevDay * wB;
+  const revL = revL_use + passRevDay * wL;
+
+  // Total day revenue — pass already inside revT/revB/revL, do not add again.
+  const revDay = revT + revB + revL + revR;
 
   const opexMonthly = Math.max(0, p.opexMonthly);
   const opexDay = opexMonthly / 30;

@@ -195,7 +195,8 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
             </div>
           );
         })}
-        {/* monthly pass */}
+        {/* monthly pass — informational; income is already allocated into the
+            toilet/bath/laundry cards by served-value share, so we don't double-count. */}
         <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "11px 12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
             <span style={{ width: 9, height: 9, borderRadius: 2, background: C.good }} />
@@ -204,8 +205,8 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
           <Row k="share of HH" v={`${Math.round(params.passShare * 100)}%`} />
           <Row k="revenue / day" v={fmtINR(e.passRevDay)} />
           <Row k="holders" v={`${fmt(sim.activeHH * params.passShare)} HH`} />
-          <div style={{ marginTop: 8, fontSize: 10, padding: "3px 7px", borderRadius: 5, display: "inline-block", border: `1px solid #2c6e58`, color: C.greenBr, background: "rgba(95,211,166,0.08)" }}>
-            covers toilet+bath+laundry use
+          <div style={{ marginTop: 8, fontSize: 10, padding: "3px 7px", borderRadius: 5, display: "inline-block", border: `1px solid ${C.line}`, color: C.muted, background: "rgba(110,140,146,0.08)" }}>
+            allocated into toilet+bath+laundry above
           </div>
         </div>
       </div>

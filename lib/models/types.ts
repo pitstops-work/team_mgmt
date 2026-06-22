@@ -100,6 +100,7 @@ export type ComplexDaySimConfig = {
     seats: string; baths: string; machines: string; roLph: string; dewatsKld: string;
     roTankCap: string; roCansCount: string;
     toiletUses: string; bathShare: string; roLitresPerHH: string;
+    laundryLoadsPerHHPerWeek?: string;
     priceToilet: string; priceBath: string; priceLaundry: string; priceRo: string;
     passPrice: string; passShare: string; freeQuota: string;
     opexMonthly: string;

@@ -23,6 +23,7 @@ export default function OperationsSim({ config, values }: { config: DaySimConfig
           seats: num(n.seats), baths: num(n.baths), machines: num(n.machines), roLph: num(n.roLph), dewatsKld: num(n.dewatsKld),
           roTankCap: num(n.roTankCap, 4000), roCansCount: num(n.roCansCount),
           toiletUses: num(n.toiletUses), bathShare: num(n.bathShare), roLitresPerHH: num(n.roLitresPerHH),
+          laundryLoadsPerHHPerWeek: num(n.laundryLoadsPerHHPerWeek, 2),
           priceToilet: num(n.priceToilet), priceBath: num(n.priceBath), priceLaundry: num(n.priceLaundry), priceRo: num(n.priceRo),
           passPrice: num(n.passPrice), passShare: num(n.passShare), freeQuota: num(n.freeQuota),
           opexMonthly: num(n.opexMonthly),
