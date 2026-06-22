@@ -1905,6 +1905,9 @@ model Budget {
   // years: "end" (default — final band is partial) or "start" (Year 1 partial,
   // e.g. a project starting mid-year).
   partialPosition    String              @default("end")
+  // When true, the budget is split across delivery partners (see
+  // BudgetDeliveryPartner). Lines carry deliveryPartnerId; null = shared/master.
+  isMultiPartner     Boolean             @default(false)
   applyInflation     Boolean             @default(true)
   // Per-budget inflation rates as percentages (e.g. 10 = 10%). Defaults track
   // the previously hard-coded values in lib/budget-generator.ts.
@@ -1925,6 +1928,7 @@ model Budget {
   status             BudgetStatus        @default(draft)
   inputs             BudgetInputs?
   lines              BudgetLine[]
+  deliveryPartners   BudgetDeliveryPartner[]
   reportConfig       BudgetReportConfig?
   reportSlots        BudgetReportSlot[]
   reports            BudgetReport[]
@@ -1958,6 +1962,11 @@ model BudgetLine {
   id                       String                      @id @default(cuid())
   budgetId                 String
   budget                   Budget                      @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  // Delivery-partner this line belongs to in a multi-partner budget. null =
+  // shared / cross-cutting (Master tab). SetNull so removing a partner leaves
+  // its lines as shared rather than deleting them.
+  deliveryPartnerId        String?
+  deliveryPartner          BudgetDeliveryPartner?      @relation(fields: [deliveryPartnerId], references: [id], onDelete: SetNull)
   domain                   String?
   section                  BudgetSection
   position                 Int
@@ -2001,6 +2010,24 @@ model BudgetLine {
   reallocationRequestsTo   BudgetReallocationRequest[] @relation("ReallocationTo")
 
   @@index([budgetId, position])
+  @@index([deliveryPartnerId])
+}
+
+// A delivery/implementing partner sharing a multi-partner budget. Distinct from
+// Budget.partnerId (the creator user). Each holds its own programme inputs (its
+// slice of the totals) and an explicit % of shared/cross-cutting costs
+// (sharedPct across all partners should sum to 100).
+model BudgetDeliveryPartner {
+  id        String       @id @default(cuid())
+  budgetId  String
+  budget    Budget       @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int          @default(0)
+  sharedPct Float        @default(0)
+  inputs    Json         @default("{}")
+  lines     BudgetLine[]
+
+  @@index([budgetId])
 }
 
 enum BudgetLineCadence {
