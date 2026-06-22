@@ -619,6 +619,8 @@ export async function loadBudgetForCompare(budgetId: string): Promise<{
     y1Total: number;
     y2Total: number;
     y3Total: number;
+    y4Total: number;
+    y5Total: number;
   }>;
 }> {
   const session = await auth();
@@ -631,7 +633,7 @@ export async function loadBudgetForCompare(budgetId: string): Promise<{
       lines: {
         select: {
           id: true, templateKey: true, domain: true, section: true, description: true,
-          y1Total: true, y2Total: true, y3Total: true,
+          y1Total: true, y2Total: true, y3Total: true, y4Total: true, y5Total: true,
         },
       },
     },

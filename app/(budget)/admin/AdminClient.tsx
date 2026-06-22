@@ -1043,6 +1043,8 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
       y1Total: number;
       y2Total: number;
       y3Total: number;
+      y4Total: number;
+      y5Total: number;
     }>;
   } | null>(null);
   const [comparePending, startCompare] = useTransition();
@@ -1062,23 +1064,36 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     try {
       const summary = perUnit.map(r => ({ label: r.label, sub: r.sub, std: r.std, you: r.you }));
       const stdKeys = new Set(indicativeLines.map(l => l.templateKey).filter(Boolean));
-      const lines: { domain: string; section: string; description: string; std: number | null; you: number | null }[] =
-        indicativeLines.map(l => ({
+      const grand = (o: { y1Total: number; y2Total: number; y3Total: number; y4Total?: number; y5Total?: number }) =>
+        o.y1Total + o.y2Total + o.y3Total + (o.y4Total ?? 0) + (o.y5Total ?? 0);
+      type ExpLine = { domain: string; section: string; description: string; std: number | null; you: number | null; stdTotal: number | null; youTotal: number | null };
+      const lines: ExpLine[] = [];
+      // Standard lines — skip those the user excluded from the like-for-like scope.
+      for (const l of indicativeLines) {
+        if (excludedTemplateKeys.has(l.templateKey)) continue;
+        const you = l.templateKey ? youLineMap.get(l.templateKey) : undefined;
+        lines.push({
           domain: l.domain ?? "Cross-cutting",
           section: String(l.section),
           description: l.description,
           std: l.y1Total,
-          you: l.templateKey ? (youLineMap.get(l.templateKey)?.y1Total ?? 0) : 0,
-        }));
-      // Yours-only additions (no matching standard template)
+          you: you ? you.y1Total : 0,
+          stdTotal: grand(l),
+          youTotal: you ? grand(you) : 0,
+        });
+      }
+      // Yours-only additions (no matching standard template) — honour the symmetric exclude.
       for (const yl of compareData.lines) {
         if (yl.templateKey && stdKeys.has(yl.templateKey)) continue;
+        if (excludedOrphanIds.has(yl.id)) continue;
         lines.push({
           domain: yl.domain ?? "Cross-cutting",
           section: String(yl.section),
           description: `${yl.description} (your addition)`,
           std: null,
           you: yl.y1Total,
+          stdTotal: null,
+          youTotal: grand(yl),
         });
       }
       const res = await fetch("/api/budget/cost-analysis-export", {
@@ -1286,7 +1301,7 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
   // partner had clearly entered them. The saved totals are authoritative.
   // Keyed by templateKey for O(1) lookup from the per-domain table.
   const youLineMap = useMemo(() => {
-    const m = new Map<string, { y1Total: number; y2Total: number; y3Total: number }>();
+    const m = new Map<string, { y1Total: number; y2Total: number; y3Total: number; y4Total: number; y5Total: number }>();
     if (!compareData) return m;
     for (const l of compareData.lines) {
       if (l.templateKey) m.set(l.templateKey, l);

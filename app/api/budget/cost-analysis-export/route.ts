@@ -5,7 +5,8 @@ import ExcelJS from "exceljs";
 export const runtime = "nodejs";
 
 type Row = { label: string; sub?: string; std: number | null; you: number | null };
-type LineRow = { domain: string; section: string; description: string; std: number | null; you: number | null };
+// std/you = Year-1; stdTotal/youTotal = full-horizon (all active years).
+type LineRow = { domain: string; section: string; description: string; std: number | null; you: number | null; stdTotal?: number | null; youTotal?: number | null };
 type Payload = {
   standardName: string;
   compareName: string;
@@ -56,33 +57,40 @@ export async function POST(req: NextRequest) {
   const stdHdr = `Standard (${body.standardName})`;
   const youHdr = `Yours (${body.compareName})`;
 
-  // ── By Head sheet — section sub-totals + grand total (Y1) ───────────────────
-  const sh = wb.addWorksheet("By Head (Y1)");
+  // ── By Head sheet — section sub-totals + grand total (Y1 and full horizon) ──
+  const sh = wb.addWorksheet("By Head");
   sh.columns = [
-    { header: "Head", key: "head", width: 26 },
-    { header: stdHdr, key: "std", width: 22 },
-    { header: youHdr, key: "you", width: 22 },
-    { header: "Δ", key: "delta", width: 16 },
-    { header: "Variance %", key: "var", width: 14 },
+    { header: "Head", key: "head", width: 24 },
+    { header: `Std Y1`, key: "std", width: 16 },
+    { header: `Yours Y1`, key: "you", width: 16 },
+    { header: `Std Total (all yrs)`, key: "stdT", width: 18 },
+    { header: `Yours Total (all yrs)`, key: "youT", width: 18 },
+    { header: "Δ Total", key: "delta", width: 16 },
+    { header: "Variance % (Total)", key: "var", width: 16 },
   ];
   styleHeader(sh.getRow(1));
-  let totStd = 0, totYou = 0;
+  const sum = (rows: LineRow[], pick: (l: LineRow) => number | null | undefined) =>
+    rows.reduce((s, l) => s + (pick(l) ?? 0), 0);
+  let tStd = 0, tYou = 0, tStdT = 0, tYouT = 0;
   for (const sec of SECTION_ORDER) {
     const rows = lines.filter(l => l.section === sec);
     if (rows.length === 0) continue;
-    const std = rows.reduce((s, l) => s + (l.std ?? 0), 0);
-    const you = rows.reduce((s, l) => s + (l.you ?? 0), 0);
-    totStd += std; totYou += you;
-    const row = sh.addRow({ head: SECTION_LABELS[sec] ?? sec, std, you, delta: delta(std, you), var: variancePct(std, you) });
+    const std = sum(rows, l => l.std), you = sum(rows, l => l.you);
+    const stdT = sum(rows, l => l.stdTotal), youT = sum(rows, l => l.youTotal);
+    tStd += std; tYou += you; tStdT += stdT; tYouT += youT;
+    const row = sh.addRow({ head: SECTION_LABELS[sec] ?? sec, std, you, stdT, youT, delta: delta(stdT, youT), var: variancePct(stdT, youT) });
     row.eachCell(c => { c.fill = subFill; });
-    numFmt(row, ["std", "you", "delta", "var"]);
+    numFmt(row, ["std", "you", "stdT", "youT", "delta", "var"]);
   }
-  // Any lines whose section isn't in SECTION_ORDER still count toward the total.
+  // Any line whose section isn't in SECTION_ORDER still counts toward the totals.
   const known = new Set(SECTION_ORDER);
-  for (const l of lines) { if (!known.has(l.section)) { totStd += l.std ?? 0; totYou += l.you ?? 0; } }
-  const totalRow = sh.addRow({ head: "TOTAL", std: totStd, you: totYou, delta: delta(totStd, totYou), var: variancePct(totStd, totYou) });
+  for (const l of lines) {
+    if (known.has(l.section)) continue;
+    tStd += l.std ?? 0; tYou += l.you ?? 0; tStdT += l.stdTotal ?? 0; tYouT += l.youTotal ?? 0;
+  }
+  const totalRow = sh.addRow({ head: "TOTAL", std: tStd, you: tYou, stdT: tStdT, youT: tYouT, delta: delta(tStdT, tYouT), var: variancePct(tStdT, tYouT) });
   totalRow.eachCell(c => { c.font = { bold: true }; c.fill = totFill; });
-  numFmt(totalRow, ["std", "you", "delta", "var"]);
+  numFmt(totalRow, ["std", "you", "stdT", "youT", "delta", "var"]);
   sh.views = [{ state: "frozen", ySplit: 1 }];
 
   // ── Summary sheet — per-unit cost metrics ───────────────────────────────────
