@@ -53,6 +53,37 @@ export default function NewBudgetForm({
   const [programmeInputs, setProgrammeInputs] = useState<Record<string, number>>(() =>
     initInputs(effectiveCrossCutting, effectiveDomains)
   );
+  // Multi-partner: split the budget across delivery partners, each with its own
+  // inputs and an explicit % of shared costs. partnerList[activePartnerIdx] is
+  // the input set the step-2 fields write to when multiPartner is on.
+  const [multiPartner, setMultiPartner] = useState(false);
+  const [partnerList, setPartnerList] = useState<{ name: string; sharedPct: number; inputs: Record<string, number> }[]>([]);
+  const [activePartnerIdx, setActivePartnerIdx] = useState(0);
+  const blankInputs = () => initInputs(effectiveCrossCutting, effectiveDomains);
+  const enableMultiPartner = (on: boolean) => {
+    setMultiPartner(on);
+    if (on && partnerList.length === 0) {
+      setPartnerList([
+        { name: "Partner 1", sharedPct: 50, inputs: blankInputs() },
+        { name: "Partner 2", sharedPct: 50, inputs: blankInputs() },
+      ]);
+      setActivePartnerIdx(0);
+    }
+  };
+  const addPartner = () => setPartnerList(prev => {
+    const next = [...prev, { name: `Partner ${prev.length + 1}`, sharedPct: 0, inputs: blankInputs() }];
+    setActivePartnerIdx(next.length - 1);
+    return next;
+  });
+  const removePartner = (idx: number) => setPartnerList(prev => {
+    const next = prev.filter((_, i) => i !== idx);
+    setActivePartnerIdx(i => Math.max(0, Math.min(i, next.length - 1)));
+    return next;
+  });
+  const patchPartner = (idx: number, patch: Partial<{ name: string; sharedPct: number }>) =>
+    setPartnerList(prev => prev.map((p, i) => i === idx ? { ...p, ...patch } : p));
+  const currentInputs = multiPartner ? (partnerList[activePartnerIdx]?.inputs ?? {}) : programmeInputs;
+  const sharedPctSum = partnerList.reduce((s, p) => s + (p.sharedPct || 0), 0);
   // "standard" → costOverrides stays empty, generator reads the live registry.
   // "customize" → form shows the per-domain unit-cost + ratio accordion and
   // collects sparse overrides keyed by CostRegistry.itemKey.
@@ -75,20 +106,35 @@ export default function NewBudgetForm({
     return next;
   });
 
-  const setNum = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setProgrammeInputs(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }));
+  const setNum = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseInt(e.target.value) || 0;
+    if (multiPartner) {
+      setPartnerList(prev => prev.map((p, i) => i === activePartnerIdx ? { ...p, inputs: { ...p.inputs, [key]: v } } : p));
+    } else {
+      setProgrammeInputs(prev => ({ ...prev, [key]: v }));
+    }
+  };
 
   const canProceed = name.trim() && selectedDomains.size > 0;
 
+  const validPartners = partnerList.filter(p => p.name.trim());
   const submit = () => {
+    const useMulti = multiPartner && validPartners.length >= 2;
+    // Master totals = element-wise sum of partner inputs (server recomputes too).
+    const summed: Record<string, number> = {};
+    if (useMulti) for (const p of validPartners) for (const [k, v] of Object.entries(p.inputs)) summed[k] = (summed[k] ?? 0) + (Number(v) || 0);
     startTransition(async () => {
       await createBudget({
         name: name.trim(), city, domains: Array.from(selectedDomains),
         horizonMonths, partialPosition, applyInflation,
-        programmeInputs, includeCrossCutting,
+        programmeInputs: useMulti ? summed : programmeInputs,
+        includeCrossCutting,
         // Pass only when customising. Server snapshots the full registry either
         // way and merges this delta on top.
         costOverrides: costMode === "customize" ? costOverrides : {},
+        deliveryPartners: useMulti
+          ? validPartners.map(p => ({ name: p.name.trim(), sharedPct: p.sharedPct, programmeInputs: p.inputs }))
+          : undefined,
       });
     });
   };
@@ -302,10 +348,54 @@ export default function NewBudgetForm({
             Enter the scale of your programme. Only inputs relevant to your selected domains are shown — pick more domains in step 1 to expand this list. Salary rows will be left blank for you to fill.
           </p>
 
+          {/* Multi-partner toggle + manager */}
+          <div className="rounded-xl border border-stone-200 p-3">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={multiPartner} onChange={e => enableMultiPartner(e.target.checked)} className="mt-1" />
+              <span>
+                <span className="text-sm font-medium text-stone-900">Split across delivery partners</span>
+                <span className="block text-xs text-stone-500">Enter each partner&apos;s own inputs (their share of centres, settlements, staff). Generates a per-partner sheet + a Master roll-up; shared costs are split by the % you set.</span>
+              </span>
+            </label>
+
+            {multiPartner && (
+              <div className="mt-3 space-y-3">
+                <div className="flex gap-1 flex-wrap items-center">
+                  {partnerList.map((p, i) => (
+                    <button key={i} type="button" onClick={() => setActivePartnerIdx(i)}
+                      className={`text-xs px-3 py-1 rounded-full border ${activePartnerIdx === i ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 text-stone-500 hover:border-stone-300"}`}>
+                      {p.name.trim() || `Partner ${i + 1}`}
+                    </button>
+                  ))}
+                  <button type="button" onClick={addPartner} className="text-xs px-3 py-1 rounded-full border border-dashed border-stone-300 text-stone-500 hover:border-stone-400">+ Add partner</button>
+                </div>
+                {partnerList[activePartnerIdx] && (
+                  <div className="flex flex-wrap items-end gap-3 bg-stone-50 rounded-lg p-3">
+                    <label className="text-xs text-stone-500">Partner name
+                      <input type="text" value={partnerList[activePartnerIdx].name}
+                        onChange={e => patchPartner(activePartnerIdx, { name: e.target.value })}
+                        className="block mt-0.5 w-48 border border-stone-300 rounded px-2 py-1 text-sm" />
+                    </label>
+                    <label className="text-xs text-stone-500">Shared-cost %
+                      <input type="number" min={0} max={100} value={partnerList[activePartnerIdx].sharedPct || ""}
+                        onChange={e => patchPartner(activePartnerIdx, { sharedPct: parseFloat(e.target.value) || 0 })}
+                        className="block mt-0.5 w-24 border border-stone-300 rounded px-2 py-1 text-sm text-right" />
+                    </label>
+                    {partnerList.length > 2 && (
+                      <button type="button" onClick={() => removePartner(activePartnerIdx)} className="text-xs text-red-500 hover:text-red-700 pb-1">Remove</button>
+                    )}
+                    <span className={`text-xs pb-1 ml-auto ${sharedPctSum === 100 ? "text-stone-400" : "text-amber-600"}`}>Shared % total: {sharedPctSum}%{sharedPctSum !== 100 ? " (normalised)" : ""}</span>
+                  </div>
+                )}
+                <p className="text-xs text-emerald-700">Editing inputs for <strong>{partnerList[activePartnerIdx]?.name || "—"}</strong>. The fields below apply to this partner only.</p>
+              </div>
+            )}
+          </div>
+
           {visibleCrossCutting.length > 0 && (
             <Section title="Programme scale">
               {visibleCrossCutting.map(f => (
-                <Field key={f.key} label={f.label} value={programmeInputs[f.key] ?? 0} onChange={setNum(f.key)}
+                <Field key={f.key} label={f.label} value={currentInputs[f.key] ?? 0} onChange={setNum(f.key)}
                   hint={f.unit !== "count" ? `Unit: ${f.unit}` : undefined} />
               ))}
             </Section>
@@ -314,7 +404,7 @@ export default function NewBudgetForm({
           {domainSections().map(({ label, inputs }) => (
             <Section key={label} title={label}>
               {inputs.map(f => (
-                <Field key={f.key} label={f.label} value={programmeInputs[f.key] ?? 0} onChange={setNum(f.key)}
+                <Field key={f.key} label={f.label} value={currentInputs[f.key] ?? 0} onChange={setNum(f.key)}
                   hint={f.unit !== "count" ? `Unit: ${f.unit}` : undefined} />
               ))}
             </Section>
