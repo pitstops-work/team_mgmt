@@ -45,6 +45,8 @@ export default function NewBudgetForm({
   // donor-budget shapes. 60mo is the cap (matches BudgetLine y1..y5 columns).
   const [horizonMonths, setHorizonMonths] = useState<number>(12);
   const [customMonths, setCustomMonths]   = useState<string>("");
+  // Where the pro-rated stub sits when the horizon isn't whole years.
+  const [partialPosition, setPartialPosition] = useState<"start" | "end">("end");
   const [applyInflation, setApplyInflation] = useState<boolean>(false);
   const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set());
   const [includeCrossCutting, setIncludeCrossCutting] = useState(true);
@@ -82,7 +84,7 @@ export default function NewBudgetForm({
     startTransition(async () => {
       await createBudget({
         name: name.trim(), city, domains: Array.from(selectedDomains),
-        horizonMonths, applyInflation,
+        horizonMonths, partialPosition, applyInflation,
         programmeInputs, includeCrossCutting,
         // Pass only when customising. Server snapshots the full registry either
         // way and merges this delta on top.
@@ -230,10 +232,23 @@ export default function NewBudgetForm({
               <span className="text-xs text-stone-400">
                 → {horizonLabel(horizonMonths)}
                 {horizonMonths % 12 !== 0 && (
-                  <> · final year pro-rated to {((horizonMonths % 12) / 12 * 100).toFixed(0)}%</>
+                  <> · {partialPosition === "start" ? "first" : "final"} year pro-rated to {((horizonMonths % 12) / 12 * 100).toFixed(0)}%</>
                 )}
               </span>
             </div>
+            {horizonMonths % 12 !== 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-stone-500">Pro-rated stub:</span>
+                {(["end", "start"] as const).map(pos => (
+                  <button key={pos} type="button" onClick={() => setPartialPosition(pos)}
+                    className={`text-xs rounded-full px-3 py-1 border ${partialPosition === pos
+                      ? "border-sky-500 bg-sky-50 text-sky-700"
+                      : "border-stone-200 text-stone-500 hover:border-stone-300"}`}>
+                    {pos === "end" ? "Final year (default)" : "Year 1 (mid-year start)"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

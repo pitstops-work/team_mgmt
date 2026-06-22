@@ -1901,6 +1901,10 @@ model Budget {
   // queries that read `years` keep working without a sweep.
   years              Int                 @default(1)
   horizonMonths      Int                 @default(12)
+  // Where the pro-rated stub sits when horizonMonths isn't a whole number of
+  // years: "end" (default — final band is partial) or "start" (Year 1 partial,
+  // e.g. a project starting mid-year).
+  partialPosition    String              @default("end")
   applyInflation     Boolean             @default(true)
   // Per-budget inflation rates as percentages (e.g. 10 = 10%). Defaults track
   // the previously hard-coded values in lib/budget-generator.ts.

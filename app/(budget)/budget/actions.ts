@@ -13,6 +13,8 @@ export type CreateBudgetPayload = {
   city: string;
   domains: string[];
   horizonMonths: number;
+  /** Where the pro-rated stub sits: "start" or "end" (default). */
+  partialPosition?: "start" | "end";
   applyInflation: boolean;
   programmeInputs: Record<string, number>;
   includeCrossCutting: boolean;
@@ -25,6 +27,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
   if (!session?.user?.id) throw new Error("Not authenticated");
 
   const horizonMonths = Math.min(60, Math.max(1, Math.round(payload.horizonMonths)));
+  const partialPosition: "start" | "end" = payload.partialPosition === "start" ? "start" : "end";
   // Keep `years` in sync for legacy read paths (list pages, report-actions
   // grantYear lookups, etc.). years = number of year-bands the horizon covers.
   const years = activeYearBands(horizonMonths);
@@ -54,7 +57,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
   const lines = generateBudgetLines(
     payload.domains,
     payload.programmeInputs,
-    { horizonMonths, applyInflation: payload.applyInflation, inflationRates: DEFAULT_INFLATION_RATES },
+    { horizonMonths, applyInflation: payload.applyInflation, inflationRates: DEFAULT_INFLATION_RATES, partialPosition },
     mergedRegistry,
     eligibleTemplates,
   );
@@ -68,6 +71,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
       domains: payload.domains,
       years,
       horizonMonths,
+      partialPosition,
       applyInflation: payload.applyInflation,
       costSnapshot,
       costOverrides,

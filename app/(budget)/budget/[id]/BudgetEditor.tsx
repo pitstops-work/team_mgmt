@@ -30,6 +30,7 @@ type Budget = {
   domains: string[];
   years: number;
   horizonMonths: number;
+  partialPosition?: "start" | "end";
   applyInflation: boolean;
   inflationSalaryPct: number;
   inflationOtherPct: number;
@@ -44,14 +45,22 @@ type Budget = {
 type BandKey = 1 | 2 | 3 | 4 | 5;
 type Band = { k: BandKey; factor: number; label: string };
 
-/** Year-bands present in this horizon, including pro-rated tail. */
-function computeBands(horizonMonths: number): Band[] {
+/** Year-bands present in this horizon, including the pro-rated stub. The stub
+ *  is the final band ("end") or Year 1 ("start"). */
+function computeBands(horizonMonths: number, partialPosition: "start" | "end" = "end"): Band[] {
   const fullYears = Math.floor(horizonMonths / 12);
   const tail      = horizonMonths - fullYears * 12;
   const out: Band[] = [];
+  const totalBands = tail > 0 ? fullYears + 1 : fullYears;
   for (let k = 1 as BandKey; k <= 5; k = (k + 1) as BandKey) {
-    if (k <= fullYears) out.push({ k, factor: 1, label: `Y${k}` });
-    else if (k === fullYears + 1 && tail > 0) out.push({ k, factor: tail / 12, label: `Y${k} (${tail}mo)` });
+    if (k > totalBands) continue;
+    if (tail > 0 && partialPosition === "start" && k === 1) {
+      out.push({ k, factor: tail / 12, label: `Y1 (${tail}mo)` });
+    } else if (tail > 0 && partialPosition === "end" && k === fullYears + 1) {
+      out.push({ k, factor: tail / 12, label: `Y${k} (${tail}mo)` });
+    } else {
+      out.push({ k, factor: 1, label: `Y${k}` });
+    }
   }
   return out;
 }
@@ -171,7 +180,7 @@ const horizonLabel = (m: number) =>
 
 export default function BudgetEditor({ budget }: { budget: Budget }) {
   const domainLabels: Record<string, string> = budget.domainLabels ?? DOMAIN_LABELS;
-  const bands = computeBands(budget.horizonMonths ?? budget.years * 12);
+  const bands = computeBands(budget.horizonMonths ?? budget.years * 12, budget.partialPosition ?? "end");
   /** Inflation rate per category, as a decimal — gated by the budget's applyInflation flag. */
   const inflationRate: Record<InflationType, number> = budget.applyInflation
     ? { Salary: budget.inflationSalaryPct / 100, Other: budget.inflationOtherPct / 100, Nil: budget.inflationNilPct / 100 }

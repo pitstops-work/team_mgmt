@@ -30,6 +30,9 @@ export type InflationRates = Record<InflationType, number>;
 /** Defaults track the previously hard-coded values. */
 export const DEFAULT_INFLATION_RATES: InflationRates = { Salary: 0.10, Other: 0.05, Nil: 0.00 };
 
+/** Position of the pro-rated stub when the horizon isn't a whole number of years. */
+export type PartialPosition = "start" | "end";
+
 export type GeneratorOpts = {
   /** Total horizon in months. 1..60. */
   horizonMonths: number;
@@ -37,15 +40,26 @@ export type GeneratorOpts = {
   applyInflation: boolean;
   /** Per-budget rates; falls back to DEFAULT_INFLATION_RATES. */
   inflationRates?: InflationRates;
+  /** Where the partial year sits: "end" (default) or "start" (Year 1 partial). */
+  partialPosition?: PartialPosition;
 };
 
-/** Fraction of a full year covered by year-band k (1-indexed). 0 outside horizon. */
-export function yearFactor(k: number, horizonMonths: number): number {
+/** Fraction of a full year covered by year-band k (1-indexed). 0 outside horizon.
+ *  When partialPosition is "start" and the horizon has a stub, Year 1 is the
+ *  partial band and the remaining bands are full; otherwise the stub is last. */
+export function yearFactor(k: number, horizonMonths: number, partialPosition: PartialPosition = "end"): number {
   if (k < 1 || k > 5) return 0;
   const fullYears = Math.floor(horizonMonths / 12);
   const tailMonths = horizonMonths - fullYears * 12;
+  if (tailMonths === 0) return k <= fullYears ? 1 : 0;
+  if (partialPosition === "start") {
+    if (k === 1) return tailMonths / 12;
+    if (k <= fullYears + 1) return 1;
+    return 0;
+  }
+  // "end" (default): full years first, partial stub last.
   if (k <= fullYears) return 1;
-  if (k === fullYears + 1 && tailMonths > 0) return tailMonths / 12;
+  if (k === fullYears + 1) return tailMonths / 12;
   return 0;
 }
 
@@ -134,9 +148,10 @@ function templateToLine(
   const rates       = opts.inflationRates ?? DEFAULT_INFLATION_RATES;
   const rate        = opts.applyInflation ? rates[t.costCategory] : 0;
   const horizon     = opts.horizonMonths;
+  const partialPos  = opts.partialPosition ?? "end";
 
   const computeYear = (k: number): { units: number; unitCost: number; allocPct: number; total: number } => {
-    const factor = yearFactor(k, horizon);
+    const factor = yearFactor(k, horizon, partialPos);
     if (factor === 0 || !templateAppliesToYear(t, k)) {
       return { units: 0, unitCost: 0, allocPct, total: 0 };
     }
