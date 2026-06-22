@@ -12,7 +12,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const budget = await prisma.budget.findUnique({
     where: { id },
-    include: { lines: { orderBy: { position: "asc" } }, inputs: true },
+    include: {
+      lines: { orderBy: { position: "asc" } },
+      inputs: true,
+      deliveryPartners: { orderBy: { sortOrder: "asc" } },
+    },
   });
   if (!budget || budget.partnerId !== session.user.id) return new NextResponse("Not found", { status: 404 });
 
@@ -41,6 +45,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const tmpl = l.templateKey ? templateByKey.get(l.templateKey) : null;
     return {
       domain: l.domain,
+      deliveryPartnerId: l.deliveryPartnerId,
       section: l.section,
       description: l.description,
       costCategory: l.costCategory,
@@ -97,6 +102,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         }
       : { Salary: 0, Other: 0, Nil: 0 },
     lines,
+    deliveryPartners: budget.isMultiPartner
+      ? budget.deliveryPartners.map(p => ({ id: p.id, name: p.name, sharedPct: p.sharedPct }))
+      : undefined,
     meta: {
       city: budget.city,
       horizonMonths,

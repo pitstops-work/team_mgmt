@@ -16,6 +16,8 @@ export type CostComponent = {
 
 export type ExportLine = {
   domain: string | null;
+  /** Multi-partner: which delivery partner this line belongs to (null = shared). */
+  deliveryPartnerId?: string | null;
   section: BudgetSection;
   description: string;
   costCategory: "Salary" | "Other" | "Nil";
@@ -52,6 +54,9 @@ export type ExportBudget = {
    * is false, all three should be 0 so the inflation formula collapses to 1. */
   inflationRates?: { Salary: number; Other: number; Nil: number };
   lines: ExportLine[];
+  /** Multi-partner budgets: adds one summary sheet per delivery partner
+   *  (direct lines + their allocated share of shared costs by sharedPct). */
+  deliveryPartners?: { id: string; name: string; sharedPct: number }[];
   /** When provided, a hidden 00.Meta sheet is written carrying the full
    *  machine-readable budget state for a lossless round-trip on import.
    *  Omit for anonymous/ad-hoc exports that won't be re-imported. */
@@ -1125,6 +1130,68 @@ function writeMetaSheet(wb: ExcelJS.Workbook, meta: TemplateMeta): void {
   }
 }
 
+// Per-delivery-partner summary sheets (multi-partner budgets). Each sheet lists
+// the partner's direct lines grouped by section with year totals, then their
+// allocated share of shared/cross-cutting costs (by sharedPct, normalised), and
+// a partner grand total. Self-contained — does not touch the APF sheet logic.
+const PARTNER_SECTION_GROUPS: { sections: BudgetSection[]; label: string }[] = [
+  { sections: ["salary", "admin_salary"], label: "1. Salary, Honorarium, Staff benefits" },
+  { sections: ["capex"],                  label: "2. Fixed assets / CAPEX" },
+  { sections: ["travel"],                 label: "3. Travel, Boarding & Lodging" },
+  { sections: ["programme"],              label: "4. Programme expenses" },
+  { sections: ["admin_other", "additional"], label: "5. Administration cost" },
+];
+
+function buildPartnerSheets(wb: ExcelJS.Workbook, budget: ExportBudget): void {
+  const partners = budget.deliveryPartners ?? [];
+  if (partners.length === 0) return;
+  const yearCount = Math.max(1, Math.min(5, budget.years));
+  const yearKeys = (["y1Total", "y2Total", "y3Total", "y4Total", "y5Total"] as const).slice(0, yearCount);
+  const yearLabels = Array.from({ length: yearCount }, (_, i) => `Year ${i + 1} (Rs.)`);
+  const sharedLines = budget.lines.filter(l => l.deliveryPartnerId == null);
+  const pctSum = partners.reduce((s, p) => s + (p.sharedPct || 0), 0);
+  const sumYear = (rows: ExportLine[], k: typeof yearKeys[number]) => rows.reduce((s, l) => s + (l[k] || 0), 0);
+
+  for (const p of partners) {
+    const safe = `P-${p.name}`.replace(/[\\/?*[\]:]/g, " ").substring(0, 31);
+    const ws = wb.addWorksheet(safe);
+    ws.columns = [{ width: 52 }, { width: 18 }, ...yearKeys.map(() => ({ width: 16 }))];
+
+    const title = ws.addRow([`${p.name} — direct + allocated shared`]);
+    title.getCell(1).font = { bold: true, size: 12 };
+    ws.addRow([]);
+    const head = ws.addRow(["Description", "Section", ...yearLabels]);
+    head.eachCell(c => { c.font = { bold: true }; c.fill = fill(C.olive); c.border = thinBorder(); });
+
+    const directTotals = yearKeys.map(() => 0);
+    for (const g of PARTNER_SECTION_GROUPS) {
+      const secLines = budget.lines.filter(l => l.deliveryPartnerId === p.id && g.sections.includes(l.section));
+      if (secLines.length === 0) continue;
+      const banner = ws.addRow([g.label]);
+      banner.getCell(1).font = { bold: true };
+      banner.getCell(1).fill = fill(C.sectionBanner);
+      for (const l of secLines) {
+        ws.addRow([l.description, l.section, ...yearKeys.map(k => Math.round(l[k] || 0))]);
+      }
+      const subt = ws.addRow([`Subtotal — ${g.label}`, "", ...yearKeys.map(k => Math.round(sumYear(secLines, k)))]);
+      subt.eachCell(c => { c.font = { bold: true }; });
+      yearKeys.forEach((k, i) => { directTotals[i] += Math.round(sumYear(secLines, k)); });
+    }
+
+    // Allocated shared costs (this partner's share of the master shared lines)
+    const shareFrac = pctSum > 0 ? (p.sharedPct || 0) / pctSum : (partners.length ? 1 / partners.length : 0);
+    const sharedTotals = yearKeys.map(k => Math.round(sumYear(sharedLines, k) * shareFrac));
+    ws.addRow([]);
+    const shr = ws.addRow([`Allocated shared costs (${Math.round(shareFrac * 100)}%)`, "", ...sharedTotals]);
+    shr.eachCell(c => { c.font = { italic: true }; });
+
+    const grand = ws.addRow(["PARTNER TOTAL", "", ...yearKeys.map((_, i) => directTotals[i] + sharedTotals[i])]);
+    grand.eachCell(c => { c.font = { bold: true }; c.fill = fill(C.olive); c.border = thinBorder(); });
+
+    ws.views = [{ state: "frozen", ySplit: 3 }];
+  }
+}
+
 export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS.Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Budget Builder";
@@ -1180,6 +1247,9 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
 
   // Step 4: build Working with the structured component layout.
   buildWorkingSheet(wb, workingPlan);
+
+  // Step 4b: per-delivery-partner summary sheets (multi-partner budgets).
+  buildPartnerSheets(wb, budget);
 
   // Step 5: write the hidden round-trip Meta sheet (only when meta is supplied).
   if (budget.meta) {
