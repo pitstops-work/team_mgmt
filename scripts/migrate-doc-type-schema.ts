@@ -48,6 +48,7 @@ const GRANT_NOTE_FIELDS: Field[] = [
   { key: 'grantNumber',      label: 'Grant number',           type: 'select',   group: 'grant',   options: ['1st', '2nd', '3rd'] },
   { key: 'beneficiaryCount', label: 'Beneficiary count',      type: 'text',     group: 'grant',   placeholder: '~500 adolescent girls' },
   { key: 'isRenewal',        label: 'Renewal grant',          type: 'checkbox', group: 'grant' },
+  { key: 'budgetPick',       label: 'Linked budget (optional)', type: 'budget_picker', group: 'grant' },
   { key: 'staffNotes',       label: 'Our sense of the org',   type: 'textarea', group: 'narrative', rows: 8, required: true,
     placeholder: 'Field observations, concerns, relationship history, recommendation. This is what the AI cannot read from documents.' },
 ];
@@ -70,6 +71,7 @@ const PROGRAMME_DESIGN_FIELDS: Field[] = [
   { key: 'scale',          label: 'Scale / daily target',   type: 'text',     group: 'programme', placeholder: '1,500 meals/day across 5 hotspots' },
   { key: 'hasPilot',       label: 'Prior pilot exists',     type: 'checkbox', group: 'programme' },
   { key: 'pilotNotes',     label: 'Pilot notes',            type: 'text',     group: 'programme' },
+  { key: 'budgetPick',     label: 'Linked budget (optional)', type: 'budget_picker', group: 'grant' },
   { key: 'staffNotes',     label: 'Our sense of their capacity', type: 'textarea', group: 'narrative', rows: 8, required: true },
 ];
 

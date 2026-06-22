@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { listUserCrecheBudgets } from "@/lib/review/budget-bridge";
+import { listUserBudgets } from "@/lib/review/budget-bridge";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -10,10 +10,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   }
   const url = new URL(req.url);
-  const domain = url.searchParams.get("domain");
-  if (domain !== "Creche") {
-    return NextResponse.json({ error: "only domain=Creche is supported" }, { status: 400 });
-  }
-  const budgets = await listUserCrecheBudgets(session.user.id);
+  // Domain optional — when supplied we filter the user's budgets to that
+  // domain (drives the budget_picker dropdown for typed doc types); when
+  // omitted we return everything they own.
+  const domain = url.searchParams.get("domain") || undefined;
+  const budgets = await listUserBudgets(session.user.id, domain);
   return NextResponse.json({ budgets });
 }

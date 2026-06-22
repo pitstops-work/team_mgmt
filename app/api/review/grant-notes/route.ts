@@ -1,7 +1,7 @@
 import { sql, ok, bad } from '@/lib/review/db';
 import { snapshotVersion } from '@/lib/review/versions';
 import { auth } from '@/lib/auth';
-import { loadCrecheBudgetSnapshot } from '@/lib/review/budget-bridge';
+import { loadBudgetSnapshot } from '@/lib/review/budget-bridge';
 
 export const runtime = 'nodejs';
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   const {
     org_name, org_city, meeting, theme, grant_number, grant_amount, grant_duration,
     doc_type, draft_text, submitted_by, status,
-    source_documents, staff_notes, linked_budget_id,
+    source_documents, staff_notes, linked_budget_id, linked_budget_domain,
   } = body;
 
   if (!org_name?.trim()) return bad('org_name required');
@@ -63,13 +63,18 @@ export async function POST(req: Request) {
   const noteId = rows[0].id;
 
   // Snapshot the linked budget's comparison at create time so the note's
-  // deviation table doesn't drift if the budget is later edited.
+  // deviation table doesn't drift if the budget is later edited. Domain comes
+  // from the budget_picker field config on the doc type; falls back to Creche
+  // for legacy callers / payloads that pre-date the multi-domain rollout.
   let budgetComparison: unknown = null;
   if (linked_budget_id) {
     try {
       const session = await auth();
       if (session?.user?.id) {
-        budgetComparison = await loadCrecheBudgetSnapshot(linked_budget_id, session.user.id);
+        const domainKey = typeof linked_budget_domain === 'string' && linked_budget_domain.trim()
+          ? linked_budget_domain.trim()
+          : undefined; // bridge resolves to the budget's first domain
+        budgetComparison = await loadBudgetSnapshot(linked_budget_id, session.user.id, domainKey);
       }
     } catch (e: any) {
       // Don't fail note creation if the budget snapshot can't be built —

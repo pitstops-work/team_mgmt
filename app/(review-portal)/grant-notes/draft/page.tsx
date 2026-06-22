@@ -123,14 +123,16 @@ export default function NoteStartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docTypeKey, catalogLoaded]);
 
-  // Load budgets when active doc type has a budget_picker field.
+  // Load budgets when active doc type has a budget_picker field. When
+  // budgetDomain is set, filter the dropdown to that domain; when omitted,
+  // show every budget the user owns (useful for cross-domain doc types).
   useEffect(() => {
     if (!activeDocType) return;
     const bp = activeDocType.field_schema.find(f => f.type === 'budget_picker');
     if (!bp) { setBudgetOptions([]); return; }
-    const domain = bp.budgetDomain || 'Creche';
+    const domain = bp.budgetDomain || '';
     setBudgetLoadError('');
-    fetch(`/api/budgets?domain=${encodeURIComponent(domain)}`)
+    fetch(`/api/budgets${domain ? `?domain=${encodeURIComponent(domain)}` : ''}`)
       .then(async r => {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || 'failed to load budgets');
@@ -243,9 +245,11 @@ export default function NoteStartPage() {
       if (orgName.trim()) meta.orgName = orgName.trim();
 
       // Find the budget_picker field (if any) so the server can snapshot the
-      // comparison against the linked budget at note-create time.
+      // comparison against the linked budget at note-create time. The field's
+      // budgetDomain tells the bridge which domain's lines + divisor to use.
       const budgetField = activeDocType.field_schema.find(f => f.type === 'budget_picker');
       const linkedBudgetId = budgetField ? (fieldValues[budgetField.key] as string) || '' : '';
+      const linkedBudgetDomain = budgetField?.budgetDomain || '';
 
       setBusyStatus('Creating note…');
       const createRes = await fetch('/api/review/grant-notes', {
@@ -266,6 +270,7 @@ export default function NoteStartPage() {
           submitted_by: submitterName,
           status: 'designing',
           linked_budget_id: linkedBudgetId,
+          linked_budget_domain: linkedBudgetDomain,
         }),
       });
       const created = await createRes.json();

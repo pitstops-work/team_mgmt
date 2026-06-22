@@ -248,20 +248,53 @@ async function fetchBudgetComparisonBlock(
   noteId: string,
   docTypeKey: string,
 ): Promise<string> {
-  if (docTypeKey !== 'creche_approval' && docTypeKey !== 'creche_renewal') return '';
+  // Surfaces the linked-budget snapshot for any doc type that has one.
+  // Per-doc-type placement (which section the table lands in) is encoded
+  // in doc_types.template_rules — the model reads that alongside this block.
+  // Legacy creche-specific guidance is still applied for the two original
+  // doc types to preserve existing behavior.
   const rows = await sql`
     SELECT budget_comparison FROM grant_note_metadata WHERE note_id = ${noteId}::uuid
   `.catch(() => [] as any[]);
   const snap = (rows as any[])[0]?.budget_comparison as
-    | { tableHtml?: string; budgetName?: string; nCreches?: number; error?: string }
+    | {
+        tableHtml?: string;
+        budgetName?: string;
+        domain?: string;
+        unitLabel?: string;
+        unitLabelPlural?: string;
+        unitCount?: number;
+        // Legacy field — present on snapshots written before the multi-domain rollout.
+        nCreches?: number;
+        error?: string;
+      }
     | null;
   if (!snap || snap.error || !snap.tableHtml) return '';
-  const guidance = docTypeKey === 'creche_approval'
-    ? 'For creche_approval: paste the rendered HTML table verbatim into the "Deviation from the standard budget" section (Section VI(b)). Do not synthesise unit costs.'
-    : 'For creche_renewal: fold the deviation notes from this table into the Remark column of the Detailed Budget table. Do not add a separate (b) deviation table.';
+
+  // Snapshots written before the multi-domain rollout only had nCreches —
+  // treat their unit as creche so guidance still reads naturally.
+  const isLegacyCrecheSnapshot = snap.nCreches !== undefined && snap.unitCount === undefined;
+  const unitCount = snap.unitCount ?? snap.nCreches ?? 0;
+  const unitLabel = snap.unitLabel ?? (isLegacyCrecheSnapshot ? 'creche' : 'unit');
+  const unitLabelPlural = snap.unitLabelPlural ?? (unitLabel === 'creche' ? 'creches' : unitLabel + 's');
+  const domain = snap.domain ?? 'Creche';
+
+  // Hand-tuned guidance kept for the two original creche doc types so their
+  // existing language and section pointers don't regress. Everything else
+  // gets a generic instruction; the doc type's template_rules tell the
+  // model exactly which section the table belongs in.
+  let guidance: string;
+  if (docTypeKey === 'creche_approval') {
+    guidance = 'For creche_approval: paste the rendered HTML table verbatim into the "Deviation from the standard budget" section (Section VI(b)). Do not synthesise unit costs.';
+  } else if (docTypeKey === 'creche_renewal') {
+    guidance = 'For creche_renewal: fold the deviation notes from this table into the Remark column of the Detailed Budget table. Do not add a separate (b) deviation table.';
+  } else {
+    guidance = `Place the rendered HTML table verbatim into whichever budget/deviation section this doc type uses per its template_rules. Do not synthesise unit costs — the table already shows per-${unitLabel} proposed vs standard with the deviation %.`;
+  }
+
   return [
     'LINKED BUDGET COMPARISON SNAPSHOT — taken at note-create time from the Budget tool.',
-    `Budget: ${snap.budgetName || '(unnamed)'} · ${snap.nCreches ?? '?'} creches.`,
+    `Budget: ${snap.budgetName || '(unnamed)'} · ${domain} · ${unitCount} ${unitCount === 1 ? unitLabel : unitLabelPlural}.`,
     guidance,
     'Rendered HTML (use verbatim where instructed):',
     snap.tableHtml,
