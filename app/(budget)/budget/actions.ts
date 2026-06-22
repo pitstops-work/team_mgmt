@@ -233,6 +233,9 @@ export async function updateLine(
   lineId: string,
   updates: {
     description?: string;
+    // Inflation category (Salary/Other/Nil) — omit to leave unchanged. The
+    // editor recomputes the out-year unit costs before sending.
+    costCategory?: InflationType;
     // domain: pass null to mark the row as cross-cutting, string to attach it
     // to a specific domain card. Omit to leave unchanged.
     domain?: string | null;

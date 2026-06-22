@@ -233,6 +233,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
     setEditing(l.id);
     setEditVals({
       description: l.description,
+      costCategory: l.costCategory,
       domain: l.domain,
       cadence: l.cadence,
       plannedMonths: l.plannedMonths,
@@ -429,7 +430,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
                 {sLines.map((l, i) => (
                   editing === l.id
                     ? <EditRow key={l.id} line={l} vals={editVals} setVals={setEditVals}
-                        bands={bands} showAlloc={showAlloc}
+                        bands={bands} showAlloc={showAlloc} inflationRate={inflationRate}
                         domains={budget.domains} domainLabels={domainLabels}
                         onSave={() => saveEdit(l.id)} onCancel={() => setEditing(null)} />
                     : <ViewRow key={l.id} line={l} i={i + 1} bands={bands} showAlloc={showAlloc}
@@ -625,12 +626,24 @@ function ViewRow({ line, i, bands, showAlloc, onEdit, onDelete }: {
   );
 }
 
-function EditRow({ line, vals, setVals, bands, showAlloc, domains, domainLabels, onSave, onCancel }: {
+function EditRow({ line, vals, setVals, bands, showAlloc, inflationRate, domains, domainLabels, onSave, onCancel }: {
   line: Line; vals: Partial<Line>; setVals: (v: Partial<Line>) => void;
-  bands: Band[]; showAlloc: boolean;
+  bands: Band[]; showAlloc: boolean; inflationRate: Record<InflationType, number>;
   domains: string[]; domainLabels: Record<string, string>;
   onSave: () => void; onCancel: () => void;
 }) {
+  // Switching the inflation category re-inflates the out-year unit costs from Y1
+  // at the new category's rate (no-op when applyInflation is off → rate 0).
+  const setCostCategory = (cat: InflationType) => {
+    const rate = inflationRate[cat] ?? 0;
+    const y1c  = vals.y1UnitCost ?? line.y1UnitCost ?? 0;
+    const next: Partial<Line> = { ...vals, costCategory: cat };
+    for (const b of bands) {
+      if (b.k === 1) continue;
+      next[yCostKey(b.k)] = Math.round(y1c * Math.pow(1 + rate, b.k - 1));
+    }
+    setVals(next);
+  };
   // Edit row keeps inflation-aware auto-fill but uses zero rate when applyInflation
   // is off (band.factor stays 1 in those cases). The parent already gates extra
   // bands on showAlloc / bands.length.
@@ -678,6 +691,18 @@ function EditRow({ line, vals, setVals, bands, showAlloc, domains, domainLabels,
             {domains.map(d => (
               <option key={d} value={d}>{domainLabels[d] ?? d}</option>
             ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className="text-[10px] uppercase tracking-widest text-stone-400">Inflation</span>
+          <select value={vals.costCategory ?? line.costCategory}
+            onChange={e => setCostCategory(e.target.value as InflationType)}
+            className="border border-sky-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500 bg-white"
+            title="Which inflation category this line compounds at. Changing it re-inflates the out-year unit costs.">
+            {(["Salary", "Other", "Nil"] as InflationType[]).map(cat => {
+              const pct = Math.round((inflationRate[cat] ?? 0) * 100);
+              return <option key={cat} value={cat}>{cat === "Nil" ? "No inflation" : `${cat}${pct > 0 ? ` (${pct}%)` : ""}`}</option>;
+            })}
           </select>
         </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
