@@ -254,6 +254,23 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
   const horizonTotal = () =>
     bands.reduce((s, b) => s + grandTotal(b.k), 0);
 
+  // Top summary box total. For multi-partner it spans the whole budget rather
+  // than just the visible (shared-only on Master) lines, which otherwise reads
+  // ₹0 when there are no shared/cross-cutting items.
+  const summaryYearTotal = (k: BandKey): number => {
+    if (!isMultiPartner) return grandTotal(k);
+    if (activePartner === "master") {
+      const src = activeTab === "master" ? lines : lines.filter(l => l.domain === activeTab || l.domain === null);
+      return src.reduce((s, l) => s + l[yTotalKey(k)], 0);
+    }
+    // Partner tab: their direct lines (domain-filtered) + allocated shared (All domains only).
+    const direct = visibleLines.reduce((s, l) => s + l[yTotalKey(k)], 0);
+    const sharedYear = lines.filter(l => l.deliveryPartnerId == null).reduce((s, l) => s + l[yTotalKey(k)], 0);
+    const alloc = activeTab === "master" ? Math.round(sharedYear * (activePartnerRollup?.shareFrac ?? 0)) : 0;
+    return direct + alloc;
+  };
+  const summaryHorizonTotal = () => bands.reduce((s, b) => s + summaryYearTotal(b.k), 0);
+
   const grandTotalLabel = activeTab === "master" ? "All domains" : (domainLabels[activeTab] ?? activeTab);
 
   const hasInputs = (() => {
@@ -413,13 +430,13 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
           {bands.map(b => (
             <TotalCell key={b.k}
               label={`${b.label} Total`}
-              value={grandTotal(b.k)}
+              value={summaryYearTotal(b.k)}
               big={b.k === 1}
             />
           ))}
           {bands.length > 1 && (
             <TotalCell label={`${horizonLabel(budget.horizonMonths ?? budget.years * 12)} Total`}
-              value={horizonTotal()} big />
+              value={summaryHorizonTotal()} big />
           )}
         </div>
       )}
@@ -469,10 +486,14 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
               </tr>
             </tbody>
           </table>
-          {pctSum !== 100 && partners.length > 0 && (
+          {pctSum !== 100 && partners.length > 0 && sharedTotalY1 > 0 && (
             <p className="text-xs text-amber-600 mt-2">Shared % sums to {pctSum}% (not 100) — allocations are normalised proportionally.</p>
           )}
-          <p className="text-xs text-stone-400 mt-1">Lines below are the shared / cross-cutting costs (editable). Switch tabs to edit each partner's direct lines.</p>
+          <p className="text-xs text-stone-400 mt-1">
+            {sharedTotalY1 > 0
+              ? "Lines below are the shared / cross-cutting costs (editable). Switch tabs to edit each partner's direct lines."
+              : "No shared / cross-cutting costs in this budget. Switch tabs to edit each partner's direct lines."}
+          </p>
         </div>
       )}
 
