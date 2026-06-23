@@ -27,6 +27,7 @@ export type ComplexSimParams = {
   facilityOpenHours: number;    // hours/day the complex is open (from 06:00); attended
                                 // services (toilet/bath/laundry) only serve while open —
                                 // closed-hour demand compresses into the open window
+  replacementReserveAnnual: number; // INR/yr — drives the "community surplus" tile
 };
 
 export type ComplexService = {
@@ -38,8 +39,11 @@ export type ComplexService = {
   servedDay: number;
   demandDay: number;
   capPerHour: number;
-  peakUtil: number;     // max hourly served / capacity (>1 ⇒ queued at peak)
-  revDay: number;       // per-use revenue (pass income is a separate stream)
+  peakUtil: number;     // max hourly DEMAND / capacity. >1 = bottlenecked at peak,
+                        // some demand was clipped; can exceed 1 by any amount.
+  revDay: number;       // total revenue (per-use + pass allocation)
+  revUseDay: number;    // per-use revenue from non-pass-holders
+  revPassDay: number;   // pass-allocation share (0 for RO — pass doesn't cover it)
   opDay: number;        // cost to serve = direct + share of overhead, ÷30
   marginDay: number;    // revDay − opDay
 };
@@ -48,12 +52,24 @@ export type ComplexSimResult = {
   services: ComplexService[];
   activeHH: number;
   water: { freshDay: number; greywaterDay: number; dewatsUtil: number; recycledDay: number; netFreshPerUser: number; dewatsCap: number };
-  econ: { revDay: number; opexDay: number; opexMonthly: number; surplusDay: number; oss: number; surplusMo: number; passRevDay: number };
+  // revDay/opexDay/surplusDay are operating-day metrics.
+  // revMo uses the finance model's 28-day working-month convention; opexMo IS the
+  // finance opex_monthly_steady (a calendar-month rate), so sim oss matches finance.
+  // reserveMo / communitySurplusMo split out replacement reserves so users see how
+  // much of the surplus is actually free vs. earmarked for capex renewal.
+  econ: { revDay: number; opexDay: number; opexMonthly: number; surplusDay: number; oss: number; revMo: number; surplusMo: number; reserveMo: number; communitySurplusMo: number; passRevDay: number };
 };
+
+const REV_DAYS_PER_MONTH = 28; // matches the finance model's rev_*_monthly factor
 
 // Engineering water-use per event (litres). Laundry demand is now a parameter
 // (`laundryLoadsPerHHPerWeek`) — was a hardcoded 2 loads/HH/wk pre-rewrite.
-const FLUSH_L = 5, HANDWASH_L = 1.5, BATH_L = 25, LOAD_L = 55, CLEANING_L = 500;
+const FLUSH_L = 5, HANDWASH_L = 1.5, BATH_L = 25, LOAD_L = 55;
+// Floor + fixture cleaning water scales with built-out size — a 60-seat block
+// has more area to mop than a 30-seat one. Per-fixture rates derived from a
+// typical sweep cycle: ~8 L per WC seat, 12 L per bathing cubicle (wet area),
+// 5 L per washing machine surround, plus a baseline 150 L for common area.
+const CLEAN_L_PER_SEAT = 8, CLEAN_L_PER_CUBICLE = 12, CLEAN_L_PER_MACHINE = 5, CLEAN_L_BASE = 150;
 const SERVICE_OFF = new Set([13, 14]); // RO midday service window
 const OPEN_HOUR = 6;                    // RO plant operating window opens at 06:00
 
@@ -162,7 +178,10 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const greywater = baths * BATH_L + loads * LOAD_L + uses * HANDWASH_L + reject;
   const dewatsCap = Math.max(0, p.dewatsKld) * 1000;
   const treated = Math.min(greywater, dewatsCap);
-  const recycleDemand = uses * FLUSH_L + CLEANING_L;
+  // Cleaning water scales with built-out fixture count (more seats/cubicles =
+  // more area to mop). Recycled water covers this load first; fresh tops up.
+  const cleaningL = CLEAN_L_BASE + Math.max(0, p.seats) * CLEAN_L_PER_SEAT + Math.max(0, p.baths) * CLEAN_L_PER_CUBICLE + Math.max(0, p.machines) * CLEAN_L_PER_MACHINE;
+  const recycleDemand = uses * FLUSH_L + cleaningL;
   const recycledUsed = Math.min(treated, recycleDemand);
   const freshDay = baths * BATH_L + loads * LOAD_L + uses * HANDWASH_L + feed + Math.max(0, recycleDemand - recycledUsed);
   const dewatsUtil = dewatsCap > 0 ? greywater / dewatsCap : 0;
@@ -186,9 +205,12 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const wT = vSum > 0 ? vT / vSum : 1 / 3;
   const wB = vSum > 0 ? vB / vSum : 1 / 3;
   const wL = vSum > 0 ? vL / vSum : 1 / 3;
-  const revT = revT_use + passRevDay * wT;
-  const revB = revB_use + passRevDay * wB;
-  const revL = revL_use + passRevDay * wL;
+  const passT = passRevDay * wT;
+  const passB = passRevDay * wB;
+  const passL = passRevDay * wL;
+  const revT = revT_use + passT;
+  const revB = revB_use + passB;
+  const revL = revL_use + passL;
 
   // Total day revenue — pass already inside revT/revB/revL, do not add again.
   const revDay = revT + revB + revL + revR;
@@ -196,6 +218,13 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const opexMonthly = Math.max(0, p.opexMonthly);
   const opexDay = opexMonthly / 30;
   const surplusDay = revDay - opexDay;
+  // Month rollup uses finance's 28-day working-month convention so sim OSS
+  // reconciles with finance Y3+ OSS at steady state.
+  const revMo = revDay * REV_DAYS_PER_MONTH;
+  const surplusMo = revMo - opexMonthly;
+  const oss = opexMonthly > 0 ? revMo / opexMonthly : 0;
+  const reserveMo = Math.max(0, p.replacementReserveAnnual) / 12;
+  const communitySurplusMo = surplusMo - reserveMo;
 
   // Per-service cost-to-serve: each service's direct opex plus a share of the
   // shared/overhead pool (allocated by direct-opex weight, so it's stable and
@@ -206,21 +235,26 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const loadFactor = sumDirect > 0 ? (sumDirect + Math.max(0, p.opexShared)) / sumDirect : 1;
   const opDayOf = (d: number) => (sumDirect > 0 ? (d * loadFactor) / 30 : opexDay / 4);
 
-  const mk = (key: ComplexService["key"], name: string, unit: string, sv: { served: number[]; demand: number[]; servedDay: number }, demandDay: number, cap: number, rev: number, dir: number): ComplexService => {
+  const mk = (key: ComplexService["key"], name: string, unit: string, sv: { served: number[]; demand: number[]; servedDay: number }, demandDay: number, cap: number, revUse: number, revPass: number, dir: number): ComplexService => {
     const opDay = opDayOf(dir);
-    return { key, name, unit, served: sv.served, demand: sv.demand, servedDay: sv.servedDay, demandDay, capPerHour: cap, peakUtil: cap > 0 ? Math.max(...sv.served) / cap : 0, revDay: rev, opDay, marginDay: rev - opDay };
+    // peakUtil uses DEMAND not served — served is clipped at cap so demand-basis
+    // can exceed 1 (e.g. 1.73 = peak hour has 73% more demand than capacity), which
+    // is what the user needs to see to gauge bottleneck severity.
+    const peakUtil = cap > 0 ? Math.max(...sv.demand) / cap : 0;
+    const revDay = revUse + revPass;
+    return { key, name, unit, served: sv.served, demand: sv.demand, servedDay: sv.servedDay, demandDay, capPerHour: cap, peakUtil, revDay, revUseDay: revUse, revPassDay: revPass, opDay, marginDay: revDay - opDay };
   };
   const services: ComplexService[] = [
-    mk("toilet", "Toilets", "uses", T, demUses, capT, revT, direct.toilet),
-    mk("bath", "Bathing", "baths", B, demBaths, capB, revB, direct.bath),
-    mk("laundry", "Laundry", "loads", L, demLoads, capL, revL, direct.laundry),
-    mk("ro", "RO Water", "L", R, demRO, p.roLph, revR, direct.ro),
+    mk("toilet", "Toilets", "uses", T, demUses, capT, revT_use, passT, direct.toilet),
+    mk("bath", "Bathing", "baths", B, demBaths, capB, revB_use, passB, direct.bath),
+    mk("laundry", "Laundry", "loads", L, demLoads, capL, revL_use, passL, direct.laundry),
+    mk("ro", "RO Water", "L", R, demRO, p.roLph, revR, 0, direct.ro),
   ];
 
   return {
     services,
     activeHH,
     water: { freshDay, greywaterDay: greywater, dewatsUtil, recycledDay: recycledUsed, netFreshPerUser: persons > 0 ? freshDay / persons : 0, dewatsCap },
-    econ: { revDay, opexDay, opexMonthly, surplusDay, oss: opexDay > 0 ? revDay / opexDay : 0, surplusMo: surplusDay * 30, passRevDay },
+    econ: { revDay, opexDay, opexMonthly, surplusDay, oss, revMo, surplusMo, reserveMo, communitySurplusMo, passRevDay },
   };
 }

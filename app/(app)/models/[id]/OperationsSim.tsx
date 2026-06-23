@@ -32,6 +32,7 @@ export default function OperationsSim({ config, values }: { config: DaySimConfig
           seatThroughput: num(n.seatThroughput, 12), bathThroughput: num(n.bathThroughput, 3),
           machineThroughput: num(n.machineThroughput, 1.3), roRecovery: num(n.roRecovery, 0.55),
           roOperatingHours: num(n.roOperatingHours, 24), facilityOpenHours: num(n.facilityOpenHours, 24),
+          replacementReserveAnnual: num(n.replacementReserveAnnual, 0),
         },
       };
     }

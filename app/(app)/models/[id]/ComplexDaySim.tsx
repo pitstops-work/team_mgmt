@@ -64,7 +64,9 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
 
   const e = sim.econ;
   const w = sim.water;
-  const anyShort = sim.services.some(s => s.demandDay > s.servedDay * 1.02);
+  // Threshold: ≥5% of demand lost at peak counts as a real bottleneck. Below
+  // that, a small peak-hour queue is operational reality, not a design flaw.
+  const anyShort = sim.services.some(s => s.demandDay > s.servedDay * 1.05);
   const dewOver = w.dewatsUtil > 1;
 
   let vClass: "good" | "warn" | "bad" = "good";
@@ -168,7 +170,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
       {/* per-service cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
         {sim.services.map(s => {
-          const short = s.demandDay > s.servedDay * 1.02;
+          const short = s.demandDay > s.servedDay * 1.05;
           const belowCost = s.marginDay < 0;
           const util = Math.min(1.5, s.peakUtil);
           // Spare-capacity hint: when peak utilisation is well under 100%,
@@ -194,6 +196,12 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
               </div>
               <Row k="served / day" v={`${fmt(s.servedDay)} ${s.unit}`} />
               <Row k="revenue / day" v={fmtINR(s.revDay)} />
+              {s.revPassDay > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, margin: "1px 0 1px 8px", color: C.muted }}>
+                  <span>↳ per-use / pass</span>
+                  <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmtINR(s.revUseDay)} · {fmtINR(s.revPassDay)}</span>
+                </div>
+              )}
               <Row k="op cost / day" v={fmtINR(s.opDay)} />
               <Row k="margin / day" v={(s.marginDay >= 0 ? "+" : "−") + fmtINR(Math.abs(s.marginDay))} color={s.marginDay >= 0 ? C.greenBr : C.alert} />
               <div style={{ height: 5, borderRadius: 3, background: C.line, marginTop: 8, overflow: "hidden" }}>
@@ -230,13 +238,21 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
         <Mini k="Net fresh / user" v={fmt1(w.netFreshPerUser)} u="L" />
       </div>
 
-      {/* economics */}
+      {/* economics — daily op metrics */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginTop: 10 }}>
         <Mini k="Revenue / day" v={fmtINR(e.revDay)} />
         <Mini k="Op cost / day" v={fmtINR(e.opexDay)} />
         <Mini k="Surplus / day" v={(e.surplusDay >= 0 ? "+" : "−") + fmtINR(Math.abs(e.surplusDay))} color={e.surplusDay >= 0 ? C.greenBr : C.alert} />
         <Mini k="Self-sufficiency" v={fmt1(e.oss) + "×"} />
+      </div>
+      {/* economics — monthly rollup. Surplus/mo uses 28 working days (matches the
+          finance model). Community surplus subtracts the replacement reserve so
+          you see what's actually free to spend vs earmarked for asset renewal. */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 10 }}>
+        <Mini k="Revenue / month" v={fmtINR(e.revMo)} />
         <Mini k="Surplus / month" v={(e.surplusMo >= 0 ? "" : "−") + fmtINR(Math.abs(e.surplusMo))} color={e.surplusMo >= 0 ? C.greenBr : C.alert} />
+        <Mini k="Replacement reserve" v={fmtINR(e.reserveMo) + "/mo"} color={C.muted} />
+        <Mini k="Community surplus" v={(e.communitySurplusMo >= 0 ? "" : "−") + fmtINR(Math.abs(e.communitySurplusMo)) + "/mo"} color={e.communitySurplusMo >= 0 ? C.greenBr : C.alert} />
       </div>
 
       <Verdict cls={vClass} title={vTitle} body={vBody} />
@@ -322,6 +338,22 @@ function Verdict({ cls, title, body }: { cls: "good" | "warn" | "bad"; title: st
   );
 }
 
+/** Top-5 demand hours collapsed into contiguous bands. Used to amber-tint the
+ *  per-service graph at the hours that actually matter for THIS service, given
+ *  the current peak_concentration and facility_open_hours. */
+function peakHourBands(demand: number[]): Array<[number, number]> {
+  const indexed = demand.map((v, h) => ({ h, v })).sort((a, b) => b.v - a.v).slice(0, 5).map(x => x.h).sort((a, b) => a - b);
+  if (indexed.length === 0) return [];
+  const bands: Array<[number, number]> = [];
+  let start = indexed[0], prev = indexed[0];
+  for (let i = 1; i < indexed.length; i++) {
+    if (indexed[i] === prev + 1) prev = indexed[i];
+    else { bands.push([start, prev + 1]); start = indexed[i]; prev = indexed[i]; }
+  }
+  bands.push([start, prev + 1]);
+  return bands;
+}
+
 /** Per-service 24h panel: demand (dashed) vs served (solid) with shaded
  *  lost-demand gap, peak-hour amber tinting, and a now-marker line that
  *  tracks the playhead minute. Each panel auto-scales to its own service's
@@ -356,9 +388,11 @@ function ServiceGraph({ s, markerMinute }: { s: ComplexService; markerMinute: nu
         </span>
       </div>
       <svg viewBox={`0 0 ${GW} ${GH}`} preserveAspectRatio="none" style={{ display: "block", width: "100%", height: 96 }}>
-        {/* peak-hour tint (morning + evening rush) */}
-        {[[6, 9], [18, 21]].map(([a, b], i) => (
-          <rect key={i} x={gx(a)} y={PADT} width={gx(b) - gx(a)} height={GH - PADT - PADB} fill={C.amber} opacity={0.06} />
+        {/* Peak-hour tint — derived from this service's actual demand profile
+            (top 5 hours), so it tracks peak_concentration + facility_open_hours
+            rather than a hardcoded morning/evening window. */}
+        {peakHourBands(s.demand).map(([a, b], i) => (
+          <rect key={i} x={gx(a)} y={PADT} width={Math.max(1, gx(b) - gx(a))} height={GH - PADT - PADB} fill={C.amber} opacity={0.06} />
         ))}
         {/* cap-line — capacity-per-hour reference */}
         {s.capPerHour > 0 && capY >= PADT && capY <= GH - PADB && (

@@ -83,13 +83,13 @@ async function main() {
     { group: "site", key: "daily_users_estimate", label: "Daily users (estimated)", kind: "input", dataType: "int", defaultJson: 500, unit: "users/day", notes: "At steady state", surface: "finance" },
 
     // ── 2. Service Capacity ────────────────────────────────────────────────
-    { group: "capacity", key: "wc_seats", label: "Total WC seats (M+F+DA)", kind: "input", dataType: "int", defaultJson: 30, unit: "seats", notes: "Per SBM 1:20 ratio", ui: { min: 6, max: 60, step: 2 } },
-    { group: "capacity", key: "bath_cubicles", label: "Bathing cubicles", kind: "input", dataType: "int", defaultJson: 8, unit: "cubicles", ui: { min: 0, max: 20, step: 1 } },
-    { group: "capacity", key: "washing_machines", label: "Washing machines", kind: "input", dataType: "int", defaultJson: 4, unit: "machines", ui: { min: 0, max: 12, step: 1 } },
+    { group: "capacity", key: "wc_seats", label: "Total WC seats (M+F+DA)", kind: "input", dataType: "int", defaultJson: 52, unit: "seats", notes: "Sized so peak hour (~622 uses/h at default usage × 16h compression) is covered at 12 uses/h/seat with small headroom. SBM 1:20 is the design floor; real peak loads push it higher.", ui: { min: 6, max: 80, step: 2 } },
+    { group: "capacity", key: "bath_cubicles", label: "Bathing cubicles", kind: "input", dataType: "int", defaultJson: 20, unit: "cubicles", notes: "Peak hour ~53 baths/h at default usage × 16h compression; 20 × 3/h = 60 covers it with small headroom. SBM 1:50 is the design floor.", ui: { min: 0, max: 24, step: 1 } },
+    { group: "capacity", key: "washing_machines", label: "Washing machines", kind: "input", dataType: "int", defaultJson: 10, unit: "machines", notes: "Peak hour ~13 loads/h at default usage; 10 × 1.3/h = 13 covers it.", ui: { min: 0, max: 14, step: 1 } },
     { group: "capacity", key: "ro_lph", label: "RO Water ATM capacity", kind: "input", dataType: "int", defaultJson: 1000, unit: "L/hour", ui: { min: 250, max: 2000, step: 50 } },
     { group: "capacity", key: "ro_operating_hours", label: "RO plant daily operating hours", kind: "input", dataType: "number", defaultJson: 12, unit: "hours/day", notes: "Plant runs a window from 6am, banking into the RO tank", ui: { min: 4, max: 24, step: 1 } },
     { group: "capacity", key: "facility_open_hours", label: "Complex open hours", kind: "input", dataType: "number", defaultJson: 16, unit: "hours/day", notes: "Toilet/bath/laundry only serve while open (from 6am); closed-hour demand shifts into the open window", ui: { min: 6, max: 24, step: 1 } },
-    { group: "capacity", key: "stp_kld", label: "Greywater treatment capacity", kind: "input", dataType: "number", defaultJson: 12, unit: "KL/day", notes: "MBBR-based packaged unit", ui: { min: 4, max: 30, step: 1 } },
+    { group: "capacity", key: "stp_kld", label: "Greywater treatment capacity", kind: "input", dataType: "number", defaultJson: 28, unit: "KL/day", notes: "MBBR-based packaged unit. Sized to cover ~25 KLD greywater (bath + laundry + handwash + RO reject) at default population, with headroom", ui: { min: 4, max: 40, step: 1 } },
     // RO buffers — sim-relevant but real spec, so "both".
     { group: "capacity", key: "ro_tank_litres", label: "RO product tank size", kind: "input", dataType: "int", defaultJson: 4000, unit: "L", ui: { min: 1000, max: 8000, step: 250 } },
     { group: "capacity", key: "ro_cans_count", label: "RO pre-packed 10 L cans", kind: "input", dataType: "int", defaultJson: 50, unit: "cans", ui: { min: 0, max: 150, step: 5 } },
@@ -107,7 +107,7 @@ async function main() {
     { group: "adoption", key: "adoption_m6", label: "Month 6 adoption", kind: "input", dataType: "percent", defaultJson: 0.45, unit: "% of HH", surface: "finance" },
     { group: "adoption", key: "adoption_m12", label: "Month 12 adoption", kind: "input", dataType: "percent", defaultJson: 0.65, unit: "% of HH", surface: "finance" },
     { group: "adoption", key: "adoption_y2", label: "Year 2 average adoption", kind: "input", dataType: "percent", defaultJson: 0.75, unit: "% of HH", surface: "finance" },
-    { group: "adoption", key: "adoption_y3", label: "Year 3+ adoption (steady state)", kind: "input", dataType: "percent", defaultJson: 0.80, unit: "% of HH", ui: { min: 0.2, max: 1, step: 0.05 } },
+    { group: "adoption", key: "adoption_y3", label: "Active adoption (% of HH)", kind: "input", dataType: "percent", defaultJson: 0.80, unit: "% of HH", notes: "Used by the day-in-the-life sim as the *current* active fraction. Finance also uses it as the Year 3+ steady-state value (M3/M6/M12/Y2 are the ramp).", ui: { min: 0.2, max: 1, step: 0.05 } },
 
     // ── 5. Pricing per Service ─────────────────────────────────────────────
     { group: "pricing", key: "price_toilet", label: "Toilet — per use", kind: "input", dataType: "currency", defaultJson: 2, unit: "INR/use", ui: { min: 0, max: 6, step: 0.5 } },
@@ -155,6 +155,7 @@ async function main() {
     // these rates, so growing the facility automatically grows its cost-to-serve.
     { group: "opex_in", key: "kwh_per_ro_litre", label: "RO electricity intensity", kind: "input", dataType: "number", defaultJson: 0.004, unit: "kWh/L product", notes: "Pump + booster, per L of product water", ui: { min: 0.001, max: 0.012, step: 0.0005 } },
     { group: "opex_in", key: "kwh_per_laundry_load", label: "Electricity per laundry load", kind: "input", dataType: "number", defaultJson: 0.7, unit: "kWh/load", ui: { min: 0.3, max: 2, step: 0.1 } },
+    { group: "opex_in", key: "kwh_per_bath_heating", label: "Electricity per bath (water heating)", kind: "input", dataType: "number", defaultJson: 0.87, unit: "kWh/bath", notes: "25 L at ΔT=30°C ≈ 0.87 kWh. Set to 0 if cold-water bathing or solar-heated", ui: { min: 0, max: 2, step: 0.05 } },
     { group: "opex_in", key: "kwh_lighting_per_open_hour", label: "Lighting + small loads", kind: "input", dataType: "number", defaultJson: 1.5, unit: "kWh/open-hour", notes: "Lights, fans, controls — scales with open hours", ui: { min: 0.5, max: 6, step: 0.25 } },
     { group: "opex_in", key: "electricity_tariff", label: "Electricity tariff", kind: "input", dataType: "currency", defaultJson: 9, unit: "INR/kWh", notes: "BESCOM commercial slab average", ui: { min: 5, max: 18, step: 0.5 } },
     { group: "opex_in", key: "solar_offset_kwh_per_day", label: "Solar offset (avg)", kind: "input", dataType: "number", defaultJson: 22, unit: "kWh/day", notes: "5 kWp default ≈ 22 kWh/day net of cloudy days", ui: { min: 0, max: 80, step: 2 } },
@@ -220,7 +221,7 @@ async function main() {
     { group: "opex", key: "ro_feed_l_day", label: "RO feed water (L/day)", kind: "formula", dataType: "number", formula: "ro_litres_per_day_steady / ro_recovery_rate", unit: "L/day" },
     { group: "opex", key: "ro_reject_l_day", label: "RO reject (L/day)", kind: "formula", dataType: "number", formula: "ro_feed_l_day - ro_litres_per_day_steady", unit: "L/day" },
     { group: "opex", key: "greywater_l_day", label: "Greywater (L/day)", kind: "formula", dataType: "number", formula: "bath_water_l_day + laundry_water_l_day + handwash_water_l_day + ro_reject_l_day", unit: "L/day" },
-    { group: "opex", key: "recycle_demand_l_day", label: "Recycle demand (L/day)", kind: "formula", dataType: "number", formula: "toilet_uses_per_day_steady * 5 + 500", unit: "L/day", notes: "5 L flush + 500 L cleaning" },
+    { group: "opex", key: "recycle_demand_l_day", label: "Recycle demand (L/day)", kind: "formula", dataType: "number", formula: "toilet_uses_per_day_steady * 5 + 150 + wc_seats * 8 + bath_cubicles * 12 + washing_machines * 5", unit: "L/day", notes: "5 L per flush + fixture cleaning (8 L/seat + 12 L/cubicle + 5 L/machine + 150 L common area)" },
     { group: "opex", key: "recycled_used_l_day", label: "Recycled used (L/day)", kind: "formula", dataType: "number", formula: "MIN(MIN(greywater_l_day, stp_kld * 1000), recycle_demand_l_day)", unit: "L/day" },
     { group: "opex", key: "fresh_water_l_day_steady", label: "Fresh BWSSB water (L/day, steady)", kind: "formula", dataType: "number", formula: "bath_water_l_day + laundry_water_l_day + handwash_water_l_day + ro_feed_l_day + MAX(0, recycle_demand_l_day - recycled_used_l_day)", unit: "L/day" },
     { group: "opex", key: "stp_kl_treated_per_day", label: "STP throughput (KL/day)", kind: "formula", dataType: "number", formula: "MIN(greywater_l_day, stp_kld * 1000) / 1000", unit: "KL/day" },
@@ -228,8 +229,9 @@ async function main() {
     // ── Electricity load (derived) ─────────────────────────────────────────
     { group: "opex", key: "electricity_ro_kwh_per_day", label: "RO electricity (kWh/day)", kind: "formula", dataType: "number", formula: "ro_litres_per_day_steady * kwh_per_ro_litre", unit: "kWh/day" },
     { group: "opex", key: "electricity_laundry_kwh_per_day", label: "Laundry electricity (kWh/day)", kind: "formula", dataType: "number", formula: "laundry_loads_per_day_steady * kwh_per_laundry_load", unit: "kWh/day" },
+    { group: "opex", key: "electricity_bath_heating_kwh_per_day", label: "Bath water heating (kWh/day)", kind: "formula", dataType: "number", formula: "bath_uses_per_day_steady * kwh_per_bath_heating", unit: "kWh/day", notes: "Set kwh_per_bath_heating to 0 if cold-water bathing or solar-heated geyser" },
     { group: "opex", key: "electricity_lighting_kwh_per_day", label: "Lighting + small loads (kWh/day)", kind: "formula", dataType: "number", formula: "facility_open_hours * kwh_lighting_per_open_hour", unit: "kWh/day" },
-    { group: "opex", key: "electricity_kwh_net_per_day", label: "Net grid electricity (kWh/day)", kind: "formula", dataType: "number", formula: "MAX(0, electricity_ro_kwh_per_day + electricity_laundry_kwh_per_day + electricity_lighting_kwh_per_day - solar_offset_kwh_per_day)", unit: "kWh/day", notes: "Solar offsets day-time load first" },
+    { group: "opex", key: "electricity_kwh_net_per_day", label: "Net grid electricity (kWh/day)", kind: "formula", dataType: "number", formula: "MAX(0, electricity_ro_kwh_per_day + electricity_laundry_kwh_per_day + electricity_bath_heating_kwh_per_day + electricity_lighting_kwh_per_day - solar_offset_kwh_per_day)", unit: "kWh/day", notes: "Solar offsets day-time load first" },
 
     // ── Variable opex monthly totals (capacity × usage × per-unit rate) ────
     { group: "opex", key: "electricity_monthly", label: "Electricity (net of solar)", kind: "formula", dataType: "currency", formula: "electricity_kwh_net_per_day * 30 * electricity_tariff", unit: "INR/mo" },
@@ -573,6 +575,7 @@ async function main() {
           opexRo: "opex_ro_monthly", opexShared: "opex_shared_monthly",
           seatThroughput: "seat_throughput", bathThroughput: "bath_throughput", machineThroughput: "machine_throughput", roRecovery: "ro_recovery_rate",
           roOperatingHours: "ro_operating_hours", facilityOpenHours: "facility_open_hours",
+          replacementReserveAnnual: "replacement_reserve_annual",
         },
       } },
   ];
