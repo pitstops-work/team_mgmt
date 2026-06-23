@@ -34,6 +34,7 @@ export type ComplexService = {
   name: string;
   unit: string;
   served: number[];     // length 24 (served that hour)
+  demand: number[];     // length 24 (demand that hour, before capacity clipping)
   servedDay: number;
   demandDay: number;
   capPerHour: number;
@@ -83,20 +84,23 @@ function openWindow(prof: number[], openHours: number): number[] {
 /** Capacity-limited service: each hour serves min(demand, hourlyCap). */
 function simServed(dailyDemand: number, prof: number[], hourlyCap: number) {
   const served: number[] = [];
+  const demand: number[] = [];
   let servedDay = 0;
   for (let h = 0; h < 24; h++) {
     const d = dailyDemand * prof[h];
     const s = Math.min(d, hourlyCap);
     served.push(s);
+    demand.push(d);
     servedDay += s;
   }
-  return { served, servedDay };
+  return { served, demand, servedDay };
 }
 
 /** RO two-buffer: tank banks production, cans absorb overflow / cover deficit.
  *  The plant produces only during its operating window (from 06:00). */
 function simRO(dailyDemand: number, prof: number[], lph: number, tankCap: number, cansCap: number, opHours: number) {
   const served: number[] = [];
+  const demand: number[] = [];
   let tank = tankCap, cans = cansCap, servedDay = 0;
   const hours = opHours > 0 ? Math.min(24, opHours) : 24;
   const running = (h: number) => hours >= 24 ? true : ((h - OPEN_HOUR + 24) % 24) < hours;
@@ -121,9 +125,10 @@ function simRO(dailyDemand: number, prof: number[], lph: number, tankCap: number
       s = d - rem;
     }
     served.push(s);
+    demand.push(d);
     servedDay += s;
   }
-  return { served, servedDay };
+  return { served, demand, servedDay };
 }
 
 export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
@@ -201,9 +206,9 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const loadFactor = sumDirect > 0 ? (sumDirect + Math.max(0, p.opexShared)) / sumDirect : 1;
   const opDayOf = (d: number) => (sumDirect > 0 ? (d * loadFactor) / 30 : opexDay / 4);
 
-  const mk = (key: ComplexService["key"], name: string, unit: string, sv: { served: number[]; servedDay: number }, demandDay: number, cap: number, rev: number, dir: number): ComplexService => {
+  const mk = (key: ComplexService["key"], name: string, unit: string, sv: { served: number[]; demand: number[]; servedDay: number }, demandDay: number, cap: number, rev: number, dir: number): ComplexService => {
     const opDay = opDayOf(dir);
-    return { key, name, unit, served: sv.served, servedDay: sv.servedDay, demandDay, capPerHour: cap, peakUtil: cap > 0 ? Math.max(...sv.served) / cap : 0, revDay: rev, opDay, marginDay: rev - opDay };
+    return { key, name, unit, served: sv.served, demand: sv.demand, servedDay: sv.servedDay, demandDay, capPerHour: cap, peakUtil: cap > 0 ? Math.max(...sv.served) / cap : 0, revDay: rev, opDay, marginDay: rev - opDay };
   };
   const services: ComplexService[] = [
     mk("toilet", "Toilets", "uses", T, demUses, capT, revT, direct.toilet),

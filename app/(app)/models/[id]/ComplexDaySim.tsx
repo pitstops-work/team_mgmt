@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { hourlyAt } from "@/lib/models/daySim";
-import { runComplexSim, type ComplexSimParams } from "@/lib/models/complexSim";
+import { runComplexSim, type ComplexService, type ComplexSimParams } from "@/lib/models/complexSim";
 
 const C = {
   bg: "#0B2128", ground: "#0E2A33", panel: "#0E2D34", line: "#27535C",
@@ -10,7 +10,8 @@ const C = {
   amber: "#F2A65A", alert: "#F06A5A", good: "#5FD3A6", greenBr: "#7DE9BC",
   olive: "#B8C46A", pipe: "#1d4750",
 };
-const SVC_COLOR: Record<string, string> = { toilet: C.cyan, bath: C.cyanBr, laundry: C.olive, ro: C.good };
+// Distinct hues per service — was toilet/bath both cyan, indistinguishable.
+const SVC_COLOR: Record<string, string> = { toilet: C.cyan, bath: C.amber, laundry: C.olive, ro: C.good };
 
 const fmt = (n: number) => Math.round(n).toLocaleString("en-IN");
 const fmtINR = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
@@ -76,9 +77,6 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
     vClass = "warn"; vTitle = "Surplus, but a capacity pinch";
     vBody = (dewOver ? "DEWATS is overloaded — greywater exceeds treatment capacity. " : "") + (anyShort ? "At least one service queues at peak — add units or spread the peak." : "");
   }
-
-  const graph = useMemo(() => buildGraph(sim), [sim]);
-  const markerX = gx(minute / 60);
 
   const flowStyle = (on: boolean, color: string): React.CSSProperties => ({
     stroke: color, strokeWidth: 3.4, fill: "none", strokeLinecap: "round",
@@ -243,29 +241,18 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
 
       <Verdict cls={vClass} title={vTitle} body={vBody} />
 
-      {/* 24h graph — served per hour per service */}
-      <div style={{ marginTop: 14, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: "13px 14px 6px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
-          <span style={{ fontSize: 13 }}>Service activity across the day</span>
-          <span style={{ fontSize: 10.5, color: C.muted }}>peaks shaded · lines = demand served per service</span>
+      {/* 24h graphs — per-service demand vs supply. Demand (dashed, faint) and
+          served (solid, bright) are plotted per service in their own panel so
+          y-scales don't collide (RO is L/h, toilets/baths/loads are counts).
+          Shaded gap between demand and served = lost demand at peak. */}
+      <div style={{ marginTop: 14, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: "13px 14px 10px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+          <span style={{ fontSize: 13 }}>Demand vs supply across the day</span>
+          <span style={{ fontSize: 10.5, color: C.muted }}>solid = served · dashed = demand · shaded gap = lost at peak · peaks tinted amber</span>
         </div>
-        <svg viewBox="0 0 1000 170" preserveAspectRatio="none" style={{ height: 140, width: "100%" }}>
-          {[[6, 9], [18, 21]].map(([a, b], i) => (
-            <rect key={i} x={gx(a)} y={12} width={gx(b) - gx(a)} height={170 - 12 - 20} fill={C.amber} opacity={0.07} />
-          ))}
-          {graph.lines.map(ln => <path key={ln.key} d={ln.d} fill="none" stroke={SVC_COLOR[ln.key]} strokeWidth={2} opacity={0.9} />)}
-          {[0, 6, 12, 18, 24].map(hr => (
-            <text key={hr} x={gx(Math.min(hr, 23.9))} y={164} fill={C.muted} fontSize={10.5} textAnchor={hr === 0 ? "start" : hr >= 24 ? "end" : "middle"}>
-              {String(hr).padStart(2, "0")}:00
-            </text>
-          ))}
-          <line x1={markerX} x2={markerX} y1={12} y2={150} stroke={C.cyanBr} strokeWidth={1.4} />
-        </svg>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
           {sim.services.map(s => (
-            <span key={s.key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.muted }}>
-              <span style={{ width: 10, height: 10, borderRadius: 2, background: SVC_COLOR[s.key] }} /> {s.name}
-            </span>
+            <ServiceGraph key={s.key} s={s} markerMinute={minute} />
           ))}
         </div>
       </div>
@@ -335,15 +322,62 @@ function Verdict({ cls, title, body }: { cls: "good" | "warn" | "bad"; title: st
   );
 }
 
-const GW = 1000, GH = 170, PADX = 8, PADT = 12, PADB = 20;
-function gx(hr: number) { return PADX + (hr / 24) * (GW - 2 * PADX); }
-function buildGraph(sim: ReturnType<typeof runComplexSim>) {
-  const gmax = Math.max(1, ...sim.services.flatMap(s => s.served));
-  const gy = (v: number) => PADT + (1 - v / gmax) * (GH - PADT - PADB);
-  const lines = sim.services.map(s => {
-    let d = `M${gx(0)},${gy(s.served[0])}`;
-    for (let hr = 1; hr < 24; hr++) d += ` L${gx(hr)},${gy(s.served[hr])}`;
-    return { key: s.key, d };
-  });
-  return { lines };
+/** Per-service 24h panel: demand (dashed) vs served (solid) with shaded
+ *  lost-demand gap, peak-hour amber tinting, and a now-marker line that
+ *  tracks the playhead minute. Each panel auto-scales to its own service's
+ *  magnitude (RO is L/h, others are counts) so they're not crushed by RO. */
+function ServiceGraph({ s, markerMinute }: { s: ComplexService; markerMinute: number }) {
+  const GW = 240, GH = 110, PADX = 4, PADT = 8, PADB = 18;
+  const gx = (hr: number) => PADX + (hr / 24) * (GW - 2 * PADX);
+  const yMax = Math.max(1, ...s.demand, s.capPerHour); // cap line stays visible too
+  const gy = (v: number) => PADT + (1 - v / yMax) * (GH - PADT - PADB);
+  const path = (vals: number[]) => {
+    let d = `M${gx(0)},${gy(vals[0])}`;
+    for (let hr = 1; hr < 24; hr++) d += ` L${gx(hr)},${gy(vals[hr])}`;
+    return d;
+  };
+  // Filled gap = lost demand. Closed polygon from demand down to served.
+  const gapPath = (() => {
+    let d = `M${gx(0)},${gy(s.demand[0])}`;
+    for (let hr = 1; hr < 24; hr++) d += ` L${gx(hr)},${gy(s.demand[hr])}`;
+    for (let hr = 23; hr >= 0; hr--) d += ` L${gx(hr)},${gy(s.served[hr])}`;
+    return d + " Z";
+  })();
+  const capY = gy(s.capPerHour);
+  const colour = SVC_COLOR[s.key];
+  const markerX = gx(markerMinute / 60);
+  return (
+    <div style={{ background: C.ground, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 10px 4px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        <span style={{ width: 9, height: 9, borderRadius: 2, background: colour }} />
+        <span style={{ fontSize: 11.5, fontWeight: 600 }}>{s.name}</span>
+        <span style={{ marginLeft: "auto", fontSize: 10, color: C.muted, fontVariantNumeric: "tabular-nums" }}>
+          {fmt(s.servedDay)} / {fmt(s.demandDay)} {s.unit}
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${GW} ${GH}`} preserveAspectRatio="none" style={{ display: "block", width: "100%", height: 96 }}>
+        {/* peak-hour tint (morning + evening rush) */}
+        {[[6, 9], [18, 21]].map(([a, b], i) => (
+          <rect key={i} x={gx(a)} y={PADT} width={gx(b) - gx(a)} height={GH - PADT - PADB} fill={C.amber} opacity={0.06} />
+        ))}
+        {/* cap-line — capacity-per-hour reference */}
+        {s.capPerHour > 0 && capY >= PADT && capY <= GH - PADB && (
+          <line x1={PADX} x2={GW - PADX} y1={capY} y2={capY} stroke={C.line} strokeWidth={1} strokeDasharray="2 3" />
+        )}
+        {/* lost-demand shaded gap */}
+        <path d={gapPath} fill={C.alert} opacity={0.16} />
+        {/* demand: dashed, faint */}
+        <path d={path(s.demand)} fill="none" stroke={colour} strokeWidth={1.4} strokeDasharray="3 3" opacity={0.55} />
+        {/* served: solid, bright */}
+        <path d={path(s.served)} fill="none" stroke={colour} strokeWidth={2.2} opacity={0.95} />
+        {/* hour labels */}
+        {[0, 6, 12, 18, 24].map(hr => (
+          <text key={hr} x={gx(Math.min(hr, 23.99))} y={GH - 4} fill={C.muted} fontSize={9}
+            textAnchor={hr === 0 ? "start" : hr >= 24 ? "end" : "middle"}>{String(hr).padStart(2, "0")}</text>
+        ))}
+        {/* now-marker */}
+        <line x1={markerX} x2={markerX} y1={PADT} y2={GH - PADB} stroke={C.cyanBr} strokeWidth={1.2} opacity={0.7} />
+      </svg>
+    </div>
+  );
 }
