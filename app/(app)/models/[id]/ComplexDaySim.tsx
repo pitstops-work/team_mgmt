@@ -173,8 +173,20 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
           const short = s.demandDay > s.servedDay * 1.02;
           const belowCost = s.marginDay < 0;
           const util = Math.min(1.5, s.peakUtil);
-          const chip = short ? "capacity short at peak" : belowCost ? "below cost — raise price" : "price covers cost ✓";
+          // Spare-capacity hint: when peak utilisation is well under 100%,
+          // throughput sliders can't move served/day (no bottleneck). Surface
+          // this so the slider doesn't feel dead. Subordinates to "short" and
+          // "below cost" — those are more actionable.
+          const spareCap = !short && s.peakUtil > 0 && s.peakUtil < 0.9;
+          const chip = short ? "capacity short at peak"
+            : belowCost ? "below cost — raise price"
+            : spareCap ? "spare capacity — throughput moot"
+            : "price covers cost ✓";
           const chipBad = short || belowCost;
+          const chipNeutral = !chipBad && spareCap;
+          const chipBorder = chipBad ? "#7a3128" : chipNeutral ? C.line : "#2c6e58";
+          const chipColor = chipBad ? C.alert : chipNeutral ? C.muted : C.greenBr;
+          const chipBg = chipBad ? "rgba(240,106,90,0.08)" : chipNeutral ? "rgba(110,140,146,0.08)" : "rgba(95,211,166,0.08)";
           return (
             <div key={s.key} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "11px 12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
@@ -189,7 +201,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
               <div style={{ height: 5, borderRadius: 3, background: C.line, marginTop: 8, overflow: "hidden" }}>
                 <i style={{ display: "block", height: "100%", width: `${Math.min(100, util * 100)}%`, background: util > 1 ? C.alert : C.cyan }} />
               </div>
-              <div style={{ marginTop: 8, fontSize: 10, padding: "3px 7px", borderRadius: 5, display: "inline-block", border: `1px solid ${chipBad ? "#7a3128" : "#2c6e58"}`, color: chipBad ? C.alert : C.greenBr, background: chipBad ? "rgba(240,106,90,0.08)" : "rgba(95,211,166,0.08)" }}>
+              <div style={{ marginTop: 8, fontSize: 10, padding: "3px 7px", borderRadius: 5, display: "inline-block", border: `1px solid ${chipBorder}`, color: chipColor, background: chipBg }}>
                 {chip}
               </div>
             </div>
