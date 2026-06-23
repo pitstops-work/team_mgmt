@@ -21,8 +21,7 @@ async function main() {
       key: TEMPLATE_KEY,
       name: "Sanitation Complex (multi-service)",
       description:
-        "Multi-service community sanitation complex: toilet, bath, laundry, RO water, monthly pass. " +
-        "60-month / 5-year horizon. Translated from the v2 Excel model.",
+        "Multi-service community sanitation complex: toilet, bath, laundry, RO water, monthly pass.",
       horizons: [
         { key: "monthly", length: 60 },
         { key: "annual", length: 5 },

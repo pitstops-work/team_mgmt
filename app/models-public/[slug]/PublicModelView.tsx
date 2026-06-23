@@ -71,15 +71,12 @@ export default function PublicModelView({
     <div className="min-h-screen bg-stone-50">
       {!embed && (
         <header className="border-b border-stone-200 bg-white">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <h1 className="font-semibold text-stone-900 text-lg">{template.name}</h1>
-              <p className="text-xs text-stone-500 mt-0.5">
-                {instanceName}{scenarioName ? ` · ${scenarioName}` : ""}{" "}
-                <span className="text-stone-400">· live operational model · sliders update locally</span>
-              </p>
-            </div>
-            <a href="https://pitstops.work" className="text-xs text-stone-400 hover:text-stone-600">pitstops.work →</a>
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <h1 className="font-semibold text-stone-900 text-lg">{template.name}</h1>
+            <p className="text-xs text-stone-500 mt-0.5">
+              {instanceName}{scenarioName ? ` · ${scenarioName}` : ""}{" "}
+              <span className="text-stone-400">· live operational model · sliders update locally</span>
+            </p>
           </div>
         </header>
       )}
