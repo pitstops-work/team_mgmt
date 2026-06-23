@@ -83,16 +83,16 @@ async function main() {
     { group: "site", key: "daily_users_estimate", label: "Daily users (estimated)", kind: "input", dataType: "int", defaultJson: 500, unit: "users/day", notes: "At steady state", surface: "finance" },
 
     // ── 2. Service Capacity ────────────────────────────────────────────────
-    { group: "capacity", key: "wc_seats", label: "Total WC seats (M+F+DA)", kind: "input", dataType: "int", defaultJson: 52, unit: "seats", notes: "Sized so peak hour (~622 uses/h at default usage × 16h compression) is covered at 12 uses/h/seat with small headroom. SBM 1:20 is the design floor; real peak loads push it higher.", ui: { min: 6, max: 80, step: 2 } },
-    { group: "capacity", key: "bath_cubicles", label: "Bathing cubicles", kind: "input", dataType: "int", defaultJson: 20, unit: "cubicles", notes: "Peak hour ~53 baths/h at default usage × 16h compression; 20 × 3/h = 60 covers it with small headroom. SBM 1:50 is the design floor.", ui: { min: 0, max: 24, step: 1 } },
-    { group: "capacity", key: "washing_machines", label: "Washing machines", kind: "input", dataType: "int", defaultJson: 10, unit: "machines", notes: "Peak hour ~13 loads/h at default usage; 10 × 1.3/h = 13 covers it.", ui: { min: 0, max: 14, step: 1 } },
-    { group: "capacity", key: "ro_lph", label: "RO Water ATM capacity", kind: "input", dataType: "int", defaultJson: 1000, unit: "L/hour", ui: { min: 250, max: 2000, step: 50 } },
-    { group: "capacity", key: "ro_operating_hours", label: "RO plant daily operating hours", kind: "input", dataType: "number", defaultJson: 12, unit: "hours/day", notes: "Plant runs a window from 6am, banking into the RO tank", ui: { min: 4, max: 24, step: 1 } },
-    { group: "capacity", key: "facility_open_hours", label: "Complex open hours", kind: "input", dataType: "number", defaultJson: 16, unit: "hours/day", notes: "Toilet/bath/laundry only serve while open (from 6am); closed-hour demand shifts into the open window", ui: { min: 6, max: 24, step: 1 } },
-    { group: "capacity", key: "stp_kld", label: "Greywater treatment capacity", kind: "input", dataType: "number", defaultJson: 28, unit: "KL/day", notes: "MBBR-based packaged unit. Sized to cover ~25 KLD greywater (bath + laundry + handwash + RO reject) at default population, with headroom", ui: { min: 4, max: 40, step: 1 } },
+    { group: "capacity", key: "wc_seats", label: "Total WC seats (M+F+DA)", kind: "input", dataType: "int", defaultJson: 52, unit: "seats", notes: "Total toilet pans across men's, women's, and disabled-access blocks.", ui: { min: 6, max: 80, step: 2 } },
+    { group: "capacity", key: "bath_cubicles", label: "Bathing cubicles", kind: "input", dataType: "int", defaultJson: 20, unit: "cubicles", notes: "Number of enclosed bathing stalls.", ui: { min: 0, max: 24, step: 1 } },
+    { group: "capacity", key: "washing_machines", label: "Washing machines", kind: "input", dataType: "int", defaultJson: 10, unit: "machines", notes: "Number of washing machines for the laundry service.", ui: { min: 0, max: 14, step: 1 } },
+    { group: "capacity", key: "ro_lph", label: "RO Water ATM capacity", kind: "input", dataType: "int", defaultJson: 1000, unit: "L/hour", notes: "How fast the RO plant can produce drinking water at full tilt.", ui: { min: 250, max: 2000, step: 50 } },
+    { group: "capacity", key: "ro_operating_hours", label: "RO plant daily operating hours", kind: "input", dataType: "number", defaultJson: 12, unit: "hours/day", notes: "Hours per day the RO plant runs (starting 6 AM). Off-hours, the dispenser draws from the tank.", ui: { min: 4, max: 24, step: 1 } },
+    { group: "capacity", key: "facility_open_hours", label: "Complex open hours", kind: "input", dataType: "number", defaultJson: 16, unit: "hours/day", notes: "Hours per day the complex is open to users (starting 6 AM). Toilet, bath, and laundry only serve during these hours.", ui: { min: 6, max: 24, step: 1 } },
+    { group: "capacity", key: "stp_kld", label: "Greywater treatment capacity", kind: "input", dataType: "number", defaultJson: 28, unit: "KL/day", notes: "Daily greywater treatment capacity. Treated water is recycled back as toilet flush + cleaning water — reducing fresh BWSSB draw.", ui: { min: 4, max: 40, step: 1 } },
     // RO buffers — sim-relevant but real spec, so "both".
-    { group: "capacity", key: "ro_tank_litres", label: "RO product tank size", kind: "input", dataType: "int", defaultJson: 4000, unit: "L", ui: { min: 1000, max: 8000, step: 250 } },
-    { group: "capacity", key: "ro_cans_count", label: "RO pre-packed 10 L cans", kind: "input", dataType: "int", defaultJson: 50, unit: "cans", ui: { min: 0, max: 150, step: 5 } },
+    { group: "capacity", key: "ro_tank_litres", label: "RO product tank size", kind: "input", dataType: "int", defaultJson: 4000, unit: "L", notes: "Storage tank that banks water produced during quiet hours for the morning rush.", ui: { min: 1000, max: 8000, step: 250 } },
+    { group: "capacity", key: "ro_cans_count", label: "RO pre-packed 10 L cans", kind: "input", dataType: "int", defaultJson: 50, unit: "cans", notes: "Pre-filled 10-litre cans held as a backup when the tank runs low.", ui: { min: 0, max: 150, step: 5 } },
 
     // ── 3. Service Usage Assumptions ───────────────────────────────────────
     { group: "usage", key: "toilet_uses_per_person_per_day", label: "Toilet uses per active person/day", kind: "input", dataType: "number", defaultJson: 3, unit: "uses/day", ui: { min: 1, max: 6, step: 0.5 } },
@@ -107,7 +107,7 @@ async function main() {
     { group: "adoption", key: "adoption_m6", label: "Month 6 adoption", kind: "input", dataType: "percent", defaultJson: 0.45, unit: "% of HH", surface: "finance" },
     { group: "adoption", key: "adoption_m12", label: "Month 12 adoption", kind: "input", dataType: "percent", defaultJson: 0.65, unit: "% of HH", surface: "finance" },
     { group: "adoption", key: "adoption_y2", label: "Year 2 average adoption", kind: "input", dataType: "percent", defaultJson: 0.75, unit: "% of HH", surface: "finance" },
-    { group: "adoption", key: "adoption_y3", label: "Active adoption (% of HH)", kind: "input", dataType: "percent", defaultJson: 0.80, unit: "% of HH", notes: "Used by the day-in-the-life sim as the *current* active fraction. Finance also uses it as the Year 3+ steady-state value (M3/M6/M12/Y2 are the ramp).", ui: { min: 0.2, max: 1, step: 0.05 } },
+    { group: "adoption", key: "adoption_y3", label: "Active adoption (% of HH)", kind: "input", dataType: "percent", defaultJson: 0.80, unit: "% of HH", notes: "Share of households in the area who actively use the complex.", ui: { min: 0.2, max: 1, step: 0.05 } },
 
     // ── 5. Pricing per Service ─────────────────────────────────────────────
     { group: "pricing", key: "price_toilet", label: "Toilet — per use", kind: "input", dataType: "currency", defaultJson: 2, unit: "INR/use", ui: { min: 0, max: 6, step: 0.5 } },
@@ -137,18 +137,16 @@ async function main() {
     // ── 7. Opex inputs ─────────────────────────────────────────────────────
     // ── Staffing: headcount × salary per role. Number can move independently of
     // salary — letting the user grow the team without inflating every cost line.
-    { group: "opex_in", key: "num_caretakers", label: "Caretakers (headcount)", kind: "input", dataType: "int", defaultJson: 3, unit: "people", notes: "Typically one per shift × 3 shifts", ui: { min: 1, max: 9, step: 1 } },
+    { group: "opex_in", key: "num_caretakers", label: "Caretakers (headcount)", kind: "input", dataType: "int", defaultJson: 3, unit: "people", notes: "Total caretakers on payroll. Default 3 = one per 8-hour shift × 3 shifts/day.", ui: { min: 1, max: 9, step: 1 } },
     { group: "opex_in", key: "salary_caretaker_per_shift", label: "Caretaker salary", kind: "input", dataType: "currency", defaultJson: 12000, unit: "INR/person/mo" },
-    { group: "opex_in", key: "num_plant_operators", label: "Plant operators (headcount)", kind: "input", dataType: "int", defaultJson: 1, unit: "people", notes: "RO + STP technician", ui: { min: 0, max: 4, step: 1 } },
+    { group: "opex_in", key: "num_plant_operators", label: "Plant operators (headcount)", kind: "input", dataType: "int", defaultJson: 1, unit: "people", notes: "Technician for the RO plant and greywater treatment unit.", ui: { min: 0, max: 4, step: 1 } },
     { group: "opex_in", key: "salary_plant_operator", label: "Plant operator salary", kind: "input", dataType: "currency", defaultJson: 10000, unit: "INR/person/mo" },
-    { group: "opex_in", key: "num_laundry_supervisors", label: "Laundry supervisors (headcount)", kind: "input", dataType: "int", defaultJson: 1, unit: "people", ui: { min: 0, max: 3, step: 1 } },
+    { group: "opex_in", key: "num_laundry_supervisors", label: "Laundry supervisors (headcount)", kind: "input", dataType: "int", defaultJson: 1, unit: "people", notes: "Staff running the laundry intake and machines.", ui: { min: 0, max: 3, step: 1 } },
     { group: "opex_in", key: "salary_laundry_supervisor", label: "Laundry supervisor salary", kind: "input", dataType: "currency", defaultJson: 8000, unit: "INR/person/mo" },
-    { group: "opex_in", key: "num_security_guards", label: "Security guards (headcount)", kind: "input", dataType: "int", defaultJson: 2, unit: "people", notes: "Day + night cover, single guard per shift", ui: { min: 0, max: 6, step: 1 } },
+    { group: "opex_in", key: "num_security_guards", label: "Security guards (headcount)", kind: "input", dataType: "int", defaultJson: 2, unit: "people", notes: "Guards across day and night. Default 2 = day + night cover.", ui: { min: 0, max: 6, step: 1 } },
     { group: "opex_in", key: "salary_security_guard", label: "Security guard salary", kind: "input", dataType: "currency", defaultJson: 10000, unit: "INR/person/mo" },
-    { group: "opex_in", key: "num_admin_cashiers", label: "Admin / cashier (headcount)", kind: "input", dataType: "int", defaultJson: 1, unit: "people", notes: "Pass sales, daily reconciliation, MIS", ui: { min: 0, max: 3, step: 1 } },
+    { group: "opex_in", key: "num_admin_cashiers", label: "Admin / cashier (headcount)", kind: "input", dataType: "int", defaultJson: 1, unit: "people", notes: "Cashier + records — pass sales and daily accounts.", ui: { min: 0, max: 3, step: 1 } },
     { group: "opex_in", key: "salary_admin_cashier", label: "Admin / cashier salary", kind: "input", dataType: "currency", defaultJson: 12000, unit: "INR/person/mo" },
-    { group: "opex_in", key: "num_cbo_reps", label: "CBO management (headcount)", kind: "input", dataType: "int", defaultJson: 1, unit: "people", notes: "Y2+ only", ui: { min: 0, max: 3, step: 1 } },
-    { group: "opex_in", key: "salary_cbo_honorarium", label: "CBO management honorarium (Y2+)", kind: "input", dataType: "currency", defaultJson: 8000, unit: "INR/person/mo" },
 
     // ── Variable opex: per-unit rates. The monthly totals (electricity, water,
     // consumables, desludging) below are now derived from capacity × usage ×
@@ -173,8 +171,8 @@ async function main() {
     { group: "opex_in", key: "lab_quarterly", label: "Water quality testing (NABL)", kind: "input", dataType: "currency", defaultJson: 5000, unit: "INR/quarter" },
 
     // ── 8. Equity & Social Access ──────────────────────────────────────────
-    { group: "equity", key: "free_use_quota", label: "Free-use quota (% of capacity)", kind: "input", dataType: "percent", defaultJson: 0.10, unit: "%", notes: "Reserved for poorest / disabled / elderly", ui: { min: 0, max: 0.4, step: 0.05 } },
-    { group: "equity", key: "pilot_free_first_3mo", label: "Year-1 first 3 months free pilot", kind: "input", dataType: "boolean", defaultJson: 1, notes: "1 = give first 3 months free; 0 = charge from M3", surface: "finance" },
+    { group: "equity", key: "free_use_quota", label: "Free-use quota (% of capacity)", kind: "input", dataType: "percent", defaultJson: 0.10, unit: "%", notes: "Share of toilet + bath capacity given free to the poorest, elderly, and disabled.", ui: { min: 0, max: 0.4, step: 0.05 } },
+    { group: "equity", key: "pilot_free_first_3mo", label: "Year-1 first 3 months free pilot", kind: "input", dataType: "boolean", defaultJson: 1, notes: "1 = first 3 months are free for everyone to drive uptake. 0 = charge from launch.", surface: "finance" },
 
     // ── 9. Financial Parameters ────────────────────────────────────────────
     { group: "financial", key: "cost_inflation", label: "YoY cost inflation", kind: "input", dataType: "percent", defaultJson: 0.06, unit: "%" },
@@ -207,9 +205,7 @@ async function main() {
     { group: "opex", key: "opex_laundry_supervisors_total", label: "Laundry supervisors (total)", kind: "formula", dataType: "currency", formula: "num_laundry_supervisors * salary_laundry_supervisor", unit: "INR/mo" },
     { group: "opex", key: "opex_security_total", label: "Security guards (total)", kind: "formula", dataType: "currency", formula: "num_security_guards * salary_security_guard", unit: "INR/mo" },
     { group: "opex", key: "opex_admin_cashier_total", label: "Admin / cashier (total)", kind: "formula", dataType: "currency", formula: "num_admin_cashiers * salary_admin_cashier", unit: "INR/mo" },
-    { group: "opex", key: "opex_cbo_total", label: "CBO honorarium (total, Y2+)", kind: "formula", dataType: "currency", formula: "num_cbo_reps * salary_cbo_honorarium", unit: "INR/mo" },
-    { group: "opex", key: "opex_staff_steady", label: "Staff opex (steady, incl. CBO)", kind: "formula", dataType: "currency", formula: "opex_caretakers + opex_plant_operators_total + opex_laundry_supervisors_total + opex_security_total + opex_admin_cashier_total + opex_cbo_total", unit: "INR/mo" },
-    { group: "opex", key: "opex_staff_pre_cbo", label: "Staff opex (pre-CBO, Y1)", kind: "formula", dataType: "currency", formula: "opex_caretakers + opex_plant_operators_total + opex_laundry_supervisors_total + opex_security_total + opex_admin_cashier_total", unit: "INR/mo" },
+    { group: "opex", key: "opex_staff_steady", label: "Staff opex (steady)", kind: "formula", dataType: "currency", formula: "opex_caretakers + opex_plant_operators_total + opex_laundry_supervisors_total + opex_security_total + opex_admin_cashier_total", unit: "INR/mo" },
 
     // ── Water balance at steady state (mirrors the day-sim engine) ─────────
     // Greywater (bath + laundry + handwash + RO reject) is treated by DEWATS up
@@ -249,7 +245,7 @@ async function main() {
     { group: "opex", key: "opex_annual_steady", label: "Annual opex (steady)", kind: "formula", dataType: "currency", formula: "opex_monthly_steady * 12", unit: "INR/yr" },
 
     // Per-service direct opex split + shared/overhead residual. Direct costs are
-    // attributed by service; the residual (admin/cashier, CBO, STP consumables,
+    // attributed by service; the residual (admin/cashier, STP consumables,
     // remaining utilities, AMC, tech, lab) is the shared pool. Σ direct + shared
     // = opex_monthly_steady exactly, so the sim's per-service P&L reconciles.
     { group: "opex", key: "opex_toilet_monthly", label: "Toilet — direct opex (monthly)", kind: "formula", dataType: "currency",
@@ -262,7 +258,7 @@ async function main() {
       formula: "opex_plant_operators_total * 0.5 + opex_security_total * 0.25 + ro_consumables_monthly + electricity_monthly * 0.3", unit: "INR/mo" },
     { group: "opex", key: "opex_shared_monthly", label: "Shared / overhead opex (monthly)", kind: "formula", dataType: "currency",
       formula: "opex_monthly_steady - opex_toilet_monthly - opex_bath_monthly - opex_laundry_monthly - opex_ro_monthly", unit: "INR/mo",
-      notes: "Residual: admin/cashier, CBO, plant op residual, STP consumables, AMC, tech, lab, remaining utilities/cleaning" },
+      notes: "Residual: admin/cashier, plant op residual, STP consumables, AMC, tech, lab, remaining utilities/cleaning" },
 
     // ── Monthly adoption curve (60-month vector) ───────────────────────────
     { group: "revenue", key: "adoption_monthly", label: "Adoption (monthly)", kind: "formula", dataType: "percent",
@@ -315,13 +311,11 @@ async function main() {
 
     // ── Monthly P&L ────────────────────────────────────────────────────────
     // Fixed opex starts from M3 (T>=2). Pre-launch months no opex except setup costs which are capex.
-    // CBO honorarium only from Year 2 (T>=12).
     { group: "pnl", key: "opex_monthly_actual", label: "Opex (monthly, actual)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "monthly" },
       formula:
         "IF(T < 2, 0, " +
-        "opex_staff_pre_cbo + electricity_monthly + water_bwssb_monthly + cleaning_consumables_monthly + laundry_detergent_monthly + ro_consumables_monthly + stp_consumables_monthly + desludging_monthly_amortised + amc_monthly + tech_monthly" +
-        " + IF(T >= 12, opex_cbo_total, 0)" +
+        "opex_staff_steady + electricity_monthly + water_bwssb_monthly + cleaning_consumables_monthly + laundry_detergent_monthly + ro_consumables_monthly + stp_consumables_monthly + desludging_monthly_amortised + amc_monthly + tech_monthly" +
         " + IF(T == 2, lab_quarterly, IF((T - 2) % 3 == 0, lab_quarterly, 0)))",
       unit: "INR/mo" },
     { group: "pnl", key: "ebitda_monthly", label: "EBITDA (monthly)", kind: "formula", dataType: "currency",
@@ -381,14 +375,9 @@ async function main() {
       unit: "INR/yr" },
 
     // Annual opex — Y1 uses 10/12 prorate for staff (commissioning months), Y2+ full.
-    // CBO honorarium first kicks in at Y2.
     { group: "pnl", key: "opex_annual_staff", label: "Annual staff (inflated, Y1 prorated)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
-      formula: "opex_staff_pre_cbo * 12 * (1 + cost_inflation) ^ T * IF(T == 0, 10 / 12, 1)",
-      unit: "INR/yr" },
-    { group: "pnl", key: "opex_annual_cbo", label: "Annual CBO honorarium (Y2+)", kind: "formula", dataType: "currency",
-      shape: { kind: "vector", horizon: "annual" },
-      formula: "IF(T == 0, 0, opex_cbo_total * 12 * (1 + cost_inflation) ^ T)",
+      formula: "opex_staff_steady * 12 * (1 + cost_inflation) ^ T * IF(T == 0, 10 / 12, 1)",
       unit: "INR/yr" },
     { group: "pnl", key: "opex_annual_utilities", label: "Annual utilities (inflated, Y1 prorated)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
@@ -408,7 +397,7 @@ async function main() {
       unit: "INR/yr" },
     { group: "pnl", key: "opex_annual", label: "Total annual opex", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
-      formula: "opex_annual_staff + opex_annual_cbo + opex_annual_utilities + opex_annual_consumables + opex_annual_amc_tech + opex_annual_lab",
+      formula: "opex_annual_staff + opex_annual_utilities + opex_annual_consumables + opex_annual_amc_tech + opex_annual_lab",
       unit: "INR/yr" },
 
     { group: "pnl", key: "ebitda_annual", label: "EBITDA (annual)", kind: "formula", dataType: "currency",

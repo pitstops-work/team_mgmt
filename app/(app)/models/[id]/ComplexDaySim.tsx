@@ -246,14 +246,18 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
         <Mini k="Self-sufficiency" v={fmt1(e.oss) + "×"} />
       </div>
       {/* economics — monthly rollup. Surplus/mo uses 28 working days (matches the
-          finance model). Community surplus subtracts the replacement reserve so
-          you see what's actually free to spend vs earmarked for asset renewal. */}
+          finance model). "Net free surplus" subtracts a renewal set-aside so the
+          user sees money actually free to spend vs. money that should be banked
+          for when equipment wears out. */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 10 }}>
         <Mini k="Revenue / month" v={fmtINR(e.revMo)} />
         <Mini k="Surplus / month" v={(e.surplusMo >= 0 ? "" : "−") + fmtINR(Math.abs(e.surplusMo))} color={e.surplusMo >= 0 ? C.greenBr : C.alert} />
-        <Mini k="Replacement reserve" v={fmtINR(e.reserveMo) + "/mo"} color={C.muted} />
-        <Mini k="Community surplus" v={(e.communitySurplusMo >= 0 ? "" : "−") + fmtINR(Math.abs(e.communitySurplusMo)) + "/mo"} color={e.communitySurplusMo >= 0 ? C.greenBr : C.alert} />
+        <Mini k="Set aside for renewal" v={fmtINR(e.reserveMo) + "/mo"} color={C.muted} />
+        <Mini k="Net free surplus" v={(e.communitySurplusMo >= 0 ? "" : "−") + fmtINR(Math.abs(e.communitySurplusMo)) + "/mo"} color={e.communitySurplusMo >= 0 ? C.greenBr : C.alert} />
       </div>
+      <p style={{ color: C.muted, fontSize: 11, marginTop: 6, fontStyle: "italic", lineHeight: 1.5 }}>
+        “Set aside for renewal” banks a portion of surplus each month so worn-out equipment (RO ~7 yrs, washers ~7 yrs, STP ~10 yrs, civil ~20 yrs) can be replaced without going back to a funder. “Net free surplus” is what’s left over after that set-aside — the cash actually available for community programmes, expansion, or savings.
+      </p>
 
       <Verdict cls={vClass} title={vTitle} body={vBody} />
 
