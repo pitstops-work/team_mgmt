@@ -29,6 +29,9 @@ const PUBLIC_PREFIXES = [
   "/pitstops-presentation.html",
   "/workshop/",
   "/training/",
+  // Public model viewer — opt-in per instance via ModelInstance.publicSlug.
+  // Read-only sim; sliders are local state, never written back.
+  "/models-public/",
 ];
 
 export default async function middleware(req: NextRequest) {

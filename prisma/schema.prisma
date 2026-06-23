@@ -3026,6 +3026,9 @@ model ModelInstance {
   // Sparse: only the nodes the user has overridden vs. node defaults.
   // Shape: { [nodeKey]: number | number[] | boolean | string }
   inputsJson       Json            @default("{}")
+  // Setting publicSlug exposes the instance read-only at /models-public/<slug>.
+  // No auth required; sliders are local-only (never persisted). Null = private.
+  publicSlug       String?         @unique
   createdById      String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
