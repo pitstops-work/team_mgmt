@@ -7,6 +7,7 @@
 
 import { PrismaClient } from "../app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { DEFAULT_RO_CONSTANTS, DEFAULT_RO_PRESENTATION } from "../lib/models/simConfig";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -403,6 +404,10 @@ async function main() {
           peak: "peak_concentration", price: "effective_price_per_litre", opexMonthly: "opex_monthly_steady",
           operatingDays: "days_per_month", operatingHours: "operating_hours_per_day",
         },
+        // Engine constants + presentation live in config (editable in the Sim
+        // tab). Seeded from the defaults so the DB is the source of truth.
+        constants: DEFAULT_RO_CONSTANTS,
+        presentation: DEFAULT_RO_PRESENTATION,
       } },
   ];
   for (const o of outputs) {

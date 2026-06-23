@@ -69,10 +69,37 @@ export type OutputKind =
   | "budgetExport"
   | "daySim";
 
+/** Engine constants for the RO-water day sim. These used to be hardcoded in
+ *  lib/models/daySim.ts; they now live in the daySim output config so each
+ *  model can be tuned without code. Absent fields fall back to DEFAULT_RO_CONSTANTS. */
+export type RoSimConstants = {
+  /** Neutral 24-hour demand shape (sums ~1); reshaped by the peak lever. */
+  base: number[];
+  /** Hours the plant pauses for service (runs off stored water). */
+  serviceOff: number[];
+  /** Hour the operating window opens (production runs `operatingHours` from here). */
+  openHour: number;
+};
+
+/** Presentation/threshold knobs for the RO-water schematic + verdicts. */
+export type RoSimPresentation = {
+  /** Tank litres at/below which the verdict warns. */
+  tankWarnL: number;
+  /** Tank litres at/below which the verdict is critical (with cans empty). */
+  tankBadL: number;
+  /** Tank litres at/below which the schematic tank fill turns amber. */
+  tankAmberL: number;
+  /** Can-reserve litres at/below which it counts as effectively empty. */
+  cansEmptyL: number;
+  /** Hour bands shaded as peaks on the 24h graph, e.g. [[6,9],[17,20]]. */
+  peakBands: [number, number][];
+};
+
 /** Config for a `daySim` output: a day-in-the-life operations simulation. The
  *  `nodes` map wires resolved instance node values into the sim's parameters, so
  *  the simulation reads the same inputs as the finance model (one source of
- *  truth). `schematic` selects which plant renderer to draw. */
+ *  truth). `schematic` selects which plant renderer to draw. `constants` and
+ *  `presentation` (optional) override the engine/render defaults per model. */
 export type RoDaySimConfig = {
   schematic: "ro_water";
   nodes: {
@@ -88,6 +115,36 @@ export type RoDaySimConfig = {
     operatingDays?: string;  // operating days per month (opex divisor); defaults to 30
     operatingHours?: string; // hours/day the plant runs; defaults to 24 (round-the-clock)
   };
+  constants?: Partial<RoSimConstants>;
+  presentation?: Partial<RoSimPresentation>;
+};
+
+/** Engine constants for the sanitation-complex day sim. Formerly hardcoded in
+ *  lib/models/complexSim.ts. Absent fields fall back to DEFAULT_COMPLEX_CONSTANTS. */
+export type ComplexSimConstants = {
+  /** Working days/month used to roll daily revenue to monthly (matches finance). */
+  revDaysPerMonth: number;
+  /** Hours the RO plant pauses for service. */
+  serviceOff: number[];
+  /** Hour the operating/open window starts. */
+  openHour: number;
+  /** Engineering water-use per event (litres). */
+  flushL: number; handwashL: number; bathL: number; loadL: number;
+  /** Floor/fixture cleaning water: baseline + per-fixture (litres/day). */
+  cleanBase: number; cleanPerSeat: number; cleanPerCubicle: number; cleanPerMachine: number;
+  /** Hourly demand shapes per service (each length 24, sums ~1). */
+  prof: { toilet: number[]; bath: number[]; laundry: number[]; ro: number[] };
+};
+
+/** Per-service schematic position + colour. */
+export type ComplexServicePresentation = { key: string; x: number; y: number; color: string };
+
+/** Presentation/threshold knobs for the sanitation-complex schematic + verdicts. */
+export type ComplexSimPresentation = {
+  /** Schematic layout + colours, keyed by service. */
+  services: ComplexServicePresentation[];
+  /** Demand/served ratio above which a service is flagged "short at peak" (e.g. 1.05). */
+  shortPctThreshold: number;
 };
 
 /** Multi-service sanitation complex: toilets + bathing + laundry + RO water,
@@ -110,6 +167,8 @@ export type ComplexDaySimConfig = {
     facilityOpenHours?: string; // hours/day the complex is open; defaults to 24
     replacementReserveAnnual?: string; // INR/yr — surfaces the "true" community surplus
   };
+  constants?: Partial<ComplexSimConstants>;
+  presentation?: Partial<ComplexSimPresentation>;
 };
 
 export type DaySimConfig = RoDaySimConfig | ComplexDaySimConfig;

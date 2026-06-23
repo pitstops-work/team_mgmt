@@ -11,6 +11,9 @@
 // the curve is `peak` (peak concentration). Per-day opex comes from the finance
 // model's monthly opex node (÷30) so the two views can never disagree.
 
+import type { RoSimConstants } from "./types";
+import { roConstants } from "./simConfig";
+
 /** Resolved sim inputs (mapped from instance node values). */
 export type DaySimParams = {
   lph: number;          // plant capacity, L/hour
@@ -52,17 +55,11 @@ export type DaySimResult = {
   econ: DaySimEcon;
 };
 
-// Neutral 24-hour demand shape (sums ~1); reshaped by `peak` then renormalised.
-const BASE = [
-  0.005, 0.005, 0.005, 0.01, 0.03, 0.06, 0.11, 0.13, 0.10, 0.06, 0.05, 0.04,
-  0.035, 0.03, 0.03, 0.035, 0.05, 0.07, 0.09, 0.07, 0.04, 0.02, 0.01, 0.005,
-];
-// Midday maintenance window — production pauses (runs on stored water).
-const SERVICE_OFF = new Set([13, 14]);
-// The plant's operating window opens at 06:00 and runs `operatingHours` hours.
-const OPEN_HOUR = 6;
-
-export function runDaySim(p: DaySimParams): DaySimResult {
+export function runDaySim(p: DaySimParams, constantsIn?: Partial<RoSimConstants>): DaySimResult {
+  const K = roConstants(constantsIn);
+  const BASE = K.base;
+  const SERVICE_OFF = new Set(K.serviceOff);
+  const OPEN_HOUR = K.openHour;
   const LPH = Math.max(0, p.lph);
   // Hours the plant is staffed/running. ≥24 ⇒ round-the-clock (minus service).
   const opHours = p.operatingHours > 0 ? Math.min(24, p.operatingHours) : 24;

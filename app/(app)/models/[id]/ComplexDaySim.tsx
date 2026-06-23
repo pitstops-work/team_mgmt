@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { hourlyAt } from "@/lib/models/daySim";
 import { runComplexSim, type ComplexService, type ComplexSimParams } from "@/lib/models/complexSim";
+import type { ComplexSimConstants, ComplexSimPresentation } from "@/lib/models/types";
+import { complexConstants, complexPresentation } from "@/lib/models/simConfig";
 
 const C = {
   bg: "#0B2128", ground: "#0E2A33", panel: "#0E2D34", line: "#27535C",
@@ -10,19 +12,30 @@ const C = {
   amber: "#F2A65A", alert: "#F06A5A", good: "#5FD3A6", greenBr: "#7DE9BC",
   olive: "#B8C46A", pipe: "#1d4750",
 };
-// Distinct hues per service — was toilet/bath both cyan, indistinguishable.
-const SVC_COLOR: Record<string, string> = { toilet: C.cyan, bath: C.amber, laundry: C.olive, ro: C.good };
 
 const fmt = (n: number) => Math.round(n).toLocaleString("en-IN");
 const fmtINR = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 const fmt1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString("en-IN");
 const SPEED = 1440 / 24000;
 
-export default function ComplexDaySim({ params }: { params: ComplexSimParams }) {
+export default function ComplexDaySim({ params, constants, presentation }: {
+  params: ComplexSimParams;
+  constants?: Partial<ComplexSimConstants>;
+  presentation?: Partial<ComplexSimPresentation>;
+}) {
+  const P = useMemo(() => complexPresentation(presentation), [presentation]);
+  const K = useMemo(() => complexConstants(constants), [constants]);
+  // Distinct hues per service, from config (was toilet/bath both cyan).
+  const svcColor = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const s of P.services) m[s.key] = s.color;
+    return m;
+  }, [P]);
+  const constantsKey = JSON.stringify(constants);
   const sim = useMemo(
-    () => runComplexSim(params),
+    () => runComplexSim(params, constants),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    Object.values(params),
+    [...Object.values(params), constantsKey],
   );
 
   const [minute, setMinute] = useState(0);
@@ -53,9 +66,9 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
   const h = Math.min(23, Math.floor(minute / 60));
   const mm = Math.floor(minute % 60);
   const clock = `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-  const facilityOpen = params.facilityOpenHours >= 24 ? true : ((h - 6 + 24) % 24) < params.facilityOpenHours;
+  const facilityOpen = params.facilityOpenHours >= 24 ? true : ((h - K.openHour + 24) % 24) < params.facilityOpenHours;
   let phase = "overnight";
-  if (h === 13 || h === 14) phase = "midday service window";
+  if (K.serviceOff.includes(h)) phase = "midday service window";
   else if (h >= 6 && h <= 9) phase = "morning peak";
   else if (h >= 18 && h <= 21) phase = "evening peak";
   else if (h >= 10 && h <= 16) phase = "daytime";
@@ -64,9 +77,9 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
 
   const e = sim.econ;
   const w = sim.water;
-  // Threshold: ≥5% of demand lost at peak counts as a real bottleneck. Below
-  // that, a small peak-hour queue is operational reality, not a design flaw.
-  const anyShort = sim.services.some(s => s.demandDay > s.servedDay * 1.05);
+  // Threshold (config): demand/served above this ratio at peak counts as a real
+  // bottleneck. Below that, a small peak-hour queue is operational reality.
+  const anyShort = sim.services.some(s => s.demandDay > s.servedDay * P.shortPctThreshold);
   const dewOver = w.dewatsUtil > 1;
 
   let vClass: "good" | "warn" | "bad" = "good";
@@ -122,8 +135,9 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
           <path d="M106,150 H150" style={flowStyle(true, C.cyan)} />
 
           {/* service blocks */}
-          {SVC_POS.map(pos => {
-            const s = sim.services.find(x => x.key === pos.key)!;
+          {P.services.map(pos => {
+            const s = sim.services.find(x => x.key === pos.key);
+            if (!s) return null;
             const sh = hourlyAt(s.served, minute);
             const peakH = s.capPerHour > 0 && sh >= s.capPerHour - 0.01;
             const n = Math.max(0, Math.min(12, Math.round((sh / (Math.max(...s.served) || 1)) * 12)));
@@ -134,7 +148,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
                 <g>
                   {Array.from({ length: n }).map((_, i) => (
                     <circle key={i} cx={pos.x + 16 + (i % 6) * 16} cy={pos.y + 36 + Math.floor(i / 6) * 16} r={4}
-                      fill={peakH ? C.alert : SVC_COLOR[pos.key]} opacity={0.85} />
+                      fill={peakH ? C.alert : pos.color} opacity={0.85} />
                   ))}
                 </g>
                 <text x={pos.x + 12} y={pos.y + 76} fill={C.ink} fontSize={12} fontWeight={600}>
@@ -170,7 +184,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
       {/* per-service cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
         {sim.services.map(s => {
-          const short = s.demandDay > s.servedDay * 1.05;
+          const short = s.demandDay > s.servedDay * P.shortPctThreshold;
           const belowCost = s.marginDay < 0;
           const util = Math.min(1.5, s.peakUtil);
           // Spare-capacity hint: when peak utilisation is well under 100%,
@@ -190,7 +204,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
           return (
             <div key={s.key} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "11px 12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-                <span style={{ width: 9, height: 9, borderRadius: 2, background: SVC_COLOR[s.key] }} />
+                <span style={{ width: 9, height: 9, borderRadius: 2, background: svcColor[s.key] ?? C.muted }} />
                 <span style={{ fontSize: 12.5, fontWeight: 600 }}>{s.name}</span>
                 <span style={{ marginLeft: "auto", fontSize: 10, color: s.peakUtil > 1 ? C.alert : C.muted }}>{Math.round(s.peakUtil * 100)}% peak</span>
               </div>
@@ -272,7 +286,7 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
           {sim.services.map(s => (
-            <ServiceGraph key={s.key} s={s} markerMinute={minute} />
+            <ServiceGraph key={s.key} s={s} markerMinute={minute} color={svcColor[s.key] ?? C.muted} />
           ))}
         </div>
       </div>
@@ -306,13 +320,6 @@ export default function ComplexDaySim({ params }: { params: ComplexSimParams }) 
     </div>
   );
 }
-
-const SVC_POS = [
-  { key: "toilet", x: 150, y: 60 },
-  { key: "bath", x: 310, y: 60 },
-  { key: "laundry", x: 470, y: 60 },
-  { key: "ro", x: 150, y: 185 },
-] as const;
 
 function Row({ k, v, color }: { k: string; v: string; color?: string }) {
   return (
@@ -362,7 +369,7 @@ function peakHourBands(demand: number[]): Array<[number, number]> {
  *  lost-demand gap, peak-hour amber tinting, and a now-marker line that
  *  tracks the playhead minute. Each panel auto-scales to its own service's
  *  magnitude (RO is L/h, others are counts) so they're not crushed by RO. */
-function ServiceGraph({ s, markerMinute }: { s: ComplexService; markerMinute: number }) {
+function ServiceGraph({ s, markerMinute, color: colour }: { s: ComplexService; markerMinute: number; color: string }) {
   const GW = 240, GH = 110, PADX = 4, PADT = 8, PADB = 18;
   const gx = (hr: number) => PADX + (hr / 24) * (GW - 2 * PADX);
   const yMax = Math.max(1, ...s.demand, s.capPerHour); // cap line stays visible too
@@ -380,7 +387,6 @@ function ServiceGraph({ s, markerMinute }: { s: ComplexService; markerMinute: nu
     return d + " Z";
   })();
   const capY = gy(s.capPerHour);
-  const colour = SVC_COLOR[s.key];
   const markerX = gx(markerMinute / 60);
   return (
     <div style={{ background: C.ground, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 10px 4px" }}>

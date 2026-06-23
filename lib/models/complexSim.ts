@@ -10,6 +10,9 @@
 // rates and the hourly demand curves are constants; user levers are capacities,
 // usage, prices, adoption, the peak-concentration knob, and (advanced) throughput.
 
+import type { ComplexSimConstants } from "./types";
+import { complexConstants } from "./simConfig";
+
 export type ComplexSimParams = {
   hh: number; personsPerHH: number; adoption: number; peak: number;
   seats: number; baths: number; machines: number; roLph: number; dewatsKld: number;
@@ -60,26 +63,6 @@ export type ComplexSimResult = {
   econ: { revDay: number; opexDay: number; opexMonthly: number; surplusDay: number; oss: number; revMo: number; surplusMo: number; reserveMo: number; communitySurplusMo: number; passRevDay: number };
 };
 
-const REV_DAYS_PER_MONTH = 28; // matches the finance model's rev_*_monthly factor
-
-// Engineering water-use per event (litres). Laundry demand is now a parameter
-// (`laundryLoadsPerHHPerWeek`) — was a hardcoded 2 loads/HH/wk pre-rewrite.
-const FLUSH_L = 5, HANDWASH_L = 1.5, BATH_L = 25, LOAD_L = 55;
-// Floor + fixture cleaning water scales with built-out size — a 60-seat block
-// has more area to mop than a 30-seat one. Per-fixture rates derived from a
-// typical sweep cycle: ~8 L per WC seat, 12 L per bathing cubicle (wet area),
-// 5 L per washing machine surround, plus a baseline 150 L for common area.
-const CLEAN_L_PER_SEAT = 8, CLEAN_L_PER_CUBICLE = 12, CLEAN_L_PER_MACHINE = 5, CLEAN_L_BASE = 150;
-const SERVICE_OFF = new Set([13, 14]); // RO midday service window
-const OPEN_HOUR = 6;                    // RO plant operating window opens at 06:00
-
-const PROF = {
-  toilet: [0.005, 0.005, 0.005, 0.01, 0.025, 0.05, 0.09, 0.11, 0.08, 0.05, 0.04, 0.035, 0.03, 0.03, 0.03, 0.035, 0.05, 0.07, 0.085, 0.075, 0.05, 0.03, 0.015, 0.01],
-  bath: [0.002, 0.002, 0.002, 0.005, 0.03, 0.08, 0.13, 0.14, 0.10, 0.05, 0.03, 0.02, 0.015, 0.015, 0.02, 0.03, 0.05, 0.07, 0.08, 0.06, 0.03, 0.015, 0.005, 0.002],
-  laundry: [0.002, 0.002, 0.002, 0.002, 0.005, 0.01, 0.03, 0.05, 0.08, 0.11, 0.12, 0.11, 0.09, 0.08, 0.07, 0.06, 0.04, 0.03, 0.02, 0.015, 0.01, 0.005, 0.003, 0.002],
-  ro: [0.005, 0.005, 0.005, 0.01, 0.03, 0.05, 0.09, 0.10, 0.08, 0.06, 0.05, 0.045, 0.04, 0.04, 0.04, 0.045, 0.05, 0.06, 0.075, 0.06, 0.04, 0.025, 0.015, 0.01],
-};
-
 function shape(prof: number[], gamma: number): number[] {
   const s = prof.map(v => Math.pow(v, gamma));
   const t = s.reduce((a, b) => a + b, 0) || 1;
@@ -87,12 +70,12 @@ function shape(prof: number[], gamma: number): number[] {
 }
 
 /** Restrict a (normalised) demand profile to the facility's open window from
- *  06:00, renormalising so the daily total is preserved — i.e. closed-hour
+ *  `openHour`, renormalising so the daily total is preserved — i.e. closed-hour
  *  demand shifts into the open hours, concentrating the peak. */
-function openWindow(prof: number[], openHours: number): number[] {
+function openWindow(prof: number[], openHours: number, openHour: number): number[] {
   const hours = openHours > 0 ? Math.min(24, openHours) : 24;
   if (hours >= 24) return prof;
-  const masked = prof.map((v, h) => (((h - OPEN_HOUR + 24) % 24) < hours ? v : 0));
+  const masked = prof.map((v, h) => (((h - openHour + 24) % 24) < hours ? v : 0));
   const s = masked.reduce((a, b) => a + b, 0) || 1;
   return masked.map(v => v / s);
 }
@@ -114,15 +97,15 @@ function simServed(dailyDemand: number, prof: number[], hourlyCap: number) {
 
 /** RO two-buffer: tank banks production, cans absorb overflow / cover deficit.
  *  The plant produces only during its operating window (from 06:00). */
-function simRO(dailyDemand: number, prof: number[], lph: number, tankCap: number, cansCap: number, opHours: number) {
+function simRO(dailyDemand: number, prof: number[], lph: number, tankCap: number, cansCap: number, opHours: number, openHour: number, serviceOff: Set<number>) {
   const served: number[] = [];
   const demand: number[] = [];
   let tank = tankCap, cans = cansCap, servedDay = 0;
   const hours = opHours > 0 ? Math.min(24, opHours) : 24;
-  const running = (h: number) => hours >= 24 ? true : ((h - OPEN_HOUR + 24) % 24) < hours;
+  const running = (h: number) => hours >= 24 ? true : ((h - openHour + 24) % 24) < hours;
   for (let h = 0; h < 24; h++) {
     const d = dailyDemand * prof[h];
-    const p = (running(h) && !SERVICE_OFF.has(h)) ? lph : 0;
+    const p = (running(h) && !serviceOff.has(h)) ? lph : 0;
     let s: number;
     if (p >= d) {
       const surplus = p - d;
@@ -147,7 +130,9 @@ function simRO(dailyDemand: number, prof: number[], lph: number, tankCap: number
   return { served, demand, servedDay };
 }
 
-export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
+export function runComplexSim(p: ComplexSimParams, constantsIn?: Partial<ComplexSimConstants>): ComplexSimResult {
+  const K = complexConstants(constantsIn);
+  const serviceOff = new Set(K.serviceOff);
   const gamma = Math.max(0.01, p.peak / 100);
   const activeHH = Math.max(0, p.hh) * Math.max(0, p.adoption);
   const persons = activeHH * Math.max(0, p.personsPerHH);
@@ -164,10 +149,10 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   // Attended services only serve while the complex is open; their demand
   // concentrates into the open window. RO dispensing is ATM-style (24h off the
   // tank), so it keeps the full-day profile.
-  const T = simServed(demUses, openWindow(shape(PROF.toilet, gamma), p.facilityOpenHours), capT);
-  const B = simServed(demBaths, openWindow(shape(PROF.bath, gamma), p.facilityOpenHours), capB);
-  const L = simServed(demLoads, openWindow(shape(PROF.laundry, gamma), p.facilityOpenHours), capL);
-  const R = simRO(demRO, shape(PROF.ro, gamma), p.roLph, p.roTankCap, Math.max(0, p.roCansCount) * 10, p.roOperatingHours);
+  const T = simServed(demUses, openWindow(shape(K.prof.toilet, gamma), p.facilityOpenHours, K.openHour), capT);
+  const B = simServed(demBaths, openWindow(shape(K.prof.bath, gamma), p.facilityOpenHours, K.openHour), capB);
+  const L = simServed(demLoads, openWindow(shape(K.prof.laundry, gamma), p.facilityOpenHours, K.openHour), capL);
+  const R = simRO(demRO, shape(K.prof.ro, gamma), p.roLph, p.roTankCap, Math.max(0, p.roCansCount) * 10, p.roOperatingHours, K.openHour, serviceOff);
 
   const uses = T.servedDay, baths = B.servedDay, loads = L.servedDay, product = R.servedDay;
   const recovery = Math.min(0.95, Math.max(0.05, p.roRecovery));
@@ -175,15 +160,15 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   // Water balance (on served).
   const feed = product / recovery;
   const reject = feed - product;
-  const greywater = baths * BATH_L + loads * LOAD_L + uses * HANDWASH_L + reject;
+  const greywater = baths * K.bathL + loads * K.loadL + uses * K.handwashL + reject;
   const dewatsCap = Math.max(0, p.dewatsKld) * 1000;
   const treated = Math.min(greywater, dewatsCap);
   // Cleaning water scales with built-out fixture count (more seats/cubicles =
   // more area to mop). Recycled water covers this load first; fresh tops up.
-  const cleaningL = CLEAN_L_BASE + Math.max(0, p.seats) * CLEAN_L_PER_SEAT + Math.max(0, p.baths) * CLEAN_L_PER_CUBICLE + Math.max(0, p.machines) * CLEAN_L_PER_MACHINE;
-  const recycleDemand = uses * FLUSH_L + cleaningL;
+  const cleaningL = K.cleanBase + Math.max(0, p.seats) * K.cleanPerSeat + Math.max(0, p.baths) * K.cleanPerCubicle + Math.max(0, p.machines) * K.cleanPerMachine;
+  const recycleDemand = uses * K.flushL + cleaningL;
   const recycledUsed = Math.min(treated, recycleDemand);
-  const freshDay = baths * BATH_L + loads * LOAD_L + uses * HANDWASH_L + feed + Math.max(0, recycleDemand - recycledUsed);
+  const freshDay = baths * K.bathL + loads * K.loadL + uses * K.handwashL + feed + Math.max(0, recycleDemand - recycledUsed);
   const dewatsUtil = dewatsCap > 0 ? greywater / dewatsCap : 0;
 
   // Per-use revenue from non-pass-holders. Toilet/bath also lose the free-use
@@ -220,7 +205,7 @@ export function runComplexSim(p: ComplexSimParams): ComplexSimResult {
   const surplusDay = revDay - opexDay;
   // Month rollup uses finance's 28-day working-month convention so sim OSS
   // reconciles with finance Y3+ OSS at steady state.
-  const revMo = revDay * REV_DAYS_PER_MONTH;
+  const revMo = revDay * K.revDaysPerMonth;
   const surplusMo = revMo - opexMonthly;
   const oss = opexMonthly > 0 ? revMo / opexMonthly : 0;
   const reserveMo = Math.max(0, p.replacementReserveAnnual) / 12;

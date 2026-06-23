@@ -7,6 +7,7 @@
 
 import { PrismaClient } from "../app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { DEFAULT_COMPLEX_CONSTANTS, DEFAULT_COMPLEX_PRESENTATION } from "../lib/models/simConfig";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -565,6 +566,10 @@ async function main() {
           roOperatingHours: "ro_operating_hours", facilityOpenHours: "facility_open_hours",
           replacementReserveAnnual: "replacement_reserve_annual",
         },
+        // Engine constants + presentation live in config (editable in the Sim
+        // tab). Seeded from the defaults so the DB is the source of truth.
+        constants: DEFAULT_COMPLEX_CONSTANTS,
+        presentation: DEFAULT_COMPLEX_PRESENTATION,
       } },
   ];
   for (const o of outputs) {

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { hourlyAt, levelAt, runDaySim, type DaySimParams } from "@/lib/models/daySim";
+import type { RoSimConstants, RoSimPresentation } from "@/lib/models/types";
+import { roConstants, roPresentation } from "@/lib/models/simConfig";
 
 // Dark "operations" palette (matches the ATM-01 prototype).
 const C = {
@@ -15,11 +17,19 @@ const fmtINR = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 const fmt1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString("en-IN");
 const SPEED = 1440 / 24000; // one day in ~24s
 
-export default function DaySim({ params }: { params: DaySimParams }) {
+export default function DaySim({ params, constants, presentation }: {
+  params: DaySimParams;
+  constants?: Partial<RoSimConstants>;
+  presentation?: Partial<RoSimPresentation>;
+}) {
+  const P = useMemo(() => roPresentation(presentation), [presentation]);
+  const K = useMemo(() => roConstants(constants), [constants]);
+  const offSet = useMemo(() => new Set(K.serviceOff), [K]);
+  const constantsKey = JSON.stringify(constants);
   const sim = useMemo(
-    () => runDaySim(params),
+    () => runDaySim(params, constants),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [params.lph, params.tankCap, params.cansCount, params.hh, params.adoption, params.lpd, params.peak, params.price, params.opexMonthly],
+    [params.lph, params.tankCap, params.cansCount, params.hh, params.adoption, params.lpd, params.peak, params.price, params.opexMonthly, params.operatingHours, params.operatingDays, constantsKey],
   );
 
   const [minute, setMinute] = useState(0);
@@ -65,23 +75,25 @@ export default function DaySim({ params }: { params: DaySimParams }) {
   const tankFrac = params.tankCap > 0 ? Math.max(0, Math.min(1, tank / params.tankCap)) : 0;
   const cansFrac = sim.cansL > 0 ? Math.max(0, Math.min(1, cans / sim.cansL)) : 0;
 
+  const [bMorn, bEve] = P.peakBands;
+  const cansLowL = P.cansEmptyL;
   let phase = "overnight · banking";
-  if (SERVICE_OFF(h)) phase = "midday · plant service";
-  else if (h >= 6 && h <= 9) phase = "morning peak";
-  else if (h >= 17 && h <= 20) phase = "evening peak";
-  else if (h >= 10 && h <= 16) phase = "daytime · steady";
+  if (offSet.has(h)) phase = "midday · plant service";
+  else if (bMorn && h >= bMorn[0] && h <= bMorn[1]) phase = "morning peak";
+  else if (bEve && h >= bEve[0] && h <= bEve[1]) phase = "evening peak";
+  else if (bMorn && bEve && h > bMorn[1] && h < bEve[0]) phase = "daytime · steady";
 
   // Verdict
   let vClass: "good" | "warn" | "bad" = "good";
   let vTitle = plantOn ? "Tank holding" : "Plant on service";
   let vBody = plantOn ? "production and demand are balanced; cans staying topped up." : "running on stored water during the maintenance window.";
-  if (unmetTot > 0 || (tank <= 60 && cans <= 1)) {
+  if (unmetTot > 0 || (tank <= P.tankBadL && cans <= cansLowL)) {
     vClass = "bad"; vTitle = "Shortfall — queue forming";
     vBody = "tank and pre-packed cans are both exhausted. Add cans, spread the peak, or add storage.";
-  } else if (tank <= 300 && cans > 1) {
+  } else if (tank <= P.tankWarnL && cans > cansLowL) {
     vClass = "warn"; vTitle = "On the can reserve";
     vBody = "tank is low at peak — pre-packed cans are covering the gap. This is what they're for.";
-  } else if (tank <= 300) {
+  } else if (tank <= P.tankWarnL) {
     vClass = "warn"; vTitle = "Tank running low";
     vBody = "peak draw is biting into the buffer with little can reserve left.";
   }
@@ -161,7 +173,7 @@ export default function DaySim({ params }: { params: DaySimParams }) {
           <clipPath id="dsimTank"><rect x={432} y={72} width={116} height={176} rx={9} /></clipPath>
           <g clipPath="url(#dsimTank)">
             <rect x={432} y={72 + (176 - 176 * tankFrac)} width={116} height={176 * tankFrac}
-              fill={tank <= 60 ? C.alert : tank <= 250 ? C.amber : C.cyan} opacity={0.85} />
+              fill={tank <= P.tankBadL ? C.alert : tank <= P.tankAmberL ? C.amber : C.cyan} opacity={0.85} />
           </g>
           <text x={490} y={270} textAnchor="middle" fill={C.ink} fontSize="16" fontWeight={600}>{fmtL(tank)} L</text>
 
@@ -228,10 +240,10 @@ export default function DaySim({ params }: { params: DaySimParams }) {
           <span style={{ fontSize: 11, color: C.muted }}>— tank · ⋯ cans · peaks shaded</span>
         </div>
         <svg viewBox="0 0 1000 170" preserveAspectRatio="none" style={{ height: 150, width: "100%" }} aria-label="Tank level over 24 hours">
-          {[[6, 9], [17, 20]].map(([a, b], i) => (
+          {P.peakBands.map(([a, b], i) => (
             <rect key={i} x={gx(a)} y={12} width={gx(b) - gx(a)} height={170 - 12 - 20} fill={C.amber} opacity={0.08} />
           ))}
-          <line x1={8} x2={992} y1={graphY(300, params.tankCap)} y2={graphY(300, params.tankCap)} stroke={C.amber} strokeDasharray="4 5" strokeWidth={1} opacity={0.5} />
+          <line x1={8} x2={992} y1={graphY(P.tankWarnL, params.tankCap)} y2={graphY(P.tankWarnL, params.tankCap)} stroke={C.amber} strokeDasharray="4 5" strokeWidth={1} opacity={0.5} />
           <path d={graph.tankArea} fill={C.cyan} opacity={0.1} />
           <path d={graph.tankLine} fill="none" stroke={C.cyan} strokeWidth={2.5} />
           {sim.cansL > 0 && <path d={graph.cansLine} fill="none" stroke={C.amber} strokeWidth={1.8} strokeDasharray="5 4" opacity={0.85} />}
@@ -277,7 +289,6 @@ export default function DaySim({ params }: { params: DaySimParams }) {
 }
 
 // ── small presentational helpers ────────────────────────────────────────────
-function SERVICE_OFF(h: number) { return h === 13 || h === 14; }
 function dur(rate: number) { return rate <= 0 ? 0 : Math.max(0.35, 1.6 - (rate / 900) * 1.2); }
 
 function Box({ x, y, w, h, title, children }: { x: number; y: number; w: number; h: number; title: string; children?: React.ReactNode }) {

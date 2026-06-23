@@ -7,11 +7,12 @@ import {
   compute, validateTemplate,
 } from "@/lib/models/engine";
 import type {
-  DataType, Horizon, ModelGroup, ModelNode, ModelOutput, ModelTemplate, NodeKind, NodeShape, NodeValue, OutputKind, Surface, Tier,
+  DataType, DaySimConfig, Horizon, ModelGroup, ModelNode, ModelOutput, ModelTemplate, NodeKind, NodeShape, NodeValue, OutputKind, Surface, Tier,
 } from "@/lib/models/types";
 import { deleteTemplate, replaceTemplateContent, updateTemplateMeta } from "../actions";
+import SimConfigEditor from "./SimConfigEditor";
 
-type Tab = "nodes" | "outputs" | "horizons" | "groups" | "danger";
+type Tab = "nodes" | "outputs" | "sim" | "horizons" | "groups" | "danger";
 
 const KINDS: NodeKind[] = ["input", "formula", "constant"];
 const DATATYPES: DataType[] = ["number", "percent", "currency", "int", "boolean", "enum"];
@@ -74,6 +75,10 @@ export default function TemplateEditor({
   }, [liveTemplate, validation.length]);
 
   const dirty = useMemo(() => JSON.stringify(liveTemplate) !== JSON.stringify({ ...initial, key: templateKey }), [liveTemplate, initial, templateKey]);
+
+  // The daySim output (if any) drives the Sim tab. Editing its config flows
+  // through the same `outputs` state + save path as the Outputs tab.
+  const daySimOutput = useMemo(() => outputs.find(o => o.kind === "daySim"), [outputs]);
 
   const save = () => {
     setSaveStatus("idle"); setSaveError(null);
@@ -142,18 +147,20 @@ export default function TemplateEditor({
           className="px-6 pb-3 w-full text-sm text-stone-600 bg-transparent outline-none resize-none"
         />
         <div className="px-6 flex gap-1 border-t border-stone-100">
-          {(["nodes", "outputs", "horizons", "groups", "danger"] as Tab[]).map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`text-sm px-3 py-2 capitalize border-b-2 transition-colors ${
-                tab === t ? "border-sky-600 text-stone-900" : "border-transparent text-stone-500 hover:text-stone-700"
-              }`}
-            >
-              {t}
-              {t === "nodes" && ` (${nodes.length})`}
-              {t === "outputs" && ` (${outputs.length})`}
-            </button>
+          {(["nodes", "outputs", "sim", "horizons", "groups", "danger"] as Tab[]).map(t => (
+            (t === "sim" && !daySimOutput) ? null : (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`text-sm px-3 py-2 capitalize border-b-2 transition-colors ${
+                  tab === t ? "border-sky-600 text-stone-900" : "border-transparent text-stone-500 hover:text-stone-700"
+                }`}
+              >
+                {t}
+                {t === "nodes" && ` (${nodes.length})`}
+                {t === "outputs" && ` (${outputs.length})`}
+              </button>
+            )
           ))}
         </div>
       </div>
@@ -184,6 +191,15 @@ export default function TemplateEditor({
         )}
         {tab === "outputs" && (
           <OutputsEditor outputs={outputs} setOutputs={setOutputs} canEdit={canEdit} />
+        )}
+        {tab === "sim" && daySimOutput && (
+          <SimConfigEditor
+            config={daySimOutput.config as unknown as DaySimConfig}
+            setConfig={(config) => setOutputs(outputs.map(o => o._id === daySimOutput._id ? { ...o, config: config as unknown as Record<string, unknown> } : o))}
+            nodeKeys={nodes.map(n => n.key)}
+            values={liveCompute?.values ?? null}
+            canEdit={canEdit}
+          />
         )}
         {tab === "horizons" && (
           <HorizonsEditor horizons={horizons} setHorizons={setHorizons} canEdit={canEdit} />
