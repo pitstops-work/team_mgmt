@@ -23,6 +23,10 @@ export default function PublicModelView({
 }) {
   const [inputs, setInputs] = useState<InstanceInputs>(initialInputs);
   const [simTier, setSimTier] = useState<SimTier>("basic");
+  // On mobile the sim is the hero; sliders collapse behind a button so the
+  // schematic + cards aren't pushed off-screen by a 340px rail. Default closed.
+  // Desktop (lg+) ignores this — the rail is always visible side-by-side.
+  const [showInputsMobile, setShowInputsMobile] = useState(false);
 
   const result = useMemo(() => compute(template, inputs), [template, inputs]);
   const daySimConfig = useMemo<DaySimConfig | null>(() => {
@@ -80,16 +84,25 @@ export default function PublicModelView({
         </header>
       )}
 
-      <div className="flex h-[calc(100vh-72px)]" style={embed ? { height: "100vh" } : undefined}>
-        <aside className="w-[340px] shrink-0 border-r border-stone-200 bg-white overflow-y-auto">
-          <div className="px-5 py-4 border-b border-stone-200 sticky top-0 bg-white z-10 flex items-center justify-between">
+      <div className={`lg:flex ${embed ? "lg:h-screen" : "lg:h-[calc(100vh-72px)]"}`}>
+        <aside className="lg:w-[340px] lg:shrink-0 border-b lg:border-b-0 lg:border-r border-stone-200 bg-white lg:overflow-y-auto">
+          {/* Mobile-only toggle bar — taps to open/close the slider rail */}
+          <button
+            onClick={() => setShowInputsMobile(s => !s)}
+            className="lg:hidden w-full px-5 py-3 text-sm font-semibold text-stone-700 flex items-center justify-between border-b border-stone-100 active:bg-stone-50"
+          >
+            <span>{showInputsMobile ? "Hide parameters" : "Adjust parameters"}</span>
+            <span className="text-xs text-stone-400">{showInputsMobile ? "▲" : "▼"}</span>
+          </button>
+          {/* Tier toggle + Reset — always visible on desktop, only when expanded on mobile */}
+          <div className={`${showInputsMobile ? "flex" : "hidden"} lg:flex px-5 py-4 border-b border-stone-200 lg:sticky lg:top-0 bg-white z-10 items-center justify-between`}>
             <div className="inline-flex rounded-md bg-stone-100 p-0.5">
               <button onClick={() => setSimTier("basic")} className={tierBtn(simTier === "basic")}>Basic</button>
               <button onClick={() => setSimTier("advanced")} className={tierBtn(simTier === "advanced")}>Advanced</button>
             </div>
             <button onClick={resetInputs} className="text-xs text-stone-500 hover:text-stone-700">Reset</button>
           </div>
-          <div className="p-4 space-y-5">
+          <div className={`${showInputsMobile ? "block" : "hidden"} lg:block p-4 space-y-5`}>
             {orderedGroupKeys.map(gk => {
               const g = groupsByKey[gk];
               return (
@@ -116,7 +129,7 @@ export default function PublicModelView({
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="flex-1 lg:overflow-y-auto p-4 sm:p-6">
           {daySimConfig ? (
             <OperationsSim config={daySimConfig} values={result.values} />
           ) : (
