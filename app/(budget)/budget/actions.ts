@@ -107,7 +107,25 @@ export async function createGrantPartner(city: string, name: string): Promise<{ 
     select: { id: true, name: true },
   });
   revalidatePath("/budget/dashboard");
+  revalidatePath("/budget/admin/partners");
   return gp;
+}
+
+export async function renameGrantPartner(id: string, name: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Partner name required");
+  await prisma.grantPartner.update({ where: { id }, data: { name: trimmed } });
+  revalidatePath("/budget/admin/partners");
+  revalidatePath("/budget/dashboard");
+}
+
+export async function toggleGrantPartner(id: string, isActive: boolean) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  await prisma.grantPartner.update({ where: { id }, data: { isActive } });
+  revalidatePath("/budget/admin/partners");
 }
 
 export async function createBudget(payload: CreateBudgetPayload) {
@@ -278,7 +296,10 @@ export async function createBudget(payload: CreateBudgetPayload) {
  * stamps importedAt so a future "regenerate from inputs" knows the lines carry
  * hand edits. Returns the new id (no redirect) so the client can navigate.
  */
-export async function createBudgetFromImport(parsed: ParsedBudget): Promise<{ id: string }> {
+export async function createBudgetFromImport(
+  parsed: ParsedBudget,
+  opts?: { city?: string; grantPartnerId?: string | null },
+): Promise<{ id: string }> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
@@ -290,7 +311,8 @@ export async function createBudgetFromImport(parsed: ParsedBudget): Promise<{ id
   const budget = await prisma.budget.create({
     data: {
       name: parsed.name,
-      city: parsed.city,
+      city: opts?.city?.trim() || parsed.city,
+      grantPartnerId: opts?.grantPartnerId ?? null,
       partnerId: session.user.id,
       domains: parsed.domains,
       years,

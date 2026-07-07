@@ -30,7 +30,10 @@ export async function POST(req: NextRequest) {
 
   if (form.get("commit") === "1") {
     try {
-      const { id } = await createBudgetFromImport(parsed);
+      const city = typeof form.get("city") === "string" ? (form.get("city") as string) : undefined;
+      const gp = form.get("grantPartnerId");
+      const grantPartnerId = typeof gp === "string" && gp ? gp : null;
+      const { id } = await createBudgetFromImport(parsed, { city, grantPartnerId });
       return NextResponse.json({ id });
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message || "Could not create the budget." }, { status: 500 });

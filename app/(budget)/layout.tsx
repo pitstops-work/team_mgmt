@@ -24,6 +24,7 @@ export default async function BudgetLayout({ children }: { children: React.React
         <div className="ml-auto flex items-center gap-4">
           <a href="/budget" className="text-xs text-stone-500 hover:text-stone-800">Budgets</a>
           <a href="/budget/dashboard" className="text-xs text-stone-500 hover:text-stone-800">Dashboard</a>
+          {(superAdmin || budgetOnly) && <a href="/admin/partners" className="text-xs text-stone-500 hover:text-stone-800">Partners</a>}
           {(superAdmin || budgetOnly) && <a href="/admin/budgets" className="text-xs text-stone-500 hover:text-stone-800">Approve</a>}
           <a href="/admin" className="text-xs text-stone-400 hover:text-stone-700">Admin</a>
           {budgetOnly && <a href="/settings" className="text-xs text-stone-400 hover:text-stone-700">Settings</a>}

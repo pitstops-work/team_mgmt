@@ -6,17 +6,33 @@ import type { ParsedBudget } from "@/lib/budget/importTemplate";
 
 const fmtINR = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 
-export default function ImportBudgetClient() {
+const CITY_NAMES = ["Bangalore", "Chennai", "Others"] as const;
+
+export default function ImportBudgetClient({
+  initialCity,
+  partners = [],
+}: {
+  initialCity?: string;
+  partners?: { id: string; name: string; city: string }[];
+}) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ParsedBudget | null>(null);
   const [busy, setBusy] = useState<"parse" | "commit" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [city, setCity] = useState<string>(
+    (CITY_NAMES as readonly string[]).includes(initialCity ?? "") ? initialCity! : "Bangalore",
+  );
+  const [grantPartnerId, setGrantPartnerId] = useState<string>("");
 
   async function send(commit: boolean): Promise<Response> {
     const fd = new FormData();
     fd.set("file", file!);
-    if (commit) fd.set("commit", "1");
+    if (commit) {
+      fd.set("commit", "1");
+      fd.set("city", city);
+      if (grantPartnerId) fd.set("grantPartnerId", grantPartnerId);
+    }
     return fetch("/budget/import/parse", { method: "POST", body: fd });
   }
 
@@ -27,10 +43,15 @@ export default function ImportBudgetClient() {
       const res = await send(false);
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "Could not read the file."); return; }
-      setPreview(json.preview as ParsedBudget);
+      const p = json.preview as ParsedBudget;
+      setPreview(p);
+      // Default the city to the query param, else the parsed file's city.
+      if (!(CITY_NAMES as readonly string[]).includes(initialCity ?? "") && p.city) setCity(p.city);
     } catch { setError("Upload failed — please try again."); }
     finally { setBusy(null); }
   }
+
+  const cityPartners = partners.filter((p) => p.city === city);
 
   async function onCommit() {
     if (!file) return;
@@ -126,10 +147,20 @@ export default function ImportBudgetClient() {
             </table>
           </div>
 
-          <div className="px-5 py-4 border-t border-stone-100 flex items-center justify-between gap-3">
-            <p className="text-xs text-stone-400">
-              Totals are recomputed as Units × Unit cost × Allocation%.
-            </p>
+          <div className="px-5 py-4 border-t border-stone-100 flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-xs text-stone-500">City
+                <select value={city} onChange={e => { setCity(e.target.value); setGrantPartnerId(""); }} className="mt-1 block rounded border border-stone-300 px-2 py-1.5 text-sm">
+                  {CITY_NAMES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+              <label className="text-xs text-stone-500">Partner
+                <select value={grantPartnerId} onChange={e => setGrantPartnerId(e.target.value)} className="mt-1 block rounded border border-stone-300 px-2 py-1.5 text-sm min-w-[10rem]">
+                  <option value="">Unassigned</option>
+                  {cityPartners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </label>
+            </div>
             <button
               onClick={onCommit}
               disabled={busy !== null}
