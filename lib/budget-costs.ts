@@ -119,7 +119,7 @@ export const DEFAULT_COSTS: CostItem[] = [
   { domain: "Creche",   itemKey: "creche.mis_salary_per_month",            unitCost: 35000,  unit: "₹/month" },
   { domain: "Creche",   itemKey: "creche.mis_per_n_creches",               unitCost: 40,     unit: "creches per MIS coordinator" },
   { domain: "Creche",   itemKey: "creche.mis_travel_per_month",            unitCost: 7900,   unit: "₹/month",             notes: "Travel + phone/internet" },
-  { domain: "Creche",   itemKey: "creche.insurance_per_creche_per_year",   unitCost: 0,      unit: "₹/creche/year",       notes: "Health & accident insurance per creche" },
+  { domain: "Creche",   itemKey: "creche.insurance_per_creche_per_year",   unitCost: 875,    unit: "₹/creche/year",       notes: "Staff insurance ₹3,500/yr × supervisory team (₹35k for a 40-cluster = ₹875/creche at standard scale)" },
   { domain: "Creche",   itemKey: "creche.accounts_manager_salary_per_month", unitCost: 0,    unit: "₹/month",             notes: "Accounts & Logistics Manager (Chennai only)" },
   { domain: "Creche",   itemKey: "creche.accounts_manager_travel_per_month", unitCost: 0,    unit: "₹/month",             notes: "A&L Manager travel (Chennai only)" },
 

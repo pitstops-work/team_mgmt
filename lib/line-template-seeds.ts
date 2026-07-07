@@ -112,7 +112,7 @@ function crecheTemplates(city: string): TemplateSpec[] {
     { templateKey: "creche.training",          section: "programme", description: "Training of creche workers",                                     costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.training_cost_per_year" },
     { templateKey: "creche.review",            section: "programme", description: "Monthly review meeting of creche workers",                      costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.review_meeting_per_year" },
     { templateKey: "creche.cg_food",           section: "programme", description: "Food for caregivers",                                           costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.caregiver_food_per_year" },
-    { templateKey: "creche.insurance",         section: "programme", description: "Health & accident insurance",                                   costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.insurance_per_creche_per_year" },
+    { templateKey: "creche.insurance",         section: "programme", description: "Staff insurance (supervisory team)",                            costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.insurance_per_creche_per_year" },
     { templateKey: "creche.rent",              section: "programme", description: "Creche rent",                                                   costCategory: "Other",  unitType: "Month",      inputVar: "nCreches",  inputMonthly: true, userInputCost: "crecheRentPerMonth" },
   ];
 
