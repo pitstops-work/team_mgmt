@@ -29,7 +29,7 @@ type PitstopChild = {
   doneChecklists: number;
 };
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ goalId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const ctx = await buildRbacContext(session, { req });
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { id: goalId } = await params;
+  const { goalId } = await params;
 
   // Goal must be in the caller's scope; bail early otherwise.
   const goalScope = await scopeWhere(ctx, "goal", "read");

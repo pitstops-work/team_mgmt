@@ -22,7 +22,7 @@ type APRow = {
   priority: string;
 };
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const ctx = await buildRbacContext(session, { req });
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { id: eventId } = await params;
+  const { eventId } = await params;
 
   // Activity must be in the caller's scope (uses pitstop_event scope, not AP — the
   // event is the addressable parent here).
