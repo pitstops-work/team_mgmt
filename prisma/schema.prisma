@@ -1894,6 +1894,10 @@ model Budget {
   name               String
   partnerId          String
   partner            User                @relation("BudgetPartner", fields: [partnerId], references: [id])
+  // Grantee org this budget belongs to (spans many budgets). Distinct from
+  // partnerId (the User who created it). Null on legacy rows until assigned.
+  grantPartnerId     String?
+  grantPartner       GrantPartner?       @relation(fields: [grantPartnerId], references: [id], onDelete: SetNull)
   domains            String[]
   city               String              @default("Bangalore")
   // years is kept for backward compat; horizonMonths is the source of truth.
@@ -1932,10 +1936,70 @@ model Budget {
   reportConfig       BudgetReportConfig?
   reportSlots        BudgetReportSlot[]
   reports            BudgetReport[]
+  borrowingsFrom     GrantBorrowing[]    @relation("BorrowingFrom")
+  borrowingsTo       GrantBorrowing[]    @relation("BorrowingTo")
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
   @@index([partnerId])
+  @@index([grantPartnerId])
+}
+
+// A grantee organisation (e.g. "CFAR", "Sampark"). Spans many budgets/grants so
+// the dashboard can aggregate approved amounts + utilisation per partner. City-
+// scoped so the same name can exist independently under Bangalore/Chennai/Others.
+model GrantPartner {
+  id        String   @id @default(cuid())
+  name      String
+  city      String   @default("Bangalore") // Bangalore | Chennai | Others
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  budgets   Budget[]
+
+  @@unique([city, name])
+  @@index([city])
+}
+
+enum GrantBorrowingStatus {
+  outstanding
+  partially_reimbursed
+  reimbursed
+}
+
+// Cross-grant borrowing: a partner spends one grant's cash on another grant's
+// work (disbursement timing), reimbursing later. Distinct from
+// BudgetReallocationRequest, which moves money only WITHIN one budget. Net
+// position as of any date = Σ amount(borrowedOn ≤ D) − Σ repayment(repaidOn ≤ D).
+model GrantBorrowing {
+  id           String                    @id @default(cuid())
+  fromBudgetId String // lender grant (money came from)
+  toBudgetId   String // borrower grant (work belonged to)
+  fromBudget   Budget                    @relation("BorrowingFrom", fields: [fromBudgetId], references: [id], onDelete: Cascade)
+  toBudget     Budget                    @relation("BorrowingTo", fields: [toBudgetId], references: [id], onDelete: Cascade)
+  amount       Float
+  borrowedOn   DateTime
+  reason       String?
+  status       GrantBorrowingStatus      @default(outstanding)
+  createdById  String?
+  createdAt    DateTime                  @default(now())
+  repayments   GrantBorrowingRepayment[]
+
+  @@index([fromBudgetId])
+  @@index([toBudgetId])
+}
+
+// Partial repayments of a borrowing over time — kept as rows so the net
+// outstanding position is accurate as of any point in time.
+model GrantBorrowingRepayment {
+  id          String         @id @default(cuid())
+  borrowingId String
+  borrowing   GrantBorrowing @relation(fields: [borrowingId], references: [id], onDelete: Cascade)
+  amount      Float
+  repaidOn    DateTime
+  note        String?
+
+  @@index([borrowingId])
 }
 
 model BudgetInputs {

@@ -11,6 +11,8 @@ import type { ParsedBudget } from "@/lib/budget/importTemplate";
 export type CreateBudgetPayload = {
   name: string;
   city: string;
+  /** Grantee org (GrantPartner.id) this budget belongs to. Null = unassigned. */
+  grantPartnerId?: string | null;
   domains: string[];
   horizonMonths: number;
   /** Where the pro-rated stub sits: "start" or "end" (default). */
@@ -80,6 +82,34 @@ function lineCreateData(l: ReturnType<typeof generateBudgetLines>[number]) {
   };
 }
 
+// ── Grant partners (grantee orgs) ───────────────────────────────────────────
+
+export async function listGrantPartners(city: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  return prisma.grantPartner.findMany({
+    where: { city, isActive: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+}
+
+/** Create-or-return a partner for a city (idempotent on the unique [city,name]). */
+export async function createGrantPartner(city: string, name: string): Promise<{ id: string; name: string }> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Partner name required");
+  const gp = await prisma.grantPartner.upsert({
+    where: { city_name: { city, name: trimmed } },
+    create: { city, name: trimmed },
+    update: { isActive: true },
+    select: { id: true, name: true },
+  });
+  revalidatePath("/budget/dashboard");
+  return gp;
+}
+
 export async function createBudget(payload: CreateBudgetPayload) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
@@ -129,6 +159,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
     const budget = await prisma.budget.create({
       data: {
         name: payload.name, city: payload.city, partnerId: session.user.id,
+        grantPartnerId: payload.grantPartnerId ?? null,
         domains: payload.domains, years, horizonMonths, partialPosition,
         applyInflation: payload.applyInflation, costSnapshot, costOverrides,
         isMultiPartner: true,
@@ -171,6 +202,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
       name: payload.name,
       city: payload.city,
       partnerId: session.user.id,
+      grantPartnerId: payload.grantPartnerId ?? null,
       domains: payload.domains,
       years,
       horizonMonths,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { createBudget } from "../actions";
+import { createBudget, createGrantPartner } from "../actions";
 import type { DomainOption, DomainInputField, CostItem } from "./page";
 
 const FALLBACK_DOMAINS: DomainOption[] = [
@@ -26,20 +26,33 @@ function initInputs(crossCutting: DomainInputField[], allDomains: DomainOption[]
   return init;
 }
 
+type CityName = "Bangalore" | "Chennai" | "Others";
+const CITY_NAMES: CityName[] = ["Bangalore", "Chennai", "Others"];
+
 export default function NewBudgetForm({
   domains: allDomains = [],
   crossCuttingInputs: allCrossCutting = [],
   costItems = [],
+  initialCity,
+  partners = [],
 }: {
   domains?: DomainOption[];
   crossCuttingInputs?: DomainInputField[];
   costItems?: CostItem[];
+  initialCity?: string;
+  partners?: { id: string; name: string; city: string }[];
 }) {
   const effectiveDomains     = allDomains.length > 0     ? allDomains     : FALLBACK_DOMAINS;
   const effectiveCrossCutting = allCrossCutting.length > 0 ? allCrossCutting : FALLBACK_CROSS_CUTTING;
 
   const [step, setStep]       = useState<1 | 2>(1);
-  const [city, setCity]       = useState<"Bangalore" | "Chennai">("Bangalore");
+  const [city, setCity]       = useState<CityName>(
+    (CITY_NAMES as string[]).includes(initialCity ?? "") ? (initialCity as CityName) : "Bangalore",
+  );
+  const [allPartners, setAllPartners] = useState(partners);
+  const [grantPartnerId, setGrantPartnerId] = useState<string>("");
+  const [newPartnerName, setNewPartnerName] = useState("");
+  const [addingPartner, setAddingPartner] = useState(false);
   const [name, setName]       = useState("");
   // horizonMonths replaces years. Defaults to 12mo; presets cover the typical
   // donor-budget shapes. 60mo is the cap (matches BudgetLine y1..y5 columns).
@@ -91,7 +104,9 @@ export default function NewBudgetForm({
   const [costOverrides, setCostOverrides] = useState<Record<string, number>>({});
   const [pending, startTransition] = useTransition();
 
-  const cityDomains = effectiveDomains.filter(d => d.city === city);
+  // "Others" has no domain configs of its own — fall back to Bangalore's set.
+  const cityDomains = effectiveDomains.filter(d => d.city === (city === "Others" ? "Bangalore" : city));
+  const cityPartners = allPartners.filter(p => p.city === city);
 
   // Cross-cutting inputs only show when at least one of their consuming domains
   // is selected. null = always show.
@@ -125,7 +140,8 @@ export default function NewBudgetForm({
     if (useMulti) for (const p of validPartners) for (const [k, v] of Object.entries(p.inputs)) summed[k] = (summed[k] ?? 0) + (Number(v) || 0);
     startTransition(async () => {
       await createBudget({
-        name: name.trim(), city, domains: Array.from(selectedDomains),
+        name: name.trim(), city, grantPartnerId: grantPartnerId || null,
+        domains: Array.from(selectedDomains),
         horizonMonths, partialPosition, applyInflation,
         programmeInputs: useMulti ? summed : programmeInputs,
         includeCrossCutting,
@@ -209,14 +225,42 @@ export default function NewBudgetForm({
           <div>
             <label className="block text-sm font-medium text-stone-700 mb-2">City</label>
             <div className="flex gap-3">
-              {(["Bangalore", "Chennai"] as const).map(c => (
+              {CITY_NAMES.map(c => (
                 <button key={c} type="button"
-                  onClick={() => { setCity(c); setSelectedDomains(new Set()); }}
+                  onClick={() => { setCity(c); setSelectedDomains(new Set()); setGrantPartnerId(""); }}
                   className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${city === c ? "border-sky-500 bg-sky-50 text-sky-700" : "border-stone-200 text-stone-700 hover:border-stone-300"}`}>
                   {c}
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-2">Partner <span className="text-stone-400 font-normal">(grantee org)</span></label>
+            {addingPartner ? (
+              <div className="flex gap-2">
+                <input type="text" value={newPartnerName} onChange={e => setNewPartnerName(e.target.value)}
+                  placeholder="New partner name"
+                  className="flex-1 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                <button type="button" disabled={!newPartnerName.trim()}
+                  onClick={async () => {
+                    const gp = await createGrantPartner(city, newPartnerName);
+                    setAllPartners(prev => prev.some(p => p.id === gp.id) ? prev : [...prev, { ...gp, city }]);
+                    setGrantPartnerId(gp.id); setNewPartnerName(""); setAddingPartner(false);
+                  }}
+                  className="px-3 py-2 rounded-lg bg-sky-600 text-white text-sm disabled:opacity-40">Add</button>
+                <button type="button" onClick={() => { setAddingPartner(false); setNewPartnerName(""); }} className="px-3 py-2 text-sm text-stone-400">Cancel</button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <select value={grantPartnerId} onChange={e => setGrantPartnerId(e.target.value)}
+                  className="flex-1 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                  <option value="">Unassigned</option>
+                  {cityPartners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <button type="button" onClick={() => setAddingPartner(true)} className="px-3 py-2 rounded-lg border border-stone-300 text-sm text-stone-700 hover:bg-stone-50">+ New</button>
+              </div>
+            )}
           </div>
 
           <div>

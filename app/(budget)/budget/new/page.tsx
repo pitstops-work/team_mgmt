@@ -35,7 +35,8 @@ export type CostItem = {
   kind: "cost" | "ratio";
 };
 
-export default async function NewBudgetPage() {
+export default async function NewBudgetPage({ searchParams }: { searchParams: Promise<{ city?: string }> }) {
+  const initialCity = (await searchParams).city;
   const [domainRows, templateRows, inpRows, allCostRows] = await Promise.all([
     prisma.budgetDomainConfig.findMany({ where: { isActive: true }, orderBy: { position: "asc" } }),
     prisma.lineTemplate.findMany({
@@ -118,6 +119,13 @@ export default async function NewBudgetPage() {
       ...inputMeta[k],
     }));
 
+  const partners = await prisma.grantPartner.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, city: true },
+  });
+  const cityQ = initialCity ? `?city=${encodeURIComponent(initialCity)}` : "";
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6 flex items-start justify-between gap-4">
@@ -126,13 +134,13 @@ export default async function NewBudgetPage() {
           <p className="text-sm text-stone-500 mt-1">Select domains and enter programme scale to auto-generate a draft budget.</p>
         </div>
         <Link
-          href="/budget/import"
+          href={`/budget/import${cityQ}`}
           className="shrink-0 text-sm border border-stone-300 text-stone-700 px-3 py-2 rounded-lg hover:bg-stone-50"
         >
           Import from Excel →
         </Link>
       </div>
-      <NewBudgetForm domains={domains} crossCuttingInputs={crossCuttingInputs} costItems={costItems} />
+      <NewBudgetForm domains={domains} crossCuttingInputs={crossCuttingInputs} costItems={costItems} initialCity={initialCity} partners={partners} />
     </div>
   );
 }
