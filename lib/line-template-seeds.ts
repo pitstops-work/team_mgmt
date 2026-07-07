@@ -109,7 +109,8 @@ function crecheTemplates(city: string): TemplateSpec[] {
     { templateKey: "creche.transport",         section: "programme", description: "Food transport",                                                costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.food_transport_per_year" },
     { templateKey: "creche.play",              section: "programme", description: "Play materials, nappies & spare clothes",                       costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.play_materials_per_year" },
     { templateKey: "creche.flexi",             section: "programme", description: "Flexi fund for miscellaneous expenses",                         costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.flexi_fund_per_year" },
-    { templateKey: "creche.training",          section: "programme", description: "Training & review meetings of creche workers",                  costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.training_cost_per_year" },
+    { templateKey: "creche.training",          section: "programme", description: "Training of creche workers",                                     costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.training_cost_per_year" },
+    { templateKey: "creche.review",            section: "programme", description: "Monthly review meeting of creche workers",                      costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.review_meeting_per_year" },
     { templateKey: "creche.cg_food",           section: "programme", description: "Food for caregivers",                                           costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.caregiver_food_per_year" },
     { templateKey: "creche.insurance",         section: "programme", description: "Health & accident insurance",                                   costCategory: "Other",  unitType: "Per creche", inputVar: "nCreches",  costKey: "creche.insurance_per_creche_per_year" },
     { templateKey: "creche.rent",              section: "programme", description: "Creche rent",                                                   costCategory: "Other",  unitType: "Month",      inputVar: "nCreches",  inputMonthly: true, userInputCost: "crecheRentPerMonth" },
@@ -121,6 +122,22 @@ function crecheTemplates(city: string): TemplateSpec[] {
     );
     base.splice(7, 0,
       { templateKey: "creche.al_manager_travel",  section: "travel", description: "Accounts & Logistics Manager travel",      costCategory: "Other",  unitType: "Month", inputVar: "fixed_12", costKey: "creche.accounts_manager_travel_per_month" },
+    );
+  } else {
+    // Urban Creche V.2 supervisory & support roles (salary + travel/comms each;
+    // ceil ratio). Bangalore/urban standard only — Chennai runs its own model
+    // (A&L Manager above). Inserted after coord_travel to stay grouped.
+    base.splice(6, 0,
+      { templateKey: "creche.logistics",             section: "salary", description: "Logistics Coordinator",                        costCategory: "Salary", unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.logistics_per_n_creches",      costKey: "creche.logistics_salary_per_month" },
+      { templateKey: "creche.logistics_travel",      section: "travel", description: "Logistics Coordinator travel & comms",         costCategory: "Other",  unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.logistics_per_n_creches",      costKey: "creche.logistics_travel_per_month" },
+      { templateKey: "creche.training_coord",        section: "salary", description: "Training Coordinator",                         costCategory: "Salary", unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.training_coord_per_n_creches", costKey: "creche.training_coord_salary_per_month" },
+      { templateKey: "creche.training_coord_travel", section: "travel", description: "Training Coordinator travel & comms",          costCategory: "Other",  unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.training_coord_per_n_creches", costKey: "creche.training_coord_travel_per_month" },
+      { templateKey: "creche.safety",                section: "salary", description: "Safety & Security Coordinator",                costCategory: "Salary", unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.safety_per_n_creches",         costKey: "creche.safety_salary_per_month" },
+      { templateKey: "creche.safety_travel",         section: "travel", description: "Safety & Security Coordinator travel & comms", costCategory: "Other",  unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.safety_per_n_creches",         costKey: "creche.safety_travel_per_month" },
+      { templateKey: "creche.pm",                    section: "salary", description: "Programme Manager",                            costCategory: "Salary", unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.pm_per_n_creches",             costKey: "creche.pm_salary_per_month" },
+      { templateKey: "creche.pm_travel",             section: "travel", description: "Programme Manager travel & comms",             costCategory: "Other",  unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.pm_per_n_creches",             costKey: "creche.pm_travel_per_month" },
+      { templateKey: "creche.mis",                   section: "salary", description: "MIS Coordinator",                              costCategory: "Salary", unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.mis_per_n_creches",            costKey: "creche.mis_salary_per_month" },
+      { templateKey: "creche.mis_travel",            section: "travel", description: "MIS Coordinator travel & comms",               costCategory: "Other",  unitType: "Month", inputVar: "nCreches", supervisorRatioKey: "creche.mis_per_n_creches",            costKey: "creche.mis_travel_per_month" },
     );
   }
 

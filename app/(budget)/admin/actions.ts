@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getDefaultsForCity } from "@/lib/budget-costs";
 import { getTemplatesForCity } from "@/lib/line-template-seeds";
+import { logCostChange } from "@/lib/budget/costHistory";
 import type { BudgetSection, InflationType } from "@/app/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -12,6 +13,14 @@ export async function seedCostRegistry(city = "Bangalore") {
   if (!session?.user?.id) throw new Error("Not authenticated");
 
   const defaults = getDefaultsForCity(city);
+  // Log creations only: seed never overwrites existing edits (update:{}), so
+  // pre-compute which itemKeys are absent and log those as null → seeded value.
+  const existing = await prisma.costRegistry.findMany({
+    where: { city, itemKey: { in: defaults.map(c => c.itemKey) } },
+    select: { itemKey: true },
+  });
+  const existingKeys = new Set(existing.map(e => e.itemKey));
+
   await prisma.$transaction(
     defaults.map(c =>
       prisma.costRegistry.upsert({
@@ -29,6 +38,15 @@ export async function seedCostRegistry(city = "Bangalore") {
       })
     )
   );
+
+  for (const c of defaults) {
+    if (existingKeys.has(c.itemKey)) continue;
+    await logCostChange(prisma, {
+      city, domain: c.domain ?? null, itemKey: c.itemKey,
+      oldCost: null, newCost: c.unitCost,
+      source: "seed", changedById: session.user.id,
+    });
+  }
 
   revalidatePath("/admin");
 }
@@ -51,6 +69,11 @@ export async function addCostItem(
       displayGroup: data.displayGroup ?? null,
     },
   });
+  await logCostChange(prisma, {
+    city, domain: data.domain ?? null, itemKey: data.itemKey,
+    oldCost: null, newCost: data.unitCost,
+    source: "admin edit", changedById: session.user.id,
+  });
   revalidatePath("/admin");
 }
 
@@ -61,6 +84,7 @@ export async function updateCostRegistry(
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
+  const before = await prisma.costRegistry.findUnique({ where: { id } });
   await prisma.costRegistry.update({
     where: { id },
     data: {
@@ -69,6 +93,13 @@ export async function updateCostRegistry(
       ...(needsDomain  !== undefined ? { needsDomain }  : {}),
     },
   });
+  if (before) {
+    await logCostChange(prisma, {
+      city: before.city, domain: before.domain, itemKey: before.itemKey,
+      oldCost: before.unitCost, newCost: unitCost,
+      source: "admin edit", changedById: session.user.id,
+    });
+  }
   revalidatePath("/admin");
 }
 
@@ -131,7 +162,15 @@ export async function backfillDisplayGroups(city: string) {
 export async function deleteCostItem(id: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
+  const before = await prisma.costRegistry.findUnique({ where: { id } });
   await prisma.costRegistry.delete({ where: { id } });
+  if (before) {
+    await logCostChange(prisma, {
+      city: before.city, domain: before.domain, itemKey: before.itemKey,
+      oldCost: before.unitCost, newCost: null,
+      source: "admin edit", changedById: session.user.id,
+    });
+  }
   revalidatePath("/admin");
 }
 
@@ -149,6 +188,11 @@ export async function resetCostRegistry(id: string) {
   await prisma.costRegistry.update({
     where: { id },
     data: { unitCost: def.unitCost, notes: def.notes },
+  });
+  await logCostChange(prisma, {
+    city: entry.city, domain: entry.domain, itemKey: entry.itemKey,
+    oldCost: entry.unitCost, newCost: def.unitCost,
+    source: "reset", changedById: session.user.id,
   });
   revalidatePath("/admin");
 }

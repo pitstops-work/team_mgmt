@@ -2154,6 +2154,47 @@ model CostRegistry {
   @@unique([city, itemKey])
 }
 
+// Append-only change log for CostRegistry unit costs. Written on every registry
+// mutation (seed, admin edit, reset, reseed). Reproduction of old budgets is
+// already handled by Budget.costSnapshot; this table exists for the reflective
+// "what changed, when, why" trail across cost revisions. Generic across domains.
+//   oldCost null  → item created
+//   newCost null  → item deleted
+model CostRegistryHistory {
+  id          String   @id @default(cuid())
+  city        String
+  domain      String?
+  itemKey     String
+  oldCost     Float?
+  newCost     Float?
+  source      String? // "Urban Creche V.2 May25" | "admin edit" | "seed" | "reset"
+  reason      String?
+  changedById String?
+  changedAt   DateTime @default(now())
+
+  @@index([city, itemKey, changedAt])
+}
+
+// Structured breakup of an aggregate CostRegistry item (e.g. an asset bundle
+// that sums many sub-items). Optional & additive: items with no components keep
+// their flat hand-entered unitCost. Where components exist, the parent's
+// unitCost is the roll-up Σ(qty × unitCost) and the Working sheet expands these
+// rows so the derivation stays visible. Generic across all domains.
+model CostRegistryComponent {
+  id            String  @id @default(cuid())
+  city          String
+  parentItemKey String // FK-by-convention to CostRegistry.itemKey (same city)
+  position      Int     @default(0)
+  label         String
+  spec          String? // free-text specification from the cost book
+  qty           Float   @default(1)
+  unitCost      Float // amount = qty × unitCost
+  notes         String?
+  updatedAt     DateTime @updatedAt
+
+  @@index([city, parentItemKey, position])
+}
+
 // Each row is one generated line in a budget.
 // The formula fields fully describe how to compute unitCount and unitCost
 // from programme inputs (nCLCs, nCreches, etc.) and the cost registry.
