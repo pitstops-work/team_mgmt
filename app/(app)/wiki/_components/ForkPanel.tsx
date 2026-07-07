@@ -104,7 +104,7 @@ export function ForkPanel({
 
   return (
     <SurfaceProvider id="wiki.fork_panel">
-      <div className={`flex h-full w-[420px] shrink-0 flex-col border-l ${PANEL_COLOR[panel]}`}>
+      <div className={`flex h-full w-full shrink-0 snap-start flex-col border-l ${PANEL_COLOR[panel]} sm:w-[420px]`}>
         <div className={`flex items-center justify-between gap-1 border-b border-stone-200 px-3 py-2 ${PANEL_HEADER_COLOR[panel]}`}>
           <div className="min-w-0 flex-1">
             <div className="text-[10px] uppercase tracking-wide opacity-70">{PANEL_LABEL[panel]}</div>

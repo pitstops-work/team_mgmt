@@ -23,7 +23,7 @@ export function SpinePanel({ spine, onOpenFork, activePanels }: SpinePanelProps)
 
   return (
     <SurfaceProvider id="wiki.elderly_spine">
-      <div className="flex h-full w-[480px] shrink-0 flex-col border-r border-stone-200 bg-white">
+      <div className="flex h-full w-full shrink-0 snap-start flex-col border-r border-stone-200 bg-white sm:w-[480px]">
         <header className="border-b border-stone-200 px-4 py-3">
           <div className="text-[10px] uppercase tracking-wide text-stone-500">Spine</div>
           <h1 className="text-lg font-semibold text-stone-900">{spine.title}</h1>

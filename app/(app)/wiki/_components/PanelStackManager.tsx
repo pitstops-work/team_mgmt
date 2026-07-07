@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SpinePanel } from "./SpinePanel";
 import { ForkPanel } from "./ForkPanel";
 import type { Panel, SpineWithEntries } from "@/lib/wiki/articles";
@@ -16,6 +16,15 @@ type OpenPanel = {
 
 export function PanelStackManager({ spine }: { spine: SpineWithEntries }) {
   const [panels, setPanels] = useState<OpenPanel[]>([]);
+  // On mobile one panel fills the screen; opening a fork appends it off the
+  // right edge, so scroll it into view. `scrollNonce` bumps only on openFork
+  // (not fold/close), which is exactly when we want to reveal the newest panel.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollNonce, setScrollNonce] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ left: el.scrollWidth, behavior: "smooth" });
+  }, [scrollNonce]);
 
   const openFork = useCallback((questionArticleId: string, questionTitle: string, panel: Panel) => {
     const key = `${questionArticleId}::${panel}`;
@@ -27,6 +36,7 @@ export function PanelStackManager({ spine }: { spine: SpineWithEntries }) {
       }
       return [...prev, { key, questionArticleId, questionTitle, panel, folded: false }];
     });
+    setScrollNonce((n) => n + 1);
   }, []);
 
   const toggleFold = useCallback((key: string) => {
@@ -40,7 +50,10 @@ export function PanelStackManager({ spine }: { spine: SpineWithEntries }) {
   const activePanels = panels.map((p) => ({ questionArticleId: p.questionArticleId, panel: p.panel }));
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] overflow-x-auto bg-stone-100">
+    <div
+      ref={scrollRef}
+      className="flex h-[calc(100dvh-4rem)] snap-x snap-mandatory overflow-x-auto bg-stone-100 sm:h-[calc(100dvh-3.5rem)] sm:snap-none"
+    >
       <SpinePanel spine={spine} onOpenFork={openFork} activePanels={activePanels} />
       {panels.map((p) => (
         <ForkPanel
