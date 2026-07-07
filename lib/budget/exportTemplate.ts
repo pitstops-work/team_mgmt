@@ -14,6 +14,26 @@ export type CostComponent = {
   value: number;   // numeric value used in the Excel multiplication formula
 };
 
+/** One sub-item in an aggregate cost's breakup (from CostRegistryComponent). */
+export type CostBreakupComponent = {
+  label: string;
+  spec: string | null;
+  qty: number;
+  unitCost: number;
+};
+
+/** An aggregate cost item and its structured breakup. Rendered on the
+ *  "05.Cost Breakup" sheet so the derivation of a bundled unit cost (e.g.
+ *  one-time setup) stays visible even though it's a single line on the Budget
+ *  sheet. Mirrors the APF template's "Detail budget for asset" sheet. */
+export type CostBreakup = {
+  parentItemKey: string;
+  parentLabel: string;   // the budget line's description
+  unitType: string;      // e.g. "Per creche"
+  unitCost: number;      // aggregate unit cost (should equal Σ qty×unitCost)
+  components: CostBreakupComponent[];
+};
+
 export type ExportLine = {
   domain: string | null;
   /** Multi-partner: which delivery partner this line belongs to (null = shared). */
@@ -54,6 +74,9 @@ export type ExportBudget = {
    * is false, all three should be 0 so the inflation formula collapses to 1. */
   inflationRates?: { Salary: number; Other: number; Nil: number };
   lines: ExportLine[];
+  /** Aggregate cost items with a structured breakup. When present, a
+   *  "05.Cost Breakup" sheet is added showing each bundle's sub-items. */
+  costBreakups?: CostBreakup[];
   /** Multi-partner budgets: adds one summary sheet per delivery partner
    *  (direct lines + their allocated share of shared costs by sharedPct). */
   deliveryPartners?: { id: string; name: string; sharedPct: number }[];
@@ -490,6 +513,92 @@ function buildWorkingSheet(wb: ExcelJS.Workbook, plan: WorkingPlan): void {
   }
 
   ws.views = [{ state: "frozen", xSplit: 2, ySplit: 2, topLeftCell: "C3" }];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cost Breakup sheet — structural provenance for aggregate cost items.
+// A bundled unit cost (e.g. one-time setup) shows as a single line on the
+// Budget sheet; here it's expanded into its sub-items so the derivation stays
+// visible. Mirrors the APF template's "Detail budget for asset" sheet.
+// One block per aggregate: banner → component rows (Amount = Qty × Unit Cost)
+// → sub-total (flagged if it doesn't reconcile to the Budget-sheet unit cost).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BREAKUP_COLS = 6;
+
+function buildCostBreakupSheet(wb: ExcelJS.Workbook, breakups: CostBreakup[]): void {
+  const ws = wb.addWorksheet("05.Cost Breakup");
+  ws.properties.tabColor = { argb: C.tabGreen };
+  // A=Sl B=Item C=Specification D=Qty E=Unit Cost (₹) F=Amount (₹)
+  ws.columns = [{ width: 6 }, { width: 40 }, { width: 46 }, { width: 8 }, { width: 14 }, { width: 15 }];
+
+  const intro = ws.addRow([
+    "How each bundled (aggregate) unit cost on the Budget sheet is arrived at. Each block lists the sub-items; the sub-total is the unit cost carried as one line on 03.Budget. Editing here does not flow back to the Budget sheet — it documents the standard.",
+  ]);
+  ws.mergeCells(1, 1, 1, BREAKUP_COLS);
+  intro.getCell(1).alignment = { wrapText: true, vertical: "middle" };
+  intro.getCell(1).font = { name: FONT_NAME, size: FONT_SIZE, italic: true };
+  intro.height = 46;
+
+  const hdr = ws.addRow(["Sl.No", "Item", "Specification", "Qty", "Unit Cost (₹)", "Amount (₹)"]);
+  hdr.eachCell({ includeEmpty: true }, c => {
+    c.fill = fill(C.olive);
+    c.font = { name: FONT_NAME, bold: true, size: FONT_SIZE };
+    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    c.border = thinBorder();
+  });
+  hdr.height = 26;
+
+  for (const b of breakups) {
+    // Banner: parent label + unit type + aggregate unit cost.
+    const bnr = ws.addRow([`${b.parentLabel}${b.unitType ? ` (${b.unitType})` : ""}`]);
+    ws.mergeCells(bnr.number, 1, bnr.number, BREAKUP_COLS);
+    bnr.getCell(1).font = { name: FONT_NAME, bold: true, size: FONT_SIZE, color: { argb: C.black } };
+    bnr.getCell(1).fill = fill(C.sectionBanner);
+    bnr.getCell(1).alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    for (let c = 1; c <= BREAKUP_COLS; c++) { bnr.getCell(c).fill = fill(C.sectionBanner); bnr.getCell(c).border = thinBorder(); }
+    bnr.height = 18;
+
+    let sno = 1;
+    const firstRow = bnr.number + 1;
+    for (const comp of b.components) {
+      const r = ws.addRow([sno++, comp.label, comp.spec ?? "", comp.qty, comp.unitCost, null]);
+      const rn = r.number;
+      r.getCell(6).value = { formula: `D${rn}*E${rn}` };
+      r.eachCell({ includeEmpty: true }, (cell, col) => {
+        cell.border = thinBorder();
+        cell.font = { name: FONT_NAME, size: FONT_SIZE };
+        cell.fill = fill(C.dataRow);
+        if (col === 1 || col === 4) cell.alignment = { horizontal: "center", vertical: "middle" };
+        else if (col === 2 || col === 3) cell.alignment = { vertical: "middle", wrapText: true };
+        else cell.alignment = { horizontal: "right", vertical: "middle" };
+        if (col === 5 || col === 6) cell.numFmt = NUMFMT.currency;
+      });
+      r.height = 22;
+    }
+
+    // Sub-total row = SUM of amounts. Flag when it doesn't reconcile to the
+    // aggregate unit cost carried on the Budget sheet.
+    const lastRow = ws.lastRow!.number;
+    const componentSum = b.components.reduce((s, c) => s + c.qty * c.unitCost, 0);
+    const reconciles = Math.round(componentSum) === Math.round(b.unitCost);
+    const sub = ws.addRow([
+      "", "Sub-total", reconciles ? "" : `⚠ ≠ Budget unit cost ₹${Math.round(b.unitCost).toLocaleString("en-IN")}`,
+      "", "", b.components.length ? { formula: `SUM(F${firstRow}:F${lastRow})` } : 0,
+    ]);
+    sub.eachCell({ includeEmpty: true }, (cell, col) => {
+      cell.border = thinBorder();
+      cell.font = { name: FONT_NAME, bold: true, size: FONT_SIZE };
+      cell.fill = fill(reconciles ? C.subtotal : C.grandtotal);
+      if (col === 3) { cell.alignment = { vertical: "middle", wrapText: true }; cell.font = { name: FONT_NAME, bold: true, size: FONT_SIZE, color: { argb: reconciles ? C.black : C.white } }; }
+      else cell.alignment = { horizontal: col === 6 ? "right" : "left", vertical: "middle" };
+      if (col === 6) cell.numFmt = NUMFMT.currency;
+    });
+    sub.height = 22;
+    ws.addRow([]); // spacer between blocks
+  }
+
+  ws.views = [{ state: "frozen", xSplit: 0, ySplit: 2, topLeftCell: "A3" }];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1248,6 +1357,11 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
   // Step 4: build Working with the structured component layout.
   buildWorkingSheet(wb, workingPlan);
 
+  // Step 4a: Cost Breakup sheet — expand any aggregate items with components.
+  if (budget.costBreakups && budget.costBreakups.length > 0) {
+    buildCostBreakupSheet(wb, budget.costBreakups);
+  }
+
   // Step 4b: per-delivery-partner summary sheets (multi-partner budgets).
   buildPartnerSheets(wb, budget);
 
@@ -1267,7 +1381,7 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
   }
 
   // Reorder sheets to: 01.Instructions, 02.Summary, 03.Budget, 04.Working, then per-domain
-  const desiredOrder = ["01.Instructions", "02.Summary", "03.Budget", "04.Working"];
+  const desiredOrder = ["01.Instructions", "02.Summary", "03.Budget", "04.Working", "05.Cost Breakup"];
   const knownOrder: Record<string, number> = {};
   desiredOrder.forEach((n, i) => { knownOrder[n] = i; });
   const orderedSheets = [...wb.worksheets].sort((a, b) => {
