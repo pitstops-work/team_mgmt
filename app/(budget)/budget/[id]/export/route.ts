@@ -96,7 +96,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       parentItemKey: parentKey,
       parentLabel: l.description,
       unitType: l.unitType,
-      unitCost: registryByKey.get(parentKey)?.unitCost ?? l.y1UnitCost,
+      // Reconcile the standard bill against THIS budget's actual unit cost, so
+      // the sheet flags when a line was customised / predates the current
+      // standard. Fall back to the registry value only when the line has none.
+      unitCost: l.y1UnitCost > 0 ? l.y1UnitCost : (registryByKey.get(parentKey)?.unitCost ?? 0),
       components: comps.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })),
     });
   }
