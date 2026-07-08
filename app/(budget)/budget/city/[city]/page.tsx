@@ -74,7 +74,7 @@ export default async function CityBudgetsPage({ params }: { params: Promise<{ ci
                       ))}
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-right shrink-0 pr-14">
                     <div className="text-sm font-semibold text-stone-900">{fmt(y1)}<span className="text-stone-400 font-normal">/yr</span></div>
                     {b.years === 3 && <div className="text-xs text-stone-400">{fmt(y3)} total (3yr)</div>}
                   </div>
