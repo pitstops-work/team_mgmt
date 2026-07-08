@@ -1,4 +1,4 @@
-const CACHE = "pitstop-v2";
+const CACHE = "pitstop-v3";
 const PRECACHE = ["/", "/home", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -37,7 +37,22 @@ self.addEventListener("fetch", (event) => {
         }
         return res;
       })
-      .catch(() => caches.match(event.request))
+      .catch(async () => {
+        // Never resolve respondWith to undefined — caches.match() returns
+        // undefined on a miss, which throws "Failed to convert value to
+        // 'Response'". Fall back to the cache, then the app shell for
+        // navigations, then a real network-error Response.
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === "navigate") {
+          return (
+            (await caches.match("/home")) ??
+            (await caches.match("/")) ??
+            Response.error()
+          );
+        }
+        return Response.error();
+      })
   );
 });
 
