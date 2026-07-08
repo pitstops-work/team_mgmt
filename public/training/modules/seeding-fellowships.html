@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<!-- HAND_AUTHORED: seeding fellowships internal deck -->
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Seeding Fellowships — The Programme & the Phase 1 Plan</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:44px 60px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:4px 12px;border-radius:8px}
+#nav a:hover{color:#fff;background:rgba(255,255,255,.12)}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#38bdf8,#a855f7,#f472b6);transition:width .3s;z-index:100}
+#index-btn{position:fixed;top:16px;right:20px;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);color:#94a3b8;padding:6px 14px;border-radius:50px;font-size:12px;cursor:pointer;text-decoration:none;transition:all .18s}
+#index-btn:hover{background:rgba(255,255,255,.14);color:#fff}
+
+/* Palettes */
+.bg-navy{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+.bg-plum{background:linear-gradient(135deg,#170a1f 0%,#4a1d5b 100%)}
+.bg-ocean{background:linear-gradient(135deg,#020617 0%,#0e2a4a 100%)}
+
+/* Type */
+h1.hero{font-size:56px;font-weight:800;line-height:1.05;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.15}
+h3.sub{font-size:17px;font-weight:400;color:#94a3b8;margin-bottom:20px}
+.label{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85;margin-bottom:10px}
+p.body{font-size:15px;line-height:1.65;color:#cbd5e1}
+p.body.lg{font-size:17px}
+.small{font-size:12px;color:#94a3b8;line-height:1.55}
+.mut{color:#94a3b8}
+.mono{font-family:'SF Mono','Menlo',Consolas,monospace;font-size:11px;letter-spacing:0.4px}
+
+/* Stats */
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:14px 20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:110px}
+.stat-pill .num{font-size:28px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px;text-align:center}
+
+/* Cards */
+.card-grid{display:grid;gap:14px}
+.card-3{grid-template-columns:repeat(3,1fr)}
+.card-4{grid-template-columns:repeat(4,1fr)}
+.card-2{grid-template-columns:repeat(2,1fr)}
+.data-card{padding:18px 20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);border-radius:14px}
+.data-card .h{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.data-card .t{font-size:16px;font-weight:700;color:#fff;line-height:1.25;margin-bottom:6px}
+.data-card p{font-size:13px;color:#cbd5e1;line-height:1.5}
+.data-card .big{font-size:32px;font-weight:800;color:#fff;line-height:1;margin-bottom:6px}
+
+/* Notes */
+.hard-rule{padding:16px 20px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-left:4px solid #ef4444;border-radius:10px}
+.hard-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fca5a5;margin-bottom:6px}
+.hard-rule p{font-size:14px;color:#fecaca;line-height:1.55}
+.soft-rule{padding:16px 20px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-left:4px solid #38bdf8;border-radius:10px}
+.soft-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#7dd3fc;margin-bottom:6px}
+.soft-rule p{font-size:14px;color:#bae6fd;line-height:1.55}
+.warm-rule{padding:16px 20px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-left:4px solid #fbbf24;border-radius:10px}
+.warm-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fde68a;margin-bottom:6px}
+.warm-rule p{font-size:14px;color:#fde68a;line-height:1.55}
+.good-rule{padding:16px 20px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-left:4px solid #34d399;border-radius:10px}
+.good-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6ee7b7;margin-bottom:6px}
+.good-rule p{font-size:14px;color:#bbf7d0;line-height:1.55}
+
+.split-2{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start}
+.split-2.narrow-l{grid-template-columns:1fr 1.4fr}
+.split-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
+
+/* Bullets */
+.checks{list-style:none;padding:0;margin:10px 0}
+.checks li{padding:6px 0 6px 26px;position:relative;font-size:14px;color:#e2e8f0;line-height:1.55}
+.checks li::before{content:'▸';position:absolute;left:0;top:6px;color:#a78bfa;font-size:12px;font-weight:700}
+.checks.done li::before{content:'✓';color:#34d399}
+
+/* THE GAP visual (3 pillars converging) */
+.gap-viz{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:center;margin:20px 0}
+.gap-pillar{padding:22px 20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);border-radius:14px;text-align:center}
+.gap-pillar .icon{font-size:38px;margin-bottom:10px}
+.gap-pillar .n{font-size:11px;font-weight:700;color:#a78bfa;letter-spacing:2px;margin-bottom:6px}
+.gap-pillar .t{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px;line-height:1.2}
+.gap-pillar .d{font-size:12px;color:#cbd5e1;line-height:1.4}
+.gap-x{font-size:28px;color:#f472b6;font-weight:800;font-family:'SF Mono',monospace}
+
+/* Two-track fork */
+.fork{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:16px 0}
+.fork-col{padding:22px 24px;border-radius:16px;position:relative}
+.fork-col.presc{background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.28)}
+.fork-col.open{background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.32)}
+.fork-col .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:10px}
+.fork-col.presc .badge{background:rgba(52,211,153,.15);color:#6ee7b7}
+.fork-col.open .badge{background:rgba(168,85,247,.15);color:#d8b4fe}
+.fork-col h4{font-size:20px;font-weight:800;color:#fff;margin-bottom:4px;line-height:1.15}
+.fork-col .tag{font-size:12px;color:#94a3b8;margin-bottom:14px}
+.fork-col ul{list-style:none;padding:0}
+.fork-col ul li{padding:5px 0 5px 18px;font-size:13px;color:#e2e8f0;position:relative;line-height:1.5}
+.fork-col.presc ul li::before{content:'●';position:absolute;left:0;color:#34d399;font-size:10px;top:8px}
+.fork-col.open ul li::before{content:'●';position:absolute;left:0;color:#a855f7;font-size:10px;top:8px}
+
+/* Journey timeline (horizontal arc) */
+.journey{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:16px 0 8px;position:relative}
+.journey::before{content:'';position:absolute;top:56px;left:5%;right:5%;height:2px;background:linear-gradient(90deg,#7dd3fc,#a78bfa,#f472b6);z-index:0}
+.jstep{position:relative;z-index:1;padding:14px 12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:12px;text-align:center;min-height:170px;display:flex;flex-direction:column}
+.jstep .num{width:36px;height:36px;border-radius:50%;background:#0f172a;border:2px solid #a78bfa;color:#a78bfa;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+.jstep .dur{font-size:10px;font-weight:700;letter-spacing:1.5px;color:#7dd3fc;text-transform:uppercase;margin-bottom:4px}
+.jstep .tt{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;line-height:1.15}
+.jstep .desc{font-size:11px;color:#94a3b8;line-height:1.4;flex:1}
+.jstep .gate{font-size:10px;color:#fda4af;margin-top:6px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.08)}
+
+/* Funnel */
+.funnel{display:flex;flex-direction:column;gap:10px;margin:14px 0;align-items:center}
+.frow{width:100%;display:grid;grid-template-columns:100px 1fr 100px;align-items:center;gap:14px}
+.frow .fnum{text-align:right;font-size:24px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums}
+.frow .fbar{background:linear-gradient(90deg,rgba(167,139,250,.85),rgba(56,189,248,.85));height:34px;border-radius:8px;display:flex;align-items:center;padding:0 12px;color:#fff;font-weight:700;font-size:12px}
+.frow.lg .fbar{background:linear-gradient(90deg,#7dd3fc,#a78bfa);height:44px}
+.frow .fdesc{font-size:11px;color:#94a3b8;line-height:1.3}
+
+/* Cohort matrix */
+.cohort{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:12px}
+.geo-card{padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px}
+.geo-card .name{font-size:13px;font-weight:800;color:#fff;letter-spacing:-.2px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.geo-card .pill{background:rgba(56,189,248,.15);color:#7dd3fc;padding:2px 8px;font-size:10px;font-weight:700;border-radius:10px}
+.geo-card table{width:100%;border-collapse:collapse;margin-top:6px}
+.geo-card table th{font-size:9px;color:#64748b;text-align:left;font-weight:700;letter-spacing:1px;padding:4px 3px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.06)}
+.geo-card table td{font-size:11px;color:#e2e8f0;padding:4px 3px;border-bottom:1px solid rgba(255,255,255,.04)}
+.geo-card table td .pn{color:#6ee7b7;font-weight:700}
+.geo-card table td .on{color:#d8b4fe;font-weight:700}
+.geo-card table tr.total td{padding-top:6px;font-weight:800;color:#fff;border-top:1px solid rgba(255,255,255,.14);border-bottom:none}
+
+/* Workplan Gantt-like */
+.gantt{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px 16px}
+.gantt-head{display:grid;grid-template-columns:170px repeat(16,1fr);gap:1px;font-size:9px;color:#64748b;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.08);letter-spacing:.8px;font-weight:700}
+.gantt-row{display:grid;grid-template-columns:170px repeat(16,1fr);gap:1px;padding:6px 0;align-items:center;position:relative;border-bottom:1px solid rgba(255,255,255,.04)}
+.gantt-row .lbl{font-size:11px;color:#e2e8f0;font-weight:600;padding-right:10px}
+.gantt-row .cell{height:14px;background:transparent;border-radius:3px}
+.gantt-row .cell.a{background:linear-gradient(90deg,#38bdf8,#0284c7)}
+.gantt-row .cell.b{background:linear-gradient(90deg,#a855f7,#7e22ce)}
+.gantt-row .cell.c{background:linear-gradient(90deg,#f472b6,#db2777)}
+.gantt-row .cell.d{background:linear-gradient(90deg,#34d399,#059669)}
+.gantt-row .cell.e{background:linear-gradient(90deg,#fbbf24,#d97706)}
+.gantt-row .cell.g{background:linear-gradient(90deg,#ef4444,#b91c1c)}
+.gantt-launch{position:absolute;top:-6px;bottom:-6px;left:calc((100% - 170px) * (14/16) + 170px);width:2px;background:#ef4444}
+.gantt-key{display:flex;gap:14px;margin-top:12px;font-size:10px;color:#94a3b8;flex-wrap:wrap}
+.gantt-key span{display:inline-flex;align-items:center;gap:5px}
+.gantt-key i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* Task list (workstream detail) */
+.tasklist{margin-top:12px}
+.tasklist .trow{display:grid;grid-template-columns:32px 1fr 90px 100px;gap:12px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;align-items:center;color:#cbd5e1;line-height:1.4}
+.tasklist .trow:hover{background:rgba(255,255,255,.03)}
+.tasklist .trow .tid{font-family:'SF Mono',monospace;font-size:10px;color:#64748b;font-weight:700}
+.tasklist .trow .tt{color:#e2e8f0}
+.tasklist .trow .tt b{color:#fff}
+.tasklist .trow .tw{font-family:'SF Mono',monospace;font-size:10px;color:#7dd3fc;text-align:right;font-weight:700}
+.tasklist .trow .own{font-size:10px;color:#94a3b8;text-align:right}
+.tasklist .thead{display:grid;grid-template-columns:32px 1fr 90px 100px;gap:12px;padding:6px 12px;font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;border-bottom:1px solid rgba(255,255,255,.1)}
+
+/* Interaction cadence matrix */
+.matrix{display:grid;grid-template-columns:1fr;gap:6px;margin-top:12px}
+.mrow{display:grid;grid-template-columns:220px 1fr 1fr 120px;gap:12px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;align-items:center;font-size:12px}
+.mrow.mhead{background:rgba(255,255,255,.06);font-size:10px;color:#94a3b8;letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
+.mrow .m1{font-weight:700;color:#fff}
+.mrow .m2, .mrow .m3{color:#cbd5e1;line-height:1.4}
+.mrow .m4{font-size:10px;color:#7dd3fc;text-align:right;font-weight:600}
+
+/* Post-launch mini timeline */
+.arc{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:16px}
+.arc-step{padding:14px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px}
+.arc-step .dt{font-size:10px;font-weight:700;color:#f472b6;letter-spacing:1.2px;margin-bottom:4px}
+.arc-step .ph{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;line-height:1.2}
+.arc-step .txt{font-size:11px;color:#cbd5e1;line-height:1.4}
+
+/* TOC card grid */
+.toc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:8px}
+.toc-tile{padding:16px 18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;text-decoration:none;color:inherit;transition:all .18s;cursor:pointer}
+.toc-tile:hover{background:rgba(255,255,255,.08);border-color:rgba(167,139,250,.4);transform:translateY(-2px)}
+.toc-tile .n{font-size:22px;font-weight:800;color:#a78bfa;line-height:1}
+.toc-tile .t{font-size:13px;font-weight:700;color:#fff;margin-top:6px;line-height:1.25}
+.toc-tile .s{font-size:11px;color:#94a3b8;margin-top:3px;line-height:1.35}
+
+/* Kbd */
+.kbd{display:inline-block;padding:1px 6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:4px;font-size:11px;font-family:'SF Mono',Consolas,monospace;color:#e2e8f0}
+
+/* Numbered flow (like RP essentials) */
+.flow{display:flex;gap:12px;align-items:stretch;margin-top:16px;flex-wrap:wrap}
+.flow-step{flex:1;min-width:150px;padding:14px 16px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:12px}
+.flow-step .n{font-size:11px;font-weight:700;color:#7dd3fc;letter-spacing:1.5px;margin-bottom:6px}
+.flow-step .t{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+.flow-step .d{font-size:12px;color:#cbd5e1;line-height:1.4}
+
+/* Institution pill grid */
+.inst-grid{display:grid;grid-template-columns:180px 1fr;gap:12px;margin-top:12px;font-size:12px}
+.inst-grid .geo-lbl{font-weight:700;color:#a78bfa;padding:6px 0}
+.inst-grid .inst-list{color:#cbd5e1;line-height:1.5;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.inst-grid .inst-list b{color:#fff;font-weight:600}
+
+@media (max-width:900px){
+  .slide{padding:28px 20px}
+  h1.hero{font-size:34px}
+  h2.title{font-size:24px}
+  .split-2,.split-2.narrow-l,.split-3,.card-3,.card-4,.card-2,.cohort,.gap-viz,.journey,.arc,.fork,.toc-grid{grid-template-columns:1fr}
+  .gantt{overflow-x:auto}
+  .gantt-head,.gantt-row{min-width:640px}
+}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.06s}
+.slide.active>*:nth-child(3){animation-delay:.12s}
+.slide.active>*:nth-child(4){animation-delay:.18s}
+.slide.active>*:nth-child(5){animation-delay:.24s}
+.slide.active>*:nth-child(6){animation-delay:.30s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<a id="index-btn" href="#s2">☰ Index</a>
+<div class="deck">
+
+<!-- 1 · Title -->
+<div class="slide bg-plum active" id="s1">
+  <div style="margin:auto;max-width:1080px;text-align:center">
+    <div style="font-size:72px;margin-bottom:14px">🌱</div>
+    <div class="label" style="color:#f472b6">Foundation programme · Phase 1</div>
+    <h1 class="hero" style="margin-bottom:16px">Seeding Fellowships<br/><span style="background:linear-gradient(135deg,#f472b6,#a78bfa,#7dd3fc);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">& Seed Grants</span></h1>
+    <p class="body lg" style="max-width:820px;margin:0 auto 26px;color:#e2e8f0">Take capable young development professionals from <i>potential founder</i> to a <i>registered, functioning organisation</i> in the geographies and themes that need them most. This is the programme, and the plan to launch its Phase 1 call in October 2026.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:24px">
+      <div class="stat-pill"><span class="num">100</span><span class="lbl">fellows targeted</span></div>
+      <div class="stat-pill"><span class="num">4</span><span class="lbl">geographies</span></div>
+      <div class="stat-pill"><span class="num">8mo + 2yr</span><span class="lbl">fellowship + seed grant</span></div>
+      <div class="stat-pill"><span class="num">Oct '26</span><span class="lbl">call goes live</span></div>
+      <div class="stat-pill"><span class="num">₹20L pa</span><span class="lbl">seed grant per fellow</span></div>
+    </div>
+    <p class="small" style="max-width:640px;margin:0 auto;font-style:italic">Bangalore Urban · Eastern UP · Odisha · North-East India. Scaling to 500 fellows p.a. across 10 geographies by 2028.</p>
+  </div>
+</div>
+
+<!-- 2 · Index / TOC -->
+<div class="slide bg-navy" id="s2">
+  <div class="label" style="color:#a78bfa">Deck contents · click any tile</div>
+  <h2 class="title">A programme, a plan, a workbook — in one deck.</h2>
+  <h3 class="sub">Three parts: the programme (why + what + tracks), the Phase 1 numbers (100 fellows across 4 geos, the funnel), and the 77-task workplan that gets us to launch.</h3>
+  <div class="toc-grid">
+    <a class="toc-tile" onclick="go(2)"><div class="n">01</div><div class="t">The gap we're addressing</div><div class="s">Why this programme, why now</div></a>
+    <a class="toc-tile" onclick="go(3)"><div class="n">02</div><div class="t">The offer to fellows</div><div class="s">Who, duration, stipend, seed grant</div></a>
+    <a class="toc-tile" onclick="go(4)"><div class="n">03</div><div class="t">Two tracks — Prescriptive & Open</div><div class="s">The fork in the design</div></a>
+    <a class="toc-tile" onclick="go(5)"><div class="n">04</div><div class="t">The fellow's journey</div><div class="s">Six phases, gated at each</div></a>
+    <a class="toc-tile" onclick="go(6)"><div class="n">05</div><div class="t">Central vs Geography</div><div class="s">Who does what across launch and after</div></a>
+    <a class="toc-tile" onclick="go(7)"><div class="n">06</div><div class="t">Phase 1 geographies</div><div class="s">Teams, targets, tracks by geo</div></a>
+    <a class="toc-tile" onclick="go(8)"><div class="n">07</div><div class="t">Cohort plans — all 4 geos</div><div class="s">Theme × sub-geo × seats</div></a>
+    <a class="toc-tile" onclick="go(9)"><div class="n">08</div><div class="t">Sourcing channels & institutions</div><div class="s">Regional + national anchors</div></a>
+    <a class="toc-tile" onclick="go(10)"><div class="n">09</div><div class="t">The application funnel</div><div class="s">175K reach → 100 fellows</div></a>
+    <a class="toc-tile" onclick="go(11)"><div class="n">10</div><div class="t">Two-stage funnel model</div><div class="s">Pre-launch leads → post-launch apps</div></a>
+    <a class="toc-tile" onclick="go(12)"><div class="n">11</div><div class="t">The workplan · 77 tasks, 5 streams</div><div class="s">A · B · C · D · E + Launch Gate</div></a>
+    <a class="toc-tile" onclick="go(13)"><div class="n">12</div><div class="t">Weekly rhythm · W0 → W30</div><div class="s">Timeline overview (Gantt)</div></a>
+    <a class="toc-tile" onclick="go(14)"><div class="n">13</div><div class="t">A · Team & Geo Readiness</div><div class="s">13 tasks · hiring is the critical path</div></a>
+    <a class="toc-tile" onclick="go(15)"><div class="n">14</div><div class="t">B · Theme & Sub-Geo Definition</div><div class="s">8 tasks · the demand list</div></a>
+    <a class="toc-tile" onclick="go(16)"><div class="n">15</div><div class="t">C · Outreach & Funnel</div><div class="s">20 tasks · ground + digital</div></a>
+    <a class="toc-tile" onclick="go(17)"><div class="n">16</div><div class="t">D · Portal & Selection</div><div class="s">12 tasks · rolling screening</div></a>
+    <a class="toc-tile" onclick="go(18)"><div class="n">17</div><div class="t">E · Post-Selection Design</div><div class="s">19 tasks · built before fellows arrive</div></a>
+    <a class="toc-tile" onclick="go(19)"><div class="n">18</div><div class="t">Launch Gate & the go-live day</div><div class="s">4 tasks · change-freeze then blast</div></a>
+    <a class="toc-tile" onclick="go(20)"><div class="n">19</div><div class="t">Post-launch fellowship execution</div><div class="s">Rolling selection → seed grant → 2029</div></a>
+    <a class="toc-tile" onclick="go(21)"><div class="n">20</div><div class="t">Partner–SPOC interface</div><div class="s">Informal by design · no MoU</div></a>
+    <a class="toc-tile" onclick="go(22)"><div class="n">21</div><div class="t">Roles, hires & critical path</div><div class="s">Who's already in, who to hire</div></a>
+    <a class="toc-tile" onclick="go(23)"><div class="n">22</div><div class="t">The full arc · 2026 → 2029</div><div class="s">One glance from now to seed-grant close</div></a>
+    <a class="toc-tile" onclick="go(24)"><div class="n">23</div><div class="t">What we need from you</div><div class="s">If you hold a geo · for everyone</div></a>
+  </div>
+  <p class="small" style="margin-top:16px;text-align:center;font-style:italic">Use ← → arrow keys, or the counter below. The ☰ Index button top-right returns you here from any slide.</p>
+</div>
+
+<!-- 3 · The gap -->
+<div class="slide bg-rose" id="s3">
+  <div class="label" style="color:#fb7185">Why this programme</div>
+  <h2 class="title">Three things exist. They rarely meet.</h2>
+  <h3 class="sub">Civil society needs young, capable, committed people willing to build in under-served geographies. The problem is a coordination failure, not a talent shortage.</h3>
+
+  <div class="gap-viz">
+    <div class="gap-pillar">
+      <div class="icon">🎯</div>
+      <div class="n">WHAT</div>
+      <div class="t">Needs to be done</div>
+      <div class="d">Clear priority themes: livelihoods, health, children, crèches, sanitation, welfare rights.</div>
+    </div>
+    <div class="gap-x">✕</div>
+    <div class="gap-pillar">
+      <div class="icon">🧑‍🎓</div>
+      <div class="n">WHO</div>
+      <div class="t">Can do it</div>
+      <div class="d">~70% of India under 40. Trained social-work / development graduates. Alumni looking for mission.</div>
+    </div>
+    <div class="gap-x">✕</div>
+    <div class="gap-pillar">
+      <div class="icon">📍</div>
+      <div class="n">WHERE</div>
+      <div class="t">It's most needed</div>
+      <div class="d">Under-served geographies with little civil-society presence — Eastern UP, Odisha tribal belt, NE India.</div>
+    </div>
+  </div>
+
+  <div class="warm-rule" style="margin-top:14px">
+    <div class="head">The bridge</div>
+    <p><b>Seeding Fellowships</b> takes capable young professionals, gives them an 8-month runway to become a founder, then a 2-year seed grant to build. The geographies get lasting civil-society presence; the founders get a real launchpad; the Foundation's expansion plans get talent aligned to its priorities.</p>
+  </div>
+  <div class="split-3" style="margin-top:14px">
+    <div class="data-card"><div class="h" style="color:#7dd3fc">OBJECTIVE 1</div><p><b style="color:#fff">Support young professionals</b> to set up and run their own organisations.</p></div>
+    <div class="data-card"><div class="h" style="color:#d8b4fe">OBJECTIVE 2</div><p><b style="color:#fff">Increase civil-society presence</b> in under-served geographies, working with vulnerable populations.</p></div>
+    <div class="data-card"><div class="h" style="color:#f9a8d4">OBJECTIVE 3</div><p><b style="color:#fff">Feed the Foundation's expansion</b> in focus geographies and thematic areas.</p></div>
+  </div>
+</div>
+
+<!-- 4 · The offer -->
+<div class="slide bg-emerald" id="s4">
+  <div class="label" style="color:#6ee7b7">The offer to fellows</div>
+  <h2 class="title">₹45k/mo for 8 months, then ₹20L pa for 2 years to build.</h2>
+  <h3 class="sub">The fellowship is the runway. The seed grant is the vehicle. Setting up the organisation is non-negotiable.</h3>
+
+  <div class="card-grid card-3" style="margin-top:8px">
+    <div class="data-card" style="background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.28)">
+      <div class="h" style="color:#6ee7b7">WHO CAN APPLY</div>
+      <div class="t">Under 40, on-field, ready to move</div>
+      <p>Under-40 &middot; <b>4+ years on-field experience</b> &middot; based in or willing to <b>fully relocate</b> to the geography &middot; individuals <b>or</b> groups of up to 3.</p>
+    </div>
+    <div class="data-card" style="background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.28)">
+      <div class="h" style="color:#7dd3fc">FELLOWSHIP · 8 MONTHS</div>
+      <div class="big">₹45,000/mo</div>
+      <p>Stipend for 8 months. Residential orientation, guided exposure, monthly training on finance, compliance, governance, org set-up.</p>
+    </div>
+    <div class="data-card" style="background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.32)">
+      <div class="h" style="color:#d8b4fe">SEED GRANT · 2 YEARS</div>
+      <div class="big">₹20L pa</div>
+      <p>Or as per our cost templates for the specific programme. Founder stipend <b>continues at ₹45k/mo</b>. Awarded only on satisfactory completion of fellowship milestones.</p>
+    </div>
+  </div>
+
+  <div class="split-2" style="margin-top:14px">
+    <div class="hard-rule">
+      <div class="head">The point (non-negotiable)</div>
+      <p>Setting up the organisation is the point. The fellowship exists to take someone from <b>potential founder</b> to <b>registered, functioning organisation</b>. Fellows must take that path.</p>
+    </div>
+    <div class="soft-rule">
+      <div class="head">The deal, said clearly upfront</div>
+      <p>Gated: each phase has milestones to proceed. Seed grant releases <b>only</b> after registration + compliance. Continuation across the 2 years is <b>performance-based</b>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 5 · Two tracks -->
+<div class="slide bg-indigo" id="s5">
+  <div class="label" style="color:#a5b4fc">The design fork</div>
+  <h2 class="title">Two tracks. Same offer, different degree of prescription.</h2>
+  <h3 class="sub">How prescriptive we are, how much freedom the fellow gets, how closely we monitor after the seed grant is awarded — all vary by track.</h3>
+
+  <div class="fork">
+    <div class="fork-col presc">
+      <span class="badge">TRACK 1 · PRESCRIPTIVE</span>
+      <h4>Scale our existing work</h4>
+      <div class="tag">Fellow scales what's already proven — to our guidelines.</div>
+      <ul>
+        <li><b>Specific brief</b>: e.g. set up 10 crèches in a defined Bangalore cluster, to our guidelines, budget and resourcing structure.</li>
+        <li><b>Limited seats</b> — clearly stated per cluster / programme.</li>
+        <li>We have <b>guidelines, training capacity and existing programme frames</b>.</li>
+        <li>Closer monitoring, aligned to the programme's review cadence.</li>
+        <li>Works where our operational teams are on the ground.</li>
+        <li>Learning postings with existing partners in that domain.</li>
+      </ul>
+    </div>
+    <div class="fork-col open">
+      <span class="badge">TRACK 2 · OPEN</span>
+      <h4>Seed new organisations</h4>
+      <div class="tag">Fellow works up their own programme plan.</div>
+      <ul>
+        <li><b>High design freedom</b>: fellow shapes their own programme with our exposure and guidance.</li>
+        <li><b>Broader intake</b> within the focused geographies.</li>
+        <li>For themes where <b>need is clear but no implementation protocol exists</b>.</li>
+        <li>Lighter, outcome- and milestone-oriented monitoring post-grant.</li>
+        <li>Example: forest rights for Chenchu communities, community sanitation where no protocol exists.</li>
+        <li>Fellow plans their own exposure + partner interactions.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="soft-rule" style="margin-top:14px">
+    <div class="head">Common across both tracks</div>
+    <p>Compliance and org-setup support (registration, 12A/80G, statutory) &middot; residential orientation &middot; capacity-building trainings &middot; foundation-panel proposal review &middot; seed grant on satisfactory completion &middot; quarterly residentials during the 2-year seed grant.</p>
+  </div>
+</div>
+
+<!-- 6 · Fellow's journey -->
+<div class="slide bg-slate" id="s6">
+  <div class="label" style="color:#a78bfa">The fellow's journey · 8mo + 2yr</div>
+  <h2 class="title">Six phases. A milestone gate at every one.</h2>
+  <h3 class="sub">Fellows enter as potential founders and exit as registered organisations with seed capital. Every step forward requires clearing a gate.</h3>
+
+  <div class="journey">
+    <div class="jstep">
+      <div class="num">0</div>
+      <div class="dur">3 mo · pre</div>
+      <div class="tt">Pre-fellowship</div>
+      <div class="desc">Demand generation, outreach, call for applications, screening + selection (fast-track CV alumni), onboarding.</div>
+      <div class="gate">GATE: 25/geo selected</div>
+    </div>
+    <div class="jstep">
+      <div class="num">1</div>
+      <div class="dur">1 mo · stipend starts</div>
+      <div class="tt">Orientation</div>
+      <div class="desc">One-month residential. Counselling. Learning-visit hosts + posting contexts confirmed. Coordinator (~12 fellows) assigned.</div>
+      <div class="gate">GATE: learning plans agreed</div>
+    </div>
+    <div class="jstep">
+      <div class="num">2</div>
+      <div class="dur">3 mo</div>
+      <div class="tt">Learning</div>
+      <div class="desc">Track 2: postings with partners in the domain. Track 1: self-planned exposure. Monthly online training + monthly in-person reviews.</div>
+      <div class="gate">GATE: monthly reviews held</div>
+    </div>
+    <div class="jstep">
+      <div class="num">3</div>
+      <div class="dur">2 mo · residential</div>
+      <div class="tt">Proposal</div>
+      <div class="desc">Fellow drafts organisation proposal with team guidance. Office space, board members, recruitment plan identified.</div>
+      <div class="gate">GATE: Foundation panel review</div>
+    </div>
+    <div class="jstep">
+      <div class="num">4</div>
+      <div class="dur">2 mo · stipend ends</div>
+      <div class="tt">Registration</div>
+      <div class="desc">External consultant + geography teams support registration and compliance for fellows who met milestones.</div>
+      <div class="gate">GATE: Org registered + 12A provisional</div>
+    </div>
+    <div class="jstep">
+      <div class="num">5</div>
+      <div class="dur">2 years</div>
+      <div class="tt">Seed grant</div>
+      <div class="desc">₹20L pa + ₹45k founder stipend. Quarterly residentials (capacity building, cross-learning, review). Final report per fellow.</div>
+      <div class="gate">GATE: perf-based continuation</div>
+    </div>
+  </div>
+
+  <div class="hard-rule" style="margin-top:16px">
+    <div class="head">The 8 months</div>
+    <p>Phases 1–4 (orientation through registration) make up the 8-month fellowship. Our role across these is <b>to expose, train and gate — not to manage</b>. Fellows own their proposals; we set the guardrails.</p>
+  </div>
+</div>
+
+<!-- 7 · Central vs Geography -->
+<div class="slide bg-sky" id="s7">
+  <div class="label" style="color:#7dd3fc">Who does what</div>
+  <h2 class="title">Central designs the frame. Geographies do the work.</h2>
+  <h3 class="sub">Rollout is geography-based and staggered, gated on completion of needs assessment, demand generation and hiring in each geo.</h3>
+
+  <div class="split-2" style="margin-top:8px">
+    <div class="data-card" style="background:rgba(56,189,248,.06);border-color:rgba(56,189,248,.28)">
+      <div class="h" style="color:#7dd3fc">CENTRAL FUNCTIONS</div>
+      <ul class="checks" style="margin-top:6px">
+        <li>Call for applications + relationship-building with alumni & partner networks</li>
+        <li>Screening rubric + eligibility filters + calibration</li>
+        <li>Training the geography teams on programme logic, dockets, screening</li>
+        <li>Compliance support (via consultant / agency)</li>
+        <li>Applications portal + internal screening view</li>
+        <li>Programme management MIS + guidelines</li>
+        <li>Digital handles, content engine, WhatsApp/Telegram broadcast architecture</li>
+      </ul>
+    </div>
+    <div class="data-card" style="background:rgba(168,85,247,.06);border-color:rgba(168,85,247,.32)">
+      <div class="h" style="color:#d8b4fe">GEOGRAPHY FUNCTIONS</div>
+      <ul class="checks" style="margin-top:6px">
+        <li>Demand generation — themes, sub-geos, seat splits</li>
+        <li>Hiring — Geo Coordinator (~1 per 12 fellows) + outreach support</li>
+        <li>Panel interviews + local selection execution</li>
+        <li>Onboarding + coordinator mapping</li>
+        <li>Day-to-day support to fellows during fellowship + seed-grant years</li>
+        <li>Monthly + quarterly reviews</li>
+        <li>Partner introductions (informal) + ground follow-up in postings</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="soft-rule" style="margin-top:14px">
+    <div class="head">Staggered rollout</div>
+    <p><b>Phase 1</b> (Oct '26): 4 geos, 100 fellows. Bangalore may be fast-tracked to July. <b>Phase 2</b> (Jul '27): scale to 200 fellows p.a. in more geos. <b>Full roll-out</b> (Jul '28): 500 fellows p.a. across 10 focus geographies. Impact at steady state: ~500 new founder-led organisations entering the ecosystem each year.</p>
+  </div>
+</div>
+
+<!-- 8 · Phase 1 geographies -->
+<div class="slide bg-violet" id="s8">
+  <div class="label" style="color:#d8b4fe">Phase 1 · geographies</div>
+  <h2 class="title">Four geographies. Twenty-five fellows each. Named owners in every one.</h2>
+
+  <div class="cohort" style="margin-top:16px">
+    <div class="geo-card">
+      <div class="name">🏙️ Bangalore Urban <span class="pill">20 fellows</span></div>
+      <div class="small" style="color:#94a3b8;margin-top:6px">Point of contact: <b style="color:#fff">Shwetha</b> · Anchor: <b style="color:#fff">Vishnu</b></div>
+      <div class="small" style="margin-top:8px">6 themes · plan being finalised</div>
+      <div style="margin-top:8px;font-size:11px"><b style="color:#6ee7b7">Prescriptive 20</b> · <b style="color:#d8b4fe">Open 0</b></div>
+      <div class="small" style="margin-top:6px">Fast-track: could open July '26. Existing programmes on the ground (crèches, sanitation, welfare rights, food).</div>
+    </div>
+    <div class="geo-card">
+      <div class="name">🏛️ Eastern UP <span class="pill">20 fellows</span></div>
+      <div class="small" style="color:#94a3b8;margin-top:6px">Point of contact: <b style="color:#fff">Akshat</b> · Anchor: <b style="color:#fff">Alok</b></div>
+      <div class="small" style="margin-top:8px">4 themes · 2 sub-geos <b>(Varanasi, Ayodhya)</b></div>
+      <div style="margin-top:8px;font-size:11px"><b style="color:#6ee7b7">Prescriptive 3</b> · <b style="color:#d8b4fe">Open 17</b></div>
+      <div class="small" style="margin-top:6px">New HR: 2 people. Livelihoods-heavy, urban-migrant strand.</div>
+    </div>
+    <div class="geo-card">
+      <div class="name">🌾 Odisha <span class="pill">20 fellows</span></div>
+      <div class="small" style="color:#94a3b8;margin-top:6px">Point of contact: <b style="color:#fff">Jitendra</b> · Anchor: <b style="color:#fff">Rajkishor</b></div>
+      <div class="small" style="margin-top:8px">5 themes · Rayagada, Keonjhar, Sambalpur +</div>
+      <div style="margin-top:8px;font-size:11px"><b style="color:#6ee7b7">Prescriptive 13</b> · <b style="color:#d8b4fe">Open 7</b></div>
+      <div class="small" style="margin-top:6px">New HR: 2 people. Adivasi + Rural Livelihood corridors well-defined.</div>
+    </div>
+    <div class="geo-card">
+      <div class="name">🏔️ North-East India <span class="pill">20 fellows</span></div>
+      <div class="small" style="color:#94a3b8;margin-top:6px">Point of contact: <b style="color:#fff">Kankana</b> · Anchor: <b style="color:#fff">Bijoy</b></div>
+      <div class="small" style="margin-top:8px">4 themes + ATJ · sub-geos being identified</div>
+      <div style="margin-top:8px;font-size:11px"><b style="color:#6ee7b7">Prescriptive 5</b> · <b style="color:#d8b4fe">Open 15</b></div>
+      <div class="small" style="margin-top:6px">New HR: 1 person. Widest theme range; open-track dominant.</div>
+    </div>
+  </div>
+
+  <div class="split-2" style="margin-top:16px">
+    <div class="warm-rule">
+      <div class="head">The 100 target · how the 80 firm + 20 planning split</div>
+      <p>60 fellows across Eastern UP, Odisha and the North-East are <b>cohort-planned</b> at theme × seat granularity. Bangalore Urban's cohort plan is being finalised — the seat-splits shown are indicative.</p>
+    </div>
+    <div class="good-rule">
+      <div class="head">Big number to hold</div>
+      <p>Applications floor to get 100 selections at a <b>1:100 selection ratio = 10,000 applications</b>. That's during the Oct–Nov application window only. Before then, the funnel builds reach and captured leads.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 9 · Cohort plans (the 4 geos, full theme × seat tables) -->
+<div class="slide bg-navy" id="s9">
+  <div class="label" style="color:#a78bfa">Cohort plans · theme × sub-geo × seats</div>
+  <h2 class="title">The demand list — every seat, tagged with track and place.</h2>
+  <h3 class="sub">This is what applicants respond to. The applicant looks at the demand list and chooses: "I want a Prescriptive seat in Crèches in Bangalore" or "I want to do Health work in Varanasi as an Open fellow."</h3>
+
+  <div class="cohort">
+    <!-- Eastern UP -->
+    <div class="geo-card" style="background:rgba(168,85,247,.05);border-color:rgba(168,85,247,.25)">
+      <div class="name">Eastern UP · 20</div>
+      <table>
+        <tr><th>Theme</th><th>Where</th><th style="text-align:right">P</th><th style="text-align:right">O</th></tr>
+        <tr><td>Rural Livelihood</td><td class="mut">Varanasi, Ayodhya</td><td style="text-align:right" class="pn">–</td><td style="text-align:right" class="on">8</td></tr>
+        <tr><td>Health</td><td class="mut">Varanasi</td><td style="text-align:right" class="pn">–</td><td style="text-align:right" class="on">5</td></tr>
+        <tr><td>Urban-Migrant</td><td class="mut">Varanasi, Ayodhya</td><td style="text-align:right" class="pn">3</td><td style="text-align:right" class="on">–</td></tr>
+        <tr><td>Children</td><td class="mut">Varanasi, Ayodhya</td><td style="text-align:right" class="pn">–</td><td style="text-align:right" class="on">4</td></tr>
+        <tr class="total"><td colspan="2">TOTAL</td><td style="text-align:right">3</td><td style="text-align:right">17</td></tr>
+      </table>
+    </div>
+    <!-- Odisha -->
+    <div class="geo-card" style="background:rgba(52,211,153,.05);border-color:rgba(52,211,153,.25)">
+      <div class="name">Odisha · 20</div>
+      <table>
+        <tr><th>Theme</th><th>Where</th><th style="text-align:right">P</th><th style="text-align:right">O</th></tr>
+        <tr><td>Rural Livelihood</td><td class="mut">Rayagada, Keonjhar, Sambalpur</td><td style="text-align:right" class="pn">5</td><td style="text-align:right" class="on">0</td></tr>
+        <tr><td>NYI (Youth)</td><td class="mut">Odisha</td><td style="text-align:right" class="pn">3</td><td style="text-align:right" class="on">3</td></tr>
+        <tr><td>Adivasi</td><td class="mut">Rayagada, Keonjhar, Sambalpur</td><td style="text-align:right" class="pn">5</td><td style="text-align:right" class="on">0</td></tr>
+        <tr><td>Children</td><td class="mut">Odisha</td><td style="text-align:right" class="pn">0</td><td style="text-align:right" class="on">2</td></tr>
+        <tr><td>Health</td><td class="mut">Odisha</td><td style="text-align:right" class="pn">0</td><td style="text-align:right" class="on">2</td></tr>
+        <tr class="total"><td colspan="2">TOTAL</td><td style="text-align:right">13</td><td style="text-align:right">7</td></tr>
+      </table>
+    </div>
+    <!-- North-East -->
+    <div class="geo-card" style="background:rgba(56,189,248,.05);border-color:rgba(56,189,248,.25)">
+      <div class="name">North-East India · 20</div>
+      <table>
+        <tr><th>Theme</th><th>Where</th><th style="text-align:right">P</th><th style="text-align:right">O</th></tr>
+        <tr><td>Rural Livelihoods</td><td class="mut">being identified</td><td style="text-align:right" class="pn">–</td><td style="text-align:right" class="on">6</td></tr>
+        <tr><td>NYI (Youth)</td><td class="mut">being identified</td><td style="text-align:right" class="pn">3</td><td style="text-align:right" class="on">1</td></tr>
+        <tr><td>NYI (AG)</td><td class="mut">being identified</td><td style="text-align:right" class="pn">2</td><td style="text-align:right" class="on">2</td></tr>
+        <tr><td>Health / Mental Health</td><td class="mut">being identified</td><td style="text-align:right" class="pn">–</td><td style="text-align:right" class="on">3</td></tr>
+        <tr><td>ATJ</td><td class="mut">being identified</td><td style="text-align:right" class="pn">–</td><td style="text-align:right" class="on">3</td></tr>
+        <tr class="total"><td colspan="2">TOTAL</td><td style="text-align:right">5</td><td style="text-align:right">15</td></tr>
+      </table>
+    </div>
+    <!-- Bangalore -->
+    <div class="geo-card" style="background:rgba(251,191,36,.05);border-color:rgba(251,191,36,.25)">
+      <div class="name">Bangalore Urban · 20 <span class="pill" style="background:rgba(251,191,36,.15);color:#fde68a">in progress</span></div>
+      <table>
+        <tr><th>Theme</th><th>Where</th><th style="text-align:right">P</th><th style="text-align:right">O</th></tr>
+        <tr><td>Afterschool</td><td class="mut">urban clusters</td><td style="text-align:right" class="pn">6</td><td style="text-align:right" class="on">0</td></tr>
+        <tr><td>Crèches</td><td class="mut">urban clusters</td><td style="text-align:right" class="pn">3</td><td style="text-align:right" class="on">0</td></tr>
+        <tr><td>Community Sanitation</td><td class="mut">urban clusters</td><td style="text-align:right" class="pn">2</td><td style="text-align:right" class="on">0</td></tr>
+        <tr><td>Food Distribution</td><td class="mut">urban clusters</td><td style="text-align:right" class="pn">—</td><td style="text-align:right" class="on">0</td></tr>
+        <tr><td>Welfare Rights</td><td class="mut">urban clusters</td><td style="text-align:right" class="pn">—</td><td style="text-align:right" class="on">0</td></tr>
+        <tr><td>Children</td><td class="mut">urban clusters</td><td style="text-align:right" class="pn">—</td><td style="text-align:right" class="on">0</td></tr>
+        <tr class="total"><td colspan="2">TOTAL</td><td style="text-align:right">20</td><td style="text-align:right">0</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="soft-rule" style="margin-top:14px">
+    <div class="head">P = Prescriptive · O = Open</div>
+    <p>Prescriptive seats attach a guideline + budget + resourcing frame reference. Open seats leave programme design to the fellow. The demand list is the <b>spine of the call</b> — it goes public with the application portal in October.</p>
+  </div>
+</div>
+
+<!-- 10 · Sourcing institutions -->
+<div class="slide bg-teal" id="s10">
+  <div class="label" style="color:#5eead4">Sourcing · channels & institutions</div>
+  <h2 class="title">Where the 175,000 people we reach actually come from.</h2>
+  <h3 class="sub">Digital is weighted <i>equal</i> to ground channels. Institutions matter, but so do CSO networks, high-network referrers, and CV alumni fast-track.</h3>
+
+  <div class="inst-grid">
+    <div class="geo-lbl">🏙️ Bangalore Urban</div>
+    <div class="inst-list"><b>Azim Premji University</b> · <b>Roshni Nilaya SSW</b> · Christ University (SW) · TISS · St. Joseph's University · ISEC ecosystem</div>
+
+    <div class="geo-lbl">🏛️ Eastern UP</div>
+    <div class="inst-list"><b>Banaras Hindu University</b> (SW, Agriculture) · Allahabad University · Kashi Vidyapeeth · A.N.D. Univ Ayodhya · SHUATS · Lucknow University</div>
+
+    <div class="geo-lbl">🌾 Odisha</div>
+    <div class="inst-list"><b>Utkal University</b> (SW) · Berhampur · Fakirmohan · Sambalpur · Maa Manikeswari · Centurion · Xavier Bhubaneswar · KIIT RM · NISWASS · Biju Pattnaik CSW · <b>Central Univ Koraput</b> · APU</div>
+
+    <div class="geo-lbl">🏔️ North-East</div>
+    <div class="inst-list">Assam Univ Silchar · Assam Agri Univ · Dibrugarh · Tezpur · <b>NEHU</b> · MLCU Shillong · Mizoram Univ · Rajiv Gandhi Univ · APU · TISS (all campuses)</div>
+
+    <div class="geo-lbl">🇮🇳 National anchors</div>
+    <div class="inst-list"><b>Azim Premji University</b> (all campuses) · <b>Tata Institute of Social Sciences</b> (all campuses) · Delhi School of Social Work (DU) · College of Social Work – Nirmala Niketan, Mumbai</div>
+  </div>
+
+  <div class="split-3" style="margin-top:16px">
+    <div class="data-card"><div class="h" style="color:#7dd3fc">GROUND</div><p><b style="color:#fff">Institution alumni wings</b>, campus talks, CSO networks, high-network referrers. Local trust converts.</p></div>
+    <div class="data-card"><div class="h" style="color:#d8b4fe">DIASPORA</div><p><b style="color:#fff">National institutes 'go-home' outreach</b>: APU, TISS, DSSW alumni originally from Phase 1 geographies who might return.</p></div>
+    <div class="data-card"><div class="h" style="color:#f9a8d4">DIGITAL</div><p><b style="color:#fff">Owned handles</b> (Instagram, LinkedIn, X, YouTube) + WhatsApp/Telegram broadcast. Reach, not leads until they register.</p></div>
+  </div>
+</div>
+
+<!-- 11 · The funnel -->
+<div class="slide bg-dark" id="s11">
+  <div class="label" style="color:#94a3b8">The application funnel · the floor, not the target</div>
+  <h2 class="title">From 175,000 reached to 100 fellows — a 1,750:1 top-of-funnel.</h2>
+  <h3 class="sub">10,000 applications is what a 1:100 selection ratio for 100 seats <i>requires</i>. To get there, we pre-build 17,500 warm leads. To get those, we reach 175,000 people.</h3>
+
+  <div class="funnel">
+    <div class="frow lg">
+      <div class="fnum">175,000</div>
+      <div class="fbar" style="width:100%">People reached · events, institutions, CSO networks, digital · <b>pre-launch</b></div>
+      <div class="fdesc">10% conversion to lead</div>
+    </div>
+    <div class="frow">
+      <div class="fnum">17,500</div>
+      <div class="fbar" style="width:82%">Leads captured · <i>"notify me when applications open"</i> · warm pool ready to convert at launch</div>
+      <div class="fdesc">40% conversion to app</div>
+    </div>
+    <div class="frow">
+      <div class="fnum">10,000+</div>
+      <div class="fbar" style="width:60%">Applications during the fixed Oct–Nov window · scales to <b>~12,000 with buffer</b></div>
+      <div class="fdesc">1:100 ratio</div>
+    </div>
+    <div class="frow">
+      <div class="fnum" style="color:#f472b6">100</div>
+      <div class="fbar" style="width:16%;background:linear-gradient(90deg,#ec4899,#f472b6)">Fellows selected · 25 per geography · protects quality</div>
+      <div class="fdesc">✓ Phase 1 target</div>
+    </div>
+  </div>
+
+  <div class="split-3" style="margin-top:16px">
+    <div class="warm-rule">
+      <div class="head">Position 1 · leads ≠ applications</div>
+      <p>Applications only exist <b>after</b> the portal opens. Before that we build reach + captured leads. Reach ≠ lead ≠ application — three separate metrics, counted separately.</p>
+    </div>
+    <div class="soft-rule">
+      <div class="head">Position 2 · digital = ground</div>
+      <p>Owned handles + WhatsApp broadcast weighted <b>equally</b> with in-person events. Views and follows are reach; only a form submission is a lead.</p>
+    </div>
+    <div class="good-rule">
+      <div class="head">Position 3 · rolling screening</div>
+      <p>Screening happens in <b>weekly batches inside the window</b>, not after. Selection completes by end-Dec, saving ~6 weeks vs sequential.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 12 · Two-stage funnel model -->
+<div class="slide bg-ocean" id="s12">
+  <div class="label" style="color:#7dd3fc">Two-stage funnel model · per-geo floor</div>
+  <h2 class="title">Each geo owns 43,750 people reached + 4,375 leads. The early-warning signal is the lead pace.</h2>
+
+  <div class="split-2" style="margin-top:8px">
+    <div>
+      <div class="data-card" style="margin-bottom:12px;background:rgba(56,189,248,.05);border-color:rgba(56,189,248,.28)">
+        <div class="h" style="color:#7dd3fc">STAGE 1 · PRE-LAUNCH (now → Sep 28)</div>
+        <p style="margin-top:6px">Build reach and capture leads. This runs <b>now</b>. Digital + ground both count.</p>
+        <table style="width:100%;margin-top:10px;font-size:12px;border-collapse:collapse">
+          <tr style="color:#94a3b8;text-align:left;font-size:10px;letter-spacing:1px"><th style="padding:4px 0">GEO</th><th style="text-align:right">Reach</th><th style="text-align:right">Leads</th></tr>
+          <tr><td style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">Bangalore Urban</td><td style="text-align:right">43,750</td><td style="text-align:right">4,375</td></tr>
+          <tr><td style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">Eastern UP</td><td style="text-align:right">43,750</td><td style="text-align:right">4,375</td></tr>
+          <tr><td style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">Odisha</td><td style="text-align:right">43,750</td><td style="text-align:right">4,375</td></tr>
+          <tr><td style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">North-East</td><td style="text-align:right">43,750</td><td style="text-align:right">4,375</td></tr>
+          <tr style="font-weight:800;color:#fff"><td style="padding:6px 0">TOTAL</td><td style="text-align:right">175,000</td><td style="text-align:right">17,500</td></tr>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="data-card" style="margin-bottom:12px;background:rgba(244,114,182,.06);border-color:rgba(244,114,182,.28)">
+        <div class="h" style="color:#f9a8d4">STAGE 2 · APPLICATION WINDOW (Oct → Nov)</div>
+        <p style="margin-top:6px">Portal opens. Leads convert. Cold reach converts at a lower rate. Rolling screening keeps pace.</p>
+        <table style="width:100%;margin-top:10px;font-size:12px;border-collapse:collapse">
+          <tr style="color:#94a3b8;text-align:left;font-size:10px;letter-spacing:1px"><th style="padding:4px 0">GEO</th><th style="text-align:right">App floor</th><th style="text-align:right">Fellows</th></tr>
+          <tr><td style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">Bangalore Urban</td><td style="text-align:right">2,500</td><td style="text-align:right">20</td></tr>
+          <tr><td style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">Eastern UP</td><td style="text-align:right">2,500</td><td style="text-align:right">20</td></tr>
+          <tr><td style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">Odisha</td><td style="text-align:right">2,500</td><td style="text-align:right">20</td></tr>
+          <tr><td style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">North-East</td><td style="text-align:right">2,500</td><td style="text-align:right">20</td></tr>
+          <tr style="font-weight:800;color:#fff"><td style="padding:6px 0">TOTAL</td><td style="text-align:right">10,000</td><td style="text-align:right">100*</td></tr>
+        </table>
+        <p class="small" style="margin-top:6px;font-style:italic">*80 firm across E-UP/Odisha/NE cohort plan; 20 in Bangalore firming up.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="hard-rule" style="margin-top:6px">
+    <div class="head">The early-warning signal (weeks before an application exists)</div>
+    <p>If <b>any geo's lead capture is under 50% of pace</b> by W10 (Aug 31), Asavari/Vishnu trigger paid + extra channels before launch. Lag in reach → lag in leads → lag in applications. Fix upstream, not downstream.</p>
+  </div>
+
+  <div class="split-3" style="margin-top:12px">
+    <div class="data-card"><div class="h" style="color:#7dd3fc">CONVERSIONS ASSUMED</div><p>Reach → Lead: <b>10%</b><br/>Lead → App: <b>40%</b><br/>Cold Reach → App: <b>2%</b><br/>Share of apps from warm leads: <b>70%</b></p></div>
+    <div class="data-card"><div class="h" style="color:#d8b4fe">RECOMPUTED WEEKLY</div><p>Blue/amber cells in the tracker drive every target below. As real conversion data arrives, the reach + lead floors recompute.</p></div>
+    <div class="data-card"><div class="h" style="color:#f9a8d4">BUFFER · 20%</div><p>Plan to over-recruit: <b>12,000 apps</b>. Protects selection quality when strong candidates drop out mid-process.</p></div>
+  </div>
+</div>
+
+<!-- 13 · Workplan overview -->
+<div class="slide bg-plum" id="s13">
+  <div class="label" style="color:#f472b6">The workplan · 77 tasks, 5 workstreams, one launch</div>
+  <h2 class="title">From standing start to live call — 14 working weeks.</h2>
+  <h3 class="sub">Every row in the tracker has an accountable owner, a start week, a due week, dependencies, and a "done = metric" definition. Workstreams run in parallel; dependencies are marked in the master sheet.</h3>
+
+  <div class="split-3" style="margin-top:10px">
+    <div class="data-card" style="border-left:4px solid #38bdf8"><div class="h" style="color:#7dd3fc">A · TEAM & GEO</div><div class="big">13</div><p>Team readiness · geo commitment · central + geo hiring. <b>Hiring is longest lead time.</b></p></div>
+    <div class="data-card" style="border-left:4px solid #a855f7"><div class="h" style="color:#d8b4fe">B · THEME & SUB-GEO</div><div class="big">8</div><p>Candidate themes · track tagging · sub-geo selection · <b>the public demand list</b>.</p></div>
+    <div class="data-card" style="border-left:4px solid #f472b6"><div class="h" style="color:#f9a8d4">C · OUTREACH & FUNNEL</div><div class="big">20</div><p>Funnel design · dockets · referral network · events + digital + WhatsApp/Telegram. The 10k floor lives here.</p></div>
+  </div>
+  <div class="split-3" style="margin-top:12px">
+    <div class="data-card" style="border-left:4px solid #34d399"><div class="h" style="color:#6ee7b7">D · PORTAL & SELECTION</div><div class="big">12</div><p>Application portal · internal screening view · rubric · multi-step selection · comms templates.</p></div>
+    <div class="data-card" style="border-left:4px solid #fbbf24"><div class="h" style="color:#fde68a">E · POST-SELECTION DESIGN</div><div class="big">19</div><p>Fellow journey · onboarding · induction · partner framework · reviews + MIS · SPOC handbook.</p></div>
+    <div class="data-card" style="border-left:4px solid #ef4444"><div class="h" style="color:#fca5a5">LAUNCH GATE</div><div class="big">4</div><p>Go/no-go review · change-freeze · publish call · Day-1 to Week-1 monitoring.</p></div>
+  </div>
+
+  <div class="soft-rule" style="margin-top:16px">
+    <div class="head">Anchors</div>
+    <p><b>Week 0 = 22 Jun 2026</b> (kickoff, done). <b>Launch = W14 = 28 Sep 2026</b> (portal opens, call live). Timeline runs to <b>W30</b> to cover post-selection design and the rolling selection window.</p>
+  </div>
+  <p class="small" style="margin-top:8px">The next slide shows the whole plan as a Gantt. The following slides drop into each workstream's tasks.</p>
+</div>
+
+<!-- 14 · Weekly rhythm (Gantt view) -->
+<div class="slide bg-slate" id="s14">
+  <div class="label" style="color:#7dd3fc">Weekly rhythm · W0 → W30</div>
+  <h2 class="title">The whole plan at a glance.</h2>
+  <h3 class="sub">Each bar = the working span for that task group. Red line = launch (W14, 28 Sep). Everything to the right is post-selection design running while the application window is open.</h3>
+
+  <div class="gantt">
+    <div class="gantt-head">
+      <div>Group</div>
+      <div>W0</div><div>W2</div><div>W4</div><div>W6</div><div>W8</div><div>W10</div><div>W12</div><div class="mono" style="color:#ef4444;font-weight:800">LAUNCH</div><div>W16</div><div>W18</div><div>W20</div><div>W22</div><div>W24</div><div>W26</div><div>W28</div><div>W30</div>
+    </div>
+
+    <!-- A · Team & Geo -->
+    <div class="gantt-row"><div class="lbl">A0 Core team setup</div>
+      <div class="cell a" style="grid-column:2/3"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">A1 Geo commitment</div>
+      <div class="cell a" style="grid-column:2/3"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">A2 Central hiring</div>
+      <div class="cell a" style="grid-column:2/6"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">A3 Geo hiring</div>
+      <div></div><div class="cell a" style="grid-column:3/7"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+
+    <!-- B · Theme & Sub-Geo -->
+    <div class="gantt-row"><div class="lbl">B1 Theme selection</div>
+      <div class="cell b" style="grid-column:2/4"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">B2 Sub-geo selection</div>
+      <div class="cell b" style="grid-column:2/3"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">B3 Demand list</div>
+      <div></div><div class="cell b" style="grid-column:3/5"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+
+    <!-- C · Outreach & Funnel -->
+    <div class="gantt-row"><div class="lbl">C1 Funnel strategy</div>
+      <div></div><div class="cell c" style="grid-column:3/5"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">C2 Dockets + assets</div>
+      <div></div><div class="cell c" style="grid-column:3/6"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">C3 Referral network</div>
+      <div></div><div></div><div class="cell c" style="grid-column:4/7"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">C4 Events + weekly review</div>
+      <div></div><div></div><div class="cell c" style="grid-column:4/9"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">C5 Digital + WhatsApp</div>
+      <div></div><div class="cell c" style="grid-column:3/9"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+
+    <!-- D · Portal & Selection -->
+    <div class="gantt-row"><div class="lbl">D1 Portal build</div>
+      <div></div><div class="cell d" style="grid-column:3/8"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">D2 Screening rubric</div>
+      <div></div><div></div><div class="cell d" style="grid-column:4/6"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">D3 Multi-step selection</div>
+      <div></div><div></div><div class="cell d" style="grid-column:4/7"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+
+    <!-- E · Post-selection design -->
+    <div class="gantt-row"><div class="lbl">E1 Programme design</div>
+      <div></div><div></div><div class="cell e" style="grid-column:4/9"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">E2 Onboarding + induction</div>
+      <div></div><div></div><div></div><div class="cell e" style="grid-column:5/10"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">E3 Partner framework</div>
+      <div></div><div></div><div></div><div class="cell e" style="grid-column:5/13"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">E4 Reviews + reporting + MIS</div>
+      <div></div><div></div><div></div><div class="cell e" style="grid-column:6/12"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <div class="gantt-row"><div class="lbl">E5 SPOC handbook</div>
+      <div></div><div></div><div></div><div class="cell e" style="grid-column:6/12"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+
+    <!-- Launch Gate -->
+    <div class="gantt-row"><div class="lbl">Launch Gate</div>
+      <div></div><div></div><div></div><div></div><div></div><div></div><div class="cell g" style="grid-column:8/10"></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+
+    <div class="gantt-key">
+      <span><i style="background:#38bdf8"></i>A · Team & Geo</span>
+      <span><i style="background:#a855f7"></i>B · Theme & Sub-Geo</span>
+      <span><i style="background:#f472b6"></i>C · Outreach & Funnel</span>
+      <span><i style="background:#34d399"></i>D · Portal & Selection</span>
+      <span><i style="background:#fbbf24"></i>E · Post-Selection Design</span>
+      <span><i style="background:#ef4444"></i>Launch Gate</span>
+      <span style="margin-left:auto">Gantt scale: each column ≈ 2 weeks.</span>
+    </div>
+  </div>
+
+  <p class="small" style="margin-top:12px">Full 77-task tracker is the source; this Gantt is the compressed view. Use the next slides (13–17) to drop into each workstream's task list.</p>
+</div>
+
+<!-- 15 · Workstream A · Team & Geo Readiness -->
+<div class="slide bg-sky" id="s15">
+  <div class="label" style="color:#7dd3fc">Workstream A · Team & Geo Readiness · 13 tasks</div>
+  <h2 class="title">Nothing else happens until Team + Geo are named and hired.</h2>
+  <h3 class="sub">Hiring is on the critical path from Week 0. Geo Coordinators must be onboarded and trained by W9 — before outreach events peak.</h3>
+
+  <div class="tasklist">
+    <div class="thead"><div>ID</div><div>Task</div><div>Weeks</div><div>Owner</div></div>
+    <div class="trow"><span class="tid">01</span><span class="tt"><b>Communicate the programme charter</b> to Geo Leads</span><span class="tw">W0–W1 ✓</span><span class="own">Asavari/Vishnu</span></div>
+    <div class="trow"><span class="tid">02</span><span class="tt"><b>Confirm Central team composition</b> & headcount for launch</span><span class="tw">W0–W1 ✓</span><span class="own">Asavari/Vishnu</span></div>
+    <div class="trow"><span class="tid">03</span><span class="tt">Set weekly meeting cadence (1 standing call, 4 geo + central)</span><span class="tw">W0–W1</span><span class="own">Asavari/Vishnu</span></div>
+    <div class="trow"><span class="tid">04</span><span class="tt">Create shared tracker + drive + comms channel</span><span class="tw">W0–W1</span><span class="own">Asavari/Vishnu</span></div>
+    <div class="trow"><span class="tid">05</span><span class="tt"><b>Each Geo Lead acknowledges plan</b> + names dedicated Geo POC</span><span class="tw">W0–W1 ✓</span><span class="own">Geo Leads</span></div>
+    <div class="trow"><span class="tid">06</span><span class="tt"><b>Lock per-geo split of fellows</b> across chosen themes</span><span class="tw">W0–W1</span><span class="own">Geo POC</span></div>
+    <div class="trow"><span class="tid">07</span><span class="tt">Write JDs: Central PM, Portal/MIS owner, Outreach PoC</span><span class="tw">W0–W1 ✓</span><span class="own">People Fn</span></div>
+    <div class="trow"><span class="tid">08</span><span class="tt">Source, shortlist, interview central roles</span><span class="tw">W0–W4</span><span class="own">People Fn</span></div>
+    <div class="trow"><span class="tid">09</span><span class="tt">Offer + onboard central team</span><span class="tw">W0–W6</span><span class="own">People Fn</span></div>
+    <div class="trow"><span class="tid">10</span><span class="tt">Define per-geo staffing need (~1 coord per 25 fellows + outreach)</span><span class="tw">W2–W3</span><span class="own">Geo POC</span></div>
+    <div class="trow"><span class="tid">11</span><span class="tt">Post vacancy + source in each geo</span><span class="tw">W3–W5</span><span class="own">People Fn</span></div>
+    <div class="trow"><span class="tid">12</span><span class="tt">Interview, offer, onboard Geo Coordinators</span><span class="tw">W4–W7</span><span class="own">Geo POC</span></div>
+    <div class="trow"><span class="tid">13</span><span class="tt"><b>Train geo teams</b> on programme logic, dockets, screening, portal</span><span class="tw">W7–W9</span><span class="own">Asavari/Vishnu</span></div>
+  </div>
+
+  <div class="hard-rule" style="margin-top:14px">
+    <div class="head">Critical path</div>
+    <p><b>Task 06 (locking per-geo seat splits) is upstream of everything.</b> Without it, the demand list (B3) can't lock, the portal (D1) can't build the form, and the funnel (C1) can't set targets. Geo POCs: this is your first W0–W1 deliverable.</p>
+  </div>
+</div>
+
+<!-- 16 · Workstream B · Theme & Sub-Geo -->
+<div class="slide bg-indigo" id="s16">
+  <div class="label" style="color:#a5b4fc">Workstream B · Theme & Sub-Geo · 8 tasks</div>
+  <h2 class="title">Ends in one deliverable: the public demand list.</h2>
+  <h3 class="sub">"Theme × sub-geo × seats" — the spine of the October call. Everything applicants respond to hinges on this table.</h3>
+
+  <div class="tasklist">
+    <div class="thead"><div>ID</div><div>Task</div><div>Weeks</div><div>Owner</div></div>
+    <div class="trow"><span class="tid">14</span><span class="tt">Each geo drafts <b>candidate themes</b> (crèche, livelihood, youth, health, gender, urban…)</span><span class="tw">W0–W1</span><span class="own">Geo POC</span></div>
+    <div class="trow"><span class="tid">15</span><span class="tt">Validate each theme against geo's long-term plan + Foundation priorities</span><span class="tw">W1–W2</span><span class="own">Geo Lead</span></div>
+    <div class="trow"><span class="tid">16</span><span class="tt">Classify each theme as <b>Flexible or Prescriptive track</b></span><span class="tw">W1–W2</span><span class="own">Geo POC</span></div>
+    <div class="trow"><span class="tid">17</span><span class="tt">For each theme, identify <b>target sub-geos / clusters</b></span><span class="tw">W0–W1</span><span class="own">Geo POC</span></div>
+    <div class="trow"><span class="tid">18</span><span class="tt">Sanity-check sub-geos: need, access, partner presence, safety</span><span class="tw">W0–W1</span><span class="own">Geo POC</span></div>
+    <div class="trow"><span class="tid">19</span><span class="tt"><b>Compile the public 'demand list'</b>: theme × sub-geo × seats</span><span class="tw">W1–W2</span><span class="own">Central</span></div>
+    <div class="trow"><span class="tid">20</span><span class="tt">For prescriptive seats, attach <b>guideline / budget / resourcing frame</b></span><span class="tw">W1–W2</span><span class="own">Theme teams</span></div>
+    <div class="trow"><span class="tid">21</span><span class="tt"><b>Leadership sign-off</b> of full demand list · change-freeze</span><span class="tw">W3–W4</span><span class="own">Asavari/Vishnu</span></div>
+  </div>
+
+  <div class="soft-rule" style="margin-top:14px">
+    <div class="head">Sequenced, not parallel</div>
+    <p>B is short (4 weeks) but every task depends on the previous. Miss W1–W2 and the demand list slides into W5, which pushes portal form design (D1) and blows Sept dockets. <b>W4 sign-off is a launch-critical milestone.</b></p>
+  </div>
+</div>
+
+<!-- 17 · Workstream C · Outreach & Funnel -->
+<div class="slide bg-rose" id="s17">
+  <div class="label" style="color:#fb7185">Workstream C · Outreach & Funnel · 20 tasks</div>
+  <h2 class="title">The 10,000-app floor is built here. Five sub-tracks in parallel.</h2>
+  <h3 class="sub">Ground + digital run side-by-side. Weekly funnel reviews from W8 onward — Behind geos get a written catch-up action, not sympathy.</h3>
+
+  <div class="split-2" style="margin-top:6px">
+    <div>
+      <div class="data-card" style="background:rgba(56,189,248,.06);border-color:rgba(56,189,248,.25);margin-bottom:10px">
+        <div class="h" style="color:#7dd3fc">C1 · STRATEGY <span class="mut" style="letter-spacing:0">· 3 tasks</span></div>
+        <ul class="checks" style="margin-top:4px">
+          <li><b>22</b> · Set per-geo reach + lead targets · load Stage 2 <span class="mono">W3–W4</span></li>
+          <li><b>23</b> · Map reachable channels per geo (alumni, CSO, referrers) <span class="mono">W3–W5</span></li>
+          <li><b>24</b> · Refine sourcing-institution list <span class="mono">W2–W5</span></li>
+        </ul>
+      </div>
+      <div class="data-card" style="background:rgba(168,85,247,.06);border-color:rgba(168,85,247,.25);margin-bottom:10px">
+        <div class="h" style="color:#d8b4fe">C2 · DOCKETS <span class="mut" style="letter-spacing:0">· 4 tasks</span></div>
+        <ul class="checks" style="margin-top:4px">
+          <li><b>25</b> · Master comms docket · one-pager, FAQ, offer <span class="mono">W3–W5</span></li>
+          <li><b>26</b> · Outreach process docket · how to run a session <span class="mono">W4–W5</span></li>
+          <li><b>27</b> · Reusable assets · deck, cards, templates, poster, video brief <span class="mono">W4–W8</span></li>
+          <li><b>28</b> · Localise per geo language <span class="mono">W4–W8</span></li>
+        </ul>
+      </div>
+      <div class="data-card" style="background:rgba(52,211,153,.06);border-color:rgba(52,211,153,.25)">
+        <div class="h" style="color:#6ee7b7">C3 · REFERRAL NETWORK <span class="mut" style="letter-spacing:0">· 3 tasks</span></div>
+        <ul class="checks" style="margin-top:4px">
+          <li><b>29</b> · Central reaches national institutes for 'go-home' outreach <span class="mono">W4–W9</span></li>
+          <li><b>30</b> · Geo signs up alumni wings of regional institutions <span class="mono">W5–W10</span></li>
+          <li><b>31</b> · Geo activates CSO networks + high-network referrers <span class="mono">W5–W10</span></li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="data-card" style="background:rgba(251,191,36,.06);border-color:rgba(251,191,36,.25);margin-bottom:10px">
+        <div class="h" style="color:#fde68a">C4 · EVENTS + WEEKLY REVIEW <span class="mut" style="letter-spacing:0">· 4 tasks</span></div>
+        <ul class="checks" style="margin-top:4px">
+          <li><b>32</b> · Build geo-level event calendar (≥1/week/geo) <span class="mono">W6–W8</span></li>
+          <li><b>33</b> · Run sessions; capture 'notify me' LEADS <span class="mono">W8–W14</span></li>
+          <li><b>34</b> · <b>Weekly funnel review</b>: reach + leads vs plan <span class="mono">W8–W14</span></li>
+          <li><b>35</b> · Mid-window contingency: <b>&lt;50% pace triggers paid/extra channels</b> <span class="mono">W10–W13</span></li>
+        </ul>
+      </div>
+      <div class="data-card" style="background:rgba(244,114,182,.06);border-color:rgba(244,114,182,.28)">
+        <div class="h" style="color:#f9a8d4">C5 · DIGITAL & SOCIAL <span class="mut" style="letter-spacing:0">· 7 tasks</span></div>
+        <ul class="checks" style="margin-top:4px">
+          <li><b>C5.1</b> · Claim handles: Instagram, LinkedIn, X, YouTube <span class="mono">W3–W5</span></li>
+          <li><b>C5.2</b> · <b>Lead-capture landing page</b> 'notify me when applications open' <span class="mono">W3–W5</span></li>
+          <li><b>C5.3</b> · 8-week organic content calendar (≥3 posts/week/platform) <span class="mono">W4–W7</span></li>
+          <li><b>C5.4</b> · Reusable post templates + short-form video briefs <span class="mono">W4–W8</span></li>
+          <li><b>C5.5</b> · Broadcast architecture: central + per-geo WhatsApp/Telegram <span class="mono">W4–W6</span></li>
+          <li><b>C5.6</b> · Seed broadcast lists via institutions + CSOs + referrers <span class="mono">W6–W12</span></li>
+          <li><b>C5.7</b> · Weekly digital review · reach / clicks / leads by platform <span class="mono">W8–W14</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 18 · Workstream D · Portal & Selection -->
+<div class="slide bg-emerald" id="s18">
+  <div class="label" style="color:#6ee7b7">Workstream D · Portal & Selection · 12 tasks</div>
+  <h2 class="title">The portal is the launch surface. Screening starts inside the window.</h2>
+  <h3 class="sub">Rolling weekly batches — 300+ applications per geo per week at peak. Screening capacity must be sized for that.</h3>
+
+  <div class="tasklist">
+    <div class="thead"><div>ID</div><div>Task</div><div>Weeks</div><div>Owner</div></div>
+    <div class="trow"><span class="tid">36</span><span class="tt"><b>Portal requirements</b> · public apply flow + internal screening + roles</span><span class="tw">W2–W3</span><span class="own">Portal/MIS</span></div>
+    <div class="trow"><span class="tid">37</span><span class="tt">Design form fields · eligibility filters, theme/sub-geo, experience, motivation</span><span class="tw">W3–W5</span><span class="own">Portal/MIS</span></div>
+    <div class="trow"><span class="tid">38</span><span class="tt"><b>Build public portal + form</b> · multilingual where needed</span><span class="tw">W4–W9</span><span class="own">Portal/MIS</span></div>
+    <div class="trow"><span class="tid">39</span><span class="tt"><b>Internal screening view</b> · filters, scoring, status flags, export, dedupe</span><span class="tw">W5–W10</span><span class="own">Portal/MIS</span></div>
+    <div class="trow"><span class="tid">40</span><span class="tt">Wire analytics · apps by geo/theme/channel feeding the funnel</span><span class="tw">W6–W10</span><span class="own">Portal/MIS</span></div>
+    <div class="trow"><span class="tid">41</span><span class="tt"><b>Dry-run 20 dummy applications</b> end-to-end</span><span class="tw">W11–W13</span><span class="own">Portal/MIS</span></div>
+    <div class="trow"><span class="tid">42</span><span class="tt"><b>Screening rubric + eligibility checklist</b> — designed for ROLLING screening</span><span class="tw">W4–W6</span><span class="own">Asavari/Vishnu</span></div>
+    <div class="trow"><span class="tid">43</span><span class="tt">Screener guide + calibration examples · assign screeners per geo</span><span class="tw">W6–W9</span><span class="own">Asavari/Vishnu</span></div>
+    <div class="trow"><span class="tid">44</span><span class="tt"><b>Document selection stages</b> · screen → written/task → panel → final</span><span class="tw">W5–W8</span><span class="own">Asavari/Vishnu</span></div>
+    <div class="trow"><span class="tid">45</span><span class="tt">Stage-by-stage checklists + owners for geos to run consistently</span><span class="tw">W7–W10</span><span class="own">Central</span></div>
+    <div class="trow"><span class="tid">46</span><span class="tt">Constitute selection panels per geo (incl. Foundation panel later)</span><span class="tw">W8–W11</span><span class="own">Geo Lead</span></div>
+    <div class="trow"><span class="tid">47</span><span class="tt">Candidate comms templates · acknowledge, reject, shortlist, invite</span><span class="tw">W8–W11</span><span class="own">Central</span></div>
+  </div>
+
+  <div class="split-2" style="margin-top:14px">
+    <div class="good-rule">
+      <div class="head">Why rolling screening</div>
+      <p>Screen weekly, not after window close. Selection completes by end-Dec — <b>~6 weeks faster</b> than sequential. Notice periods for 4+ yr professionals become the binding constraint, not our process.</p>
+    </div>
+    <div class="warm-rule">
+      <div class="head">CV alumni fast-track</div>
+      <p>Applicants who are alumni of our own programmes get an accelerated selection path — they don't skip stages, but calibration is quicker and panel time is shorter.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 19 · Workstream E · Post-Selection Design -->
+<div class="slide bg-amber" id="s19">
+  <div class="label" style="color:#fde68a">Workstream E · Post-Selection Design · 19 tasks</div>
+  <h2 class="title">Design everything before fellows arrive. Ready by W24.</h2>
+  <h3 class="sub">Fellows arrive Feb '27 (notice-period reality). This workstream produces every artefact they'll encounter, before then. Added per leadership feedback — the difference between a launch and a sustainable programme.</h3>
+
+  <div class="split-3" style="margin-top:6px">
+    <div class="data-card" style="background:rgba(56,189,248,.06);border-color:rgba(56,189,248,.25)">
+      <div class="h" style="color:#7dd3fc">E1 · PROGRAMME DESIGN · 4 tasks · W4–W14</div>
+      <ul class="checks" style="margin-top:4px">
+        <li><b>E01</b> Consolidate end-to-end fellow journey + dated calendar</li>
+        <li><b>E02</b> Track-specific learning design (Prescriptive vs Open)</li>
+        <li><b>E03</b> Stipend & finance ops (disbursal, KYC, tax treatment)</li>
+        <li><b>E04</b> Leadership sign-off · <b>change-freeze on fellow-facing terms</b></li>
+      </ul>
+    </div>
+    <div class="data-card" style="background:rgba(168,85,247,.06);border-color:rgba(168,85,247,.28)">
+      <div class="h" style="color:#d8b4fe">E2 · ONBOARDING + INDUCTION · 4 tasks · W8–W16</div>
+      <ul class="checks" style="margin-top:4px">
+        <li><b>E05</b> Onboarding pack: welcome, conduct, expectations, stipend setup</li>
+        <li><b>E06</b> 1-month residential orientation: curriculum + facilitators + budget</li>
+        <li><b>E07</b> Counselling design + counsellor empanelment</li>
+        <li><b>E08</b> Onboarding logistics SOP · KYC, travel, accommodation</li>
+      </ul>
+    </div>
+    <div class="data-card" style="background:rgba(52,211,153,.06);border-color:rgba(52,211,153,.25)">
+      <div class="h" style="color:#6ee7b7">E3 · PARTNER FRAMEWORK · 4 tasks · W8–W24</div>
+      <ul class="checks" style="margin-top:4px">
+        <li><b>E09</b> Map partner bench per geo × theme × role</li>
+        <li><b>E10</b> Internal note · what we ask of partners in each of 3 roles</li>
+        <li><b>E11</b> Design intro + follow-up rhythm · templates</li>
+        <li><b>E12</b> Make introductions · joint meetings before postings begin</li>
+      </ul>
+    </div>
+  </div>
+  <div class="split-2" style="margin-top:12px">
+    <div class="data-card" style="background:rgba(251,191,36,.06);border-color:rgba(251,191,36,.28)">
+      <div class="h" style="color:#fde68a">E4 · REVIEW + REPORTING + MIS · 4 tasks · W10–W20</div>
+      <ul class="checks" style="margin-top:4px">
+        <li><b>E13</b> Fellowship review mechanism: monthly + milestone gates</li>
+        <li><b>E14</b> Seed-grant review: quarterly residentials + continuation rubric</li>
+        <li><b>E15</b> Final report template per fellow (feeds seed-grant decision)</li>
+        <li><b>E16</b> <b>Extend MIS</b> to post-selection tracking (Portal/MIS Owner)</li>
+      </ul>
+    </div>
+    <div class="data-card" style="background:rgba(244,114,182,.06);border-color:rgba(244,114,182,.28)">
+      <div class="h" style="color:#f9a8d4">E5 · SPOC + INTERFACE · 3 tasks · W10–W20</div>
+      <ul class="checks" style="margin-top:4px">
+        <li><b>E17</b> Define coordinator/SPOC role · workload (~12 fellows) · boundaries</li>
+        <li><b>E18</b> Us ↔ partner interaction protocols · cadence · escalation</li>
+        <li><b>E19</b> <b>Coordinator handbook</b> · train coordinators before fellows arrive</li>
+      </ul>
+    </div>
+  </div>
+  <div class="soft-rule" style="margin-top:12px">
+    <div class="head">Why E is separate</div>
+    <p>A programme that launches without a designed fellow experience is a promise it can't keep. E runs during and after launch, but every deliverable must land <b>before</b> the first fellow shows up for orientation. That's the discipline.</p>
+  </div>
+</div>
+
+<!-- 20 · Launch Gate -->
+<div class="slide bg-rose" id="s20">
+  <div class="label" style="color:#fb7185">Launch Gate · 4 tasks · the go-live day</div>
+  <h2 class="title">Change-freeze. Then blast. Then watch.</h2>
+  <h3 class="sub">The gate exists to catch the last-mile drift. Every workstream owner signs off on green — or accepts risk in writing.</h3>
+
+  <div class="flow">
+    <div class="flow-step" style="background:rgba(251,191,36,.09);border-color:rgba(251,191,36,.28)">
+      <div class="n" style="color:#fde68a">STEP 1 · W12–W13</div>
+      <div class="t">48 · Readiness review</div>
+      <div class="d">Go/no-go per item across all 4 workstreams. Owner: Asavari/Vishnu with all owners at the table.</div>
+    </div>
+    <div class="flow-step" style="background:rgba(239,68,68,.09);border-color:rgba(239,68,68,.28)">
+      <div class="n" style="color:#fca5a5">STEP 2 · W13–W14</div>
+      <div class="t">49 · Change-freeze</div>
+      <div class="d">Demand list, dockets, portal, screening — all frozen. No edits without a documented exception.</div>
+    </div>
+    <div class="flow-step" style="background:rgba(52,211,153,.09);border-color:rgba(52,211,153,.28)">
+      <div class="n" style="color:#6ee7b7">STEP 3 · W14</div>
+      <div class="t">50 · LAUNCH · 28 Sep 2026</div>
+      <div class="d">Publish call + open portal <b>across all 4 geos simultaneously</b>. Comms blast sent all channels. Warm leads pool converts.</div>
+    </div>
+    <div class="flow-step" style="background:rgba(56,189,248,.09);border-color:rgba(56,189,248,.28)">
+      <div class="n" style="color:#7dd3fc">STEP 4 · W14 D1–7</div>
+      <div class="t">51 · Post-launch monitoring</div>
+      <div class="d">Portal stability, application flow, channel performance. First screening pipeline confirmed working.</div>
+    </div>
+  </div>
+
+  <div class="hard-rule" style="margin-top:16px">
+    <div class="head">The moment of truth</div>
+    <p>Everything before this is set-up. Everything after this is execution. If we've done W0–W13 well, launch day feels boring — the tracker turns green, the comms fire, applications start flowing. If we haven't, launch day is where every missed dependency shows up at once. That's why the gate matters.</p>
+  </div>
+</div>
+
+<!-- 21 · Post-launch execution arc -->
+<div class="slide bg-navy" id="s21">
+  <div class="label" style="color:#a78bfa">Sheet 10 · post-launch fellowship execution</div>
+  <h2 class="title">From portal-open (Oct '26) to seed-grant close (Oct '29).</h2>
+  <h3 class="sub">Six phases across three years. Rolling model means fellows arrive Feb '27, not April — buying us months.</h3>
+
+  <div class="arc">
+    <div class="arc-step" style="border-color:rgba(56,189,248,.35)">
+      <div class="dt">Oct–Nov 2026</div>
+      <div class="ph">0a · Application window</div>
+      <div class="txt">Portal open · 8-wk fixed window · <b>rolling screening</b> weekly. Target: ≥10,000 apps; screening ≤1 week behind receipt.</div>
+    </div>
+    <div class="arc-step" style="border-color:rgba(168,85,247,.35)">
+      <div class="dt">mid-Nov – Dec 2026</div>
+      <div class="ph">0b · Multi-step selection</div>
+      <div class="txt">Written task + panel interviews from mid-Nov. Final panels by end-Dec. <b>Offers before New Year.</b></div>
+    </div>
+    <div class="arc-step" style="border-color:rgba(52,211,153,.35)">
+      <div class="dt">Jan – Feb 2027</div>
+      <div class="ph">0c · Notice periods + onboarding</div>
+      <div class="txt">Fellows resign, relocate. Onboarding pack, KYC, stipend setup. <b>Coordinator (SPOC) mapping ~12 fellows each</b>.</div>
+    </div>
+    <div class="arc-step" style="border-color:rgba(251,191,36,.35)">
+      <div class="dt">late Feb – Mar 2027</div>
+      <div class="ph">1 · Orientation</div>
+      <div class="txt">1-month residential. Counselling. Learning-visit hosts + posting contexts confirmed. <b>Stipend begins.</b></div>
+    </div>
+    <div class="arc-step" style="border-color:rgba(244,114,182,.35)">
+      <div class="dt">Apr – Oct 2027</div>
+      <div class="ph">2–4 · Learn → Propose → Register</div>
+      <div class="txt">Learning postings (T2) or self-planned (T1) · residential proposal to Foundation panel · registration + 12A provisional.</div>
+    </div>
+    <div class="arc-step" style="border-color:rgba(56,189,248,.5)">
+      <div class="dt">Nov 2027 – Oct 2029</div>
+      <div class="ph">5 · Seed grant · 2 years</div>
+      <div class="txt">₹20L pa + ₹45k founder stipend · quarterly residentials · performance-based continuation · <b>final report per fellow</b> at close.</div>
+    </div>
+  </div>
+
+  <div class="soft-rule" style="margin-top:16px">
+    <div class="head">Screener capacity sizing</div>
+    <p>Peak volume ≈ <b>300+ applications per geo per week</b>. Screeners must be trained and available for 8 straight weeks. This is why D2/D3 rubric + guide + panel constitution all land by W11.</p>
+  </div>
+</div>
+
+<!-- 22 · Partner–SPOC interface -->
+<div class="slide bg-teal" id="s22">
+  <div class="label" style="color:#5eead4">Partner–SPOC interface · informal by design</div>
+  <h2 class="title">No MoU. No formal agreement. It works because <i>our own</i> ops team is on the ground.</h2>
+  <h3 class="sub">Three partner roles, all informal. The relationship runs on email introductions, joint meetings, and ground follow-up — never on written reports or performance obligations.</h3>
+
+  <div class="matrix">
+    <div class="mrow mhead"><div>ROLE</div><div>Partner PROVIDES</div><div>NEVER expected of partner</div><div>WHEN</div></div>
+    <div class="mrow">
+      <div class="m1">① Outreach amplifier</div>
+      <div class="m2">Receives the call, shares through staff / community / CSO circles. May host or co-host an outreach session.</div>
+      <div class="m3">Quotas · referral tracking · any obligation to deliver applicants.</div>
+      <div class="m4">Pre-launch (C3/C4)</div>
+    </div>
+    <div class="mrow">
+      <div class="m1">② Learning-visit host</div>
+      <div class="m2">Hosts fellow for a few days — exposure to a working organisation in that theme/geography.</div>
+      <div class="m3">Structured curriculum · written evaluation · hosting beyond agreed days.</div>
+      <div class="m4">Orientation + Phase 2</div>
+    </div>
+    <div class="mrow">
+      <div class="m1">③ Posting context <span style="color:#f9a8d4;font-size:10px">· track 2 only</span></div>
+      <div class="m2">Their cluster (where they run <i>our</i> programme) becomes the fellow's working context. Partner does <b>community interaction + mobilisation + logistics support</b>.</div>
+      <div class="m3">Supervision or mentoring · performance reporting · HR responsibility · costs. <b>No MoU, no agreement.</b></div>
+      <div class="m4">Phase 2 · 3 months</div>
+    </div>
+    <div class="mrow">
+      <div class="m1">Feedback (all roles)</div>
+      <div class="m2">Honest informal conversation at mid + end. "How's it going, what would help."</div>
+      <div class="m3">Written reports · evaluation formats.</div>
+      <div class="m4">Mid + end of Phase 2</div>
+    </div>
+  </div>
+
+  <div class="split-2" style="margin-top:16px">
+    <div class="good-rule">
+      <div class="head">Why informal works</div>
+      <p><b>Our own operational team is in that cluster</b>. They provide day-to-day presence, ground truth, and early course-correction. That's the accountability layer — no formal partner structure is needed. This is why track 2 postings work: we're not asking partners to be HR.</p>
+    </div>
+    <div class="warm-rule">
+      <div class="head">The SPOC / coordinator</div>
+      <p>Single point of contact so the partner is <b>never chased by multiple people</b>. Makes email intros, convenes joint meetings, records milestone evidence in MIS, folds partner conversation into monthly review. Geo POC owns escalation and protects partner goodwill.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 23 · Roles & Hires -->
+<div class="slide bg-slate" id="s23">
+  <div class="label" style="color:#a78bfa">Roles, hires & the critical path</div>
+  <h2 class="title">12+ new geo hires. 3 central hires. All in place by W7.</h2>
+  <h3 class="sub">Every role needed to run Phase 1, whether existing or new. Hiring begins in Week 0 — it is the longest-lead item alongside the portal build.</h3>
+
+  <div class="split-2">
+    <div>
+      <div class="data-card" style="background:rgba(56,189,248,.05);border-color:rgba(56,189,248,.25);margin-bottom:12px">
+        <div class="h" style="color:#7dd3fc">CENTRAL · 3 hires + existing</div>
+        <ul class="checks" style="margin-top:4px">
+          <li><b>Central Programme Lead · exists</b> · owns the 10k floor, go/no-go</li>
+          <li><b>Central team member · hire · by W6</b> · day-to-day PMU, tracker, cross-geo</li>
+          <li><b>Central team member · hire · by W6</b> · funnel + dockets + DIGITAL owned handles</li>
+          <li><b>Portal / MIS Owner · hire · by W6</b> · portal, screening view, analytics</li>
+          <li>Compliance liaison / consultant · TBD · by W8 (post-selection need)</li>
+          <li>People Function · exists · owns all hiring + institution refinement</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="data-card" style="background:rgba(168,85,247,.05);border-color:rgba(168,85,247,.28)">
+        <div class="h" style="color:#d8b4fe">GEOGRAPHY · 12 new hires (3 per geo × 4)</div>
+        <ul class="checks" style="margin-top:4px">
+          <li><b>Geo Lead × 4 · exists</b> · geography buy-in, themes, sub-geos, panels</li>
+          <li><b>Geo POC × 4 · assign</b> · holds the programme in-geo</li>
+          <li><b>Geo Coordinator × ~2/geo · hire · by W7</b> · runs outreach, manages ~12 fellows each, screening support</li>
+          <li><b>Geo Outreach Support × 1/geo · hire · by W7</b> · event logistics, lead capture, channel follow-up</li>
+          <li>Theme team reference · exists · guidelines + cost frames for prescriptive seats</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="hard-rule" style="margin-top:14px">
+    <div class="head">Critical path</div>
+    <p>People Function starts hiring on <b>W0</b>. Geo coordinators must be trained by <b>W9</b> — they run outreach events W8 onwards. If hiring slips beyond W7, C4 events slip, outreach lags, lead capture lags, and the 10k floor is at risk. This is the failure mode we track weekly.</p>
+  </div>
+
+  <p class="small" style="margin-top:10px;font-style:italic">Amber = role to be newly hired (8 distinct hires + 1 consultant). Counts marked 'per geo' multiply by 4. New geo hires alone ≈ 12 people (≥3 per geo).</p>
+</div>
+
+<!-- 24 · Full arc 2026-2029 -->
+<div class="slide bg-ocean" id="s24">
+  <div class="label" style="color:#7dd3fc">The full arc · 2026 → 2029</div>
+  <h2 class="title">One glance from kickoff to seed-grant close.</h2>
+
+  <div style="margin-top:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px 22px">
+    <div style="display:grid;grid-template-columns:150px 1fr;gap:8px 20px;font-size:13px">
+      <div class="mono" style="color:#7dd3fc;font-weight:800">Jun 2026</div>
+      <div style="color:#e2e8f0"><b>Kickoff · W0.</b> Programme charter circulated. Central hiring starts. Geo POCs named.</div>
+      <div class="mono" style="color:#7dd3fc;font-weight:800">Jul 2026</div>
+      <div style="color:#e2e8f0"><b>Themes + demand list.</b> Every geo locks its theme × sub-geo × seat table. Portal requirements written.</div>
+      <div class="mono" style="color:#7dd3fc;font-weight:800">Aug 2026</div>
+      <div style="color:#e2e8f0"><b>Outreach begins.</b> Dockets ready. Institutions engaged. Digital handles live. Geo coordinators onboarded + trained.</div>
+      <div class="mono" style="color:#a78bfa;font-weight:800">Sep 2026</div>
+      <div style="color:#e2e8f0"><b>Weekly funnel reviews.</b> Portal in staging. Screening rubric approved. Launch readiness review (W12–W13).</div>
+      <div class="mono" style="color:#f472b6;font-weight:800">28 Sep 2026</div>
+      <div style="color:#e2e8f0"><b>🚀 LAUNCH · W14.</b> Portal opens. Call goes live across all 4 geos simultaneously. Warm-lead conversion begins.</div>
+      <div class="mono" style="color:#f472b6;font-weight:800">Oct–Nov 2026</div>
+      <div style="color:#e2e8f0"><b>Application window · 8 weeks.</b> Rolling weekly screening. Early cohorts enter written task + panel from mid-Nov.</div>
+      <div class="mono" style="color:#f472b6;font-weight:800">Dec 2026</div>
+      <div style="color:#e2e8f0"><b>Selection complete.</b> 25 fellows per geo. Waitlist named. Offers issued before New Year.</div>
+      <div class="mono" style="color:#fbbf24;font-weight:800">Jan–Feb 2027</div>
+      <div style="color:#e2e8f0"><b>Notice periods + onboarding.</b> Fellows resign, relocate. Coordinator mapping. Stipend setup.</div>
+      <div class="mono" style="color:#fbbf24;font-weight:800">late Feb–Mar 2027</div>
+      <div style="color:#e2e8f0"><b>Orientation · Phase 1.</b> 1-month residential. Stipend begins. Learning plans agreed per fellow.</div>
+      <div class="mono" style="color:#34d399;font-weight:800">Apr–Jun 2027</div>
+      <div style="color:#e2e8f0"><b>Learning · Phase 2.</b> Track 2 postings with partners. Track 1 self-planned exposure. Monthly reviews.</div>
+      <div class="mono" style="color:#34d399;font-weight:800">Jul–Aug 2027</div>
+      <div style="color:#e2e8f0"><b>Proposal · Phase 3.</b> Residential. Fellows draft proposals. Foundation panel review.</div>
+      <div class="mono" style="color:#34d399;font-weight:800">Sep–Oct 2027</div>
+      <div style="color:#e2e8f0"><b>Registration · Phase 4.</b> Consultant + geo teams support. Org registered. 12A provisional. Stipend ends.</div>
+      <div class="mono" style="color:#6ee7b7;font-weight:800">Nov 2027</div>
+      <div style="color:#e2e8f0"><b>💧 SEED GRANT AWARDED.</b> ₹20L pa + ₹45k founder stipend begins. Quarterly residentials from here.</div>
+      <div class="mono" style="color:#6ee7b7;font-weight:800">2028</div>
+      <div style="color:#e2e8f0"><b>Year 1 of seed grant.</b> Continuation reviewed at end of year — performance-based. Phase 2 launches nationally.</div>
+      <div class="mono" style="color:#6ee7b7;font-weight:800">Oct 2029</div>
+      <div style="color:#e2e8f0"><b>Seed grant close.</b> Final report per fellow. Fellows create outreach content that feeds future calls. ~100 new organisations in the ecosystem.</div>
+    </div>
+  </div>
+
+  <p class="small" style="margin-top:14px;text-align:center;font-style:italic">Every date on this arc is anchored in the tracker's Master Checklist. Slippage of any one week propagates — which is why weekly reviews are non-negotiable through W14, and monthly reviews through the fellowship period.</p>
+</div>
+
+<!-- 25 · What we need from you -->
+<div class="slide bg-violet" id="s25">
+  <div style="margin:auto;max-width:1080px">
+    <div class="label" style="color:#d8b4fe;text-align:center">The ask</div>
+    <h1 class="hero" style="font-size:44px;text-align:center;margin-bottom:12px">What we need from you.</h1>
+    <p class="body" style="text-align:center;font-size:16px;max-width:820px;margin:0 auto 24px">Phase 1 succeeds or fails on four commitments. Two if you hold a geography, two if you don't.</p>
+
+    <div class="split-2">
+      <div class="data-card" style="background:rgba(244,114,182,.08);border-color:rgba(244,114,182,.28)">
+        <div class="h" style="color:#f9a8d4">IF YOU HOLD A PHASE-1 GEOGRAPHY</div>
+        <ul class="checks" style="margin-top:8px">
+          <li><b>Lock your cohort plan</b> — themes × sub-geos × seat splits. This is your W0–W1 deliverable.</li>
+          <li><b>Complete the hiring</b> — the geo HR positions in the tracker. Hiring is on the critical path from Week 0.</li>
+          <li><b>Demand list by early August</b> — your theme × sub-geo × seats table is the spine of the public call.</li>
+          <li><b>Name your outreach calendar</b> — institutions, CSO meets and sessions in your geography through the window.</li>
+        </ul>
+      </div>
+      <div class="data-card" style="background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.28)">
+        <div class="h" style="color:#7dd3fc">FOR EVERYONE IN THIS ROOM</div>
+        <ul class="checks" style="margin-top:8px">
+          <li><b>Open your networks</b> — alumni contacts, institutional relationships, CSO circles. Introductions feed the funnel directly.</li>
+          <li><b>Spot potential fellows</b> — you likely know someone under 40, 4+ years in the field, ready to build. Point them to the call.</li>
+          <li><b>Amplify at launch</b> — when the call goes live in October, share it through your channels. The 10,000-application floor is everyone's.</li>
+          <li><b>Shape what comes next</b> — Phase 2 scales from mid-2027. Tell us which themes and districts would work in yours.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="soft-rule" style="margin-top:22px">
+      <div class="head">The programme, in one line</div>
+      <p><b>500 new founder-led organisations per year in the ecosystem by full roll-out.</b> That's what this becomes when it works. Phase 1 — 100 fellows across 4 geographies — is where we prove it.</p>
+    </div>
+
+    <p style="text-align:center;margin-top:22px;font-size:14px;color:#94a3b8;font-style:italic">Programme lead: Asavari · Anchor: Vishnu · Tracker: Seeding Fellowships Launch Tracker (v4)</p>
+    <p style="text-align:center;margin-top:6px;font-size:12px;color:#64748b">
+      <a href="#s2" style="color:#a78bfa;text-decoration:none">☰ Back to index</a>
+      &nbsp;·&nbsp;
+      <a href="/pitstops-training.html" style="color:#a78bfa;text-decoration:none">↩ Training Hub</a>
+    </p>
+  </div>
+</div>
+
+</div>
+
+<div id="nav">
+  <a href="/pitstops-training.html">← Training Hub</a>
+  <button id="prev">‹</button>
+  <span id="slide-counter">1 / 25</span>
+  <button id="next">›</button>
+</div>
+
+<script>
+const slides=document.querySelectorAll('.slide');
+const counter=document.getElementById('slide-counter');
+const progress=document.getElementById('progress');
+const prevBtn=document.getElementById('prev');
+const nextBtn=document.getElementById('next');
+let cur=0;
+function go(i){
+  if(i<0||i>=slides.length)return;
+  slides[cur].classList.remove('active');
+  slides[i].classList.add('active');
+  cur=i;
+  counter.textContent=`${i+1} / ${slides.length}`;
+  progress.style.width=`${((i+1)/slides.length)*100}%`;
+  prevBtn.disabled=i===0;
+  nextBtn.disabled=i===slides.length-1;
+  history.replaceState(null,'',`#s${i+1}`);
+  window.scrollTo(0,0);
+}
+prevBtn.addEventListener('click',()=>go(cur-1));
+nextBtn.addEventListener('click',()=>go(cur+1));
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+  if(e.key==='ArrowLeft')go(cur-1);
+  if(e.key==='ArrowRight'||e.key===' ')go(cur+1);
+  if(e.key==='Home')go(0);
+  if(e.key==='End')go(slides.length-1);
+});
+// Handle TOC tile clicks that go via onclick="go(N)"
+window.go=go;
+// Deep-link
+const hash=location.hash.match(/^#s(\d+)$/);
+if(hash){const i=parseInt(hash[1])-1;if(i>=0&&i<slides.length)go(i);}
+else go(0);
+</script>
+</body>
+</html>
