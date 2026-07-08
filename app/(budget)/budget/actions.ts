@@ -128,6 +128,59 @@ export async function toggleGrantPartner(id: string, isActive: boolean) {
   revalidatePath("/budget/admin/partners");
 }
 
+/** One-way import: copy every active Settings → Partners org (Org kind="partner")
+ *  into GrantPartner for the given city. Idempotent on [city, name]; existing
+ *  rows are left untouched (and reactivated if they were deactivated). Returns
+ *  how many were newly created. */
+export async function importGrantPartnersFromOrgs(city: string): Promise<{ added: number; total: number }> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  const trimmedCity = city.trim();
+  if (!trimmedCity) throw new Error("City required");
+
+  const orgs = await prisma.org.findMany({
+    where: { kind: "partner", archivedAt: null },
+    select: { name: true },
+    orderBy: { name: "asc" },
+  });
+
+  let added = 0;
+  for (const o of orgs) {
+    const name = o.name.trim();
+    if (!name) continue;
+    const existing = await prisma.grantPartner.findUnique({
+      where: { city_name: { city: trimmedCity, name } },
+      select: { id: true },
+    });
+    if (existing) continue;
+    await prisma.grantPartner.create({ data: { city: trimmedCity, name } });
+    added++;
+  }
+
+  revalidatePath("/budget/admin/partners");
+  revalidatePath("/budget/dashboard");
+  return { added, total: orgs.length };
+}
+
+/** (Re)assign a budget to a grantee org, or unassign (null). Owner-only; the
+ *  partner must belong to the same city as the budget. */
+export async function updateBudgetGrantPartner(budgetId: string, grantPartnerId: string | null) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const budget = await prisma.budget.findUnique({ where: { id: budgetId }, select: { partnerId: true, city: true } });
+  if (!budget || budget.partnerId !== session.user.id) throw new Error("Not found");
+
+  if (grantPartnerId) {
+    const gp = await prisma.grantPartner.findUnique({ where: { id: grantPartnerId }, select: { city: true } });
+    if (!gp || gp.city !== budget.city) throw new Error("Partner is not in this budget's city");
+  }
+
+  await prisma.budget.update({ where: { id: budgetId }, data: { grantPartnerId } });
+  revalidatePath(`/budget/${budgetId}`);
+  revalidatePath("/budget/dashboard");
+}
+
 export async function createBudget(payload: CreateBudgetPayload) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
