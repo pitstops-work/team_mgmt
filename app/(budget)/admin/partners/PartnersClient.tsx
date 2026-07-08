@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { createGrantPartner, renameGrantPartner, toggleGrantPartner } from "../../budget/actions";
+import { createGrantPartner, renameGrantPartner, toggleGrantPartner, importGrantPartnersFromOrgs } from "../../budget/actions";
 
 type Partner = { id: string; name: string; city: string; isActive: boolean; budgetCount: number };
 const CITIES = ["Bangalore", "Chennai", "Others"] as const;
@@ -14,6 +14,8 @@ export default function PartnersClient({ partners }: { partners: Partner[] }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [importCity, setImportCity] = useState<string>("Bangalore");
 
   const run = (fn: () => Promise<void>) => start(async () => { setErr(null); try { await fn(); } catch (e) { setErr(e instanceof Error ? e.message : "Failed"); } });
 
@@ -38,6 +40,22 @@ export default function PartnersClient({ partners }: { partners: Partner[] }) {
         <button disabled={pending || !addName.trim()} onClick={() => run(async () => { await createGrantPartner(addCity, addName); setAddName(""); })}
           className="rounded-lg bg-sky-600 px-4 py-2 text-sm text-white hover:bg-sky-700 disabled:opacity-50">Add partner</button>
       </div>
+
+      {/* Pull from Settings → Partners */}
+      <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[14rem]">
+          <div className="text-sm font-medium text-stone-700">Pull from Settings partners</div>
+          <p className="text-xs text-stone-500 mt-0.5">Copies every active org from Settings → Partners into the chosen city. Skips names that already exist here.</p>
+        </div>
+        <label className="text-xs text-stone-500">City
+          <select value={importCity} onChange={(e) => setImportCity(e.target.value)} className="mt-1 block rounded border border-stone-300 px-2 py-1.5 text-sm">
+            {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        <button disabled={pending} onClick={() => run(async () => { setNote(null); const r = await importGrantPartnersFromOrgs(importCity); setNote(`${r.added} added to ${importCity} (${r.total} settings partners checked).`); })}
+          className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm text-stone-700 hover:bg-stone-100 disabled:opacity-50">Pull partners</button>
+      </div>
+      {note && <div className="text-xs text-emerald-700">{note}</div>}
       {err && <div className="text-xs text-red-600">{err}</div>}
 
       {/* List by city */}
