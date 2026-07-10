@@ -92,6 +92,14 @@ export default function RolesListPage() {
           </Link>
         ))}
       </div>
+
+      {/* Signpost: the partner apps aren't governed by this RBAC catalogue. */}
+      <div className="mt-6 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-500 leading-relaxed">
+        <span className="font-medium text-stone-600">Budget &amp; Seeding access is managed separately.</span> The{" "}
+        <span className="px-1.5 py-0.5 rounded-md bg-sky-100 text-sky-700 font-medium">budget-admin</span> role unlocks
+        the Budget and Seeding portals. A person&apos;s working role inside Seeding (central / geo / viewer) is assigned
+        in <span className="font-medium">Seeding → Members</span>, not here.
+      </div>
     </div>
     </SurfaceProvider>
   );
