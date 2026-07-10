@@ -13,6 +13,8 @@
 
 import ExcelJS from "exceljs";
 import prisma from "../lib/prisma";
+import { rollupTaskFields } from "../lib/seeding/rollup";
+import type { SeedingTaskStatus } from "../app/generated/prisma/client";
 
 const WEEK0 = new Date("2026-06-22T00:00:00.000Z"); // Week 0 kickoff
 const LAUNCH_WEEK = 14;
@@ -99,13 +101,12 @@ async function main() {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file);
 
-  // ── wipe (idempotent reseed) ──────────────────────────────────────────────
+  // ── wipe checklist + reference (idempotent reseed). PRESERVE geos, funnel
+  //    actuals, members and config — those are user data, not from the sheet. ─
+  await prisma.seedingSubtask.deleteMany();
   await prisma.seedingTask.deleteMany();
   await prisma.seedingPhase.deleteMany();
   await prisma.seedingWorkstream.deleteMany();
-  await prisma.seedingFunnelGeo.deleteMany();
-  await prisma.seedingMember.deleteMany();
-  await prisma.seedingGeo.deleteMany();
   await prisma.seedingMilestone.deleteMany();
   await prisma.seedingRoleDef.deleteMany();
   await prisma.seedingExecPhase.deleteMany();
@@ -119,11 +120,17 @@ async function main() {
   });
   await prisma.seedingFunnelConfig.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} });
 
+  // Upsert geos by key (preserve ids so funnel actuals + members survive reseed).
   const geoByKey: Record<string, string> = {};
   for (const g of GEOS) {
-    const row = await prisma.seedingGeo.create({ data: g });
+    const row = await prisma.seedingGeo.upsert({
+      where: { key: g.key },
+      create: g,
+      update: { label: g.label, sortOrder: g.sortOrder },
+    });
     geoByKey[g.key] = row.id;
-    await prisma.seedingFunnelGeo.create({ data: { geoId: row.id } });
+    const fg = await prisma.seedingFunnelGeo.findUnique({ where: { geoId: row.id } });
+    if (!fg) await prisma.seedingFunnelGeo.create({ data: { geoId: row.id } });
   }
 
   await prisma.seedingMilestone.createMany({ data: milestones() });
@@ -137,14 +144,19 @@ async function main() {
     wsByKey[key] = row.id;
   }
 
-  // ── master checklist → phases + tasks ─────────────────────────────────────
+  // ── master checklist → phases + tasks + sub-tasks ─────────────────────────
+  // Col D "Task" is the real task; consecutive rows with the same (workstream,
+  // phase, Task) are its sub-tasks (col E), each with its own owner/week/status.
   const ws = wb.getWorksheet("3. MASTER CHECKLIST")!;
-  const phaseId: Record<string, string> = {}; // `${wsKey}::${phaseLabel}` → id
-  let phaseOrder: Record<string, number> = {};
-  let taskCount = 0;
+  const phaseId: Record<string, string> = {};       // `${wsKey}::${phaseLabel}` → id
+  const phaseOrder: Record<string, number> = {};
+  type SubRow = { code: string | null; title: string; ownerRole: string | null; supportRoles: string | null; startWeek: number | null; dueWeek: number | null; dependsOn: string | null; doneMetric: string | null; status: SeedingTaskStatus; notes: string | null };
+  type Group = { wid: string; pid: string | null; title: string; code: string | null; subs: SubRow[] };
+  const groups = new Map<string, Group>();
+  const order: string[] = [];
+
   for (let r = 5; r <= ws.rowCount; r++) {
-    const wsCell = cs(ws.getCell(r, 2));
-    const wsKey = workstreamKey(wsCell);
+    const wsKey = workstreamKey(cs(ws.getCell(r, 2)));
     if (!wsKey) continue;
     const wid = wsByKey[wsKey];
 
@@ -154,35 +166,49 @@ async function main() {
       const pk = `${wsKey}::${phaseLabel}`;
       if (!phaseId[pk]) {
         phaseOrder[wsKey] = (phaseOrder[wsKey] ?? 0) + 1;
-        const p = await prisma.seedingPhase.create({
-          data: { workstreamId: wid, label: phaseLabel, sortOrder: phaseOrder[wsKey] },
-        });
+        const p = await prisma.seedingPhase.create({ data: { workstreamId: wid, label: phaseLabel, sortOrder: phaseOrder[wsKey] } });
         phaseId[pk] = p.id;
       }
       pid = phaseId[pk];
     }
 
-    const title = cs(ws.getCell(r, 4));
-    if (!title) continue;
+    const taskTitle = cs(ws.getCell(r, 4));
+    if (!taskTitle) continue;
+    const subText = cs(ws.getCell(r, 5));
+    const code = cs(ws.getCell(r, 1)) || null;
 
-    await prisma.seedingTask.create({
+    const gk = `${wsKey}||${phaseLabel}||${taskTitle}`;
+    if (!groups.has(gk)) { groups.set(gk, { wid, pid, title: taskTitle, code, subs: [] }); order.push(gk); }
+    groups.get(gk)!.subs.push({
+      code,
+      title: subText || taskTitle,
+      ownerRole: cs(ws.getCell(r, 6)) || null,
+      supportRoles: cs(ws.getCell(r, 7)) || null,
+      startWeek: parseWeek(cs(ws.getCell(r, 8))),
+      dueWeek: parseWeek(cs(ws.getCell(r, 9))),
+      dependsOn: cs(ws.getCell(r, 10)) || null,
+      doneMetric: cs(ws.getCell(r, 11)) || null,
+      status: statusEnum(cs(ws.getCell(r, 12))),
+      notes: cs(ws.getCell(r, 13)) || null,
+    });
+  }
+
+  let taskCount = 0, subCount = 0;
+  for (const gk of order) {
+    const g = groups.get(gk)!;
+    const roll = rollupTaskFields(g.subs);
+    const task = await prisma.seedingTask.create({
       data: {
-        workstreamId: wid,
-        phaseId: pid,
-        code: cs(ws.getCell(r, 1)) || null,
-        title,
-        detail: cs(ws.getCell(r, 5)) || null,
-        ownerRole: cs(ws.getCell(r, 6)) || null,
-        supportRoles: cs(ws.getCell(r, 7)) || null,
-        startWeek: parseWeek(cs(ws.getCell(r, 8))),
-        dueWeek: parseWeek(cs(ws.getCell(r, 9))),
-        dependsOn: cs(ws.getCell(r, 10)) || null,
-        doneMetric: cs(ws.getCell(r, 11)) || null,
-        status: statusEnum(cs(ws.getCell(r, 12))),
-        notes: cs(ws.getCell(r, 13)) || null,
+        workstreamId: g.wid, phaseId: g.pid, code: g.code, title: g.title,
+        ownerRole: roll.ownerRole, supportRoles: roll.supportRoles,
+        startWeek: roll.startWeek, dueWeek: roll.dueWeek, status: roll.status,
         sortOrder: ++taskCount,
       },
     });
+    await prisma.seedingSubtask.createMany({
+      data: g.subs.map((s, i) => ({ taskId: task.id, sortOrder: i + 1, ...s })),
+    });
+    subCount += g.subs.length;
   }
 
   // ── reference: roles (sheet 12) ───────────────────────────────────────────
@@ -257,12 +283,12 @@ async function main() {
   }
 
   // ── report ────────────────────────────────────────────────────────────────
-  const [wc, pc, tc, mc, rc, ec, pic] = await Promise.all([
+  const [wc, pc, tc, stc, mc, rc, ec, pic] = await Promise.all([
     prisma.seedingWorkstream.count(), prisma.seedingPhase.count(), prisma.seedingTask.count(),
-    prisma.seedingMilestone.count(), prisma.seedingRoleDef.count(), prisma.seedingExecPhase.count(),
-    prisma.seedingPartnerInterface.count(),
+    prisma.seedingSubtask.count(), prisma.seedingMilestone.count(), prisma.seedingRoleDef.count(),
+    prisma.seedingExecPhase.count(), prisma.seedingPartnerInterface.count(),
   ]);
-  console.log("Seeded:", { workstreams: wc, phases: pc, tasks: tc, geos: GEOS.length, milestones: mc, roleDefs: rc, execPhases: ec, partnerRows: pic });
+  console.log("Seeded:", { workstreams: wc, phases: pc, tasks: tc, subtasks: stc, geos: GEOS.length, milestones: mc, roleDefs: rc, execPhases: ec, partnerRows: pic });
 }
 
 main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });

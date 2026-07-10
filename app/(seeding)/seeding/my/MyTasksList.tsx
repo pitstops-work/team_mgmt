@@ -4,11 +4,11 @@ import { useTransition } from "react";
 import type { SeedingTaskStatus } from "@/app/generated/prisma/client";
 import { STATUS_META, STATUS_ORDER } from "../_lib/status";
 import { weekLabel } from "@/lib/seeding/weeks";
-import { setSeedingTaskStatus } from "../actions";
+import { setSeedingSubtaskStatus } from "../actions";
 
 type T = {
   id: string; title: string; ownerRole: string | null; dueWeek: number | null; status: SeedingTaskStatus;
-  workstreamLabel: string; workstreamKey: string; detail: string | null; doneMetric: string | null;
+  workstreamLabel: string; workstreamKey: string; taskTitle: string; doneMetric: string | null;
 };
 
 export default function MyTasksList({ tasks, week0ISO, nowWeek, canEdit }: { tasks: T[]; week0ISO: string; nowWeek: number; canEdit: boolean }) {
@@ -40,12 +40,12 @@ export default function MyTasksList({ tasks, week0ISO, nowWeek, canEdit }: { tas
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-stone-800">{t.title}</div>
                     <div className="text-[11px] text-stone-400 mt-0.5">
-                      <a href={`/seeding/workstream/${t.workstreamKey}`} className="hover:underline">{t.workstreamLabel}</a>
+                      <a href={`/seeding/workstream/${t.workstreamKey}`} className="hover:underline">{t.workstreamLabel}</a> · {t.taskTitle}
                       {t.dueWeek != null && <> · due {weekLabel(week0, t.dueWeek)}</>}
                     </div>
                   </div>
                   {canEdit ? (
-                    <select value={t.status} disabled={pending} onChange={(e) => start(() => setSeedingTaskStatus(t.id, e.target.value as SeedingTaskStatus))}
+                    <select value={t.status} disabled={pending} onChange={(e) => start(() => setSeedingSubtaskStatus(t.id, e.target.value as SeedingTaskStatus))}
                       className={`shrink-0 text-[11px] rounded-full px-2 py-1 border-0 ${m.chip} cursor-pointer`}>
                       {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
                     </select>

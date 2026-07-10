@@ -9,19 +9,19 @@ export default async function MyTasksPage() {
   const session = await auth();
   const access = await getSeedingAccess(session);
 
-  const [config, allTasks] = await Promise.all([
+  const [config, allSubs] = await Promise.all([
     prisma.seedingConfig.findUnique({ where: { id: 1 } }),
-    prisma.seedingTask.findMany({ include: { workstream: true }, orderBy: { dueWeek: "asc" } }),
+    prisma.seedingSubtask.findMany({ include: { task: { include: { workstream: true } } }, orderBy: { dueWeek: "asc" } }),
   ]);
   const week0 = config?.week0Date ?? new Date("2026-06-22T00:00:00Z");
   const nowWeek = currentWeek(week0);
 
   const roles = [...new Set(access.memberships.map((m) => m.role))];
-  const mine = allTasks.filter((t) => roles.some((r) => ownerMatchesRole(t.ownerRole, r)));
+  const mine = allSubs.filter((s) => roles.some((r) => ownerMatchesRole(s.ownerRole, r)));
 
-  const dto = mine.map((t) => ({
-    id: t.id, title: t.title, ownerRole: t.ownerRole, dueWeek: t.dueWeek, status: t.status,
-    workstreamLabel: t.workstream.label, workstreamKey: t.workstream.key, detail: t.detail, doneMetric: t.doneMetric,
+  const dto = mine.map((s) => ({
+    id: s.id, title: s.title, ownerRole: s.ownerRole, dueWeek: s.dueWeek, status: s.status,
+    workstreamLabel: s.task.workstream.label, workstreamKey: s.task.workstream.key, taskTitle: s.task.title, doneMetric: s.doneMetric,
   }));
 
   return (

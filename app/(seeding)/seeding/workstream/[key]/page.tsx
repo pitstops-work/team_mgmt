@@ -16,7 +16,7 @@ export default async function WorkstreamPage({ params }: { params: Promise<{ key
       where: { key: decodeURIComponent(key) },
       include: {
         phases: { orderBy: { sortOrder: "asc" } },
-        tasks: { orderBy: { sortOrder: "asc" } },
+        tasks: { orderBy: { sortOrder: "asc" }, include: { subtasks: { orderBy: { sortOrder: "asc" } } } },
       },
     }),
   ]);
@@ -27,14 +27,16 @@ export default async function WorkstreamPage({ params }: { params: Promise<{ key
   return (
     <WorkstreamBoard
       workstreamId={ws.id}
-      workstreamKey={ws.key}
       label={ws.label}
       color={ws.color}
       phases={ws.phases.map((p) => ({ id: p.id, label: p.label }))}
       tasks={ws.tasks.map((t) => ({
-        id: t.id, code: t.code, title: t.title, detail: t.detail, ownerRole: t.ownerRole,
-        supportRoles: t.supportRoles, startWeek: t.startWeek, dueWeek: t.dueWeek, dependsOn: t.dependsOn,
-        doneMetric: t.doneMetric, status: t.status, notes: t.notes, phaseId: t.phaseId,
+        id: t.id, code: t.code, title: t.title, status: t.status, phaseId: t.phaseId,
+        subtasks: t.subtasks.map((s) => ({
+          id: s.id, code: s.code, title: s.title, ownerRole: s.ownerRole, supportRoles: s.supportRoles,
+          startWeek: s.startWeek, dueWeek: s.dueWeek, dependsOn: s.dependsOn, doneMetric: s.doneMetric,
+          status: s.status, notes: s.notes,
+        })),
       }))}
       canEdit={access.canEdit}
       canManageStructure={access.canManageStructure}

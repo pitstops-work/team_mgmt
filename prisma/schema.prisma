@@ -3387,8 +3387,11 @@ model SeedingTask {
   phaseId      String?
   phase        SeedingPhase?     @relation(fields: [phaseId], references: [id], onDelete: SetNull)
   code         String? // "01", "C5.1", "E01"
-  title        String // Task
-  detail       String? // Sub-task (detailed)
+  title        String // Task (col D) — groups its sub-tasks
+  detail       String? // deprecated: old single sub-task text; kept for back-compat
+  // Task-level fields are ROLLUPS of the sub-tasks (owner = distinct owners,
+  // startWeek/dueWeek = min/max, status = aggregate). Editable directly only
+  // when the task has no sub-tasks. Maintained by recomputeTaskRollup().
   ownerRole    String? // seeding role vocab label (see lib/seeding/roles.ts)
   supportRoles String?
   startWeek    Int?
@@ -3403,10 +3406,35 @@ model SeedingTask {
   archivedAt   DateTime?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
+  subtasks     SeedingSubtask[]
 
   @@index([workstreamId])
   @@index([phaseId])
   @@index([status])
+}
+
+/// A sub-task (sheet col E) under a task — the atomic work item, carrying its
+/// own owner, window, done-metric and status. The task's fields roll up from
+/// these.
+model SeedingSubtask {
+  id           String            @id @default(cuid())
+  taskId       String
+  task         SeedingTask       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  code         String?
+  title        String // the sub-task text (col E)
+  ownerRole    String?
+  supportRoles String?
+  startWeek    Int?
+  dueWeek      Int?
+  dependsOn    String?
+  doneMetric   String?
+  status       SeedingTaskStatus @default(not_started)
+  notes        String?
+  sortOrder    Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([taskId])
 }
 
 /// Fixed key dates for the always-visible dashboard rail.

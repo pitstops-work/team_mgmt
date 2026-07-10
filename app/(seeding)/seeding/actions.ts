@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSeedingAccess, canEditTask, canEditFunnelGeo } from "@/lib/seeding/access";
+import { rollupTaskFields } from "@/lib/seeding/rollup";
 import type { SeedingTaskStatus } from "@/app/generated/prisma/client";
 
 async function access() {
@@ -12,49 +13,33 @@ async function access() {
   return { session, a: await getSeedingAccess(session) };
 }
 
+// Broad revalidate: covers /seeding and all nested routes under the layout.
 function revalidateAll() {
-  revalidatePath("/seeding");
-  revalidatePath("/seeding/workstreams");
-  revalidatePath("/seeding/my");
+  revalidatePath("/seeding", "layout");
 }
 
-// ── Tasks ───────────────────────────────────────────────────────────────────
+/** Recompute a task's rolled-up fields (status/owner/window) from its sub-tasks. */
+async function recomputeTaskRollup(taskId: string) {
+  const subs = await prisma.seedingSubtask.findMany({
+    where: { taskId },
+    select: { status: true, ownerRole: true, supportRoles: true, startWeek: true, dueWeek: true },
+  });
+  await prisma.seedingTask.update({ where: { id: taskId }, data: rollupTaskFields(subs) });
+}
 
-export type TaskInput = {
-  title: string;
-  detail?: string | null;
-  ownerRole?: string | null;
-  supportRoles?: string | null;
-  startWeek?: number | null;
-  dueWeek?: number | null;
-  dependsOn?: string | null;
-  doneMetric?: string | null;
-  status?: SeedingTaskStatus;
-  notes?: string | null;
-  phaseId?: string | null;
-  code?: string | null;
-};
+// ── Tasks (headers — status/owner/window are rolled up from sub-tasks) ────────
+
+export type TaskInput = { title: string; code?: string | null; phaseId?: string | null };
 
 export async function createSeedingTask(workstreamId: string, input: TaskInput) {
   const { session, a } = await access();
   if (!a.canEdit) throw new Error("No edit access");
-  // Owner-role edit gate: geo members may only add tasks they could edit.
-  if (!canEditTask(a, { ownerRole: input.ownerRole ?? null })) throw new Error("Not allowed for this owner");
   const max = await prisma.seedingTask.aggregate({ where: { workstreamId }, _max: { sortOrder: true } });
   await prisma.seedingTask.create({
     data: {
       workstreamId,
       phaseId: input.phaseId ?? null,
       title: input.title.trim(),
-      detail: input.detail?.trim() || null,
-      ownerRole: input.ownerRole?.trim() || null,
-      supportRoles: input.supportRoles?.trim() || null,
-      startWeek: input.startWeek ?? null,
-      dueWeek: input.dueWeek ?? null,
-      dependsOn: input.dependsOn?.trim() || null,
-      doneMetric: input.doneMetric?.trim() || null,
-      status: input.status ?? "not_started",
-      notes: input.notes?.trim() || null,
       code: input.code?.trim() || null,
       sortOrder: (max._max.sortOrder ?? 0) + 1,
       createdById: session.user!.id!,
@@ -70,33 +55,7 @@ export async function updateSeedingTask(taskId: string, input: TaskInput) {
   if (!canEditTask(a, task)) throw new Error("No edit access");
   await prisma.seedingTask.update({
     where: { id: taskId },
-    data: {
-      title: input.title.trim(),
-      detail: input.detail?.trim() || null,
-      ownerRole: input.ownerRole?.trim() || null,
-      supportRoles: input.supportRoles?.trim() || null,
-      startWeek: input.startWeek ?? null,
-      dueWeek: input.dueWeek ?? null,
-      dependsOn: input.dependsOn?.trim() || null,
-      doneMetric: input.doneMetric?.trim() || null,
-      status: input.status ?? undefined,
-      notes: input.notes?.trim() || null,
-      phaseId: input.phaseId ?? null,
-      code: input.code?.trim() || null,
-    },
-  });
-  revalidateAll();
-}
-
-/** Fast status-only update (used by the inline status control). */
-export async function setSeedingTaskStatus(taskId: string, status: SeedingTaskStatus, note?: string) {
-  const { a } = await access();
-  const task = await prisma.seedingTask.findUnique({ where: { id: taskId }, select: { ownerRole: true } });
-  if (!task) throw new Error("Not found");
-  if (!canEditTask(a, task)) throw new Error("No edit access");
-  await prisma.seedingTask.update({
-    where: { id: taskId },
-    data: { status, ...(note !== undefined ? { notes: note.trim() || null } : {}) },
+    data: { title: input.title.trim(), code: input.code?.trim() || null, phaseId: input.phaseId ?? null },
   });
   revalidateAll();
 }
@@ -106,7 +65,91 @@ export async function deleteSeedingTask(taskId: string) {
   const task = await prisma.seedingTask.findUnique({ where: { id: taskId }, select: { ownerRole: true } });
   if (!task) throw new Error("Not found");
   if (!canEditTask(a, task)) throw new Error("No edit access");
-  await prisma.seedingTask.delete({ where: { id: taskId } });
+  await prisma.seedingTask.delete({ where: { id: taskId } }); // cascades sub-tasks
+  revalidateAll();
+}
+
+// ── Sub-tasks (the atomic work items) ─────────────────────────────────────────
+
+export type SubtaskInput = {
+  title: string;
+  code?: string | null;
+  ownerRole?: string | null;
+  supportRoles?: string | null;
+  startWeek?: number | null;
+  dueWeek?: number | null;
+  dependsOn?: string | null;
+  doneMetric?: string | null;
+  status?: SeedingTaskStatus;
+  notes?: string | null;
+};
+
+export async function createSeedingSubtask(taskId: string, input: SubtaskInput) {
+  const { a } = await access();
+  if (!a.canEdit) throw new Error("No edit access");
+  if (!canEditTask(a, { ownerRole: input.ownerRole ?? null })) throw new Error("Not allowed for this owner");
+  const max = await prisma.seedingSubtask.aggregate({ where: { taskId }, _max: { sortOrder: true } });
+  await prisma.seedingSubtask.create({
+    data: {
+      taskId,
+      title: input.title.trim(),
+      code: input.code?.trim() || null,
+      ownerRole: input.ownerRole?.trim() || null,
+      supportRoles: input.supportRoles?.trim() || null,
+      startWeek: input.startWeek ?? null,
+      dueWeek: input.dueWeek ?? null,
+      dependsOn: input.dependsOn?.trim() || null,
+      doneMetric: input.doneMetric?.trim() || null,
+      status: input.status ?? "not_started",
+      notes: input.notes?.trim() || null,
+      sortOrder: (max._max.sortOrder ?? 0) + 1,
+    },
+  });
+  await recomputeTaskRollup(taskId);
+  revalidateAll();
+}
+
+export async function updateSeedingSubtask(subtaskId: string, input: SubtaskInput) {
+  const { a } = await access();
+  const sub = await prisma.seedingSubtask.findUnique({ where: { id: subtaskId }, select: { taskId: true, ownerRole: true } });
+  if (!sub) throw new Error("Not found");
+  if (!canEditTask(a, sub)) throw new Error("No edit access");
+  await prisma.seedingSubtask.update({
+    where: { id: subtaskId },
+    data: {
+      title: input.title.trim(),
+      code: input.code?.trim() || null,
+      ownerRole: input.ownerRole?.trim() || null,
+      supportRoles: input.supportRoles?.trim() || null,
+      startWeek: input.startWeek ?? null,
+      dueWeek: input.dueWeek ?? null,
+      dependsOn: input.dependsOn?.trim() || null,
+      doneMetric: input.doneMetric?.trim() || null,
+      status: input.status ?? undefined,
+      notes: input.notes?.trim() || null,
+    },
+  });
+  await recomputeTaskRollup(sub.taskId);
+  revalidateAll();
+}
+
+export async function setSeedingSubtaskStatus(subtaskId: string, status: SeedingTaskStatus, note?: string) {
+  const { a } = await access();
+  const sub = await prisma.seedingSubtask.findUnique({ where: { id: subtaskId }, select: { taskId: true, ownerRole: true } });
+  if (!sub) throw new Error("Not found");
+  if (!canEditTask(a, sub)) throw new Error("No edit access");
+  await prisma.seedingSubtask.update({ where: { id: subtaskId }, data: { status, ...(note !== undefined ? { notes: note.trim() || null } : {}) } });
+  await recomputeTaskRollup(sub.taskId);
+  revalidateAll();
+}
+
+export async function deleteSeedingSubtask(subtaskId: string) {
+  const { a } = await access();
+  const sub = await prisma.seedingSubtask.findUnique({ where: { id: subtaskId }, select: { taskId: true, ownerRole: true } });
+  if (!sub) throw new Error("Not found");
+  if (!canEditTask(a, sub)) throw new Error("No edit access");
+  await prisma.seedingSubtask.delete({ where: { id: subtaskId } });
+  await recomputeTaskRollup(sub.taskId);
   revalidateAll();
 }
 
