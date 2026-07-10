@@ -46,6 +46,7 @@ export default async function SeedingLayout({ children }: { children: React.Reac
               <a href="/seeding/admin/members" className="text-xs text-stone-400 hover:text-stone-700 shrink-0 hidden sm:inline">Members</a>
             </>
           )}
+          <a href="/settings" className="text-xs text-stone-400 hover:text-stone-700 shrink-0">Account</a>
           <SignOutButton />
         </nav>
       </header>

@@ -61,11 +61,12 @@ export default async function middleware(req: NextRequest) {
   const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
   const isApiRoute = pathname.startsWith("/api/");
 
-  // budget-admin: only the budget section + account settings allowed
+  // budget-admin: budget + seeding sections, the portal chooser, and account
+  // settings. Everything else redirects to the portal (Budget + Seeding tiles).
   if (role === "budget-admin") {
-    const BUDGET_PREFIXES = ["/budget", "/admin", "/api/budget", "/api/admin/budget", "/settings", "/api/account"];
+    const BUDGET_PREFIXES = ["/portal", "/budget", "/seeding", "/admin", "/api/budget", "/api/admin/budget", "/settings", "/api/account"];
     if (!BUDGET_PREFIXES.some((p) => pathname.startsWith(p))) {
-      return NextResponse.redirect(new URL("/budget", req.url));
+      return NextResponse.redirect(new URL("/portal", req.url));
     }
   }
 

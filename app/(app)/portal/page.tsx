@@ -6,6 +6,7 @@ import Avatar from "@/components/Avatar";
 import SignOutButton from "@/components/SignOutButton";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import { getSeedingAccess } from "@/lib/seeding/access";
+import { isBudgetAdmin } from "@/lib/roleGuard";
 
 export default async function PortalPage() {
   const session = await auth();
@@ -13,6 +14,8 @@ export default async function PortalPage() {
 
   const firstName = session.user.name?.split(" ")[0] ?? "there";
   const seeding = await getSeedingAccess(session);
+  // budget-admins get a restricted chooser: Budget + Seeding only.
+  const budgetOnly = isBudgetAdmin(session);
 
   return (
     <SurfaceProvider id="portal.view">
@@ -32,7 +35,9 @@ export default async function PortalPage() {
       {/* Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
 
-        {/* Operations */}
+        {/* Operations + Setup — hidden for budget-admins */}
+        {!budgetOnly && (
+        <>
         <Link
           href="/home"
           className="group flex flex-col gap-3 p-6 bg-sky-500 hover:bg-sky-600 rounded-2xl shadow-sm transition-all hover:shadow-md"
@@ -46,7 +51,6 @@ export default async function PortalPage() {
           </div>
         </Link>
 
-        {/* Setup */}
         <Link
           href="/dashboard"
           className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md"
@@ -59,6 +63,8 @@ export default async function PortalPage() {
             <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Goals · Maps · Planning · Review</p>
           </div>
         </Link>
+        </>
+        )}
 
         {/* Budget */}
         <Link
@@ -75,6 +81,7 @@ export default async function PortalPage() {
         </Link>
 
         {/* Review Portal */}
+        {!budgetOnly && (
         <Link
           href="/grant-notes"
           className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md"
@@ -87,6 +94,7 @@ export default async function PortalPage() {
             <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Grant notes · Drafts · Approvals</p>
           </div>
         </Link>
+        )}
 
         {/* Seeding Fellowships */}
         {seeding.canAccess && (
@@ -105,6 +113,7 @@ export default async function PortalPage() {
         )}
 
         {/* Due Diligence */}
+        {!budgetOnly && (
         <Link
           href="/due-diligence"
           className="group flex flex-col gap-3 p-6 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 rounded-2xl shadow-sm transition-all hover:shadow-md sm:col-span-2"
@@ -117,6 +126,7 @@ export default async function PortalPage() {
             <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Org profile · Compliance · Financials · Programme design</p>
           </div>
         </Link>
+        )}
 
       </div>
 

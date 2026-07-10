@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { isSuperAdmin } from "@/lib/roleGuard";
+import { isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
 import { isCentralRole, isGeoRole, ownerIsGeoScoped } from "./roles";
 
 type SessionLike = {
@@ -26,6 +26,7 @@ export type SeedingAccess = {
 export async function getSeedingAccess(session: SessionLike): Promise<SeedingAccess> {
   const userId = session?.user?.id ?? null;
   const superAdmin = isSuperAdmin(session);
+  const budgetAdmin = isBudgetAdmin(session);
   const memberships = userId
     ? await prisma.seedingMember.findMany({ where: { userId }, select: { role: true, geoId: true } })
     : [];
@@ -41,7 +42,9 @@ export async function getSeedingAccess(session: SessionLike): Promise<SeedingAcc
     memberships,
     isCentral,
     geoIds,
-    canAccess: superAdmin || isMember,
+    // budget-admins get read access (the Seeding tile); edit rights still come
+    // from a SeedingMember row assigned in Seeding → Members.
+    canAccess: superAdmin || isMember || budgetAdmin,
     canEdit: isCentral || anyGeoRole,
     canManageStructure: hasCentralLead,
   };

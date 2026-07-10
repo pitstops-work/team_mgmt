@@ -217,7 +217,7 @@ export default function SettingsPage() {
     <SurfaceProvider id="settings.index">
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {isBudgetAdmin && (
-        <a href="/budget" className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-700 mb-6">← Back to Budget Builder</a>
+        <a href="/portal" className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-700 mb-6">← Back to portal</a>
       )}
       <h1 className="text-xl font-semibold text-stone-900 mb-8">Settings</h1>
 
