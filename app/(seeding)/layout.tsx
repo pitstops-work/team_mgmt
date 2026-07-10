@@ -5,8 +5,8 @@ import { getSeedingAccess } from "@/lib/seeding/access";
 import SignOutButton from "@/components/SignOutButton";
 
 export const metadata: Metadata = {
-  title: "Seeding Fellowships",
-  description: "Phase-1 launch tracker for the Seeding Fellowships programme",
+  title: "Seeding Civil Society Startups",
+  description: "Phase-1 launch tracker for the Seeding Civil Society Startups programme",
 };
 
 const NAV: { href: string; label: string; mobile?: boolean }[] = [
@@ -29,7 +29,7 @@ export default async function SeedingLayout({ children }: { children: React.Reac
     <div className="min-h-screen bg-stone-50">
       <header className="border-b border-stone-200 bg-white px-4 py-3 flex items-center gap-3 min-w-0">
         <a href="/portal" className="text-xs text-stone-400 hover:text-stone-700 shrink-0">← Portal</a>
-        <span className="text-sm font-semibold text-stone-800 tracking-wide shrink-0 hidden sm:inline">Seeding Fellowships</span>
+        <span className="text-sm font-semibold text-stone-800 tracking-wide shrink-0 hidden sm:inline">Seeding Civil Society Startups</span>
         <nav className="ml-auto flex items-center gap-3 overflow-x-auto">
           {NAV.map((n) => (
             <a

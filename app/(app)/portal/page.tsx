@@ -96,7 +96,7 @@ export default async function PortalPage() {
         </Link>
         )}
 
-        {/* Seeding Fellowships */}
+        {/* Seeding Civil Society Startups */}
         {seeding.canAccess && (
           <Link
             href="/seeding"
@@ -107,7 +107,7 @@ export default async function PortalPage() {
             </div>
             <div>
               <p className="text-stone-800 font-semibold text-base">Seeding</p>
-              <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Fellowships launch · Checklist · Funnel · Geographies</p>
+              <p className="text-stone-400 text-xs mt-0.5 leading-relaxed">Civil society startups · Checklist · Funnel · Geographies</p>
             </div>
           </Link>
         )}

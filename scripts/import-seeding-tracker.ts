@@ -1,5 +1,5 @@
 /**
- * One-time importer: seeds the Seeding Fellowships portal from the launch
+ * One-time importer: seeds the Seeding Civil Society Startups portal from the launch
  * tracker workbook. Sheet "3. MASTER CHECKLIST" is the spine; sheets 2/10/11/12
  * seed the funnel, execution arc, partner interface and role definitions.
  *
