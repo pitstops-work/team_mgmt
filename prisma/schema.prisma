@@ -138,6 +138,9 @@ model User {
   createdActionPoints       ActionPoint[]                  @relation("ActionPointCreator")
   lastUpdatedActionPoints   ActionPoint[]                  @relation("ActionPointLastUpdater")
   completedActionPoints     ActionPoint[]                  @relation("ActionPointCompleter")
+  // Seeding Fellowships launch portal
+  seedingMemberships        SeedingMember[]                @relation("SeedingMemberUser")
+  seedingTasksCreated       SeedingTask[]                  @relation("SeedingTaskCreatedBy")
 }
 
 model Account {
@@ -3318,4 +3321,180 @@ model WikiSpineEntry {
 
   @@unique([spineId, ordinal])
   @@index([spineId])
+}
+
+// ─── Seeding Fellowships launch portal ──────────────────────────────────────
+// Self-contained module (like budget). The Excel "Master Checklist" was the
+// living spine; sheets 4-9 and the Gantt were derived views. This portal makes
+// the checklist + funnel the living master. Time is measured in weeks from
+// Week 0 = 22 Jun 2026; calendar dates derive from SeedingConfig.week0Date.
+
+/// Singleton (id always 1) holding the programme's time anchors.
+model SeedingConfig {
+  id         Int      @id @default(1)
+  week0Date  DateTime // 22 Jun 2026 kickoff
+  launchWeek Int      @default(14)
+  updatedAt  DateTime @updatedAt
+}
+
+/// The 4 Phase-1 geographies (data, not hardcoded — extensible).
+model SeedingGeo {
+  id        String            @id @default(cuid())
+  key       String            @unique // bangalore_urban | odisha | eastern_up | north_east
+  label     String
+  sortOrder Int               @default(0)
+  funnel    SeedingFunnelGeo?
+  members   SeedingMember[]
+}
+
+/// Top-level workstream (A-E + Launch Gate). Admin add/remove/reorder.
+model SeedingWorkstream {
+  id         String         @id @default(cuid())
+  key        String         @unique // A | B | C | D | E | LAUNCH
+  label      String
+  color      String         @default("#6366f1")
+  sortOrder  Int            @default(0)
+  archivedAt DateTime?
+  phases     SeedingPhase[]
+  tasks      SeedingTask[]
+}
+
+/// Grouping level within a workstream (A0, C5, E1, Go-live readiness…).
+model SeedingPhase {
+  id           String            @id @default(cuid())
+  workstreamId String
+  workstream   SeedingWorkstream @relation(fields: [workstreamId], references: [id], onDelete: Cascade)
+  label        String
+  sortOrder    Int               @default(0)
+  tasks        SeedingTask[]
+
+  @@index([workstreamId])
+}
+
+enum SeedingTaskStatus {
+  not_started
+  in_progress
+  blocked
+  done
+}
+
+/// A sub-task on the checklist. Owner is a role label (master tasks stay
+/// role-based); "My tasks" maps a member's role+geo to matching tasks.
+model SeedingTask {
+  id           String            @id @default(cuid())
+  workstreamId String
+  workstream   SeedingWorkstream @relation(fields: [workstreamId], references: [id], onDelete: Cascade)
+  phaseId      String?
+  phase        SeedingPhase?     @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  code         String? // "01", "C5.1", "E01"
+  title        String // Task
+  detail       String? // Sub-task (detailed)
+  ownerRole    String? // seeding role vocab label (see lib/seeding/roles.ts)
+  supportRoles String?
+  startWeek    Int?
+  dueWeek      Int?
+  dependsOn    String?
+  doneMetric   String?
+  status       SeedingTaskStatus @default(not_started)
+  notes        String? // blocker note when status = blocked
+  sortOrder    Int               @default(0)
+  createdById  String?
+  createdBy    User?             @relation("SeedingTaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  archivedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([workstreamId])
+  @@index([phaseId])
+  @@index([status])
+}
+
+/// Fixed key dates for the always-visible dashboard rail.
+model SeedingMilestone {
+  id        String   @id @default(cuid())
+  label     String
+  date      DateTime
+  kind      String? // launch | selection | onboarding | orientation | seed_grant …
+  sortOrder Int      @default(0)
+}
+
+/// Singleton (id always 1): the funnel "blue cell" assumptions. Targets are
+/// computed from these (see lib/seeding/funnel.ts), never stored.
+model SeedingFunnelConfig {
+  id             Int      @id @default(1)
+  fellowsPerGeo  Int      @default(25)
+  selectionRatio Int      @default(100) // applications : fellow
+  appBufferPct   Float    @default(0.20)
+  leadToApp      Float    @default(0.40)
+  coldReachToApp Float    @default(0.02)
+  reachToLead    Float    @default(0.10)
+  shareFromWarm  Float    @default(0.70)
+  updatedAt      DateTime @updatedAt
+}
+
+/// Editable per-geo actuals (targets are derived, not stored).
+model SeedingFunnelGeo {
+  id           String     @id @default(cuid())
+  geoId        String     @unique
+  geo          SeedingGeo @relation(fields: [geoId], references: [id], onDelete: Cascade)
+  reachToDate  Int        @default(0)
+  leadsToDate  Int        @default(0)
+  appsReceived Int        @default(0)
+  screened     Int        @default(0)
+  shortlisted  Int        @default(0)
+  updatedAt    DateTime   @updatedAt
+}
+
+/// Who can use the portal + their scope. Central roles have geoId null (all
+/// geos); geo roles are scoped to one geography. Role vocab in lib/seeding/roles.ts.
+model SeedingMember {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation("SeedingMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  role      String
+  geoId     String?
+  geo       SeedingGeo? @relation(fields: [geoId], references: [id], onDelete: SetNull)
+  createdAt DateTime    @default(now())
+
+  @@unique([userId, role, geoId])
+  @@index([userId])
+}
+
+// ── Reference tables (seeded from the sheet; read-only pages in v1) ──────────
+
+/// Sheet 12 — Roles, Hires & Responsibilities.
+model SeedingRoleDef {
+  id                 String  @id @default(cuid())
+  role               String
+  newHire            String?
+  reportsTo          String?
+  count              String?
+  coreResponsibility String?
+  ownsWorkstreams    String?
+  inPlaceBy          String?
+  sortOrder          Int     @default(0)
+}
+
+/// Sheet 10 — Fellowship Execution post-launch arc.
+model SeedingExecPhase {
+  id         String  @id @default(cuid())
+  code       String?
+  phase      String
+  window     String?
+  activities String?
+  milestones String?
+  quarters   String? // rendered quarter-span label
+  sortOrder  Int     @default(0)
+}
+
+/// Sheet 11 — Partner-SPOC Interface (provides / spoc / cadence rows).
+model SeedingPartnerInterface {
+  id        String  @id @default(cuid())
+  section   String // provides | spoc | cadence
+  colA      String?
+  colB      String?
+  colC      String?
+  colD      String?
+  colE      String?
+  sortOrder Int     @default(0)
 }
