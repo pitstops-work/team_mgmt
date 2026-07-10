@@ -3,24 +3,19 @@ import prisma from "@/lib/prisma";
 import { computeTargets, pct, trackBand } from "@/lib/seeding/funnel";
 import { currentWeek, daysUntil, fmtDate, weekLabel } from "@/lib/seeding/weeks";
 import type { SeedingTaskStatus } from "@/app/generated/prisma/client";
-import { STATUS_META } from "./_lib/status";
-import { ProgressBar, StatusChip } from "./_components/bits";
-import RoadToLaunch, { type PhaseNode } from "./_components/RoadToLaunch";
+import { StatusChip, ProgressBar } from "./_components/bits";
+import RoadToLaunch from "./_components/RoadToLaunch";
+import { loadLaunchMilestones } from "@/lib/seeding/milestones";
 
 const trackColor = { ontrack: "bg-emerald-500", warn: "bg-amber-500", behind: "bg-rose-500" } as const;
 const trackText = { ontrack: "text-emerald-600", warn: "text-amber-600", behind: "text-rose-600" } as const;
 const kfmt = (n: number) => (n >= 1000 ? `${(n / 1000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}k` : `${n}`);
 
 export default async function SeedingDashboard() {
-  const [config, milestones, phasesRaw, subStatus, funnelConfig, geos, blockers, dueRows] = await Promise.all([
+  const [config, milestones, launchMilestones, subStatus, funnelConfig, geos, blockers, dueRows] = await Promise.all([
     prisma.seedingConfig.findUnique({ where: { id: 1 } }),
     prisma.seedingMilestone.findMany({ orderBy: { sortOrder: "asc" } }),
-    prisma.seedingPhase.findMany({
-      include: {
-        workstream: { select: { label: true, color: true, key: true } },
-        tasks: { orderBy: { sortOrder: "asc" }, include: { subtasks: { select: { status: true, dueWeek: true } } } },
-      },
-    }),
+    loadLaunchMilestones(),
     prisma.seedingSubtask.groupBy({ by: ["status"], _count: true }),
     prisma.seedingFunnelConfig.findUnique({ where: { id: 1 } }),
     prisma.seedingGeo.findMany({ orderBy: { sortOrder: "asc" }, include: { funnel: true } }),
@@ -40,23 +35,6 @@ export default async function SeedingDashboard() {
   const launch = milestones.find((m) => m.kind === "launch");
   const launchDays = launch ? daysUntil(launch.date) : (launchWeek - nowWeek) * 7;
   const launchProgress = Math.max(0, Math.min(100, Math.round((nowWeek / launchWeek) * 100)));
-
-  // Road to launch: phases whose target week is on/before launch, expandable.
-  const phaseNodes: (PhaseNode & { due: number })[] = phasesRaw.map((ph) => {
-    const dues = ph.tasks.flatMap((t) => t.subtasks.map((s) => s.dueWeek).filter((d): d is number => d != null));
-    const due = dues.length ? Math.max(...dues) : (null as unknown as number);
-    const subs = ph.tasks.flatMap((t) => t.subtasks);
-    return {
-      id: ph.id, label: ph.label, color: ph.workstream.color, workstreamLabel: ph.workstream.label, workstreamKey: ph.workstream.key,
-      dueWeek: dues.length ? Math.max(...dues) : null,
-      subDone: subs.filter((s) => s.status === "done").length, subTotal: subs.length,
-      blocked: subs.filter((s) => s.status === "blocked").length,
-      tasks: ph.tasks.map((t) => ({ id: t.id, title: t.title, status: t.status, subDone: t.subtasks.filter((s) => s.status === "done").length, subTotal: t.subtasks.length })),
-      due: dues.length ? Math.max(...dues) : 999,
-    };
-  });
-  const preLaunch = phaseNodes.filter((p) => p.due <= launchWeek).sort((a, b) => a.due - b.due);
-  const postCount = phaseNodes.length - preLaunch.length;
 
   const targets = funnelConfig ? computeTargets(funnelConfig, geos.length) : null;
   const reachTotal = geos.reduce((s, g) => s + (g.funnel?.reachToDate ?? 0), 0);
@@ -119,7 +97,7 @@ export default async function SeedingDashboard() {
           <h2 className="text-sm font-semibold text-stone-700">Road to launch — milestones</h2>
           <Link href="/seeding/workstreams" className="text-xs text-sky-600 hover:underline">All workstreams →</Link>
         </div>
-        <RoadToLaunch phases={preLaunch} postCount={postCount} week0ISO={week0.toISOString()} launchWeek={launchWeek} nowWeek={nowWeek} />
+        <RoadToLaunch milestones={launchMilestones} week0ISO={week0.toISOString()} launchWeek={launchWeek} nowWeek={nowWeek} />
       </div>
 
       {/* Funnel health */}

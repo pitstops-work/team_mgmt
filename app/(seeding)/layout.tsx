@@ -41,7 +41,10 @@ export default async function SeedingLayout({ children }: { children: React.Reac
             </a>
           ))}
           {access.canManageStructure && (
-            <a href="/seeding/admin/members" className="text-xs text-stone-400 hover:text-stone-700 shrink-0 hidden sm:inline">Admin</a>
+            <>
+              <a href="/seeding/admin/milestones" className="text-xs text-stone-400 hover:text-stone-700 shrink-0 hidden sm:inline">Milestones</a>
+              <a href="/seeding/admin/members" className="text-xs text-stone-400 hover:text-stone-700 shrink-0 hidden sm:inline">Members</a>
+            </>
           )}
           <SignOutButton />
         </nav>

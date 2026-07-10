@@ -3361,14 +3361,33 @@ model SeedingWorkstream {
 
 /// Grouping level within a workstream (A0, C5, E1, Go-live readiness…).
 model SeedingPhase {
-  id           String            @id @default(cuid())
+  id           String                 @id @default(cuid())
   workstreamId String
-  workstream   SeedingWorkstream @relation(fields: [workstreamId], references: [id], onDelete: Cascade)
+  workstream   SeedingWorkstream      @relation(fields: [workstreamId], references: [id], onDelete: Cascade)
   label        String
-  sortOrder    Int               @default(0)
+  sortOrder    Int                    @default(0)
+  // Which curated Road-to-Launch milestone this phase rolls into (nullable).
+  milestoneId  String?
+  milestone    SeedingLaunchMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   tasks        SeedingTask[]
 
   @@index([workstreamId])
+  @@index([milestoneId])
+}
+
+/// Curated Road-to-Launch milestone — a handful of gates that group phases.
+/// Editable in-app; `key` is stable so the importer can re-link phases. The
+/// target date is computed from the member phases' latest sub-task due week
+/// unless targetWeek is set as an override.
+model SeedingLaunchMilestone {
+  id         String         @id @default(cuid())
+  key        String         @unique
+  title      String
+  sortOrder  Int            @default(0)
+  targetWeek Int?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  phases     SeedingPhase[]
 }
 
 enum SeedingTaskStatus {

@@ -14,6 +14,7 @@
 import ExcelJS from "exceljs";
 import prisma from "../lib/prisma";
 import { rollupTaskFields } from "../lib/seeding/rollup";
+import { DEFAULT_LAUNCH_MILESTONES, defaultMilestoneKeyForPhase } from "../lib/seeding/launchMilestones";
 import type { SeedingTaskStatus } from "../app/generated/prisma/client";
 
 const WEEK0 = new Date("2026-06-22T00:00:00.000Z"); // Week 0 kickoff
@@ -144,6 +145,18 @@ async function main() {
     wsByKey[key] = row.id;
   }
 
+  // ── curated Road-to-Launch milestones (upsert by key; preserve edits) ──────
+  const milestoneIdByKey: Record<string, string> = {};
+  for (let i = 0; i < DEFAULT_LAUNCH_MILESTONES.length; i++) {
+    const d = DEFAULT_LAUNCH_MILESTONES[i];
+    const row = await prisma.seedingLaunchMilestone.upsert({
+      where: { key: d.key },
+      create: { key: d.key, title: d.title, sortOrder: i + 1 },
+      update: {}, // preserve any in-app renames / reordering
+    });
+    milestoneIdByKey[d.key] = row.id;
+  }
+
   // ── master checklist → phases + tasks + sub-tasks ─────────────────────────
   // Col D "Task" is the real task; consecutive rows with the same (workstream,
   // phase, Task) are its sub-tasks (col E), each with its own owner/week/status.
@@ -166,7 +179,10 @@ async function main() {
       const pk = `${wsKey}::${phaseLabel}`;
       if (!phaseId[pk]) {
         phaseOrder[wsKey] = (phaseOrder[wsKey] ?? 0) + 1;
-        const p = await prisma.seedingPhase.create({ data: { workstreamId: wid, label: phaseLabel, sortOrder: phaseOrder[wsKey] } });
+        const mKey = defaultMilestoneKeyForPhase(phaseLabel);
+        const p = await prisma.seedingPhase.create({
+          data: { workstreamId: wid, label: phaseLabel, sortOrder: phaseOrder[wsKey], milestoneId: mKey ? milestoneIdByKey[mKey] ?? null : null },
+        });
         phaseId[pk] = p.id;
       }
       pid = phaseId[pk];

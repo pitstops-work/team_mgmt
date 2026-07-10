@@ -245,3 +245,52 @@ export async function removeSeedingMember(id: string) {
   await prisma.seedingMember.delete({ where: { id } });
   revalidatePath("/seeding/admin/members");
 }
+
+// ── Road-to-Launch milestones (curated; admin-editable) ───────────────────────
+
+export async function createLaunchMilestone(title: string) {
+  const { a } = await access();
+  if (!a.canManageStructure) throw new Error("No admin access");
+  const t = title.trim();
+  if (!t) throw new Error("Title required");
+  const key = `${t.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 24)}_${Math.random().toString(36).slice(2, 7)}`;
+  const max = await prisma.seedingLaunchMilestone.aggregate({ _max: { sortOrder: true } });
+  await prisma.seedingLaunchMilestone.create({ data: { key, title: t, sortOrder: (max._max.sortOrder ?? 0) + 1 } });
+  revalidateAll();
+}
+
+export async function renameLaunchMilestone(id: string, title: string) {
+  const { a } = await access();
+  if (!a.canManageStructure) throw new Error("No admin access");
+  await prisma.seedingLaunchMilestone.update({ where: { id }, data: { title: title.trim() } });
+  revalidateAll();
+}
+
+export async function deleteLaunchMilestone(id: string) {
+  const { a } = await access();
+  if (!a.canManageStructure) throw new Error("No admin access");
+  await prisma.seedingLaunchMilestone.delete({ where: { id } }); // phases keep (milestoneId set null)
+  revalidateAll();
+}
+
+export async function reorderLaunchMilestone(id: string, dir: "up" | "down") {
+  const { a } = await access();
+  if (!a.canManageStructure) throw new Error("No admin access");
+  const all = await prisma.seedingLaunchMilestone.findMany({ orderBy: { sortOrder: "asc" } });
+  const idx = all.findIndex((m) => m.id === id);
+  const swap = dir === "up" ? idx - 1 : idx + 1;
+  if (idx < 0 || swap < 0 || swap >= all.length) return;
+  await prisma.$transaction([
+    prisma.seedingLaunchMilestone.update({ where: { id: all[idx].id }, data: { sortOrder: all[swap].sortOrder } }),
+    prisma.seedingLaunchMilestone.update({ where: { id: all[swap].id }, data: { sortOrder: all[idx].sortOrder } }),
+  ]);
+  revalidateAll();
+}
+
+/** Assign a phase to a milestone (or null to detach). */
+export async function assignPhaseMilestone(phaseId: string, milestoneId: string | null) {
+  const { a } = await access();
+  if (!a.canManageStructure) throw new Error("No admin access");
+  await prisma.seedingPhase.update({ where: { id: phaseId }, data: { milestoneId } });
+  revalidateAll();
+}
