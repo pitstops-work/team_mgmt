@@ -31,8 +31,11 @@ export const authOptions: AuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        // Email is case-insensitive: users may type caps even though stored
+        // emails are normalised to lowercase on create/register.
+        const email = String(credentials.email).trim();
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
         });
 
         if (!user || !user.password) return null;
