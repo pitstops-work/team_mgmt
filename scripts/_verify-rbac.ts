@@ -9,7 +9,7 @@
 import prisma from "../lib/prisma";
 import { can, scopeWhere, type RbacContext } from "../lib/rbac";
 
-const ROLES = ["super-admin", "admin", "member", "viewer", "budget-admin"] as const;
+const ROLES = ["super-admin", "admin", "member", "viewer", "budget-admin", "partner"] as const;
 const CHECKS: Array<{ resource: string; action: string }> = [
   { resource: "goal", action: "list" },
   { resource: "goal", action: "read" },

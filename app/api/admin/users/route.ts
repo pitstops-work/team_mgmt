@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
   // Only super-admin can create admin users; only the owner can create
   // super-admin users (matches the b2 minting policy in PATCH).
-  const role = ["super-admin", "admin", "member", "viewer", "budget-admin"].includes(req_role) ? req_role : "member";
+  const role = ["super-admin", "admin", "member", "viewer", "budget-admin", "partner"].includes(req_role) ? req_role : "member";
   if (role === "admin" && !isSuperAdmin(session)) {
     return Response.json({ error: "Only the super-admin can create admin users" }, { status: 403 });
   }

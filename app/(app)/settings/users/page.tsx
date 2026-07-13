@@ -24,7 +24,7 @@ interface User {
   reportsToId: string | null;
 }
 
-const ROLES = ["super-admin", "admin", "member", "viewer", "budget-admin"] as const;
+const ROLES = ["super-admin", "admin", "member", "viewer", "budget-admin", "partner"] as const;
 type Role = typeof ROLES[number];
 
 const DESIGNATIONS = ["RP", "ZL", "PM", "Leader", "Other"] as const;
@@ -36,6 +36,7 @@ const ROLE_STYLE: Record<Role, string> = {
   member:         "bg-emerald-100 text-emerald-700",
   viewer:         "bg-stone-100 text-stone-500",
   "budget-admin": "bg-sky-100 text-sky-700",
+  partner:        "bg-teal-100 text-teal-700",
 };
 
 const DESIGNATION_STYLE: Record<Designation, string> = {
