@@ -226,9 +226,15 @@ export async function createBudget(payload: CreateBudgetPayload) {
   // grantYear lookups, etc.). years = number of year-bands the horizon covers.
   const years = activeYearBands(horizonMonths);
 
+  // "Others" is a placeholder city for test / cross-city mock budgets — it has
+  // no CostRegistry or LineTemplate rows of its own. Fall back to Bangalore's
+  // (same fallback the new-budget form applies for domain visibility) so the
+  // generator produces non-zero lines. Budget.city itself still stores "Others"
+  // so the budget stays under the Others tab.
+  const sourceCity = payload.city === "Others" ? "Bangalore" : payload.city;
   const [registryRows, templates] = await Promise.all([
-    prisma.costRegistry.findMany({ where: { city: payload.city } }),
-    prisma.lineTemplate.findMany({ where: { city: payload.city }, orderBy: { position: "asc" } }),
+    prisma.costRegistry.findMany({ where: { city: sourceCity } }),
+    prisma.lineTemplate.findMany({ where: { city: sourceCity }, orderBy: { position: "asc" } }),
   ]);
   // Snapshot the full registry at create time. Stored on Budget.costSnapshot
   // so future regenerate / scale-up actions reproduce the partner's basis
