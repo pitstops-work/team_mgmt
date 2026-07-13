@@ -2,17 +2,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextRequest } from "next/server";
 import { viewerForbidden } from "@/lib/roleGuard";
-
-export const SUPPORTED_LANGS = [
-  { code: "en", label: "English",   native: "English"   },
-  { code: "ta", label: "Tamil",     native: "தமிழ்"    },
-  { code: "kn", label: "Kannada",   native: "ಕನ್ನಡ"   },
-  { code: "ml", label: "Malayalam", native: "മലയാളം"   },
-  { code: "hi", label: "Hindi",     native: "हिन्दी"   },
-  { code: "bn", label: "Bengali",   native: "বাংলা"    },
-] as const;
-
-export type LangCode = (typeof SUPPORTED_LANGS)[number]["code"];
+import { SUPPORTED_LANGS } from "@/lib/langs";
 
 export async function GET() {
   const session = await auth();

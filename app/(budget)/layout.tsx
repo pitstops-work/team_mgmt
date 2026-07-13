@@ -23,6 +23,7 @@ export default async function BudgetLayout({ children }: { children: React.React
           <span className="text-sm font-semibold text-stone-800 tracking-wide">Grant Reporting</span>
           <div className="ml-auto flex items-center gap-4">
             <a href="/budget" className="text-xs text-stone-500 hover:text-stone-800">My budgets</a>
+            <a href="/budget/account" className="text-xs text-stone-500 hover:text-stone-800">Account</a>
             <SignOutButton />
           </div>
         </header>

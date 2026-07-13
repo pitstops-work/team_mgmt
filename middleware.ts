@@ -40,6 +40,7 @@ const PUBLIC_PREFIXES = [
 // matching report APIs, plus account/notification self-service.
 function partnerAllowedPath(pathname: string): boolean {
   if (pathname === "/budget" || pathname === "/budget/") return true;
+  if (pathname === "/budget/account") return true;
   if (/^\/budget\/[^/]+\/reports(\/[^/]*)?$/.test(pathname)) return true;
   if (/^\/api\/budget\/[^/]+\/reports\//.test(pathname)) return true;
   if (pathname === "/api/budget/parse-bank-statement") return true;
