@@ -9,6 +9,7 @@ import { headers } from "next/headers";
 import { createHash } from "node:crypto";
 import { generateSlots } from "@/lib/budget-report-slots";
 import { computeDeclarationData } from "@/lib/budget/declarationData";
+import { getPartnerAccess, partnerCanAccessBudget } from "@/lib/budget/partnerAccess";
 import { declarationInputsComplete, AFFIRMATION_CLAUSES, type DeclarationInputs } from "@/lib/budget/declaration";
 import type { ReportFrequency, BudgetSection, ReallocationDuration } from "@/app/generated/prisma/client";
 
@@ -69,10 +70,13 @@ export async function approveBudget(
 async function assertCanEditReport(budgetId: string) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
-  const budget = await prisma.budget.findUnique({ where: { id: budgetId }, select: { partnerId: true } });
+  const budget = await prisma.budget.findUnique({ where: { id: budgetId }, select: { partnerId: true, grantPartnerId: true } });
   if (!budget) throw new Error("Not found");
-  if (budget.partnerId !== session.user.id && !isSuperAdmin(session)) throw new Error("Forbidden");
-  return session;
+  if (budget.partnerId === session.user.id || isSuperAdmin(session)) return session;
+  // External grantee login: allowed when their linked org owns this budget.
+  const access = await getPartnerAccess(session);
+  if (partnerCanAccessBudget(access, budget)) return session;
+  throw new Error("Forbidden");
 }
 
 export async function saveReport(

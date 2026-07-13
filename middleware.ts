@@ -35,6 +35,21 @@ const PUBLIC_PREFIXES = [
   "/models-public/",
 ];
 
+// Paths a "partner" role may reach: their budget home, any budget's reports
+// subtree (page + the report server-action POSTs land on the same path), the
+// matching report APIs, plus account/notification self-service.
+function partnerAllowedPath(pathname: string): boolean {
+  if (pathname === "/budget" || pathname === "/budget/") return true;
+  if (/^\/budget\/[^/]+\/reports(\/[^/]*)?$/.test(pathname)) return true;
+  if (/^\/api\/budget\/[^/]+\/reports\//.test(pathname)) return true;
+  if (pathname === "/api/budget/parse-bank-statement") return true;
+  if (pathname === "/api/budget/declaration-upload") return true;
+  if (pathname.startsWith("/settings/account")) return true;
+  if (pathname.startsWith("/api/account")) return true;
+  if (pathname.startsWith("/api/notifications")) return true;
+  return false;
+}
+
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -60,6 +75,17 @@ export default async function middleware(req: NextRequest) {
   const method = req.method;
   const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
   const isApiRoute = pathname.startsWith("/api/");
+
+  // partner (external grantee): confined to their budget home + their reports
+  // subtree and the account/notification APIs. Everything else → /budget. This
+  // is the coarse choke point; per-budget ownership is enforced in the pages
+  // and server actions via GrantPartner.userId.
+  if (role === "partner") {
+    if (!partnerAllowedPath(pathname)) {
+      if (isApiRoute) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.redirect(new URL("/budget", req.url));
+    }
+  }
 
   // budget-admin: budget + seeding sections, the portal chooser, and account
   // settings. Everything else redirects to the portal (Budget + Seeding tiles).

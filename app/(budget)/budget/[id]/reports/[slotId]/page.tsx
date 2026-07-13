@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
+import { getPartnerAccess, partnerCanAccessBudget } from "@/lib/budget/partnerAccess";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import ReportForm from "./ReportForm";
@@ -41,8 +42,9 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
   ]);
 
   if (!slot || !budget || slot.budgetId !== id) notFound();
-  if (!canReview && budget.partnerId !== session!.user!.id!) notFound();
-  const isPartner = budget.partnerId === session!.user!.id!;
+  const partnerAccess = await getPartnerAccess(session);
+  const isPartner = budget.partnerId === session!.user!.id! || partnerCanAccessBudget(partnerAccess, budget);
+  if (!canReview && !isPartner) notFound();
 
   // Cumulative actuals for all approved/submitted slots in same grant year before this one
   const priorSlots = await prisma.budgetReportSlot.findMany({

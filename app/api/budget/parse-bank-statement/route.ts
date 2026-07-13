@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import Anthropic from '@anthropic-ai/sdk';
 import prisma from '@/lib/prisma';
 import { isSuperAdmin } from '@/lib/roleGuard';
+import { getPartnerAccess, partnerCanAccessBudget } from '@/lib/budget/partnerAccess';
 import { put } from '@vercel/blob';
 
 export const maxDuration = 90;
@@ -68,10 +69,12 @@ export async function POST(req: Request) {
 
   const budget = await prisma.budget.findUnique({
     where: { id: slot.budgetId },
-    select: { partnerId: true },
+    select: { partnerId: true, grantPartnerId: true },
   });
   if (!budget) return Response.json({ error: 'Not found' }, { status: 404 });
-  if (budget.partnerId !== session.user.id && !isSuperAdmin(session)) {
+  const budgetPartnerAccess = await getPartnerAccess(session);
+  const canParse = budget.partnerId === session.user.id || isSuperAdmin(session) || partnerCanAccessBudget(budgetPartnerAccess, budget);
+  if (!canParse) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 

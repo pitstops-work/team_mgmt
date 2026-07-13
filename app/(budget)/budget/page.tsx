@@ -1,6 +1,10 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { activeYearBands } from "@/lib/budget-generator";
+import { auth } from "@/lib/auth";
+import { isPartner } from "@/lib/roleGuard";
+import { getPartnerAccess } from "@/lib/budget/partnerAccess";
+import PartnerBudgetHome from "./PartnerBudgetHome";
 
 const CITIES = ["Bangalore", "Chennai", "Others"] as const;
 
@@ -23,6 +27,25 @@ function grantTotal(horizonMonths: number, lines: { y1Total: number; y2Total: nu
 }
 
 export default async function BudgetCityLandingPage() {
+  const session = await auth();
+  if (isPartner(session)) {
+    const access = await getPartnerAccess(session);
+    const budgets = access.grantPartnerId
+      ? await prisma.budget.findMany({
+          where: { grantPartnerId: access.grantPartnerId },
+          include: {
+            reportConfig: true,
+            reportSlots: {
+              orderBy: { slotNumber: "asc" },
+              include: { report: { select: { submittedAt: true, approvedAt: true } } },
+            },
+          },
+          orderBy: { updatedAt: "desc" },
+        })
+      : [];
+    return <PartnerBudgetHome budgets={JSON.parse(JSON.stringify(budgets))} linked={!!access.grantPartnerId} />;
+  }
+
   const budgets = await prisma.budget.findMany({
     select: {
       city: true, status: true, horizonMonths: true,

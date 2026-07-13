@@ -375,6 +375,19 @@ const BUDGET_ADMIN_GRANTS: RoleGrant = {
   "notification.mark_read":   SELF,
 };
 
+// External grantee login. Confined to their own budgets + reports (scoping is
+// enforced via GrantPartner.userId in the pages/actions; grants gate nav/can()).
+const PARTNER_GRANTS: RoleGrant = {
+  "budget.list": OWN,
+  "budget.read": OWN,
+  "user.read":                SELF,
+  "user.update":              SELF,
+  "user.change_own_password": SELF,
+  "notification.list":        SELF,
+  "notification.read":        SELF,
+  "notification.mark_read":   SELF,
+};
+
 export const ROLES_CONFIG: Array<{ name: string; description: string; grants: RoleGrant }> = [
   {
     name: "super-admin",
@@ -400,6 +413,11 @@ export const ROLES_CONFIG: Array<{ name: string; description: string; grants: Ro
     name: "budget-admin",
     description: "Budget realm only.",
     grants: BUDGET_ADMIN_GRANTS,
+  },
+  {
+    name: "partner",
+    description: "External grantee login. Sees only their own budgets and the reports due.",
+    grants: PARTNER_GRANTS,
   },
 ];
 

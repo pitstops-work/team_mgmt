@@ -10,12 +10,12 @@ export default async function PartnersAdminPage() {
 
   const partners = await prisma.grantPartner.findMany({
     orderBy: [{ city: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, city: true, isActive: true, _count: { select: { budgets: true } } },
+    select: { id: true, name: true, city: true, isActive: true, user: { select: { email: true } }, _count: { select: { budgets: true } } },
   });
 
   return (
     <PartnersClient
-      partners={partners.map((p) => ({ id: p.id, name: p.name, city: p.city, isActive: p.isActive, budgetCount: p._count.budgets }))}
+      partners={partners.map((p) => ({ id: p.id, name: p.name, city: p.city, isActive: p.isActive, budgetCount: p._count.budgets, loginEmail: p.user?.email ?? null }))}
     />
   );
 }

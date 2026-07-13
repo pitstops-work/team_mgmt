@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
+import { getPartnerAccess, partnerCanAccessBudget } from "@/lib/budget/partnerAccess";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -39,8 +40,11 @@ export default async function BudgetReportsPage({ params }: { params: Promise<{ 
   });
 
   if (!budget) notFound();
-  if (!canReview && budget.partnerId !== session!.user!.id!) notFound();
-  const isPartner = budget.partnerId === session!.user!.id!;
+  const partnerAccess = await getPartnerAccess(session);
+  // Who may fill: the budget's creator (internal owner) or the linked grantee.
+  const canFill = budget.partnerId === session!.user!.id! || partnerCanAccessBudget(partnerAccess, budget);
+  if (!canReview && !canFill) notFound();
+  const isPartner = canFill;
 
   if (budget.status !== "approved" || !budget.reportConfig) {
     return (
@@ -59,7 +63,7 @@ export default async function BudgetReportsPage({ params }: { params: Promise<{ 
   return (
     <div>
       <div className="mb-6">
-        <Link href={`/budget/${id}`} className="text-xs text-stone-400 hover:text-stone-700">← {budget.name}</Link>
+        <Link href={partnerAccess.isPartner ? "/budget" : `/budget/${id}`} className="text-xs text-stone-400 hover:text-stone-700">← {partnerAccess.isPartner ? "My budgets" : budget.name}</Link>
         <h1 className="text-xl font-semibold text-stone-900 mt-2">Reports</h1>
         <p className="text-sm text-stone-500 mt-0.5">
           {budget.reportConfig.frequency.replace("_", "-")} reporting ·{" "}

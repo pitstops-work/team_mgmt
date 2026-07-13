@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/lib/auth";
+import { isBudgetAdminOrSuperAdmin } from "@/lib/roleGuard";
 import prisma from "@/lib/prisma";
 import { generateBudgetLines, DEFAULT_INFLATION_RATES, activeYearBands } from "@/lib/budget-generator";
 import type { BudgetSection, BudgetLineCadence, InflationType } from "@/app/generated/prisma/client";
@@ -125,6 +126,40 @@ export async function toggleGrantPartner(id: string, isActive: boolean) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
   await prisma.grantPartner.update({ where: { id }, data: { isActive } });
+  revalidatePath("/budget/admin/partners");
+}
+
+// Link an existing user account as this grantee's login (role "partner"). The
+// account must be created first in Settings → Users. Only promotes a plain
+// member/viewer/partner — never touches an admin/super-admin/budget-admin.
+export async function linkGrantPartnerLogin(partnerId: string, email: string): Promise<{ email: string }> {
+  const session = await auth();
+  if (!isBudgetAdminOrSuperAdmin(session)) throw new Error("Forbidden");
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) throw new Error("Email required");
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: normalized, mode: "insensitive" } },
+    select: { id: true, email: true, role: true },
+  });
+  if (!user) throw new Error("No user with that email. Create the account in Settings → Users first, then link it here.");
+
+  const PROMOTABLE = ["member", "viewer", "partner"];
+  await prisma.$transaction(async (tx) => {
+    // Enforce one grantee per login: drop any other partner's link to this user.
+    await tx.grantPartner.updateMany({ where: { userId: user.id, NOT: { id: partnerId } }, data: { userId: null } });
+    await tx.grantPartner.update({ where: { id: partnerId }, data: { userId: user.id } });
+    if (PROMOTABLE.includes(user.role)) {
+      await tx.user.update({ where: { id: user.id }, data: { role: "partner" } });
+    }
+  });
+  revalidatePath("/budget/admin/partners");
+  return { email: user.email };
+}
+
+export async function unlinkGrantPartnerLogin(partnerId: string) {
+  const session = await auth();
+  if (!isBudgetAdminOrSuperAdmin(session)) throw new Error("Forbidden");
+  await prisma.grantPartner.update({ where: { id: partnerId }, data: { userId: null } });
   revalidatePath("/budget/admin/partners");
 }
 

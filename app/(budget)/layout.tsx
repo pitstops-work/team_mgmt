@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { isBudgetAdmin, isSuperAdmin } from "@/lib/roleGuard";
+import { isBudgetAdmin, isSuperAdmin, isPartner } from "@/lib/roleGuard";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import SignOutButton from "@/components/SignOutButton";
@@ -14,6 +14,23 @@ export default async function BudgetLayout({ children }: { children: React.React
   if (!session?.user) redirect("/login");
   const budgetOnly = isBudgetAdmin(session);
   const superAdmin = isSuperAdmin(session);
+
+  // Partners get a stripped header: only their budgets + sign out.
+  if (isPartner(session)) {
+    return (
+      <div className="min-h-screen bg-stone-50">
+        <header className="border-b border-stone-200 bg-white px-4 py-3 flex items-center gap-3">
+          <span className="text-sm font-semibold text-stone-800 tracking-wide">Grant Reporting</span>
+          <div className="ml-auto flex items-center gap-4">
+            <a href="/budget" className="text-xs text-stone-500 hover:text-stone-800">My budgets</a>
+            <SignOutButton />
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 py-8">{children}</main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-stone-50">
       <header className="border-b border-stone-200 bg-white px-4 py-3 flex items-center gap-3">

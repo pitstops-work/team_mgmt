@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { isSuperAdmin, isBudgetAdmin } from "@/lib/roleGuard";
+import { getPartnerAccess, partnerCanAccessBudget } from "@/lib/budget/partnerAccess";
 import prisma from "@/lib/prisma";
 import { getDownloadUrl } from "@vercel/blob";
 
@@ -17,10 +18,11 @@ export async function GET(
     where: { id: slotId },
     select: { budgetId: true, report: { select: { declarationSignedScanUrl: true } } },
   });
-  const budget = await prisma.budget.findUnique({ where: { id }, select: { partnerId: true } });
+  const budget = await prisma.budget.findUnique({ where: { id }, select: { partnerId: true, grantPartnerId: true } });
   if (!slot || !budget || slot.budgetId !== id) return Response.json({ error: "Not found" }, { status: 404 });
 
-  const allowed = budget.partnerId === session.user.id || isSuperAdmin(session) || isBudgetAdmin(session);
+  const access = await getPartnerAccess(session);
+  const allowed = budget.partnerId === session.user.id || isSuperAdmin(session) || isBudgetAdmin(session) || partnerCanAccessBudget(access, budget);
   if (!allowed) return Response.json({ error: "Forbidden" }, { status: 403 });
 
   const url = slot.report?.declarationSignedScanUrl;

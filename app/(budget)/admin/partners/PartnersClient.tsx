@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { createGrantPartner, renameGrantPartner, toggleGrantPartner, importGrantPartnersFromOrgs } from "../../budget/actions";
+import { createGrantPartner, renameGrantPartner, toggleGrantPartner, importGrantPartnersFromOrgs, linkGrantPartnerLogin, unlinkGrantPartnerLogin } from "../../budget/actions";
 
-type Partner = { id: string; name: string; city: string; isActive: boolean; budgetCount: number };
+type Partner = { id: string; name: string; city: string; isActive: boolean; budgetCount: number; loginEmail: string | null };
 const CITIES = ["Bangalore", "Chennai", "Others"] as const;
 
 export default function PartnersClient({ partners }: { partners: Partner[] }) {
@@ -13,6 +13,8 @@ export default function PartnersClient({ partners }: { partners: Partner[] }) {
   const [addName, setAddName] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [linking, setLinking] = useState<string | null>(null);
+  const [linkEmail, setLinkEmail] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [importCity, setImportCity] = useState<string>("Bangalore");
@@ -67,23 +69,43 @@ export default function PartnersClient({ partners }: { partners: Partner[] }) {
             <h2 className="text-sm font-semibold text-stone-700 mb-2">{city}</h2>
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white divide-y divide-stone-100">
               {rows.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
-                  {editing === p.id ? (
-                    <>
-                      <input value={editName} onChange={(e) => setEditName(e.target.value)} className="flex-1 rounded border border-stone-300 px-2 py-1 text-sm" />
-                      <button disabled={pending} onClick={() => run(async () => { await renameGrantPartner(p.id, editName); setEditing(null); })} className="text-xs text-sky-600 hover:underline">Save</button>
-                      <button onClick={() => setEditing(null)} className="text-xs text-stone-400">Cancel</button>
-                    </>
-                  ) : (
-                    <>
-                      <span className={`flex-1 text-sm ${p.isActive ? "text-stone-900" : "text-stone-400 line-through"}`}>{p.name}</span>
-                      <span className="text-xs text-stone-400">{p.budgetCount} budget{p.budgetCount === 1 ? "" : "s"}</span>
-                      <button onClick={() => { setEditing(p.id); setEditName(p.name); }} className="text-xs text-stone-500 hover:text-stone-800">Rename</button>
-                      <button disabled={pending} onClick={() => run(async () => { await toggleGrantPartner(p.id, !p.isActive); })} className="text-xs text-stone-400 hover:text-stone-700">
-                        {p.isActive ? "Deactivate" : "Reactivate"}
-                      </button>
-                    </>
-                  )}
+                <div key={p.id} className="px-4 py-2.5">
+                  <div className="flex items-center gap-3">
+                    {editing === p.id ? (
+                      <>
+                        <input value={editName} onChange={(e) => setEditName(e.target.value)} className="flex-1 rounded border border-stone-300 px-2 py-1 text-sm" />
+                        <button disabled={pending} onClick={() => run(async () => { await renameGrantPartner(p.id, editName); setEditing(null); })} className="text-xs text-sky-600 hover:underline">Save</button>
+                        <button onClick={() => setEditing(null)} className="text-xs text-stone-400">Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className={`flex-1 text-sm ${p.isActive ? "text-stone-900" : "text-stone-400 line-through"}`}>{p.name}</span>
+                        <span className="text-xs text-stone-400">{p.budgetCount} budget{p.budgetCount === 1 ? "" : "s"}</span>
+                        <button onClick={() => { setEditing(p.id); setEditName(p.name); }} className="text-xs text-stone-500 hover:text-stone-800">Rename</button>
+                        <button disabled={pending} onClick={() => run(async () => { await toggleGrantPartner(p.id, !p.isActive); })} className="text-xs text-stone-400 hover:text-stone-700">
+                          {p.isActive ? "Deactivate" : "Reactivate"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {/* Login link */}
+                  <div className="mt-1.5 flex items-center gap-2 text-xs">
+                    {p.loginEmail ? (
+                      <>
+                        <span className="text-stone-400">Login:</span>
+                        <span className="text-stone-600">{p.loginEmail}</span>
+                        <button disabled={pending} onClick={() => run(async () => { await unlinkGrantPartnerLogin(p.id); })} className="text-stone-400 hover:text-red-600">Unlink</button>
+                      </>
+                    ) : linking === p.id ? (
+                      <>
+                        <input value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} placeholder="partner account email" className="rounded border border-stone-300 px-2 py-1 text-xs w-56" />
+                        <button disabled={pending || !linkEmail.trim()} onClick={() => run(async () => { await linkGrantPartnerLogin(p.id, linkEmail); setLinking(null); setLinkEmail(""); })} className="text-sky-600 hover:underline">Link</button>
+                        <button onClick={() => { setLinking(null); setLinkEmail(""); }} className="text-stone-400">Cancel</button>
+                      </>
+                    ) : (
+                      <button onClick={() => { setLinking(p.id); setLinkEmail(""); }} className="text-stone-400 hover:text-stone-700">+ Link login account</button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
