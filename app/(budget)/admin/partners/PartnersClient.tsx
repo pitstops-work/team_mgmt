@@ -5,9 +5,10 @@ import Link from "next/link";
 import { createGrantPartner, renameGrantPartner, toggleGrantPartner, importGrantPartnersFromOrgs, linkGrantPartnerLogin, unlinkGrantPartnerLogin } from "../../budget/actions";
 
 type Partner = { id: string; name: string; city: string; isActive: boolean; budgetCount: number; loginEmail: string | null };
+type Candidate = { email: string; name: string | null };
 const CITIES = ["Bangalore", "Chennai", "Others"] as const;
 
-export default function PartnersClient({ partners }: { partners: Partner[] }) {
+export default function PartnersClient({ partners, candidates = [] }: { partners: Partner[]; candidates?: Candidate[] }) {
   const [pending, start] = useTransition();
   const [addCity, setAddCity] = useState<string>("Bangalore");
   const [addName, setAddName] = useState("");
@@ -23,6 +24,12 @@ export default function PartnersClient({ partners }: { partners: Partner[] }) {
 
   return (
     <div className="space-y-6">
+      {/* Suggestions for the "Link login account" inputs — unlinked partner accounts. */}
+      <datalist id="partner-accounts">
+        {candidates.map((c) => (
+          <option key={c.email} value={c.email}>{c.name ? `${c.name} — ${c.email}` : c.email}</option>
+        ))}
+      </datalist>
       <div>
         <Link href="/budget/dashboard" className="text-xs text-stone-400 hover:text-stone-600">← Dashboard</Link>
         <h1 className="text-xl font-semibold text-stone-900">Grant partners</h1>
@@ -98,7 +105,7 @@ export default function PartnersClient({ partners }: { partners: Partner[] }) {
                       </>
                     ) : linking === p.id ? (
                       <>
-                        <input value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} placeholder="partner account email" className="rounded border border-stone-300 px-2 py-1 text-xs w-56" />
+                        <input list="partner-accounts" value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} placeholder="partner account email" className="rounded border border-stone-300 px-2 py-1 text-xs w-56" />
                         <button disabled={pending || !linkEmail.trim()} onClick={() => run(async () => { await linkGrantPartnerLogin(p.id, linkEmail); setLinking(null); setLinkEmail(""); })} className="text-sky-600 hover:underline">Link</button>
                         <button onClick={() => { setLinking(null); setLinkEmail(""); }} className="text-stone-400">Cancel</button>
                       </>
