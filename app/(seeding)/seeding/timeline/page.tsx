@@ -34,9 +34,12 @@ export default async function TimelinePage() {
           {/* Week axis */}
           <div className="flex sticky top-0 bg-white border-b border-stone-100 z-10">
             <div style={{ width: LABEL_W }} className="shrink-0" />
-            <div className="relative" style={{ width: trackW, height: 28 }}>
+            <div className="relative" style={{ width: trackW, height: 40 }}>
               {ticks.filter((w) => w % 2 === 0).map((w) => (
-                <div key={w} className="absolute top-0 text-[10px] text-stone-400" style={{ left: w * PX }}>W{w}</div>
+                <div key={w} className="absolute top-0 leading-tight" style={{ left: w * PX }}>
+                  <div className="text-[10px] text-stone-400">W{w}</div>
+                  <div className="text-[9px] text-stone-300 whitespace-nowrap">{weekToDate(week0, w).toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "UTC" })}</div>
+                </div>
               ))}
               <div className="absolute top-0 bottom-0 border-l-2 border-sky-400" style={{ left: launchWeek * PX }} />
             </div>
