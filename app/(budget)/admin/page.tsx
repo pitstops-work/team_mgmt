@@ -10,7 +10,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const { city = "Bangalore" } = await searchParams;
 
-  const [registry, templates, domains, cityRecords, needsDomains, cityBudgets] = await Promise.all([
+  const [registry, templates, domains, cityRecords, needsDomains, cityBudgets, components] = await Promise.all([
     prisma.costRegistry.findMany({
       where: { city },
       orderBy: [{ domain: "asc" }, { itemKey: "asc" }],
@@ -36,7 +36,18 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       select: { id: true, name: true, createdAt: true, domains: true, horizonMonths: true },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.costRegistryComponent.findMany({
+      where: { city },
+      orderBy: { position: "asc" },
+      select: { parentItemKey: true, label: true, spec: true, qty: true, unitCost: true },
+    }),
   ]);
+
+  // Component breakup (the "working") grouped by the aggregate item it derives.
+  const componentsByKey: Record<string, { label: string; spec: string | null; qty: number; unitCost: number }[]> = {};
+  for (const c of components) {
+    (componentsByKey[c.parentItemKey] ??= []).push({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost });
+  }
 
   const cityIds = cityRecords.map(c => c.id);
   const zones = await prisma.zone.findMany({
@@ -90,5 +101,5 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     domains: b.domains, horizonMonths: b.horizonMonths,
   }));
 
-  return <AdminClient costs={merged} isSeeded={isSeeded} city={city} templates={templates} domains={domains} zones={zones} needsDomains={needsDomains} cityBudgets={cityBudgetsSerialized} budgetAdminOnly={budgetAdminOnly} />;
+  return <AdminClient costs={merged} isSeeded={isSeeded} city={city} templates={templates} domains={domains} zones={zones} needsDomains={needsDomains} cityBudgets={cityBudgetsSerialized} budgetAdminOnly={budgetAdminOnly} componentsByKey={componentsByKey} />;
 }

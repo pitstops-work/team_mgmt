@@ -7,7 +7,7 @@ import {
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
   reorderLineTemplates, seedLineTemplates,
   addDomain, updateDomain, toggleDomain, reorderDomains, seedDomains,
-  getGeoChildren, loadNeedsScenario, loadBudgetForCompare,
+  getGeoChildren, loadNeedsScenario, loadBudgetForCompare, getCostHistory,
   type LineTemplateFields, type DomainConfigFields,
 } from "./actions";
 import type { BudgetSection, InflationType, LineTemplate, BudgetDomainConfig } from "@/app/generated/prisma/client";
@@ -28,6 +28,9 @@ type CostRow = {
   displayGroup: string | null;
   needsDomain: string | null;
 };
+
+type ComponentItem = { label: string; spec: string | null; qty: number; unitCost: number };
+type HistoryRow = { id: string; oldCost: number | null; newCost: number | null; source: string | null; reason: string | null; changedBy: string | null; changedAt: string };
 
 const CITIES = ["Bangalore", "Chennai"] as const;
 const SECTIONS: BudgetSection[] = ["salary", "capex", "travel", "programme", "admin_salary", "admin_other", "additional"];
@@ -93,15 +96,31 @@ function makeDefaultInputs(costs: { itemKey: string; currentCost: number }[]): B
 
 // ─── Cost Registry tab ────────────────────────────────────────────────────────
 
-function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, needsDomains }: {
+function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, needsDomains, componentsByKey }: {
   costs: CostRow[]; isSeeded: boolean; city: string;
   domainOrder: (string | null)[]; domainLabels: Record<string, string>;
   needsDomains: { domain: string; label: string | null }[];
+  componentsByKey: Record<string, ComponentItem[]>;
 }) {
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<string | null>(null);
   const [editVal, setEditVal] = useState<string>("");
   const [editNotes, setEditNotes] = useState<string>("");
+  // Provenance drill-down: which item is expanded + its lazily-loaded history.
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [historyByKey, setHistoryByKey] = useState<Record<string, HistoryRow[]>>({});
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  function toggleExpand(itemKey: string) {
+    if (expandedKey === itemKey) { setExpandedKey(null); return; }
+    setExpandedKey(itemKey);
+    if (!historyByKey[itemKey]) {
+      setHistoryLoading(true);
+      getCostHistory(city, itemKey)
+        .then(rows => setHistoryByKey(prev => ({ ...prev, [itemKey]: rows })))
+        .finally(() => setHistoryLoading(false));
+    }
+  }
   const [activeDomain, setActiveDomain] = useState<string>(() => domainOrder.find(d => d !== null) ?? "");
   const [addingItem, setAddingItem] = useState(false);
   const [newItemType, setNewItemType] = useState<"cost" | "ratio">("cost");
@@ -230,33 +249,117 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, nee
         </div>
       </td>
     </tr>
-  ) : (
-    <tr key={row.itemKey} className="border-b border-stone-50 hover:bg-stone-50 group">
-      <td className="px-4 py-2.5">
-        <div className="text-stone-800">{formatKey(row.itemKey)}</div>
-        <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
-        {row.notes && <div className="text-xs text-stone-400 mt-0.5">{row.notes}</div>}
-        {row.itemKey.startsWith("inp.") && (
-          row.needsDomain
-            ? <span className="text-[10px] font-mono bg-sky-50 text-sky-600 border border-sky-100 px-1.5 py-0.5 rounded mt-0.5 inline-block">→ {row.needsDomain}</span>
-            : <span className="text-[10px] text-stone-300 mt-0.5 inline-block">no needs domain</span>
+  ) : (() => {
+    const comps = componentsByKey[row.itemKey] ?? [];
+    const isExpanded = expandedKey === row.itemKey;
+    const compSum = Math.round(comps.reduce((s, c) => s + c.qty * c.unitCost, 0));
+    const reconciles = comps.length === 0 || compSum === Math.round(row.currentCost);
+    const hist = historyByKey[row.itemKey];
+    return (
+      <Fragment key={row.itemKey}>
+        <tr className="border-b border-stone-50 hover:bg-stone-50 group">
+          <td className="px-4 py-2.5">
+            <div className="flex items-start gap-2">
+              <button onClick={() => toggleExpand(row.itemKey)} className="mt-0.5 text-stone-300 hover:text-stone-600 text-xs w-3 shrink-0" title="Working & change history">{isExpanded ? "▾" : "▸"}</button>
+              <div className="min-w-0">
+                <div className="text-stone-800">
+                  {formatKey(row.itemKey)}
+                  {comps.length > 0 && (
+                    <button onClick={() => toggleExpand(row.itemKey)} className={`ml-2 text-[10px] px-1.5 py-0.5 rounded border ${reconciles ? "bg-sky-50 text-sky-600 border-sky-100" : "bg-red-50 text-red-600 border-red-200"}`}>
+                      working · {comps.length}{reconciles ? "" : " ⚠"}
+                    </button>
+                  )}
+                </div>
+                <div className="text-xs font-mono text-stone-400 mt-0.5">{row.itemKey}</div>
+                {row.notes && <div className="text-xs text-stone-400 mt-0.5">{row.notes}</div>}
+                {row.itemKey.startsWith("inp.") && (
+                  row.needsDomain
+                    ? <span className="text-[10px] font-mono bg-sky-50 text-sky-600 border border-sky-100 px-1.5 py-0.5 rounded mt-0.5 inline-block">→ {row.needsDomain}</span>
+                    : <span className="text-[10px] text-stone-300 mt-0.5 inline-block">no needs domain</span>
+                )}
+              </div>
+            </div>
+          </td>
+          <td className="px-3 py-2.5 text-stone-500 text-xs">{row.unit}</td>
+          <td className="text-right px-3 py-2.5 text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
+          <td className="text-right px-3 py-2.5">
+            <span className={`font-medium ${row.isEdited ? "text-amber-700" : "text-stone-800"}`}>{row.currentCost.toLocaleString("en-IN")}</span>
+            {row.isEdited && <span className="ml-1 text-xs text-amber-500">edited</span>}
+          </td>
+          <td className="px-3 py-2.5">
+            <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+              <button onClick={() => startEdit(row)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
+              {row.isEdited && row.id && <button onClick={() => handleReset(row)} className="text-xs text-stone-400 hover:text-stone-600">Reset</button>}
+              {row.id && <button onClick={() => handleDeleteItem(row)} className="text-xs text-stone-300 hover:text-red-500">Delete</button>}
+            </div>
+          </td>
+        </tr>
+        {isExpanded && (
+          <tr className="border-b border-stone-100 bg-stone-50/60">
+            <td colSpan={5} className="px-4 py-3">
+              {/* Working — component breakup */}
+              {comps.length > 0 ? (
+                <div className="mb-4">
+                  <div className="text-xs font-semibold text-stone-500 mb-1.5">Working — how ₹{row.currentCost.toLocaleString("en-IN")} is derived</div>
+                  <table className="w-full text-xs max-w-2xl">
+                    <thead>
+                      <tr className="text-stone-400">
+                        <th className="text-left py-1 font-medium">Item</th>
+                        <th className="text-left font-medium">Spec</th>
+                        <th className="text-right font-medium">Qty</th>
+                        <th className="text-right font-medium">Unit ₹</th>
+                        <th className="text-right font-medium">Amount ₹</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {comps.map((c, i) => (
+                        <tr key={i} className="border-t border-stone-100">
+                          <td className="py-1 text-stone-700">{c.label}</td>
+                          <td className="text-stone-400">{c.spec ?? ""}</td>
+                          <td className="text-right text-stone-600">{c.qty}</td>
+                          <td className="text-right text-stone-600">{c.unitCost.toLocaleString("en-IN")}</td>
+                          <td className="text-right text-stone-800">{Math.round(c.qty * c.unitCost).toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t border-stone-200 font-medium text-stone-700">
+                        <td className="py-1" colSpan={4}>
+                          Sub-total{!reconciles && <span className="ml-2 text-red-500 font-normal">⚠ ≠ current unit cost ₹{row.currentCost.toLocaleString("en-IN")}</span>}
+                        </td>
+                        <td className="text-right">{compSum.toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-xs text-stone-400 mb-4">No breakup recorded for this item yet.</div>
+              )}
+              {/* Change history */}
+              <div>
+                <div className="text-xs font-semibold text-stone-500 mb-1.5">Change history</div>
+                {!hist ? (
+                  <div className="text-xs text-stone-400">{historyLoading ? "Loading…" : "—"}</div>
+                ) : hist.length === 0 ? (
+                  <div className="text-xs text-stone-400">No changes logged.</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {hist.map(h => (
+                      <li key={h.id} className="text-xs text-stone-600 flex flex-wrap gap-x-2">
+                        <span className="text-stone-400 tabular-nums">{new Date(h.changedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                        <span>{h.oldCost == null ? "created" : `₹${h.oldCost.toLocaleString("en-IN")}`} → {h.newCost == null ? "deleted" : `₹${h.newCost.toLocaleString("en-IN")}`}</span>
+                        {h.source && <span className="text-stone-400">· {h.source}</span>}
+                        {h.changedBy && <span className="text-stone-400">· {h.changedBy}</span>}
+                        {h.reason && <span className="text-stone-500">· {h.reason}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </td>
+          </tr>
         )}
-      </td>
-      <td className="px-3 py-2.5 text-stone-500 text-xs">{row.unit}</td>
-      <td className="text-right px-3 py-2.5 text-stone-400 text-xs">{row.defaultCost.toLocaleString("en-IN")}</td>
-      <td className="text-right px-3 py-2.5">
-        <span className={`font-medium ${row.isEdited ? "text-amber-700" : "text-stone-800"}`}>{row.currentCost.toLocaleString("en-IN")}</span>
-        {row.isEdited && <span className="ml-1 text-xs text-amber-500">edited</span>}
-      </td>
-      <td className="px-3 py-2.5">
-        <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-          <button onClick={() => startEdit(row)} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
-          {row.isEdited && row.id && <button onClick={() => handleReset(row)} className="text-xs text-stone-400 hover:text-stone-600">Reset</button>}
-          {row.id && <button onClick={() => handleDeleteItem(row)} className="text-xs text-stone-300 hover:text-red-500">Delete</button>}
-        </div>
-      </td>
-    </tr>
-  );
+      </Fragment>
+    );
+  })();
 
   const colHeaders = (
     <tr className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
@@ -2447,7 +2550,7 @@ type CompareBudget = {
 };
 
 export default function AdminClient({
-  costs, isSeeded, city, templates, domains, zones, needsDomains, cityBudgets = [], budgetAdminOnly = false,
+  costs, isSeeded, city, templates, domains, zones, needsDomains, cityBudgets = [], budgetAdminOnly = false, componentsByKey = {},
 }: {
   costs: CostRow[];
   isSeeded: boolean;
@@ -2458,6 +2561,7 @@ export default function AdminClient({
   needsDomains: { domain: string; label: string | null }[];
   cityBudgets?: CompareBudget[];
   budgetAdminOnly?: boolean;
+  componentsByKey?: Record<string, ComponentItem[]>;
 }) {
   const [activeTab, setActiveTab] = useState<"registry" | "templates" | "analysis" | "domains">(budgetAdminOnly ? "analysis" : "registry");
 
@@ -2514,7 +2618,7 @@ export default function AdminClient({
         </div>
       </div>
 
-      {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} domainOrder={domainOrder} domainLabels={domainLabels} needsDomains={needsDomains} />}
+      {activeTab === "registry"  && <CostRegistryTab costs={costs} isSeeded={isSeeded} city={city} domainOrder={domainOrder} domainLabels={domainLabels} needsDomains={needsDomains} componentsByKey={componentsByKey} />}
       {activeTab === "templates" && <LineTemplatesTab templates={templates} city={city} registryKeys={costs.map(c => c.itemKey)} costs={costs} domains={domains} />}
       {activeTab === "analysis"  && <CostAnalysisTab templates={templates} costs={costs} domains={domains} city={city} zones={zones} cityBudgets={cityBudgets} />}
       {activeTab === "domains"   && <DomainsTab domains={domains} city={city} progInputKeys={costs.filter(c => c.itemKey.startsWith("inp.")).map(c => c.itemKey)} />}

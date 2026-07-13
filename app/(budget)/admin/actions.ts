@@ -8,6 +8,32 @@ import { logCostChange } from "@/lib/budget/costHistory";
 import type { BudgetSection, InflationType } from "@/app/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 
+/** Change history for one registry item, newest first (for the portal timeline). */
+export async function getCostHistory(city: string, itemKey: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  const rows = await prisma.costRegistryHistory.findMany({
+    where: { city, itemKey },
+    orderBy: { changedAt: "desc" },
+    take: 50,
+  });
+  const byId = new Map(
+    (await prisma.user.findMany({
+      where: { id: { in: [...new Set(rows.map(r => r.changedById).filter((v): v is string => !!v))] } },
+      select: { id: true, name: true, email: true },
+    })).map(u => [u.id, u.name ?? u.email])
+  );
+  return rows.map(r => ({
+    id: r.id,
+    oldCost: r.oldCost,
+    newCost: r.newCost,
+    source: r.source,
+    reason: r.reason,
+    changedBy: r.changedById ? (byId.get(r.changedById) ?? null) : null,
+    changedAt: r.changedAt.toISOString(),
+  }));
+}
+
 export async function seedCostRegistry(city = "Bangalore") {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
