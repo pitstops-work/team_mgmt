@@ -638,5 +638,9 @@ export async function deleteBudget(budgetId: string) {
   if (!budget || budget.partnerId !== session.user.id) throw new Error("Not found");
 
   await prisma.budget.delete({ where: { id: budgetId } });
-  redirect("/budget");
+  // Refresh the city list (where the delete button lives) in place instead of
+  // yanking the user back to the top-level /budget landing.
+  revalidatePath("/budget");
+  revalidatePath("/budget/city/[city]", "page");
+  revalidatePath("/budget/dashboard");
 }

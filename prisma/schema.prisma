@@ -2166,9 +2166,9 @@ model BudgetReallocationRequest {
   reportId        String
   report          BudgetReport         @relation(fields: [reportId], references: [id], onDelete: Cascade)
   fromLineId      String
-  fromLine        BudgetLine           @relation("ReallocationFrom", fields: [fromLineId], references: [id])
+  fromLine        BudgetLine           @relation("ReallocationFrom", fields: [fromLineId], references: [id], onDelete: Cascade)
   toLineId        String?
-  toLine          BudgetLine?          @relation("ReallocationTo", fields: [toLineId], references: [id])
+  toLine          BudgetLine?          @relation("ReallocationTo", fields: [toLineId], references: [id], onDelete: SetNull)
   toDescription   String?
   toSection       BudgetSection?
   requestedAmount Float
