@@ -2153,12 +2153,53 @@ model BudgetReport {
   reviewerNotes        String?
   submittedAt          DateTime?
   approvedAt           DateTime?
+  // Finance Declaration (legal affirmation captured at submit). Snapshot + hash
+  // freeze exactly what was affirmed; identity/ip/ua are the audit trail; the
+  // signed+sealed scan is the letterhead artifact. declarationAcceptedById is a
+  // plain id (no FK) so the record survives user renames/deletes.
+  declarationAcceptedAt     DateTime?
+  declarationAcceptedById   String?
+  declarationSnapshot       Json?
+  declarationHash           String?
+  declarationIp             String?
+  declarationUserAgent      String?
+  declarationSignedScanUrl  String?
   lines                BudgetReportLine[]
   reallocationRequests BudgetReallocationRequest[]
+  fdDetails            BudgetReportFd[]
   createdAt            DateTime                    @default(now())
   updatedAt            DateTime                    @updatedAt
 
   @@index([budgetId])
+}
+
+// One row per fixed deposit held during the reporting period, in the APF
+// "Format for FD details" layout. fdBalance on BudgetReport is kept in sync as
+// the sum of closingBalance across these rows.
+model BudgetReportFd {
+  id               String       @id @default(cuid())
+  reportId         String
+  report           BudgetReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  sortOrder        Int          @default(0)
+  bankName         String       @default("")
+  fdrNumber        String       @default("") // FDR / receipt number
+  faceValue        Float        @default(0)
+  maturityValue    Float        @default(0)
+  cumulative       Boolean      @default(true) // Cumulative vs Non-Cumulative
+  doi              DateTime? // Date of Investment
+  dom              DateTime? // Date of Maturity (per FD terms)
+  roi              Float        @default(0) // Rate of Interest (%)
+  openingBalance   Float        @default(0)
+  interestAccrued  Float        @default(0)
+  tds              Float        @default(0)
+  interestReceived Float        @default(0)
+  maturedAmount    Float        @default(0) // Matured during the period
+  maturityDate     DateTime? // Actual maturity/redemption date in period
+  closingBalance   Float        @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([reportId])
 }
 
 model BudgetReallocationRequest {

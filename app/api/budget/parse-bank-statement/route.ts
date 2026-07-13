@@ -88,18 +88,17 @@ Extract the following values for the statement period shown (all amounts in INR,
 
 1. closingBalance — the final/closing account balance at the END of the statement period
 2. interestEarned — total interest credited during this period (look for entries with "INT", "INTEREST", "INT CREDIT", "INTEREST CREDIT" in narration/description). Sum all such credits.
-3. fdBalance — total fixed deposit balance if shown anywhere in the statement (0 if not present)
-4. openingBalance — the opening/beginning balance at the START of the period (0 if not shown)
-5. periodFrom — start date of statement period in YYYY-MM-DD format (null if not found)
-6. periodTo — end date of statement period in YYYY-MM-DD format (null if not found)
-7. accountHolder — name of account holder if shown (null if not found)
-8. bankName — name of the bank (null if not found)
-9. notes — brief note about anything unusual or uncertain in your extraction (null if all clear)
+3. openingBalance — the opening/beginning balance at the START of the period (0 if not shown)
+4. periodFrom — start date of statement period in YYYY-MM-DD format (null if not found)
+5. periodTo — end date of statement period in YYYY-MM-DD format (null if not found)
+6. accountHolder — name of account holder if shown (null if not found)
+7. bankName — name of the bank (null if not found)
+8. notes — brief note about anything unusual or uncertain in your extraction (null if all clear)
 
 Respond ONLY with a valid JSON object. No explanation, no markdown.
 
 Example:
-{"closingBalance":245670,"interestEarned":3200,"fdBalance":0,"openingBalance":180000,"periodFrom":"2024-04-01","periodTo":"2024-06-30","accountHolder":"ABC Foundation","bankName":"HDFC Bank","notes":null}`;
+{"closingBalance":245670,"interestEarned":3200,"openingBalance":180000,"periodFrom":"2024-04-01","periodTo":"2024-06-30","accountHolder":"ABC Foundation","bankName":"HDFC Bank","notes":null}`;
 
   const contentBlock: Anthropic.MessageParam['content'] = mediaType === 'application/pdf'
     ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }]
@@ -133,6 +132,8 @@ Example:
   // Persist the parsed result against the report
   await prisma.budgetReport.upsert({
     where: { slotId },
+    // FD balance is no longer inferred from the statement — it is collected
+    // explicitly via the FD details schedule and derived from those rows.
     create: {
       slotId,
       budgetId: slot.budgetId,
@@ -140,21 +141,18 @@ Example:
       bankStatementParsed: { ...parsed, _parsedAt: new Date().toISOString() },
       bankBalance: parsed.closingBalance ?? 0,
       interestEarned: parsed.interestEarned ?? 0,
-      fdBalance: parsed.fdBalance ?? 0,
     },
     update: {
       bankStatementUrl: storedUrl,
       bankStatementParsed: { ...parsed, _parsedAt: new Date().toISOString() },
       bankBalance: parsed.closingBalance ?? 0,
       interestEarned: parsed.interestEarned ?? 0,
-      fdBalance: parsed.fdBalance ?? 0,
     },
   });
 
   return Response.json({
     bankBalance: parsed.closingBalance ?? 0,
     interestEarned: parsed.interestEarned ?? 0,
-    fdBalance: parsed.fdBalance ?? 0,
     openingBalance: parsed.openingBalance ?? null,
     periodFrom: parsed.periodFrom ?? null,
     periodTo: parsed.periodTo ?? null,

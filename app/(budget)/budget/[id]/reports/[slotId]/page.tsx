@@ -19,6 +19,7 @@ export default async function ReportSlotPage({ params }: { params: Promise<{ id:
         report: {
           include: {
             lines: true,
+            fdDetails: { orderBy: { sortOrder: "asc" } },
             reallocationRequests: {
               include: {
                 fromLine: { select: { id: true, description: true, section: true } },

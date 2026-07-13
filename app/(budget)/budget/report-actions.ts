@@ -5,7 +5,11 @@ import { isSuperAdmin, isBudgetAdminOrSuperAdmin } from "@/lib/roleGuard";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { createHash } from "node:crypto";
 import { generateSlots } from "@/lib/budget-report-slots";
+import { computeDeclarationData } from "@/lib/budget/declarationData";
+import { declarationInputsComplete, AFFIRMATION_CLAUSES, type DeclarationInputs } from "@/lib/budget/declaration";
 import type { ReportFrequency, BudgetSection, ReallocationDuration } from "@/app/generated/prisma/client";
 
 // ── Admin: approve a budget and set up report config ──────────────────────────
@@ -140,69 +144,182 @@ export async function saveReportLines(
   revalidatePath(`/budget/${slot.budgetId}/reports/${slotId}`);
 }
 
-export async function submitReport(slotId: string) {
-  const slot = await prisma.budgetReportSlot.findUnique({
-    where: { id: slotId },
-    select: {
-      budgetId: true, status: true, grantYear: true, slotNumber: true,
-      report: { select: { id: true, lines: { select: { budgetLineId: true, actualAmount: true } } } },
-    },
+type SubmitSlot = {
+  budgetId: string; status: string; grantYear: number; slotNumber: number;
+  report: { id: string; lines: { budgetLineId: string; actualAmount: number }[] } | null;
+};
+
+const SUBMIT_SLOT_SELECT = {
+  budgetId: true, status: true, grantYear: true, slotNumber: true,
+  report: { select: { id: true, lines: { select: { budgetLineId: true, actualAmount: true } } } },
+} as const;
+
+// Recompute sustain checks on all pending reallocation requests for this report.
+async function recomputeSustainForSubmit(slot: SubmitSlot) {
+  if (!slot.report) return;
+  const requests = await prisma.budgetReallocationRequest.findMany({
+    where: { reportId: slot.report.id, status: "pending" },
   });
+  if (requests.length === 0) return;
+
+  const priorSlots = await prisma.budgetReportSlot.findMany({
+    where: { budgetId: slot.budgetId, slotNumber: { lt: slot.slotNumber }, status: { in: ["approved", "submitted"] } },
+    include: { report: { include: { lines: { select: { budgetLineId: true, actualAmount: true } } } } },
+  });
+  const priorActuals: Record<string, number> = {};
+  for (const ps of priorSlots) {
+    for (const l of ps.report?.lines ?? []) {
+      priorActuals[l.budgetLineId] = (priorActuals[l.budgetLineId] ?? 0) + l.actualAmount;
+    }
+  }
+  const currentActuals: Record<string, number> = Object.fromEntries(
+    (slot.report.lines ?? []).map(l => [l.budgetLineId, l.actualAmount])
+  );
+
+  await Promise.all(requests.map(async req => {
+    const fromLine = await prisma.budgetLine.findUnique({ where: { id: req.fromLineId } });
+    if (!fromLine) return;
+    const yearTotal =
+      slot.grantYear === 1 ? fromLine.y1Total
+      : slot.grantYear === 2 ? fromLine.y2Total
+      : slot.grantYear === 3 ? fromLine.y3Total
+      : slot.grantYear === 4 ? fromLine.y4Total
+      : fromLine.y5Total;
+    const ytdActual = (priorActuals[req.fromLineId] ?? 0) + (currentActuals[req.fromLineId] ?? 0);
+    const sourceUnspent = Math.max(0, yearTotal - ytdActual);
+    const willSustain = sourceUnspent >= req.requestedAmount;
+    const sustainNote = willSustain ? null
+      : `Source line has only ₹${Math.round(sourceUnspent).toLocaleString("en-IN")} unspent vs requested ₹${Math.round(req.requestedAmount).toLocaleString("en-IN")}`;
+    await prisma.budgetReallocationRequest.update({
+      where: { id: req.id },
+      data: { sourceUnspent, willSustain, sustainNote },
+    });
+  }));
+}
+
+// Submit gated by the Finance Declaration: the partner has affirmed the
+// declaration and uploaded the signed+sealed scan. We freeze exactly what was
+// affirmed (snapshot + hash) plus the audit trail (who / when / IP / UA).
+export async function submitReportWithDeclaration(
+  slotId: string,
+  inputs: DeclarationInputs,
+  signedScanUrl: string,
+) {
+  if (!signedScanUrl?.trim()) throw new Error("Please upload the signed & sealed declaration before submitting.");
+  if (!declarationInputsComplete(inputs)) throw new Error("Please complete all declaration fields.");
+
+  const slot = await prisma.budgetReportSlot.findUnique({ where: { id: slotId }, select: SUBMIT_SLOT_SELECT });
   if (!slot) throw new Error("Not found");
   if (!["pending", "sent_back"].includes(slot.status)) throw new Error("Cannot submit in current status");
 
-  await assertCanEditReport(slot.budgetId);
+  const session = await assertCanEditReport(slot.budgetId);
 
-  // Recompute sustain checks on all reallocation requests for this report
-  if (slot.report) {
-    const requests = await prisma.budgetReallocationRequest.findMany({
-      where: { reportId: slot.report.id, status: "pending" },
-    });
-    if (requests.length > 0) {
-      // Fetch YTD actuals from prior approved/submitted slots
-      const priorSlots = await prisma.budgetReportSlot.findMany({
-        where: { budgetId: slot.budgetId, slotNumber: { lt: slot.slotNumber }, status: { in: ["approved", "submitted"] } },
-        include: { report: { include: { lines: { select: { budgetLineId: true, actualAmount: true } } } } },
-      });
-      const priorActuals: Record<string, number> = {};
-      for (const ps of priorSlots) {
-        for (const l of ps.report?.lines ?? []) {
-          priorActuals[l.budgetLineId] = (priorActuals[l.budgetLineId] ?? 0) + l.actualAmount;
-        }
-      }
-      const currentActuals: Record<string, number> = Object.fromEntries(
-        (slot.report.lines ?? []).map(l => [l.budgetLineId, l.actualAmount])
-      );
+  const data = await computeDeclarationData(slotId);
+  if (!data) throw new Error("Could not compute declaration figures");
 
-      await Promise.all(requests.map(async req => {
-        const fromLine = await prisma.budgetLine.findUnique({ where: { id: req.fromLineId } });
-        if (!fromLine) return;
-        const yearTotal =
-          slot.grantYear === 1 ? fromLine.y1Total
-          : slot.grantYear === 2 ? fromLine.y2Total
-          : slot.grantYear === 3 ? fromLine.y3Total
-          : slot.grantYear === 4 ? fromLine.y4Total
-          : fromLine.y5Total;
-        const ytdActual = (priorActuals[req.fromLineId] ?? 0) + (currentActuals[req.fromLineId] ?? 0);
-        const sourceUnspent = Math.max(0, yearTotal - ytdActual);
-        const willSustain = sourceUnspent >= req.requestedAmount;
-        const sustainNote = willSustain ? null
-          : `Source line has only ₹${Math.round(sourceUnspent).toLocaleString("en-IN")} unspent vs requested ₹${Math.round(req.requestedAmount).toLocaleString("en-IN")}`;
-        await prisma.budgetReallocationRequest.update({
-          where: { id: req.id },
-          data: { sourceUnspent, willSustain, sustainNote },
-        });
-      }));
-    }
-  }
+  const snapshot = {
+    affirmedAt: new Date().toISOString(),
+    affirmedBy: { id: session.user!.id, name: session.user!.name ?? null, email: session.user!.email ?? null },
+    grantId: inputs.grantId,
+    period: { from: data.periodFrom.toISOString(), to: data.periodTo.toISOString() },
+    grantYear: data.grantYear,
+    slotNumber: data.slotNumber,
+    inputs,
+    summary: data.summary,
+    unspent: data.unspent,
+    affirmationClauses: AFFIRMATION_CLAUSES,
+  };
+  const hash = createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
+
+  const h = await headers();
+  const ip = (h.get("x-forwarded-for")?.split(",")[0] ?? h.get("x-real-ip") ?? "").trim() || null;
+  const userAgent = h.get("user-agent");
+
+  await recomputeSustainForSubmit(slot);
 
   await prisma.$transaction([
     prisma.budgetReportSlot.update({ where: { id: slotId }, data: { status: "submitted" } }),
-    prisma.budgetReport.update({ where: { slotId }, data: { submittedAt: new Date() } }),
+    prisma.budgetReport.update({
+      where: { slotId },
+      data: {
+        submittedAt: new Date(),
+        declarationAcceptedAt: new Date(),
+        declarationAcceptedById: session.user!.id,
+        declarationSnapshot: snapshot,
+        declarationHash: hash,
+        declarationIp: ip,
+        declarationUserAgent: userAgent,
+        declarationSignedScanUrl: signedScanUrl.trim(),
+      },
+    }),
   ]);
 
   revalidatePath(`/budget/${slot.budgetId}/reports`);
   redirect(`/budget/${slot.budgetId}/reports`);
+}
+
+// ── FD details schedule (APF "Format for FD details") ─────────────────────────
+
+export type FdRowInput = {
+  bankName?: string; fdrNumber?: string;
+  faceValue?: number; maturityValue?: number; cumulative?: boolean;
+  doi?: string | null; dom?: string | null; roi?: number;
+  openingBalance?: number; interestAccrued?: number; tds?: number;
+  interestReceived?: number; maturedAmount?: number;
+  maturityDate?: string | null; closingBalance?: number;
+};
+
+const toDate = (s?: string | null) => (s ? new Date(s) : null);
+const toNum = (n?: number) => (Number.isFinite(n) ? (n as number) : 0);
+
+export async function saveReportFds(slotId: string, rows: FdRowInput[]) {
+  const slot = await prisma.budgetReportSlot.findUnique({
+    where: { id: slotId },
+    select: { budgetId: true, status: true },
+  });
+  if (!slot) throw new Error("Slot not found");
+  if (slot.status === "approved") throw new Error("Cannot edit an approved report");
+  await assertCanEditReport(slot.budgetId);
+
+  const report = await prisma.budgetReport.upsert({
+    where: { slotId },
+    create: { slotId, budgetId: slot.budgetId },
+    update: {},
+    select: { id: true },
+  });
+
+  const fdBalance = rows.reduce((s, r) => s + toNum(r.closingBalance), 0);
+
+  await prisma.$transaction([
+    prisma.budgetReportFd.deleteMany({ where: { reportId: report.id } }),
+    ...rows.map((r, i) =>
+      prisma.budgetReportFd.create({
+        data: {
+          reportId: report.id,
+          sortOrder: i,
+          bankName: r.bankName ?? "",
+          fdrNumber: r.fdrNumber ?? "",
+          faceValue: toNum(r.faceValue),
+          maturityValue: toNum(r.maturityValue),
+          cumulative: r.cumulative ?? true,
+          doi: toDate(r.doi),
+          dom: toDate(r.dom),
+          roi: toNum(r.roi),
+          openingBalance: toNum(r.openingBalance),
+          interestAccrued: toNum(r.interestAccrued),
+          tds: toNum(r.tds),
+          interestReceived: toNum(r.interestReceived),
+          maturedAmount: toNum(r.maturedAmount),
+          maturityDate: toDate(r.maturityDate),
+          closingBalance: toNum(r.closingBalance),
+        },
+      })
+    ),
+    // Keep the reconciliation FD line in sync with the schedule.
+    prisma.budgetReport.update({ where: { slotId }, data: { fdBalance } }),
+  ]);
+
+  revalidatePath(`/budget/${slot.budgetId}/reports/${slotId}`);
 }
 
 // ── Admin: review actions ──────────────────────────────────────────────────────

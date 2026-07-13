@@ -3,13 +3,17 @@
 import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
 import {
-  saveReport, saveReportLines, submitReport,
+  saveReport, saveReportLines, saveReportFds, submitReportWithDeclaration,
   addReallocationRequest, deleteReallocationRequest,
 } from "../../../../budget/report-actions";
 import {
   SECTION_TO_HEAD, BUDGET_HEAD_ORDER,
   proratedBudget, cumulativeProratedBudget, varianceFlag, isDueInPeriod,
 } from "@/lib/budget-report-slots";
+import {
+  BLANK_DECLARATION_INPUTS, declarationInputsComplete, AFFIRMATION_CLAUSES,
+  type DeclarationInputs,
+} from "@/lib/budget/declaration";
 import type { BudgetSection, BudgetLineCadence, ReallocationDuration } from "@/app/generated/prisma/client";
 
 type Line = {
@@ -27,13 +31,46 @@ type ReallocationRequest = {
   rationale: string; sourceUnspent: number; willSustain: boolean; sustainNote: string | null;
   approvedAmount: number | null; reviewerComment: string | null;
 };
+type FdDetail = {
+  bankName: string; fdrNumber: string; faceValue: number; maturityValue: number; cumulative: boolean;
+  doi: string | null; dom: string | null; roi: number; openingBalance: number; interestAccrued: number;
+  tds: number; interestReceived: number; maturedAmount: number; maturityDate: string | null; closingBalance: number;
+};
 type Report = {
   id: string; openingBalance: number; tranchesReceived: number; interestEarned: number;
   bankBalance: number; fdBalance: number; cashInHand: number; advances: number;
   receivables: number; payables: number; partnerNotes: string | null; reviewerNotes: string | null;
   lines: ReportLine[];
+  fdDetails: FdDetail[];
   reallocationRequests: ReallocationRequest[];
+  declarationAcceptedAt: string | null;
+  declarationAcceptedById: string | null;
+  declarationIp: string | null;
+  declarationSnapshot: { affirmedBy?: { name: string | null; email: string | null } } | null;
 } | null;
+
+// Client-side FD row: all inputs are strings; dates are yyyy-mm-dd.
+type FdRow = {
+  bankName: string; fdrNumber: string; faceValue: string; maturityValue: string; cumulative: boolean;
+  doi: string; dom: string; roi: string; openingBalance: string; interestAccrued: string; tds: string;
+  interestReceived: string; maturedAmount: string; maturityDate: string; closingBalance: string;
+};
+const BLANK_FD: FdRow = {
+  bankName: "", fdrNumber: "", faceValue: "", maturityValue: "", cumulative: true,
+  doi: "", dom: "", roi: "", openingBalance: "", interestAccrued: "", tds: "",
+  interestReceived: "", maturedAmount: "", maturityDate: "", closingBalance: "",
+};
+const fdFromDetail = (d: FdDetail): FdRow => ({
+  bankName: d.bankName, fdrNumber: d.fdrNumber,
+  faceValue: d.faceValue ? String(d.faceValue) : "", maturityValue: d.maturityValue ? String(d.maturityValue) : "",
+  cumulative: d.cumulative,
+  doi: d.doi ? d.doi.slice(0, 10) : "", dom: d.dom ? d.dom.slice(0, 10) : "",
+  roi: d.roi ? String(d.roi) : "",
+  openingBalance: d.openingBalance ? String(d.openingBalance) : "", interestAccrued: d.interestAccrued ? String(d.interestAccrued) : "",
+  tds: d.tds ? String(d.tds) : "", interestReceived: d.interestReceived ? String(d.interestReceived) : "",
+  maturedAmount: d.maturedAmount ? String(d.maturedAmount) : "",
+  maturityDate: d.maturityDate ? d.maturityDate.slice(0, 10) : "", closingBalance: d.closingBalance ? String(d.closingBalance) : "",
+});
 type Slot = { id: string; slotNumber: number; grantYear: number; periodFrom: string; periodTo: string; dueDate: string; status: string; report: Report };
 type Budget = { id: string; name: string; years: number; lines: Line[]; reportConfig: { grantStartDate: string } | null };
 
@@ -55,6 +92,26 @@ const REALLOC_STATUS_STYLE: Record<string, string> = {
   approved: "bg-green-50 text-green-700 border-green-200",
   rejected: "bg-red-50 text-red-700 border-red-200",
 };
+
+const FD_COLUMNS: { key: keyof FdRow; label: string; type: "text" | "num" | "date" | "cum" }[] = [
+  { key: "bankName", label: "Bank name", type: "text" },
+  { key: "fdrNumber", label: "FDR", type: "text" },
+  { key: "faceValue", label: "Face value", type: "num" },
+  { key: "maturityValue", label: "Maturity value", type: "num" },
+  { key: "cumulative", label: "Cum / Non-cum", type: "cum" },
+  { key: "doi", label: "DOI", type: "date" },
+  { key: "dom", label: "DOM", type: "date" },
+  { key: "roi", label: "ROI %", type: "num" },
+  { key: "openingBalance", label: "Opening bal.", type: "num" },
+  { key: "interestAccrued", label: "Int. accrued", type: "num" },
+  { key: "tds", label: "TDS", type: "num" },
+  { key: "interestReceived", label: "Int. received", type: "num" },
+  { key: "maturedAmount", label: "Matured", type: "num" },
+  { key: "maturityDate", label: "Maturity date", type: "date" },
+  { key: "closingBalance", label: "Closing bal.", type: "num" },
+];
+// Money columns that get a subtotal row.
+const FD_TOTAL_KEYS: (keyof FdRow)[] = ["faceValue", "maturityValue", "openingBalance", "interestAccrued", "tds", "interestReceived", "maturedAmount", "closingBalance"];
 
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -113,6 +170,20 @@ export default function ReportForm({
   const [parseProgress, setParseProgress] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // FD details schedule
+  const [fds, setFds] = useState<FdRow[]>((report?.fdDetails ?? []).map(fdFromDetail));
+
+  // Declaration modal
+  const [showDecl, setShowDecl] = useState(false);
+  const [declInputs, setDeclInputs] = useState<DeclarationInputs>(BLANK_DECLARATION_INPUTS);
+  const [declScanUrl, setDeclScanUrl] = useState("");
+  const [declScanName, setDeclScanName] = useState("");
+  const [declAffirmed, setDeclAffirmed] = useState(false);
+  const [declUploading, setDeclUploading] = useState(false);
+  const [declError, setDeclError] = useState<string | null>(null);
+  const declScanRef = useRef<HTMLInputElement>(null);
+  const [confirming, startConfirm] = useTransition();
+
   // Reallocation state
   const [showReallocationForm, setShowReallocationForm] = useState(false);
   const [realloc, setRealloc] = useState(BLANK_REALLOC);
@@ -143,61 +214,125 @@ export default function ReportForm({
 
   const hasRevisions = budget.lines.some(l => (revisedAdjustments[l.id] ?? 0) !== 0);
 
+  const nv = (v: string) => parseFloat(v) || 0;
+  const reconPayload = () => ({
+    openingBalance: nv(recon.openingBalance),
+    tranchesReceived: nv(recon.tranchesReceived),
+    interestEarned: nv(recon.interestEarned),
+    bankBalance: nv(recon.bankBalance),
+    cashInHand: nv(recon.cashInHand),
+    advances: nv(recon.advances),
+    receivables: nv(recon.receivables),
+    payables: nv(recon.payables),
+    partnerNotes: recon.partnerNotes || undefined,
+  });
+  const linesPayload = () => budget.lines.map(l => ({
+    budgetLineId: l.id,
+    actualAmount: nv(actuals[l.id] ?? ""),
+    notes: lineNotes[l.id] || undefined,
+  }));
+  const fdPayload = () => fds.map(r => ({
+    bankName: r.bankName, fdrNumber: r.fdrNumber,
+    faceValue: nv(r.faceValue), maturityValue: nv(r.maturityValue), cumulative: r.cumulative,
+    doi: r.doi || null, dom: r.dom || null, roi: nv(r.roi),
+    openingBalance: nv(r.openingBalance), interestAccrued: nv(r.interestAccrued), tds: nv(r.tds),
+    interestReceived: nv(r.interestReceived), maturedAmount: nv(r.maturedAmount),
+    maturityDate: r.maturityDate || null, closingBalance: nv(r.closingBalance),
+  }));
+
+  // Persist everything the partner has entered. FD rows are saved after the
+  // report/lines to avoid racing concurrent upserts of the same report row.
+  async function persistAll() {
+    await Promise.all([
+      saveReport(slot.id, reconPayload()),
+      saveReportLines(slot.id, linesPayload()),
+    ]);
+    await saveReportFds(slot.id, fdPayload());
+  }
+
   function handleSave() {
     startSave(async () => {
-      const nv = (v: string) => parseFloat(v) || 0;
-      await Promise.all([
-        saveReport(slot.id, {
-          openingBalance: nv(recon.openingBalance),
-          tranchesReceived: nv(recon.tranchesReceived),
-          interestEarned: nv(recon.interestEarned),
-          bankBalance: nv(recon.bankBalance),
-          fdBalance: nv(recon.fdBalance),
-          cashInHand: nv(recon.cashInHand),
-          advances: nv(recon.advances),
-          receivables: nv(recon.receivables),
-          payables: nv(recon.payables),
-          partnerNotes: recon.partnerNotes || undefined,
-        }),
-        saveReportLines(slot.id, budget.lines.map(l => ({
-          budgetLineId: l.id,
-          actualAmount: nv(actuals[l.id] ?? ""),
-          notes: lineNotes[l.id] || undefined,
-        }))),
-      ]);
+      await persistAll();
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     });
   }
 
+  // Submit = persist everything, then open the Finance Declaration modal. The
+  // modal's confirm does the actual state transition (submitReportWithDeclaration).
   function handleSubmit() {
     setSubmitError(null);
     startSubmit(async () => {
-      const nv = (v: string) => parseFloat(v) || 0;
-      await saveReport(slot.id, {
-        openingBalance: nv(recon.openingBalance),
-        tranchesReceived: nv(recon.tranchesReceived),
-        interestEarned: nv(recon.interestEarned),
-        bankBalance: nv(recon.bankBalance),
-        fdBalance: nv(recon.fdBalance),
-        cashInHand: nv(recon.cashInHand),
-        advances: nv(recon.advances),
-        receivables: nv(recon.receivables),
-        payables: nv(recon.payables),
-        partnerNotes: recon.partnerNotes || undefined,
-      });
-      await saveReportLines(slot.id, budget.lines.map(l => ({
-        budgetLineId: l.id,
-        actualAmount: nv(actuals[l.id] ?? ""),
-        notes: lineNotes[l.id] || undefined,
-      })));
       try {
-        await submitReport(slot.id);
+        await persistAll();
       } catch (e: any) {
-        setSubmitError(e.message ?? "Submit failed");
+        setSubmitError(e.message ?? "Save failed");
+        return;
+      }
+      setDeclError(null);
+      setShowDecl(true);
+    });
+  }
+
+  async function uploadDeclScan(file: File) {
+    setDeclUploading(true);
+    setDeclError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/budget/declaration-upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      setDeclScanUrl(data.url);
+      setDeclScanName(file.name);
+    } catch (e: any) {
+      setDeclError(e.message ?? "Upload failed");
+    } finally {
+      setDeclUploading(false);
+      if (declScanRef.current) declScanRef.current.value = "";
+    }
+  }
+
+  async function downloadDeclaration() {
+    setDeclError(null);
+    try {
+      const res = await fetch(`/api/budget/${budget.id}/reports/${slot.id}/declaration`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(declInputs),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? "Could not generate"); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Finance-Declaration-Y${slot.grantYear}-R${slot.slotNumber}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setDeclError(e.message ?? "Could not generate declaration");
+    }
+  }
+
+  function handleConfirmDeclaration() {
+    setDeclError(null);
+    startConfirm(async () => {
+      try {
+        await submitReportWithDeclaration(slot.id, declInputs, declScanUrl);
+      } catch (e: any) {
+        setDeclError(e.message ?? "Submit failed");
       }
     });
   }
+
+  const declReady = declarationInputsComplete(declInputs) && !!declScanUrl && declAffirmed;
+
+  const updateFd = (i: number, key: keyof FdRow, value: string | boolean) =>
+    setFds(prev => prev.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
+  const addFd = () => setFds(prev => [...prev, { ...BLANK_FD }]);
+  const removeFd = (i: number) => setFds(prev => prev.filter((_, idx) => idx !== i));
 
   function handleAddRealloc() {
     if (!realloc.fromLineId || !realloc.requestedAmount || !realloc.rationale.trim()) return;
@@ -231,7 +366,9 @@ export default function ReportForm({
   const totalIncome = n(recon.openingBalance) + n(recon.tranchesReceived) + n(recon.interestEarned);
   const totalActuals = budget.lines.reduce((s, l) => s + (n(actuals[l.id] ?? "") || 0), 0);
   const closingBalance = totalIncome - totalActuals;
-  const fundBalance = n(recon.bankBalance) + n(recon.fdBalance) + n(recon.cashInHand) + n(recon.advances) + n(recon.receivables) - n(recon.payables);
+  // FD balance is derived from the FD schedule (sum of closing balances), not typed.
+  const fdBalanceDerived = fds.reduce((s, r) => s + n(r.closingBalance), 0);
+  const fundBalance = n(recon.bankBalance) + fdBalanceDerived + n(recon.cashInHand) + n(recon.advances) + n(recon.receivables) - n(recon.payables);
   const reconDiff = closingBalance - fundBalance;
 
   const reallocRequests = report?.reallocationRequests ?? [];
@@ -501,9 +638,20 @@ export default function ReportForm({
           {/* B – Represented by */}
           <div className="bg-white border border-stone-200 rounded-xl p-5 space-y-3">
             <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">B – Represented by</p>
+            <div className="flex items-center justify-between gap-4">
+              <label className="text-sm text-stone-600">Cash at bank (from statement)</label>
+              {canEdit
+                ? <input type="number" min={0} value={recon.bankBalance}
+                    onChange={e => setRecon(p => ({ ...p, bankBalance: e.target.value }))}
+                    className="w-36 text-sm text-right border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sky-400" />
+                : <span className="text-sm font-medium text-stone-800">{fmt(n(recon.bankBalance))}</span>
+              }
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <label className="text-sm text-stone-600">FD with bank <span className="text-stone-400">(from FD schedule)</span></label>
+              <span className="text-sm font-medium text-stone-800">{fmt(Math.round(fdBalanceDerived))}</span>
+            </div>
             {([
-              ["bankBalance", "Cash at bank (from statement)"],
-              ["fdBalance", "FD with bank (from statement)"],
               ["cashInHand", "Cash in hand"],
               ["advances", "Advances to employees/vendors"],
               ["receivables", "Other receivables"],
@@ -537,7 +685,7 @@ export default function ReportForm({
         {canEdit && (
           <div className="mt-4 bg-white border border-stone-200 rounded-xl p-5">
             <p className="text-sm font-medium text-stone-700 mb-1">Bank statement</p>
-            <p className="text-xs text-stone-400 mb-3">Upload one or more bank statement PDFs — Claude will extract balances and interest. If you have monthly statements, select all at once; interest will be summed and the latest closing balance used.</p>
+            <p className="text-xs text-stone-400 mb-3">Upload one or more bank statement PDFs — balances and interest will be extracted automatically. If you have monthly statements, select all at once; interest will be summed and the latest closing balance used.</p>
             <div className="flex items-center gap-3 flex-wrap">
               <input ref={fileRef} type="file" accept=".pdf,image/jpeg,image/png" multiple className="hidden"
                 onChange={async e => {
@@ -547,7 +695,7 @@ export default function ReportForm({
                   setParseNote(null);
                   setParseProgress("");
                   try {
-                    type ParsedResult = { bankBalance: number; interestEarned: number; fdBalance: number; periodTo: string | null; periodFrom: string | null; bankName: string | null; notes: string | null };
+                    type ParsedResult = { bankBalance: number; interestEarned: number; periodTo: string | null; periodFrom: string | null; bankName: string | null; notes: string | null };
 
                     async function parseFile(file: File): Promise<ParsedResult> {
                       const fd = new FormData();
@@ -608,7 +756,6 @@ export default function ReportForm({
                     setRecon(p => ({
                       ...p,
                       bankBalance: latest.bankBalance != null ? String(latest.bankBalance) : p.bankBalance,
-                      fdBalance: latest.fdBalance != null ? String(latest.fdBalance) : p.fdBalance,
                       interestEarned: String(totalInterest),
                     }));
 
@@ -633,7 +780,7 @@ export default function ReportForm({
                 {parseStatus === "uploading"
                   ? `Uploading…${parseProgress ? ` (${parseProgress})` : ""}`
                   : parseStatus === "parsing"
-                  ? `Parsing with Claude…${parseProgress ? ` (${parseProgress})` : ""}`
+                  ? `Extracting…${parseProgress ? ` (${parseProgress})` : ""}`
                   : "Upload statement(s)"}
               </button>
               {parseNote && (
@@ -659,6 +806,81 @@ export default function ReportForm({
           </div>
         )}
       </section>
+
+      {/* FD details schedule */}
+      {(canEdit || fds.length > 0) && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-base font-semibold text-stone-800">Fixed deposit details</h2>
+              <p className="text-xs text-stone-400 mt-0.5">One row per FD held during the period. The FD balance in the reconciliation above is the sum of closing balances.</p>
+            </div>
+            {canEdit && (
+              <button onClick={addFd} className="text-sm border border-stone-200 hover:border-sky-400 text-stone-700 px-3 py-1.5 rounded-lg transition-colors">+ Add FD</button>
+            )}
+          </div>
+          {fds.length === 0
+            ? <p className="text-sm text-stone-400 bg-white border border-stone-200 rounded-xl p-5">No fixed deposits recorded for this period.</p>
+            : (
+              <div className="bg-white border border-stone-200 rounded-xl overflow-x-auto">
+                <table className="text-xs whitespace-nowrap min-w-full">
+                  <thead>
+                    <tr className="border-b border-stone-100 text-stone-500">
+                      <th className="px-2 py-2 text-left font-medium">#</th>
+                      {FD_COLUMNS.map(c => <th key={c.key} className="px-2 py-2 text-left font-medium">{c.label}</th>)}
+                      {canEdit && <th className="px-2 py-2" />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fds.map((row, i) => (
+                      <tr key={i} className="border-b border-stone-50">
+                        <td className="px-2 py-1.5 text-stone-400">{i + 1}</td>
+                        {FD_COLUMNS.map(c => (
+                          <td key={c.key} className="px-2 py-1.5">
+                            {!canEdit
+                              ? <span className="text-stone-700">
+                                  {c.type === "cum" ? (row.cumulative ? "Cumulative" : "Non-cumulative")
+                                    : c.type === "num" ? (row[c.key] ? Number(row[c.key]).toLocaleString("en-IN") : "—")
+                                    : (row[c.key] as string) || "—"}
+                                </span>
+                              : c.type === "cum"
+                                ? <select value={row.cumulative ? "1" : "0"} onChange={e => updateFd(i, "cumulative", e.target.value === "1")}
+                                    className="border border-stone-200 rounded px-1.5 py-1 focus:outline-none focus:border-sky-400">
+                                    <option value="1">Cumulative</option>
+                                    <option value="0">Non-cumulative</option>
+                                  </select>
+                                : <input
+                                    type={c.type === "num" ? "number" : c.type === "date" ? "date" : "text"}
+                                    value={row[c.key] as string}
+                                    onChange={e => updateFd(i, c.key, e.target.value)}
+                                    className={`${c.type === "text" ? "w-28" : c.type === "date" ? "w-32" : "w-24 text-right"} border border-stone-200 rounded px-1.5 py-1 focus:outline-none focus:border-sky-400`} />
+                            }
+                          </td>
+                        ))}
+                        {canEdit && (
+                          <td className="px-2 py-1.5">
+                            <button onClick={() => removeFd(i)} className="text-stone-300 hover:text-red-500" title="Remove FD">✕</button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                    <tr className="border-t border-stone-200 font-medium text-stone-700">
+                      <td className="px-2 py-2" />
+                      {FD_COLUMNS.map(c => (
+                        <td key={c.key} className="px-2 py-2 text-right">
+                          {FD_TOTAL_KEYS.includes(c.key)
+                            ? fmt(Math.round(fds.reduce((s, r) => s + n(r[c.key] as string), 0)))
+                            : c.key === "bankName" ? <span className="text-left block">Sub-total</span> : ""}
+                        </td>
+                      ))}
+                      {canEdit && <td />}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+        </section>
+      )}
 
       {/* Reallocation requests */}
       {(canEdit || reallocRequests.length > 0) && (
@@ -831,6 +1053,22 @@ export default function ReportForm({
         </section>
       )}
 
+      {/* Finance declaration record */}
+      {report?.declarationAcceptedAt && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-900">
+          <p className="font-medium">Finance Declaration affirmed</p>
+          <p className="text-xs text-emerald-700 mt-1">
+            {report.declarationSnapshot?.affirmedBy?.name ?? report.declarationSnapshot?.affirmedBy?.email ?? "Partner"}
+            {" · "}{fmtDate(report.declarationAcceptedAt)}
+            {report.declarationIp ? ` · IP ${report.declarationIp}` : ""}
+          </p>
+          <a href={`/api/budget/${budget.id}/reports/${slot.id}/declaration-scan`} target="_blank" rel="noreferrer"
+            className="inline-block mt-2 text-xs text-emerald-700 underline hover:text-emerald-900">
+            View signed &amp; sealed declaration →
+          </a>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-3 flex-wrap">
         {canEdit && (
@@ -853,6 +1091,97 @@ export default function ReportForm({
         )}
         {submitError && <p className="text-sm text-red-600">{submitError}</p>}
       </div>
+
+      {/* Finance Declaration modal */}
+      {showDecl && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center overflow-y-auto p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl my-8 shadow-xl">
+            <div className="p-6 border-b border-stone-100">
+              <h2 className="text-lg font-semibold text-stone-900">Finance Declaration</h2>
+              <p className="text-sm text-stone-500 mt-1">
+                This is a legally binding declaration. The fund-utilisation figures are taken from your report.
+                Fill the fields below, download the pre-filled declaration, get it signed by both heads on your
+                organisation letterhead with the seal affixed, and upload the scan.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {([
+                  ["grantId", "Grant ID", "e.g. G-2024-00123"],
+                  ["orgHeadName", "Head of Organization / Programme — name", ""],
+                  ["orgHeadDesignation", "…designation", ""],
+                  ["finHeadName", "Head of Finance — name", ""],
+                  ["finHeadDesignation", "…designation", ""],
+                  ["valid12A", "12A valid until (e.g. 31/03/2027)", ""],
+                  ["valid80G", "80G valid until", ""],
+                ] as [keyof DeclarationInputs, string, string][]).map(([key, label, ph]) => (
+                  <div key={key}>
+                    <label className="text-xs text-stone-500 block mb-1">{label}</label>
+                    <input type="text" value={declInputs[key] as string} placeholder={ph}
+                      onChange={e => setDeclInputs(p => ({ ...p, [key]: e.target.value }))}
+                      className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:border-sky-400" />
+                  </div>
+                ))}
+                <div className="sm:col-span-2 flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm text-stone-600">
+                    <input type="checkbox" checked={declInputs.fcraApplicable}
+                      onChange={e => setDeclInputs(p => ({ ...p, fcraApplicable: e.target.checked }))} />
+                    FCRA registered
+                  </label>
+                  {declInputs.fcraApplicable && (
+                    <input type="text" value={declInputs.validFCRA} placeholder="FCRA valid until"
+                      onChange={e => setDeclInputs(p => ({ ...p, validFCRA: e.target.value }))}
+                      className="flex-1 text-sm border border-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:border-sky-400" />
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t border-stone-100 pt-4 space-y-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button onClick={downloadDeclaration} disabled={!declarationInputsComplete(declInputs)}
+                    className="text-sm border border-stone-200 hover:border-sky-400 text-stone-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+                    ⬇ Download declaration (.docx)
+                  </button>
+                  {!declarationInputsComplete(declInputs) && <span className="text-xs text-stone-400">Complete all fields to enable</span>}
+                </div>
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  <input ref={declScanRef} type="file" accept=".pdf,image/jpeg,image/png" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadDeclScan(f); }} />
+                  <button onClick={() => declScanRef.current?.click()} disabled={declUploading}
+                    className="text-sm border border-stone-200 hover:border-sky-400 text-stone-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+                    {declUploading ? "Uploading…" : declScanUrl ? "Replace signed scan" : "Upload signed & sealed scan"}
+                  </button>
+                  {declScanUrl && <span className="text-xs text-green-600">✓ {declScanName || "uploaded"}</span>}
+                </div>
+
+                <label className="flex items-start gap-2 text-sm text-stone-700 pt-1">
+                  <input type="checkbox" checked={declAffirmed} onChange={e => setDeclAffirmed(e.target.checked)} className="mt-1" />
+                  <span>
+                    We hereby declare and affirm the following:
+                    <ul className="list-disc pl-5 mt-1 space-y-1 text-xs text-stone-500">
+                      {AFFIRMATION_CLAUSES.map((c, i) => <li key={i}>{c}</li>)}
+                    </ul>
+                  </span>
+                </label>
+
+                <p className="text-xs text-stone-400">By confirming, your name, the timestamp and your IP address are recorded against this declaration.</p>
+                {declError && <p className="text-sm text-red-600">{declError}</p>}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-stone-100 flex items-center justify-end gap-3">
+              <button onClick={() => setShowDecl(false)} disabled={confirming}
+                className="text-sm text-stone-500 hover:text-stone-800 px-4 py-2">Cancel</button>
+              <button onClick={handleConfirmDeclaration} disabled={!declReady || confirming}
+                className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50">
+                {confirming ? "Submitting…" : "Confirm & submit for review"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
