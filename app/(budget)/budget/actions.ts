@@ -670,7 +670,13 @@ export async function deleteBudget(budgetId: string) {
   if (!session?.user?.id) throw new Error("Not authenticated");
 
   const budget = await prisma.budget.findUnique({ where: { id: budgetId }, select: { partnerId: true } });
-  if (!budget || budget.partnerId !== session.user.id) throw new Error("Not found");
+  if (!budget) throw new Error("Not found");
+  // The city list page (where this button lives) is already gated on
+  // budget-admin/super-admin, so admins manage everyone's budgets from there.
+  // Owners can still delete their own budgets anywhere the button appears.
+  if (budget.partnerId !== session.user.id && !isBudgetAdminOrSuperAdmin(session)) {
+    throw new Error("Forbidden");
+  }
 
   await prisma.budget.delete({ where: { id: budgetId } });
   // Refresh the city list (where the delete button lives) in place instead of
