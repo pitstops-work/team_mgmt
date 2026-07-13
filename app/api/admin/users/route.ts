@@ -10,7 +10,7 @@ export async function GET() {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [users, allCities, zones, clusters] = await Promise.all([
+  const [users, allCities, zones, clusters, roleRows] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, email: true, image: true, role: true, isOwner: true, designation: true, createdAt: true, cityId: true, reportsToId: true },
       orderBy: { createdAt: "asc" },
@@ -26,6 +26,8 @@ export async function GET() {
       select: { id: true, name: true, zoneId: true, rps: { select: { id: true } } },
       orderBy: { name: "asc" },
     }),
+    // Assignable roles come from the RBAC catalog — never a hardcoded list.
+    prisma.role.findMany({ orderBy: { name: "asc" }, select: { name: true, description: true } }),
   ]);
 
   // Deduplicate cities by name — keep first occurrence as canonical
@@ -48,7 +50,7 @@ export async function GET() {
     cityId: z.cityId ? (canonicalCityId[z.cityId] ?? z.cityId) : null,
   }));
 
-  return Response.json({ users, cities, zones: remappedZones, clusters });
+  return Response.json({ users, cities, zones: remappedZones, clusters, roles: roleRows });
 }
 
 export async function POST(req: Request) {
@@ -69,8 +71,10 @@ export async function POST(req: Request) {
   }
 
   // Only super-admin can create admin users; only the owner can create
-  // super-admin users (matches the b2 minting policy in PATCH).
-  const role = ["super-admin", "admin", "member", "viewer", "budget-admin", "partner"].includes(req_role) ? req_role : "member";
+  // super-admin users (matches the b2 minting policy in PATCH). The role must
+  // exist in the RBAC catalog; anything unknown falls back to member.
+  const roleExists = typeof req_role === "string" && !!(await prisma.role.findUnique({ where: { name: req_role }, select: { name: true } }));
+  const role = roleExists ? req_role : "member";
   if (role === "admin" && !isSuperAdmin(session)) {
     return Response.json({ error: "Only the super-admin can create admin users" }, { status: 403 });
   }

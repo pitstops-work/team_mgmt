@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, Shield } from "lucide-react";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
+import { roleStyle } from "@/lib/roleStyle";
 
 type Role = {
   id: string;
@@ -16,13 +17,6 @@ type Role = {
   updatedAt: string;
 };
 
-const ROLE_STYLE: Record<string, string> = {
-  "super-admin":  "bg-amber-100 text-amber-700",
-  admin:          "bg-indigo-100 text-indigo-700",
-  member:         "bg-emerald-100 text-emerald-700",
-  viewer:         "bg-stone-100 text-stone-500",
-  "budget-admin": "bg-sky-100 text-sky-700",
-};
 
 export default function RolesListPage() {
   const { data: session, status } = useSession();
@@ -74,7 +68,7 @@ export default function RolesListPage() {
             <Shield className="w-4 h-4 text-stone-400" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${ROLE_STYLE[role.name] ?? "bg-stone-100 text-stone-600"}`}>
+                <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${roleStyle(role.name)}`}>
                   {role.name}
                 </span>
                 {role.isSystem && (

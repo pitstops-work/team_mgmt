@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { isAdminUser, isSuperAdmin } from "@/lib/roleGuard";
 import { auditLog } from "@/lib/auditLog";
 
-const VALID_ROLES = ["super-admin", "admin", "member", "viewer", "budget-admin", "partner"] as const;
 const VALID_DESIGNATIONS = ["RP", "ZL", "PM", "Leader", "Other"] as const;
 
 export async function PATCH(
@@ -18,7 +17,7 @@ export async function PATCH(
   const { id } = await params;
   const { name, email, role, cityId, designation, zoneIds, clusterIds, reportsToId } = await req.json();
 
-  if (role && !VALID_ROLES.includes(role)) {
+  if (role && !(await prisma.role.findUnique({ where: { name: role }, select: { name: true } }))) {
     return Response.json({ error: "Invalid role" }, { status: 400 });
   }
   if (designation && !VALID_DESIGNATIONS.includes(designation)) {

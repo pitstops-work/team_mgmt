@@ -7,6 +7,7 @@ import Avatar from "@/components/Avatar";
 import { Trash2, KeyRound, UserPlus, ArrowLeft, Eye, EyeOff, Pencil, Check, X } from "lucide-react";
 import Link from "next/link";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
+import { roleStyle } from "@/lib/roleStyle";
 
 interface City { id: string; name: string; }
 interface ZoneRow { id: string; name: string; leadId: string | null; cityId: string | null; }
@@ -24,20 +25,13 @@ interface User {
   reportsToId: string | null;
 }
 
-const ROLES = ["super-admin", "admin", "member", "viewer", "budget-admin", "partner"] as const;
-type Role = typeof ROLES[number];
+// Roles are loaded at runtime from the RBAC catalog (see load effect) — no
+// hardcoded role list lives here.
+type Role = string;
+type RoleOption = { name: string; description: string | null };
 
 const DESIGNATIONS = ["RP", "ZL", "PM", "Leader", "Other"] as const;
 type Designation = typeof DESIGNATIONS[number];
-
-const ROLE_STYLE: Record<Role, string> = {
-  "super-admin":  "bg-amber-100 text-amber-700",
-  admin:          "bg-indigo-100 text-indigo-700",
-  member:         "bg-emerald-100 text-emerald-700",
-  viewer:         "bg-stone-100 text-stone-500",
-  "budget-admin": "bg-sky-100 text-sky-700",
-  partner:        "bg-teal-100 text-teal-700",
-};
 
 const DESIGNATION_STYLE: Record<Designation, string> = {
   Leader: "bg-amber-100 text-amber-700",
@@ -103,6 +97,7 @@ export default function UserManagementPage() {
   const [showNewPw, setShowNewPw] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [roles, setRoles] = useState<RoleOption[]>([]);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -119,6 +114,7 @@ export default function UserManagementPage() {
           setCities(data.cities);
           setZones(data.zones ?? []);
           setClusters(data.clusters ?? []);
+          setRoles(data.roles ?? []);
         }
       })
       .finally(() => setLoading(false));
@@ -130,7 +126,7 @@ export default function UserManagementPage() {
     setEditId(u.id);
     setEditName(u.name ?? "");
     setEditEmail(u.email);
-    setEditRole((ROLES.includes(u.role as Role) ? u.role : "member") as Role);
+    setEditRole(u.role);
     const desig = (DESIGNATIONS.includes(u.designation as Designation) ? u.designation : "Other") as Designation;
     setEditDesignation(desig);
     setEditCityId(u.cityId ?? "");
@@ -258,19 +254,18 @@ export default function UserManagementPage() {
         <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">{users.length} users</span>
       </div>
 
-      {/* Role legend */}
+      {/* Role legend — roles + descriptions come from the RBAC catalog */}
       <div className="flex gap-2 mb-6 flex-wrap">
-        {ROLES.filter(r => r !== "super-admin" || viewerIsOwner).map(r => (
-          <span key={r} className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${ROLE_STYLE[r]}`}>{r}</span>
+        {roles.filter(r => r.name !== "super-admin" || viewerIsOwner).map(r => (
+          <span key={r.name} title={r.description ?? undefined} className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${roleStyle(r.name)}`}>{r.name}</span>
         ))}
-        <span className="text-xs text-stone-400 self-center ml-1">— viewer: read-only · budget-admin: budget tool only</span>
       </div>
 
       {/* User list */}
       <section className="mb-10 space-y-2">
         {users.map(u => {
           const isEditing = editId === u.id;
-          const role = (ROLES.includes(u.role as Role) ? u.role : "member") as Role;
+          const role = u.role;
           // Owner row is read-only to anyone but the owner themselves — the
           // server enforces this too (`/api/admin/users/[id]`), but hiding the
           // icons keeps the UI honest. The owner can still see their own icons.
@@ -303,7 +298,7 @@ export default function UserManagementPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-stone-800 truncate">{u.name ?? <span className="text-stone-400 italic">no name</span>}</p>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full capitalize flex-shrink-0 ${ROLE_STYLE[role]}`}>{role}</span>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full capitalize flex-shrink-0 ${roleStyle(role)}`}>{role}</span>
                       {u.isOwner && (
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 bg-rose-100 text-rose-700" title="Owner — protected from modification by other super-admins">
                           Owner
@@ -368,19 +363,20 @@ export default function UserManagementPage() {
                     <div className="flex gap-1.5">
                       {/* super-admin pill is owner-only (b2 minting policy);
                           admin pill is super-admin-only; rest are open. */}
-                      {ROLES.filter(r =>
-                        (r !== "super-admin" || viewerIsOwner) &&
-                        (r !== "admin" || isSuperAdmin)
+                      {roles.filter(r =>
+                        (r.name !== "super-admin" || viewerIsOwner) &&
+                        (r.name !== "admin" || isSuperAdmin)
                       ).map(r => (
                         <button
-                          key={r}
+                          key={r.name}
                           type="button"
-                          onClick={() => setEditRole(r)}
+                          title={r.description ?? undefined}
+                          onClick={() => setEditRole(r.name)}
                           className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize transition-colors ${
-                            editRole === r ? ROLE_STYLE[r] + " ring-2 ring-offset-1 ring-current" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                            editRole === r.name ? roleStyle(r.name) + " ring-2 ring-offset-1 ring-current" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
                           }`}
                         >
-                          {r}
+                          {r.name}
                         </button>
                       ))}
                     </div>
@@ -606,19 +602,20 @@ export default function UserManagementPage() {
               </button>
             </div>
             <div className="flex gap-1.5 flex-wrap">
-              {ROLES.filter(r =>
-                (r !== "super-admin" || viewerIsOwner) &&
-                (r !== "admin" || isSuperAdmin)
+              {roles.filter(r =>
+                (r.name !== "super-admin" || viewerIsOwner) &&
+                (r.name !== "admin" || isSuperAdmin)
               ).map(r => (
                 <button
-                  key={r}
+                  key={r.name}
                   type="button"
-                  onClick={() => setNewRole(r)}
+                  title={r.description ?? undefined}
+                  onClick={() => setNewRole(r.name)}
                   className={`text-xs font-semibold px-2.5 py-1.5 rounded-full capitalize transition-colors ${
-                    newRole === r ? ROLE_STYLE[r] + " ring-2 ring-offset-1 ring-current" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                    newRole === r.name ? roleStyle(r.name) + " ring-2 ring-offset-1 ring-current" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
                   }`}
                 >
-                  {r}
+                  {r.name}
                 </button>
               ))}
               <div className="w-px h-5 self-center bg-stone-200" />
