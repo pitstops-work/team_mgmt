@@ -8,6 +8,54 @@ import { logCostChange } from "@/lib/budget/costHistory";
 import type { BudgetSection, InflationType } from "@/app/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Author the "working" for a registry item: replace its component breakup and
+ * free-text derivation. When components are present, the item's unit cost is set
+ * to the rollup (Σ qty×unitCost) — a cost is the sum of its working — and the
+ * change is logged. Upserts the CostRegistry row if it didn't exist yet.
+ */
+export async function saveCostComponents(
+  city: string,
+  itemKey: string,
+  rows: { label: string; spec?: string | null; qty: number; unitCost: number }[],
+  derivation: string | null,
+  meta: { unit: string; domain?: string | null; currentCost: number },
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const clean = rows
+    .map(r => ({ label: (r.label ?? "").trim(), spec: (r.spec ?? "")?.toString().trim() || null, qty: Number(r.qty) || 0, unitCost: Number(r.unitCost) || 0 }))
+    .filter(r => r.label.length > 0);
+  const rollup = Math.round(clean.reduce((s, r) => s + r.qty * r.unitCost, 0));
+  const deriv = derivation?.trim() || null;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.costRegistryComponent.deleteMany({ where: { city, parentItemKey: itemKey } });
+    if (clean.length > 0) {
+      await tx.costRegistryComponent.createMany({
+        data: clean.map((r, i) => ({ city, parentItemKey: itemKey, position: i, label: r.label, spec: r.spec, qty: r.qty, unitCost: r.unitCost })),
+      });
+    }
+    const existing = await tx.costRegistry.findUnique({ where: { city_itemKey: { city, itemKey } } });
+    const oldCost = existing?.unitCost ?? null;
+    // Components present → the unit cost IS the rollup. No components → leave the
+    // current cost untouched (derivation-only item).
+    const newCost = clean.length > 0 ? rollup : (existing?.unitCost ?? meta.currentCost);
+    await tx.costRegistry.upsert({
+      where: { city_itemKey: { city, itemKey } },
+      create: { city, itemKey, unit: meta.unit, domain: meta.domain ?? null, unitCost: newCost, derivation: deriv },
+      update: { unitCost: newCost, derivation: deriv },
+    });
+    if (oldCost !== newCost) {
+      await logCostChange(tx, { city, domain: meta.domain ?? null, itemKey, oldCost, newCost, source: "working editor", changedById: session.user!.id });
+    }
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/budget/admin");
+}
+
 /** Change history for one registry item, newest first (for the portal timeline). */
 export async function getCostHistory(city: string, itemKey: string) {
   const session = await auth();

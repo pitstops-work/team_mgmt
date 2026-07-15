@@ -2261,6 +2261,10 @@ model CostRegistry {
   unit          String
   effectiveYear Int      @default(2025)
   notes         String?
+  // Free-text "how this rate was arrived at" for items that don't decompose
+  // into components (e.g. "avg of 3 vendor quotes"). Complements the structured
+  // CostRegistryComponent breakup.
+  derivation    String?
   displayGroup  String? // for inp.* items: "geography" | "facilities" | "coverage"; null → coverage
   needsDomain   String? // for inp.* items: links to NeedsFormulaConfig.domain for scenario loading
   updatedAt     DateTime @updatedAt

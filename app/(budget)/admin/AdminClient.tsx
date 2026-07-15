@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition, Fragment } from "react";
 import {
-  seedCostRegistry, updateCostRegistry, resetCostRegistry, deleteCostItem, addCostItem,
+  seedCostRegistry, updateCostRegistry, resetCostRegistry, deleteCostItem, addCostItem, saveCostComponents,
   seedProgrammeInputs, backfillDisplayGroups,
   toggleLineTemplate, addLineTemplate, updateLineTemplate, deleteLineTemplate,
   reorderLineTemplates, seedLineTemplates,
@@ -27,6 +27,7 @@ type CostRow = {
   isEdited: boolean;
   displayGroup: string | null;
   needsDomain: string | null;
+  derivation: string | null;
 };
 
 type ComponentItem = { label: string; spec: string | null; qty: number; unitCost: number };
@@ -120,6 +121,34 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, nee
         .then(rows => setHistoryByKey(prev => ({ ...prev, [itemKey]: rows })))
         .finally(() => setHistoryLoading(false));
     }
+  }
+
+  // ── Working editor (author component breakup + derivation) ──────────────────
+  type WRow = { label: string; spec: string; qty: string; unitCost: string };
+  const [wEditKey, setWEditKey] = useState<string | null>(null);
+  const [wRows, setWRows] = useState<WRow[]>([]);
+  const [wDeriv, setWDeriv] = useState("");
+
+  function startWorkingEdit(row: CostRow) {
+    setWEditKey(row.itemKey);
+    setWRows((componentsByKey[row.itemKey] ?? []).map(c => ({ label: c.label, spec: c.spec ?? "", qty: String(c.qty), unitCost: String(c.unitCost) })));
+    setWDeriv(row.derivation ?? "");
+  }
+  const addWRow = () => setWRows(p => [...p, { label: "", spec: "", qty: "1", unitCost: "" }]);
+  const updateWRow = (i: number, k: keyof WRow, v: string) => setWRows(p => p.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
+  const removeWRow = (i: number) => setWRows(p => p.filter((_, idx) => idx !== i));
+  const wRollup = Math.round(wRows.reduce((s, r) => s + (parseFloat(r.qty) || 0) * (parseFloat(r.unitCost) || 0), 0));
+
+  function saveWorking(row: CostRow) {
+    startTransition(async () => {
+      await saveCostComponents(
+        city, row.itemKey,
+        wRows.map(r => ({ label: r.label, spec: r.spec || null, qty: parseFloat(r.qty) || 0, unitCost: parseFloat(r.unitCost) || 0 })),
+        wDeriv.trim() || null,
+        { unit: row.unit, domain: row.domain, currentCost: row.currentCost },
+      );
+      setWEditKey(null);
+    });
   }
   const [activeDomain, setActiveDomain] = useState<string>(() => domainOrder.find(d => d !== null) ?? "");
   const [addingItem, setAddingItem] = useState(false);
@@ -297,41 +326,94 @@ function CostRegistryTab({ costs, isSeeded, city, domainOrder, domainLabels, nee
         {isExpanded && (
           <tr className="border-b border-stone-100 bg-stone-50/60">
             <td colSpan={5} className="px-4 py-3">
-              {/* Working — component breakup */}
-              {comps.length > 0 ? (
-                <div className="mb-4">
-                  <div className="text-xs font-semibold text-stone-500 mb-1.5">Working — how ₹{row.currentCost.toLocaleString("en-IN")} is derived</div>
-                  <table className="w-full text-xs max-w-2xl">
-                    <thead>
-                      <tr className="text-stone-400">
-                        <th className="text-left py-1 font-medium">Item</th>
-                        <th className="text-left font-medium">Spec</th>
-                        <th className="text-right font-medium">Qty</th>
-                        <th className="text-right font-medium">Unit ₹</th>
-                        <th className="text-right font-medium">Amount ₹</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {comps.map((c, i) => (
-                        <tr key={i} className="border-t border-stone-100">
-                          <td className="py-1 text-stone-700">{c.label}</td>
-                          <td className="text-stone-400">{c.spec ?? ""}</td>
-                          <td className="text-right text-stone-600">{c.qty}</td>
-                          <td className="text-right text-stone-600">{c.unitCost.toLocaleString("en-IN")}</td>
-                          <td className="text-right text-stone-800">{Math.round(c.qty * c.unitCost).toLocaleString("en-IN")}</td>
+              {/* Working — component breakup (read) or editor. Cost items only. */}
+              {!row.itemKey.startsWith("inp.") && (
+                wEditKey === row.itemKey ? (
+                  <div className="mb-4">
+                    <div className="text-xs font-semibold text-stone-500 mb-1.5">Edit working — components sum to the unit cost</div>
+                    <table className="w-full text-xs max-w-2xl">
+                      <thead>
+                        <tr className="text-stone-400">
+                          <th className="text-left py-1 font-medium">Item</th>
+                          <th className="text-left font-medium">Spec</th>
+                          <th className="text-right font-medium w-16">Qty</th>
+                          <th className="text-right font-medium w-24">Unit ₹</th>
+                          <th className="text-right font-medium w-24">Amount ₹</th>
+                          <th className="w-6" />
                         </tr>
-                      ))}
-                      <tr className="border-t border-stone-200 font-medium text-stone-700">
-                        <td className="py-1" colSpan={4}>
-                          Sub-total{!reconciles && <span className="ml-2 text-red-500 font-normal">⚠ ≠ current unit cost ₹{row.currentCost.toLocaleString("en-IN")}</span>}
-                        </td>
-                        <td className="text-right">{compSum.toLocaleString("en-IN")}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-xs text-stone-400 mb-4">No breakup recorded for this item yet.</div>
+                      </thead>
+                      <tbody>
+                        {wRows.map((r, i) => (
+                          <tr key={i} className="border-t border-stone-100">
+                            <td className="py-1"><input value={r.label} onChange={e => updateWRow(i, "label", e.target.value)} placeholder="Item" className="w-full border border-stone-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" /></td>
+                            <td><input value={r.spec} onChange={e => updateWRow(i, "spec", e.target.value)} placeholder="spec" className="w-full border border-stone-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" /></td>
+                            <td><input type="number" value={r.qty} onChange={e => updateWRow(i, "qty", e.target.value)} className="w-full border border-stone-200 rounded px-1.5 py-1 text-right focus:outline-none focus:ring-1 focus:ring-sky-500" /></td>
+                            <td><input type="number" value={r.unitCost} onChange={e => updateWRow(i, "unitCost", e.target.value)} className="w-full border border-stone-200 rounded px-1.5 py-1 text-right focus:outline-none focus:ring-1 focus:ring-sky-500" /></td>
+                            <td className="text-right text-stone-600">{Math.round((parseFloat(r.qty) || 0) * (parseFloat(r.unitCost) || 0)).toLocaleString("en-IN")}</td>
+                            <td className="text-center"><button onClick={() => removeWRow(i)} className="text-stone-300 hover:text-red-500">×</button></td>
+                          </tr>
+                        ))}
+                        <tr className="border-t border-stone-200 font-medium text-stone-700">
+                          <td className="py-1.5" colSpan={4}>
+                            <button onClick={addWRow} className="text-xs text-sky-600 hover:text-sky-800">+ Add item</button>
+                            {wRows.length > 0 && <span className="ml-3 font-normal text-stone-500">→ unit cost becomes ₹{wRollup.toLocaleString("en-IN")}</span>}
+                          </td>
+                          <td className="text-right">{wRollup.toLocaleString("en-IN")}</td>
+                          <td />
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div className="mt-2 max-w-2xl">
+                      <label className="text-xs text-stone-500">Derivation note (for rates that aren’t itemised)</label>
+                      <textarea value={wDeriv} onChange={e => setWDeriv(e.target.value)} rows={2} placeholder="e.g. average of 3 vendor quotes · ₹500/hr × 2 staff × 8 hrs"
+                        className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500" />
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => saveWorking(row)} disabled={pending} className="text-xs bg-sky-600 text-white px-3 py-1.5 rounded hover:bg-sky-700 disabled:opacity-50">{pending ? "Saving…" : "Save working"}</button>
+                      <button onClick={() => setWEditKey(null)} className="text-xs text-stone-400 hover:text-stone-700">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-4">
+                    {comps.length > 0 ? (
+                      <>
+                        <div className="text-xs font-semibold text-stone-500 mb-1.5">Working — how ₹{row.currentCost.toLocaleString("en-IN")} is derived</div>
+                        <table className="w-full text-xs max-w-2xl">
+                          <thead>
+                            <tr className="text-stone-400">
+                              <th className="text-left py-1 font-medium">Item</th>
+                              <th className="text-left font-medium">Spec</th>
+                              <th className="text-right font-medium">Qty</th>
+                              <th className="text-right font-medium">Unit ₹</th>
+                              <th className="text-right font-medium">Amount ₹</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {comps.map((c, i) => (
+                              <tr key={i} className="border-t border-stone-100">
+                                <td className="py-1 text-stone-700">{c.label}</td>
+                                <td className="text-stone-400">{c.spec ?? ""}</td>
+                                <td className="text-right text-stone-600">{c.qty}</td>
+                                <td className="text-right text-stone-600">{c.unitCost.toLocaleString("en-IN")}</td>
+                                <td className="text-right text-stone-800">{Math.round(c.qty * c.unitCost).toLocaleString("en-IN")}</td>
+                              </tr>
+                            ))}
+                            <tr className="border-t border-stone-200 font-medium text-stone-700">
+                              <td className="py-1" colSpan={4}>
+                                Sub-total{!reconciles && <span className="ml-2 text-red-500 font-normal">⚠ ≠ current unit cost ₹{row.currentCost.toLocaleString("en-IN")}</span>}
+                              </td>
+                              <td className="text-right">{compSum.toLocaleString("en-IN")}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </>
+                    ) : (
+                      <div className="text-xs text-stone-400">No breakup recorded for this item yet.</div>
+                    )}
+                    {row.derivation && <p className="text-xs text-stone-500 mt-2 max-w-2xl"><span className="text-stone-400">Derivation:</span> {row.derivation}</p>}
+                    <button onClick={() => startWorkingEdit(row)} className="text-xs text-sky-600 hover:text-sky-800 mt-2">{comps.length > 0 || row.derivation ? "Edit working" : "Add working"}</button>
+                  </div>
+                )
               )}
               {/* Change history */}
               <div>

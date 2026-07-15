@@ -76,6 +76,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         isEdited: db ? db.unitCost !== def.unitCost : false,
         displayGroup: db?.displayGroup ?? null,
         needsDomain: db?.needsDomain ?? null,
+        derivation: db?.derivation ?? null,
       };
     }),
     // Custom items added via admin (not in defaults)
@@ -92,6 +93,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         isEdited: false,
         displayGroup: r.displayGroup ?? null,
         needsDomain: r.needsDomain ?? null,
+        derivation: r.derivation ?? null,
       })),
   ];
 
