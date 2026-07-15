@@ -2083,6 +2083,10 @@ model BudgetLine {
   // falls back to the registry item's components. derivation mirrors the
   // registry's free-text note.
   derivation               String?
+  // false = the components are the standard registry working frozen at
+  // generation ("standard, as generated"). true = the working was edited on
+  // this budget (a budget-specific override).
+  workingCustomised        Boolean                     @default(false)
   components               BudgetLineComponent[]
   costHistory              BudgetLineCostHistory[]
   reportLines              BudgetReportLine[]

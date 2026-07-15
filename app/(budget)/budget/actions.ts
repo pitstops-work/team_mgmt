@@ -216,6 +216,51 @@ export async function updateBudgetGrantPartner(budgetId: string, grantPartnerId:
   revalidatePath("/budget/dashboard");
 }
 
+/**
+ * Freeze each generated line's "working": snapshot the standard registry
+ * component breakup (+ derivation) onto the line so the budget carries a
+ * faithful point-in-time record (immune to later registry changes). Left
+ * workingCustomised=false — a create-time cost override changes the COST, not
+ * the working, and the reconcile ⚠ already flags where the frozen standard
+ * breakup no longer sums to the line's cost. Also logs a "generated at ₹X"
+ * origin entry per costed line.
+ */
+async function snapshotLineWorking(
+  budgetId: string,
+  sourceCity: string,
+  templates: { templateKey: string; costKey: string | null }[],
+  changedById: string,
+) {
+  const [comps, regItems, lines] = await Promise.all([
+    prisma.costRegistryComponent.findMany({ where: { city: sourceCity }, orderBy: { position: "asc" }, select: { parentItemKey: true, label: true, spec: true, qty: true, unitCost: true } }),
+    prisma.costRegistry.findMany({ where: { city: sourceCity }, select: { itemKey: true, derivation: true } }),
+    prisma.budgetLine.findMany({ where: { budgetId }, select: { id: true, templateKey: true, y1UnitCost: true } }),
+  ]);
+  const compByKey = new Map<string, typeof comps>();
+  for (const c of comps) { const a = compByKey.get(c.parentItemKey) ?? []; a.push(c); compByKey.set(c.parentItemKey, a); }
+  const derivByKey = new Map(regItems.map(r => [r.itemKey, r.derivation]));
+  const costKeyByTemplate = new Map(templates.map(t => [t.templateKey, t.costKey]));
+
+  const componentRows: { budgetLineId: string; position: number; label: string; spec: string | null; qty: number; unitCost: number }[] = [];
+  const historyRows: { budgetLineId: string; oldCost: null; newCost: number; source: string; changedById: string }[] = [];
+  const derivUpdates: { id: string; derivation: string }[] = [];
+
+  for (const l of lines) {
+    if (l.y1UnitCost > 0) historyRows.push({ budgetLineId: l.id, oldCost: null, newCost: l.y1UnitCost, source: "generated", changedById });
+    const costKey = l.templateKey ? costKeyByTemplate.get(l.templateKey) ?? null : null;
+    if (!costKey) continue;
+    const cs = compByKey.get(costKey);
+    if (!cs || cs.length === 0) continue;
+    cs.forEach((c, i) => componentRows.push({ budgetLineId: l.id, position: i, label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost }));
+    const d = derivByKey.get(costKey);
+    if (d) derivUpdates.push({ id: l.id, derivation: d });
+  }
+
+  if (componentRows.length) await prisma.budgetLineComponent.createMany({ data: componentRows });
+  if (historyRows.length) await prisma.budgetLineCostHistory.createMany({ data: historyRows });
+  for (const u of derivUpdates) await prisma.budgetLine.update({ where: { id: u.id }, data: { derivation: u.derivation } });
+}
+
 export async function createBudget(payload: CreateBudgetPayload) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
@@ -294,6 +339,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
     ];
     if (lineRows.length) await prisma.budgetLine.createMany({ data: lineRows });
 
+    await snapshotLineWorking(budget.id, sourceCity, templates, session.user.id);
     redirect(`/budget/${budget.id}`);
   }
 
@@ -381,6 +427,7 @@ export async function createBudget(payload: CreateBudgetPayload) {
     },
   });
 
+  await snapshotLineWorking(budget.id, sourceCity, templates, session.user.id);
   redirect(`/budget/${budget.id}`);
 }
 
@@ -523,14 +570,15 @@ export async function updateLine(
     ? normaliseCadence(updates.cadence, updates.plannedMonths)
     : {};
 
+  // A base (Year-1) unit-cost change marks the line as customised on this budget.
+  const costChanged = updates.y1UnitCost !== undefined && Math.round(updates.y1UnitCost) !== Math.round(line.y1UnitCost);
   await prisma.budgetLine.update({
     where: { id: lineId },
-    data: { ...rest, ...cadencePatch, y1Total, y2Total, y3Total, y4Total, y5Total },
+    data: { ...rest, ...cadencePatch, y1Total, y2Total, y3Total, y4Total, y5Total, ...(costChanged ? { workingCustomised: true } : {}) },
   });
-  // Log a base (Year-1) unit-cost change so edits leave a trail.
-  if (updates.y1UnitCost !== undefined && Math.round(updates.y1UnitCost) !== Math.round(line.y1UnitCost)) {
+  if (costChanged) {
     await prisma.budgetLineCostHistory.create({
-      data: { budgetLineId: lineId, oldCost: line.y1UnitCost, newCost: updates.y1UnitCost, source: "line edit", changedById: session.user.id },
+      data: { budgetLineId: lineId, oldCost: line.y1UnitCost, newCost: updates.y1UnitCost!, source: "line edit", changedById: session.user.id },
     });
   }
   revalidatePath(`/budget/${line.budgetId}`);
@@ -610,6 +658,7 @@ export async function saveBudgetLineComponents(
       where: { id: lineId },
       data: {
         derivation: deriv,
+        workingCustomised: true,
         y1UnitCost: y1c, y1Total: total(line.y1Units, y1c, line.y1AllocPct),
         y2UnitCost: y2c, y2Total: total(line.y2Units, y2c, line.y2AllocPct),
         y3UnitCost: y3c, y3Total: total(line.y3Units, y3c, line.y3AllocPct),

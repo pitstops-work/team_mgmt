@@ -5,7 +5,7 @@ import { updateLine, addLine, deleteLine, finalizeBudget, deleteBudget, updateBu
 import type { BudgetSection, BudgetLineCadence, InflationType } from "@/app/generated/prisma/client";
 
 type WorkingComp = { label: string; spec: string | null; qty: number; unitCost: number };
-type LineWorking = { components: WorkingComp[]; derivation: string | null; isOwn: boolean };
+type LineWorking = { components: WorkingComp[]; derivation: string | null; customised: boolean; frozen: boolean };
 type LineHistRow = { id: string; oldCost: number | null; newCost: number | null; source: string | null; changedBy: string | null; changedAt: string };
 
 type Line = {
@@ -251,7 +251,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
         const t = (u: number, c: number, a: number) => Math.round(u * c * a);
         return { ...l, y1UnitCost: y1, y1Total: t(l.y1Units, y1, l.y1AllocPct), y2UnitCost: y2, y2Total: t(l.y2Units, y2, l.y2AllocPct), y3UnitCost: y3, y3Total: t(l.y3Units, y3, l.y3AllocPct), y4UnitCost: y4, y4Total: t(l.y4Units, y4, l.y4AllocPct), y5UnitCost: y5, y5Total: t(l.y5Units, y5, l.y5AllocPct) };
       }));
-      setWorking(p => ({ ...p, [line.id]: { components: comps.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })), derivation: wDeriv.trim() || null, isOwn: true } }));
+      setWorking(p => ({ ...p, [line.id]: { components: comps.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })), derivation: wDeriv.trim() || null, customised: true, frozen: true } }));
       setHistByLine(p => ({ ...p, [line.id]: [] })); // force reload next open
       setWEditing(false);
     });
@@ -634,7 +634,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
                             onSave={() => saveEdit(l.id)} onCancel={() => setEditing(null)} />
                         : <ViewRow line={l} i={i + 1} bands={bands} showAlloc={showAlloc}
                             onEdit={() => startEdit(l)} onDelete={() => handleDelete(l.id)}
-                            onWorking={() => toggleWorking(l.id)} hasWorking={!!w && w.components.length > 0} isOwnWorking={!!w?.isOwn} />
+                            onWorking={() => toggleWorking(l.id)} hasWorking={!!w && w.components.length > 0} isOwnWorking={!!w?.customised} />
                       }
                       {isWorkOpen && (
                         <tr className="border-b border-stone-100 bg-stone-50/60">
@@ -675,7 +675,7 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
                               <div className="mb-4">
                                 {w && w.components.length > 0 ? (
                                   <>
-                                    <div className="text-xs font-semibold text-stone-500 mb-1.5">Working — how ₹{l.y1UnitCost.toLocaleString("en-IN")} is derived {w.isOwn ? "" : <span className="text-stone-400">(standard, from registry)</span>}</div>
+                                    <div className="text-xs font-semibold text-stone-500 mb-1.5">Working — how ₹{l.y1UnitCost.toLocaleString("en-IN")} is derived <span className="text-stone-400">{w.customised ? "(customised for this budget)" : w.frozen ? "(standard — frozen at generation)" : "(standard — from registry)"}</span></div>
                                     <table className="w-full text-xs max-w-2xl">
                                       <thead><tr className="text-stone-400"><th className="text-left py-1 font-medium">Item</th><th className="text-left font-medium">Spec</th><th className="text-right font-medium">Qty</th><th className="text-right font-medium">Unit ₹</th><th className="text-right font-medium">Amount ₹</th></tr></thead>
                                       <tbody>

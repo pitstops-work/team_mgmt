@@ -33,17 +33,21 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   for (const c of regComps) (regCompByKey[c.parentItemKey] ??= []).push({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost });
   const regDerivByKey = new Map(regItems.map(r => [r.itemKey, r.derivation]));
 
-  type Working = { components: { label: string; spec: string | null; qty: number; unitCost: number }[]; derivation: string | null; isOwn: boolean };
+  // customised = edited on this budget (a budget-specific override).
+  // frozen = the components are a snapshot captured at generation (point-in-time)
+  // vs a live registry fallback (older budgets with no snapshot).
+  type Working = { components: { label: string; spec: string | null; qty: number; unitCost: number }[]; derivation: string | null; customised: boolean; frozen: boolean };
   const workingByLineId: Record<string, Working> = {};
   for (const l of budget.lines) {
     if (l.components.length > 0) {
-      workingByLineId[l.id] = { components: l.components.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })), derivation: l.derivation ?? null, isOwn: true };
+      workingByLineId[l.id] = { components: l.components.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })), derivation: l.derivation ?? null, customised: l.workingCustomised, frozen: true };
     } else {
       const costKey = l.templateKey ? costKeyByTemplate.get(l.templateKey) ?? null : null;
       workingByLineId[l.id] = {
         components: costKey ? (regCompByKey[costKey] ?? []) : [],
         derivation: (costKey ? regDerivByKey.get(costKey) : null) ?? l.derivation ?? null,
-        isOwn: false,
+        customised: false,
+        frozen: false,
       };
     }
   }
