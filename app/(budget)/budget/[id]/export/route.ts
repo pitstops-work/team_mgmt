@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { buildBudgetWorkbook, type ExportLine, type CostBreakup } from "@/lib/budget/exportTemplate";
+import { buildBudgetWorkbook, type ExportLine } from "@/lib/budget/exportTemplate";
 import { extractCostComponents, type RegistryItem, type TemplateLike } from "@/lib/budget/costDriver";
 import { activeYearBands } from "@/lib/budget-generator";
 
@@ -69,9 +69,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     };
   });
 
-  // Aggregate cost breakups: any line whose template.costKey resolves to a
-  // CostRegistryComponent bundle. Expanded on the "05.Cost Breakup" sheet so a
-  // bundled unit cost (e.g. one-time setup) keeps its derivation visible.
+  // Attach each line's "working" breakup, rendered inline on 04.Working: the
+  // line's OWN components once authored, else the standard registry bundle
+  // (via the template's costKey).
   const componentRows = await prisma.costRegistryComponent.findMany({
     where: { city: budget.city },
     orderBy: { position: "asc" },
@@ -83,38 +83,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     arr.push(c);
     compByParent.set(c.parentItemKey, arr);
   }
-  const registryByKey = new Map(registryRows.map(r => [r.itemKey, r]));
-  const seenParents = new Set<string>();
-  const costBreakups: CostBreakup[] = [];
-  for (const l of budget.lines) {
-    // Prefer the line's OWN working (authored/edited on this budget); fall back
-    // to the standard registry bundle keyed by the template's costKey.
+  budget.lines.forEach((l, i) => {
     if (l.components && l.components.length > 0) {
-      costBreakups.push({
-        parentItemKey: l.id,
-        parentLabel: l.description,
-        unitType: l.unitType,
-        unitCost: l.y1UnitCost,
-        components: l.components.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })),
-      });
-      continue;
+      lines[i].breakup = l.components.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost }));
+      return;
     }
     const parentKey = l.templateKey ? templateByKey.get(l.templateKey)?.costKey ?? null : null;
-    if (!parentKey || seenParents.has(parentKey)) continue;
-    const comps = compByParent.get(parentKey);
-    if (!comps || comps.length === 0) continue;
-    seenParents.add(parentKey);
-    costBreakups.push({
-      parentItemKey: parentKey,
-      parentLabel: l.description,
-      unitType: l.unitType,
-      // Reconcile the standard bill against THIS budget's actual unit cost, so
-      // the sheet flags when a line was customised / predates the current
-      // standard. Fall back to the registry value only when the line has none.
-      unitCost: l.y1UnitCost > 0 ? l.y1UnitCost : (registryByKey.get(parentKey)?.unitCost ?? 0),
-      components: comps.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })),
-    });
-  }
+    const comps = parentKey ? compByParent.get(parentKey) : null;
+    if (comps && comps.length > 0) {
+      lines[i].breakup = comps.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost }));
+    }
+  });
 
   // years here is the count of year-band columns the xlsx should expose (1..5).
   const horizonMonths = budget.horizonMonths ?? budget.years * 12;
@@ -149,7 +128,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         }
       : { Salary: 0, Other: 0, Nil: 0 },
     lines,
-    costBreakups,
     deliveryPartners: budget.isMultiPartner
       ? budget.deliveryPartners.map(p => ({ id: p.id, name: p.name, sharedPct: p.sharedPct }))
       : undefined,

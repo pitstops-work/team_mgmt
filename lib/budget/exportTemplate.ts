@@ -50,6 +50,10 @@ export type ExportLine = {
   // a standard product formula (costKey × costKey2 × costKey3 × maybe ×12), the
   // Working sheet computes Unit Cost and Budget G col references back to it.
   costComponents: CostComponent[];
+  // The line's "working": a sum-of-N component breakup. When present it renders
+  // inline on 04.Working as sub-rows under the line, and the line's Unit Cost
+  // (J) becomes SUM(sub-rows) — the Budget sheet links back to that sum.
+  breakup?: CostBreakupComponent[];
   costMonthly: boolean;
   isSalaryStub: boolean;
   userInputCost: string | null;
@@ -367,11 +371,14 @@ function forecastWorkingPlan(
     const lines: WorkingPlan["groups"][number]["lines"] = [];
     for (const ln of g.lines) {
       const workingRow = cursor;
-      const unitCostRef = isStandardCostFormula(ln)
+      const subRows = ln.breakup?.length ?? 0;
+      // A breakup line's unit cost is SUM(sub-rows), so it becomes linkable even
+      // when it isn't a standard product formula.
+      const unitCostRef = (subRows > 0 || isStandardCostFormula(ln))
         ? `'04.Working'!$J$${workingRow}`
         : null;
       lines.push({ line: ln, workingRow, unitCostRef });
-      cursor++;
+      cursor += 1 + subRows; // parent row + one row per component
     }
     groups.push({ domainKey: g.domainKey, domainLabel: g.domainLabel, bannerRow, lines });
   }
@@ -447,48 +454,60 @@ function buildWorkingSheet(wb: ExcelJS.Workbook, plan: WorkingPlan): void {
 
     for (const entry of g.lines) {
       const line = entry.line;
+      const breakup = line.breakup ?? [];
+      const hasBreakup = breakup.length > 0;
       const r = ws.addRow([]);
       const rn = r.number;
 
       r.getCell(1).value = sno++;
       r.getCell(2).value = line.description;
 
-      // Component cells (C/D, E/F, G/H)
-      const comps = line.costComponents.slice(0, 3);
-      const compSlots: Array<{ labelCol: number; valueCol: number }> = [
-        { labelCol: 3, valueCol: 4 }, { labelCol: 5, valueCol: 6 }, { labelCol: 7, valueCol: 8 },
-      ];
-      for (let i = 0; i < compSlots.length; i++) {
-        const slot = compSlots[i];
-        const c = comps[i];
-        if (c) {
-          r.getCell(slot.labelCol).value = c.label;
-          r.getCell(slot.valueCol).value = c.value;
-        }
-      }
-
-      // × 12 months? toggle (I) — only for standard-formula lines
-      const isStandard = isStandardCostFormula(line);
-      r.getCell(9).value = isStandard ? (line.costMonthly ? "Yes" : "No") : "";
-
-      // Unit Cost (J) — formula when standard; literal fallback otherwise
-      if (isStandard) {
-        // =IF(ISNUMBER(D),D,1)*IF(ISNUMBER(F),F,1)*IF(ISNUMBER(H),H,1)*IF(I="Yes",12,1)
-        r.getCell(10).value = {
-          formula: `IF(ISNUMBER(D${rn}),D${rn},1)*IF(ISNUMBER(F${rn}),F${rn},1)*IF(ISNUMBER(H${rn}),H${rn},1)*IF(I${rn}="Yes",12,1)`,
-        };
+      if (hasBreakup) {
+        // Parent row: no 3-driver cells. Unit Cost (J) = SUM of the component
+        // sub-rows written immediately below.
+        const first = rn + 1;
+        const last = rn + breakup.length;
+        r.getCell(10).value = { formula: `SUM(H${first}:H${last})` };
+        r.getCell(11).value =
+          `Sum of ${breakup.length} component${breakup.length > 1 ? "s" : ""} below${line.notes ? `. ${line.notes}` : ""}`;
       } else {
-        r.getCell(10).value = line.y1UnitCost || null;
-      }
+        // Component cells (C/D, E/F, G/H) — the formula cost-drivers.
+        const comps = line.costComponents.slice(0, 3);
+        const compSlots: Array<{ labelCol: number; valueCol: number }> = [
+          { labelCol: 3, valueCol: 4 }, { labelCol: 5, valueCol: 6 }, { labelCol: 7, valueCol: 8 },
+        ];
+        for (let i = 0; i < compSlots.length; i++) {
+          const slot = compSlots[i];
+          const c = comps[i];
+          if (c) {
+            r.getCell(slot.labelCol).value = c.label;
+            r.getCell(slot.valueCol).value = c.value;
+          }
+        }
 
-      // Assumptions (K): line notes + status note for non-standard formulas
-      let assumption = line.notes ?? "";
-      if (line.isSalaryStub) assumption = `Salary stub — user fills cost on Budget sheet${assumption ? `. ${assumption}` : ""}`;
-      else if (line.userInputCost) assumption = `Programme input field: ${line.userInputCost}${assumption ? `. ${assumption}` : ""}`;
-      else if (line.workerRatioKey) assumption = `Worker-ratio formula (not auto-linked)${assumption ? `. ${assumption}` : ""}`;
-      else if (line.costPctOf) assumption = `Percentage-of formula (not auto-linked)${assumption ? `. ${assumption}` : ""}`;
-      else if (!line.templateKey) assumption = `Manually added line (no template link)${assumption ? `. ${assumption}` : ""}`;
-      r.getCell(11).value = assumption;
+        // × 12 months? toggle (I) — only for standard-formula lines
+        const isStandard = isStandardCostFormula(line);
+        r.getCell(9).value = isStandard ? (line.costMonthly ? "Yes" : "No") : "";
+
+        // Unit Cost (J) — formula when standard; literal fallback otherwise
+        if (isStandard) {
+          // =IF(ISNUMBER(D),D,1)*IF(ISNUMBER(F),F,1)*IF(ISNUMBER(H),H,1)*IF(I="Yes",12,1)
+          r.getCell(10).value = {
+            formula: `IF(ISNUMBER(D${rn}),D${rn},1)*IF(ISNUMBER(F${rn}),F${rn},1)*IF(ISNUMBER(H${rn}),H${rn},1)*IF(I${rn}="Yes",12,1)`,
+          };
+        } else {
+          r.getCell(10).value = line.y1UnitCost || null;
+        }
+
+        // Assumptions (K): line notes + status note for non-standard formulas
+        let assumption = line.notes ?? "";
+        if (line.isSalaryStub) assumption = `Salary stub — user fills cost on Budget sheet${assumption ? `. ${assumption}` : ""}`;
+        else if (line.userInputCost) assumption = `Programme input field: ${line.userInputCost}${assumption ? `. ${assumption}` : ""}`;
+        else if (line.workerRatioKey) assumption = `Worker-ratio formula (not auto-linked)${assumption ? `. ${assumption}` : ""}`;
+        else if (line.costPctOf) assumption = `Percentage-of formula (not auto-linked)${assumption ? `. ${assumption}` : ""}`;
+        else if (!line.templateKey) assumption = `Manually added line (no template link)${assumption ? `. ${assumption}` : ""}`;
+        r.getCell(11).value = assumption;
+      }
 
       r.eachCell({ includeEmpty: true }, (cell, col) => {
         cell.border = thinBorder();
@@ -508,6 +527,26 @@ function buildWorkingSheet(wb: ExcelJS.Workbook, plan: WorkingPlan): void {
 
       if (rn !== entry.workingRow) {
         console.warn(`[budget export] Working row mismatch: forecast=${entry.workingRow}, actual=${rn} (${line.description})`);
+      }
+
+      // Component sub-rows (label · spec · qty · unit · amount) under the parent.
+      for (const c of breakup) {
+        const sr = ws.addRow([]);
+        const srn = sr.number;
+        sr.getCell(2).value = `    • ${c.label}`;
+        sr.getCell(3).value = c.spec ?? "";
+        sr.getCell(4).value = c.qty;
+        sr.getCell(6).value = c.unitCost;
+        sr.getCell(8).value = { formula: `D${srn}*F${srn}` };
+        sr.eachCell({ includeEmpty: true }, (cell, col) => {
+          cell.border = thinBorder();
+          cell.font = { name: FONT_NAME, size: FONT_SIZE, italic: col === 2 };
+          cell.fill = fill(C.white);
+          if (col === 2 || col === 3) cell.alignment = { vertical: "middle", wrapText: true };
+          else cell.alignment = { horizontal: "right", vertical: "middle" };
+          if (col === 6 || col === 8) cell.numFmt = NUMFMT.currency; // qty (D) stays plain
+        });
+        sr.height = 18;
       }
     }
   }
@@ -1354,13 +1393,10 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
     buildSummarySheet(wb, budget.name, "03.Budget", masterMap);
   }
 
-  // Step 4: build Working with the structured component layout.
+  // Step 4: build Working with the structured component layout. Any line with a
+  // component breakup renders it inline as sub-rows (the former "05.Cost Breakup"
+  // sheet is folded into 04.Working).
   buildWorkingSheet(wb, workingPlan);
-
-  // Step 4a: Cost Breakup sheet — expand any aggregate items with components.
-  if (budget.costBreakups && budget.costBreakups.length > 0) {
-    buildCostBreakupSheet(wb, budget.costBreakups);
-  }
 
   // Step 4b: per-delivery-partner summary sheets (multi-partner budgets).
   buildPartnerSheets(wb, budget);
@@ -1381,7 +1417,7 @@ export async function buildBudgetWorkbook(budget: ExportBudget): Promise<ExcelJS
   }
 
   // Reorder sheets to: 01.Instructions, 02.Summary, 03.Budget, 04.Working, then per-domain
-  const desiredOrder = ["01.Instructions", "02.Summary", "03.Budget", "04.Working", "05.Cost Breakup"];
+  const desiredOrder = ["01.Instructions", "02.Summary", "03.Budget", "04.Working"];
   const knownOrder: Record<string, number> = {};
   desiredOrder.forEach((n, i) => { knownOrder[n] = i; });
   const orderedSheets = [...wb.worksheets].sort((a, b) => {
