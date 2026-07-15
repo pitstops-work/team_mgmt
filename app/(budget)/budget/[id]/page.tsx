@@ -19,11 +19,14 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   if (!budget || budget.partnerId !== session!.user!.id!) notFound();
 
   // Per-line "working": the line's own components once authored, else a fallback
-  // to the standard registry breakup (via the template's costKey).
+  // to the standard registry breakup (via the template's costKey). "Others" has
+  // no registry/templates of its own — it's generated from Bangalore's, so the
+  // working must resolve against the same source city (matches createBudget).
+  const registryCity = budget.city === "Others" ? "Bangalore" : budget.city;
   const [tmpls, regComps, regItems] = await Promise.all([
-    prisma.lineTemplate.findMany({ where: { city: budget.city }, select: { templateKey: true, costKey: true } }),
-    prisma.costRegistryComponent.findMany({ where: { city: budget.city }, orderBy: { position: "asc" }, select: { parentItemKey: true, label: true, spec: true, qty: true, unitCost: true } }),
-    prisma.costRegistry.findMany({ where: { city: budget.city }, select: { itemKey: true, derivation: true } }),
+    prisma.lineTemplate.findMany({ where: { city: registryCity }, select: { templateKey: true, costKey: true } }),
+    prisma.costRegistryComponent.findMany({ where: { city: registryCity }, orderBy: { position: "asc" }, select: { parentItemKey: true, label: true, spec: true, qty: true, unitCost: true } }),
+    prisma.costRegistry.findMany({ where: { city: registryCity }, select: { itemKey: true, derivation: true } }),
   ]);
   const costKeyByTemplate = new Map(tmpls.map(t => [t.templateKey, t.costKey]));
   const regCompByKey: Record<string, { label: string; spec: string | null; qty: number; unitCost: number }[]> = {};

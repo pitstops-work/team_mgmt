@@ -22,9 +22,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   // Pull templates + cost registry so each programme line on the Working sheet
   // shows its cost-registry components and computes its unit cost from them.
+  // "Others" budgets are generated from Bangalore's registry/templates, so
+  // resolve the working against the same source city (matches createBudget).
+  const sourceCity = budget.city === "Others" ? "Bangalore" : budget.city;
   const [templates, registryRows] = await Promise.all([
     prisma.lineTemplate.findMany({
-      where: { city: budget.city },
+      where: { city: sourceCity },
       select: {
         templateKey: true, isSalaryStub: true, userInputCost: true,
         costKey: true, costKey2: true, costKey3: true, costMonthly: true,
@@ -32,7 +35,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       },
     }),
     prisma.costRegistry.findMany({
-      where: { city: budget.city },
+      where: { city: sourceCity },
       select: { itemKey: true, unitCost: true, unit: true },
     }),
   ]);
@@ -73,7 +76,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // line's OWN components once authored, else the standard registry bundle
   // (via the template's costKey).
   const componentRows = await prisma.costRegistryComponent.findMany({
-    where: { city: budget.city },
+    where: { city: sourceCity },
     orderBy: { position: "asc" },
     select: { parentItemKey: true, label: true, spec: true, qty: true, unitCost: true },
   });
