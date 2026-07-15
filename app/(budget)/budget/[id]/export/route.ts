@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const budget = await prisma.budget.findUnique({
     where: { id },
     include: {
-      lines: { orderBy: { position: "asc" } },
+      lines: { orderBy: { position: "asc" }, include: { components: { orderBy: { position: "asc" } } } },
       inputs: true,
       deliveryPartners: { orderBy: { sortOrder: "asc" } },
     },
@@ -87,6 +87,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const seenParents = new Set<string>();
   const costBreakups: CostBreakup[] = [];
   for (const l of budget.lines) {
+    // Prefer the line's OWN working (authored/edited on this budget); fall back
+    // to the standard registry bundle keyed by the template's costKey.
+    if (l.components && l.components.length > 0) {
+      costBreakups.push({
+        parentItemKey: l.id,
+        parentLabel: l.description,
+        unitType: l.unitType,
+        unitCost: l.y1UnitCost,
+        components: l.components.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })),
+      });
+      continue;
+    }
     const parentKey = l.templateKey ? templateByKey.get(l.templateKey)?.costKey ?? null : null;
     if (!parentKey || seenParents.has(parentKey)) continue;
     const comps = compByParent.get(parentKey);

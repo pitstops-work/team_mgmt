@@ -11,12 +11,39 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
     where: { id },
     include: {
       inputs: true,
-      lines: { orderBy: { position: "asc" } },
+      lines: { orderBy: { position: "asc" }, include: { components: { orderBy: { position: "asc" } } } },
       deliveryPartners: { orderBy: { sortOrder: "asc" } },
     },
   });
 
   if (!budget || budget.partnerId !== session!.user!.id!) notFound();
+
+  // Per-line "working": the line's own components once authored, else a fallback
+  // to the standard registry breakup (via the template's costKey).
+  const [tmpls, regComps, regItems] = await Promise.all([
+    prisma.lineTemplate.findMany({ where: { city: budget.city }, select: { templateKey: true, costKey: true } }),
+    prisma.costRegistryComponent.findMany({ where: { city: budget.city }, orderBy: { position: "asc" }, select: { parentItemKey: true, label: true, spec: true, qty: true, unitCost: true } }),
+    prisma.costRegistry.findMany({ where: { city: budget.city }, select: { itemKey: true, derivation: true } }),
+  ]);
+  const costKeyByTemplate = new Map(tmpls.map(t => [t.templateKey, t.costKey]));
+  const regCompByKey: Record<string, { label: string; spec: string | null; qty: number; unitCost: number }[]> = {};
+  for (const c of regComps) (regCompByKey[c.parentItemKey] ??= []).push({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost });
+  const regDerivByKey = new Map(regItems.map(r => [r.itemKey, r.derivation]));
+
+  type Working = { components: { label: string; spec: string | null; qty: number; unitCost: number }[]; derivation: string | null; isOwn: boolean };
+  const workingByLineId: Record<string, Working> = {};
+  for (const l of budget.lines) {
+    if (l.components.length > 0) {
+      workingByLineId[l.id] = { components: l.components.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })), derivation: l.derivation ?? null, isOwn: true };
+    } else {
+      const costKey = l.templateKey ? costKeyByTemplate.get(l.templateKey) ?? null : null;
+      workingByLineId[l.id] = {
+        components: costKey ? (regCompByKey[costKey] ?? []) : [],
+        derivation: (costKey ? regDerivByKey.get(costKey) : null) ?? l.derivation ?? null,
+        isOwn: false,
+      };
+    }
+  }
 
   // Load domain labels for this city so BudgetEditor can display them
   const domainConfigs = await prisma.budgetDomainConfig.findMany({
@@ -33,5 +60,5 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   });
 
   const serialized = JSON.parse(JSON.stringify(budget));
-  return <BudgetEditor budget={{ ...serialized, domainLabels, grantPartners }} />;
+  return <BudgetEditor budget={{ ...serialized, domainLabels, grantPartners, workingByLineId }} />;
 }

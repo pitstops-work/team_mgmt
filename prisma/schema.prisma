@@ -2078,12 +2078,51 @@ model BudgetLine {
   //   seasonal → yearTotal split evenly across plannedMonths (≥ 2 entries).
   cadence                  BudgetLineCadence           @default(monthly)
   plannedMonths            Int[]                       @default([])
+  // Per-line "working": the component breakup this line's unit cost derives
+  // from. Empty until the line's cost is authored/edited — until then the UI
+  // falls back to the registry item's components. derivation mirrors the
+  // registry's free-text note.
+  derivation               String?
+  components               BudgetLineComponent[]
+  costHistory              BudgetLineCostHistory[]
   reportLines              BudgetReportLine[]
   reallocationRequestsFrom BudgetReallocationRequest[] @relation("ReallocationFrom")
   reallocationRequestsTo   BudgetReallocationRequest[] @relation("ReallocationTo")
 
   @@index([budgetId, position])
   @@index([deliveryPartnerId])
+}
+
+// Frozen per-budget-line component breakup (the line's own "working"). Created
+// when a line's cost is authored/edited; its rollup is the line's base unit
+// cost. Independent of CostRegistryComponent so budgets keep their working even
+// as the registry drifts.
+model BudgetLineComponent {
+  id           String     @id @default(cuid())
+  budgetLineId String
+  budgetLine   BudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+  position     Int        @default(0)
+  label        String
+  spec         String?
+  qty          Float      @default(1)
+  unitCost     Float      @default(0)
+  updatedAt    DateTime   @updatedAt
+
+  @@index([budgetLineId, position])
+}
+
+// Append-only change log for a budget line's base (Year-1) unit cost.
+model BudgetLineCostHistory {
+  id           String     @id @default(cuid())
+  budgetLineId String
+  budgetLine   BudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+  oldCost      Float?
+  newCost      Float?
+  source       String? // "line edit" | "working editor"
+  changedById  String?
+  changedAt    DateTime   @default(now())
+
+  @@index([budgetLineId, changedAt])
 }
 
 // A delivery/implementing partner sharing a multi-partner budget. Distinct from

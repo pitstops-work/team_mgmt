@@ -507,7 +507,7 @@ export async function updateLine(
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
-  const line = await prisma.budgetLine.findUnique({ where: { id: lineId }, select: { budgetId: true, budget: { select: { partnerId: true } }, costCategory: true } });
+  const line = await prisma.budgetLine.findUnique({ where: { id: lineId }, select: { budgetId: true, budget: { select: { partnerId: true } }, costCategory: true, y1UnitCost: true } });
   if (!line || line.budget.partnerId !== session.user.id) throw new Error("Not found");
 
   const total = (u?: number, c?: number, a?: number) => Math.round((u ?? 0) * (c ?? 0) * (a ?? 1));
@@ -527,6 +527,103 @@ export async function updateLine(
     where: { id: lineId },
     data: { ...rest, ...cadencePatch, y1Total, y2Total, y3Total, y4Total, y5Total },
   });
+  // Log a base (Year-1) unit-cost change so edits leave a trail.
+  if (updates.y1UnitCost !== undefined && Math.round(updates.y1UnitCost) !== Math.round(line.y1UnitCost)) {
+    await prisma.budgetLineCostHistory.create({
+      data: { budgetLineId: lineId, oldCost: line.y1UnitCost, newCost: updates.y1UnitCost, source: "line edit", changedById: session.user.id },
+    });
+  }
+  revalidatePath(`/budget/${line.budgetId}`);
+}
+
+/** History for a budget line's base unit cost, newest first. */
+export async function getBudgetLineHistory(lineId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  const line = await prisma.budgetLine.findUnique({ where: { id: lineId }, select: { budget: { select: { partnerId: true } } } });
+  if (!line || line.budget.partnerId !== session.user.id) throw new Error("Not found");
+  const rows = await prisma.budgetLineCostHistory.findMany({ where: { budgetLineId: lineId }, orderBy: { changedAt: "desc" }, take: 50 });
+  const byId = new Map(
+    (await prisma.user.findMany({
+      where: { id: { in: [...new Set(rows.map(r => r.changedById).filter((v): v is string => !!v))] } },
+      select: { id: true, name: true, email: true },
+    })).map(u => [u.id, u.name ?? u.email])
+  );
+  return rows.map(r => ({
+    id: r.id, oldCost: r.oldCost, newCost: r.newCost, source: r.source,
+    changedBy: r.changedById ? (byId.get(r.changedById) ?? null) : null,
+    changedAt: r.changedAt.toISOString(),
+  }));
+}
+
+/**
+ * Author a budget line's working: replace its component breakup and set the
+ * base (Year-1) unit cost to the rollup. Later-year unit costs are scaled by the
+ * same ratio so the line keeps its inflation shape. Totals recompute; the change
+ * is logged. This is the budget-level mirror of the registry working editor.
+ */
+export async function saveBudgetLineComponents(
+  lineId: string,
+  rows: { label: string; spec?: string | null; qty: number; unitCost: number }[],
+  derivation: string | null,
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  const line = await prisma.budgetLine.findUnique({
+    where: { id: lineId },
+    select: {
+      budgetId: true, budget: { select: { partnerId: true } },
+      y1Units: true, y1UnitCost: true, y1AllocPct: true,
+      y2Units: true, y2UnitCost: true, y2AllocPct: true,
+      y3Units: true, y3UnitCost: true, y3AllocPct: true,
+      y4Units: true, y4UnitCost: true, y4AllocPct: true,
+      y5Units: true, y5UnitCost: true, y5AllocPct: true,
+    },
+  });
+  if (!line || line.budget.partnerId !== session.user.id) throw new Error("Not found");
+
+  const clean = rows
+    .map(r => ({ label: (r.label ?? "").trim(), spec: (r.spec ?? "")?.toString().trim() || null, qty: Number(r.qty) || 0, unitCost: Number(r.unitCost) || 0 }))
+    .filter(r => r.label.length > 0);
+  const rollup = Math.round(clean.reduce((s, r) => s + r.qty * r.unitCost, 0));
+  const deriv = derivation?.trim() || null;
+
+  // Scale later years by the same ratio the edit applies to Year 1, preserving
+  // the existing inflation curve. If Year-1 was 0, fall back to a flat rollup.
+  const ratio = line.y1UnitCost > 0 ? rollup / line.y1UnitCost : 1;
+  const scaled = (base: number) => (line.y1UnitCost > 0 ? Math.round(base * ratio) : rollup);
+  const y1c = clean.length > 0 ? rollup : line.y1UnitCost;
+  const y2c = clean.length > 0 ? scaled(line.y2UnitCost) : line.y2UnitCost;
+  const y3c = clean.length > 0 ? scaled(line.y3UnitCost) : line.y3UnitCost;
+  const y4c = clean.length > 0 ? scaled(line.y4UnitCost) : line.y4UnitCost;
+  const y5c = clean.length > 0 ? scaled(line.y5UnitCost) : line.y5UnitCost;
+  const total = (u: number, c: number, a: number) => Math.round(u * c * a);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.budgetLineComponent.deleteMany({ where: { budgetLineId: lineId } });
+    if (clean.length > 0) {
+      await tx.budgetLineComponent.createMany({
+        data: clean.map((r, i) => ({ budgetLineId: lineId, position: i, label: r.label, spec: r.spec, qty: r.qty, unitCost: r.unitCost })),
+      });
+    }
+    await tx.budgetLine.update({
+      where: { id: lineId },
+      data: {
+        derivation: deriv,
+        y1UnitCost: y1c, y1Total: total(line.y1Units, y1c, line.y1AllocPct),
+        y2UnitCost: y2c, y2Total: total(line.y2Units, y2c, line.y2AllocPct),
+        y3UnitCost: y3c, y3Total: total(line.y3Units, y3c, line.y3AllocPct),
+        y4UnitCost: y4c, y4Total: total(line.y4Units, y4c, line.y4AllocPct),
+        y5UnitCost: y5c, y5Total: total(line.y5Units, y5c, line.y5AllocPct),
+      },
+    });
+    if (clean.length > 0 && Math.round(line.y1UnitCost) !== rollup) {
+      await tx.budgetLineCostHistory.create({
+        data: { budgetLineId: lineId, oldCost: line.y1UnitCost, newCost: rollup, source: "working editor", changedById: session.user!.id },
+      });
+    }
+  });
+
   revalidatePath(`/budget/${line.budgetId}`);
 }
 

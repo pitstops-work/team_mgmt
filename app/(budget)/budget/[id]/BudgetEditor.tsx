@@ -1,8 +1,12 @@
 "use client";
 
 import { Fragment, useState, useTransition, useRef } from "react";
-import { updateLine, addLine, deleteLine, finalizeBudget, deleteBudget, updateBudgetGrantPartner } from "../actions";
+import { updateLine, addLine, deleteLine, finalizeBudget, deleteBudget, updateBudgetGrantPartner, saveBudgetLineComponents, getBudgetLineHistory } from "../actions";
 import type { BudgetSection, BudgetLineCadence, InflationType } from "@/app/generated/prisma/client";
+
+type WorkingComp = { label: string; spec: string | null; qty: number; unitCost: number };
+type LineWorking = { components: WorkingComp[]; derivation: string | null; isOwn: boolean };
+type LineHistRow = { id: string; oldCost: number | null; newCost: number | null; source: string | null; changedBy: string | null; changedAt: string };
 
 type Line = {
   id: string;
@@ -45,6 +49,7 @@ type Budget = {
   lines: Line[];
   domainLabels?: Record<string, string>;
   inputs?: Record<string, number | string | null> | null;
+  workingByLineId?: Record<string, LineWorking>;
 };
 
 type BandKey = 1 | 2 | 3 | 4 | 5;
@@ -202,6 +207,55 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [editVals, setEditVals] = useState<Partial<Line>>({});
   const [pending, startTransition] = useTransition();
+
+  // ── Per-line working (component breakup + history) ──────────────────────────
+  const [working, setWorking] = useState<Record<string, LineWorking>>(budget.workingByLineId ?? {});
+  const [workLineId, setWorkLineId] = useState<string | null>(null);
+  const [histByLine, setHistByLine] = useState<Record<string, LineHistRow[]>>({});
+  const [histLoading, setHistLoading] = useState(false);
+  type WRow = { label: string; spec: string; qty: string; unitCost: string };
+  const [wEditing, setWEditing] = useState(false);
+  const [wRows, setWRows] = useState<WRow[]>([]);
+  const [wDeriv, setWDeriv] = useState("");
+  const wRollup = Math.round(wRows.reduce((s, r) => s + (parseFloat(r.qty) || 0) * (parseFloat(r.unitCost) || 0), 0));
+
+  function toggleWorking(lineId: string) {
+    if (workLineId === lineId) { setWorkLineId(null); setWEditing(false); return; }
+    setWorkLineId(lineId); setWEditing(false);
+    if (!histByLine[lineId]) {
+      setHistLoading(true);
+      getBudgetLineHistory(lineId).then(rows => setHistByLine(p => ({ ...p, [lineId]: rows }))).finally(() => setHistLoading(false));
+    }
+  }
+  function startWEdit(lineId: string) {
+    const w = working[lineId];
+    setWRows((w?.components ?? []).map(c => ({ label: c.label, spec: c.spec ?? "", qty: String(c.qty), unitCost: String(c.unitCost) })));
+    setWDeriv(w?.derivation ?? "");
+    setWEditing(true);
+  }
+  const addWRow = () => setWRows(p => [...p, { label: "", spec: "", qty: "1", unitCost: "" }]);
+  const updateWRow = (idx: number, k: keyof WRow, v: string) => setWRows(p => p.map((r, i) => i === idx ? { ...r, [k]: v } : r));
+  const removeWRow = (idx: number) => setWRows(p => p.filter((_, i) => i !== idx));
+
+  function saveWorking(line: Line) {
+    const comps = wRows.map(r => ({ label: r.label, spec: r.spec || null, qty: parseFloat(r.qty) || 0, unitCost: parseFloat(r.unitCost) || 0 })).filter(r => r.label.trim());
+    const rollup = Math.round(comps.reduce((s, r) => s + r.qty * r.unitCost, 0));
+    startTransition(async () => {
+      await saveBudgetLineComponents(line.id, comps, wDeriv.trim() || null);
+      // Optimistically reflect the new base cost + scaled years locally.
+      const ratio = line.y1UnitCost > 0 && comps.length > 0 ? rollup / line.y1UnitCost : 1;
+      setLines(prev => prev.map(l => {
+        if (l.id !== line.id || comps.length === 0) return l;
+        const sc = (c: number) => (l.y1UnitCost > 0 ? Math.round(c * ratio) : rollup);
+        const y1 = rollup, y2 = sc(l.y2UnitCost), y3 = sc(l.y3UnitCost), y4 = sc(l.y4UnitCost), y5 = sc(l.y5UnitCost);
+        const t = (u: number, c: number, a: number) => Math.round(u * c * a);
+        return { ...l, y1UnitCost: y1, y1Total: t(l.y1Units, y1, l.y1AllocPct), y2UnitCost: y2, y2Total: t(l.y2Units, y2, l.y2AllocPct), y3UnitCost: y3, y3Total: t(l.y3Units, y3, l.y3AllocPct), y4UnitCost: y4, y4Total: t(l.y4Units, y4, l.y4AllocPct), y5UnitCost: y5, y5Total: t(l.y5Units, y5, l.y5AllocPct) };
+      }));
+      setWorking(p => ({ ...p, [line.id]: { components: comps.map(c => ({ label: c.label, spec: c.spec, qty: c.qty, unitCost: c.unitCost })), derivation: wDeriv.trim() || null, isOwn: true } }));
+      setHistByLine(p => ({ ...p, [line.id]: [] })); // force reload next open
+      setWEditing(false);
+    });
+  }
   const [addingSection, setAddingSection] = useState<BudgetSection | null>(null);
   const [newDesc, setNewDesc] = useState("");
   const [newCostCat, setNewCostCat] = useState<InflationType>("Other");
@@ -563,15 +617,114 @@ export default function BudgetEditor({ budget }: { budget: Budget }) {
                 </tr>
               </thead>
               <tbody>
-                {sLines.map((l, i) => (
-                  editing === l.id
-                    ? <EditRow key={l.id} line={l} vals={editVals} setVals={setEditVals}
-                        bands={bands} showAlloc={showAlloc} inflationRate={inflationRate}
-                        domains={budget.domains} domainLabels={domainLabels}
-                        onSave={() => saveEdit(l.id)} onCancel={() => setEditing(null)} />
-                    : <ViewRow key={l.id} line={l} i={i + 1} bands={bands} showAlloc={showAlloc}
-                        onEdit={() => startEdit(l)} onDelete={() => handleDelete(l.id)} />
-                ))}
+                {sLines.map((l, i) => {
+                  const w = working[l.id];
+                  const colSpan = 5 + (showAlloc ? 1 : 0) + bands.length;
+                  const isWorkOpen = workLineId === l.id;
+                  const editingThis = wEditing && isWorkOpen;
+                  const compSum = w ? Math.round(w.components.reduce((s, c) => s + c.qty * c.unitCost, 0)) : 0;
+                  const reconciles = !w || w.components.length === 0 || compSum === Math.round(l.y1UnitCost);
+                  const hist = histByLine[l.id];
+                  return (
+                    <Fragment key={l.id}>
+                      {editing === l.id
+                        ? <EditRow line={l} vals={editVals} setVals={setEditVals}
+                            bands={bands} showAlloc={showAlloc} inflationRate={inflationRate}
+                            domains={budget.domains} domainLabels={domainLabels}
+                            onSave={() => saveEdit(l.id)} onCancel={() => setEditing(null)} />
+                        : <ViewRow line={l} i={i + 1} bands={bands} showAlloc={showAlloc}
+                            onEdit={() => startEdit(l)} onDelete={() => handleDelete(l.id)}
+                            onWorking={() => toggleWorking(l.id)} hasWorking={!!w && w.components.length > 0} isOwnWorking={!!w?.isOwn} />
+                      }
+                      {isWorkOpen && (
+                        <tr className="border-b border-stone-100 bg-stone-50/60">
+                          <td colSpan={colSpan} className="px-4 py-3">
+                            {editingThis ? (
+                              <div className="mb-4">
+                                <div className="text-xs font-semibold text-stone-500 mb-1.5">Edit working — components set this line’s unit cost</div>
+                                <table className="w-full text-xs max-w-2xl">
+                                  <thead><tr className="text-stone-400"><th className="text-left py-1 font-medium">Item</th><th className="text-left font-medium">Spec</th><th className="text-right font-medium w-16">Qty</th><th className="text-right font-medium w-24">Unit ₹</th><th className="text-right font-medium w-24">Amount ₹</th><th className="w-6" /></tr></thead>
+                                  <tbody>
+                                    {wRows.map((r, idx) => (
+                                      <tr key={idx} className="border-t border-stone-100">
+                                        <td className="py-1"><input value={r.label} onChange={e => updateWRow(idx, "label", e.target.value)} placeholder="Item" className="w-full border border-stone-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" /></td>
+                                        <td><input value={r.spec} onChange={e => updateWRow(idx, "spec", e.target.value)} placeholder="spec" className="w-full border border-stone-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500" /></td>
+                                        <td><input type="number" value={r.qty} onChange={e => updateWRow(idx, "qty", e.target.value)} className="w-full border border-stone-200 rounded px-1.5 py-1 text-right focus:outline-none focus:ring-1 focus:ring-sky-500" /></td>
+                                        <td><input type="number" value={r.unitCost} onChange={e => updateWRow(idx, "unitCost", e.target.value)} className="w-full border border-stone-200 rounded px-1.5 py-1 text-right focus:outline-none focus:ring-1 focus:ring-sky-500" /></td>
+                                        <td className="text-right text-stone-600">{Math.round((parseFloat(r.qty) || 0) * (parseFloat(r.unitCost) || 0)).toLocaleString("en-IN")}</td>
+                                        <td className="text-center"><button onClick={() => removeWRow(idx)} className="text-stone-300 hover:text-red-500">×</button></td>
+                                      </tr>
+                                    ))}
+                                    <tr className="border-t border-stone-200 font-medium text-stone-700">
+                                      <td className="py-1.5" colSpan={4}><button onClick={addWRow} className="text-xs text-sky-600 hover:text-sky-800">+ Add item</button>{wRows.length > 0 && <span className="ml-3 font-normal text-stone-500">→ unit cost becomes ₹{wRollup.toLocaleString("en-IN")}</span>}</td>
+                                      <td className="text-right">{wRollup.toLocaleString("en-IN")}</td>
+                                      <td />
+                                    </tr>
+                                  </tbody>
+                                </table>
+                                <div className="mt-2 max-w-2xl">
+                                  <label className="text-xs text-stone-500">Derivation note (for rates that aren’t itemised)</label>
+                                  <textarea value={wDeriv} onChange={e => setWDeriv(e.target.value)} rows={2} placeholder="e.g. average of 3 vendor quotes" className="mt-1 w-full text-xs border border-stone-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500" />
+                                </div>
+                                <div className="mt-2 flex gap-2">
+                                  <button onClick={() => saveWorking(l)} disabled={pending} className="text-xs bg-sky-600 text-white px-3 py-1.5 rounded hover:bg-sky-700 disabled:opacity-50">{pending ? "Saving…" : "Save working"}</button>
+                                  <button onClick={() => setWEditing(false)} className="text-xs text-stone-400 hover:text-stone-700">Cancel</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mb-4">
+                                {w && w.components.length > 0 ? (
+                                  <>
+                                    <div className="text-xs font-semibold text-stone-500 mb-1.5">Working — how ₹{l.y1UnitCost.toLocaleString("en-IN")} is derived {w.isOwn ? "" : <span className="text-stone-400">(standard, from registry)</span>}</div>
+                                    <table className="w-full text-xs max-w-2xl">
+                                      <thead><tr className="text-stone-400"><th className="text-left py-1 font-medium">Item</th><th className="text-left font-medium">Spec</th><th className="text-right font-medium">Qty</th><th className="text-right font-medium">Unit ₹</th><th className="text-right font-medium">Amount ₹</th></tr></thead>
+                                      <tbody>
+                                        {w.components.map((c, idx) => (
+                                          <tr key={idx} className="border-t border-stone-100">
+                                            <td className="py-1 text-stone-700">{c.label}</td>
+                                            <td className="text-stone-400">{c.spec ?? ""}</td>
+                                            <td className="text-right text-stone-600">{c.qty}</td>
+                                            <td className="text-right text-stone-600">{c.unitCost.toLocaleString("en-IN")}</td>
+                                            <td className="text-right text-stone-800">{Math.round(c.qty * c.unitCost).toLocaleString("en-IN")}</td>
+                                          </tr>
+                                        ))}
+                                        <tr className="border-t border-stone-200 font-medium text-stone-700">
+                                          <td className="py-1" colSpan={4}>Sub-total{!reconciles && <span className="ml-2 text-red-500 font-normal">⚠ ≠ unit cost ₹{l.y1UnitCost.toLocaleString("en-IN")}</span>}</td>
+                                          <td className="text-right">{compSum.toLocaleString("en-IN")}</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </>
+                                ) : (
+                                  <div className="text-xs text-stone-400">No breakup recorded for this line yet.</div>
+                                )}
+                                {w?.derivation && <p className="text-xs text-stone-500 mt-2 max-w-2xl"><span className="text-stone-400">Derivation:</span> {w.derivation}</p>}
+                                <button onClick={() => startWEdit(l.id)} className="text-xs text-sky-600 hover:text-sky-800 mt-2">{w && (w.components.length > 0 || w.derivation) ? "Edit working" : "Add working"}</button>
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-xs font-semibold text-stone-500 mb-1.5">Change history</div>
+                              {!hist ? <div className="text-xs text-stone-400">{histLoading ? "Loading…" : "—"}</div>
+                                : hist.length === 0 ? <div className="text-xs text-stone-400">No changes logged.</div>
+                                : (
+                                  <ul className="space-y-1">
+                                    {hist.map(h => (
+                                      <li key={h.id} className="text-xs text-stone-600 flex flex-wrap gap-x-2">
+                                        <span className="text-stone-400 tabular-nums">{new Date(h.changedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                                        <span>{h.oldCost == null ? "—" : `₹${h.oldCost.toLocaleString("en-IN")}`} → {h.newCost == null ? "—" : `₹${h.newCost.toLocaleString("en-IN")}`}</span>
+                                        {h.source && <span className="text-stone-400">· {h.source}</span>}
+                                        {h.changedBy && <span className="text-stone-400">· {h.changedBy}</span>}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="border-t border-stone-200 bg-stone-50 font-medium text-stone-700">
@@ -709,9 +862,10 @@ function TotalCell({ label, value, big, white }: { label: string; value: number;
   );
 }
 
-function ViewRow({ line, i, bands, showAlloc, onEdit, onDelete }: {
+function ViewRow({ line, i, bands, showAlloc, onEdit, onDelete, onWorking, hasWorking, isOwnWorking }: {
   line: Line; i: number; bands: Band[]; showAlloc: boolean;
   onEdit: () => void; onDelete: () => void;
+  onWorking: () => void; hasWorking: boolean; isOwnWorking: boolean;
 }) {
   const [showDelete, setShowDelete] = useState(false);
   return (
@@ -721,6 +875,11 @@ function ViewRow({ line, i, bands, showAlloc, onEdit, onDelete }: {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-stone-800">{line.description}</span>
           <span className={`text-xs px-1.5 py-0.5 rounded ${INFLATION_BADGE[line.costCategory]}`}>{line.costCategory}</span>
+          {hasWorking && (
+            <button onClick={onWorking} className={`text-[10px] px-1.5 py-0.5 rounded border ${isOwnWorking ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-sky-50 text-sky-600 border-sky-100"}`} title={isOwnWorking ? "Custom working on this budget" : "Standard working from the cost registry"}>
+              working{isOwnWorking ? " ✎" : ""}
+            </button>
+          )}
           {line.cadence !== "monthly" && line.plannedMonths.length > 0 && (
             <span
               title={`${CADENCE_LABELS[line.cadence]} · planned in month${line.plannedMonths.length > 1 ? "s" : ""} ${line.plannedMonths.join(", ")} of the grant year`}
@@ -751,6 +910,7 @@ function ViewRow({ line, i, bands, showAlloc, onEdit, onDelete }: {
       <td className="px-2 py-2">
         <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button onClick={onEdit} className="text-xs text-sky-600 hover:text-sky-800">Edit</button>
+          <button onClick={onWorking} className="text-xs text-stone-400 hover:text-stone-700" title="Working &amp; history">₹⋯</button>
           {!line.isAutoGenerated && (
             showDelete
               ? <button onClick={onDelete} className="text-xs text-red-600 hover:text-red-800">Confirm</button>
