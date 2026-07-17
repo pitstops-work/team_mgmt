@@ -9,7 +9,7 @@
 
 import ExcelJS from "exceljs";
 import {
-  META_SHEET, YEAR_INPUT_COLS,
+  META_SHEET, YEAR_INPUT_COLS, BLANK_TEMPLATE_KEY_PREFIX,
   type MetaLine, type TemplateMeta,
 } from "./templateLayout";
 
@@ -205,8 +205,12 @@ export async function parseBudgetWorkbook(buffer: ArrayBuffer): Promise<ParsedBu
     };
     const a = chosen.amt;
 
+    // Placeholder rows from a blank template carry a synthetic templateKey only
+    // to stay distinct in the Meta index — a committed line must have none.
+    const templateKey = ml.templateKey?.startsWith(BLANK_TEMPLATE_KEY_PREFIX) ? null : ml.templateKey;
+
     lines.push({
-      position: ml.position, domain: ml.domain, section: ml.section, templateKey: ml.templateKey,
+      position: ml.position, domain: ml.domain, section: ml.section, templateKey,
       description: chosen.description, costCategory: chosen.costCategory, unitType: chosen.unitType,
       salaryHint: ml.salaryHint, notes: chosen.notes,
       cadence: ml.cadence ?? "monthly", plannedMonths: ml.plannedMonths ?? [],
@@ -219,7 +223,14 @@ export async function parseBudgetWorkbook(buffer: ArrayBuffer): Promise<ParsedBu
     });
   }
 
-  const grandTotal = lines.reduce(
+  // Drop untouched blank rows — the empty slots a blank template ships with that
+  // the filler never used (no description AND no amount anywhere). A real line
+  // always carries a description, so normal round-trips are unaffected.
+  const keptLines = lines.filter(
+    l => l.description.trim() !== "" || (l.y1Total + l.y2Total + l.y3Total + l.y4Total + l.y5Total) !== 0,
+  );
+
+  const grandTotal = keptLines.reduce(
     (s, l) => s + l.y1Total + l.y2Total + l.y3Total + l.y4Total + l.y5Total, 0,
   );
 
@@ -228,6 +239,6 @@ export async function parseBudgetWorkbook(buffer: ArrayBuffer): Promise<ParsedBu
     horizonMonths: meta.horizonMonths, years,
     applyInflation: meta.applyInflation, inflationPct: meta.inflation,
     inputs: meta.inputs ?? {}, costOverrides: meta.costOverrides ?? {}, costSnapshot: meta.costSnapshot ?? {},
-    lines, grandTotal, warnings,
+    lines: keptLines, grandTotal, warnings,
   };
 }

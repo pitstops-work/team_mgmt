@@ -40,6 +40,12 @@ export const META_CELL = "A1";
  *  v2: MetaLine carries `locations[]` (was sheet+row) + cadence/plannedMonths. */
 export const LAYOUT_VERSION = 2;
 
+/** Prefix marking a blank template's placeholder-row templateKey. Such a key
+ *  exists only to keep otherwise-identical empty rows distinct in the Meta index
+ *  (which dedupes by section+templateKey+description+domain); import strips it
+ *  back to null so committed lines carry no template link. */
+export const BLANK_TEMPLATE_KEY_PREFIX = "__blank__";
+
 /** One programme/section line's structural identity + location(s) in the
  *  workbook. Amounts are intentionally NOT stored here — they live in the
  *  editable green cells (the partner's surface). `base` is a fallback only, used

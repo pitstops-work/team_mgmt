@@ -25,6 +25,24 @@ export default function ImportBudgetClient({
   );
   const [grantPartnerId, setGrantPartnerId] = useState<string>("");
 
+  // Blank-template download (fill by hand, then import above).
+  const [blankName, setBlankName] = useState("");
+  const [blankCity, setBlankCity] = useState<string>(
+    (CITY_NAMES as readonly string[]).includes(initialCity ?? "") ? initialCity! : "Bangalore",
+  );
+  const [blankHorizon, setBlankHorizon] = useState(12);
+  const [blankInflation, setBlankInflation] = useState(false);
+
+  function downloadBlank() {
+    const p = new URLSearchParams({
+      name: blankName.trim() || "Untitled budget",
+      city: blankCity,
+      horizon: String(blankHorizon),
+      inflation: blankInflation ? "1" : "0",
+    });
+    window.location.href = `/budget/blank-template?${p.toString()}`;
+  }
+
   async function send(commit: boolean): Promise<Response> {
     const fd = new FormData();
     fd.set("file", file!);
@@ -67,6 +85,41 @@ export default function ImportBudgetClient({
 
   return (
     <div className="mt-6 space-y-6">
+      {/* Download a blank template to fill by hand */}
+      <details className="rounded-xl border border-stone-200 bg-stone-50 p-5">
+        <summary className="cursor-pointer text-sm font-medium text-stone-700">
+          Need a blank template? Download one to fill by hand
+        </summary>
+        <p className="text-xs text-stone-500 mt-2">
+          Produces an empty copy of this template (green rows in every section) with no cost-registry
+          basis. Fill in your own lines, then upload it above. Rows you leave empty are ignored on import.
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="text-xs text-stone-500 flex-1 min-w-[12rem]">Budget name
+            <input value={blankName} onChange={e => setBlankName(e.target.value)} placeholder="e.g. Special project 2026"
+              className="mt-1 block w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
+          </label>
+          <label className="text-xs text-stone-500">City
+            <select value={blankCity} onChange={e => setBlankCity(e.target.value)} className="mt-1 block rounded border border-stone-300 px-2 py-1.5 text-sm">
+              {CITY_NAMES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+          <label className="text-xs text-stone-500">Horizon (months)
+            <input type="number" min={1} max={60} value={blankHorizon}
+              onChange={e => setBlankHorizon(Math.min(60, Math.max(1, Math.round(Number(e.target.value) || 12))))}
+              className="mt-1 block w-24 rounded border border-stone-300 px-2 py-1.5 text-sm" />
+          </label>
+          <label className="text-xs text-stone-500 flex items-center gap-1.5 pb-2">
+            <input type="checkbox" checked={blankInflation} onChange={e => setBlankInflation(e.target.checked)} />
+            Show inflation table
+          </label>
+          <button onClick={downloadBlank}
+            className="text-sm bg-stone-900 text-white px-4 py-2 rounded-lg hover:bg-stone-700">
+            Download blank template
+          </button>
+        </div>
+      </details>
+
       {/* Upload */}
       <div className="rounded-xl border border-stone-200 bg-white p-5">
         <div className="flex flex-wrap items-center gap-3">
