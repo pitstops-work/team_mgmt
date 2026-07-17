@@ -129,6 +129,40 @@ export async function toggleGrantPartner(id: string, isActive: boolean) {
   revalidatePath("/budget/admin/partners");
 }
 
+const PARTNER_CITIES = ["Bangalore", "Chennai", "Others"];
+
+/** Move a partner (and all its budgets) to another city. Keeps the
+ *  partner↔budget city invariant intact by migrating both together. Refuses if a
+ *  partner of the same name already lives in the target city (the [city,name]
+ *  unique). Budget-admin/super-admin only. */
+export async function reassignGrantPartnerCity(partnerId: string, newCity: string): Promise<{ movedBudgets: number }> {
+  const session = await auth();
+  if (!isBudgetAdminOrSuperAdmin(session)) throw new Error("Forbidden");
+  const city = newCity.trim();
+  if (!PARTNER_CITIES.includes(city)) throw new Error("Unknown city");
+
+  const gp = await prisma.grantPartner.findUnique({ where: { id: partnerId }, select: { name: true, city: true } });
+  if (!gp) throw new Error("Partner not found");
+  if (gp.city === city) return { movedBudgets: 0 };
+
+  const clash = await prisma.grantPartner.findUnique({
+    where: { city_name: { city, name: gp.name } },
+    select: { id: true },
+  });
+  if (clash) throw new Error(`A partner named "${gp.name}" already exists in ${city}. Rename or merge it there first.`);
+
+  const movedBudgets = await prisma.$transaction(async (tx) => {
+    await tx.grantPartner.update({ where: { id: partnerId }, data: { city } });
+    const res = await tx.budget.updateMany({ where: { grantPartnerId: partnerId }, data: { city } });
+    return res.count;
+  });
+
+  revalidatePath("/budget/admin/partners");
+  revalidatePath("/budget/dashboard");
+  revalidatePath("/budget");
+  return { movedBudgets };
+}
+
 // Link an existing user account as this grantee's login (role "partner"). The
 // account must be created first in Settings → Users. Only promotes a plain
 // member/viewer/partner — never touches an admin/super-admin/budget-admin.

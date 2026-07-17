@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { createGrantPartner, renameGrantPartner, toggleGrantPartner, importGrantPartnersFromOrgs, linkGrantPartnerLogin, unlinkGrantPartnerLogin } from "../../budget/actions";
+import { createGrantPartner, renameGrantPartner, toggleGrantPartner, importGrantPartnersFromOrgs, linkGrantPartnerLogin, unlinkGrantPartnerLogin, reassignGrantPartnerCity } from "../../budget/actions";
 
 type Partner = { id: string; name: string; city: string; isActive: boolean; budgetCount: number; loginEmail: string | null };
 type Candidate = { email: string; name: string | null };
@@ -16,6 +16,8 @@ export default function PartnersClient({ partners, candidates = [] }: { partners
   const [editName, setEditName] = useState("");
   const [linking, setLinking] = useState<string | null>(null);
   const [linkEmail, setLinkEmail] = useState("");
+  const [moving, setMoving] = useState<string | null>(null);
+  const [moveCity, setMoveCity] = useState<string>("Bangalore");
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [importCity, setImportCity] = useState<string>("Bangalore");
@@ -89,6 +91,7 @@ export default function PartnersClient({ partners, candidates = [] }: { partners
                         <span className={`flex-1 text-sm ${p.isActive ? "text-stone-900" : "text-stone-400 line-through"}`}>{p.name}</span>
                         <span className="text-xs text-stone-400">{p.budgetCount} budget{p.budgetCount === 1 ? "" : "s"}</span>
                         <button onClick={() => { setEditing(p.id); setEditName(p.name); }} className="text-xs text-stone-500 hover:text-stone-800">Rename</button>
+                        <button onClick={() => { setMoving(p.id); setMoveCity(CITIES.find((c) => c !== p.city) ?? "Bangalore"); }} className="text-xs text-stone-500 hover:text-stone-800">Move</button>
                         <button disabled={pending} onClick={() => run(async () => { await toggleGrantPartner(p.id, !p.isActive); })} className="text-xs text-stone-400 hover:text-stone-700">
                           {p.isActive ? "Deactivate" : "Reactivate"}
                         </button>
@@ -113,6 +116,18 @@ export default function PartnersClient({ partners, candidates = [] }: { partners
                       <button onClick={() => { setLinking(p.id); setLinkEmail(""); }} className="text-stone-400 hover:text-stone-700">+ Link login account</button>
                     )}
                   </div>
+                  {/* Move to another city */}
+                  {moving === p.id && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="text-stone-400">Move to</span>
+                      <select value={moveCity} onChange={(e) => setMoveCity(e.target.value)} className="rounded border border-stone-300 px-2 py-1 text-xs">
+                        {CITIES.filter((c) => c !== p.city).map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      {p.budgetCount > 0 && <span className="text-stone-400">— moves {p.budgetCount} budget{p.budgetCount === 1 ? "" : "s"} too</span>}
+                      <button disabled={pending} onClick={() => run(async () => { await reassignGrantPartnerCity(p.id, moveCity); setMoving(null); })} className="text-sky-600 hover:underline">Confirm</button>
+                      <button onClick={() => setMoving(null)} className="text-stone-400">Cancel</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
