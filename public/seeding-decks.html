@@ -135,10 +135,19 @@ p.body.lg{font-size:17px}
 .invite-box{margin-top:14px;padding:26px 28px;background:linear-gradient(135deg,rgba(251,113,133,.12),rgba(168,139,250,.12));border:1px solid rgba(168,139,250,.3);border-radius:18px}
 
 @media (max-width:900px){
-  .slide{padding:28px 20px}
-  h1.hero{font-size:34px}
-  h2.title{font-size:24px}
-  .act-hero h2{font-size:30px}
+  /* Mobile: stop content floating mid-screen. Slides become a normal
+     top-aligned scroll column (block context zeroes vertical auto-margins),
+     and dvh replaces the unreliable 100vh so nothing hides behind the nav. */
+  body,.deck{height:100dvh}
+  .slide{padding:26px 18px 104px;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+  .slide.active{display:block}
+  .act-hero{margin:0;padding-top:4vh}
+  h1.hero{font-size:32px;letter-spacing:-.5px}
+  h2.title{font-size:23px}
+  .act-hero h2{font-size:28px;line-height:1.15}
+  .act-hero p{font-size:15px}
+  p.body.lg{font-size:15px}
+  .stat-pill{min-width:0;flex:1 1 40%;padding:12px 12px}
   .split-2,.split-2.narrow-l,.split-3,.card-3,.card-4,.card-2,.prog-grid,.pillars,.journey,.back-grid,.toc-grid{grid-template-columns:1fr}
   .journey::before{display:none}
 }
