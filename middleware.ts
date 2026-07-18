@@ -28,6 +28,7 @@ const PUBLIC_PREFIXES = [
   "/pitstops-training.html",
   "/pitstops-presentation.html",
   "/seeding-fellowships.html",
+  "/seeding-decks.html",
   "/workshop/",
   "/training/",
   // Public model viewer — opt-in per instance via ModelInstance.publicSlug.

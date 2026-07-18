@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "Phase-1 launch tracker for the Seeding Civil Society Startups programme",
 };
 
-const NAV: { href: string; label: string; mobile?: boolean }[] = [
+const NAV: { href: string; label: string; mobile?: boolean; external?: boolean }[] = [
   { href: "/seeding", label: "Dashboard", mobile: true },
   { href: "/seeding/workstreams", label: "Checklist", mobile: true },
   { href: "/seeding/funnel", label: "Funnel", mobile: true },
@@ -17,6 +17,7 @@ const NAV: { href: string; label: string; mobile?: boolean }[] = [
   { href: "/seeding/my", label: "My tasks", mobile: true },
   { href: "/seeding/timeline", label: "Timeline" },
   { href: "/seeding/reference", label: "Reference" },
+  { href: "/seeding-decks.html", label: "Decks", mobile: true, external: true },
 ];
 
 export default async function SeedingLayout({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ export default async function SeedingLayout({ children }: { children: React.Reac
             <a
               key={n.href}
               href={n.href}
+              {...(n.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               className={`text-xs text-stone-500 hover:text-stone-800 shrink-0 ${n.mobile ? "" : "hidden sm:inline"}`}
             >
               {n.label}

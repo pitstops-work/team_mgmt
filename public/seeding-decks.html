@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<!-- HAND_AUTHORED: external-facing deck — urban programme + the invitation to build. Public. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>On the ground in two cities — and the door we're about to open</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b1020;color:#fff;overflow:hidden;height:100vh}
+.deck{width:100vw;height:100vh;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:44px 60px;opacity:0;transition:opacity .4s;overflow-y:auto}
+.slide.active{display:flex;opacity:1}
+#nav{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:8px 18px}
+#nav button{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:4px 10px;border-radius:8px;transition:all .2s}
+#nav button:hover{color:#fff;background:rgba(255,255,255,.12)}
+#nav button:disabled{opacity:.3;cursor:not-allowed}
+#slide-counter{color:#64748b;font-size:13px;min-width:60px;text-align:center}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#38bdf8,#a855f7,#fb7185);transition:width .3s;z-index:100}
+#index-btn{position:fixed;top:16px;right:20px;z-index:99;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);color:#94a3b8;padding:6px 14px;border-radius:50px;font-size:12px;cursor:pointer;text-decoration:none;transition:all .18s}
+#index-btn:hover{background:rgba(255,255,255,.14);color:#fff}
+
+/* Palettes */
+.bg-navy{background:linear-gradient(135deg,#0b1020 0%,#1e1b4b 100%)}
+.bg-indigo{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)}
+.bg-violet{background:linear-gradient(135deg,#1a0533 0%,#3b0764 100%)}
+.bg-emerald{background:linear-gradient(135deg,#022c22 0%,#064e3b 100%)}
+.bg-sky{background:linear-gradient(135deg,#0c1a2e 0%,#0c4a6e 100%)}
+.bg-amber{background:linear-gradient(135deg,#1c1007 0%,#451a03 100%)}
+.bg-rose{background:linear-gradient(135deg,#1a0010 0%,#4c0519 100%)}
+.bg-teal{background:linear-gradient(135deg,#001a1a 0%,#042f2e 100%)}
+.bg-dark{background:linear-gradient(135deg,#09090b 0%,#18181b 100%)}
+.bg-slate{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)}
+.bg-plum{background:linear-gradient(135deg,#170a1f 0%,#4a1d5b 100%)}
+.bg-ocean{background:linear-gradient(135deg,#020617 0%,#0e2a4a 100%)}
+.bg-sunrise{background:linear-gradient(135deg,#2a0a2e 0%,#7a1f4b 55%,#b45309 100%)}
+
+/* Type */
+h1.hero{font-size:56px;font-weight:800;line-height:1.05;letter-spacing:-1.5px}
+h2.title{font-size:36px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;line-height:1.15}
+h3.sub{font-size:17px;font-weight:400;color:#94a3b8;margin-bottom:20px}
+.label{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85;margin-bottom:10px}
+p.body{font-size:15px;line-height:1.65;color:#cbd5e1}
+p.body.lg{font-size:17px}
+.small{font-size:12px;color:#94a3b8;line-height:1.55}
+.mut{color:#94a3b8}
+.grad{background:linear-gradient(135deg,#fb7185,#a78bfa,#38bdf8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Stats */
+.stat-pill{display:flex;flex-direction:column;align-items:center;padding:14px 20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:110px}
+.stat-pill .num{font-size:28px;font-weight:800;color:#fff;line-height:1}
+.stat-pill .lbl{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:6px;text-align:center}
+
+/* Cards */
+.card-grid{display:grid;gap:14px}
+.card-3{grid-template-columns:repeat(3,1fr)}
+.card-4{grid-template-columns:repeat(4,1fr)}
+.card-2{grid-template-columns:repeat(2,1fr)}
+.data-card{padding:18px 20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);border-radius:14px}
+.data-card .h{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.data-card .t{font-size:16px;font-weight:700;color:#fff;line-height:1.25;margin-bottom:6px}
+.data-card p{font-size:13px;color:#cbd5e1;line-height:1.5}
+.data-card .big{font-size:32px;font-weight:800;color:#fff;line-height:1;margin-bottom:6px}
+
+/* Programme tiles */
+.prog-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:6px}
+.prog{padding:16px 16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);border-radius:14px;min-height:118px}
+.prog .ic{font-size:26px;margin-bottom:8px}
+.prog .nm{font-size:14px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:4px}
+.prog .ds{font-size:11px;color:#94a3b8;line-height:1.4}
+
+/* Notes */
+.soft-rule{padding:16px 20px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-left:4px solid #38bdf8;border-radius:10px}
+.soft-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#7dd3fc;margin-bottom:6px}
+.soft-rule p{font-size:14px;color:#bae6fd;line-height:1.55}
+.warm-rule{padding:16px 20px;background:rgba(251,146,60,.09);border:1px solid rgba(251,146,60,.28);border-left:4px solid #fb923c;border-radius:10px}
+.warm-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fdba74;margin-bottom:6px}
+.warm-rule p{font-size:14px;color:#fed7aa;line-height:1.55}
+.good-rule{padding:16px 20px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-left:4px solid #34d399;border-radius:10px}
+.good-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6ee7b7;margin-bottom:6px}
+.good-rule p{font-size:14px;color:#bbf7d0;line-height:1.55}
+.violet-rule{padding:16px 20px;background:rgba(168,85,247,.09);border:1px solid rgba(168,85,247,.3);border-left:4px solid #a855f7;border-radius:10px}
+.violet-rule .head{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#d8b4fe;margin-bottom:6px}
+.violet-rule p{font-size:14px;color:#e9d5ff;line-height:1.55}
+
+.split-2{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start}
+.split-2.narrow-l{grid-template-columns:1fr 1.4fr}
+.split-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
+
+/* Bullets */
+.checks{list-style:none;padding:0;margin:10px 0}
+.checks li{padding:6px 0 6px 26px;position:relative;font-size:14px;color:#e2e8f0;line-height:1.55}
+.checks li::before{content:'▸';position:absolute;left:0;top:6px;color:#a78bfa;font-size:12px;font-weight:700}
+.checks.done li::before{content:'✓';color:#34d399}
+.checks.star li::before{content:'★';color:#fb923c;font-size:11px}
+
+/* Model pillars */
+.pillars{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:8px}
+.pillar{padding:20px 18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px}
+.pillar .ic{font-size:30px;margin-bottom:10px}
+.pillar .t{font-size:15px;font-weight:800;color:#fff;margin-bottom:6px;line-height:1.2}
+.pillar .d{font-size:12px;color:#cbd5e1;line-height:1.5}
+
+/* Journey arc */
+.journey{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 8px;position:relative}
+.journey::before{content:'';position:absolute;top:52px;left:6%;right:6%;height:2px;background:linear-gradient(90deg,#7dd3fc,#a78bfa,#fb7185);z-index:0}
+.jstep{position:relative;z-index:1;padding:14px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:14px;text-align:center;min-height:186px;display:flex;flex-direction:column}
+.jstep .num{width:36px;height:36px;border-radius:50%;background:#0b1020;border:2px solid #a78bfa;color:#a78bfa;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+.jstep .dur{font-size:10px;font-weight:700;letter-spacing:1.5px;color:#7dd3fc;text-transform:uppercase;margin-bottom:4px}
+.jstep .tt{font-size:14px;font-weight:800;color:#fff;margin-bottom:6px;line-height:1.15}
+.jstep .desc{font-size:12px;color:#cbd5e1;line-height:1.45;flex:1}
+
+/* Backing grid */
+.back-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+.back{padding:18px 18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px}
+.back .ic{font-size:24px;margin-bottom:8px}
+.back .t{font-size:15px;font-weight:800;color:#fff;margin-bottom:5px;line-height:1.2}
+.back .d{font-size:12px;color:#cbd5e1;line-height:1.5}
+
+/* TOC / act tiles */
+.toc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:12px}
+.act-tile{padding:22px 24px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:16px;text-decoration:none;color:inherit;transition:all .18s;cursor:pointer}
+.act-tile:hover{background:rgba(255,255,255,.08);border-color:rgba(167,139,250,.4);transform:translateY(-2px)}
+.act-tile .k{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#a78bfa;margin-bottom:8px}
+.act-tile .t{font-size:22px;font-weight:800;color:#fff;line-height:1.15;margin-bottom:8px}
+.act-tile .s{font-size:13px;color:#94a3b8;line-height:1.5}
+
+/* Act divider */
+.act-hero{margin:auto;text-align:center;max-width:900px}
+.act-hero .n{font-size:13px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#fb7185;margin-bottom:16px}
+.act-hero h2{font-size:48px;font-weight:800;letter-spacing:-1px;line-height:1.08;margin-bottom:16px}
+.act-hero p{font-size:18px;color:#cbd5e1;line-height:1.6;max-width:720px;margin:0 auto}
+
+/* Big invite CTA */
+.invite-box{margin-top:14px;padding:26px 28px;background:linear-gradient(135deg,rgba(251,113,133,.12),rgba(168,139,250,.12));border:1px solid rgba(168,139,250,.3);border-radius:18px}
+
+@media (max-width:900px){
+  .slide{padding:28px 20px}
+  h1.hero{font-size:34px}
+  h2.title{font-size:24px}
+  .act-hero h2{font-size:30px}
+  .split-2,.split-2.narrow-l,.split-3,.card-3,.card-4,.card-2,.prog-grid,.pillars,.journey,.back-grid,.toc-grid{grid-template-columns:1fr}
+  .journey::before{display:none}
+}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.slide.active>*{animation:fadeUp .55s ease-out both}
+.slide.active>*:nth-child(2){animation-delay:.06s}
+.slide.active>*:nth-child(3){animation-delay:.12s}
+.slide.active>*:nth-child(4){animation-delay:.18s}
+.slide.active>*:nth-child(5){animation-delay:.24s}
+.slide.active>*:nth-child(6){animation-delay:.30s}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<a id="index-btn" href="#s2">☰ Index</a>
+<div class="deck">
+
+<!-- 1 · Title -->
+<div class="slide bg-sunrise active" id="s1">
+  <div style="margin:auto;max-width:1040px;text-align:center">
+    <div class="label" style="color:#fda4af">A preview · shared early, on purpose</div>
+    <h1 class="hero" style="margin-bottom:18px">We build what a city<br/><span class="grad">can't afford to go without.</span></h1>
+    <p class="body lg" style="max-width:800px;margin:0 auto 26px;color:#f1f5f9">For years we've worked settlement by settlement across Bangalore and Chennai — crèches, learning, sanitation, food, health, welfare. It works. Now we want to back a new generation of founders to build the next wave of it. This is that story, in two parts.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <div class="stat-pill"><span class="num">2</span><span class="lbl">cities, on the ground</span></div>
+      <div class="stat-pill"><span class="num">8</span><span class="lbl">core programmes</span></div>
+      <div class="stat-pill"><span class="num">Part 1</span><span class="lbl">what we do today</span></div>
+      <div class="stat-pill"><span class="num">Part 2</span><span class="lbl">what we're opening up</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 2 · Two acts -->
+<div class="slide bg-navy" id="s2">
+  <div class="label" style="color:#a78bfa">The two parts · click a tile to jump</div>
+  <h2 class="title">Where we are, and where you could come in.</h2>
+  <h3 class="sub">First, an honest look at the work we run every day in two cities — the how, not just the what. Then, an early look at the door we're about to open for people who want to build.</h3>
+  <div class="toc-grid">
+    <a class="act-tile" onclick="go(2)">
+      <div class="k">Part 1 · slides 3–8</div>
+      <div class="t">Two cities, eight programmes, one way of working</div>
+      <div class="s">The reality in urban settlements, what we run, and the rigour behind it — mapped, saturated, tracked, and held for the long haul.</div>
+    </a>
+    <a class="act-tile" onclick="go(8)">
+      <div class="k">Part 2 · slides 9–16</div>
+      <div class="t">The door we're opening — build with us</div>
+      <div class="s">We're getting ready to back founders to start and run organisations for the urban poor. What it is, what stands behind you, and why we're telling you now.</div>
+    </a>
+  </div>
+  <p class="small" style="margin-top:18px;text-align:center;font-style:italic">Use ← → arrow keys, or the counter below. The ☰ Index button top-right returns you here from any slide.</p>
+</div>
+
+<!-- ============ PART 1 ============ -->
+
+<!-- 3 · Act 1 divider -->
+<div class="slide bg-ocean" id="s3">
+  <div class="act-hero">
+    <div class="n">Part One</div>
+    <h2>What we do on the ground.</h2>
+    <p>Not a pitch. The everyday work — in the settlements most of the city never sees, in two of India's biggest cities.</p>
+  </div>
+</div>
+
+<!-- 4 · The reality -->
+<div class="slide bg-rose" id="s4">
+  <div class="label" style="color:#fb7185">The reality we work in</div>
+  <h2 class="title">A large share of the city lives in places the city plans around.</h2>
+  <h3 class="sub">Informal settlements hold the workers a city runs on — and the services a city promises rarely reach all the way in. The gap isn't a lack of schemes. It's the last mile.</h3>
+
+  <div class="split-3" style="margin-top:8px">
+    <div class="data-card"><div class="h" style="color:#fda4af">THE PEOPLE</div><p><b style="color:#fff">Construction workers, domestic workers, waste-pickers, street vendors</b> — the informal workforce a city depends on, living in dense settlements.</p></div>
+    <div class="data-card"><div class="h" style="color:#7dd3fc">THE GAP</div><p><b style="color:#fff">Early childhood, learning, sanitation, food, health, entitlements</b> — services that exist on paper but thin out at the settlement edge.</p></div>
+    <div class="data-card"><div class="h" style="color:#d8b4fe">THE MISS</div><p><b style="color:#fff">Most efforts sample.</b> They touch a few settlements, run a pilot, and move on. Coverage stays shallow and short.</p></div>
+  </div>
+
+  <div class="warm-rule" style="margin-top:16px">
+    <div class="head">Our starting conviction</div>
+    <p>You don't change a settlement by visiting it. You change it by <b>staying</b> — showing up in the same places, week after week, across everything a family needs, until the services actually hold. That conviction shapes everything on the next few slides.</p>
+  </div>
+</div>
+
+<!-- 5 · What we run -->
+<div class="slide bg-emerald" id="s5">
+  <div class="label" style="color:#6ee7b7">What we run · Bangalore & Chennai</div>
+  <h2 class="title">Not one programme. A whole system around a family.</h2>
+  <h3 class="sub">A child born in a settlement can grow up inside our care — crèche, then learning centre — while the household gets clean water, sanitation, food security, health, and the entitlements it's owed. Breadth is the point.</h3>
+
+  <div class="prog-grid">
+    <div class="prog"><div class="ic">🍼</div><div class="nm">Early childhood</div><div class="ds">Crèches for the children of working parents — safe, nourished, cared for.</div></div>
+    <div class="prog"><div class="ic">📚</div><div class="nm">After-school learning</div><div class="ds">Learning centres that keep children in school and catch them up.</div></div>
+    <div class="prog"><div class="ic">🚻</div><div class="nm">Community sanitation</div><div class="ds">Toilets and hygiene infrastructure where households have none.</div></div>
+    <div class="prog"><div class="ic">🍲</div><div class="nm">Food security</div><div class="ds">Reaching families for whom a missed day of work is a missed meal.</div></div>
+    <div class="prog"><div class="ic">💧</div><div class="nm">Safe water</div><div class="ds">Clean drinking water close to home, priced for the household.</div></div>
+    <div class="prog"><div class="ic">🩺</div><div class="nm">Health & wellbeing</div><div class="ds">Everyday and mental-health support, close to where people live.</div></div>
+    <div class="prog"><div class="ic">📋</div><div class="nm">Welfare & entitlements</div><div class="ds">Helping families claim the IDs, schemes and rights already theirs.</div></div>
+    <div class="prog"><div class="ic">🧓</div><div class="nm">Elderly wellbeing</div><div class="ds">Care and connection for older people in the settlements.</div></div>
+  </div>
+
+  <div class="soft-rule" style="margin-top:16px">
+    <div class="head">Why breadth matters</div>
+    <p>A single service in isolation leaks — a fed child who can't read, a toilet no one maintains. Running these together, in the same places, is what makes each one <b>hold</b>. That's the difference between a project and a programme.</p>
+  </div>
+</div>
+
+<!-- 6 · How we work -->
+<div class="slide bg-sky" id="s6">
+  <div class="label" style="color:#7dd3fc">How we work · the operating model</div>
+  <h2 class="title">Saturate, don't sample. Map everything. Track everything.</h2>
+  <h3 class="sub">The reason the work holds isn't goodwill — it's an operating discipline. Four things we do differently.</h3>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="ic">🗺️</div>
+      <div class="t">We map every settlement</div>
+      <div class="d">Each settlement is drawn, named and known — down to the polygon. We work from a live map of the ground, not an estimate.</div>
+    </div>
+    <div class="pillar">
+      <div class="ic">🎯</div>
+      <div class="t">We work cluster by cluster</div>
+      <div class="d">A neighbourhood at a time, to saturation — not a scatter of pilots. When we're in a cluster, we're in all of it.</div>
+    </div>
+    <div class="pillar">
+      <div class="ic">📱</div>
+      <div class="t">We run on our own tools</div>
+      <div class="d">Field teams plan, visit and log the work in software we built for exactly this. Nothing important lives only in someone's head.</div>
+    </div>
+    <div class="pillar">
+      <div class="ic">📊</div>
+      <div class="t">We hold ourselves to it</div>
+      <div class="d">Every visit, goal and outcome is tracked and reviewed. Coverage is measured, gaps surface fast, and follow-through is the norm.</div>
+    </div>
+  </div>
+
+  <div class="violet-rule" style="margin-top:16px">
+    <div class="head">What this means in practice</div>
+    <p>We can tell you which settlements are covered and which aren't, what's been done in each this week, and where the next team goes. This is field work run with the seriousness of an operation — and it's the foundation everything in Part 2 is built on.</p>
+  </div>
+</div>
+
+<!-- 7 · By the numbers (EDIT VALUES) -->
+<div class="slide bg-slate" id="s7">
+  <div class="label" style="color:#a78bfa">By the numbers</div>
+  <h2 class="title">Depth you can count.</h2>
+  <h3 class="sub">The shape of the work today — the base we're building the next chapter on.</h3>
+
+  <!-- EDIT: replace the placeholder figures below with the latest verified numbers before presenting. -->
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px">
+    <div class="stat-pill"><span class="num">2</span><span class="lbl">cities · Bangalore & Chennai</span></div>
+    <div class="stat-pill"><span class="num">8</span><span class="lbl">core programmes</span></div>
+    <div class="stat-pill"><span class="num">___</span><span class="lbl">settlements covered</span></div>
+    <div class="stat-pill"><span class="num">___</span><span class="lbl">families reached</span></div>
+    <div class="stat-pill"><span class="num">___</span><span class="lbl">children in our care</span></div>
+    <div class="stat-pill"><span class="num">___ yrs</span><span class="lbl">on the ground</span></div>
+  </div>
+
+  <div class="split-2" style="margin-top:18px">
+    <div class="good-rule">
+      <div class="head">What the numbers really say</div>
+      <p>Not reach for its own sake — <b>saturation</b>. In the clusters we're in, we're not touching a few families. We're aiming to reach nearly all of them, across nearly everything they need.</p>
+    </div>
+    <div class="warm-rule">
+      <div class="head">And it's growing</div>
+      <p>New clusters, new cities and new programmes are added deliberately — only once we can run them to the same standard. Careful, not slow. Which is exactly why the next part exists.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 8 · Commitment -->
+<div class="slide bg-teal" id="s8">
+  <div class="label" style="color:#5eead4">Our commitment</div>
+  <h2 class="title">We don't do drive-by development.</h2>
+  <h3 class="sub">The hardest and most valuable thing in this work is staying. It's also the thing almost no one does.</h3>
+
+  <div class="split-2" style="margin-top:8px">
+    <ul class="checks star">
+      <li><b style="color:#fff">We stay put.</b> We don't run a settlement for a funding cycle and leave. We build to remain — for years, not seasons.</li>
+      <li><b style="color:#fff">We go deep before we go wide.</b> A new place gets our full model, or it waits. We'd rather do fewer places completely than many places thinly.</li>
+      <li><b style="color:#fff">We build institutions, not events.</b> Crèches, centres and systems that outlast any one campaign.</li>
+      <li><b style="color:#fff">We back our people.</b> The teams doing this are trained, equipped and supported to make it their life's work — not a stint.</li>
+    </ul>
+    <div class="violet-rule" style="align-self:center">
+      <div class="head">Why this matters to you</div>
+      <p>Everything you just saw — the model, the discipline, the staying power — is the platform we're about to open up. In Part 2, the question turns to you: <b>what would you build, if all of this stood behind you?</b></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PART 2 ============ -->
+
+<!-- 9 · Act 2 divider -->
+<div class="slide bg-plum" id="s9">
+  <div class="act-hero">
+    <div class="n">Part Two · a preview</div>
+    <h2>We're opening a door for<br/><span class="grad">people who want to build.</span></h2>
+    <p>Everything from here is early — being shaped, not yet announced. We're sharing it now because we'd rather you help shape it than read about it later.</p>
+  </div>
+</div>
+
+<!-- 10 · The idea -->
+<div class="slide bg-indigo" id="s10">
+  <div class="label" style="color:#a5b4fc">The idea</div>
+  <h2 class="title">Back the right people to build the next wave — as founders.</h2>
+  <h3 class="sub">We've spent years proving what works for the urban poor. The bottleneck now isn't the model. It's builders willing to take one and run with it. So we're going to back them — with capital, a runway, and a team already on the ground.</h3>
+
+  <div class="card-grid card-3" style="margin-top:8px">
+    <div class="data-card" style="background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.28)">
+      <div class="h" style="color:#6ee7b7">THE SHIFT</div>
+      <div class="t">From working in the sector to building in it</div>
+      <p>You've spent years delivering other people's programmes. This is the chance to own one — to be the founder, not the field officer.</p>
+    </div>
+    <div class="data-card" style="background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.28)">
+      <div class="h" style="color:#7dd3fc">THE BET</div>
+      <div class="t">Proven model + committed builder</div>
+      <p>A good model in the wrong hands stalls. A great builder with no model burns years. We're pairing the two — deliberately.</p>
+    </div>
+    <div class="data-card" style="background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.32)">
+      <div class="h" style="color:#d8b4fe">THE OUTCOME</div>
+      <div class="t">A real organisation, run by you</div>
+      <p>Not a project inside ours. Your own organisation — registered, funded and standing on its own, serving a part of the city you make yours.</p>
+    </div>
+  </div>
+
+  <div class="soft-rule" style="margin-top:16px">
+    <div class="head">The language we mean it in</div>
+    <p>Think of it the way you'd think of a founding team getting backed to launch — <b>seed capital, a runway, mentors, and a platform</b> — except the return is measured in children in crèches and families with clean water, not in equity.</p>
+  </div>
+</div>
+
+<!-- 11 · You don't start from zero (Bangalore reframe) -->
+<div class="slide bg-emerald" id="s11">
+  <div class="label" style="color:#6ee7b7">Why Bangalore is the fastest start</div>
+  <h2 class="title">You don't start from a blank page. You start from what already works.</h2>
+  <h3 class="sub">Most people who want to do good in this sector lose years reinventing the basics — the model, the budgets, the training, the trust on the ground. Here, in Bangalore, none of that is yours to figure out alone.</h3>
+
+  <div class="split-2" style="margin-top:8px">
+    <div class="good-rule">
+      <div class="head">What we hand you</div>
+      <p>A model that's already proven in this city — crèches, learning centres, sanitation, food. A working playbook. Costed budgets. A trained team beside you. And a defined part of the city to make it real in. <b>You bring the drive; you don't have to invent the foundations.</b></p>
+    </div>
+    <div class="violet-rule">
+      <div class="head">Why founders love this, not fear it</div>
+      <p>Freedom to design from scratch sounds romantic until year two, when you're still stuck on registration and budgets. Starting from something proven means you spend your energy where it counts — <b>on the ground, on impact, from month one</b> — and you scale faster because the risky part is already de-risked.</p>
+    </div>
+  </div>
+
+  <div class="warm-rule" style="margin-top:16px">
+    <div class="head">Say it plainly</div>
+    <p>This is the <b>express lane</b> from "I want to build something that matters" to "I run an organisation that does." You inherit years of hard-won learning, take a model that's working, and make it yours across a growing patch of the city. The proof already exists — you get to multiply it.</p>
+  </div>
+</div>
+
+<!-- 12 · What stands behind you -->
+<div class="slide bg-sky" id="s12">
+  <div class="label" style="color:#7dd3fc">What stands behind you</div>
+  <h2 class="title">A founder's package — not a grant with strings.</h2>
+  <h3 class="sub">The whole point is that you're not alone and not under-resourced. Indicative, and still being finalised — but this is the shape of it.</h3>
+
+  <div class="back-grid">
+    <div class="back"><div class="ic">💸</div><div class="t">Seed capital to build</div><div class="d">Meaningful multi-year funding to launch and run your organisation — in the order of a full programme budget, not a token grant.</div></div>
+    <div class="back"><div class="ic">🧾</div><div class="t">A founder stipend</div><div class="d">A monthly stipend for you through the build — so you never have to choose between the mission and making a living.</div></div>
+    <div class="back"><div class="ic">🧭</div><div class="t">A runway to get ready</div><div class="d">A supported ramp-up before the money — immersion, mentoring and hands-on prep so you launch from strength, not guesswork.</div></div>
+    <div class="back"><div class="ic">📐</div><div class="t">The proven model & playbook</div><div class="d">Guidelines, budgets and the operating know-how we've built over years — yours to run with from day one.</div></div>
+    <div class="back"><div class="ic">🛠️</div><div class="t">Set-up done with you</div><div class="d">Registration, compliance and the unglamorous org-building — handled alongside you, not left on your plate.</div></div>
+    <div class="back"><div class="ic">🤝</div><div class="t">A team already on the ground</div><div class="d">You plug into an existing field ecosystem, trained people and open doors — the trust that normally takes years to earn.</div></div>
+  </div>
+
+  <p class="small" style="margin-top:14px;font-style:italic;text-align:center">Figures and structure are indicative and being finalised ahead of launch — shared to show intent, not as a final offer.</p>
+</div>
+
+<!-- 13 · The arc / duration + long term -->
+<div class="slide bg-violet" id="s13">
+  <div class="label" style="color:#d8b4fe">The arc of support</div>
+  <h2 class="title">Months to get ready. Years to build. And if it's working — we stay.</h2>
+  <h3 class="sub">This isn't a short grant with a hard stop. It's a runway into real backing, with the door left open well beyond it.</h3>
+
+  <div class="journey">
+    <div class="jstep">
+      <div class="num">1</div>
+      <div class="dur">~8 months</div>
+      <div class="tt">Get founder-ready</div>
+      <div class="desc">A supported runway — immersion in the work, mentoring, and preparing your plan. You arrive at the start line ready to run, with a stipend throughout.</div>
+    </div>
+    <div class="jstep">
+      <div class="num">2</div>
+      <div class="dur">launch</div>
+      <div class="tt">Stand it up</div>
+      <div class="desc">Your organisation is registered and real. Seed capital is released. You take a proven model into your part of the city — and start delivering.</div>
+    </div>
+    <div class="jstep">
+      <div class="num">3</div>
+      <div class="dur">~2 years</div>
+      <div class="tt">Build & run it</div>
+      <div class="desc">Funded years to grow the work, with your founder stipend continuing and the wider team, mentors and peers alongside you throughout.</div>
+    </div>
+    <div class="jstep">
+      <div class="num">4</div>
+      <div class="dur">beyond</div>
+      <div class="tt">The long game</div>
+      <div class="desc">And this is the part we mean quietly but sincerely — when it's working, we don't walk away. Good organisations find a long-term partner in us.</div>
+    </div>
+  </div>
+
+  <div class="good-rule" style="margin-top:14px">
+    <div class="head">The headline</div>
+    <p>Roughly <b>8 months of runway, then 2 years of seed backing</b> — and, for the work that's landing, <b>a relationship built to last well past that</b>. We back builders for the long haul, not the funding cycle.</p>
+  </div>
+</div>
+
+<!-- 14 · Is this you -->
+<div class="slide bg-amber" id="s14">
+  <div class="label" style="color:#fdba74">Is this you?</div>
+  <h2 class="title">This is for a specific kind of person. It might be you.</h2>
+  <h3 class="sub">We're not looking for volunteers or job-seekers. We're looking for builders — people with the ground under their feet and the itch to run their own thing.</h3>
+
+  <div class="split-2" style="margin-top:8px">
+    <div class="data-card" style="background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.28)">
+      <div class="h" style="color:#6ee7b7">YOU'LL RECOGNISE YOURSELF IF…</div>
+      <ul class="checks done" style="margin-top:4px">
+        <li>You've spent real years in the field — you know how this work actually behaves.</li>
+        <li>You've wanted to run your own organisation but the risk and the blank page held you back.</li>
+        <li>You'd move — or you're already rooted — where the work needs to happen.</li>
+        <li>You want ownership and impact, not just a title.</li>
+      </ul>
+    </div>
+    <div class="data-card" style="background:rgba(251,146,60,.08);border-color:rgba(251,146,60,.3)">
+      <div class="h" style="color:#fdba74">WHAT YOU GET THAT YOU CAN'T GET ALONE</div>
+      <ul class="checks star" style="margin-top:4px">
+        <li>The capital and the stipend to make the leap without gambling your livelihood.</li>
+        <li>A proven model, so your energy goes to impact, not invention.</li>
+        <li>A team, mentors and a platform that took years to build — from day one.</li>
+        <li>A partner that stays if you deliver.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="soft-rule" style="margin-top:14px">
+    <div class="head">Solo or as a small founding team</div>
+    <p>Some of the best organisations are started by two or three people who trust each other. If you'd build with a co-founder or a small team, that fits the picture too.</p>
+  </div>
+</div>
+
+<!-- 15 · A preview, not a prospectus -->
+<div class="slide bg-dark" id="s15">
+  <div class="label" style="color:#94a3b8">Read the room correctly</div>
+  <h2 class="title">This is a preview, not a prospectus.</h2>
+  <h3 class="sub">We're deliberately talking to people like you before anything is public. Here's exactly where things stand — so nothing is oversold.</h3>
+
+  <div class="split-3" style="margin-top:8px">
+    <div class="data-card"><div class="h" style="color:#7dd3fc">STILL BEING SHAPED</div><p>Names, numbers, timelines and structure are being finalised. What you've seen is direction and intent — not a signed offer.</p></div>
+    <div class="data-card"><div class="h" style="color:#d8b4fe">WHY YOU, WHY NOW</div><p>We'd rather the first people to hear about it be the people we'd most want to build it — and be shaped by their questions.</p></div>
+    <div class="data-card"><div class="h" style="color:#fda4af">NO ASK TODAY</div><p>Nothing to sign, nothing to commit. Just: does this move you? If it does, we want to keep talking as it firms up.</p></div>
+  </div>
+
+  <div class="warm-rule" style="margin-top:16px">
+    <div class="head">What is rock-solid</div>
+    <p>The programmes in Part 1 are real and running today. The intent to back founders is real. The seriousness behind it is real. What's still soft is only the fine print — and you're early enough to influence it.</p>
+  </div>
+</div>
+
+<!-- 16 · The invitation -->
+<div class="slide bg-sunrise" id="s16">
+  <div style="margin:auto;max-width:940px;text-align:center">
+    <div class="label" style="color:#fda4af">The invitation</div>
+    <h2 class="title" style="font-size:42px">If any part of you leaned in — stay close.</h2>
+    <p class="body lg" style="max-width:760px;margin:0 auto 8px;color:#f1f5f9">We're not asking you to decide anything today. We're asking you to keep the door open — to let us come back to you first when this becomes real, and to tell us honestly what would make you say yes.</p>
+
+    <div class="invite-box">
+      <div class="split-3" style="align-items:stretch">
+        <div class="data-card" style="background:rgba(255,255,255,.06)"><div class="h" style="color:#fdba74">STAY IN THE LOOP</div><p>Leave us your details today. You'll be among the first to hear when the call opens.</p></div>
+        <div class="data-card" style="background:rgba(255,255,255,.06)"><div class="h" style="color:#7dd3fc">HELP SHAPE IT</div><p>Tell us what you'd build, and what you'd need to take the leap. It genuinely shapes the design.</p></div>
+        <div class="data-card" style="background:rgba(255,255,255,.06)"><div class="h" style="color:#d8b4fe">SPREAD THE WORD</div><p>Know someone who should be building? The best founders usually come by name.</p></div>
+      </div>
+    </div>
+
+    <p class="body lg grad" style="margin-top:22px;font-weight:800;font-size:22px">The models are proven. The backing is real. What's missing is the builder.</p>
+    <p class="small" style="margin-top:8px;font-style:italic">Preview shared in confidence · details being finalised ahead of launch.</p>
+  </div>
+</div>
+
+</div>
+
+<div id="nav">
+  <button id="prev" onclick="prev()">‹</button>
+  <span id="slide-counter">1 / 16</span>
+  <button id="next" onclick="next()">›</button>
+</div>
+
+<script>
+var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+var cur = 0;
+function render(){
+  slides.forEach(function(s,i){ s.classList.toggle('active', i===cur); });
+  document.getElementById('slide-counter').textContent = (cur+1)+' / '+slides.length;
+  document.getElementById('prev').disabled = cur===0;
+  document.getElementById('next').disabled = cur===slides.length-1;
+  document.getElementById('progress').style.width = ((cur+1)/slides.length*100)+'%';
+  if(slides[cur]) slides[cur].scrollTop = 0;
+}
+function go(i){ cur = Math.max(0, Math.min(slides.length-1, i)); render(); }
+function next(){ if(cur<slides.length-1){ cur++; render(); } }
+function prev(){ if(cur>0){ cur--; render(); } }
+document.addEventListener('keydown', function(e){
+  if(e.key==='ArrowRight'||e.key===' '){ next(); }
+  else if(e.key==='ArrowLeft'){ prev(); }
+  else if(e.key==='Home'){ go(0); }
+  else if(e.key==='End'){ go(slides.length-1); }
+});
+document.querySelectorAll('a[href^="#s"]').forEach(function(a){
+  a.addEventListener('click', function(e){
+    e.preventDefault();
+    var id = a.getAttribute('href').slice(1);
+    var idx = slides.findIndex(function(s){ return s.id===id; });
+    if(idx>=0) go(idx);
+  });
+});
+render();
+</script>
+</body>
+</html>
