@@ -27,12 +27,19 @@ export default function PartnerBudgetHome({ budgets, linked }: { budgets: Budget
     );
   }
 
-  // Reports due across all budgets (fillable states), soonest due first.
-  const due = budgets
-    .flatMap(b => b.reportSlots
-      .filter(s => ["pending", "sent_back"].includes(s.status))
-      .map(s => ({ ...s, budgetId: b.id, budgetName: b.name })))
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  // Reports due (fillable states) grouped by budget; slots date-sorted within a
+  // budget, budgets ordered by their soonest deadline.
+  const dueByBudget = budgets
+    .map(b => ({
+      id: b.id,
+      name: b.name,
+      city: b.city,
+      slots: b.reportSlots
+        .filter(s => ["pending", "sent_back"].includes(s.status))
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()),
+    }))
+    .filter(g => g.slots.length > 0)
+    .sort((a, b) => new Date(a.slots[0].dueDate).getTime() - new Date(b.slots[0].dueDate).getTime());
 
   const now = Date.now();
 
@@ -46,30 +53,39 @@ export default function PartnerBudgetHome({ budgets, linked }: { budgets: Budget
       {/* Reports due */}
       <section>
         <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-3">Reports due</h2>
-        {due.length === 0
+        {dueByBudget.length === 0
           ? <p className="text-sm text-stone-400 bg-white border border-stone-200 rounded-xl p-5">Nothing due right now. 🎉</p>
           : (
-            <div className="space-y-2">
-              {due.map(s => {
-                const overdue = s.status === "pending" && new Date(s.dueDate).getTime() < now;
-                return (
-                  <div key={s.id} className="bg-white border border-stone-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-stone-900">{s.budgetName}</span>
-                        <span className="text-xs text-stone-400">{fmtDate(s.periodFrom)} – {fmtDate(s.periodTo)}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[s.status]}`}>{STATUS_LABEL[s.status]}</span>
-                        {overdue && <span className="text-xs text-red-500">Overdue</span>}
-                      </div>
-                      <p className="text-xs text-stone-400 mt-0.5">Due {fmtDate(s.dueDate)}</p>
-                    </div>
-                    <Link href={`/budget/${s.budgetId}/reports/${s.id}`}
-                      className="text-sm px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white whitespace-nowrap">
-                      Fill report
-                    </Link>
+            <div className="space-y-5">
+              {dueByBudget.map(g => (
+                <div key={g.id}>
+                  <div className="flex items-baseline gap-2 mb-2 px-1">
+                    <h3 className="text-sm font-semibold text-stone-900">{g.name}</h3>
+                    <span className="text-xs text-stone-400">{g.city} · {g.slots.length} due</span>
                   </div>
-                );
-              })}
+                  <div className="space-y-2">
+                    {g.slots.map(s => {
+                      const overdue = s.status === "pending" && new Date(s.dueDate).getTime() < now;
+                      return (
+                        <div key={s.id} className="bg-white border border-stone-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium text-stone-900">{fmtDate(s.periodFrom)} – {fmtDate(s.periodTo)}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[s.status]}`}>{STATUS_LABEL[s.status]}</span>
+                              {overdue && <span className="text-xs text-red-500">Overdue</span>}
+                            </div>
+                            <p className="text-xs text-stone-400 mt-0.5">Due {fmtDate(s.dueDate)}</p>
+                          </div>
+                          <Link href={`/budget/${g.id}/reports/${s.id}`}
+                            className="text-sm px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white whitespace-nowrap">
+                            Fill report
+                          </Link>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
       </section>
