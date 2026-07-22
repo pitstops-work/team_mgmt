@@ -123,9 +123,10 @@ function templateAppliesToYear(t: LineTemplate, k: number): boolean {
   if (k === 1) return t.applyY1 ?? true;
   if (k === 2) return t.applyY2 ?? true;
   if (k === 3) return t.applyY3 ?? true;
-  // No applyY4 / applyY5 fields on LineTemplate yet. Default to active so
-  // horizons > 36 months pick up these lines automatically.
-  return true;
+  // No applyY4 / applyY5 fields: extend the Y3 flag to later years so recurring
+  // lines carry forward but a Y1-only line (one-time capex, applyY3=false) does
+  // NOT reappear in Y4/Y5 on long (48–60mo) horizons.
+  return t.applyY3 ?? true;
 }
 
 /** Per-template unit scaling for k=2..3; k=1, 4, 5 always use the full unit count. */

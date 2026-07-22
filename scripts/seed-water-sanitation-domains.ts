@@ -67,11 +67,18 @@ async function main() {
           userInputCost: t.userInputCost ?? null, costKey: t.costKey ?? null, costKey2: t.costKey2 ?? null,
           costKey3: t.costKey3 ?? null, costMonthly: t.costMonthly ?? false, workerRatioKey: t.workerRatioKey ?? null,
           bufferKey: t.bufferKey ?? null, costPctOf: t.costPctOf ?? null, costPct: t.costPct ?? null,
-          y1UnitsZero: t.y1UnitsZero ?? false,
+          y1UnitsZero: t.y1UnitsZero ?? false, applyY2: t.applyY2 ?? true, applyY3: t.applyY3 ?? true,
         },
       });
       tpl++;
     }
+    // Self-heal already-seeded one-time capex (seed upsert is create-only): setup
+    // capex is Y1-only, so it must not re-charge in Y2/Y3.
+    const fixed = await prisma.lineTemplate.updateMany({
+      where: { city, domain: { in: DOMAINS }, section: "capex", y1UnitsZero: false },
+      data: { applyY2: false, applyY3: false },
+    });
+    console.log(`  ${city}: one-time capex Y1-only fix → ${fixed.count} rows`);
     // 4. BudgetDomainConfig
     for (const d of NEW_DOMAINS) {
       await prisma.budgetDomainConfig.upsert({
