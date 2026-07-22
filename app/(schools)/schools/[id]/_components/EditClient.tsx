@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
-  updatePlan, setPlanStatus, upsertSignoff,
+  updatePlan, setPlanStatus, upsertSignoff, togglePublicSlug,
   addCatchment, updateCatchment, deleteCatchment,
   addSpace, updateSpace, deleteSpace,
   setServiceStatus, updateComponent,
@@ -56,6 +56,8 @@ export default function EditClient(props: {
   risks: Risk[];
   signoff: Signoff;
   users: { id: string; label: string }[];
+  grantPartners: { id: string; label: string }[];
+  canManageStructure: boolean;
   serviceItems: { key: string; label: string }[];
   componentDefs: { key: string; label: string; defaultDelivery: string }[];
 }) {
@@ -82,7 +84,7 @@ export default function EditClient(props: {
       </div>
 
       <div className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
-        {tab === "snapshot"  && <SnapshotForm plan={props.plan} users={props.users} onError={setErr} />}
+        {tab === "snapshot"  && <SnapshotForm plan={props.plan} users={props.users} grantPartners={props.grantPartners} onError={setErr} />}
         {tab === "catchment" && <CatchmentForm planId={props.plan.id} rows={props.settlements} onError={setErr} />}
         {tab === "space"     && <SpaceForm planId={props.plan.id} rows={props.spaces} onError={setErr} />}
         {tab === "services"  && <ServicesForm planId={props.plan.id} rows={props.services} items={props.serviceItems} onError={setErr} />}
@@ -90,7 +92,7 @@ export default function EditClient(props: {
         {tab === "staffing"  && <StaffingForm planId={props.plan.id} rows={props.staffing} onError={setErr} />}
         {tab === "timeline"  && <TimelineForm planId={props.plan.id} rows={props.milestones} onError={setErr} />}
         {tab === "risks"     && <RisksForm planId={props.plan.id} rows={props.risks} users={props.users} onError={setErr} />}
-        {tab === "signoff"   && <SignoffForm planId={props.plan.id} planStatus={props.plan.planStatus} row={props.signoff} onError={setErr} />}
+        {tab === "signoff"   && <SignoffForm planId={props.plan.id} planStatus={props.plan.planStatus} row={props.signoff} publicSlug={(props.plan as unknown as { publicSlug?: string | null }).publicSlug ?? null} canManageStructure={props.canManageStructure} onError={setErr} />}
       </div>
     </div>
   );
@@ -98,7 +100,7 @@ export default function EditClient(props: {
 
 // -------------------- Section: Snapshot --------------------
 
-function SnapshotForm({ plan, users, onError }: { plan: PlanShape; users: { id: string; label: string }[]; onError: (m: string) => void }) {
+function SnapshotForm({ plan, users, grantPartners, onError }: { plan: PlanShape; users: { id: string; label: string }[]; grantPartners: { id: string; label: string }[]; onError: (m: string) => void }) {
   const [pending, startTransition] = useTransition();
   const [state, setState] = useState<PlanShape>(plan);
 
@@ -149,7 +151,15 @@ function SnapshotForm({ plan, users, onError }: { plan: PlanShape; users: { id: 
         <Field label="Head teacher phone"><input className={inputCls} {...bind("headTeacherPhone")} /></Field>
         <Field label="SDMC">          <input className={inputCls} {...bind("sdmcStatus")} /></Field>
         <Field label="Dept contact">  <input className={inputCls} {...bind("deptContactName")} /></Field>
-        <Field label="Anchor partner"><input className={inputCls} {...bind("anchorPartnerName")} /></Field>
+        <Field label="Anchor partner (registry)">
+          <select className={inputCls} {...bind("anchorPartnerId")}>
+            <option value="">— pick from partners —</option>
+            {grantPartners.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Anchor partner (free-text fallback)"><input className={inputCls} {...bind("anchorPartnerName")} placeholder="Only if not in the partners registry" /></Field>
+        <Field label="Latitude"> <input className={inputCls} type="number" step="0.000001" {...bind("geoLat", "number")} /></Field>
+        <Field label="Longitude"><input className={inputCls} type="number" step="0.000001" {...bind("geoLng", "number")} /></Field>
         <Field label="Survey status">
           <select className={inputCls} {...bind("surveyStatus")}>
             <option value="">—</option>
@@ -169,6 +179,23 @@ function SnapshotForm({ plan, users, onError }: { plan: PlanShape; users: { id: 
       <Field label="After-hours campus use"><textarea rows={2} className={inputCls} {...bind("campusAfterHoursUse")} /></Field>
       <Field label="Capacity read (paragraph)"><textarea rows={3} className={inputCls} {...bind("capacityRead")} /></Field>
       <Field label="Mobilisation notes"><textarea rows={2} className={inputCls} {...bind("mobilisationNotes")} /></Field>
+
+      <div className="border-t border-stone-100 pt-3">
+        <label className="flex items-center gap-2 text-xs text-stone-700">
+          <input
+            type="checkbox"
+            checked={!!state["isInterimStructure"]}
+            onChange={(e) => setState((s) => ({ ...s, isInterimStructure: e.target.checked }))}
+          />
+          <span>Interim structure — Directorate hasn't constructed the building yet (DJ Halli-style).</span>
+        </label>
+        {state["isInterimStructure"] ? (
+          <Field label="Interim structure spec">
+            <textarea rows={3} className={inputCls} {...bind("interimStructureSpec")} placeholder="Describe the interim structure that will be built in place of the school building." />
+          </Field>
+        ) : null}
+      </div>
+
       <div className="flex justify-end">
         <button onClick={save} disabled={pending} className="text-xs px-3 py-1.5 rounded-full bg-sky-500 text-white hover:bg-sky-600 disabled:opacity-50">Save snapshot</button>
       </div>
@@ -612,8 +639,10 @@ function RisksForm({ planId, rows, users, onError }: { planId: string; rows: Ris
 
 // -------------------- Section: Sign-off --------------------
 
-function SignoffForm({ planId, planStatus, row, onError }: {
-  planId: string; planStatus: SchoolPlanStatusValue; row: Signoff; onError: (m: string) => void;
+function SignoffForm({ planId, planStatus, row, publicSlug, canManageStructure, onError }: {
+  planId: string; planStatus: SchoolPlanStatusValue; row: Signoff;
+  publicSlug: string | null; canManageStructure: boolean;
+  onError: (m: string) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [reviewer, setReviewer] = useState(row?.reviewerNotes ?? "");
@@ -664,6 +693,33 @@ function SignoffForm({ planId, planStatus, row, onError }: {
         <Field label="Reviewer notes"><textarea rows={2} className={inputCls} value={reviewer} onChange={(e) => setReviewer(e.target.value)} onBlur={() => mark({ reviewerNotes: reviewer })} /></Field>
         <Field label="Approval notes"><textarea rows={2} className={inputCls} value={approval} onChange={(e) => setApproval(e.target.value)} onBlur={() => mark({ approvalNotes: approval })} /></Field>
       </div>
+
+      {canManageStructure && (
+        <div className="pt-2 border-t border-stone-200 space-y-2">
+          <div className="text-[10px] uppercase tracking-widest text-stone-400">Public read-only view</div>
+          {publicSlug ? (
+            <div className="flex items-center gap-2 text-xs">
+              <a href={`/schools-public/${publicSlug}`} target="_blank" rel="noopener" className="text-emerald-700 hover:text-emerald-800">
+                /schools-public/{publicSlug} ↗
+              </a>
+              <button
+                onClick={() => startTransition(() => togglePublicSlug(planId, false).catch((e) => onError(e instanceof Error ? e.message : String(e))))}
+                disabled={pending}
+                className="ml-auto text-[11px] px-2 py-1 rounded-full border border-stone-200 hover:bg-stone-50"
+              >Unpublish</button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-stone-500">Not published. Sensitive fields (budget, salaries, phones) will be redacted.</span>
+              <button
+                onClick={() => startTransition(() => togglePublicSlug(planId, true).catch((e) => onError(e instanceof Error ? e.message : String(e))))}
+                disabled={pending}
+                className="ml-auto text-[11px] px-2 py-1 rounded-full bg-emerald-500 text-white hover:bg-emerald-600"
+              >Publish public link</button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

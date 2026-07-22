@@ -165,7 +165,8 @@ async function seedYelahankaExtras(planId: string) {
     { description: "Toilet fixture count pending",                                   mitigation: "Verify in services survey",                                        status: "open", sortOrder: 3 },
     { description: "Site-area cross-check vs department records pending",           mitigation: "Reconcile with Directorate before design finalised",                status: "open", sortOrder: 4 },
     { description: "Step-free access (plinth ~0.6–0.7 m above courtyard)",          mitigation: "Ramp design at architect stage",                                  status: "open", sortOrder: 5 },
-    { description: "Capex reconciliation — ₹87.0 L annexure vs ₹88.2 L note",       mitigation: "Reconcile before Yelahanka plan is approved (Step #12)",           status: "open", sortOrder: 6 },
+    // Capex standard locked at ₹87 L (annexure). The ₹88.2 L in the GC note's
+    // summary table has been accepted as a note-side rounding, not a real gap.
   ];
   for (const r of risks) {
     const already = await prisma.schoolPlanRisk.findFirst({ where: { planId, description: r.description }, select: { id: true } });
@@ -185,6 +186,12 @@ async function main() {
       taluk: p.taluk,
       district: p.district,
       targetChildrenPerDay: p.targetChildrenPerDay,
+      // DJ Halli — Directorate hasn't built the school yet; interim structure
+      // takes the place of the as-built survey. See GC status note §B.6.
+      ...(p.name === "DJ Halli" ? {
+        isInterimStructure: true,
+        interimStructureSpec: "Temporary structure to be built by us until the Directorate constructs the school building. Approved at GC (§B.6). Programme runs to standard curriculum + staffing; §3 space inventory replaced by this spec once the structure is designed.",
+      } : {}),
     });
     await ensureBudget(row.id, p.name);
     const counts = await bootstrapSchoolPlan(row.id);
@@ -192,6 +199,17 @@ async function main() {
       `  ${p.name}: ${counts.stepsAdded} steps, ${counts.servicesAdded} services, ${counts.componentsAdded} components`,
     );
     if (p.name === "Yelahanka") await seedYelahankaExtras(row.id);
+    if (p.name === "DJ Halli") {
+      // upsertPlan short-circuits on existing rows — set interim fields even
+      // when we're re-running against an already-seeded database.
+      await prisma.schoolPlan.update({
+        where: { id: row.id },
+        data: {
+          isInterimStructure: true,
+          interimStructureSpec: "Temporary structure to be built by us until the Directorate constructs the school building. Approved at GC (§B.6). Programme runs to standard curriculum + staffing; §3 space inventory replaced by this spec once the structure is designed.",
+        },
+      });
+    }
   }
 
   console.log("[seed-school-plan] done.");

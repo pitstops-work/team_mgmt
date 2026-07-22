@@ -117,9 +117,11 @@ export default async function SchoolsBoardPage() {
                 <ProgressBar pct={pct} />
               </div>
               <div className="flex items-center justify-between gap-2 text-[11px]">
-                <DeviationChip pct={deviationPct} />
+                {access.seesSensitive
+                  ? <DeviationChip pct={deviationPct} />
+                  : <span className="text-[10px] text-stone-400">Budget restricted</span>}
                 <span className="text-stone-500">
-                  {costPerChildYr ? `${inr(costPerChildYr)}/child/yr` : "—"}
+                  {access.seesSensitive && costPerChildYr ? `${inr(costPerChildYr)}/child/yr` : ""}
                 </span>
               </div>
             </Link>
@@ -127,7 +129,7 @@ export default async function SchoolsBoardPage() {
         })}
       </div>
 
-      {plans.length > 0 && (
+      {plans.length > 0 && access.seesSensitive && (
         <p className="text-[10px] text-stone-400 pt-2">
           Standard recurring Y1 = {inr(STANDARD_TOTALS_Y1.recurringRupees)} · GC re-approval threshold {DEVIATION_THRESHOLD_PCT}%
         </p>

@@ -109,14 +109,33 @@ export async function updatePlan(planId: string, patch: Record<string, unknown>)
     "enrolmentBoys","enrolmentGirls","teachersSanctioned","teachersWorking",
     "classroomsCount","otherRoomsCount","timings","shifts","vacationMonths",
     "headTeacherName","headTeacherPhone","sdmcStatus","deptContactName","ourLeadUserId",
-    "anchorPartnerName","campusAfterHoursUse","siteAreaSqft","builtupAreaSqft",
+    "anchorPartnerId","anchorPartnerName","campusAfterHoursUse","siteAreaSqft","builtupAreaSqft",
     "surveyStatus","targetChildrenPerDay","capacityRead","mobilisationNotes",
+    "isInterimStructure","interimStructureSpec",
   ]);
   const data: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(patch)) {
     if (editable.has(k)) data[k] = v;
   }
   await prisma.schoolPlan.update({ where: { id: planId }, data });
+  refreshPlan(planId);
+}
+
+/** Toggle publicSlug on/off. Central-only. Deterministic slug from plan name. */
+export async function togglePublicSlug(planId: string, publish: boolean) {
+  await requireStructure();
+  const plan = await prisma.schoolPlan.findUnique({
+    where: { id: planId },
+    select: { name: true, publicSlug: true },
+  });
+  if (!plan) throw new Error("Plan not found.");
+  if (!publish) {
+    await prisma.schoolPlan.update({ where: { id: planId }, data: { publicSlug: null } });
+  } else if (!plan.publicSlug) {
+    const { generateUniquePublicSlug } = await import("@/lib/schoolPlan/publicSlug");
+    const slug = await generateUniquePublicSlug(plan.name, planId);
+    await prisma.schoolPlan.update({ where: { id: planId }, data: { publicSlug: slug } });
+  }
   refreshPlan(planId);
 }
 

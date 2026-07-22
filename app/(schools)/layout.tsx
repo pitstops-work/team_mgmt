@@ -9,9 +9,10 @@ export const metadata: Metadata = {
   description: "Plans for the Directorate-of-Minorities after-school centres pilot",
 };
 
-const NAV: { href: string; label: string; mobile?: boolean }[] = [
-  { href: "/schools",      label: "Plans",     mobile: true },
-  { href: "/schools/my",   label: "My steps",  mobile: true },
+const NAV: { href: string; label: string; mobile?: boolean; centralOnly?: boolean }[] = [
+  { href: "/schools",        label: "Plans",     mobile: true },
+  { href: "/schools/my",     label: "My steps",  mobile: true },
+  { href: "/schools/rollup", label: "Rollup",    centralOnly: true },
 ];
 
 export default async function SchoolsLayout({ children }: { children: React.ReactNode }) {
@@ -28,7 +29,7 @@ export default async function SchoolsLayout({ children }: { children: React.Reac
           After-School Centres
         </span>
         <nav className="ml-auto flex items-center gap-3 overflow-x-auto">
-          {NAV.map((n) => (
+          {NAV.filter((n) => !n.centralOnly || access.isCentral).map((n) => (
             <a
               key={n.href}
               href={n.href}

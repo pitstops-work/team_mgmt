@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { isSuperAdmin } from "@/lib/roleGuard";
-import { isCentralSchoolPlanRole, isPlanScopedRole } from "./roles";
+import { SCHOOL_PLAN_ROLE_BY_KEY, isCentralSchoolPlanRole, isPlanScopedRole } from "./roles";
 
 type SessionLike = {
   user?: { id?: string | null; role?: string; email?: string | null };
@@ -21,6 +21,9 @@ export type SchoolPlanAccess = {
   canEdit: boolean;
   /** May add plans, edit standard-cost registry, manage members. Central-only. */
   canManageStructure: boolean;
+  /** Sees sensitive fields (salaries, vendor quotes, budget, phones). False for
+   *  anchor_partner + viewer roles when they're the only role held. */
+  seesSensitive: boolean;
 };
 
 export async function getSchoolPlanAccess(session: SessionLike): Promise<SchoolPlanAccess> {
@@ -38,6 +41,10 @@ export async function getSchoolPlanAccess(session: SessionLike): Promise<SchoolP
     ? []
     : [...new Set(memberships.filter((m) => m.planId).map((m) => m.planId!))];
   const anyPlanScoped = memberships.some((m) => isPlanScopedRole(m.role));
+  // Sensitive-field visibility: true if super-admin OR any held role has
+  // seesSensitive=true. A user who is ONLY anchor_partner + viewer sees masked.
+  const seesSensitive = superAdmin
+    || memberships.some((m) => SCHOOL_PLAN_ROLE_BY_KEY[m.role]?.seesSensitive === true);
   return {
     userId,
     isSuperAdmin: superAdmin,
@@ -48,6 +55,7 @@ export async function getSchoolPlanAccess(session: SessionLike): Promise<SchoolP
     canAccess: superAdmin || isMember,
     canEdit: isCentral || anyPlanScoped,
     canManageStructure: superAdmin || memberships.some((m) => m.role === "central_lead"),
+    seesSensitive,
   };
 }
 

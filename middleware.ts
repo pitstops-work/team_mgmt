@@ -34,6 +34,9 @@ const PUBLIC_PREFIXES = [
   // Public model viewer — opt-in per instance via ModelInstance.publicSlug.
   // Read-only sim; sliders are local state, never written back.
   "/models-public/",
+  // Public school plan viewer — opt-in per plan via SchoolPlan.publicSlug.
+  // Read-only; sensitive fields (budget, salaries, phones) redacted.
+  "/schools-public/",
 ];
 
 // Paths a "partner" role may reach: their budget home, any budget's reports

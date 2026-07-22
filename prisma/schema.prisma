@@ -1973,6 +1973,7 @@ model GrantPartner {
   user      User?    @relation("PartnerLogin", fields: [userId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   budgets   Budget[]
+  schoolPlansAsAnchor SchoolPlan[] @relation("SchoolPlanAnchorPartner")
 
   @@unique([city, name])
   @@index([city])
@@ -3721,7 +3722,12 @@ model SchoolPlan {
   deptContactName      String?
   ourLeadUserId        String?
   ourLead              User?    @relation("SchoolPlanOurLead", fields: [ourLeadUserId], references: [id], onDelete: SetNull)
-  anchorPartnerName    String? // free-text until a proper Partner model row is created
+  // Anchor partner as a GrantPartner (the same "partners" registry the Budget
+  // module uses). `anchorPartnerName` is retained as a free-text fallback for
+  // plans whose anchor isn't yet a GrantPartner row.
+  anchorPartnerId      String?
+  anchorPartner        GrantPartner? @relation("SchoolPlanAnchorPartner", fields: [anchorPartnerId], references: [id], onDelete: SetNull)
+  anchorPartnerName    String?
   campusAfterHoursUse  String?
   siteAreaSqft         Int?
   builtupAreaSqft      Int?
@@ -3729,6 +3735,13 @@ model SchoolPlan {
   targetChildrenPerDay Int?
   capacityRead         String? // written "capacity read" paragraph on plan page
   mobilisationNotes    String?
+  // Phase 3 — public read-only view. When set, the plan is reachable at
+  // /schools-public/<slug> without auth (budget + salaries + phones redacted).
+  publicSlug           String?          @unique
+  // Phase 3 — DJ Halli variant. Interim structure (no as-built survey; carries
+  // an interimStructureSpec paragraph in place of §3 space inventory).
+  isInterimStructure   Boolean          @default(false)
+  interimStructureSpec String?
   planStatus           SchoolPlanStatus @default(draft)
   planVersion          Int              @default(1)
   budgetId             String?          @unique
@@ -3750,6 +3763,7 @@ model SchoolPlan {
 
   @@index([district])
   @@index([planStatus])
+  @@index([anchorPartnerId])
 }
 
 /// Per-plan instance of a step from the 16-step template

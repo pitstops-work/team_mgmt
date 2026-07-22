@@ -19,6 +19,7 @@ import { planCompleteness } from "@/lib/schoolPlan/completeness";
 import { SCHOOL_PLAN_STEPS, SERVICE_ITEMS, PROGRAMME_COMPONENTS } from "@/lib/schoolPlan/stepTemplate";
 import { loadPlanForCompleteness } from "../actions";
 import type { SchoolPlanStepStatusValue } from "@/lib/schoolPlan/types";
+import CatchmentMap from "./_components/CatchmentMap";
 
 const STANDARD_RECURRING = computeStandardRecurringY1(
   [...STANDARD_SALARY, ...STANDARD_TRAVEL, ...STANDARD_PROGRAMME].map((l) => ({
@@ -57,6 +58,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
     where: { id },
     include: {
       ourLead: { select: { name: true, email: true } },
+      anchorPartner: { select: { name: true, city: true } },
       steps: { orderBy: { stepNo: "asc" } },
       settlements: { orderBy: { sortOrder: "asc" } },
       spaces: { orderBy: { sortOrder: "asc" } },
@@ -76,6 +78,8 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
     },
   });
   if (!plan) notFound();
+  const anchorLabel = plan.anchorPartner?.name ?? plan.anchorPartnerName;
+  const seesSensitive = access.seesSensitive;
 
   const c = await loadPlanForCompleteness(id);
   const completeness = planCompleteness(c);
@@ -109,10 +113,18 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
         <Link href={`/schools/${id}/steps`} className="hover:text-stone-700">Steps</Link>
         <span className="mx-1">·</span>
         <Link href={`/schools/${id}/artifacts`} className="hover:text-stone-700">Artifacts</Link>
-        {plan.budget && (
+        {plan.budget && seesSensitive && (
           <>
             <span className="mx-1">·</span>
             <Link href={`/schools/${id}/budget`} className="hover:text-stone-700">Budget</Link>
+          </>
+        )}
+        <span className="mx-1">·</span>
+        <a href={`/api/schools/${id}/export.docx`} className="hover:text-stone-700">Export .docx</a>
+        {plan.publicSlug && (
+          <>
+            <span className="mx-1">·</span>
+            <a href={`/schools-public/${plan.publicSlug}`} target="_blank" rel="noopener" className="text-emerald-700 hover:text-emerald-800">Public view ↗</a>
           </>
         )}
         {canEdit && (
@@ -122,6 +134,12 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
           </>
         )}
       </div>
+
+      {plan.isInterimStructure && (
+        <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900">
+          <b>Interim structure.</b> The Directorate has not yet constructed the school building. §3 uses an interim-structure spec in place of the as-built survey inventory.
+        </div>
+      )}
 
       {/* Cover — navy masthead */}
       <div className="rounded-2xl overflow-hidden mt-2">
@@ -189,11 +207,11 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
           <KV k="Ward" v={plan.ward ?? <Placeholder label="ward" />} />
           <KV k="Survey status" v={plan.surveyStatus ?? <Placeholder label="survey status" />} />
           <KV k="Head teacher" v={plan.headTeacherName ?? <Placeholder label="head teacher" />} />
-          <KV k="Head teacher phone" v={plan.headTeacherPhone ?? <Placeholder label="phone" />} />
+          <KV k="Head teacher phone" v={seesSensitive ? (plan.headTeacherPhone ?? <Placeholder label="phone" />) : <span className="text-stone-400">(hidden)</span>} />
           <KV k="SDMC" v={plan.sdmcStatus ?? <Placeholder label="SDMC status" />} />
-          <KV k="Department contact" v={plan.deptContactName ?? <Placeholder label="dept contact" />} />
+          <KV k="Department contact" v={seesSensitive ? (plan.deptContactName ?? <Placeholder label="dept contact" />) : <span className="text-stone-400">(hidden)</span>} />
           <KV k="Our lead" v={plan.ourLead?.name ?? plan.ourLead?.email ?? <Placeholder label="our lead" />} />
-          <KV k="Anchor partner" v={plan.anchorPartnerName ?? <Placeholder label="anchor partner" />} />
+          <KV k="Anchor partner" v={anchorLabel ?? <Placeholder label="anchor partner" />} />
           <KV k="After-hours campus use" v={plan.campusAfterHoursUse ?? <Placeholder label="after-hours use" />} />
         </div>
         <div className="md:col-span-2 mt-2 text-xs">
@@ -207,11 +225,27 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
       {/* §2 Catchment */}
       <SectionBar n="2" title="Catchment" ready={completeness.sections[1].ready} />
       <div className="rounded-b-xl border border-t-0 border-stone-200 bg-white p-4 space-y-3">
-        {mapArtifact ? (
+        {plan.geoLat != null && plan.geoLng != null ? (
+          <CatchmentMap
+            schoolLat={plan.geoLat}
+            schoolLng={plan.geoLng}
+            schoolName={plan.name}
+            settlements={plan.settlements
+              .filter((s) => s.geoLat != null && s.geoLng != null)
+              .map((s) => ({
+                id: s.id, name: s.name,
+                geoLat: s.geoLat!, geoLng: s.geoLng!,
+                distanceMeters: s.distanceMeters,
+                walkMinutes: s.walkMinutes,
+                children3to14: s.children3to14,
+              }))}
+            walkRadiusMeters={750}
+          />
+        ) : mapArtifact ? (
           <img src={mapArtifact.url} alt={mapArtifact.caption ?? "Catchment map"} className="rounded-lg border border-stone-200 max-h-96" />
         ) : (
           <div className="rounded-lg border-2 border-dashed border-stone-200 p-6 text-center text-xs text-stone-400">
-            — catchment map (upload as an artefact of kind "map") —
+            — catchment map (set the school's lat/lng in Edit, or upload a map artefact) —
           </div>
         )}
         {plan.settlements.length === 0 ? (
@@ -265,7 +299,14 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
       {/* §3 Space */}
       <SectionBar n="3" title="Space" ready={completeness.sections[2].ready} />
       <div className="rounded-b-xl border border-t-0 border-stone-200 bg-white p-4 space-y-3">
-        {plan.spaces.length === 0 ? (
+        {plan.isInterimStructure ? (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900 space-y-1">
+            <div className="font-semibold">Interim structure spec</div>
+            <div className="whitespace-pre-wrap text-stone-800">
+              {plan.interimStructureSpec ?? <Placeholder label="interim-structure spec pending" />}
+            </div>
+          </div>
+        ) : plan.spaces.length === 0 ? (
           <Placeholder label="no spaces listed" />
         ) : (
           <div className="overflow-x-auto">
@@ -392,7 +433,9 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
                     <td className="px-2 py-1.5 text-right">{r.count}</td>
                     <td className="px-2 py-1.5 text-stone-500">{r.payroll}</td>
                     <td className="px-2 py-1.5 text-stone-500">{r.status}</td>
-                    <td className="px-2 py-1.5 text-stone-500">{r.notes ?? "—"}</td>
+                    <td className="px-2 py-1.5 text-stone-500">
+                      {seesSensitive ? (r.notes ?? "—") : <span className="text-stone-400">(hidden)</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -400,7 +443,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
         <div className="text-xs">
-          <KV k="Anchor partner" v={plan.anchorPartnerName ?? <Placeholder label="anchor" />} />
+          <KV k="Anchor partner" v={anchorLabel ?? <Placeholder label="anchor" />} />
         </div>
       </div>
 
@@ -425,24 +468,32 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
       {/* §8 Budget */}
       <SectionBar n="8" title="Budget" ready={completeness.sections[7].ready} />
       <div className="rounded-b-xl border border-t-0 border-stone-200 bg-white p-4 space-y-3">
-        <div className="text-xs flex items-center gap-3">
-          <DeviationChip pct={deviationPct} />
-          <span className="text-stone-500">
-            School Y1 recurring: <b className="text-stone-800">{inr(schoolRecurring)}</b> · Standard {inr(STANDARD_TOTALS_Y1.recurringRupees)} · Threshold {DEVIATION_THRESHOLD_PCT}%
-          </span>
-        </div>
-        {deviationPct != null && Math.abs(deviationPct) > DEVIATION_THRESHOLD_PCT && (
-          <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900">
-            <b>GC re-approval flag.</b> Recurring cost deviates {deviationPct.toFixed(1)}% from the standard ₹36,000/child/year envelope. Individual grants above this threshold must return to the GC.
-          </div>
-        )}
-        {plan.budget ? (
-          <div className="text-xs">
-            <Link href={`/schools/${id}/budget`} className="text-sky-600 hover:text-sky-800">Open {plan.budget.name} →</Link>
-            <span className="text-stone-500 ml-2">({plan.budget.lines.length} lines)</span>
-          </div>
+        {seesSensitive ? (
+          <>
+            <div className="text-xs flex items-center gap-3">
+              <DeviationChip pct={deviationPct} />
+              <span className="text-stone-500">
+                School Y1 recurring: <b className="text-stone-800">{inr(schoolRecurring)}</b> · Standard {inr(STANDARD_TOTALS_Y1.recurringRupees)} · Threshold {DEVIATION_THRESHOLD_PCT}%
+              </span>
+            </div>
+            {deviationPct != null && Math.abs(deviationPct) > DEVIATION_THRESHOLD_PCT && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900">
+                <b>GC re-approval flag.</b> Recurring cost deviates {deviationPct.toFixed(1)}% from the standard ₹36,000/child/year envelope. Individual grants above this threshold must return to the GC.
+              </div>
+            )}
+            {plan.budget ? (
+              <div className="text-xs">
+                <Link href={`/schools/${id}/budget`} className="text-sky-600 hover:text-sky-800">Open {plan.budget.name} →</Link>
+                <span className="text-stone-500 ml-2">({plan.budget.lines.length} lines)</span>
+              </div>
+            ) : (
+              <Placeholder label="no budget attached — run the seed script" />
+            )}
+          </>
         ) : (
-          <Placeholder label="no budget attached — run the seed script" />
+          <div className="text-xs text-stone-500">
+            <span className="text-stone-400">Budget details are restricted for your role.</span>
+          </div>
         )}
       </div>
 

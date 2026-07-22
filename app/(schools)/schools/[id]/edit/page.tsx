@@ -28,12 +28,19 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
   });
   if (!plan) notFound();
 
-  const users = await prisma.user.findMany({
-    where: { role: { in: ["member", "admin", "super-admin"] } },
-    orderBy: [{ name: "asc" }],
-    select: { id: true, name: true, email: true },
-    take: 200,
-  });
+  const [users, grantPartners] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: { in: ["member", "admin", "super-admin"] } },
+      orderBy: [{ name: "asc" }],
+      select: { id: true, name: true, email: true },
+      take: 200,
+    }),
+    prisma.grantPartner.findMany({
+      where: { isActive: true },
+      orderBy: [{ city: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, city: true },
+    }),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -73,14 +80,20 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
           sdmcStatus: plan.sdmcStatus,
           deptContactName: plan.deptContactName,
           ourLeadUserId: plan.ourLeadUserId,
+          anchorPartnerId: plan.anchorPartnerId,
           anchorPartnerName: plan.anchorPartnerName,
           campusAfterHoursUse: plan.campusAfterHoursUse,
           siteAreaSqft: plan.siteAreaSqft,
           builtupAreaSqft: plan.builtupAreaSqft,
           surveyStatus: plan.surveyStatus,
           targetChildrenPerDay: plan.targetChildrenPerDay,
+          geoLat: plan.geoLat,
+          geoLng: plan.geoLng,
           capacityRead: plan.capacityRead,
           mobilisationNotes: plan.mobilisationNotes,
+          isInterimStructure: plan.isInterimStructure,
+          interimStructureSpec: plan.interimStructureSpec,
+          publicSlug: plan.publicSlug,
           planStatus: plan.planStatus,
         }}
         settlements={plan.settlements}
@@ -113,6 +126,8 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
           approvalNotes: plan.signoff.approvalNotes,
         } : null}
         users={users.map((u) => ({ id: u.id, label: u.name ?? u.email }))}
+        grantPartners={grantPartners.map((g) => ({ id: g.id, label: `${g.name} (${g.city})` }))}
+        canManageStructure={access.canManageStructure}
         serviceItems={SERVICE_ITEMS}
         componentDefs={PROGRAMME_COMPONENTS}
       />
