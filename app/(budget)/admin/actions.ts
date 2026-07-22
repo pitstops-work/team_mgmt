@@ -199,6 +199,11 @@ const STANDARD_PROG_INPUTS = [
   { itemKey: "inp.nOperatingDaysPerYear",     unit: "days",     unitCost: 300,   notes: "Operating days/year (25 × 12)",         displayGroup: "coverage"   },
   { itemKey: "inp.nTrucks",                   unit: "count",    unitCost: 17,    notes: "No. of trucks",                         displayGroup: "facilities" },
   { itemKey: "inp.kitchenRentPerMonth",       unit: "₹/month",  unitCost: 150000, notes: "Kitchen + warehouse rent / mo",        displayGroup: "facilities" },
+  // RO Water + Sanitation Complex (standalone domains)
+  { itemKey: "inp.nRO_Plants",                unit: "count",    unitCost: 1,     notes: "No. of RO water plants",                displayGroup: "facilities" },
+  { itemKey: "inp.roPlantRentPerMonth",       unit: "₹/month",  unitCost: 0,     notes: "RO plant site rent / mo",               displayGroup: "facilities" },
+  { itemKey: "inp.nSanitationComplexes",      unit: "count",    unitCost: 1,     notes: "No. of sanitation complexes",           displayGroup: "facilities" },
+  { itemKey: "inp.sanitationComplexRentPerMonth", unit: "₹/month", unitCost: 0,  notes: "Sanitation complex rent / mo",          displayGroup: "facilities" },
 ];
 
 export async function seedProgrammeInputs(city: string) {
@@ -423,6 +428,8 @@ export async function seedDomains(city: string) {
     { key: "WelfareRights",label: "Welfare Rights",               description: "Entitlement & collectivization",       position: 3, beneficiaryLabel: "Households",     beneficiaryVar: "nSettlements", beneficiaryMult: 150 },
     { key: "Creche",       label: "Creche",                       description: "0–3 yr children, standard model", position: 4, beneficiaryLabel: "Creche children", beneficiaryVar: "nCreches",     beneficiaryMult: 20  },
     { key: "FoodDistribution", label: "Food Distribution",        description: "Kitchen-to-DP meal programme",         position: 5, beneficiaryLabel: "Meal",            beneficiaryVar: "nMealsPerDay", beneficiaryMult: 300 },
+    { key: "RO_Water",         label: "RO Water Plant",           description: "Community RO drinking-water plant",     position: 6, beneficiaryLabel: "Households",      beneficiaryVar: "nRO_Plants",          beneficiaryMult: 500 },
+    { key: "Sanitation_Complex", label: "Sanitation Complex",     description: "Toilet + bath + laundry + RO complex",  position: 7, beneficiaryLabel: "Households",      beneficiaryVar: "nSanitationComplexes", beneficiaryMult: 420 },
   ];
 
   await prisma.$transaction(
