@@ -143,6 +143,12 @@ model User {
   // Seeding Fellowships launch portal
   seedingMemberships        SeedingMember[]                @relation("SeedingMemberUser")
   seedingTasksCreated       SeedingTask[]                  @relation("SeedingTaskCreatedBy")
+  // After-School Centres portal
+  ownedSchoolPlans          SchoolPlan[]                   @relation("SchoolPlanOurLead")
+  schoolStepsOwned          SchoolPlanStep[]               @relation("SchoolStepOwner")
+  schoolRisksOwned          SchoolPlanRisk[]               @relation("SchoolRiskOwner")
+  schoolArtifactsUploaded   SchoolPlanArtifact[]           @relation("SchoolArtifactUpload")
+  schoolPlanMemberships     SchoolPlanMember[]             @relation("SchoolPlanMemberUser")
 }
 
 model Account {
@@ -1943,6 +1949,8 @@ model Budget {
   reports            BudgetReport[]
   borrowingsFrom     GrantBorrowing[]    @relation("BorrowingFrom")
   borrowingsTo       GrantBorrowing[]    @relation("BorrowingTo")
+  // After-school centre this budget belongs to (nullable — regular budgets don't).
+  schoolPlan         SchoolPlan?         @relation("SchoolBudget")
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
@@ -3638,4 +3646,287 @@ model SeedingPartnerInterface {
   colD      String?
   colE      String?
   sortOrder Int     @default(0)
+}
+
+// -----------------------------------------------------------------------------
+// After-School Centres portal (Moulana Azad Model Schools, Directorate of
+// Minorities, Karnataka). One plan per school; three faces over one data model
+// (tracker + plan page + export). See /schools and lib/schoolPlan/*.
+// -----------------------------------------------------------------------------
+
+enum SchoolPlanStatus {
+  draft
+  for_review
+  approved
+}
+
+enum SchoolStepStatus {
+  pending
+  in_progress
+  done
+  blocked
+  not_applicable
+}
+
+enum SchoolStaffPayroll {
+  us
+  anchor
+  specialist
+  agency
+}
+
+enum SchoolServiceStatus {
+  ok
+  gap
+  unknown
+}
+
+enum SchoolComponentDelivery {
+  us
+  anchor
+  specialist
+  agency
+}
+
+/// One after-school-centre plan for a school. The row is the school + the plan
+/// state (a school always has exactly one plan in Phase 1; versioning deferred).
+model SchoolPlan {
+  id                   String   @id @default(cuid())
+  name                 String
+  officialName         String?
+  diseCode             String?
+  schoolType           String? // model | urdu | composite
+  addressText          String?
+  geoLat               Float?
+  geoLng               Float?
+  taluk                String?
+  district             String?
+  ward                 String?
+  yearEstablished      Int?
+  grades               String?
+  sections             String?
+  mediums              String[]
+  enrolmentBoys        Int?
+  enrolmentGirls       Int?
+  teachersSanctioned   Int?
+  teachersWorking      Int?
+  classroomsCount      Int?
+  otherRoomsCount      Int?
+  timings              String?
+  shifts               String?
+  vacationMonths       String[]
+  headTeacherName      String?
+  headTeacherPhone     String?
+  sdmcStatus           String?
+  deptContactName      String?
+  ourLeadUserId        String?
+  ourLead              User?    @relation("SchoolPlanOurLead", fields: [ourLeadUserId], references: [id], onDelete: SetNull)
+  anchorPartnerName    String? // free-text until a proper Partner model row is created
+  campusAfterHoursUse  String?
+  siteAreaSqft         Int?
+  builtupAreaSqft      Int?
+  surveyStatus         String? // pending | in_progress | complete
+  targetChildrenPerDay Int?
+  capacityRead         String? // written "capacity read" paragraph on plan page
+  mobilisationNotes    String?
+  planStatus           SchoolPlanStatus @default(draft)
+  planVersion          Int              @default(1)
+  budgetId             String?          @unique
+  budget               Budget?          @relation("SchoolBudget", fields: [budgetId], references: [id], onDelete: SetNull)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  steps       SchoolPlanStep[]
+  settlements SchoolPlanCatchment[]
+  spaces      SchoolPlanSpace[]
+  services    SchoolPlanService[]
+  components  SchoolPlanComponent[]
+  staffing    SchoolPlanStaffing[]
+  milestones  SchoolPlanMilestone[]
+  risks       SchoolPlanRisk[]
+  artifacts   SchoolPlanArtifact[]
+  signoff     SchoolPlanSignoff?
+  members     SchoolPlanMember[]
+
+  @@index([district])
+  @@index([planStatus])
+}
+
+/// Per-plan instance of a step from the 16-step template
+/// (lib/schoolPlan/stepTemplate.ts). Instantiated on SchoolPlan.create; idempotent.
+model SchoolPlanStep {
+  id                   String               @id @default(cuid())
+  planId               String
+  plan                 SchoolPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  stepNo               Int
+  key                  String
+  title                String
+  description          String?
+  planSection          String?
+  requiredArtifactType String?
+  ownerUserId          String?
+  owner                User?                @relation("SchoolStepOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  dueDate              DateTime?
+  status               SchoolStepStatus     @default(pending)
+  blockingNote         String?
+  completedAt          DateTime?
+  completedById        String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  artifacts            SchoolPlanArtifact[]
+
+  @@unique([planId, stepNo])
+  @@index([status, dueDate])
+}
+
+model SchoolPlanCatchment {
+  id               String     @id @default(cuid())
+  planId           String
+  plan             SchoolPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  settlementId     String? // FK-by-convention to existing Settlement when available
+  name             String
+  geoLat           Float?
+  geoLng           Float?
+  distanceMeters   Int?
+  walkMinutes      Int?
+  children0to3     Int?
+  children3to14    Int?
+  children14to18   Int?
+  existingServices String?
+  sortOrder        Int        @default(0)
+  createdAt        DateTime   @default(now())
+}
+
+model SchoolPlanSpace {
+  id                 String     @id @default(cuid())
+  planId             String
+  plan               SchoolPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  building           String?
+  floor              String?
+  name               String
+  sizeSqm            Float?
+  currentUse         String?
+  proposedUse        String?
+  capacityPerSession Int?
+  sessionsPerDay     Int?       @default(1)
+  changesNeeded      String?
+  structuralFlags    String?
+  sortOrder          Int        @default(0)
+  createdAt          DateTime   @default(now())
+}
+
+model SchoolPlanService {
+  id      String              @id @default(cuid())
+  planId  String
+  plan    SchoolPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  item    String // water | electricity | toilets | lighting | drainage | ro_plant | boundary | internet
+  status  SchoolServiceStatus @default(unknown)
+  details String?
+
+  @@unique([planId, item])
+}
+
+model SchoolPlanComponent {
+  id                  String                  @id @default(cuid())
+  planId              String
+  plan                SchoolPlan              @relation(fields: [planId], references: [id], onDelete: Cascade)
+  component           String // creche | library | lab | art_music | sports | computing | youth | community
+  offerText           String?
+  deliveredBy         SchoolComponentDelivery
+  schedule            String?
+  childrenPerDay      Int?
+  specialistPartnerId String?
+  planVetted          Boolean                 @default(false)
+  sortOrder           Int                     @default(0)
+
+  @@unique([planId, component])
+}
+
+model SchoolPlanStaffing {
+  id        String             @id @default(cuid())
+  planId    String
+  plan      SchoolPlan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  role      String
+  count     Int
+  payroll   SchoolStaffPayroll
+  status    String             @default("identified") // identified | hired | gap
+  notes     String?
+  sortOrder Int                @default(0)
+}
+
+model SchoolPlanMilestone {
+  id         String     @id @default(cuid())
+  planId     String
+  plan       SchoolPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  name       String
+  targetDate DateTime?
+  dependsOn  String?
+  status     String     @default("pending")
+  sortOrder  Int        @default(0)
+}
+
+model SchoolPlanRisk {
+  id          String     @id @default(cuid())
+  planId      String
+  plan        SchoolPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  description String
+  mitigation  String?
+  ownerUserId String?
+  owner       User?      @relation("SchoolRiskOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  status      String     @default("open") // open | mitigated | closed
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+}
+
+/// Any file attached to a school plan: survey drawing, photo, map image,
+/// architect design, vendor quote, permission letter, agreement. Uploaded
+/// to the private Vercel Blob store via /api/upload/school.
+model SchoolPlanArtifact {
+  id           String          @id @default(cuid())
+  planId       String
+  plan         SchoolPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  stepId       String?
+  step         SchoolPlanStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  kind         String // survey_drawing | photo | map | architect_design | vendor_quote | budget_working | permission_letter | partner_agreement | other
+  name         String
+  url          String
+  size         Int?
+  mimeType     String?
+  caption      String?
+  uploadedById String?
+  uploadedBy   User?           @relation("SchoolArtifactUpload", fields: [uploadedById], references: [id], onDelete: SetNull)
+  version      Int             @default(1)
+  planSection  String?
+  createdAt    DateTime        @default(now())
+
+  @@index([planId, kind])
+}
+
+model SchoolPlanSignoff {
+  id            String     @id @default(cuid())
+  planId        String     @unique
+  plan          SchoolPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  preparedById  String?
+  preparedAt    DateTime?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewerNotes String?
+  approvedById  String?
+  approvedAt    DateTime?
+  approvalNotes String?
+}
+
+/// Thin membership like SeedingMember. Role scopes visibility;
+/// planId=null means "all plans for their role".
+model SchoolPlanMember {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation("SchoolPlanMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  role      String // central_lead | city_lead | school_owner | anchor_partner | viewer
+  planId    String?
+  plan      SchoolPlan? @relation(fields: [planId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([userId, role, planId])
+  @@index([userId])
 }
