@@ -261,6 +261,35 @@ export const DEFAULT_COSTS: CostItem[] = [
   { domain: "Sanitation_Complex", itemKey: "san.tech_per_month",          unitCost: 2500,    unit: "₹/complex/month" },
   { domain: "Sanitation_Complex", itemKey: "san.lab_per_month",           unitCost: 1667,    unit: "₹/complex/month", notes: "₹5k/quarter ÷ 3" },
 
+  // ── After-School Centre (standalone; annexure, per centre, Y1 = ₹195.79 L) ──
+  // Salaries — per person, monthly
+  { domain: "AfterSchoolCentre", itemKey: "asc.school_coordinator_salary",   unitCost: 65000,  unit: "₹/month" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.librarian_salary",            unitCost: 35000,  unit: "₹/month" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.art_coord_salary",            unitCost: 35000,  unit: "₹/month" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.sports_coord_salary",         unitCost: 35000,  unit: "₹/month" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.science_instructor_salary",   unitCost: 35000,  unit: "₹/month" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.computer_instructor_salary",  unitCost: 35000,  unit: "₹/month" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.security_salary",             unitCost: 25000,  unit: "₹/month" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.security_per_centre",         unitCost: 6,      unit: "guards",   notes: "6 guards × 3 shifts (annexure)" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.facility_mgmt_salary",        unitCost: 25000,  unit: "₹/month" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.facility_mgmt_per_centre",    unitCost: 8,      unit: "staff",    notes: "8 housekeeping (annexure)" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.outreach_salary",             unitCost: 16500,  unit: "₹/month" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.outreach_per_centre",         unitCost: 2,      unit: "workers",  notes: "1 per 150–200 children (annexure)" },
+  // Travel
+  { domain: "AfterSchoolCentre", itemKey: "asc.coord_local_travel",          unitCost: 3000,   unit: "₹/month",  notes: "Local travel — school coordinator" },
+  // Capex — per centre one-time
+  { domain: "AfterSchoolCentre", itemKey: "asc.capex_design",                unitCost: 500000,  unit: "₹/centre", notes: "Design (architecture fees)" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.capex_refurbishment",         unitCost: 5000000, unit: "₹/centre", notes: "Refurbishment / civil works" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.capex_creche_conversion",     unitCost: 200000,  unit: "₹/centre", notes: "Crèche classroom conversion" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.capex_activity_resources",    unitCost: 2000000, unit: "₹/centre", notes: "Computers, sports, other" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.capex_learning_materials",    unitCost: 1000000, unit: "₹/centre", notes: "Books, kits, art & other" },
+  // Programme
+  { domain: "AfterSchoolCentre", itemKey: "asc.creche_ops_annual",           unitCost: 858335,  unit: "₹/centre/year",  notes: "Urban Crèche V.2 standard" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.activity_resources_per_month", unitCost: 57913,  unit: "₹/centre/month", notes: "Recurring; incl. child profiling + staff training" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.utilities_per_month",         unitCost: 41667,   unit: "₹/centre/month", notes: "Cleaning, consumables" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.food_per_child_per_day",      unitCost: 12,      unit: "₹/child/day",    notes: "Snacks — scales with targetChildrenPerDay" },
+  { domain: "AfterSchoolCentre", itemKey: "asc.food_days_per_year",          unitCost: 365,     unit: "days" },
+
   // ── Cross-cutting ─────────────────────────────────────────────────────────
   { domain: null,       itemKey: "cross.staff_capacity_building",          unitCost: 14480,  unit: "₹/year" },
   { domain: null,       itemKey: "cross.team_building_offsite",            unitCost: 204600, unit: "₹/year",              notes: "3-day offsite" },
@@ -329,6 +358,7 @@ export const DEFAULT_COSTS_CHENNAI: CostItem[] = [
   // Staff training ₹571/staff — estimate for ~20 staff
   { domain: null,            itemKey: "cross.staff_capacity_building",      unitCost: 11420,  unit: "₹/year",                  notes: "₹571/staff × ~20 staff" },
   { domain: null,            itemKey: "cross.team_building_offsite",        unitCost: 150000, unit: "₹/year" },
+
 ];
 
 // Returns the full cost list for a city, merging Chennai overrides onto the Bangalore base.

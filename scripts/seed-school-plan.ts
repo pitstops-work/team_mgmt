@@ -90,9 +90,26 @@ async function upsertPlan(name: string, officialName: string, extras: Record<str
 async function ensureBudget(planId: string, planName: string) {
   const plan = await prisma.schoolPlan.findUnique({
     where: { id: planId },
-    select: { budgetId: true, ourLeadUserId: true },
+    select: { budgetId: true, ourLeadUserId: true, targetChildrenPerDay: true },
   });
-  if (plan?.budgetId) return plan.budgetId;
+
+  // Whatever inputs a fresh regenerate needs to reconcile to the annexure.
+  const extraInputs = {
+    nAfterSchoolCentres: 1,
+    targetChildrenPerDay: plan?.targetChildrenPerDay ?? 300,
+    ascCentreRentPerMonth: 0,
+  };
+
+  if (plan?.budgetId) {
+    // Existing budget — make sure BudgetInputs carries the extraInputs so a
+    // Regenerate on the budget editor produces the standard.
+    await prisma.budgetInputs.upsert({
+      where: { budgetId: plan.budgetId },
+      create: { budgetId: plan.budgetId, extraInputs },
+      update: { extraInputs },
+    });
+    return plan.budgetId;
+  }
 
   // Attribute the auto-created Budget to the plan's lead or, failing that, the
   // Pitstops super-admin (there always is one). Budget.partnerId is required.
@@ -119,6 +136,7 @@ async function ensureBudget(planId: string, planName: string) {
       inflationOtherPct: 5,
       inflationNilPct: 0,
       status: "draft",
+      inputs: { create: { extraInputs } },
     },
     select: { id: true },
   });

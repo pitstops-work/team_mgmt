@@ -23,7 +23,18 @@ export type TemplateSpec = {
   costPctOf?: string;
   costPct?: number;
   y1UnitsZero?: boolean;
+  applyY2?: boolean;
+  applyY3?: boolean;
 };
+
+// Mark one-time capex (setup lines, but not the Y2+ maintenance line which uses
+// y1UnitsZero) as Y1-only so the full setup cost isn't re-charged every year —
+// matching the creche.setup / food.dp_table convention.
+function oneTimeCapex(specs: TemplateSpec[]): TemplateSpec[] {
+  return specs.map(t =>
+    t.section === "capex" && !t.y1UnitsZero ? { ...t, applyY2: false, applyY3: false } : t
+  );
+}
 
 const CHILDREN: TemplateSpec[] = [
   { templateKey: "children.lead",       section: "salary",    description: "Children Programme Lead",                                  costCategory: "Salary", unitType: "Month",   inputVar: "fixed_12",   isSalaryStub: true,  salaryHint: "₹40,000–55,000/month" },
@@ -261,6 +272,40 @@ const SANITATION: TemplateSpec[] = [
   { templateKey: "san.rent",         section: "programme", description: "Complex site rent",           costCategory: "Other", unitType: "Month",       inputVar: "nSanitationComplexes", inputMonthly: true, userInputCost: "sanitationComplexRentPerMonth" },
 ];
 
+// After-School Centre (standalone domain). Scales off nAfterSchoolCentres.
+// Food line auto-scales with targetChildrenPerDay via costKey3.
+// A count=1 budget with children=300 reconciles to the annexure Y1 ~₹195.79 L
+// (capex ₹87 L + salary ₹74.76 L + travel ₹0.36 L + programme ₹33.67 L).
+const AFTER_SCHOOL: TemplateSpec[] = [
+  // ── Salary ─────────────────────────────────────────────────────────────
+  { templateKey: "asc.school_coordinator",  section: "salary",    description: "School Coordinator",                     costCategory: "Salary", unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true,  costKey: "asc.school_coordinator_salary" },
+  { templateKey: "asc.librarian",           section: "salary",    description: "Librarian",                              costCategory: "Salary", unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true,  costKey: "asc.librarian_salary" },
+  { templateKey: "asc.art_coord",           section: "salary",    description: "Art coordinator",                        costCategory: "Salary", unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true,  costKey: "asc.art_coord_salary" },
+  { templateKey: "asc.sports_coord",        section: "salary",    description: "Sports coordinator",                     costCategory: "Salary", unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true,  costKey: "asc.sports_coord_salary" },
+  { templateKey: "asc.science_instructor",  section: "salary",    description: "Science lab instructor",                 costCategory: "Salary", unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true,  costKey: "asc.science_instructor_salary" },
+  { templateKey: "asc.computer_instructor", section: "salary",    description: "Computer instructor",                    costCategory: "Salary", unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true,  costKey: "asc.computer_instructor_salary" },
+  { templateKey: "asc.security",            section: "salary",    description: "Security (6 guards × 3 shifts)",         costCategory: "Salary", unitType: "Per centre",  inputVar: "nAfterSchoolCentres", workerRatioKey: "asc.security_per_centre",      costKey: "asc.security_salary" },
+  { templateKey: "asc.facility_mgmt",       section: "salary",    description: "Facility management / housekeeping",     costCategory: "Salary", unitType: "Per centre",  inputVar: "nAfterSchoolCentres", workerRatioKey: "asc.facility_mgmt_per_centre", costKey: "asc.facility_mgmt_salary" },
+  { templateKey: "asc.outreach",            section: "salary",    description: "Outreach workers (2 per centre)",        costCategory: "Salary", unitType: "Per centre",  inputVar: "nAfterSchoolCentres", workerRatioKey: "asc.outreach_per_centre",      costKey: "asc.outreach_salary" },
+  // ── Travel ─────────────────────────────────────────────────────────────
+  { templateKey: "asc.coord_travel",        section: "travel",    description: "Local travel — school coordinator",      costCategory: "Other",  unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true,  costKey: "asc.coord_local_travel" },
+  // ── Capex (Y1 one-time) ────────────────────────────────────────────────
+  { templateKey: "asc.cap_design",          section: "capex",     description: "Design (architecture fees)",             costCategory: "Nil",    unitType: "Per centre",  inputVar: "nAfterSchoolCentres", costKey: "asc.capex_design" },
+  { templateKey: "asc.cap_refurbishment",   section: "capex",     description: "Refurbishment / civil works",            costCategory: "Nil",    unitType: "Per centre",  inputVar: "nAfterSchoolCentres", costKey: "asc.capex_refurbishment" },
+  { templateKey: "asc.cap_creche",          section: "capex",     description: "Crèche classroom conversion",            costCategory: "Nil",    unitType: "Per centre",  inputVar: "nAfterSchoolCentres", costKey: "asc.capex_creche_conversion" },
+  { templateKey: "asc.cap_activity",        section: "capex",     description: "Resources for activity",                 costCategory: "Nil",    unitType: "Per centre",  inputVar: "nAfterSchoolCentres", costKey: "asc.capex_activity_resources" },
+  { templateKey: "asc.cap_learning",        section: "capex",     description: "Learning materials",                     costCategory: "Nil",    unitType: "Per centre",  inputVar: "nAfterSchoolCentres", costKey: "asc.capex_learning_materials" },
+  // ── Programme ──────────────────────────────────────────────────────────
+  { templateKey: "asc.creche_ops",          section: "programme", description: "Crèche operations (Urban Crèche V.2)",   costCategory: "Other",  unitType: "Per centre",  inputVar: "nAfterSchoolCentres", costKey: "asc.creche_ops_annual" },
+  { templateKey: "asc.activity_resources",  section: "programme", description: "Recurring activity resources",           costCategory: "Other",  unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true,  costKey: "asc.activity_resources_per_month" },
+  { templateKey: "asc.utilities",           section: "programme", description: "Utilities & maintenance",                costCategory: "Other",  unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true,  costKey: "asc.utilities_per_month" },
+  // Food / snacks — total = nCentres × ₹12/child/day × 365 × targetChildrenPerDay.
+  // Tagged Salary (10%) inflation per annexure Instructions sheet.
+  { templateKey: "asc.food_snacks",         section: "programme", description: "Food / snacks (₹12/child/day)",          costCategory: "Salary", unitType: "Per centre",  inputVar: "nAfterSchoolCentres", costKey: "asc.food_per_child_per_day", costKey2: "asc.food_days_per_year", costKey3: "inp.targetChildrenPerDay" },
+  // Rent — user input, usually 0 (department-owned buildings)
+  { templateKey: "asc.rent",                section: "programme", description: "Centre site rent (usually 0)",           costCategory: "Other",  unitType: "Month",       inputVar: "nAfterSchoolCentres", inputMonthly: true, userInputCost: "ascCentreRentPerMonth" },
+];
+
 const CROSS: TemplateSpec[] = [
   { templateKey: "cross.mis",           section: "salary",    description: "MIS Coordinator",                            costCategory: "Salary", unitType: "Month",  inputVar: "fixed_12",  isSalaryStub: true,  salaryHint: "₹35,000–41,000/month", domain: null },
   { templateKey: "cross.accountant",    section: "salary",    description: "Accountant",                                 costCategory: "Salary", unitType: "Month",  inputVar: "fixed_12",  isSalaryStub: true,  salaryHint: "₹33,000–40,000/month", domain: null },
@@ -293,8 +338,9 @@ export function getTemplatesForCity(city: string): TemplateSpec[] {
     ...withDomain(WR,                   "WelfareRights"),
     ...withDomain(crecheTemplates(city),"Creche"),
     ...withDomain(FOOD,                 "FoodDistribution"),
-    ...withDomain(RO_WATER,             "RO_Water"),
-    ...withDomain(SANITATION,           "Sanitation_Complex"),
+    ...withDomain(oneTimeCapex(RO_WATER),   "RO_Water"),
+    ...withDomain(oneTimeCapex(SANITATION), "Sanitation_Complex"),
+    ...withDomain(oneTimeCapex(AFTER_SCHOOL), "AfterSchoolCentre"),
     ...CROSS,
     ...ADMIN,
   ];

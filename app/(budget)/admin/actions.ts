@@ -204,6 +204,10 @@ const STANDARD_PROG_INPUTS = [
   { itemKey: "inp.roPlantRentPerMonth",       unit: "₹/month",  unitCost: 0,     notes: "RO plant site rent / mo",               displayGroup: "facilities" },
   { itemKey: "inp.nSanitationComplexes",      unit: "count",    unitCost: 1,     notes: "No. of sanitation complexes",           displayGroup: "facilities" },
   { itemKey: "inp.sanitationComplexRentPerMonth", unit: "₹/month", unitCost: 0,  notes: "Sanitation complex rent / mo",          displayGroup: "facilities" },
+  // After-School Centre (standalone)
+  { itemKey: "inp.nAfterSchoolCentres",       unit: "count",    unitCost: 1,     notes: "No. of after-school centres",           displayGroup: "facilities" },
+  { itemKey: "inp.targetChildrenPerDay",      unit: "count",    unitCost: 300,   notes: "Children per day (drives food-cost line)", displayGroup: "coverage" },
+  { itemKey: "inp.ascCentreRentPerMonth",     unit: "₹/month",  unitCost: 0,     notes: "After-school centre site rent (usually 0 — dept-owned)", displayGroup: "facilities" },
 ];
 
 export async function seedProgrammeInputs(city: string) {
@@ -715,6 +719,8 @@ export async function seedLineTemplates(city: string) {
           costPctOf:          t.costPctOf ?? null,
           costPct:            t.costPct ?? null,
           y1UnitsZero:        t.y1UnitsZero ?? false,
+          applyY2:            t.applyY2 ?? true,
+          applyY3:            t.applyY3 ?? true,
         },
       })
     )
