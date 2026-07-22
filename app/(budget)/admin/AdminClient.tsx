@@ -1569,7 +1569,9 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
 
   // Yours-side operational totals per domain — from the partner's saved
   // BudgetLine rows, filtered to operational sections, minus any orphan the
-  // user excluded via the symmetric ✕. Powers the "Yours" line on each tile.
+  // user excluded via the symmetric ✕, AND minus any standard templateKey the
+  // user excluded on the Std side. Both exclusions apply symmetrically so the
+  // per-beneficiary tiles compare like-for-like (matches opLines above).
   const domainOpYou = useMemo(() => {
     const m: Record<string, number> = {};
     if (!compareData) return m;
@@ -1578,11 +1580,12 @@ function CostAnalysisTab({ templates, costs, domains, city, zones, cityBudgets }
     for (const l of compareData.lines) {
       if (EXCLUDED_FROM_PER_UNIT.has(l.section)) continue;
       if (excludedOrphanIds.has(l.id)) continue;
+      if (l.templateKey && excludedTemplateKeys.has(l.templateKey)) continue;
       if (l.domain && m[l.domain] !== undefined) m[l.domain] += l.y1Total;
       m["total"] += l.y1Total;
     }
     return m;
-  }, [compareData, ALL_DOMAINS, excludedOrphanIds]);
+  }, [compareData, ALL_DOMAINS, excludedOrphanIds, excludedTemplateKeys]);
 
   // Per-unit costs computed from domain configs (beneficiaryVar × beneficiaryMult).
   // When comparing, every tile carries a Yours value too so the Δ is visible
