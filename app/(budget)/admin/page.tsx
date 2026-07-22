@@ -10,17 +10,24 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const { city = "Bangalore" } = await searchParams;
 
+  // "Others" is a placeholder city with no CostRegistry / LineTemplate /
+  // BudgetDomainConfig / component rows of its own — Others budgets are
+  // generated from Bangalore's standard set (see budget/actions.ts createBudget).
+  // Mirror that here so Cost Analysis has a standard to compare Others budgets
+  // against. cityBudgets stays on the real city so the dropdown still lists them.
+  const sourceCity = city === "Others" ? "Bangalore" : city;
+
   const [registry, templates, domains, cityRecords, needsDomains, cityBudgets, components] = await Promise.all([
     prisma.costRegistry.findMany({
-      where: { city },
+      where: { city: sourceCity },
       orderBy: [{ domain: "asc" }, { itemKey: "asc" }],
     }),
     prisma.lineTemplate.findMany({
-      where: { city },
+      where: { city: sourceCity },
       orderBy: { position: "asc" },
     }),
     prisma.budgetDomainConfig.findMany({
-      where: { city },
+      where: { city: sourceCity },
       orderBy: { position: "asc" },
     }),
     prisma.city.findMany({ where: { name: city }, select: { id: true } }),
@@ -37,7 +44,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       orderBy: { createdAt: "desc" },
     }),
     prisma.costRegistryComponent.findMany({
-      where: { city },
+      where: { city: sourceCity },
       orderBy: { position: "asc" },
       select: { parentItemKey: true, label: true, spec: true, qty: true, unitCost: true },
     }),
@@ -59,7 +66,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   });
 
   const isSeeded = registry.length > 0;
-  const defaults = getDefaultsForCity(city);
+  const defaults = getDefaultsForCity(sourceCity);
 
   const defaultKeys = new Set(defaults.map(d => d.itemKey));
   const merged = [
