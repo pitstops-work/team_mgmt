@@ -33,7 +33,7 @@ type CostRow = {
 type ComponentItem = { label: string; spec: string | null; qty: number; unitCost: number };
 type HistoryRow = { id: string; oldCost: number | null; newCost: number | null; source: string | null; reason: string | null; changedBy: string | null; changedAt: string };
 
-const CITIES = ["Bangalore", "Chennai"] as const;
+const CITIES = ["Bangalore", "Chennai", "Others"] as const;
 const SECTIONS: BudgetSection[] = ["salary", "capex", "travel", "programme", "admin_salary", "admin_other", "additional"];
 const INFLATION_TYPES: InflationType[] = ["Salary", "Other", "Nil"];
 const INPUT_VARS = [
