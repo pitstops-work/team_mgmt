@@ -93,6 +93,13 @@ async function main() {
     // RO buffers — sim-relevant but real spec, so "both".
     { group: "capacity", key: "ro_tank_litres", label: "RO product tank size", kind: "input", dataType: "int", defaultJson: 4000, unit: "L", notes: "Storage tank that banks water produced during quiet hours for the morning rush.", ui: { min: 1000, max: 8000, step: 250 } },
     { group: "capacity", key: "ro_cans_count", label: "RO pre-packed 10 L cans", kind: "input", dataType: "int", defaultJson: 50, unit: "cans", notes: "Pre-filled 10-litre cans held as a backup when the tank runs low.", ui: { min: 0, max: 150, step: 5 } },
+    // Physical daily throughput ceilings — demand above these is capped (revenue
+    // can't exceed what each service can physically deliver). Uses the same
+    // per-hour throughput basis as the sim.
+    { group: "capacity", key: "cap_toilet_uses_day", label: "Toilet capacity / day", kind: "formula", dataType: "number", formula: "wc_seats * seat_throughput * facility_open_hours", unit: "uses/day" },
+    { group: "capacity", key: "cap_bath_uses_day", label: "Bath capacity / day", kind: "formula", dataType: "number", formula: "bath_cubicles * bath_throughput * facility_open_hours", unit: "baths/day" },
+    { group: "capacity", key: "cap_laundry_loads_day", label: "Laundry capacity / day", kind: "formula", dataType: "number", formula: "washing_machines * machine_throughput * facility_open_hours", unit: "loads/day" },
+    { group: "capacity", key: "cap_ro_litres_day", label: "RO capacity / day", kind: "formula", dataType: "number", formula: "ro_lph * ro_operating_hours", unit: "L/day" },
 
     // ── 3. Service Usage Assumptions ───────────────────────────────────────
     { group: "usage", key: "toilet_uses_per_person_per_day", label: "Toilet uses per active person/day", kind: "input", dataType: "number", defaultJson: 3, unit: "uses/day", ui: { min: 1, max: 6, step: 0.5 } },
@@ -120,10 +127,15 @@ async function main() {
     // ── 6. Capex inputs ────────────────────────────────────────────────────
     { group: "capex_in", key: "capex_civil", label: "Civil construction", kind: "input", dataType: "currency", defaultJson: 5800000, unit: "INR" },
     { group: "capex_in", key: "capex_plumbing", label: "Plumbing + sanitaryware", kind: "input", dataType: "currency", defaultJson: 1150000, unit: "INR" },
-    { group: "capex_in", key: "capex_washing_machines", label: "Washing machines + spin dryers", kind: "input", dataType: "currency", defaultJson: 480000, unit: "INR" },
-    { group: "capex_in", key: "capex_ro", label: "RO plant + Water ATM", kind: "input", dataType: "currency", defaultJson: 650000, unit: "INR" },
-    { group: "capex_in", key: "capex_stp", label: "Greywater MBBR STP", kind: "input", dataType: "currency", defaultJson: 1350000, unit: "INR" },
-    { group: "capex_in", key: "capex_biodigester", label: "Biodigester / septic", kind: "input", dataType: "currency", defaultJson: 580000, unit: "INR" },
+    // Capacity-scaled capex — per-unit rates → derived formulas (scale with units).
+    { group: "capex_in", key: "capex_per_washing_machine", label: "Capex per washing machine", kind: "input", dataType: "currency", defaultJson: 48000, unit: "INR/machine", surface: "finance" },
+    { group: "capex_in", key: "capex_washing_machines", label: "Washing machines + spin dryers", kind: "formula", dataType: "currency", formula: "washing_machines * capex_per_washing_machine", unit: "INR" },
+    { group: "capex_in", key: "capex_per_ro_lph", label: "RO plant capex per L/hour", kind: "input", dataType: "currency", defaultJson: 650, unit: "INR/LPH", surface: "finance" },
+    { group: "capex_in", key: "capex_ro", label: "RO plant + Water ATM", kind: "formula", dataType: "currency", formula: "ro_lph * capex_per_ro_lph", unit: "INR" },
+    { group: "capex_in", key: "capex_per_stp_kld", label: "STP capex per KL/day", kind: "input", dataType: "currency", defaultJson: 48214.29, unit: "INR/KLD", surface: "finance" },
+    { group: "capex_in", key: "capex_stp", label: "Greywater MBBR STP", kind: "formula", dataType: "currency", formula: "stp_kld * capex_per_stp_kld", unit: "INR" },
+    { group: "capex_in", key: "capex_per_wc_seat_bio", label: "Biodigester capex per WC seat", kind: "input", dataType: "currency", defaultJson: 11153.85, unit: "INR/seat", surface: "finance" },
+    { group: "capex_in", key: "capex_biodigester", label: "Biodigester / septic", kind: "formula", dataType: "currency", formula: "wc_seats * capex_per_wc_seat_bio", unit: "INR" },
     { group: "capex_in", key: "capex_tanks", label: "Storage tanks (UG + OH)", kind: "input", dataType: "currency", defaultJson: 390000, unit: "INR" },
     { group: "capex_in", key: "capex_solar", label: "Solar PV system (5 kWp)", kind: "input", dataType: "currency", defaultJson: 450000, unit: "INR" },
     { group: "capex_in", key: "capex_electrical", label: "Electrical works", kind: "input", dataType: "currency", defaultJson: 520000, unit: "INR" },
@@ -166,7 +178,8 @@ async function main() {
 
     // ── Flat reserves: don't scale with usage. AMC + tech are contract fees;
     // lab is per-visit + quarterly schedule.
-    { group: "opex_in", key: "amc_monthly", label: "Maintenance / AMC reserve", kind: "input", dataType: "currency", defaultJson: 3000, unit: "INR/mo" },
+    { group: "opex_in", key: "amc_pct_annual", label: "AMC / maintenance (% of capex per year)", kind: "input", dataType: "percent", defaultJson: 0.0025, unit: "%", notes: "Maintenance reserve as a share of total capex (scales with facility size)." },
+    { group: "opex", key: "amc_monthly", label: "Maintenance / AMC reserve", kind: "formula", dataType: "currency", formula: "capex_total * amc_pct_annual / 12", unit: "INR/mo", notes: "Scales with capex_total" },
     { group: "opex_in", key: "tech_monthly", label: "Technology / monitoring fee", kind: "input", dataType: "currency", defaultJson: 2500, unit: "INR/mo" },
     { group: "opex_in", key: "lab_quarterly", label: "Water quality testing (NABL)", kind: "input", dataType: "currency", defaultJson: 5000, unit: "INR/quarter" },
 
@@ -198,6 +211,12 @@ async function main() {
     { group: "opex", key: "bath_uses_per_day_steady", label: "Baths/day (steady)", kind: "formula", dataType: "number", formula: "active_persons_steady * bath_share", unit: "baths/day" },
     { group: "opex", key: "laundry_loads_per_day_steady", label: "Loads/day (steady)", kind: "formula", dataType: "number", formula: "active_hh_steady * laundry_loads_per_active_hh_per_week / 7", unit: "loads/day" },
     { group: "opex", key: "ro_litres_per_day_steady", label: "RO litres/day (steady)", kind: "formula", dataType: "number", formula: "active_hh_steady * ro_litres_per_active_hh_per_day", unit: "L/day" },
+    // Served (capacity-capped) steady throughput — feeds opex + water balance.
+    { group: "opex", key: "served_toilet_uses_per_day_steady", label: "Toilet uses/day served (capped)", kind: "formula", dataType: "number", formula: "IF(toilet_uses_per_day_steady < cap_toilet_uses_day, toilet_uses_per_day_steady, cap_toilet_uses_day)", unit: "uses/day" },
+    { group: "opex", key: "served_bath_uses_per_day_steady", label: "Baths/day served (capped)", kind: "formula", dataType: "number", formula: "IF(bath_uses_per_day_steady < cap_bath_uses_day, bath_uses_per_day_steady, cap_bath_uses_day)", unit: "baths/day" },
+    { group: "opex", key: "served_laundry_loads_per_day_steady", label: "Loads/day served (capped)", kind: "formula", dataType: "number", formula: "IF(laundry_loads_per_day_steady < cap_laundry_loads_day, laundry_loads_per_day_steady, cap_laundry_loads_day)", unit: "loads/day" },
+    { group: "opex", key: "served_ro_litres_per_day_steady", label: "RO litres/day served (capped)", kind: "formula", dataType: "number", formula: "IF(ro_litres_per_day_steady < cap_ro_litres_day, ro_litres_per_day_steady, cap_ro_litres_day)", unit: "L/day" },
+    { group: "opex", key: "capacity_utilisation_steady", label: "Capacity headroom (tightest service)", kind: "formula", dataType: "percent", formula: "MIN(IFERROR(served_toilet_uses_per_day_steady / toilet_uses_per_day_steady, 1), IFERROR(served_bath_uses_per_day_steady / bath_uses_per_day_steady, 1), IFERROR(served_laundry_loads_per_day_steady / laundry_loads_per_day_steady, 1), IFERROR(served_ro_litres_per_day_steady / ro_litres_per_day_steady, 1))", unit: "%", notes: "Share of steady demand the tightest service can serve (100% = enough capacity everywhere)." },
 
     // ── Staff totals: headcount × salary ───────────────────────────────────
     { group: "opex", key: "opex_caretakers", label: "Caretakers (total)", kind: "formula", dataType: "currency", formula: "num_caretakers * salary_caretaker_per_shift", unit: "INR/mo" },
@@ -211,32 +230,32 @@ async function main() {
     // Greywater (bath + laundry + handwash + RO reject) is treated by DEWATS up
     // to its KLD limit; recycled output substitutes for fresh in toilet flush +
     // cleaning. Net BWSSB cost ↑ when greywater exceeds treatment cap.
-    { group: "opex", key: "bath_water_l_day", label: "Bath water (L/day)", kind: "formula", dataType: "number", formula: "bath_uses_per_day_steady * 25", unit: "L/day", notes: "25 L/bath engineering norm" },
-    { group: "opex", key: "laundry_water_l_day", label: "Laundry water (L/day)", kind: "formula", dataType: "number", formula: "laundry_loads_per_day_steady * 55", unit: "L/day", notes: "55 L/load" },
-    { group: "opex", key: "handwash_water_l_day", label: "Handwash water (L/day)", kind: "formula", dataType: "number", formula: "toilet_uses_per_day_steady * 1.5", unit: "L/day", notes: "1.5 L/visit" },
-    { group: "opex", key: "ro_feed_l_day", label: "RO feed water (L/day)", kind: "formula", dataType: "number", formula: "ro_litres_per_day_steady / ro_recovery_rate", unit: "L/day" },
-    { group: "opex", key: "ro_reject_l_day", label: "RO reject (L/day)", kind: "formula", dataType: "number", formula: "ro_feed_l_day - ro_litres_per_day_steady", unit: "L/day" },
+    { group: "opex", key: "bath_water_l_day", label: "Bath water (L/day)", kind: "formula", dataType: "number", formula: "served_bath_uses_per_day_steady * 25", unit: "L/day", notes: "25 L/bath engineering norm" },
+    { group: "opex", key: "laundry_water_l_day", label: "Laundry water (L/day)", kind: "formula", dataType: "number", formula: "served_laundry_loads_per_day_steady * 55", unit: "L/day", notes: "55 L/load" },
+    { group: "opex", key: "handwash_water_l_day", label: "Handwash water (L/day)", kind: "formula", dataType: "number", formula: "served_toilet_uses_per_day_steady * 1.5", unit: "L/day", notes: "1.5 L/visit" },
+    { group: "opex", key: "ro_feed_l_day", label: "RO feed water (L/day)", kind: "formula", dataType: "number", formula: "served_ro_litres_per_day_steady / ro_recovery_rate", unit: "L/day" },
+    { group: "opex", key: "ro_reject_l_day", label: "RO reject (L/day)", kind: "formula", dataType: "number", formula: "ro_feed_l_day - served_ro_litres_per_day_steady", unit: "L/day" },
     { group: "opex", key: "greywater_l_day", label: "Greywater (L/day)", kind: "formula", dataType: "number", formula: "bath_water_l_day + laundry_water_l_day + handwash_water_l_day + ro_reject_l_day", unit: "L/day" },
-    { group: "opex", key: "recycle_demand_l_day", label: "Recycle demand (L/day)", kind: "formula", dataType: "number", formula: "toilet_uses_per_day_steady * 5 + 150 + wc_seats * 8 + bath_cubicles * 12 + washing_machines * 5", unit: "L/day", notes: "5 L per flush + fixture cleaning (8 L/seat + 12 L/cubicle + 5 L/machine + 150 L common area)" },
+    { group: "opex", key: "recycle_demand_l_day", label: "Recycle demand (L/day)", kind: "formula", dataType: "number", formula: "served_toilet_uses_per_day_steady * 5 + 150 + wc_seats * 8 + bath_cubicles * 12 + washing_machines * 5", unit: "L/day", notes: "5 L per flush + fixture cleaning (8 L/seat + 12 L/cubicle + 5 L/machine + 150 L common area)" },
     { group: "opex", key: "recycled_used_l_day", label: "Recycled used (L/day)", kind: "formula", dataType: "number", formula: "MIN(MIN(greywater_l_day, stp_kld * 1000), recycle_demand_l_day)", unit: "L/day" },
     { group: "opex", key: "fresh_water_l_day_steady", label: "Fresh BWSSB water (L/day, steady)", kind: "formula", dataType: "number", formula: "bath_water_l_day + laundry_water_l_day + handwash_water_l_day + ro_feed_l_day + MAX(0, recycle_demand_l_day - recycled_used_l_day)", unit: "L/day" },
     { group: "opex", key: "stp_kl_treated_per_day", label: "STP throughput (KL/day)", kind: "formula", dataType: "number", formula: "MIN(greywater_l_day, stp_kld * 1000) / 1000", unit: "KL/day" },
 
     // ── Electricity load (derived) ─────────────────────────────────────────
-    { group: "opex", key: "electricity_ro_kwh_per_day", label: "RO electricity (kWh/day)", kind: "formula", dataType: "number", formula: "ro_litres_per_day_steady * kwh_per_ro_litre", unit: "kWh/day" },
-    { group: "opex", key: "electricity_laundry_kwh_per_day", label: "Laundry electricity (kWh/day)", kind: "formula", dataType: "number", formula: "laundry_loads_per_day_steady * kwh_per_laundry_load", unit: "kWh/day" },
-    { group: "opex", key: "electricity_bath_heating_kwh_per_day", label: "Bath water heating (kWh/day)", kind: "formula", dataType: "number", formula: "bath_uses_per_day_steady * kwh_per_bath_heating", unit: "kWh/day", notes: "Set kwh_per_bath_heating to 0 if cold-water bathing or solar-heated geyser" },
+    { group: "opex", key: "electricity_ro_kwh_per_day", label: "RO electricity (kWh/day)", kind: "formula", dataType: "number", formula: "served_ro_litres_per_day_steady * kwh_per_ro_litre", unit: "kWh/day" },
+    { group: "opex", key: "electricity_laundry_kwh_per_day", label: "Laundry electricity (kWh/day)", kind: "formula", dataType: "number", formula: "served_laundry_loads_per_day_steady * kwh_per_laundry_load", unit: "kWh/day" },
+    { group: "opex", key: "electricity_bath_heating_kwh_per_day", label: "Bath water heating (kWh/day)", kind: "formula", dataType: "number", formula: "served_bath_uses_per_day_steady * kwh_per_bath_heating", unit: "kWh/day", notes: "Set kwh_per_bath_heating to 0 if cold-water bathing or solar-heated geyser" },
     { group: "opex", key: "electricity_lighting_kwh_per_day", label: "Lighting + small loads (kWh/day)", kind: "formula", dataType: "number", formula: "facility_open_hours * kwh_lighting_per_open_hour", unit: "kWh/day" },
     { group: "opex", key: "electricity_kwh_net_per_day", label: "Net grid electricity (kWh/day)", kind: "formula", dataType: "number", formula: "MAX(0, electricity_ro_kwh_per_day + electricity_laundry_kwh_per_day + electricity_bath_heating_kwh_per_day + electricity_lighting_kwh_per_day - solar_offset_kwh_per_day)", unit: "kWh/day", notes: "Solar offsets day-time load first" },
 
     // ── Variable opex monthly totals (capacity × usage × per-unit rate) ────
     { group: "opex", key: "electricity_monthly", label: "Electricity (net of solar)", kind: "formula", dataType: "currency", formula: "electricity_kwh_net_per_day * 30 * electricity_tariff", unit: "INR/mo" },
     { group: "opex", key: "water_bwssb_monthly", label: "Water (BWSSB net of greywater)", kind: "formula", dataType: "currency", formula: "fresh_water_l_day_steady / 1000 * 30 * bwssb_inr_per_kl", unit: "INR/mo" },
-    { group: "opex", key: "cleaning_consumables_monthly", label: "Cleaning consumables", kind: "formula", dataType: "currency", formula: "(toilet_uses_per_day_steady + bath_uses_per_day_steady) * cleaning_inr_per_visit * 30", unit: "INR/mo" },
-    { group: "opex", key: "laundry_detergent_monthly", label: "Laundry detergent (bulk)", kind: "formula", dataType: "currency", formula: "laundry_loads_per_day_steady * detergent_inr_per_load * 30", unit: "INR/mo" },
-    { group: "opex", key: "ro_consumables_monthly", label: "RO consumables", kind: "formula", dataType: "currency", formula: "ro_litres_per_day_steady / 1000 * 30 * ro_consumables_inr_per_kl", unit: "INR/mo" },
+    { group: "opex", key: "cleaning_consumables_monthly", label: "Cleaning consumables", kind: "formula", dataType: "currency", formula: "(served_toilet_uses_per_day_steady + served_bath_uses_per_day_steady) * cleaning_inr_per_visit * 30", unit: "INR/mo" },
+    { group: "opex", key: "laundry_detergent_monthly", label: "Laundry detergent (bulk)", kind: "formula", dataType: "currency", formula: "served_laundry_loads_per_day_steady * detergent_inr_per_load * 30", unit: "INR/mo" },
+    { group: "opex", key: "ro_consumables_monthly", label: "RO consumables", kind: "formula", dataType: "currency", formula: "served_ro_litres_per_day_steady / 1000 * 30 * ro_consumables_inr_per_kl", unit: "INR/mo" },
     { group: "opex", key: "stp_consumables_monthly", label: "STP consumables", kind: "formula", dataType: "currency", formula: "stp_kl_treated_per_day * 30 * stp_consumables_inr_per_kl_treated", unit: "INR/mo" },
-    { group: "opex", key: "desludging_monthly_amortised", label: "Septic desludging (amortised)", kind: "formula", dataType: "currency", formula: "toilet_uses_per_day_steady / 1000 * 30 * desludging_inr_per_1000_uses", unit: "INR/mo" },
+    { group: "opex", key: "desludging_monthly_amortised", label: "Septic desludging (amortised)", kind: "formula", dataType: "currency", formula: "served_toilet_uses_per_day_steady / 1000 * 30 * desludging_inr_per_1000_uses", unit: "INR/mo" },
 
     { group: "opex", key: "opex_lab_monthly", label: "Lab testing (monthly avg)", kind: "formula", dataType: "currency", formula: "lab_quarterly / 3", unit: "INR/mo" },
     { group: "opex", key: "opex_monthly_steady", label: "TOTAL monthly opex (steady)", kind: "formula", dataType: "currency",
@@ -283,22 +302,28 @@ async function main() {
 
     // Per-stream monthly revenue. Toilet/bath/laundry/RO charge per-use; pass
     // holders covered by their monthly fee (excluded via (1 - pass_share)).
+    // Per-service served fraction = min(1, capacity / demand). Multiplied into
+    // per-use revenue so under-capacity caps sales.
+    { group: "revenue", key: "served_frac_toilet_monthly", label: "Toilet served fraction (monthly)", kind: "formula", dataType: "percent", shape: { kind: "vector", horizon: "monthly" }, formula: "IF(active_persons_monthly * toilet_uses_per_person_per_day <= cap_toilet_uses_day, 1, cap_toilet_uses_day / (active_persons_monthly * toilet_uses_per_person_per_day))", unit: "%" },
+    { group: "revenue", key: "served_frac_bath_monthly", label: "Bath served fraction (monthly)", kind: "formula", dataType: "percent", shape: { kind: "vector", horizon: "monthly" }, formula: "IF(active_persons_monthly * bath_share <= cap_bath_uses_day, 1, cap_bath_uses_day / (active_persons_monthly * bath_share))", unit: "%" },
+    { group: "revenue", key: "served_frac_laundry_monthly", label: "Laundry served fraction (monthly)", kind: "formula", dataType: "percent", shape: { kind: "vector", horizon: "monthly" }, formula: "IF(active_hh_monthly * laundry_loads_per_active_hh_per_week / 7 <= cap_laundry_loads_day, 1, cap_laundry_loads_day / (active_hh_monthly * laundry_loads_per_active_hh_per_week / 7))", unit: "%" },
+    { group: "revenue", key: "served_frac_ro_monthly", label: "RO served fraction (monthly)", kind: "formula", dataType: "percent", shape: { kind: "vector", horizon: "monthly" }, formula: "IF(active_hh_monthly * ro_litres_per_active_hh_per_day <= cap_ro_litres_day, 1, cap_ro_litres_day / (active_hh_monthly * ro_litres_per_active_hh_per_day))", unit: "%" },
     { group: "revenue", key: "rev_toilet_monthly", label: "Toilet revenue (monthly)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "monthly" },
-      formula: "active_persons_monthly * toilet_uses_per_person_per_day * 28 * price_toilet * (1 - free_use_quota) * (1 - pass_holder_share) * pilot_pay_factor",
+      formula: "active_persons_monthly * toilet_uses_per_person_per_day * 28 * price_toilet * (1 - free_use_quota) * (1 - pass_holder_share) * pilot_pay_factor * served_frac_toilet_monthly",
       unit: "INR/mo" },
     { group: "revenue", key: "rev_bath_monthly", label: "Bath revenue (monthly)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "monthly" },
-      formula: "active_persons_monthly * bath_share * 28 * price_bath * (1 - free_use_quota) * (1 - pass_holder_share) * pilot_pay_factor",
+      formula: "active_persons_monthly * bath_share * 28 * price_bath * (1 - free_use_quota) * (1 - pass_holder_share) * pilot_pay_factor * served_frac_bath_monthly",
       unit: "INR/mo" },
-    // active_HH × loads/wk/7 days × 28 days/mo × price.
+    // active_HH × loads/wk/7 days × 28 days/mo × price × served fraction.
     { group: "revenue", key: "rev_laundry_monthly", label: "Laundry revenue (monthly)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "monthly" },
-      formula: "active_hh_monthly * (laundry_loads_per_active_hh_per_week / 7) * 28 * price_laundry * (1 - pass_holder_share) * pilot_pay_factor",
+      formula: "active_hh_monthly * (laundry_loads_per_active_hh_per_week / 7) * 28 * price_laundry * (1 - pass_holder_share) * pilot_pay_factor * served_frac_laundry_monthly",
       unit: "INR/mo" },
     { group: "revenue", key: "rev_ro_monthly", label: "RO water revenue (monthly)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "monthly" },
-      formula: "active_hh_monthly * ro_litres_per_active_hh_per_day * 28 * price_ro_per_litre * pilot_pay_factor",
+      formula: "active_hh_monthly * ro_litres_per_active_hh_per_day * 28 * price_ro_per_litre * pilot_pay_factor * served_frac_ro_monthly",
       unit: "INR/mo" },
     { group: "revenue", key: "rev_pass_monthly", label: "Monthly pass revenue", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "monthly" },
@@ -345,25 +370,30 @@ async function main() {
       shape: { kind: "vector", horizon: "annual" }, formula: "adoption_annual * hh_count" },
     { group: "pnl", key: "active_persons_annual", label: "Active persons (annual)", kind: "formula", dataType: "number",
       shape: { kind: "vector", horizon: "annual" }, formula: "active_hh_annual * persons_per_hh" },
+    // Annual served fractions (mirror the monthly ones on the annual adoption path).
+    { group: "pnl", key: "served_frac_toilet_annual", label: "Toilet served fraction (annual)", kind: "formula", dataType: "percent", shape: { kind: "vector", horizon: "annual" }, formula: "IF(active_persons_annual * toilet_uses_per_person_per_day <= cap_toilet_uses_day, 1, cap_toilet_uses_day / (active_persons_annual * toilet_uses_per_person_per_day))", unit: "%" },
+    { group: "pnl", key: "served_frac_bath_annual", label: "Bath served fraction (annual)", kind: "formula", dataType: "percent", shape: { kind: "vector", horizon: "annual" }, formula: "IF(active_persons_annual * bath_share <= cap_bath_uses_day, 1, cap_bath_uses_day / (active_persons_annual * bath_share))", unit: "%" },
+    { group: "pnl", key: "served_frac_laundry_annual", label: "Laundry served fraction (annual)", kind: "formula", dataType: "percent", shape: { kind: "vector", horizon: "annual" }, formula: "IF(active_hh_annual * laundry_loads_per_active_hh_per_week / 7 <= cap_laundry_loads_day, 1, cap_laundry_loads_day / (active_hh_annual * laundry_loads_per_active_hh_per_week / 7))", unit: "%" },
+    { group: "pnl", key: "served_frac_ro_annual", label: "RO served fraction (annual)", kind: "formula", dataType: "percent", shape: { kind: "vector", horizon: "annual" }, formula: "IF(active_hh_annual * ro_litres_per_active_hh_per_day <= cap_ro_litres_day, 1, cap_ro_litres_day / (active_hh_annual * ro_litres_per_active_hh_per_day))", unit: "%" },
 
     // Annual revenue per stream — applies price inflation (1+price_increase)^T.
     // Y1 picks up actual monthly sum (which includes pilot freebie); Y2+ uses
     // the steady annual formula (no pilot factor).
     { group: "pnl", key: "rev_toilet_annual", label: "Toilet revenue (annual)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
-      formula: "IF(T == 0, SUM(rev_toilet_monthly, 0, 12), active_persons_annual * toilet_uses_per_person_per_day * 365 * price_toilet * (1 - free_use_quota) * (1 - pass_holder_share) * (1 + price_increase) ^ T)",
+      formula: "IF(T == 0, SUM(rev_toilet_monthly, 0, 12), active_persons_annual * toilet_uses_per_person_per_day * 365 * price_toilet * (1 - free_use_quota) * (1 - pass_holder_share) * (1 + price_increase) ^ T * served_frac_toilet_annual)",
       unit: "INR/yr" },
     { group: "pnl", key: "rev_bath_annual", label: "Bath revenue (annual)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
-      formula: "IF(T == 0, SUM(rev_bath_monthly, 0, 12), active_persons_annual * bath_share * 365 * price_bath * (1 - free_use_quota) * (1 - pass_holder_share) * (1 + price_increase) ^ T)",
+      formula: "IF(T == 0, SUM(rev_bath_monthly, 0, 12), active_persons_annual * bath_share * 365 * price_bath * (1 - free_use_quota) * (1 - pass_holder_share) * (1 + price_increase) ^ T * served_frac_bath_annual)",
       unit: "INR/yr" },
     { group: "pnl", key: "rev_laundry_annual", label: "Laundry revenue (annual)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
-      formula: "IF(T == 0, SUM(rev_laundry_monthly, 0, 12), active_hh_annual * (laundry_loads_per_active_hh_per_week / 7) * 365 * price_laundry * (1 - pass_holder_share) * (1 + price_increase) ^ T)",
+      formula: "IF(T == 0, SUM(rev_laundry_monthly, 0, 12), active_hh_annual * (laundry_loads_per_active_hh_per_week / 7) * 365 * price_laundry * (1 - pass_holder_share) * (1 + price_increase) ^ T * served_frac_laundry_annual)",
       unit: "INR/yr" },
     { group: "pnl", key: "rev_ro_annual", label: "RO water revenue (annual)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
-      formula: "IF(T == 0, SUM(rev_ro_monthly, 0, 12), active_hh_annual * ro_litres_per_active_hh_per_day * 365 * price_ro_per_litre * (1 + price_increase) ^ T)",
+      formula: "IF(T == 0, SUM(rev_ro_monthly, 0, 12), active_hh_annual * ro_litres_per_active_hh_per_day * 365 * price_ro_per_litre * (1 + price_increase) ^ T * served_frac_ro_annual)",
       unit: "INR/yr" },
     { group: "pnl", key: "rev_pass_annual", label: "Monthly pass revenue (annual)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
@@ -472,7 +502,8 @@ async function main() {
     { key: "kpi_y1_revenue",    label: "Year-1 Revenue",        kind: "kpi", order: 4, config: { nodeKey: "revenue_annual", index: 0, format: "currency" } },
     { key: "kpi_y3_ebitda",     label: "Year-3 EBITDA",         kind: "kpi", order: 5, config: { nodeKey: "ebitda_annual",  index: 2, format: "currency" } },
     { key: "kpi_y3_oss",        label: "Year-3 OSS ratio",      kind: "kpi", order: 6, config: { nodeKey: "oss_ratio_annual", index: 2, format: "number" } },
-    { key: "kpi_npv",           label: "5-Year NPV",            kind: "kpi", order: 7, config: { nodeKey: "npv_5yr", format: "currency" } },
+    { key: "kpi_demand_met",    label: "Demand met",            kind: "kpi", order: 7, config: { nodeKey: "capacity_utilisation_steady", format: "percent" } },
+    { key: "kpi_npv",           label: "5-Year NPV",            kind: "kpi", order: 8, config: { nodeKey: "npv_5yr", format: "currency" } },
 
     // Revenue vs Opex vs EBITDA on one chart (monthly + annual), OSS standalone.
     { key: "series_pnl_m", label: "Monthly P&L — Revenue vs Opex vs EBITDA", kind: "seriesGroup", order: 10,
