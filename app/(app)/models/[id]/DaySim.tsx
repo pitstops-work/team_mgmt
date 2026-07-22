@@ -83,10 +83,33 @@ export default function DaySim({ params, constants, presentation }: {
   else if (bEve && h >= bEve[0] && h <= bEve[1]) phase = "evening peak";
   else if (bMorn && bEve && h > bMorn[1] && h < bEve[0]) phase = "daytime · steady";
 
+  // Can-reserve dynamics at the current hour. The engine banks tank overflow
+  // into the cans off-peak (charge) and draws them down when the tank is
+  // exhausted at the rush (drain); surface those as distinct states.
+  const cansPrev = sim.canLevels[h] ?? 0;
+  const cansNext = sim.canLevels[Math.min(h + 1, 24)] ?? cansPrev;
+  const hasCans = sim.cansL > 0;
+  const cansCharging = hasCans && cansNext > cansPrev + 0.5;
+  const cansDraining = hasCans && cansNext < cansPrev - 0.5;
+  const cansFull = hasCans && cans >= sim.cansL * 0.99;
+
   // Verdict
   let vClass: "good" | "warn" | "bad" = "good";
-  let vTitle = plantOn ? "Tank holding" : "Plant on service";
-  let vBody = plantOn ? "production and demand are balanced; cans staying topped up." : "running on stored water during the maintenance window.";
+  let vTitle: string;
+  let vBody: string;
+  if (!plantOn) {
+    vTitle = "Plant on service";
+    vBody = "running on stored water during the maintenance window.";
+  } else if (cansCharging && !cansFull) {
+    vTitle = "Filling the reserve";
+    vBody = "production is outrunning demand — the overflow is topping the pre-packed cans back up.";
+  } else if (hasCans && cansFull) {
+    vTitle = "Fully banked";
+    vBody = "tank and can reserve are both full — ready to absorb the next peak.";
+  } else {
+    vTitle = "Tank holding";
+    vBody = "production and demand are balanced; the tank is steady.";
+  }
   if (unmetTot > 0 || (tank <= P.tankBadL && cans <= cansLowL)) {
     vClass = "bad"; vTitle = "Shortfall — queue forming";
     vBody = "tank and pre-packed cans are both exhausted. Add cans, spread the peak, or add storage.";
@@ -189,8 +212,10 @@ export default function DaySim({ params, constants, presentation }: {
                   fill={C.cyan} opacity={sim.cansL > 0 ? (filled ? 0.9 : 0.12) : 0.12} />;
               })}
             </g>
-            <text x={745} y={216} textAnchor="middle" fill={C.muted} fontSize="11">
-              {sim.cansL > 0 ? `${Math.round(cans / 10)} / ${params.cansCount} cans` : "no cans"}
+            <text x={745} y={216} textAnchor="middle" fill={cansCharging ? C.good : cansDraining ? C.amber : C.muted} fontSize="11">
+              {sim.cansL > 0
+                ? `${Math.round(cans / 10)} / ${params.cansCount} cans${cansCharging ? " ▲ filling" : cansDraining ? " ▼ draining" : ""}`
+                : "no cans"}
             </text>
           </Box>
           <Pipe d="M810,170 H860" />
@@ -213,6 +238,14 @@ export default function DaySim({ params, constants, presentation }: {
         <Cell k="Production" v={fmtL(prod)} u="L/h" />
         <Cell k="Demand now" v={fmtL(dem)} u="L/h" />
         <Cell k="Tank level" v={fmtL(tank)} u="L" />
+        {hasCans && (
+          <Cell
+            k={cansCharging ? "Can reserve ▲ filling" : cansDraining ? "Can reserve ▼ draining" : "Can reserve"}
+            v={`${fmtL(cans)} / ${fmtL(sim.cansL)}`} u="L"
+            alert={cans <= cansLowL}
+            color={cansCharging ? C.good : cansDraining ? C.amber : undefined}
+          />
+        )}
         <Cell k="Dispensed today" v={fmtL(dispensed)} u="L" />
         <Cell k="Unmet today" v={fmtL(unmetTot)} u="L" alert={unmetTot > 0} />
       </div>
