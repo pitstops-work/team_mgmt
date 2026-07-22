@@ -101,6 +101,9 @@ async function main() {
     // Engineering constants — advanced tier (hidden on the sim tab until toggled).
     { group: "plant", key: "ro_recovery_rate", label: "RO recovery rate", kind: "input", dataType: "percent", defaultJson: 0.55, unit: "%", notes: "Litres produced / litres feed water", tier: "advanced", ui: { min: 0.3, max: 0.8, step: 0.05 } },
     { group: "plant", key: "days_per_month", label: "Days operating per month", kind: "input", dataType: "number", defaultJson: 28, unit: "days/month", notes: "Allow for maintenance days", tier: "advanced", ui: { min: 20, max: 31, step: 1 } },
+    // Physical throughput ceiling — what the plant can actually produce. Demand
+    // above this is capped (revenue can't exceed what the plant makes).
+    { group: "plant", key: "capacity_litres_per_month", label: "Plant throughput ceiling / month", kind: "formula", dataType: "number", formula: "plant_lph * operating_hours_per_day * days_per_month", unit: "L/mo", notes: "Most the plant can physically produce in a month" },
 
     // ── 4. Pricing ────────────────────────────────────────────────────────
     { group: "pricing", key: "price_per_litre", label: "Price per litre", kind: "input", dataType: "currency", defaultJson: 2, unit: "INR/L", notes: "Slum benchmark INR 1–5 per litre", ui: { min: 0, max: 5, step: 0.1 } },
@@ -109,9 +112,12 @@ async function main() {
     { group: "pricing", key: "effective_price_per_litre", label: "Effective price per litre", kind: "formula", dataType: "currency", formula: "price_per_litre * (1 - pass_discount * pass_holder_share)", unit: "INR/L" },
 
     // ── 5. Capex inputs ───────────────────────────────────────────────────
-    { group: "capex_in", key: "capex_ro_plant", label: "RO plant (skid + membranes + UV)", kind: "input", dataType: "currency", defaultJson: 600000, unit: "INR", notes: "1,000 LPH community-grade" },
+    // RO plant + tanks scale with capacity (per-unit rates below); other capex flat.
+    { group: "capex_in", key: "capex_ro_plant_per_lph", label: "RO plant cost per L/hour", kind: "input", dataType: "currency", defaultJson: 600, unit: "INR/LPH", surface: "finance", notes: "RO skid+membranes+UV per L/hour. ×1000 LPH = ₹6L base." },
+    { group: "capex", key: "capex_ro_plant", label: "RO plant (skid + membranes + UV)", kind: "formula", dataType: "currency", formula: "plant_lph * capex_ro_plant_per_lph", unit: "INR", notes: "Scales with plant_lph" },
     { group: "capex_in", key: "capex_atm", label: "Water ATM dispensing unit", kind: "input", dataType: "currency", defaultJson: 150000, unit: "INR", notes: "RFID + UPI capable" },
-    { group: "capex_in", key: "capex_tanks", label: "Storage tanks (raw + product)", kind: "input", dataType: "currency", defaultJson: 80000, unit: "INR", notes: "Stainless / food-grade HDPE" },
+    { group: "capex_in", key: "capex_tanks_per_litre", label: "Storage tank cost per litre", kind: "input", dataType: "currency", defaultJson: 40, unit: "INR/L", surface: "finance", notes: "Raw+product tank per litre of product-tank size." },
+    { group: "capex", key: "capex_tanks", label: "Storage tanks (raw + product)", kind: "formula", dataType: "currency", formula: "tank_litres * capex_tanks_per_litre", unit: "INR", notes: "Scales with tank_litres" },
     { group: "capex_in", key: "capex_civil", label: "Civil works (room, foundation)", kind: "input", dataType: "currency", defaultJson: 200000, unit: "INR" },
     { group: "capex_in", key: "capex_plumbing", label: "Plumbing & electrical works", kind: "input", dataType: "currency", defaultJson: 100000, unit: "INR" },
     { group: "capex_in", key: "capex_borewell", label: "Borewell / water source connection", kind: "input", dataType: "currency", defaultJson: 75000, unit: "INR" },
@@ -126,10 +132,12 @@ async function main() {
     { group: "opex_in", key: "electricity_kwh_per_1000l", label: "Electricity (kWh per 1000 L produced)", kind: "input", dataType: "number", defaultJson: 6, unit: "kWh/1000L" },
     { group: "opex_in", key: "electricity_rate", label: "Electricity rate (commercial)", kind: "input", dataType: "currency", defaultJson: 9.5, unit: "INR/kWh" },
     { group: "opex_in", key: "water_source_cost_per_1000l", label: "Water source cost (per 1000 L feed)", kind: "input", dataType: "currency", defaultJson: 30, unit: "INR/1000L" },
-    { group: "opex_in", key: "membrane_annual_cost", label: "Membrane replacement (annual)", kind: "input", dataType: "currency", defaultJson: 30000, unit: "INR/year", notes: "High-TDS = 12 mo; standard = 24 mo" },
+    { group: "opex_in", key: "membrane_cost_per_lph_year", label: "Membrane replacement per L/hour / year", kind: "input", dataType: "currency", defaultJson: 30, unit: "INR/LPH/yr", notes: "Membrane set scales with plant capacity. ×1000 LPH = ₹30k/yr base." },
+    { group: "opex", key: "membrane_annual_cost", label: "Membrane replacement (annual)", kind: "formula", dataType: "currency", formula: "plant_lph * membrane_cost_per_lph_year", unit: "INR/year", notes: "Scales with plant_lph" },
     { group: "opex_in", key: "prefilter_monthly", label: "Pre-filter cartridges", kind: "input", dataType: "currency", defaultJson: 1000, unit: "INR/mo" },
     { group: "opex_in", key: "uv_monthly", label: "UV lamp & consumables", kind: "input", dataType: "currency", defaultJson: 500, unit: "INR/mo" },
-    { group: "opex_in", key: "amc_monthly", label: "Maintenance / AMC reserve", kind: "input", dataType: "currency", defaultJson: 1500, unit: "INR/mo", notes: "Sinking fund for repairs" },
+    { group: "opex_in", key: "amc_pct_annual", label: "AMC / maintenance (% of capex per year)", kind: "input", dataType: "percent", defaultJson: 0.0109, unit: "%", notes: "Maintenance reserve as a share of total capex (scales with plant size)." },
+    { group: "opex", key: "amc_monthly", label: "Maintenance / AMC reserve", kind: "formula", dataType: "currency", formula: "capex_total * amc_pct_annual / 12", unit: "INR/mo", notes: "Scales with capex_total" },
     { group: "opex_in", key: "tech_monthly", label: "Technology / monitoring platform fee", kind: "input", dataType: "currency", defaultJson: 2000, unit: "INR/mo" },
     { group: "opex_in", key: "mobile_monthly", label: "Mobile / internet / SIM", kind: "input", dataType: "currency", defaultJson: 500, unit: "INR/mo" },
     { group: "opex_in", key: "cleaning_monthly", label: "Cleaning supplies & sundry", kind: "input", dataType: "currency", defaultJson: 800, unit: "INR/mo" },
@@ -148,15 +156,19 @@ async function main() {
     { group: "capex", key: "capex_total", label: "TOTAL CAPEX", kind: "formula", dataType: "currency", formula: "capex_subtotal + capex_contingency", unit: "INR" },
     { group: "capex", key: "capex_per_hh", label: "Capex per household served", kind: "formula", dataType: "currency", formula: "capex_total / hh_count", unit: "INR/HH" },
     { group: "capex", key: "capex_per_litre_5yr", label: "Capex per litre (5-yr amortised, BASE)", kind: "formula", dataType: "currency",
-      formula: "capex_total / (5 * hh_count * adoption_y3 * litres_per_adopting_hh * 365)", unit: "INR/L" },
+      formula: "capex_total / (5 * served_steady_litres_per_month * 12)", unit: "INR/L" },
 
     // ── Steady-state Opex (derived) ───────────────────────────────────────
-    { group: "opex", key: "steady_litres_per_month", label: "Steady-state litres / month", kind: "formula", dataType: "number",
+    { group: "opex", key: "steady_litres_per_month", label: "Steady-state demand / month", kind: "formula", dataType: "number",
       formula: "hh_count * adoption_y3 * litres_per_adopting_hh * days_per_month", unit: "L/mo" },
+    { group: "opex", key: "served_steady_litres_per_month", label: "Steady litres served (capacity-capped)", kind: "formula", dataType: "number",
+      formula: "IF(steady_litres_per_month < capacity_litres_per_month, steady_litres_per_month, capacity_litres_per_month)", unit: "L/mo" },
+    { group: "opex", key: "capacity_utilisation_steady", label: "Demand met at steady state", kind: "formula", dataType: "percent",
+      formula: "IFERROR(served_steady_litres_per_month / steady_litres_per_month, 0)", unit: "%", notes: "Share of steady-state demand the plant can actually serve (100% = enough capacity)" },
     { group: "opex", key: "opex_steady_electricity", label: "Steady-state electricity", kind: "formula", dataType: "currency",
-      formula: "steady_litres_per_month / 1000 * electricity_kwh_per_1000l * electricity_rate", unit: "INR/mo" },
+      formula: "served_steady_litres_per_month / 1000 * electricity_kwh_per_1000l * electricity_rate", unit: "INR/mo" },
     { group: "opex", key: "opex_steady_source_water", label: "Steady-state source water", kind: "formula", dataType: "currency",
-      formula: "steady_litres_per_month / ro_recovery_rate / 1000 * water_source_cost_per_1000l", unit: "INR/mo" },
+      formula: "served_steady_litres_per_month / ro_recovery_rate / 1000 * water_source_cost_per_1000l", unit: "INR/mo" },
     { group: "opex", key: "opex_steady_membrane", label: "Membrane (amortised /12)", kind: "formula", dataType: "currency",
       formula: "membrane_annual_cost / 12", unit: "INR/mo" },
     { group: "opex", key: "opex_steady_lab", label: "Lab testing (monthly avg)", kind: "formula", dataType: "currency",
@@ -165,7 +177,7 @@ async function main() {
       formula: "salary_operator + salary_assistant + opex_steady_electricity + opex_steady_source_water + opex_steady_membrane + prefilter_monthly + uv_monthly + amc_monthly + tech_monthly + mobile_monthly + cleaning_monthly + opex_steady_lab",
       unit: "INR/mo" },
     { group: "opex", key: "opex_per_litre", label: "Opex per litre produced", kind: "formula", dataType: "currency",
-      formula: "opex_monthly_steady / steady_litres_per_month", unit: "INR/L" },
+      formula: "opex_monthly_steady / served_steady_litres_per_month", unit: "INR/L" },
     { group: "opex", key: "breakeven_price_per_litre", label: "Break-even price per litre", kind: "formula", dataType: "currency",
       formula: "opex_per_litre", unit: "INR/L", notes: "Pricing below this loses money at steady state" },
 
@@ -183,12 +195,15 @@ async function main() {
     { group: "revenue", key: "active_hh_monthly", label: "Active households (monthly)", kind: "formula", dataType: "number",
       shape: { kind: "vector", horizon: "monthly" },
       formula: "adoption_monthly * hh_count", unit: "HH" },
-    { group: "revenue", key: "litres_per_month", label: "Litres produced per month", kind: "formula", dataType: "number",
+    { group: "revenue", key: "litres_per_month", label: "Litres demanded per month", kind: "formula", dataType: "number",
       shape: { kind: "vector", horizon: "monthly" },
       formula: "active_hh_monthly * litres_per_adopting_hh * days_per_month", unit: "L/mo" },
+    { group: "revenue", key: "served_litres_per_month", label: "Litres served (capacity-capped)", kind: "formula", dataType: "number",
+      shape: { kind: "vector", horizon: "monthly" },
+      formula: "IF(litres_per_month < capacity_litres_per_month, litres_per_month, capacity_litres_per_month)", unit: "L/mo", notes: "Demand, capped at what the plant can produce" },
     { group: "revenue", key: "revenue_monthly", label: "Revenue (monthly)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "monthly" },
-      formula: "litres_per_month * effective_price_per_litre", unit: "INR/mo" },
+      formula: "served_litres_per_month * effective_price_per_litre", unit: "INR/mo" },
 
     // ── Monthly P&L (60-month vector) ─────────────────────────────────────
     // Variable costs scale with actual production. Fixed costs zero in
@@ -196,9 +211,9 @@ async function main() {
     { group: "pnl", key: "opex_var_monthly", label: "Variable opex (monthly)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "monthly" },
       formula:
-        "litres_per_month / 1000 * electricity_kwh_per_1000l * electricity_rate" +
-        " + litres_per_month / ro_recovery_rate / 1000 * water_source_cost_per_1000l" +
-        " + IF(steady_litres_per_month > 0, litres_per_month * membrane_annual_cost / 12 / steady_litres_per_month, 0)",
+        "served_litres_per_month / 1000 * electricity_kwh_per_1000l * electricity_rate" +
+        " + served_litres_per_month / ro_recovery_rate / 1000 * water_source_cost_per_1000l" +
+        " + IF(served_steady_litres_per_month > 0, served_litres_per_month * membrane_annual_cost / 12 / served_steady_litres_per_month, 0)",
       unit: "INR/mo" },
     { group: "pnl", key: "opex_fix_monthly", label: "Fixed opex (monthly)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "monthly" },
@@ -223,21 +238,26 @@ async function main() {
         "(0 + 0 + adoption_m3 + (adoption_m3 + (adoption_m6 - adoption_m3) * 1 / 3) + (adoption_m3 + (adoption_m6 - adoption_m3) * 2 / 3) + adoption_m6 + (adoption_m6 + (adoption_m12 - adoption_m6) * 1 / 6) + (adoption_m6 + (adoption_m12 - adoption_m6) * 2 / 6) + (adoption_m6 + (adoption_m12 - adoption_m6) * 3 / 6) + (adoption_m6 + (adoption_m12 - adoption_m6) * 4 / 6) + (adoption_m6 + (adoption_m12 - adoption_m6) * 5 / 6) + adoption_m12) / 12, " +
         "IF(T == 1, adoption_y2, adoption_y3))",
       unit: "%" },
-    { group: "pnl", key: "litres_annual", label: "Litres produced (annual)", kind: "formula", dataType: "number",
+    { group: "pnl", key: "litres_annual", label: "Litres demanded (annual)", kind: "formula", dataType: "number",
       shape: { kind: "vector", horizon: "annual" },
       formula: "hh_count * adoption_annual * litres_per_adopting_hh * 365", unit: "L/yr" },
+    { group: "pnl", key: "capacity_litres_per_year", label: "Plant throughput ceiling / year", kind: "formula", dataType: "number",
+      formula: "plant_lph * operating_hours_per_day * 365", unit: "L/yr" },
+    { group: "pnl", key: "served_litres_annual", label: "Litres served / year (capped)", kind: "formula", dataType: "number",
+      shape: { kind: "vector", horizon: "annual" },
+      formula: "IF(litres_annual < capacity_litres_per_year, litres_annual, capacity_litres_per_year)", unit: "L/yr" },
     { group: "pnl", key: "price_annual", label: "Effective price (annual)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
       formula: "effective_price_per_litre * (1 + price_increase) ^ T", unit: "INR/L" },
     { group: "pnl", key: "revenue_annual", label: "Revenue (annual)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
-      formula: "litres_annual * price_annual", unit: "INR/yr" },
+      formula: "served_litres_annual * price_annual", unit: "INR/yr" },
     { group: "pnl", key: "opex_annual_electricity", label: "Annual electricity (inflated)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
-      formula: "litres_annual / 1000 * electricity_kwh_per_1000l * electricity_rate * (1 + cost_inflation) ^ T", unit: "INR/yr" },
+      formula: "served_litres_annual / 1000 * electricity_kwh_per_1000l * electricity_rate * (1 + cost_inflation) ^ T", unit: "INR/yr" },
     { group: "pnl", key: "opex_annual_source_water", label: "Annual source water (inflated)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
-      formula: "litres_annual / ro_recovery_rate / 1000 * water_source_cost_per_1000l * (1 + cost_inflation) ^ T", unit: "INR/yr" },
+      formula: "served_litres_annual / ro_recovery_rate / 1000 * water_source_cost_per_1000l * (1 + cost_inflation) ^ T", unit: "INR/yr" },
     { group: "pnl", key: "opex_annual_membrane", label: "Annual membrane (inflated)", kind: "formula", dataType: "currency",
       shape: { kind: "vector", horizon: "annual" },
       formula: "membrane_annual_cost * (1 + cost_inflation) ^ T", unit: "INR/yr" },
@@ -322,7 +342,8 @@ async function main() {
     { key: "kpi_y1_revenue",      label: "Year-1 Revenue",         kind: "kpi", order: 4,  config: { nodeKey: "revenue_annual", index: 0, format: "currency" } },
     { key: "kpi_y3_ebitda",       label: "Year-3 EBITDA",          kind: "kpi", order: 5,  config: { nodeKey: "ebitda_annual",  index: 2, format: "currency" } },
     { key: "kpi_y3_oss",          label: "Year-3 OSS ratio",       kind: "kpi", order: 6,  config: { nodeKey: "oss_ratio_annual", index: 2, format: "number" } },
-    { key: "kpi_npv",             label: "5-Year NPV",             kind: "kpi", order: 7,  config: { nodeKey: "npv_5yr", format: "currency" } },
+    { key: "kpi_demand_met",      label: "Demand met",             kind: "kpi", order: 7,  config: { nodeKey: "capacity_utilisation_steady", format: "percent" } },
+    { key: "kpi_npv",             label: "5-Year NPV",             kind: "kpi", order: 8,  config: { nodeKey: "npv_5yr", format: "currency" } },
 
     // Time-series charts — Revenue vs Opex vs EBITDA on one chart (monthly + annual),
     // OSS standalone. Colors: revenue green, opex amber, EBITDA blue.
