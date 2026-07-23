@@ -71,6 +71,22 @@ export default function ArtifactsClient({
     startTransition(() => router.refresh());
   }
 
+  async function onDelete(a: Artifact) {
+    if (!confirm(`Delete "${a.name}"? This cannot be undone.`)) return;
+    setError(null);
+    try {
+      const res = await fetch(`/api/upload/school/${a.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({ error: `${res.status}` }));
+        throw new Error(j.error ?? `${res.status}`);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    startTransition(() => router.refresh());
+  }
+
   const byKind = new Map<string, Artifact[]>();
   for (const a of artifacts) {
     (byKind.get(a.kind) ?? byKind.set(a.kind, []).get(a.kind)!).push(a);
@@ -129,6 +145,18 @@ export default function ArtifactsClient({
                   <span className="text-stone-400">{a.size ? `${Math.round(a.size / 1024)} KB` : ""}</span>
                   {a.caption && <span className="text-stone-500 truncate">— {a.caption}</span>}
                   <span className="ml-auto text-stone-400 whitespace-nowrap">{a.uploadedBy ?? "—"} · {a.createdAt.slice(0, 10)}</span>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => onDelete(a)}
+                      disabled={pending}
+                      className="text-stone-400 hover:text-rose-600 disabled:opacity-50"
+                      title="Delete this file"
+                      aria-label={`Delete ${a.name}`}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
