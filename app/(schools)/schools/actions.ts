@@ -13,6 +13,7 @@ import { bootstrapSchoolPlan } from "@/lib/schoolPlan/instantiate";
 import { PILOT_SCHOOLS } from "@/lib/schoolPlan/stepTemplate";
 import { planCompleteness, type PlanForCompleteness } from "@/lib/schoolPlan/completeness";
 import { SCHOOL_PLAN_ROLES } from "@/lib/schoolPlan/roles";
+import { rollupStep } from "@/lib/schoolPlan/rollup";
 import type {
   SchoolPlanStepStatusValue,
   SchoolServiceStatusValue,
@@ -423,8 +424,14 @@ export async function deleteRisk(id: string) {
 // ---------- Steps ----------
 
 export async function setStepStatus(stepId: string, status: SchoolPlanStepStatusValue, blockingNote?: string) {
-  const step = await prisma.schoolPlanStep.findUnique({ where: { id: stepId }, select: { planId: true } });
+  const step = await prisma.schoolPlanStep.findUnique({
+    where: { id: stepId },
+    select: { planId: true, _count: { select: { substeps: true } } },
+  });
   if (!step) throw new Error("Step not found.");
+  if (step._count.substeps > 0) {
+    throw new Error("Step status is rolled up from substeps — edit the substeps instead.");
+  }
   const a = await requireEditPlan(step.planId);
   const completed = status === "done"
     ? { completedAt: new Date(), completedById: a.userId ?? null }
@@ -454,6 +461,118 @@ export async function setStepDueDate(stepId: string, iso: string | null) {
   await requireEditPlan(step.planId);
   await prisma.schoolPlanStep.update({ where: { id: stepId }, data: { dueDate: iso ? new Date(iso) : null } });
   refreshPlan(step.planId);
+}
+
+// ---------- Substeps ----------
+
+export async function addSubstep(stepId: string, input: {
+  title: string;
+  description?: string | null;
+  ownerUserId?: string | null;
+  dueDate?: string | null;
+}) {
+  const step = await prisma.schoolPlanStep.findUnique({ where: { id: stepId }, select: { planId: true } });
+  if (!step) throw new Error("Step not found.");
+  await requireEditPlan(step.planId);
+  const title = input.title.trim();
+  if (!title) throw new Error("Title is required.");
+  const last = await prisma.schoolPlanSubstep.findFirst({
+    where: { stepId },
+    orderBy: { position: "desc" },
+    select: { position: true },
+  });
+  const substep = await prisma.$transaction(async (tx) => {
+    const created = await tx.schoolPlanSubstep.create({
+      data: {
+        stepId,
+        position: (last?.position ?? -1) + 1,
+        title,
+        description: input.description?.trim() || null,
+        ownerUserId: input.ownerUserId || null,
+        dueDate: input.dueDate ? new Date(input.dueDate) : null,
+      },
+    });
+    // Adding the first substep flips the parent into rolled-up mode; recompute
+    // so its chip reflects the fresh (pending) substep set rather than any
+    // stale self-owned status.
+    await rollupStep(tx, stepId, null);
+    return created;
+  });
+  refreshPlan(step.planId);
+  return substep;
+}
+
+export async function updateSubstep(substepId: string, patch: {
+  title?: string;
+  description?: string | null;
+  ownerUserId?: string | null;
+  dueDate?: string | null;
+  blockingNote?: string | null;
+  position?: number;
+}) {
+  const sub = await prisma.schoolPlanSubstep.findUnique({
+    where: { id: substepId },
+    select: { stepId: true, step: { select: { planId: true } } },
+  });
+  if (!sub) throw new Error("Substep not found.");
+  await requireEditPlan(sub.step.planId);
+  const data: Record<string, unknown> = {};
+  if (patch.title !== undefined) {
+    const t = patch.title.trim();
+    if (!t) throw new Error("Title is required.");
+    data.title = t;
+  }
+  if (patch.description !== undefined) data.description = patch.description?.trim() || null;
+  if (patch.ownerUserId !== undefined) data.ownerUserId = patch.ownerUserId || null;
+  if (patch.dueDate !== undefined) data.dueDate = patch.dueDate ? new Date(patch.dueDate) : null;
+  if (patch.blockingNote !== undefined) data.blockingNote = patch.blockingNote?.trim() || null;
+  if (patch.position !== undefined) data.position = patch.position;
+  await prisma.schoolPlanSubstep.update({ where: { id: substepId }, data });
+  refreshPlan(sub.step.planId);
+}
+
+export async function setSubstepStatus(
+  substepId: string,
+  status: SchoolPlanStepStatusValue,
+  blockingNote?: string,
+) {
+  const sub = await prisma.schoolPlanSubstep.findUnique({
+    where: { id: substepId },
+    select: { stepId: true, step: { select: { planId: true } } },
+  });
+  if (!sub) throw new Error("Substep not found.");
+  const a = await requireEditPlan(sub.step.planId);
+  const completed = status === "done"
+    ? { completedAt: new Date(), completedById: a.userId ?? null }
+    : { completedAt: null, completedById: null };
+  await prisma.$transaction(async (tx) => {
+    await tx.schoolPlanSubstep.update({
+      where: { id: substepId },
+      data: {
+        status,
+        blockingNote: status === "blocked" ? (blockingNote?.trim() || null) : null,
+        ...completed,
+      },
+    });
+    await rollupStep(tx, sub.stepId, a.userId ?? null);
+  });
+  refreshPlan(sub.step.planId);
+}
+
+export async function deleteSubstep(substepId: string) {
+  const sub = await prisma.schoolPlanSubstep.findUnique({
+    where: { id: substepId },
+    select: { stepId: true, step: { select: { planId: true } } },
+  });
+  if (!sub) throw new Error("Substep not found.");
+  await requireEditPlan(sub.step.planId);
+  await prisma.$transaction(async (tx) => {
+    await tx.schoolPlanSubstep.delete({ where: { id: substepId } });
+    // If this was the last substep, rollupStep is a no-op and the step keeps
+    // whatever status it had. That's intended — it re-enters self-owned mode.
+    await rollupStep(tx, sub.stepId, null);
+  });
+  refreshPlan(sub.step.planId);
 }
 
 // ---------- Signoff ----------

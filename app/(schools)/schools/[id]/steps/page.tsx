@@ -18,7 +18,13 @@ export default async function StepsPage({ params }: { params: Promise<{ id: stri
       id: true, name: true,
       steps: {
         orderBy: { stepNo: "asc" },
-        include: { owner: { select: { id: true, name: true, email: true } } },
+        include: {
+          owner: { select: { id: true, name: true, email: true } },
+          substeps: {
+            orderBy: { position: "asc" },
+            include: { owner: { select: { id: true, name: true, email: true } } },
+          },
+        },
       },
     },
   });
@@ -56,6 +62,16 @@ export default async function StepsPage({ params }: { params: Promise<{ id: stri
           ownerLabel: s.owner ? (s.owner.name ?? s.owner.email) : null,
           dueDate: s.dueDate?.toISOString() ?? null,
           blockingNote: s.blockingNote,
+          substeps: s.substeps.map((ss) => ({
+            id: ss.id,
+            title: ss.title,
+            description: ss.description,
+            status: ss.status,
+            ownerUserId: ss.ownerUserId,
+            ownerLabel: ss.owner ? (ss.owner.name ?? ss.owner.email) : null,
+            dueDate: ss.dueDate?.toISOString() ?? null,
+            blockingNote: ss.blockingNote,
+          })),
         }))}
         users={users.map((u) => ({ id: u.id, label: u.name ?? u.email }))}
         canEdit={canEditPlan(access, id)}

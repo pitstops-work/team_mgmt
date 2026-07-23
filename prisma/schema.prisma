@@ -146,6 +146,7 @@ model User {
   // After-School Centres portal
   ownedSchoolPlans          SchoolPlan[]                   @relation("SchoolPlanOurLead")
   schoolStepsOwned          SchoolPlanStep[]               @relation("SchoolStepOwner")
+  schoolSubstepsOwned       SchoolPlanSubstep[]            @relation("SchoolSubstepOwner")
   schoolRisksOwned          SchoolPlanRisk[]               @relation("SchoolRiskOwner")
   schoolArtifactsUploaded   SchoolPlanArtifact[]           @relation("SchoolArtifactUpload")
   schoolPlanMemberships     SchoolPlanMember[]             @relation("SchoolPlanMemberUser")
@@ -3788,9 +3789,34 @@ model SchoolPlanStep {
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   artifacts            SchoolPlanArtifact[]
+  substeps             SchoolPlanSubstep[]
 
   @@unique([planId, stepNo])
   @@index([status, dueDate])
+}
+
+/// Optional per-step breakdown. When a SchoolPlanStep has ≥1 substep, its status
+/// is rolled up from the substeps (see lib/schoolPlan/rollup.ts) and direct
+/// status edits on the step are refused. Zero substeps = step behaves as before.
+model SchoolPlanSubstep {
+  id            String           @id @default(cuid())
+  stepId        String
+  step          SchoolPlanStep   @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  position      Int              @default(0)
+  title         String
+  description   String?
+  status        SchoolStepStatus @default(pending)
+  ownerUserId   String?
+  owner         User?            @relation("SchoolSubstepOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  dueDate       DateTime?
+  blockingNote  String?
+  completedAt   DateTime?
+  completedById String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([stepId, position])
+  @@index([ownerUserId])
 }
 
 model SchoolPlanCatchment {
