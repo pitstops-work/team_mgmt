@@ -19,6 +19,7 @@ import { planCompleteness } from "@/lib/schoolPlan/completeness";
 import { SCHOOL_PLAN_STEPS, SERVICE_ITEMS, PROGRAMME_COMPONENTS } from "@/lib/schoolPlan/stepTemplate";
 import { loadPlanForCompleteness } from "../actions";
 import type { SchoolPlanStepStatusValue } from "@/lib/schoolPlan/types";
+import { currentWeek, weekLabel } from "@/lib/seeding/weeks";
 import CatchmentMap from "./_components/CatchmentMap";
 
 const STANDARD_RECURRING = computeStandardRecurringY1(
@@ -153,6 +154,11 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
             <PlanStatusChip status={plan.planStatus} />
             <span className="text-[10px] text-white/60">Version {plan.planVersion}</span>
             <span className="text-[10px] text-white/60">· {completeness.readyCount}/10 sections ready</span>
+            {plan.launchDate && (
+              <span className="text-[10px] text-white/70 bg-white/10 rounded px-2 py-0.5">
+                {weekLabel(plan.launchDate, currentWeek(plan.launchDate))} · launch {plan.launchDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
+              </span>
+            )}
           </div>
         </div>
         {/* Key stats */}

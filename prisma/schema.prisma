@@ -3745,6 +3745,11 @@ model SchoolPlan {
   interimStructureSpec String?
   planStatus           SchoolPlanStatus @default(draft)
   planVersion          Int              @default(1)
+  // Week 0 anchor for the plan's week model (Path C). Null = week model
+  // disabled; step/substep due dates are absolute. When set, dueWeek on
+  // step + substep drives dueDate via weekToDate(launchDate, dueWeek), and
+  // shifting launchDate cascades dueDate updates.
+  launchDate           DateTime?
   budgetId             String?          @unique
   budget               Budget?          @relation("SchoolBudget", fields: [budgetId], references: [id], onDelete: SetNull)
   createdAt            DateTime         @default(now())
@@ -3781,7 +3786,14 @@ model SchoolPlanStep {
   requiredArtifactType String?
   ownerUserId          String?
   owner                User?                @relation("SchoolStepOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  // Role-based owner (Path C). One of SCHOOL_PLAN_ROLES keys. Independent of
+  // ownerUserId — both can be set. /my unions the two owners.
+  ownerRole            String?
   dueDate              DateTime?
+  // Optional user-intent week number relative to plan.launchDate. When set,
+  // dueDate is derived from launchDate + dueWeek and re-cascaded when
+  // launchDate shifts. Null = row uses absolute dueDate only.
+  dueWeek              Int?
   status               SchoolStepStatus     @default(pending)
   blockingNote         String?
   completedAt          DateTime?
@@ -3808,7 +3820,11 @@ model SchoolPlanSubstep {
   status        SchoolStepStatus @default(pending)
   ownerUserId   String?
   owner         User?            @relation("SchoolSubstepOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  // Path C: role-based owner and week-model dueWeek. See parent SchoolPlanStep
+  // for semantics — same rules apply per substep.
+  ownerRole     String?
   dueDate       DateTime?
+  dueWeek       Int?
   blockingNote  String?
   completedAt   DateTime?
   completedById String?

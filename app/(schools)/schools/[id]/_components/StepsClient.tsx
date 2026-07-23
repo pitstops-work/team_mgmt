@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
-  setStepStatus, setStepOwner, setStepDueDate,
+  setStepStatus, setStepOwner, setStepDueDate, setStepOwnerRole, setStepDueWeek,
   addSubstep, updateSubstep, setSubstepStatus, deleteSubstep,
+  setSubstepOwnerRole, setSubstepDueWeek, setSubstepDueDate,
 } from "../../actions";
 import { StepChip } from "../../_shared";
+import { weekLabel } from "@/lib/seeding/weeks";
 import type { SchoolPlanStepStatusValue } from "@/lib/schoolPlan/types";
 
 type Substep = {
@@ -15,7 +17,9 @@ type Substep = {
   status: SchoolPlanStepStatusValue;
   ownerUserId: string | null;
   ownerLabel: string | null;
+  ownerRole: string | null;
   dueDate: string | null;
+  dueWeek: number | null;
   blockingNote: string | null;
 };
 
@@ -29,46 +33,93 @@ type Step = {
   status: SchoolPlanStepStatusValue;
   ownerUserId: string | null;
   ownerLabel: string | null;
+  ownerRole: string | null;
   dueDate: string | null;
+  dueWeek: number | null;
   blockingNote: string | null;
   substeps: Substep[];
 };
 
 type UserOpt = { id: string; label: string };
+type RoleOpt = { key: string; label: string };
 
-function ownerUnionLabel(subs: Substep[], stepOwnerLabel: string | null): string {
-  if (subs.length === 0) return stepOwnerLabel ?? "—";
-  const names = [...new Set(subs.map(s => s.ownerLabel).filter((n): n is string => !!n))];
-  if (names.length === 0) return "—";
-  if (names.length === 1) return names[0];
-  return `${names[0]} +${names.length - 1}`;
+// ── header rollup helpers ────────────────────────────────────────────────────
+
+function ownerUnionLabel(
+  subs: Substep[],
+  stepOwnerLabel: string | null,
+  stepOwnerRole: string | null,
+  roleByKey: Map<string, string>,
+): string {
+  if (subs.length === 0) {
+    const names = [stepOwnerLabel, stepOwnerRole ? roleByKey.get(stepOwnerRole) ?? null : null]
+      .filter((n): n is string => !!n);
+    return names.length ? names.join(" / ") : "—";
+  }
+  const names = new Set<string>();
+  for (const s of subs) {
+    if (s.ownerLabel) names.add(s.ownerLabel);
+    if (s.ownerRole) names.add(roleByKey.get(s.ownerRole) ?? s.ownerRole);
+  }
+  const arr = [...names];
+  if (arr.length === 0) return "—";
+  if (arr.length === 1) return arr[0];
+  return `${arr[0]} +${arr.length - 1}`;
 }
 
-function earliestDue(subs: Substep[], stepDue: string | null): string | null {
-  if (subs.length === 0) return stepDue;
-  const dues = subs.map(s => s.dueDate).filter((d): d is string => !!d);
-  if (dues.length === 0) return null;
-  return dues.sort()[0];
+/** Header due label: earliest across substeps if any, otherwise the step's own.
+ *  Prefers weekLabel when the row is week-tagged + launchDate is set. */
+function earliestDueLabel(
+  subs: Substep[],
+  step: Step,
+  launchDate: Date | null,
+): string {
+  const rows = subs.length ? subs : [step];
+  const withDate = rows
+    .filter(r => r.dueDate || r.dueWeek !== null)
+    .map(r => ({
+      dueDate: r.dueDate,
+      dueWeek: r.dueWeek,
+      // Sort key: derived date (from dueWeek + launchDate) OR absolute dueDate.
+      key:
+        r.dueWeek !== null && launchDate
+          ? new Date(launchDate.getTime() + r.dueWeek * 7 * 86400000).toISOString()
+          : r.dueDate ?? "",
+    }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+  if (withDate.length === 0) return "—";
+  const first = withDate[0];
+  if (first.dueWeek !== null && launchDate) return weekLabel(launchDate, first.dueWeek);
+  return first.dueDate?.slice(0, 10) ?? "—";
 }
+
+// ── component ────────────────────────────────────────────────────────────────
 
 export default function StepsClient({
+  launchDate: launchDateIso,
   steps,
   users,
+  roles,
   canEdit,
 }: {
+  launchDate: string | null;
   steps: Step[];
   users: UserOpt[];
+  roles: RoleOpt[];
   canEdit: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [blockingOpen, setBlockingOpen] = useState<{ kind: "step" | "substep"; id: string } | null>(null);
   const [blockingText, setBlockingText] = useState("");
-  const [expanded, setExpanded] = useState<Set<string>>(() => {
-    // Default-expand steps that already have substeps.
-    return new Set(steps.filter(s => s.substeps.length > 0).map(s => s.id));
-  });
+  const [expanded, setExpanded] = useState<Set<string>>(() =>
+    new Set(steps.filter(s => s.substeps.length > 0).map(s => s.id)),
+  );
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
+
+  const launchDate = launchDateIso ? new Date(launchDateIso) : null;
+  const weeksEnabled = !!launchDate;
+  const roleByKey = new Map(roles.map(r => [r.key, r.label]));
 
   const toggle = (id: string) => setExpanded(prev => {
     const next = new Set(prev);
@@ -93,8 +144,6 @@ export default function StepsClient({
           {steps.map((s) => {
             const hasSubs = s.substeps.length > 0;
             const isOpen = expanded.has(s.id);
-            const rolledDue = earliestDue(s.substeps, s.dueDate);
-            const rolledOwner = ownerUnionLabel(s.substeps, s.ownerLabel);
             return (
               <>
                 <tr key={s.id} className="border-t border-stone-100 align-top">
@@ -104,9 +153,7 @@ export default function StepsClient({
                       onClick={() => toggle(s.id)}
                       aria-label={isOpen ? "Collapse substeps" : "Expand substeps"}
                       className="hover:text-stone-700"
-                    >
-                      {isOpen ? "▾" : "▸"}
-                    </button>
+                    >{isOpen ? "▾" : "▸"}</button>
                   </td>
                   <td className="px-3 py-2 text-stone-500 whitespace-nowrap">
                     {s.stepNo}
@@ -129,34 +176,57 @@ export default function StepsClient({
                   </td>
                   <td className="px-3 py-2">
                     {hasSubs ? (
-                      <span className="text-stone-500" title="Rolled up from substeps">{rolledOwner}</span>
+                      <span className="text-stone-500" title="Rolled up from substeps">
+                        {ownerUnionLabel(s.substeps, s.ownerLabel, s.ownerRole, roleByKey)}
+                      </span>
                     ) : canEdit ? (
-                      <select
-                        className="text-[11px] rounded-lg border border-stone-200 bg-white px-2 py-1"
-                        value={s.ownerUserId ?? ""}
-                        onChange={(e) => startTransition(() => { void setStepOwner(s.id, e.target.value || null); })}
-                        disabled={pending}
-                      >
-                        <option value="">—</option>
-                        {users.map((u) => (<option key={u.id} value={u.id}>{u.label}</option>))}
-                      </select>
+                      <div className="flex flex-col gap-1">
+                        <select
+                          className="text-[11px] rounded-lg border border-stone-200 bg-white px-2 py-1"
+                          value={s.ownerUserId ?? ""}
+                          onChange={(e) => startTransition(() => { void setStepOwner(s.id, e.target.value || null); })}
+                          disabled={pending}
+                        >
+                          <option value="">— person —</option>
+                          {users.map((u) => (<option key={u.id} value={u.id}>{u.label}</option>))}
+                        </select>
+                        <select
+                          className="text-[11px] rounded-lg border border-stone-200 bg-white px-2 py-1"
+                          value={s.ownerRole ?? ""}
+                          onChange={(e) => startTransition(() => { void setStepOwnerRole(s.id, e.target.value || null); })}
+                          disabled={pending}
+                        >
+                          <option value="">— role —</option>
+                          {roles.map((r) => (<option key={r.key} value={r.key}>{r.label}</option>))}
+                        </select>
+                      </div>
                     ) : (
-                      <span className="text-stone-500">{s.ownerLabel ?? "—"}</span>
+                      <div className="flex flex-col text-stone-500">
+                        <span>{s.ownerLabel ?? "—"}</span>
+                        {s.ownerRole && <span className="text-[10px] text-stone-400">{roleByKey.get(s.ownerRole) ?? s.ownerRole}</span>}
+                      </div>
                     )}
                   </td>
                   <td className="px-3 py-2">
                     {hasSubs ? (
-                      <span className="text-stone-500" title="Earliest substep due">{rolledDue ? rolledDue.slice(0, 10) : "—"}</span>
+                      <span className="text-stone-500" title="Earliest substep due">
+                        {earliestDueLabel(s.substeps, s, launchDate)}
+                      </span>
                     ) : canEdit ? (
-                      <input
-                        type="date"
-                        className="text-[11px] rounded-lg border border-stone-200 bg-white px-2 py-1"
-                        defaultValue={s.dueDate ? s.dueDate.slice(0, 10) : ""}
-                        onBlur={(e) => startTransition(() => { void setStepDueDate(s.id, e.target.value || null); })}
-                        disabled={pending}
+                      <DueEditor
+                        weeksEnabled={weeksEnabled}
+                        launchDate={launchDate}
+                        dueDate={s.dueDate}
+                        dueWeek={s.dueWeek}
+                        pending={pending}
+                        onDate={(iso) => startTransition(() => { void setStepDueDate(s.id, iso); })}
+                        onWeek={(w) => startTransition(() => { void setStepDueWeek(s.id, w); })}
                       />
                     ) : (
-                      <span className="text-stone-500">{s.dueDate ? s.dueDate.slice(0, 10) : "—"}</span>
+                      <span className="text-stone-500">
+                        {s.dueWeek !== null && launchDate ? weekLabel(launchDate, s.dueWeek)
+                          : s.dueDate ? s.dueDate.slice(0, 10) : "—"}
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -187,24 +257,13 @@ export default function StepsClient({
                       {hasSubs && <span className="text-[10px] text-stone-400">rolled up</span>}
                     </div>
                     {blockingOpen?.kind === "step" && blockingOpen.id === s.id && (
-                      <div className="mt-2 space-y-1">
-                        <textarea
-                          className="w-full text-[11px] rounded border border-stone-200 px-2 py-1"
-                          rows={2}
-                          value={blockingText}
-                          onChange={(e) => setBlockingText(e.target.value)}
-                          placeholder="What's blocking?"
-                        />
-                        <div className="flex gap-2 text-[11px]">
-                          <button
-                            className="px-2 py-0.5 rounded bg-rose-600 text-white hover:bg-rose-700"
-                            onClick={() => startTransition(() => {
-                              void setStepStatus(s.id, "blocked", blockingText).then(() => setBlockingOpen(null));
-                            })}
-                          >Save block</button>
-                          <button className="px-2 py-0.5 text-stone-500 hover:text-stone-800" onClick={() => setBlockingOpen(null)}>Cancel</button>
-                        </div>
-                      </div>
+                      <BlockingEditor
+                        text={blockingText} setText={setBlockingText}
+                        onSave={() => startTransition(() => {
+                          void setStepStatus(s.id, "blocked", blockingText).then(() => setBlockingOpen(null));
+                        })}
+                        onCancel={() => setBlockingOpen(null)}
+                      />
                     )}
                   </td>
                 </tr>
@@ -215,7 +274,11 @@ export default function StepsClient({
                       <SubstepsPanel
                         step={s}
                         users={users}
+                        roles={roles}
+                        roleByKey={roleByKey}
                         canEdit={canEdit}
+                        weeksEnabled={weeksEnabled}
+                        launchDate={launchDate}
                         pending={pending}
                         startTransition={startTransition}
                         blockingOpen={blockingOpen}
@@ -239,16 +302,90 @@ export default function StepsClient({
   );
 }
 
-// ── substeps panel ────────────────────────────────────────────────────────────
+// ── shared bits ──────────────────────────────────────────────────────────────
+
+function DueEditor({
+  weeksEnabled, launchDate, dueDate, dueWeek, pending, onDate, onWeek, compact,
+}: {
+  weeksEnabled: boolean;
+  launchDate: Date | null;
+  dueDate: string | null;
+  dueWeek: number | null;
+  pending: boolean;
+  onDate: (iso: string | null) => void;
+  onWeek: (week: number | null) => void;
+  compact?: boolean;
+}) {
+  const inputSize = compact ? "text-[10px] px-1.5 py-0.5" : "text-[11px] px-2 py-1";
+  const showWeekPreview = weeksEnabled && dueWeek !== null && launchDate;
+  return (
+    <div className="flex flex-col gap-1">
+      <input
+        type="date"
+        className={`${inputSize} rounded-lg border border-stone-200 bg-white`}
+        defaultValue={dueDate ? dueDate.slice(0, 10) : ""}
+        onBlur={(e) => onDate(e.target.value || null)}
+        disabled={pending}
+        title={dueWeek !== null ? "Editing the date clears the week intent." : undefined}
+      />
+      {weeksEnabled && (
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] text-stone-400">W</span>
+          <input
+            type="number"
+            className={`${inputSize} w-14 rounded-lg border border-stone-200 bg-white`}
+            defaultValue={dueWeek ?? ""}
+            onBlur={(e) => {
+              const raw = e.target.value.trim();
+              onWeek(raw === "" ? null : parseInt(raw, 10));
+            }}
+            disabled={pending}
+          />
+          {showWeekPreview && <span className="text-[9px] text-stone-400">{weekLabel(launchDate!, dueWeek!)}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BlockingEditor({ text, setText, onSave, onCancel }: {
+  text: string;
+  setText: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="mt-2 space-y-1">
+      <textarea
+        className="w-full text-[11px] rounded border border-stone-200 px-2 py-1"
+        rows={2}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="What's blocking?"
+      />
+      <div className="flex gap-2 text-[11px]">
+        <button className="px-2 py-0.5 rounded bg-rose-600 text-white hover:bg-rose-700" onClick={onSave}>Save block</button>
+        <button className="px-2 py-0.5 text-stone-500 hover:text-stone-800" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ── substeps panel ───────────────────────────────────────────────────────────
 
 function SubstepsPanel({
-  step, users, canEdit, pending, startTransition,
+  step, users, roles, roleByKey, canEdit, weeksEnabled, launchDate,
+  pending, startTransition,
   blockingOpen, setBlockingOpen, blockingText, setBlockingText,
   addingFor, setAddingFor, newTitle, setNewTitle,
 }: {
   step: Step;
   users: UserOpt[];
+  roles: RoleOpt[];
+  roleByKey: Map<string, string>;
   canEdit: boolean;
+  weeksEnabled: boolean;
+  launchDate: Date | null;
   pending: boolean;
   startTransition: React.TransitionStartFunction;
   blockingOpen: { kind: "step" | "substep"; id: string } | null;
@@ -291,7 +428,7 @@ function SubstepsPanel({
           </thead>
           <tbody>
             {step.substeps.map((ss) => (
-              <tr key={ss.id} className="border-t border-stone-100 align-top">
+              <tr key={ss.id} id={`substep-${ss.id}`} className="border-t border-stone-100 align-top">
                 <td className="px-3 py-1.5">
                   <div className="font-medium text-stone-800">{ss.title}</div>
                   {ss.description && <div className="text-[10px] text-stone-500 mt-0.5">{ss.description}</div>}
@@ -303,30 +440,50 @@ function SubstepsPanel({
                 </td>
                 <td className="px-3 py-1.5">
                   {canEdit ? (
-                    <select
-                      className="text-[10px] rounded border border-stone-200 bg-white px-1.5 py-0.5"
-                      value={ss.ownerUserId ?? ""}
-                      onChange={(e) => startTransition(() => { void updateSubstep(ss.id, { ownerUserId: e.target.value || null }); })}
-                      disabled={pending}
-                    >
-                      <option value="">—</option>
-                      {users.map((u) => (<option key={u.id} value={u.id}>{u.label}</option>))}
-                    </select>
+                    <div className="flex flex-col gap-1">
+                      <select
+                        className="text-[10px] rounded border border-stone-200 bg-white px-1.5 py-0.5"
+                        value={ss.ownerUserId ?? ""}
+                        onChange={(e) => startTransition(() => { void updateSubstep(ss.id, { ownerUserId: e.target.value || null }); })}
+                        disabled={pending}
+                      >
+                        <option value="">— person —</option>
+                        {users.map((u) => (<option key={u.id} value={u.id}>{u.label}</option>))}
+                      </select>
+                      <select
+                        className="text-[10px] rounded border border-stone-200 bg-white px-1.5 py-0.5"
+                        value={ss.ownerRole ?? ""}
+                        onChange={(e) => startTransition(() => { void setSubstepOwnerRole(ss.id, e.target.value || null); })}
+                        disabled={pending}
+                      >
+                        <option value="">— role —</option>
+                        {roles.map((r) => (<option key={r.key} value={r.key}>{r.label}</option>))}
+                      </select>
+                    </div>
                   ) : (
-                    <span className="text-stone-500">{ss.ownerLabel ?? "—"}</span>
+                    <div className="flex flex-col text-stone-500">
+                      <span>{ss.ownerLabel ?? "—"}</span>
+                      {ss.ownerRole && <span className="text-[9px] text-stone-400">{roleByKey.get(ss.ownerRole) ?? ss.ownerRole}</span>}
+                    </div>
                   )}
                 </td>
                 <td className="px-3 py-1.5">
                   {canEdit ? (
-                    <input
-                      type="date"
-                      className="text-[10px] rounded border border-stone-200 bg-white px-1.5 py-0.5"
-                      defaultValue={ss.dueDate ? ss.dueDate.slice(0, 10) : ""}
-                      onBlur={(e) => startTransition(() => { void updateSubstep(ss.id, { dueDate: e.target.value || null }); })}
-                      disabled={pending}
+                    <DueEditor
+                      weeksEnabled={weeksEnabled}
+                      launchDate={launchDate}
+                      dueDate={ss.dueDate}
+                      dueWeek={ss.dueWeek}
+                      pending={pending}
+                      onDate={(iso) => startTransition(() => { void setSubstepDueDate(ss.id, iso); })}
+                      onWeek={(w) => startTransition(() => { void setSubstepDueWeek(ss.id, w); })}
+                      compact
                     />
                   ) : (
-                    <span className="text-stone-500">{ss.dueDate ? ss.dueDate.slice(0, 10) : "—"}</span>
+                    <span className="text-stone-500">
+                      {ss.dueWeek !== null && launchDate ? weekLabel(launchDate, ss.dueWeek)
+                        : ss.dueDate ? ss.dueDate.slice(0, 10) : "—"}
+                    </span>
                   )}
                 </td>
                 <td className="px-3 py-1.5">
@@ -356,24 +513,13 @@ function SubstepsPanel({
                     )}
                   </div>
                   {blockingOpen?.kind === "substep" && blockingOpen.id === ss.id && (
-                    <div className="mt-1.5 space-y-1">
-                      <textarea
-                        className="w-full text-[10px] rounded border border-stone-200 px-1.5 py-0.5"
-                        rows={2}
-                        value={blockingText}
-                        onChange={(e) => setBlockingText(e.target.value)}
-                        placeholder="What's blocking?"
-                      />
-                      <div className="flex gap-2 text-[10px]">
-                        <button
-                          className="px-2 py-0.5 rounded bg-rose-600 text-white hover:bg-rose-700"
-                          onClick={() => startTransition(() => {
-                            void setSubstepStatus(ss.id, "blocked", blockingText).then(() => setBlockingOpen(null));
-                          })}
-                        >Save block</button>
-                        <button className="px-2 py-0.5 text-stone-500 hover:text-stone-800" onClick={() => setBlockingOpen(null)}>Cancel</button>
-                      </div>
-                    </div>
+                    <BlockingEditor
+                      text={blockingText} setText={setBlockingText}
+                      onSave={() => startTransition(() => {
+                        void setSubstepStatus(ss.id, "blocked", blockingText).then(() => setBlockingOpen(null));
+                      })}
+                      onCancel={() => setBlockingOpen(null)}
+                    />
                   )}
                 </td>
                 {canEdit && (

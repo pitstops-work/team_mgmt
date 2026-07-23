@@ -3,7 +3,9 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { getSchoolPlanAccess, canEditPlan, canViewPlan } from "@/lib/schoolPlan/access";
+import { SCHOOL_PLAN_ROLES } from "@/lib/schoolPlan/roles";
 import StepsClient from "../_components/StepsClient";
+import LaunchDateEditor from "../_components/LaunchDateEditor";
 
 export default async function StepsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,7 +17,7 @@ export default async function StepsPage({ params }: { params: Promise<{ id: stri
   const plan = await prisma.schoolPlan.findUnique({
     where: { id },
     select: {
-      id: true, name: true,
+      id: true, name: true, launchDate: true,
       steps: {
         orderBy: { stepNo: "asc" },
         include: {
@@ -38,18 +40,25 @@ export default async function StepsPage({ params }: { params: Promise<{ id: stri
     take: 200,
   });
 
+  const canEdit = canEditPlan(access, id);
+  const launchDateIso = plan.launchDate?.toISOString() ?? null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-xs text-stone-500">
         <Link href={`/schools/${id}`} className="hover:text-stone-700">← {plan.name}</Link>
       </div>
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-lg font-semibold text-stone-900">Step tracker</h1>
-          <p className="text-xs text-stone-500 mt-0.5">16 steps · owner, due date, status per school</p>
+          <p className="text-xs text-stone-500 mt-0.5">
+            16 steps · owner (person or role), due date or week, status per school
+          </p>
         </div>
+        <LaunchDateEditor planId={plan.id} launchDate={launchDateIso} canEdit={canEdit} />
       </div>
       <StepsClient
+        launchDate={launchDateIso}
         steps={plan.steps.map((s) => ({
           id: s.id,
           stepNo: s.stepNo,
@@ -60,7 +69,9 @@ export default async function StepsPage({ params }: { params: Promise<{ id: stri
           status: s.status,
           ownerUserId: s.ownerUserId,
           ownerLabel: s.owner ? (s.owner.name ?? s.owner.email) : null,
+          ownerRole: s.ownerRole,
           dueDate: s.dueDate?.toISOString() ?? null,
+          dueWeek: s.dueWeek,
           blockingNote: s.blockingNote,
           substeps: s.substeps.map((ss) => ({
             id: ss.id,
@@ -69,12 +80,15 @@ export default async function StepsPage({ params }: { params: Promise<{ id: stri
             status: ss.status,
             ownerUserId: ss.ownerUserId,
             ownerLabel: ss.owner ? (ss.owner.name ?? ss.owner.email) : null,
+            ownerRole: ss.ownerRole,
             dueDate: ss.dueDate?.toISOString() ?? null,
+            dueWeek: ss.dueWeek,
             blockingNote: ss.blockingNote,
           })),
         }))}
         users={users.map((u) => ({ id: u.id, label: u.name ?? u.email }))}
-        canEdit={canEditPlan(access, id)}
+        roles={SCHOOL_PLAN_ROLES.map((r) => ({ key: r.key, label: r.label }))}
+        canEdit={canEdit}
       />
     </div>
   );

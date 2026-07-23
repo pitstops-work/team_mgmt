@@ -12,8 +12,9 @@ import {
 import { bootstrapSchoolPlan } from "@/lib/schoolPlan/instantiate";
 import { PILOT_SCHOOLS } from "@/lib/schoolPlan/stepTemplate";
 import { planCompleteness, type PlanForCompleteness } from "@/lib/schoolPlan/completeness";
-import { SCHOOL_PLAN_ROLES } from "@/lib/schoolPlan/roles";
+import { SCHOOL_PLAN_ROLES, SCHOOL_PLAN_ROLE_BY_KEY } from "@/lib/schoolPlan/roles";
 import { rollupStep } from "@/lib/schoolPlan/rollup";
+import { weekToDate } from "@/lib/seeding/weeks";
 import type {
   SchoolPlanStepStatusValue,
   SchoolServiceStatusValue,
@@ -459,8 +460,159 @@ export async function setStepDueDate(stepId: string, iso: string | null) {
   const step = await prisma.schoolPlanStep.findUnique({ where: { id: stepId }, select: { planId: true } });
   if (!step) throw new Error("Step not found.");
   await requireEditPlan(step.planId);
-  await prisma.schoolPlanStep.update({ where: { id: stepId }, data: { dueDate: iso ? new Date(iso) : null } });
+  // Direct date pick clears dueWeek — user intent is now absolute, not week-relative.
+  await prisma.schoolPlanStep.update({
+    where: { id: stepId },
+    data: { dueDate: iso ? new Date(iso) : null, dueWeek: null },
+  });
   refreshPlan(step.planId);
+}
+
+// ---------- Path C: role owner + week model ----------
+
+function validateOwnerRoleKey(role: string | null): string | null {
+  if (!role) return null;
+  if (!SCHOOL_PLAN_ROLE_BY_KEY[role]) {
+    throw new Error(`Unknown owner role: ${role}`);
+  }
+  return role;
+}
+
+const MIN_DUE_WEEK = -12;
+const MAX_DUE_WEEK = 260; // 5 years post-launch — plenty for pilots
+
+function validateDueWeek(week: number | null): number | null {
+  if (week === null || week === undefined) return null;
+  if (!Number.isInteger(week)) throw new Error("dueWeek must be an integer.");
+  if (week < MIN_DUE_WEEK || week > MAX_DUE_WEEK) {
+    throw new Error(`dueWeek out of range (${MIN_DUE_WEEK}..${MAX_DUE_WEEK}).`);
+  }
+  return week;
+}
+
+export async function setStepOwnerRole(stepId: string, role: string | null) {
+  const step = await prisma.schoolPlanStep.findUnique({
+    where: { id: stepId },
+    select: { planId: true, _count: { select: { substeps: true } } },
+  });
+  if (!step) throw new Error("Step not found.");
+  if (step._count.substeps > 0) {
+    // Owner-role on a rolled-up step would be misleading — the header is a
+    // union across substeps. Force the assignment down to a substep instead.
+    throw new Error("Step ownership is rolled up from substeps — assign the role on a substep.");
+  }
+  await requireEditPlan(step.planId);
+  await prisma.schoolPlanStep.update({
+    where: { id: stepId },
+    data: { ownerRole: validateOwnerRoleKey(role) },
+  });
+  refreshPlan(step.planId);
+}
+
+export async function setSubstepOwnerRole(substepId: string, role: string | null) {
+  const sub = await prisma.schoolPlanSubstep.findUnique({
+    where: { id: substepId },
+    select: { step: { select: { planId: true } } },
+  });
+  if (!sub) throw new Error("Substep not found.");
+  await requireEditPlan(sub.step.planId);
+  await prisma.schoolPlanSubstep.update({
+    where: { id: substepId },
+    data: { ownerRole: validateOwnerRoleKey(role) },
+  });
+  refreshPlan(sub.step.planId);
+}
+
+export async function setStepDueWeek(stepId: string, week: number | null) {
+  const step = await prisma.schoolPlanStep.findUnique({
+    where: { id: stepId },
+    select: { planId: true, plan: { select: { launchDate: true } }, _count: { select: { substeps: true } } },
+  });
+  if (!step) throw new Error("Step not found.");
+  if (step._count.substeps > 0) {
+    throw new Error("Step due date is rolled up from substeps — set the week on a substep.");
+  }
+  await requireEditPlan(step.planId);
+  const w = validateDueWeek(week);
+  if (w !== null && !step.plan.launchDate) {
+    throw new Error("Set the plan's launch date before scheduling by week.");
+  }
+  await prisma.schoolPlanStep.update({
+    where: { id: stepId },
+    data: {
+      dueWeek: w,
+      dueDate: w !== null && step.plan.launchDate ? weekToDate(step.plan.launchDate, w) : null,
+    },
+  });
+  refreshPlan(step.planId);
+}
+
+export async function setSubstepDueWeek(substepId: string, week: number | null) {
+  const sub = await prisma.schoolPlanSubstep.findUnique({
+    where: { id: substepId },
+    select: { step: { select: { planId: true, plan: { select: { launchDate: true } } } } },
+  });
+  if (!sub) throw new Error("Substep not found.");
+  await requireEditPlan(sub.step.planId);
+  const w = validateDueWeek(week);
+  if (w !== null && !sub.step.plan.launchDate) {
+    throw new Error("Set the plan's launch date before scheduling by week.");
+  }
+  await prisma.schoolPlanSubstep.update({
+    where: { id: substepId },
+    data: {
+      dueWeek: w,
+      dueDate: w !== null && sub.step.plan.launchDate ? weekToDate(sub.step.plan.launchDate, w) : null,
+    },
+  });
+  refreshPlan(sub.step.planId);
+}
+
+export async function setSubstepDueDate(substepId: string, iso: string | null) {
+  const sub = await prisma.schoolPlanSubstep.findUnique({
+    where: { id: substepId },
+    select: { step: { select: { planId: true } } },
+  });
+  if (!sub) throw new Error("Substep not found.");
+  await requireEditPlan(sub.step.planId);
+  // Absolute date wins → clear dueWeek so intent isn't stale.
+  await prisma.schoolPlanSubstep.update({
+    where: { id: substepId },
+    data: { dueDate: iso ? new Date(iso) : null, dueWeek: null },
+  });
+  refreshPlan(sub.step.planId);
+}
+
+export async function setPlanLaunchDate(planId: string, iso: string | null) {
+  await requireEditPlan(planId);
+  const newLaunch = iso ? new Date(iso) : null;
+  await prisma.$transaction(async (tx) => {
+    await tx.schoolPlan.update({ where: { id: planId }, data: { launchDate: newLaunch } });
+    if (!newLaunch) return; // Setting to null leaves existing dueDates as-is (they become standalone).
+    // Cascade: recompute dueDate for every step + substep on this plan that
+    // carries a dueWeek intent.
+    const steps = await tx.schoolPlanStep.findMany({
+      where: { planId, dueWeek: { not: null } },
+      select: { id: true, dueWeek: true },
+    });
+    for (const s of steps) {
+      await tx.schoolPlanStep.update({
+        where: { id: s.id },
+        data: { dueDate: weekToDate(newLaunch, s.dueWeek!) },
+      });
+    }
+    const subs = await tx.schoolPlanSubstep.findMany({
+      where: { step: { planId }, dueWeek: { not: null } },
+      select: { id: true, dueWeek: true },
+    });
+    for (const ss of subs) {
+      await tx.schoolPlanSubstep.update({
+        where: { id: ss.id },
+        data: { dueDate: weekToDate(newLaunch, ss.dueWeek!) },
+      });
+    }
+  });
+  refreshPlan(planId);
 }
 
 // ---------- Substeps ----------
@@ -469,13 +621,25 @@ export async function addSubstep(stepId: string, input: {
   title: string;
   description?: string | null;
   ownerUserId?: string | null;
+  ownerRole?: string | null;
   dueDate?: string | null;
+  dueWeek?: number | null;
 }) {
-  const step = await prisma.schoolPlanStep.findUnique({ where: { id: stepId }, select: { planId: true } });
+  const step = await prisma.schoolPlanStep.findUnique({
+    where: { id: stepId },
+    select: { planId: true, plan: { select: { launchDate: true } } },
+  });
   if (!step) throw new Error("Step not found.");
   await requireEditPlan(step.planId);
   const title = input.title.trim();
   if (!title) throw new Error("Title is required.");
+  const w = validateDueWeek(input.dueWeek ?? null);
+  if (w !== null && !step.plan.launchDate) {
+    throw new Error("Set the plan's launch date before scheduling by week.");
+  }
+  const derivedDueDate = w !== null && step.plan.launchDate
+    ? weekToDate(step.plan.launchDate, w)
+    : input.dueDate ? new Date(input.dueDate) : null;
   const last = await prisma.schoolPlanSubstep.findFirst({
     where: { stepId },
     orderBy: { position: "desc" },
@@ -489,7 +653,9 @@ export async function addSubstep(stepId: string, input: {
         title,
         description: input.description?.trim() || null,
         ownerUserId: input.ownerUserId || null,
-        dueDate: input.dueDate ? new Date(input.dueDate) : null,
+        ownerRole: validateOwnerRoleKey(input.ownerRole ?? null),
+        dueDate: derivedDueDate,
+        dueWeek: w,
       },
     });
     // Adding the first substep flips the parent into rolled-up mode; recompute
@@ -506,6 +672,7 @@ export async function updateSubstep(substepId: string, patch: {
   title?: string;
   description?: string | null;
   ownerUserId?: string | null;
+  ownerRole?: string | null;
   dueDate?: string | null;
   blockingNote?: string | null;
   position?: number;
@@ -524,7 +691,12 @@ export async function updateSubstep(substepId: string, patch: {
   }
   if (patch.description !== undefined) data.description = patch.description?.trim() || null;
   if (patch.ownerUserId !== undefined) data.ownerUserId = patch.ownerUserId || null;
-  if (patch.dueDate !== undefined) data.dueDate = patch.dueDate ? new Date(patch.dueDate) : null;
+  if (patch.ownerRole !== undefined) data.ownerRole = validateOwnerRoleKey(patch.ownerRole);
+  if (patch.dueDate !== undefined) {
+    // Direct date pick via updateSubstep clears dueWeek (mirrors setSubstepDueDate).
+    data.dueDate = patch.dueDate ? new Date(patch.dueDate) : null;
+    data.dueWeek = null;
+  }
   if (patch.blockingNote !== undefined) data.blockingNote = patch.blockingNote?.trim() || null;
   if (patch.position !== undefined) data.position = patch.position;
   await prisma.schoolPlanSubstep.update({ where: { id: substepId }, data });

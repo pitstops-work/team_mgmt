@@ -59,6 +59,17 @@ export async function getSchoolPlanAccess(session: SessionLike): Promise<SchoolP
   };
 }
 
+/** Does this user hold `role` covering `planId`? A membership with `planId=null`
+ *  (central grant for that role) matches every plan; otherwise the planIds must
+ *  match. Used by Path C role-based ownership: /my and step tracker check this
+ *  to decide who inherits work tagged `ownerRole=<role>` on a given plan. */
+export function holdsRoleForPlan(a: SchoolPlanAccess, role: string, planId: string): boolean {
+  if (a.isSuperAdmin) return true;
+  return a.memberships.some(
+    (m) => m.role === role && (m.planId === null || m.planId === planId),
+  );
+}
+
 /** Can this user edit fields on a specific plan? */
 export function canEditPlan(a: SchoolPlanAccess, planId: string): boolean {
   if (a.isSuperAdmin || a.isCentral) return true;
