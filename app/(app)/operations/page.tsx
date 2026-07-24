@@ -1,11 +1,12 @@
-import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, CalendarRange } from "lucide-react";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import { loadOperationsHome } from "@/lib/operations/home";
 import { loadTodayDriver } from "@/lib/operations/today";
+import { resolveViewContext } from "@/lib/operations/viewAs";
 import { OnTheGroundToday } from "./_shared/OnTheGroundToday";
+import { PreviewBanner } from "./_shared/PreviewBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,17 @@ export const dynamic = "force-dynamic";
  * phase-aware portal for that theme. The on-the-ground "do this today" driver
  * mounts above the tiles (Phase 2).
  */
-export default async function OperationsHomePage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+export default async function OperationsHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ asUser?: string }>;
+}) {
+  const { asUser } = await searchParams;
+  const ctx = await resolveViewContext(asUser);
+  if (!ctx) redirect("/login");
+  const userId = ctx.userId;
+  const preview = ctx.viewingAs;
+  const themeQuery = preview ? `?asUser=${encodeURIComponent(userId)}` : "";
 
   const [tiles, driver] = await Promise.all([
     loadOperationsHome([userId]),
@@ -32,9 +40,12 @@ export default async function OperationsHomePage() {
   return (
     <SurfaceProvider id="operations.today">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 py-6 space-y-8">
+        {preview && <PreviewBanner name={preview.name} exitHref="/operations" />}
         <header>
           <h1 className="text-lg font-semibold text-stone-900">Operations</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Your centres, by theme.</p>
+          <p className="text-sm text-stone-500 mt-0.5">
+            {preview ? `${preview.name ?? "User"}'s centres, by theme.` : "Your centres, by theme."}
+          </p>
         </header>
 
         <OnTheGroundToday
@@ -43,18 +54,21 @@ export default async function OperationsHomePage() {
           today={driver.today}
           checklists={driver.checklists}
           domainLabels={domainLabels}
+          readOnly={!!preview}
         />
 
-        <Link
-          href="/operations/plan"
-          className="flex items-center justify-between rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 hover:bg-sky-100 transition-colors"
-        >
-          <div className="flex items-center gap-2.5">
-            <CalendarRange className="w-4 h-4 text-sky-600" />
-            <span className="text-sm font-medium text-sky-800">Plan next month&apos;s visits</span>
-          </div>
-          <ChevronRight className="w-4 h-4 text-sky-400" />
-        </Link>
+        {!preview && (
+          <Link
+            href="/operations/plan"
+            className="flex items-center justify-between rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 hover:bg-sky-100 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <CalendarRange className="w-4 h-4 text-sky-600" />
+              <span className="text-sm font-medium text-sky-800">Plan next month&apos;s visits</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-sky-400" />
+          </Link>
+        )}
 
         <section>
           <h2 className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-3">
@@ -69,7 +83,7 @@ export default async function OperationsHomePage() {
               {tiles.map((t) => (
                 <Link
                   key={t.theme.key}
-                  href={`/operations/${encodeURIComponent(t.theme.key)}`}
+                  href={`/operations/${encodeURIComponent(t.theme.key)}${themeQuery}`}
                   className="group flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-4 hover:border-stone-300 hover:shadow-sm transition-all"
                 >
                   <span

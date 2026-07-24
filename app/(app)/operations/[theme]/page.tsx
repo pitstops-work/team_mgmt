@@ -1,10 +1,11 @@
-import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, MapPin } from "lucide-react";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import { loadThemeCatalog, indexThemes, type ThemeDef } from "@/lib/operations/themes";
 import { loadCentresForTheme, type CentreRow } from "@/lib/operations/centres";
+import { resolveViewContext } from "@/lib/operations/viewAs";
+import { PreviewBanner } from "../_shared/PreviewBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +15,16 @@ export const dynamic = "force-dynamic";
  */
 export default async function OperationsThemePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ theme: string }>;
+  searchParams: Promise<{ asUser?: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const { asUser } = await searchParams;
+  const ctx = await resolveViewContext(asUser);
+  if (!ctx) redirect("/login");
+  const userId = ctx.userId;
+  const preview = ctx.viewingAs;
 
   const { theme: themeParam } = await params;
   const key = decodeURIComponent(themeParam);
@@ -41,8 +46,12 @@ export default async function OperationsThemePage({
   return (
     <SurfaceProvider id="operations.theme_portal">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 py-6 space-y-6">
+        {preview && <PreviewBanner name={preview.name} exitHref="/operations" />}
         <div>
-          <Link href="/operations" className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
+          <Link
+            href={preview ? `/operations?asUser=${encodeURIComponent(userId)}` : "/operations"}
+            className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600"
+          >
             <ChevronLeft className="w-3.5 h-3.5" /> Operations
           </Link>
           <h1 className="text-lg font-semibold text-stone-900 mt-1 flex items-center gap-2">

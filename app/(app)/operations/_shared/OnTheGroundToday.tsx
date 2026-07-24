@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, CheckCircle2 } from "lucide-react";
 import type { Activity, ChecklistItem } from "@/app/(app)/home/_lib/types";
-import { fmtDomain, isToday } from "@/app/(app)/home/_lib/helpers";
+import { fmtDomain, isToday, fmtTime, daysAgo } from "@/app/(app)/home/_lib/helpers";
 import { ActivityCard } from "@/app/(app)/home/_shared/ActivityCard";
 import { useSessionDoneIds } from "@/app/(app)/home/_shared/useSessionDoneIds";
 
@@ -20,12 +20,15 @@ export function OnTheGroundToday({
   today,
   checklists,
   domainLabels,
+  readOnly = false,
 }: {
   userId: string;
   overdue: Activity[];
   today: Activity[];
   checklists: ChecklistItem[];
   domainLabels: Record<string, string>;
+  /** Admin "view as" preview — render a non-interactive list (no completion). */
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const { ids: doneIds, add: addDone } = useSessionDoneIds(`ops-${userId}-done`);
@@ -90,14 +93,18 @@ export function OnTheGroundToday({
               {queue.length} left{totalToday > 0 ? ` · ${doneCount}/${totalToday} done` : ""}
             </span>
           </div>
-          <ActivityCard
-            activity={doNow}
-            linkedChecklist={activityChecklistMap.get(doNow.id) ?? null}
-            onCompleted={handleCompleted}
-            onRescheduled={() => router.refresh()}
-            isOverdue={!isToday(doNow.scheduledAt)}
-            variant="card"
-          />
+          {readOnly ? (
+            <ReadOnlyRow activity={doNow} hero />
+          ) : (
+            <ActivityCard
+              activity={doNow}
+              linkedChecklist={activityChecklistMap.get(doNow.id) ?? null}
+              onCompleted={handleCompleted}
+              onRescheduled={() => router.refresh()}
+              isOverdue={!isToday(doNow.scheduledAt)}
+              variant="card"
+            />
+          )}
         </div>
       )}
 
@@ -115,22 +122,48 @@ export function OnTheGroundToday({
                   <p className="text-[10px] font-medium text-stone-400 mb-1 ml-1">{th.label}</p>
                 )}
                 <div className="space-y-1.5">
-                  {th.items.map((a) => (
-                    <ActivityCard
-                      key={a.id}
-                      activity={a}
-                      linkedChecklist={activityChecklistMap.get(a.id) ?? null}
-                      onCompleted={handleCompleted}
-                      onRescheduled={() => router.refresh()}
-                      isOverdue={!isToday(a.scheduledAt)}
-                    />
-                  ))}
+                  {th.items.map((a) =>
+                    readOnly ? (
+                      <ReadOnlyRow key={a.id} activity={a} />
+                    ) : (
+                      <ActivityCard
+                        key={a.id}
+                        activity={a}
+                        linkedChecklist={activityChecklistMap.get(a.id) ?? null}
+                        onCompleted={handleCompleted}
+                        onRescheduled={() => router.refresh()}
+                        isOverdue={!isToday(a.scheduledAt)}
+                      />
+                    )
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </section>
       ))}
+    </div>
+  );
+}
+
+/** Non-interactive row for admin "view as" preview — no completion actions. */
+function ReadOnlyRow({ activity, hero = false }: { activity: Activity; hero?: boolean }) {
+  const goal = activity.pitstops?.[0]?.pitstop?.goal;
+  const centre = goal?.linkedFacility?.name ?? goal?.title ?? null;
+  const overdue = !isToday(activity.scheduledAt);
+  return (
+    <div className={`flex items-center gap-3 rounded-${hero ? "2xl" : "xl"} border px-4 ${hero ? "py-4" : "py-2.5"} ${
+      overdue ? "border-amber-200 bg-amber-50/50" : "border-stone-200 bg-white"
+    }`}>
+      <div className="flex-shrink-0 w-12 text-right">
+        {overdue
+          ? <span className="text-[10px] font-semibold text-amber-700">{daysAgo(activity.scheduledAt)}d</span>
+          : <span className="text-[11px] font-medium text-stone-500 tabular-nums">{fmtTime(activity.scheduledAt)}</span>}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`font-medium truncate ${hero ? "text-sm text-stone-800" : "text-sm text-stone-700"}`}>{activity.title}</p>
+        {centre && <p className="text-[11px] text-stone-400 truncate mt-0.5">{centre}</p>}
+      </div>
     </div>
   );
 }
