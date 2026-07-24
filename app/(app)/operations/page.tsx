@@ -4,9 +4,10 @@ import { ChevronRight, CalendarRange } from "lucide-react";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import { loadOperationsHome } from "@/lib/operations/home";
 import { loadTodayDriver } from "@/lib/operations/today";
-import { resolveViewContext } from "@/lib/operations/viewAs";
+import { resolveViewContext, loadViewAsCandidates } from "@/lib/operations/viewAs";
 import { OnTheGroundToday } from "./_shared/OnTheGroundToday";
 import { PreviewBanner } from "./_shared/PreviewBanner";
+import { ViewAsPicker } from "./_shared/ViewAsPicker";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +31,10 @@ export default async function OperationsHomePage({
   const preview = ctx.viewingAs;
   const themeQuery = preview ? `?asUser=${encodeURIComponent(userId)}` : "";
 
-  const [tiles, driver] = await Promise.all([
+  const [tiles, driver, candidates] = await Promise.all([
     loadOperationsHome([userId]),
     loadTodayDriver([userId]),
+    ctx.isAdmin && !preview ? loadViewAsCandidates() : Promise.resolve([]),
   ]);
   const domainLabels: Record<string, string> = {};
   for (const t of tiles) domainLabels[t.theme.key] = t.theme.label;
@@ -41,11 +43,14 @@ export default async function OperationsHomePage({
     <SurfaceProvider id="operations.today">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 py-6 space-y-8">
         {preview && <PreviewBanner name={preview.name} exitHref="/operations" />}
-        <header>
-          <h1 className="text-lg font-semibold text-stone-900">Operations</h1>
-          <p className="text-sm text-stone-500 mt-0.5">
-            {preview ? `${preview.name ?? "User"}'s centres, by theme.` : "Your centres, by theme."}
-          </p>
+        <header className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-semibold text-stone-900">Operations</h1>
+            <p className="text-sm text-stone-500 mt-0.5">
+              {preview ? `${preview.name ?? "User"}'s centres, by theme.` : "Your centres, by theme."}
+            </p>
+          </div>
+          {ctx.isAdmin && !preview && candidates.length > 0 && <ViewAsPicker candidates={candidates} />}
         </header>
 
         <OnTheGroundToday

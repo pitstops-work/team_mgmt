@@ -20,19 +20,30 @@ export type ViewContext = {
   selfId: string;
   /** Set only when an admin is previewing someone else — drives the banner + read-only mode. */
   viewingAs: { id: string; name: string | null } | null;
+  /** Whether the logged-in user may preview others (drives the "View as" picker). */
+  isAdmin: boolean;
 };
 
 export async function resolveViewContext(asUserParam?: string): Promise<ViewContext | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
   const selfId = session.user.id;
+  const admin = isAdminUser(session);
 
-  if (asUserParam && asUserParam !== selfId && isAdminUser(session)) {
+  if (asUserParam && asUserParam !== selfId && admin) {
     const target = await prisma.user.findUnique({
       where: { id: asUserParam },
       select: { id: true, name: true },
     });
-    if (target) return { userId: target.id, selfId, viewingAs: target };
+    if (target) return { userId: target.id, selfId, viewingAs: target, isAdmin: admin };
   }
-  return { userId: selfId, selfId, viewingAs: null };
+  return { userId: selfId, selfId, viewingAs: null, isAdmin: admin };
+}
+
+/** Users an admin can preview — active field/leadership roles, for the picker. */
+export async function loadViewAsCandidates(): Promise<{ id: string; name: string | null; designation: string | null }[]> {
+  return prisma.user.findMany({
+    select: { id: true, name: true, designation: true },
+    orderBy: [{ designation: "asc" }, { name: "asc" }],
+  });
 }
