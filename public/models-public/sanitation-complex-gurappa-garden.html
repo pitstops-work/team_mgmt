@@ -149,8 +149,8 @@
         <rect x="330" y="10" width="420" height="90" fill="#0b2126" stroke="#2a555e"/>
         <line x1="330" y1="70" x2="750" y2="70" stroke="#2a555e"/>
         <line x1="330" y1="40" x2="750" y2="40" stroke="#2a555e"/>
-        <text class="fsub" x="338" y="94">G — anganwadi · women's · ATM</text>
-        <text class="fsub" x="338" y="64">1F — men's · laundry · drying</text>
+        <text class="fsub" x="338" y="94">G — anganwadi · women’s · ATM</text>
+        <text class="fsub" x="338" y="64">1F — men’s · laundry · drying</text>
         <text class="fsub" x="338" y="34">2F — hall · library · terrace</text>
         <!-- roof tanks -->
         <rect id="x_tanks" class="room" data-spot="14" x="560" y="-8" width="60" height="16" fill="#0f3a42" stroke="#2dd4e8"/>
@@ -182,12 +182,13 @@
       <button class="vbtn" id="v1">1F</button>
       <button class="vbtn" id="v2">2F</button>
       <button class="vbtn" id="v3">Roof</button>
+      <button id="roomBack" style="display:none">← Building</button>
       <div class="sub" style="margin-top:0">3D view · drag to rotate (touching pauses auto-rotation) · G/1F/2F buttons isolate a floor so every room is clickable</div>
     </div>
     <svg id="axsvg" viewBox="330 20 560 560" role="img" aria-label="Exploded 3D axonometric of the G+2 building">
       <g id="axRoot"></g>
     </svg>
-    <div class="spotcard" style="margin-top:10px"><div class="k" id="scK2">—</div><b id="scT2">—</b><div class="dims" id="scD2"></div><p id="scB2">—</p></div>
+    <div class="spotcard" style="margin-top:10px"><div class="k" id="scK2">—</div><b id="scT2">—</b> <button id="enterRoom" style="display:none;margin-left:10px;padding:3px 12px;font-size:11px">View inside →</button><div class="dims" id="scD2"></div><p id="scB2">—</p></div>
 
     <div class="legend">
       <span><span class="sw" style="background:#132f38;border:1px solid #f0b429"></span>sanitation &amp; care</span>
@@ -199,13 +200,13 @@
 
     <div class="note">
       <b>Reading the diagram:</b> the ground floor belongs to women, children and water — the anganwadi with its
-      <b>own separate street entrance</b>, the women's toilets and bathing, the unisex accessible WC, and the
-      street-facing water ATM. Men's toilets and bathing move to the first floor beside the laundry and drying deck
-      — the standard multi-storey pattern, with the ground accessible WC covering anyone who can't climb. The
+      <b>own separate street entrance</b>, the women’s toilets and bathing, the unisex accessible WC, and the
+      street-facing water ATM. Men’s toilets and bathing move to the first floor beside the laundry and drying deck
+      — the standard multi-storey pattern, with the ground accessible WC covering anyone who can’t climb. The
       second floor restores the Samudhaya Bhavana as a community hall with library and CBO office. Greywater drops to
-      the <b>DEWATS buried in the rear court, whose sealed slab doubles as the anganwadi's fenced play court</b>,
+      the <b>DEWATS buried in the rear court, whose sealed slab doubles as the anganwadi’s fenced play court</b>,
       and returns as recycled flush water. Dimensions assume the ~12.0 × 12.5 m footprint read from the structural
-      report's sketch; the toposurvey in the DPR fixes the actuals.
+      report’s sketch; the toposurvey in the DPR fixes the actuals.
     </div>
   </div>
 </div>
@@ -251,6 +252,11 @@
       else { r.classList.add("dimmed"); r.classList.remove("hot"); }
     });
     if(typeof applyAxHighlight==="function"){ applyAxHighlight(); }
+    if(typeof INTERIOR_MAP!=="undefined"){
+      const eb=$("enterRoom");
+      if(eb) eb.style.display=(INTERIOR_MAP[idx]!==undefined)?"inline-block":"none";
+      if(typeof mode!=="undefined"&&mode==="room") exitRoom();
+    }
   }
   function tick(){ if(playing){ show(idx+1); } }
   function restart(){ if(timer) clearInterval(timer); timer=setInterval(tick,4200); }
@@ -264,7 +270,7 @@
   }));
 
   // ===== 3D exploded axonometric (pure SVG isometric projection) =====
-  const S3=14, OX=610, OY=330, NS="http://www.w3.org/2000/svg";
+  let S3=14, OX=610, OY=330; const NS="http://www.w3.org/2000/svg";
   function shade(hex,f){ const n=parseInt(hex.slice(1),16);
     const r=Math.round(((n>>16)&255)*f), g2=Math.round(((n>>8)&255)*f), b=Math.round((n&255)*f);
     return "#"+((1<<24)+(r<<16)+(g2<<8)+b).toString(16).slice(1); }
@@ -310,7 +316,7 @@
     ["s_terr",0,8.84,8.72,3.64,0.5,"#10262b","#3ecf8e"]],
   ];
   const axRoot=$("axRoot");
-  const CX=6, CY=6.25;
+  let CX=6, CY=6.25;
   let theta=0, autoRot=!reduce, dragging=false, lastPX=0, dragDist=0, rotDirty=true, frameN=0;
   function rotP(x,y){ const c=Math.cos(theta), si=Math.sin(theta);
     return [CX+(x-CX)*c-(y-CY)*si, CY+(x-CX)*si+(y-CY)*c]; }
@@ -360,6 +366,7 @@
     });
   }
   function renderAxon(){
+    S3=14; OX=610; OY=330; CX=6; CY=6.25;
     while(axRoot.firstChild) axRoot.removeChild(axRoot.firstChild);
     poly(axRoot,[isoR(-2,-6,0),isoR(15.5,-6,0),isoR(15.5,15,0),isoR(-2,15,0)],"#081a1e",null,null,null);
     const gD=document.createElementNS(NS,"g"); axRoot.appendChild(gD);
@@ -383,14 +390,14 @@
     labEls.forEach(t=>axRoot.appendChild(t)); axRoot.appendChild(dLab);
     layoutAxon(); applyAxHighlight();
   }
-  window.__axSetTheta=function(t){ theta=t; renderAxon(); };
+  window.__axSetTheta=function(t){ theta=t; renderCur(); };
   function axTick(){
     let gapDirty=false;
     if(Math.abs(gap-gapTarget)>0.004){ gap+=reduce?(gapTarget-gap):(gapTarget-gap)*0.12; gapDirty=true; }
     else if(gap!==gapTarget){ gap=gapTarget; gapDirty=true; }
     if(autoRot&&!dragging&&!reduce){ theta+=0.0045; rotDirty=true; }
     frameN++;
-    if(rotDirty&&frameN%2===0){ renderAxon(); rotDirty=false; }
+    if(rotDirty&&frameN%2===0){ renderCur(); rotDirty=false; }
     else if(gapDirty){ layoutAxon(); }
     requestAnimationFrame(axTick);
   }
@@ -405,7 +412,10 @@
   axRoot.addEventListener("click",e=>{
     if(dragDist>5) return;
     const sp=e.target.getAttribute?e.target.getAttribute("data-spot"):null;
-    if(sp!==null&&sp!==""&&sp!==undefined){ show(+sp); playing=false; $("pp").textContent="Play"; }
+    if(sp!==null&&sp!==""&&sp!==undefined){
+      if(+sp===idx&&INTERIOR_MAP[+sp]!==undefined&&mode==="building"){ enterRoom(+sp); }
+      else { show(+sp); playing=false; $("pp").textContent="Play"; }
+    }
   });
   $("explode").textContent="Stack floors";
   $("explode").addEventListener("click",e=>{
@@ -416,6 +426,163 @@
   $("autorot").addEventListener("click",e=>{
     autoRot=!autoRot; e.target.textContent=autoRot?"Auto-rotate: on":"Auto-rotate: off";
   });
+  // ===== ROOM INTERIORS =====
+  let mode="building", roomKey=null, roomSpot=-1;
+  function I(x,y,w,d,h,f,st,z){ return {x,y,w,d,h,f,st:st||null,z:z||0}; }
+  const CLOTH=["#f0b429","#3ecf8e","#b18cf2","#2dd4e8","#ef6a5a"];
+  function wcRow(it,x0,y0,n,pitch,depth){
+    for(let i=0;i<n;i++){
+      it.push(I(x0+0.28+i*pitch,y0+0.12,0.5,0.6,0.42,"#cdd9dd"));
+      it.push(I(x0+i*pitch,y0,0.06,depth,1.9,"#1c4652"));
+    }
+    it.push(I(x0+n*pitch,y0,0.06,depth,1.9,"#1c4652"));
+  }
+  const INTERIORS={
+    women(){ const it=[]; wcRow(it,0.15,0,5,1.2,1.25); wcRow(it,0.15,2.85,5,1.2,1.25);
+      for(let i=0;i<3;i++) it.push(I(6.55,0.7+i*1.05,0.5,0.45,0.85,"#9fb3ba"));
+      return {w:7.2,d:4.1,h:2.6,items:it,cap:"10 WC in two banks of five · wash basins on the end wall"};},
+    men(){ const it=[]; wcRow(it,0.15,0,4,1.2,1.25); wcRow(it,0.15,3.15,4,1.2,1.25);
+      for(let i=0;i<4;i++) it.push(I(5.6,0.6+i*0.85,0.35,0.3,0.75,"#cdd9dd",null,0.3));
+      return {w:6.6,d:4.4,h:2.6,items:it,cap:"8 WC in two banks · urinal row on the right wall"};},
+    bathw(){ const it=[];
+      for(let i=0;i<4;i++){ it.push(I(0.1+i*0.92,0,0.06,1.6,2.0,"#1c4652"));
+        it.push(I(0.32+i*0.92,0.35,0.35,0.35,0.35,"#f0b429")); }
+      it.push(I(0.1+4*0.92,0,0.06,1.6,2.0,"#1c4652"));
+      it.push(I(0.4,2.15,3.0,0.3,0.45,"#41626a"));
+      return {w:3.8,d:2.6,h:2.4,items:it,cap:"4 cubicles with buckets · changing bench along the front"};},
+    acc(){ const it=[ I(0.7,0.15,0.55,0.65,0.44,"#cdd9dd"), I(1.5,0.2,0.42,0.4,0.85,"#9fb3ba"),
+      I(0.05,0.5,0.06,0.9,0.1,"#f0b429",null,0.85), I(1.3,0.05,0.6,0.06,0.1,"#f0b429",null,0.85) ];
+      return {w:2.0,d:1.8,h:2.4,items:it,cap:"grab bars both sides · wide door · basin at wheelchair height"};},
+    atm(){ const it=[ I(0.25,0.35,0.95,0.95,1.5,"#0f6a7a","#2dd4e8"), I(1.55,0.3,1.2,0.7,1.6,"#9fb3ba","#2dd4e8"),
+      I(0.2,3.35,1.5,0.35,0.9,"#6b5637"), I(1.9,3.42,0.5,0.2,0.35,"#41626a",null,0.9) ];
+      return {w:3.0,d:3.8,h:2.6,items:it,cap:"RO skid + product tank · dispensing counter at the street window"};},
+    care(){ const it=[ I(0.1,2.3,1.5,0.5,0.95,"#6b5637"), I(0.55,1.4,0.4,0.4,0.5,"#41626a"),
+      I(0.12,0.1,1.4,0.35,1.8,"#1c4652") ];
+      return {w:1.7,d:3.0,h:2.4,items:it,cap:"cash counter at the entry window · records shelf behind"};},
+    men_note:null,
+    laundry(){ const it=[];
+      for(let i=0;i<4;i++) it.push(I(0.35+i*1.35,0.15,0.68,0.68,0.9,"#9fb3ba","#b18cf2"));
+      it.push(I(0.2,3.85,5.2,0.55,0.88,"#6b5637"));
+      it.push(I(4.9,2.3,0.75,0.55,0.85,"#9fb3ba"));
+      it.push(I(0.2,2.0,0.4,1.2,1.7,"#1c4652"));
+      return {w:5.8,d:4.5,h:2.6,items:it,cap:"4 machines on the back wall · hand-wash counter in front · detergent rack"};},
+    anganwadi(){ const it=[];
+      for(let i=0;i<6;i++) it.push(I(0.5+(i%2)*1.9,1.0+Math.floor(i/2)*1.5,1.5,1.0,0.05,CLOTH[i%5]));
+      it.push(I(0.08,4.6,0.07,1.6,1.0,"#123039",null,0.7));
+      it.push(I(3.6,0.5,0.7,2.2,0.9,"#6b5637"));
+      it.push(I(0.2,9.7,2.2,0.6,0.85,"#6b5637"));
+      it.push(I(2.6,9.72,0.6,0.5,0.25,"#41626a",null,0.85));
+      it.push(I(3.25,9.35,0.06,1.5,2.0,"#1c4652")); it.push(I(3.25,9.35,1.2,0.06,2.0,"#1c4652"));
+      it.push(I(3.6,9.9,0.45,0.5,0.4,"#cdd9dd"));
+      return {w:4.5,d:10.9,h:2.6,items:it,cap:"floor mats · blackboard · toy shelf · kitchen counter · child-size WC in the corner"};},
+    drying(){ const it=[];
+      for(let r=0;r<3;r++){ const y=0.6+r*0.95;
+        it.push(I(0.25,y,0.08,0.08,1.75,"#41626a")); it.push(I(8.35,y,0.08,0.08,1.75,"#41626a"));
+        it.push(I(0.3,y+0.02,8.1,0.03,0.03,"#8fb8bd",null,1.62));
+        for(let c=0;c<7;c++) it.push(I(0.8+c*1.1,y-0.02,0.5,0.05,0.55,CLOTH[(c+r)%5],null,1.07));
+      }
+      return {w:8.7,d:3.0,h:2.2,items:it,cap:"three lines · ~40 loads a day dry in rotation without touching the lanes"};},
+    hall(){ const it=[ I(0.4,0.3,2.6,1.3,0.45,"#6b5637") ];
+      for(let r=0;r<3;r++) for(let c=0;c<4;c++) it.push(I(1.0+c*1.8,2.4+r*1.9,1.4,0.9,0.05,CLOTH[(r+c)%5]));
+      it.push(I(3.4,0.5,0.5,0.5,1.1,"#41626a"));
+      return {w:8.7,d:8.6,h:3.0,items:it,cap:"dais and mat rows · ~100 seated for meetings, functions, classes"};},
+    reading(){ const it=[ I(0.1,0.2,0.4,3.9,1.85,"#6b5637"), I(1.0,1.2,1.3,0.75,0.75,"#41626a"),
+      I(0.9,2.3,0.4,0.4,0.45,"#1c4652"), I(1.9,2.3,0.4,0.4,0.45,"#1c4652"), I(1.4,0.35,0.4,0.4,0.45,"#1c4652") ];
+      return {w:2.6,d:4.5,h:2.6,items:it,cap:"wall shelving · reading table and stools"};},
+    terrace(){ const it=[ I(0,0,8.7,0.12,0.9,"#123039"), I(0,3.5,8.7,0.12,0.9,"#123039"),
+      I(0,0,0.12,3.6,0.9,"#123039"), I(8.58,0,0.12,3.6,0.9,"#123039") ];
+      for(let r=0;r<2;r++){ const y=1.0+r*1.5;
+        it.push(I(0.4,y,0.08,0.08,1.7,"#41626a")); it.push(I(8.2,y,0.08,0.08,1.7,"#41626a"));
+        it.push(I(0.45,y+0.02,7.8,0.03,0.03,"#8fb8bd",null,1.58)); }
+      for(let i=0;i<4;i++) it.push(I(0.5+i*2.1,3.15,0.5,0.3,0.45,"#2e5a3c"));
+      return {w:8.7,d:3.6,h:1.2,items:it,cap:"parapet all round · overflow drying lines · planters"};},
+    tanks(){ const it=[ I(0.3,0.5,0.9,2.2,0.35,"#123039"), I(3.1,0.5,0.9,2.2,0.35,"#123039"),
+      I(0.35,0.7,2.3,1.7,1.55,"#0f6a7a","#2dd4e8"), I(3.0,0.9,1.7,1.4,1.45,"#155e46","#3ecf8e"),
+      I(2.65,1.3,0.5,0.12,0.12,"#8fb8bd",null,0.8) ];
+      return {w:5.2,d:3.2,h:2.2,items:it,cap:"fresh tank (cyan) and recycled tank (green) on plinths — separate loops, never connected"};},
+    dewats(){ const it=[];
+      [1.6,2.9,4.2].forEach(x=>it.push(I(x,0.06,0.09,3.28,1.62,"#1c4652")));
+      it.push(I(0.12,0.12,1.42,3.16,1.15,"#155e6e"));
+      it.push(I(1.75,0.12,1.1,3.16,1.1,"#155e6e"));
+      it.push(I(3.05,0.12,1.1,3.16,1.05,"#155e6e"));
+      it.push(I(4.35,0.12,2.7,3.16,1.35,"#4a3d2c"));
+      for(let i=0;i<8;i++) it.push(I(4.6+(i%4)*0.65,0.5+Math.floor(i/4)*1.7,0.07,0.07,0.6,"#3ecf8e",null,1.35));
+      it.push(I(0.0,1.55,0.5,0.16,0.16,"#8fb8bd",null,1.5));
+      it.push(I(6.9,1.55,0.4,0.16,0.16,"#3ecf8e",null,1.3));
+      return {w:7.2,d:3.4,h:1.9,items:it,cap:"settler → baffled reactor chambers → planted gravel filter · treated water out to the flush tank"};},
+    stairs(){ const it=[];
+      for(let i=0;i<6;i++) it.push(I(0.25,0.3+i*0.45,1.15,0.45,0.2+0.2*i,"#41626a"));
+      it.push(I(0.25,3.05,2.5,0.85,1.45,"#35525a"));
+      for(let i=0;i<6;i++) it.push(I(1.62,2.6-i*0.45,1.15,0.45,1.5+0.2*i,"#41626a"));
+      it.push(I(2.55,0.15,0.35,3.7,0.35,"#2e5a3c"));
+      return {w:3.0,d:4.0,h:3.2,items:it,cap:"two flights with mid landing · ramp alongside at ground level"};},
+    store(){ const it=[ I(0.12,0.2,0.45,3.3,1.9,"#6b5637"), I(2.45,0.2,0.45,3.3,1.9,"#6b5637"),
+      I(1.1,0.4,0.55,0.55,0.85,"#35525a"), I(1.1,1.2,0.55,0.55,0.85,"#35525a"), I(1.75,0.7,0.55,0.55,0.85,"#35525a") ];
+      return {w:3.0,d:3.8,h:2.6,items:it,cap:"racking both sides · consumables drums · beside the stair for carriage"};},
+    entry(){ const it=[];
+      for(let i=0;i<4;i++) it.push(I(0.5+i*0.95,1.15,0.08,0.08,0.95,"#41626a"));
+      it.push(I(0.5,1.17,2.9,0.04,0.04,"#8fb8bd",null,0.9));
+      it.push(I(3.35,0.4,0.35,1.2,1.0,"#1c4652"));
+      return {w:3.9,d:2.0,h:2.4,items:it,cap:"queue rail past the caretaker window · pay, then in"};},
+  };
+  const INTERIOR_MAP={2:"anganwadi",3:"women",4:"bathw",5:"acc",6:"atm",7:"care",8:"men",9:"laundry",
+    10:"drying",11:"hall",12:"reading",13:"terrace",14:"tanks",15:"dewats",16:"stairs",17:"store",18:"entry"};
+
+  function renderRoom(){
+    const R=INTERIORS[roomKey]();
+    S3=Math.max(9,Math.min(52,Math.min(430/((R.w+R.d)*0.866),320/(((R.w+R.d)*0.5)+R.h+0.8))));
+    OX=610; CX=R.w/2; CY=R.d/2;
+    OY=305-((R.w+R.d)*0.25-R.h/2+0.1)*S3;
+    while(axRoot.firstChild) axRoot.removeChild(axRoot.firstChild);
+    const g=document.createElementNS(NS,"g"); axRoot.appendChild(g);
+    drawBox(g,-0.18,-0.18,R.w+0.36,R.d+0.36,0.2,-0.2,"#0e282e","#2a555e",null,null);
+    const walls=[ {x:0,y:-0.12,w:R.w,d:0.12,n:[0,-1]}, {x:0,y:R.d,w:R.w,d:0.12,n:[0,1]},
+                  {x:-0.12,y:0,w:0.12,d:R.d,n:[-1,0]}, {x:R.w,y:0,w:0.12,d:R.d,n:[1,0]} ];
+    const c=Math.cos(theta), si=Math.sin(theta);
+    walls.forEach(wl=>{
+      const nx=wl.n[0]*c-wl.n[1]*si, ny=wl.n[0]*si+wl.n[1]*c;
+      if(nx+ny<=0.02) drawBox(g,wl.x,wl.y,wl.w,wl.d,R.h,0,"#123039","#2a555e",null,null);
+    });
+    R.items.slice().sort((a,b)=>{
+      const pa=rotP(a.x+a.w/2,a.y+a.d/2), pb=rotP(b.x+b.w/2,b.y+b.d/2);
+      return (pa[0]+pa[1])-(pb[0]+pb[1]);
+    }).forEach(o=>drawBox(g,o.x,o.y,o.w,o.d,o.h,o.z,o.f,o.st,null,null));
+    const t1=document.createElementNS(NS,"text");
+    t1.setAttribute("class","ftitle"); t1.setAttribute("font-size","12");
+    t1.setAttribute("x","345"); t1.setAttribute("y","46"); t1.setAttribute("pointer-events","none");
+    t1.textContent=(SPOTS[roomSpot]?SPOTS[roomSpot].t.toUpperCase():"")+"  —  INSIDE VIEW";
+    axRoot.appendChild(t1);
+    const t2=document.createElementNS(NS,"text");
+    t2.setAttribute("class","fsub"); t2.setAttribute("font-size","10");
+    t2.setAttribute("x","345"); t2.setAttribute("y","62"); t2.setAttribute("pointer-events","none");
+    t2.textContent=(SPOTS[roomSpot]?SPOTS[roomSpot].d:"");
+    axRoot.appendChild(t2);
+    const t3=document.createElementNS(NS,"text");
+    t3.setAttribute("class","fsub"); t3.setAttribute("font-size","9.5");
+    t3.setAttribute("x","345"); t3.setAttribute("y","572"); t3.setAttribute("pointer-events","none");
+    t3.textContent=R.cap+"  ·  drag to rotate · ← Building to go back";
+    axRoot.appendChild(t3);
+  }
+  function renderCur(){ if(mode==="room") renderRoom(); else renderAxon(); }
+  function enterRoom(spot){
+    const k=INTERIOR_MAP[spot]; if(!k) return;
+    mode="room"; roomKey=k; roomSpot=spot;
+    playing=false; $("pp").textContent="Play";
+    $("roomBack").style.display="inline-block";
+    $("explode").style.display="none";
+    document.querySelectorAll(".vbtn").forEach(b=>b.style.display="none");
+    renderCur();
+  }
+  function exitRoom(){
+    mode="building"; roomKey=null;
+    $("roomBack").style.display="none";
+    $("explode").style.display="inline-block";
+    document.querySelectorAll(".vbtn").forEach(b=>b.style.display="inline-block");
+    renderCur();
+  }
+  $("roomBack").addEventListener("click",exitRoom);
+  $("enterRoom").addEventListener("click",e=>{ e.stopPropagation(); enterRoom(idx); });
+
   [["vAll",-1],["v0",0],["v1",1],["v2",2],["v3",3]].forEach(([id,f])=>{
     $(id).addEventListener("click",()=>{
       floorFilter=f;
@@ -424,7 +591,7 @@
       renderAxon();
     });
   });
-  renderAxon(); requestAnimationFrame(axTick);
+  renderCur(); requestAnimationFrame(axTick);
 
   show(0); restart();
   if(reduce){ playing=false; $("pp").textContent="Play"; }
