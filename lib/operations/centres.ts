@@ -28,6 +28,10 @@ export type CentreRow = {
   phase: CentrePhase;
   /** This calendar month's activity progress on this centre. */
   month: { done: number; total: number };
+  /** Non-Done activities scheduled before today. */
+  overdue: number;
+  /** Activities scheduled today (any status). */
+  today: number;
 };
 
 function monthBounds(now: Date) {
@@ -93,17 +97,21 @@ export async function loadCentresForTheme(
   for (const g of goals) for (const p of g.pitstops) pitstopToGoal.set(p.id, g.id);
   const pitstopIds = [...pitstopToGoal.keys()];
 
-  const monthTotals = new Map<string, { done: number; total: number }>();
+  type Agg = { done: number; total: number; overdue: number; today: number };
+  const totals = new Map<string, Agg>();
   if (pitstopIds.length > 0) {
-    const { start, end } = monthBounds(now);
+    const { start: monthStart, end: monthEnd } = monthBounds(now);
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+    // One query wide enough for month totals + overdue (past, non-Done) + today.
     const events = await prisma.pitstopEvent.findMany({
       where: {
         deletedAt: null,
         status: { not: "Cancelled" },
-        scheduledAt: { gte: start, lte: end },
+        scheduledAt: { lte: monthEnd },
         pitstops: { some: { pitstopId: { in: pitstopIds } } },
       },
-      select: { status: true, pitstops: { select: { pitstopId: true } } },
+      select: { status: true, scheduledAt: true, pitstops: { select: { pitstopId: true } } },
     });
     for (const e of events) {
       // An event can link multiple pitstops; attribute to each owning goal once.
@@ -112,23 +120,32 @@ export async function loadCentresForTheme(
         const gid = pitstopToGoal.get(link.pitstopId);
         if (gid) goalIds.add(gid);
       }
+      const inMonth = e.scheduledAt >= monthStart && e.scheduledAt <= monthEnd;
+      const isToday = e.scheduledAt >= todayStart && e.scheduledAt <= todayEnd;
+      const isOverdue = e.scheduledAt < todayStart && e.status !== "Done";
       for (const gid of goalIds) {
-        const agg = monthTotals.get(gid) ?? { done: 0, total: 0 };
-        agg.total += 1;
-        if (e.status === "Done") agg.done += 1;
-        monthTotals.set(gid, agg);
+        const agg = totals.get(gid) ?? { done: 0, total: 0, overdue: 0, today: 0 };
+        if (inMonth) { agg.total += 1; if (e.status === "Done") agg.done += 1; }
+        if (isToday) agg.today += 1;
+        if (isOverdue) agg.overdue += 1;
+        totals.set(gid, agg);
       }
     }
   }
 
-  const rows: CentreRow[] = goals.map((g) => ({
-    goalId: g.id,
-    name: g.linkedFacility?.name ?? g.title,
-    cluster: g.linkedFacility?.cluster ?? g.needsCluster ?? null,
-    settlement: g.linkedFacility?.settlement ?? g.needsSettlement ?? null,
-    phase: deriveCentrePhase(g.pitstops as PhasePitstop[]),
-    month: monthTotals.get(g.id) ?? { done: 0, total: 0 },
-  }));
+  const rows: CentreRow[] = goals.map((g) => {
+    const t = totals.get(g.id) ?? { done: 0, total: 0, overdue: 0, today: 0 };
+    return {
+      goalId: g.id,
+      name: g.linkedFacility?.name ?? g.title,
+      cluster: g.linkedFacility?.cluster ?? g.needsCluster ?? null,
+      settlement: g.linkedFacility?.settlement ?? g.needsSettlement ?? null,
+      phase: deriveCentrePhase(g.pitstops as PhasePitstop[]),
+      month: { done: t.done, total: t.total },
+      overdue: t.overdue,
+      today: t.today,
+    };
+  });
 
   // Stable, useful order: setting-up first (by step), then live, then done;
   // alphabetical within each bucket.

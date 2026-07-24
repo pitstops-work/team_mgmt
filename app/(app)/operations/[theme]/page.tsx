@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { SurfaceProvider } from "@/components/rbac/RbacProviders";
 import { loadThemeCatalog, indexThemes, type ThemeDef } from "@/lib/operations/themes";
 import { loadCentresForTheme, type CentreRow } from "@/lib/operations/centres";
@@ -43,6 +43,9 @@ export default async function OperationsThemePage({
   const live = centres.filter((c) => c.phase.lifecycle === "live");
   const done = centres.filter((c) => c.phase.lifecycle === "done");
 
+  const centreHref = (goalId: string) =>
+    `/operations/${encodeURIComponent(key)}/${goalId}${preview ? `?asUser=${encodeURIComponent(userId)}` : ""}`;
+
   return (
     <SurfaceProvider id="operations.theme_portal">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 py-6 space-y-6">
@@ -63,7 +66,7 @@ export default async function OperationsThemePage({
         {settingUp.length > 0 && (
           <CentreGroup title="Setting up" count={settingUp.length}>
             {settingUp.map((c) => (
-              <SettingUpRow key={c.goalId} centre={c} color={resolved.color} />
+              <SettingUpRow key={c.goalId} centre={c} color={resolved.color} href={centreHref(c.goalId)} />
             ))}
           </CentreGroup>
         )}
@@ -71,7 +74,7 @@ export default async function OperationsThemePage({
         {live.length > 0 && (
           <CentreGroup title="Live · monthly review" count={live.length}>
             {live.map((c) => (
-              <LiveRow key={c.goalId} centre={c} color={resolved.color} />
+              <LiveRow key={c.goalId} centre={c} color={resolved.color} href={centreHref(c.goalId)} />
             ))}
           </CentreGroup>
         )}
@@ -79,7 +82,7 @@ export default async function OperationsThemePage({
         {done.length > 0 && (
           <CentreGroup title="Done" count={done.length}>
             {done.map((c) => (
-              <LiveRow key={c.goalId} centre={c} color="#d6d3d1" />
+              <LiveRow key={c.goalId} centre={c} color="#d6d3d1" href={centreHref(c.goalId)} />
             ))}
           </CentreGroup>
         )}
@@ -116,47 +119,56 @@ function CentreLocation({ centre }: { centre: CentreRow }) {
   );
 }
 
-function SettingUpRow({ centre, color }: { centre: CentreRow; color: string }) {
+function OverdueBadge({ n }: { n: number }) {
+  if (n <= 0) return null;
+  return (
+    <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 tabular-nums">
+      {n} overdue
+    </span>
+  );
+}
+
+function SettingUpRow({ centre, color, href }: { centre: CentreRow; color: string; href: string }) {
   const { currentPhaseLabel, currentStep, totalSteps } = centre.phase;
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-4 py-3">
+    <Link href={href} className="group flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-4 py-3 hover:border-stone-300 hover:shadow-sm transition-all">
       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-stone-800 truncate">{centre.name}</p>
         <div className="flex items-center gap-2 mt-0.5">
           <CentreLocation centre={centre} />
+          <OverdueBadge n={centre.overdue} />
         </div>
       </div>
       <div className="text-right flex-shrink-0">
         <p className="text-xs font-medium text-amber-700">{currentPhaseLabel ?? "In setup"}</p>
         {currentStep != null && totalSteps != null && (
-          <p className="text-[11px] text-stone-400 tabular-nums">
-            {currentStep}/{totalSteps}
-          </p>
+          <p className="text-[11px] text-stone-400 tabular-nums">{currentStep}/{totalSteps}</p>
         )}
       </div>
-    </div>
+      <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-stone-400 flex-shrink-0" />
+    </Link>
   );
 }
 
-function LiveRow({ centre, color }: { centre: CentreRow; color: string }) {
+function LiveRow({ centre, color, href }: { centre: CentreRow; color: string; href: string }) {
   const { done, total } = centre.month;
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-4 py-3">
+    <Link href={href} className="group flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-4 py-3 hover:border-stone-300 hover:shadow-sm transition-all">
       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-stone-800 truncate">{centre.name}</p>
         <div className="flex items-center gap-2 mt-0.5">
           <CentreLocation centre={centre} />
+          <OverdueBadge n={centre.overdue} />
         </div>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <Dots done={done} total={total} />
-        <span className="text-[11px] text-stone-400 tabular-nums">
-          {total > 0 ? `${done}/${total}` : "—"}
-        </span>
+        <span className="text-[11px] text-stone-400 tabular-nums">{total > 0 ? `${done}/${total}` : "—"}</span>
       </div>
-    </div>
+      <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-stone-400 flex-shrink-0" />
+    </Link>
   );
 }
 

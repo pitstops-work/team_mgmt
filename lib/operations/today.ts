@@ -9,8 +9,9 @@
  */
 
 import prisma from "@/lib/prisma";
-import { eventOwnedByAnyOf, pitstopOwnedByAnyOf } from "@/lib/ownership";
+import { eventOwnedByAnyOf, pitstopOwnedByAnyOf, goalOwnedByAnyOf } from "@/lib/ownership";
 import type { Activity, ChecklistItem } from "@/app/(app)/home/_lib/types";
+import { deriveCentrePhase, type CentrePhase, type PhasePitstop } from "./phase";
 
 // Matches the home loader's event select so the shapes are identical.
 const EVENT_SELECT = {
@@ -132,5 +133,106 @@ export async function loadTodayDriver(userIds: string[], now: Date = new Date())
     today: today as unknown as Activity[],
     overdue: overdue as unknown as Activity[],
     checklists: checklists as unknown as ChecklistItem[],
+  };
+}
+
+export type CentreFollowUp = {
+  id: string;
+  title: string;
+  detail: string | null;
+  dueDate: string | null;
+  priority: string;
+  status: string;
+};
+
+export type CentreDetail = {
+  goalId: string;
+  name: string;
+  cluster: { id: string; name: string } | null;
+  needsDomain: string | null;
+  phase: CentrePhase;
+  activities: Activity[];
+  checklists: ChecklistItem[];
+  followUps: CentreFollowUp[];
+};
+
+/**
+ * One centre's drill-down: its activities (overdue + today + near-future),
+ * open checklists, and open follow-up action points. Scoped to `userIds` via
+ * goal ownership; returns null when the goal isn't owned by / visible to them.
+ */
+export async function loadCentreDetail(
+  userIds: string[],
+  goalId: string,
+  now: Date = new Date(),
+): Promise<CentreDetail | null> {
+  const goal = await prisma.goal.findFirst({
+    where: { id: goalId, deletedAt: null, ...goalOwnedByAnyOf(userIds) },
+    select: {
+      id: true, title: true, needsDomain: true,
+      needsCluster: { select: { id: true, name: true } },
+      linkedFacility: { select: { name: true, cluster: { select: { id: true, name: true } } } },
+      pitstops: { where: { deletedAt: null }, select: { id: true, status: true, recurrence: true, order: true, progressTag: true, title: true } },
+    },
+  });
+  if (!goal) return null;
+
+  const horizon = new Date(now); horizon.setDate(horizon.getDate() + 60); horizon.setHours(23, 59, 59, 999);
+
+  const [activities, checklists, followUps] = await Promise.all([
+    prisma.pitstopEvent.findMany({
+      where: {
+        deletedAt: null,
+        status: { not: "Cancelled" },
+        scheduledAt: { lte: horizon },
+        pitstops: { some: { pitstop: { goalId: goal.id, deletedAt: null } } },
+      },
+      select: EVENT_SELECT,
+      orderBy: { scheduledAt: "asc" },
+      take: 100,
+    }),
+    prisma.checklistItem.findMany({
+      where: {
+        status: { notIn: ["Done", "Cancelled"] },
+        pitstop: { goalId: goal.id, deletedAt: null },
+      },
+      select: {
+        id: true, text: true, status: true, checked: true, completionType: true,
+        activities: { select: { id: true, title: true, status: true, scheduledAt: true, type: true } },
+        pitstop: {
+          select: {
+            id: true, title: true, targetDate: true, status: true, ownerId: true,
+            owner: { select: { id: true, name: true } },
+            goal: {
+              select: {
+                id: true, title: true, needsDomain: true, linkedFacilityId: true,
+                needsCluster: { select: { id: true, name: true } },
+                needsSettlement: { select: { id: true, name: true } },
+                linkedFacility: { select: { name: true, cluster: { select: { id: true, name: true } } } },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.actionPoint.findMany({
+      where: { goalId: goal.id, status: "open" },
+      select: { id: true, title: true, detail: true, dueDate: true, priority: true, status: true },
+      orderBy: { dueDate: "asc" },
+    }),
+  ]);
+
+  return {
+    goalId: goal.id,
+    name: goal.linkedFacility?.name ?? goal.title,
+    cluster: goal.linkedFacility?.cluster ?? goal.needsCluster ?? null,
+    needsDomain: goal.needsDomain,
+    phase: deriveCentrePhase(goal.pitstops as PhasePitstop[]),
+    activities: activities as unknown as Activity[],
+    checklists: checklists as unknown as ChecklistItem[],
+    followUps: followUps.map((f) => ({
+      id: f.id, title: f.title, detail: f.detail, priority: f.priority, status: f.status,
+      dueDate: f.dueDate ? f.dueDate.toISOString() : null,
+    })),
   };
 }
