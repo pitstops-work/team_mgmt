@@ -41,7 +41,7 @@ export default async function PortalPage() {
         {!budgetOnly && (
         <>
         <Link
-          href="/home"
+          href="/operations"
           className="group flex flex-col gap-3 p-6 bg-sky-500 hover:bg-sky-600 rounded-2xl shadow-sm transition-all hover:shadow-md"
         >
           <div className="w-10 h-10 rounded-xl bg-sky-400/50 flex items-center justify-center">
@@ -49,7 +49,7 @@ export default async function PortalPage() {
           </div>
           <div>
             <p className="text-white font-semibold text-base">Operations</p>
-            <p className="text-sky-100 text-xs mt-0.5 leading-relaxed">Rounds · Activities · Checklists · Threads</p>
+            <p className="text-sky-100 text-xs mt-0.5 leading-relaxed">Centres · Today · Checklists · Follow-ups</p>
           </div>
         </Link>
 

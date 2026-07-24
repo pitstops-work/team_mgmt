@@ -56,6 +56,10 @@
     {
       "path": "/api/cron/wiki-translate",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/materialize-next-month",
+      "schedule": "0 1 25 * *"
     }
   ],
   "framework": "nextjs"

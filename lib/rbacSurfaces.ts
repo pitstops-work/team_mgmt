@@ -54,6 +54,12 @@ export const SURFACES: ReadonlyArray<SurfaceDef> = [
   { id: "home.past",        label: "Past tab" },
   { id: "home.accountability", label: "Accountability tab", description: "Due-anchored team accountability across goal/pitstop/checklist/activity/follow-up layers" },
 
+  // ── Operations (Swiggy-style daily driver) ────────────────────────────────
+  { id: "operations.home",          label: "Operations home",        description: "Theme tiles + on-the-ground today" },
+  { id: "operations.theme_portal",  label: "Theme portal",           description: "Phase-aware per-centre list for one theme" },
+  { id: "operations.today",         label: "On-the-ground today",    description: "Cluster→theme→centre daily driver" },
+  { id: "operations.month_planner", label: "Month-end planner",      description: "Pre-filled drag-adjust next-month plan" },
+
   // ── Pitstop ──────────────────────────────────────────────────────────────
   { id: "pitstop.list",          label: "Pitstops list" },
   { id: "pitstop.detail",        label: "Pitstop detail page", description: "Full-screen pitstop view" },

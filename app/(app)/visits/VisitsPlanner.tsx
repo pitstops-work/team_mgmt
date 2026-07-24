@@ -77,13 +77,18 @@ function endOfMonth(year: number, month: number): Date {
 export function VisitsPlanner({
   currentUserId,
   currentUserDesignation,
+  initialMonthOffset = 0,
 }: {
   currentUserId: string;
   currentUserDesignation: string;
+  /** Months from the current month to open on. The month-end planner passes 1
+   *  so it lands on next month ("Plan August"). Defaults to the current month. */
+  initialMonthOffset?: number;
 }) {
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
+  const seed = new Date(now.getFullYear(), now.getMonth() + initialMonthOffset, 1);
+  const [year, setYear] = useState(seed.getFullYear());
+  const [month, setMonth] = useState(seed.getMonth());
 
   // User picker. RP/Other are locked to self (server enforces too — the picker
   // is hidden for them). ZL/PM/Leader/admin start with self selected; they can

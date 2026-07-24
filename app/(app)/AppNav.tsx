@@ -14,7 +14,7 @@ import Avatar from "@/components/Avatar";
 import PWAInstallButton from "@/components/PWAInstallButton";
 
 // Routes that belong to the Operations world
-const OPERATIONS_ROUTES = ["/home", "/activities", "/visits", "/threads", "/notifications"];
+const OPERATIONS_ROUTES = ["/operations", "/home", "/activities", "/visits", "/threads", "/notifications"];
 
 interface User {
   id?: string;
@@ -64,7 +64,7 @@ export default function AppNav({
   // No nav on the portal landing page
   if (pathname === "/portal") return null;
 
-  const isOperations = OPERATIONS_ROUTES.includes(pathname);
+  const isOperations = OPERATIONS_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"));
   const settingsHref = isViewer ? "/settings/language" : "/settings";
 
   // ── Setup nav items ────────────────────────────────────────────────────────
@@ -99,6 +99,7 @@ export default function AppNav({
 
   // ── Operations nav items ───────────────────────────────────────────────────
   const operationsNav = [
+    { href: "/operations",    icon: <LayoutGrid className="w-3.5 h-3.5" />,    label: "Operations"    },
     { href: "/home",          icon: <CalendarClock className="w-3.5 h-3.5" />, label: "Home"          },
     { href: "/activities",    icon: <CalendarClock className="w-3.5 h-3.5" />, label: "Activities"    },
     { href: "/visits",        icon: <CalendarRange className="w-3.5 h-3.5" />, label: "Visit calendar"},
@@ -208,14 +209,14 @@ export default function AppNav({
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-200 flex items-stretch h-16">
         {isOperations ? (
           <>
+            <MobileLink href="/operations" label="Operations" active={pathname === "/operations" || pathname.startsWith("/operations/")}>
+              <LayoutGrid className="w-5 h-5" />
+            </MobileLink>
             <MobileLink href="/home"       label="Home"       active={pathname === "/home"}>
               <CalendarClock className="w-5 h-5" />
             </MobileLink>
             <MobileLink href="/activities" label="Activities" active={pathname === "/activities"}>
               <CalendarClock className="w-5 h-5" />
-            </MobileLink>
-            <MobileLink href="/threads"    label="Threads"    active={pathname === "/threads"}>
-              <MessageSquare className="w-5 h-5" />
             </MobileLink>
             <MobileLink href="/notifications" label="Alerts" active={pathname === "/notifications"}>
               <div className="relative">

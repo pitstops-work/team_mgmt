@@ -20,7 +20,6 @@ import type {
 
 import { TodayTab as LeaderTodayTab } from "./leader/TodayTab";
 import { LeaderActivityTab } from "./leader/ActivityTab";
-import { RPTodayTab } from "./rp/TodayTab";
 import { RPCoverageTab } from "./rp/CoverageTab";
 import { ZLTodayTab } from "./zl/TodayTab";
 import { ZLTeamHealthTab } from "./zl/TeamHealthTab";
@@ -55,8 +54,9 @@ function tabSurface(tab: TabKey): string {
 
 // ── Tab catalogs ──────────────────────────────────────────────────────────────
 
+// RP daily execution now lives in the Operations world (/operations). /home
+// keeps the RP's follow-ups + done log; the time-first "Today" tab is retired.
 const RP_TABS = [
-  { key: "today",      label: "Today",      icon: CalendarClock },
   { key: "follow-ups", label: "Follow-ups", icon: ListTree },
   { key: "past",       label: "Done log",   icon: CheckCircle2 },
 ] as const;
@@ -176,7 +176,8 @@ export default function HomeView({
     : designation === "RP" ? RP_TABS
     : designation === "PM" ? PM_TABS
     : OTHER_TABS;
-  const defaultTab: TabKey = "today";
+  // RP has no "today" tab anymore (moved to /operations) — land on Follow-ups.
+  const defaultTab: TabKey = designation === "RP" ? "follow-ups" : "today";
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
   const [goalInitialStatus, setGoalInitialStatus] = useState<string>("All");
 
@@ -234,22 +235,6 @@ export default function HomeView({
           ? "max-w-6xl"
           : "max-w-3xl"
       }`}>
-
-        {activeTab === "today" && designation === "RP" && (
-          <RPTodayTab
-            userId={userId}
-            overdueActivities={rpOverdueActivities}
-            overdueTotal={rpOverdueTotal}
-            todayActivities={todayActivities}
-            weekActivities={weekActivities}
-            weekChecklists={weekChecklists}
-            doneActivities={rpDoneActivities}
-            rpClusterDeck={rpClusterDeck}
-            facilityLayerConfigs={facilityLayerConfigs}
-            addActivityPitstops={addActivityPitstops}
-            addActivityUsers={addActivityUsers}
-          />
-        )}
 
         {/* Follow-ups — RP scope=mine, supervisors scope=team. Admin and Other follow
             the supervisor pattern: they want to see what's open across people. */}
