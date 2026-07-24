@@ -32,6 +32,16 @@ export default async function ModelsListPage() {
     select: { id: true, name: true, scenarioName: true, publicSlug: true, template: { select: { name: true } } },
   });
 
+  // Standalone static-HTML public models (site-specific design decks, not
+  // ModelInstance-backed sims). Served straight from public/models-public/.
+  const staticPublicDemos: { href: string; name: string; subtitle: string }[] = [
+    {
+      href: "/models-public/sanitation-complex-gurappa-garden.html",
+      name: "Sanitation Complex — Gurappa Garden",
+      subtitle: "G+2 rebuild · anganwadi + women's + water + community · interactive floor plans + 3D",
+    },
+  ];
+
   return (
     <SurfaceProvider id="models.list">
     <div className="p-6">
@@ -49,7 +59,7 @@ export default async function ModelsListPage() {
         )}
       </div>
 
-      {publicDemos.length > 0 && (
+      {(publicDemos.length > 0 || staticPublicDemos.length > 0) && (
         <section className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50/60 p-5">
           <div className="flex items-baseline justify-between mb-1">
             <h2 className="font-medium text-emerald-900">Public demos</h2>
@@ -73,6 +83,21 @@ export default async function ModelsListPage() {
                   <div className="text-xs text-stone-400 truncate">
                     /models-public/{d.publicSlug}{d.scenarioName ? ` · ${d.scenarioName}` : ""}
                   </div>
+                </div>
+                <span className="text-emerald-600 group-hover:translate-x-0.5 transition-transform shrink-0">↗</span>
+              </a>
+            ))}
+            {staticPublicDemos.map(d => (
+              <a
+                key={d.href}
+                href={d.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-between gap-3 rounded-lg bg-white border border-emerald-200 px-4 py-3 hover:border-emerald-400 hover:shadow-sm transition-all"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-stone-900 truncate">{d.name}</div>
+                  <div className="text-xs text-stone-400 truncate">{d.subtitle}</div>
                 </div>
                 <span className="text-emerald-600 group-hover:translate-x-0.5 transition-transform shrink-0">↗</span>
               </a>

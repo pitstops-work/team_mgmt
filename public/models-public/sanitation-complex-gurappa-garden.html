@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gurappa Garden — Integrated Complex (G+2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07171a; --panel:#0b2126; --panel-2:#0e282e; --line:#173a41;
+    --ink:#d9f2f4; --muted:#6f979d; --cyan:#2dd4e8; --green:#3ecf8e;
+    --amber:#f0b429; --violet:#b18cf2; --alert:#ef6a5a; --grey:#41626a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:"Space Grotesk",sans-serif;
+    padding:26px clamp(14px,4vw,44px) 60px}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:clamp(20px,3vw,27px);font-weight:600}
+  .sub{color:var(--muted);font-size:13px;margin-top:5px;font-family:"IBM Plex Mono",monospace}
+  .board{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:18px clamp(12px,2.4vw,26px) 22px;margin-top:18px}
+  .tourbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  button{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:7px 16px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;cursor:pointer}
+  button:hover{border-color:var(--cyan)}
+  .spotcard{flex:1;min-width:260px;background:var(--panel-2);border:1px solid var(--line);
+    border-left:3px solid var(--cyan);border-radius:10px;padding:10px 14px;min-height:64px}
+  .spotcard b{font-size:14.5px}
+  .spotcard .k{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--amber);
+    text-transform:uppercase;letter-spacing:0.12em}
+  .spotcard p{font-size:12.5px;color:var(--muted);line-height:1.45;margin-top:3px}
+  .spotcard .dims{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--cyan);margin-top:2px}
+  svg{width:100%;height:auto;display:block;margin-top:14px}
+  .room{stroke-width:1.2;cursor:pointer;transition:opacity .4s}
+  .rlab{font-family:"IBM Plex Mono",monospace;fill:var(--ink);pointer-events:none}
+  .rsub{font-family:"IBM Plex Mono",monospace;fill:var(--muted);pointer-events:none}
+  .dim{stroke:var(--muted);stroke-width:1}
+  .dimt{font-family:"IBM Plex Mono",monospace;fill:var(--muted);font-size:10px}
+  .ftitle{font-family:"IBM Plex Mono",monospace;fill:var(--cyan);font-size:12px;letter-spacing:2px}
+  .fsub{font-family:"IBM Plex Mono",monospace;fill:var(--muted);font-size:9.5px}
+  .dimmed{opacity:0.25}
+  .r3{cursor:pointer;transition:opacity .4s}
+  .ghost{opacity:0.07}
+  .ghost polygon{pointer-events:none !important}
+  .vbtn.active{border-color:var(--cyan);color:var(--cyan)}
+  #axsvg{max-width:600px;margin:6px auto 0;display:block}
+  .hot{filter:drop-shadow(0 0 6px rgba(45,212,232,.7))}
+  .flow{stroke-dasharray:6 6;animation:dash 1.2s linear infinite}
+  .flow.slow{animation-duration:2s}
+  @keyframes dash{to{stroke-dashoffset:-12}}
+  @media (prefers-reduced-motion: reduce){ .flow{animation:none} }
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .note{margin-top:14px;color:var(--muted);font-size:13px;line-height:1.6}
+  .note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gurappa Garden — Integrated Community Sanitation Complex &amp; Community Centre</h1>
+  <div class="sub">G+2 rebuild on the Ambedkar Samudhaya Bhavana site · footprint 12.0 × 12.5 m (assumed — toposurvey to confirm) · ground-floor anganwadi with separate entrance · serves ~140 households</div>
+
+  <div class="board">
+    <div class="tourbar">
+      <button id="prev">◀</button>
+      <button id="pp">Pause</button>
+      <button id="next">▶</button>
+      <div class="spotcard"><div class="k" id="scK">—</div><b id="scT">—</b><div class="dims" id="scD"></div><p id="scB">—</p></div>
+    </div>
+
+    <svg viewBox="0 0 1120 600" role="img" aria-label="Three floor plans and a building section">
+      <!-- ===== GROUND FLOOR ===== -->
+      <g transform="translate(20,40)">
+        <text class="ftitle" x="0" y="-14">GROUND — WOMEN · CHILDREN · WATER</text>
+        <rect x="0" y="0" width="300" height="312" fill="#0b2126" stroke="#2a555e" stroke-width="1.5"/>
+        <rect id="g_angan" class="room" data-spot="2" x="0" y="0" width="112" height="272" fill="#3a2f13" stroke="#f0b429"/>
+        <text class="rlab" x="10" y="24" font-size="11">ANGANWADI</text><text class="rsub" x="10" y="38" font-size="9">50 m² · own WC</text><text class="rsub" x="10" y="50" font-size="9">+ kitchen · opens</text><text class="rsub" x="10" y="62" font-size="9">to rear play court</text>
+        <rect id="g_women" class="room" data-spot="3" x="120" y="0" width="180" height="102" fill="#132f38" stroke="#f0b429"/>
+        <text class="rlab" x="132" y="24" font-size="11">WOMEN 10 WC</text><text class="rsub" x="132" y="38" font-size="9">30 m²</text>
+        <rect id="g_bath" class="room" data-spot="4" x="120" y="108" width="96" height="66" fill="#11333d" stroke="#2dd4e8"/>
+        <text class="rsub" x="128" y="130" font-size="9.5">WOMEN'S</text><text class="rsub" x="128" y="142" font-size="9.5">BATHING ×4</text><text class="rsub" x="128" y="154" font-size="8.5">10 m²</text>
+        <rect id="g_stair" class="room" data-spot="16" x="225" y="108" width="75" height="100" fill="#0e282e" stroke="#41626a"/>
+        <text class="rsub" x="238" y="152" font-size="9">STAIR +</text><text class="rsub" x="238" y="164" font-size="9">RAMP</text>
+        <rect id="g_acc" class="room" data-spot="5" x="120" y="180" width="50" height="46" fill="#132f38" stroke="#f0b429"/>
+        <text class="rsub" x="125" y="199" font-size="8.5">ACCESS.</text><text class="rsub" x="125" y="210" font-size="8.5">WC 4 m²</text>
+        <rect id="g_care" class="room" data-spot="7" x="176" y="180" width="42" height="76" fill="#132f38" stroke="#3ecf8e"/>
+        <text class="rsub" x="180" y="199" font-size="8">CARE-</text><text class="rsub" x="180" y="209" font-size="8">TAKER</text><text class="rsub" x="180" y="219" font-size="8">+ CASH</text><text class="rsub" x="180" y="229" font-size="8">5 m²</text>
+        <rect id="g_atm" class="room" data-spot="6" x="224" y="216" width="76" height="96" fill="#0f3a42" stroke="#2dd4e8"/>
+        <text class="rlab" x="231" y="240" font-size="10">WATER</text><text class="rlab" x="231" y="252" font-size="10">ATM</text><text class="rsub" x="231" y="266" font-size="8.5">RO 500 LPH</text><text class="rsub" x="231" y="278" font-size="8.5">12 m²</text><text class="rsub" x="231" y="290" font-size="8.5">street window</text>
+        <rect id="g_entry" class="room" data-spot="18" x="120" y="262" width="98" height="50" fill="#0b2126" stroke="#41626a" stroke-dasharray="4 3"/>
+        <text class="rsub" x="128" y="283" font-size="8.5">SANITATION</text><text class="rsub" x="128" y="295" font-size="8.5">ENTRY · QUEUE</text>
+        <path d="M56,312 v14" stroke="#f0b429" stroke-width="2.5" marker-end="none"/>
+        <text class="dimt" x="10" y="338" fill="#f0b429">ANGANWADI ENTRANCE</text>
+        <path d="M163,312 v14" stroke="#8fb8bd" stroke-width="2.5"/>
+        <text class="dimt" x="132" y="349">SANITATION</text>
+        <path d="M256,312 v14" stroke="#2dd4e8" stroke-width="2.5"/>
+        <text class="dimt" x="228" y="338" fill="#2dd4e8">ATM WINDOW</text>
+        <line class="dim" x1="0" y1="360" x2="300" y2="360"/><line class="dim" x1="0" y1="354" x2="0" y2="366"/><line class="dim" x1="300" y1="354" x2="300" y2="366"/>
+        <text class="dimt" x="130" y="376">12.0 m</text>
+        <line class="dim" x1="-14" y1="0" x2="-14" y2="312"/><line class="dim" x1="-20" y1="0" x2="-8" y2="0"/><line class="dim" x1="-20" y1="312" x2="-8" y2="312"/>
+        <text class="dimt" x="-16" y="160" transform="rotate(-90 -16 160)" text-anchor="middle">12.5 m</text>
+      </g>
+
+      <!-- ===== FIRST FLOOR ===== -->
+      <g transform="translate(400,40)">
+        <text class="ftitle" x="0" y="-14">FIRST — MEN · LAUNDRY</text>
+        <rect x="0" y="0" width="300" height="312" fill="#0b2126" stroke="#2a555e" stroke-width="1.5"/>
+        <rect id="f_men" class="room" data-spot="8" x="0" y="0" width="165" height="110" fill="#132f38" stroke="#f0b429"/>
+        <text class="rlab" x="12" y="24" font-size="11">MEN 8 WC + UR</text><text class="rsub" x="12" y="38" font-size="9">28 m²</text>
+        <rect id="f_mbath" class="room" data-spot="8" x="172" y="0" width="128" height="52" fill="#11333d" stroke="#2dd4e8"/>
+        <text class="rsub" x="180" y="20" font-size="9.5">MEN'S BATHING ×4</text><text class="rsub" x="180" y="33" font-size="8.5">10 m²</text>
+        <rect id="f_laundry" class="room" data-spot="9" x="0" y="118" width="145" height="112" fill="#2a1f3d" stroke="#b18cf2"/>
+        <text class="rlab" x="12" y="142" font-size="11">LAUNDRY ×4</text><text class="rsub" x="12" y="156" font-size="9">26 m² · machines</text><text class="rsub" x="12" y="168" font-size="9">+ wash counters</text>
+        <rect id="f_read" class="room" data-spot="12" x="152" y="118" width="66" height="112" fill="#2a1f3d" stroke="#b18cf2"/>
+        <text class="rsub" x="160" y="142" font-size="9">READING</text><text class="rsub" x="160" y="154" font-size="9">ROOM 12 m²</text>
+        <rect id="f_stair" class="room" data-spot="16" x="225" y="108" width="75" height="100" fill="#0e282e" stroke="#41626a"/>
+        <text class="rsub" x="238" y="158" font-size="9">STAIR</text>
+        <rect id="f_dry1" class="room" data-spot="10" x="0" y="238" width="218" height="74" fill="#10262b" stroke="#3ecf8e" stroke-dasharray="5 3"/>
+        <text class="rsub" x="52" y="278" font-size="9">DRYING DECK 26 m²</text>
+        <rect id="f_store" class="room" data-spot="17" x="225" y="216" width="75" height="96" fill="#132f38" stroke="#41626a"/>
+        <text class="rsub" x="234" y="262" font-size="9">STORE 12 m²</text>
+      </g>
+
+      <!-- ===== SECOND FLOOR ===== -->
+      <g transform="translate(780,40)">
+        <text class="ftitle" x="0" y="-14">SECOND — COMMUNITY</text>
+        <rect x="0" y="0" width="300" height="312" fill="#0b2126" stroke="#2a555e" stroke-width="1.5"/>
+        <rect id="s_hall" class="room" data-spot="11" x="0" y="0" width="218" height="215" fill="#10312a" stroke="#3ecf8e"/>
+        <text class="rlab" x="14" y="26" font-size="11">COMMUNITY HALL</text><text class="rsub" x="14" y="40" font-size="9">75 m² · Samudhaya</text><text class="rsub" x="14" y="52" font-size="9">Bhavana restored</text>
+        <rect id="s_lib" class="room" data-spot="12" x="225" y="0" width="75" height="120" fill="#2a1f3d" stroke="#b18cf2"/>
+        <text class="rsub" x="234" y="26" font-size="9">LIBRARY</text><text class="rsub" x="234" y="38" font-size="9">14 m²</text>
+        <rect id="s_stair" class="room" data-spot="16" x="225" y="132" width="75" height="100" fill="#0e282e" stroke="#41626a"/>
+        <text class="rsub" x="238" y="182" font-size="9">STAIR</text>
+        <rect id="s_cbo" class="room" data-spot="12" x="225" y="238" width="75" height="74" fill="#132f38" stroke="#3ecf8e"/>
+        <text class="rsub" x="232" y="270" font-size="9">CBO OFFICE</text><text class="rsub" x="232" y="282" font-size="9">9 m²</text>
+        <rect id="s_terr" class="room" data-spot="13" x="0" y="221" width="218" height="91" fill="#10262b" stroke="#3ecf8e" stroke-dasharray="5 3"/>
+        <text class="rsub" x="52" y="270" font-size="9">OPEN TERRACE · DRYING 32 m²</text>
+      </g>
+
+      <!-- ===== SECTION / WATER SYSTEMS ===== -->
+      <g transform="translate(20,455)">
+        <text class="ftitle" x="0" y="-6">SECTION — WATER SYSTEMS</text>
+        <line x1="0" y1="100" x2="1080" y2="100" stroke="#2a555e" stroke-width="2"/>
+        <text class="fsub" x="4" y="114">street level</text>
+        <!-- building slabs -->
+        <rect x="330" y="10" width="420" height="90" fill="#0b2126" stroke="#2a555e"/>
+        <line x1="330" y1="70" x2="750" y2="70" stroke="#2a555e"/>
+        <line x1="330" y1="40" x2="750" y2="40" stroke="#2a555e"/>
+        <text class="fsub" x="338" y="94">G — anganwadi · women's · ATM</text>
+        <text class="fsub" x="338" y="64">1F — men's · laundry · drying</text>
+        <text class="fsub" x="338" y="34">2F — hall · library · terrace</text>
+        <!-- roof tanks -->
+        <rect id="x_tanks" class="room" data-spot="14" x="560" y="-8" width="60" height="16" fill="#0f3a42" stroke="#2dd4e8"/>
+        <rect x="628" y="-8" width="44" height="16" fill="#10312a" stroke="#3ecf8e"/>
+        <text class="fsub" x="560" y="-14">fresh · recycled OH tanks</text>
+        <!-- DEWATS underground rear -->
+        <rect id="x_dewats" class="room" data-spot="15" x="790" y="108" width="180" height="34" fill="#10312a" stroke="#3ecf8e"/>
+        <text class="rsub" x="800" y="129" font-size="9.5">DEWATS 12 KLD · buried, rear court</text>
+        <!-- sump front -->
+        <rect x="240" y="108" width="60" height="22" fill="#0f3a42" stroke="#2dd4e8"/>
+        <text class="fsub" x="238" y="146">sump</text>
+        <!-- flows -->
+        <path class="flow" d="M40,96 H240" stroke="#2dd4e8" stroke-width="2.5" fill="none"/>
+        <text class="fsub" x="60" y="90">BWSSB / borewell in</text>
+        <path class="flow" d="M270,108 V96 H560 V-2" stroke="#2dd4e8" stroke-width="2.5" fill="none"/>
+        <path class="flow slow" d="M590,8 V88" stroke="#2dd4e8" stroke-width="2" fill="none"/>
+        <path class="flow" d="M700,95 H880 V108" stroke="#8fb8bd" stroke-width="2.5" fill="none"/>
+        <text class="fsub" x="756" y="90">greywater</text>
+        <path class="flow slow" d="M960,108 V60 H750" stroke="#3ecf8e" stroke-width="2" fill="none"/>
+        <text class="fsub" x="905" y="54">recycled → flushing</text>
+      </g>
+    </svg>
+
+    <div class="tourbar" style="margin-top:18px">
+      <button id="explode">Stack floors</button>
+      <button id="autorot">Auto-rotate: on</button>
+      <button class="vbtn active" id="vAll">All</button>
+      <button class="vbtn" id="v0">G</button>
+      <button class="vbtn" id="v1">1F</button>
+      <button class="vbtn" id="v2">2F</button>
+      <button class="vbtn" id="v3">Roof</button>
+      <div class="sub" style="margin-top:0">3D view · drag to rotate (touching pauses auto-rotation) · G/1F/2F buttons isolate a floor so every room is clickable</div>
+    </div>
+    <svg id="axsvg" viewBox="330 20 560 560" role="img" aria-label="Exploded 3D axonometric of the G+2 building">
+      <g id="axRoot"></g>
+    </svg>
+    <div class="spotcard" style="margin-top:10px"><div class="k" id="scK2">—</div><b id="scT2">—</b><div class="dims" id="scD2"></div><p id="scB2">—</p></div>
+
+    <div class="legend">
+      <span><span class="sw" style="background:#132f38;border:1px solid #f0b429"></span>sanitation &amp; care</span>
+      <span><span class="sw" style="background:#11333d;border:1px solid #2dd4e8"></span>water services</span>
+      <span><span class="sw" style="background:#2a1f3d;border:1px solid #b18cf2"></span>laundry &amp; learning</span>
+      <span><span class="sw" style="background:#10312a;border:1px solid #3ecf8e"></span>community &amp; DEWATS</span>
+      <span><span class="sw" style="background:#10262b;border:1px dashed #3ecf8e"></span>open deck / terrace</span>
+    </div>
+
+    <div class="note">
+      <b>Reading the diagram:</b> the ground floor belongs to women, children and water — the anganwadi with its
+      <b>own separate street entrance</b>, the women's toilets and bathing, the unisex accessible WC, and the
+      street-facing water ATM. Men's toilets and bathing move to the first floor beside the laundry and drying deck
+      — the standard multi-storey pattern, with the ground accessible WC covering anyone who can't climb. The
+      second floor restores the Samudhaya Bhavana as a community hall with library and CBO office. Greywater drops to
+      the <b>DEWATS buried in the rear court, whose sealed slab doubles as the anganwadi's fenced play court</b>,
+      and returns as recycled flush water. Dimensions assume the ~12.0 × 12.5 m footprint read from the structural
+      report's sketch; the toposurvey in the DPR fixes the actuals.
+    </div>
+  </div>
+</div>
+
+<script>
+  const $=id=>document.getElementById(id);
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const SPOTS=[
+    {k:"STRUCTURE",t:"G+2 on new foundations",d:"12.0 × 12.5 m footprint · 3 floors · 3.2 m floor height",b:"The existing building tested at 7.8–8 N/mm² concrete — demolition mandated. Fresh foundations make a third floor cheap: same footprint, 50% more space.",ids:[]},
+    {k:"GROUND FLOOR",t:"Women, children and water at street level",d:"~150 m² plate · 3 separate street entrances",b:"The anganwadi and all women's facilities stay on the ground — no stairs for toddlers, mothers, the elderly — with three separate entrances keeping children, sanitation users and ATM customers apart.",ids:["g_angan","g_women","g_bath","g_acc","g_atm","g_care"]},
+    {k:"GROUND",t:"Anganwadi — own entrance",d:"4.5 × 10.9 m · 50 m² + play court 7.2 × 3.4 m",b:"Ground-floor as ICDS prefers, with its own street entrance fully separated from sanitation traffic, its own WC and kitchen, opening to a fenced play court on the sealed DEWATS slab in the rear.",ids:["g_angan"]},
+    {k:"GROUND",t:"Women's toilets",d:"7.2 × 4.1 m · 30 m² · 10 WC",b:"1 seat per 25 women at SBM norms, menstrual-hygiene disposal, child-friendly seats — on the ground for safety and night-time use.",ids:["g_women"]},
+    {k:"GROUND",t:"Women's bathing",d:"3.8 × 2.6 m · 10 m² · 4 cubicles",b:"Beside the women's toilets, hot-water ready, inside the women's zone.",ids:["g_bath"]},
+    {k:"GROUND",t:"Accessible + family WC (unisex)",d:"2.0 × 1.8 m · 4 m² · ramp-served",b:"At the entry — covers elderly and disabled users of any gender, so moving men's toilets upstairs excludes no one who can't climb.",ids:["g_acc"]},
+    {k:"GROUND",t:"Water ATM",d:"3.0 × 3.8 m · 12 m² · RO 500 LPH",b:"Street-facing dispensing window: the community fills cans without entering the complex. ~1,700 L/day for 140 households.",ids:["g_atm"]},
+    {k:"GROUND",t:"Caretaker + cash kiosk",d:"1.7 × 3.0 m · 5 m²",b:"Single point for passes, coins and complaints, watching the sanitation entry.",ids:["g_care"]},
+    {k:"FIRST FLOOR",t:"Men's toilets + bathing",d:"WC 6.6 × 4.4 m · 28 m² · 8 WC + urinals — bathing 5.1 × 2.1 m · 10 m² · 4 cubicles",b:"Men's facilities move up a level — the standard multi-storey CT pattern. The ground-floor unisex accessible WC covers any man who can't climb.",ids:["f_men","f_mbath"]},
+    {k:"FIRST FLOOR",t:"Laundry",d:"5.8 × 4.5 m · 26 m² · 4 machines + counters",b:"Machines plus hand-wash counters; ~40 loads a day, next to the drying deck.",ids:["f_laundry"]},
+    {k:"FIRST FLOOR",t:"Drying deck",d:"8.7 × 3.0 m · 26 m² · open-air",b:"Sunlit open deck beside the laundry so washing never colonises the lanes.",ids:["f_dry1"]},
+    {k:"SECOND FLOOR",t:"Community hall",d:"8.7 × 8.6 m · 75 m² · ~100 seated",b:"The Ambedkar Samudhaya Bhavana restored and enlarged: meetings, functions, classes — the social heart the site always was.",ids:["s_hall"]},
+    {k:"LEARNING",t:"Reading room · library · CBO office",d:"reading 2.6 × 4.5 m · 12 m² — library 3.0 × 4.8 m · 14 m² — CBO 3.0 × 3.0 m · 9 m²",b:"A reading room on the first floor, library and CBO office on the second — continuing the earlier community-centre work.",ids:["f_read","s_lib","s_cbo"]},
+    {k:"SECOND FLOOR",t:"Open terrace",d:"8.7 × 3.6 m · 32 m²",b:"Overflow drying, evening gatherings, and space the community programmes can grow into.",ids:["s_terr"]},
+    {k:"ROOF",t:"Twin overhead tanks",d:"fresh ~8 KL + recycled ~5 KL",b:"Separate fresh and recycled tanks: cyan feeds taps, showers and the ATM; green feeds flushing only — the two loops never mix.",ids:["x_tanks"]},
+    {k:"REAR COURT",t:"DEWATS — buried under the play court",d:"7.2 × 3.4 m · 12 KLD · 1.8 m deep",b:"Treats ~10,000 L/day of greywater and returns it as flush water. Its sealed top slab doubles as the anganwadi's fenced play court — dead space made useful.",ids:["x_dewats","g_angan"]},
+    {k:"CIRCULATION",t:"Stair + ramp core",d:"3.0 × 4.0 m · every floor · ramp at ground",b:"One vertical core serving all floors, ramped at ground level, positioned so the caretaker sees everyone who goes up.",ids:["g_stair","f_stair","s_stair"]},
+    {k:"FIRST FLOOR",t:"Store",d:"3.0 × 3.8 m · 12 m²",b:"Consumables, detergent stock, spare parts and records — the complex's supply room, beside the stair for easy carriage.",ids:["f_store"]},
+    {k:"GROUND",t:"Sanitation entry + queue",d:"3.9 × 2.0 m lobby",b:"The paid entrance: queue rail past the caretaker kiosk, then women's toilets, bathing and the accessible WC.",ids:["g_entry"]},
+  ];
+
+  let idx=0, playing=!reduce, timer=null;
+  const rooms=[...document.querySelectorAll(".room")];
+
+  function show(i){
+    idx=(i+SPOTS.length)%SPOTS.length;
+    const s=SPOTS[idx];
+    $("scK").textContent=s.k; $("scT").textContent=s.t; $("scB").textContent=s.b;
+    const d1=$("scD"); if(d1){ d1.textContent=s.d||""; }
+    const k2=$("scK2"); if(k2){ k2.textContent=s.k; $("scT2").textContent=s.t; $("scB2").textContent=s.b; $("scD2").textContent=s.d||""; }
+    rooms.forEach(r=>{
+      if(s.ids.length===0){ r.classList.remove("dimmed","hot"); }
+      else if(s.ids.includes(r.id)){ r.classList.remove("dimmed"); r.classList.add("hot"); }
+      else { r.classList.add("dimmed"); r.classList.remove("hot"); }
+    });
+    if(typeof applyAxHighlight==="function"){ applyAxHighlight(); }
+  }
+  function tick(){ if(playing){ show(idx+1); } }
+  function restart(){ if(timer) clearInterval(timer); timer=setInterval(tick,4200); }
+
+  $("next").addEventListener("click",()=>{ show(idx+1); restart(); });
+  $("prev").addEventListener("click",()=>{ show(idx-1); restart(); });
+  $("pp").addEventListener("click",e=>{ playing=!playing; e.target.textContent=playing?"Pause":"Play"; });
+  rooms.forEach(r=>r.addEventListener("click",()=>{
+    const sp=r.getAttribute("data-spot");
+    if(sp!==null){ show(+sp); playing=false; $("pp").textContent="Play"; }
+  }));
+
+  // ===== 3D exploded axonometric (pure SVG isometric projection) =====
+  const S3=14, OX=610, OY=330, NS="http://www.w3.org/2000/svg";
+  function shade(hex,f){ const n=parseInt(hex.slice(1),16);
+    const r=Math.round(((n>>16)&255)*f), g2=Math.round(((n>>8)&255)*f), b=Math.round((n&255)*f);
+    return "#"+((1<<24)+(r<<16)+(g2<<8)+b).toString(16).slice(1); }
+  function iso(x,y,z){ return [OX+(x-y)*0.866*S3, OY+(x+y)*0.5*S3-z*S3]; }
+  function poly(parent,pts,fill,stroke,ref,spot){
+    const p=document.createElementNS(NS,"polygon");
+    p.setAttribute("points",pts.map(q=>q[0].toFixed(1)+","+q[1].toFixed(1)).join(" "));
+    p.setAttribute("fill",fill);
+    if(stroke){ p.setAttribute("stroke",stroke); p.setAttribute("stroke-width","1"); }
+    if(ref){ p.setAttribute("class","r3"); p.setAttribute("data-ref",ref); }
+    else { p.setAttribute("pointer-events","none"); }
+    if(spot!==undefined&&spot!==null) p.setAttribute("data-spot",spot);
+    parent.appendChild(p); return p;
+  }
+  function box(g,x,y,w,d,h,z,fill,stroke,ref,spot){
+    poly(g,[iso(x+w,y,z),iso(x+w,y+d,z),iso(x+w,y+d,z+h),iso(x+w,y,z+h)],shade(fill,0.55),null,ref,spot);
+    poly(g,[iso(x,y+d,z),iso(x+w,y+d,z),iso(x+w,y+d,z+h),iso(x,y+d,z+h)],shade(fill,0.75),null,ref,spot);
+    poly(g,[iso(x,y,z+h),iso(x+w,y,z+h),iso(x+w,y+d,z+h),iso(x,y+d,z+h)],fill,stroke,ref,spot);
+  }
+  const SPOTMAP={g_angan:2,g_women:3,g_bath:4,g_acc:5,g_atm:6,g_care:7,f_men:8,f_mbath:8,
+    f_laundry:9,f_dry1:10,s_hall:11,f_read:12,s_lib:12,s_cbo:12,s_terr:13,x_tanks:14,x_dewats:15,
+    g_stair:16,f_stair:16,s_stair:16,f_store:17,g_entry:18};
+  const AXFLOORS=[
+   [["g_angan",0,0,4.48,10.88,2.2,"#3a2f13","#f0b429"],
+    ["g_women",4.8,0,7.2,4.08,2.2,"#132f38","#f0b429"],
+    ["g_bath",4.8,4.32,3.84,2.64,2.2,"#11333d","#2dd4e8"],
+    ["g_stair",9,4.32,3,4,2.6,"#0e282e","#41626a"],
+    ["g_acc",4.8,7.2,2,1.84,2.2,"#132f38","#f0b429"],
+    ["g_care",7.04,7.2,1.68,3.04,2.2,"#132f38","#3ecf8e"],
+    ["g_atm",8.96,8.64,3.04,3.84,2.2,"#0f3a42","#2dd4e8"],
+    ["g_entry",4.8,10.48,3.92,2.0,0.12,"#0b2126","#41626a"]],
+   [["f_men",0,0,6.6,4.4,2.2,"#132f38","#f0b429"],
+    ["f_mbath",6.88,0,5.12,2.08,2.2,"#11333d","#2dd4e8"],
+    ["f_laundry",0,4.72,5.8,4.48,2.2,"#2a1f3d","#b18cf2"],
+    ["f_read",6.08,4.72,2.64,4.48,2.2,"#2a1f3d","#b18cf2"],
+    ["f_stair",9,4.32,3,4,2.6,"#0e282e","#41626a"],
+    ["f_store",9,8.64,3,3.84,2.2,"#132f38","#41626a"],
+    ["f_dry1",0,9.52,8.72,2.96,0.5,"#10262b","#3ecf8e"]],
+   [["s_hall",0,0,8.72,8.6,2.2,"#10312a","#3ecf8e"],
+    ["s_lib",9,0,3,4.8,2.2,"#2a1f3d","#b18cf2"],
+    ["s_stair",9,5.28,3,4,2.4,"#0e282e","#41626a"],
+    ["s_cbo",9,9.52,3,2.96,2.2,"#132f38","#3ecf8e"],
+    ["s_terr",0,8.84,8.72,3.64,0.5,"#10262b","#3ecf8e"]],
+  ];
+  const axRoot=$("axRoot");
+  const CX=6, CY=6.25;
+  let theta=0, autoRot=!reduce, dragging=false, lastPX=0, dragDist=0, rotDirty=true, frameN=0;
+  function rotP(x,y){ const c=Math.cos(theta), si=Math.sin(theta);
+    return [CX+(x-CX)*c-(y-CY)*si, CY+(x-CX)*si+(y-CY)*c]; }
+  function isoR(x,y,z){ const p=rotP(x,y);
+    return [OX+(p[0]-p[1])*0.866*S3, OY+(p[0]+p[1])*0.5*S3-z*S3]; }
+  function drawBox(g,x,y,w,d,h,z,fill,stroke,ref,spot){
+    const corners=[[x,y],[x+w,y],[x+w,y+d],[x,y+d]];
+    const faces=[{a:0,b:1,n:[0,-1]},{a:1,b:2,n:[1,0]},{a:2,b:3,n:[0,1]},{a:3,b:0,n:[-1,0]}];
+    const c=Math.cos(theta), si=Math.sin(theta);
+    faces.forEach(f=>{
+      const nx=f.n[0]*c-f.n[1]*si, ny=f.n[0]*si+f.n[1]*c;
+      if(nx+ny<=0.02) return;                       // back-facing
+      const A=corners[f.a], B=corners[f.b];
+      const sh=Math.max(0.35,Math.min(0.9,0.75-0.20*(nx-ny)/1.414));
+      poly(g,[isoR(A[0],A[1],z),isoR(B[0],B[1],z),isoR(B[0],B[1],z+h),isoR(A[0],A[1],z+h)],shade(fill,sh),null,ref,spot);
+    });
+    poly(g,[isoR(x,y,z+h),isoR(x+w,y,z+h),isoR(x+w,y+d,z+h),isoR(x,y+d,z+h)],fill,stroke,ref,spot);
+  }
+  const zsBase=[0,3.2,6.4,9.6];
+  let gap=3.0, gapTarget=3.0, plates=[];
+  let floorFilter=-1;
+  const AXL=["GROUND","FIRST","SECOND","ROOF · TANKS"];
+  const labEls=AXL.map(txt=>{
+    const t=document.createElementNS(NS,"text");
+    t.setAttribute("class","ftitle"); t.setAttribute("font-size","10"); t.setAttribute("pointer-events","none");
+    t.setAttribute("x","772"); t.textContent=txt; return t;
+  });
+  const dLab=document.createElementNS(NS,"text");
+  dLab.setAttribute("class","fsub"); dLab.setAttribute("font-size","9.5"); dLab.setAttribute("pointer-events","none");
+  dLab.setAttribute("x","340"); dLab.setAttribute("y","572");
+  dLab.textContent="green buried block = DEWATS · amber slab on it = play court (rear)";
+  function applyAxHighlight(){
+    const s=SPOTS[idx];
+    document.querySelectorAll(".r3").forEach(e=>{
+      const ref=e.getAttribute("data-ref");
+      if(!ref) return;
+      if(s.ids.length===0){ e.classList.remove("dimmed","hot"); }
+      else if(s.ids.includes(ref)){ e.classList.remove("dimmed"); e.classList.add("hot"); }
+      else { e.classList.add("dimmed"); e.classList.remove("hot"); }
+    });
+  }
+  function layoutAxon(){
+    plates.forEach((g,i)=>{
+      const z=zsBase[i]+gap*i;
+      g.setAttribute("transform","translate(0,"+(-(z*S3)).toFixed(1)+")");
+      labEls[i].setAttribute("y",(OY+85.75-z*S3-16).toFixed(1));
+    });
+  }
+  function renderAxon(){
+    while(axRoot.firstChild) axRoot.removeChild(axRoot.firstChild);
+    poly(axRoot,[isoR(-2,-6,0),isoR(15.5,-6,0),isoR(15.5,15,0),isoR(-2,15,0)],"#081a1e",null,null,null);
+    const gD=document.createElementNS(NS,"g"); axRoot.appendChild(gD);
+    drawBox(gD,4,-3.6,7.2,3.4,1.7,-1.8,"#10312a","#3ecf8e","x_dewats",15);
+    drawBox(gD,4,-3.6,7.2,3.4,0.15,0,"#3a2f13","#f0b429","g_angan",2);
+    plates=[];
+    AXFLOORS.forEach((fl,fi)=>{
+      const g=document.createElementNS(NS,"g"); axRoot.appendChild(g); plates.push(g);
+      if(floorFilter>=0&&fi>floorFilter) g.setAttribute("class","ghost");
+      drawBox(g,0,0,12,12.5,0.28,-0.28,"#0e282e","#2a555e",null,null);
+      fl.slice().sort((a,b)=>{
+        const pa=rotP(a[1]+a[3]/2,a[2]+a[4]/2), pb=rotP(b[1]+b[3]/2,b[2]+b[4]/2);
+        return (pa[0]+pa[1])-(pb[0]+pb[1]);
+      }).forEach(r=>drawBox(g,r[1],r[2],r[3],r[4],r[5],0,r[6],r[7],r[0],SPOTMAP[r[0]]));
+    });
+    const gR=document.createElementNS(NS,"g"); axRoot.appendChild(gR); plates.push(gR);
+    if(floorFilter>=0&&3>floorFilter) gR.setAttribute("class","ghost");
+    drawBox(gR,0,0,12,12.5,0.28,-0.28,"#0e282e","#2a555e",null,null);
+    drawBox(gR,4.6,4.2,2.4,1.6,1.1,0,"#0f3a42","#2dd4e8","x_tanks",14);
+    drawBox(gR,7.4,4.2,1.8,1.6,1.1,0,"#10312a","#3ecf8e","x_tanks",14);
+    labEls.forEach(t=>axRoot.appendChild(t)); axRoot.appendChild(dLab);
+    layoutAxon(); applyAxHighlight();
+  }
+  window.__axSetTheta=function(t){ theta=t; renderAxon(); };
+  function axTick(){
+    let gapDirty=false;
+    if(Math.abs(gap-gapTarget)>0.004){ gap+=reduce?(gapTarget-gap):(gapTarget-gap)*0.12; gapDirty=true; }
+    else if(gap!==gapTarget){ gap=gapTarget; gapDirty=true; }
+    if(autoRot&&!dragging&&!reduce){ theta+=0.0045; rotDirty=true; }
+    frameN++;
+    if(rotDirty&&frameN%2===0){ renderAxon(); rotDirty=false; }
+    else if(gapDirty){ layoutAxon(); }
+    requestAnimationFrame(axTick);
+  }
+  const axsvg=$("axsvg");
+  axsvg.style.touchAction="pan-y";
+  axsvg.addEventListener("pointerdown",e=>{ dragging=true; dragDist=0; lastPX=e.clientX;
+    if(autoRot){ autoRot=false; $("autorot").textContent="Auto-rotate: off"; } });
+  window.addEventListener("pointermove",e=>{ if(!dragging) return;
+    const dx=e.clientX-lastPX; dragDist+=Math.abs(dx); theta+=dx*0.008; lastPX=e.clientX; rotDirty=true; });
+  window.addEventListener("pointerup",()=>{ dragging=false; });
+  window.addEventListener("pointercancel",()=>{ dragging=false; });
+  axRoot.addEventListener("click",e=>{
+    if(dragDist>5) return;
+    const sp=e.target.getAttribute?e.target.getAttribute("data-spot"):null;
+    if(sp!==null&&sp!==""&&sp!==undefined){ show(+sp); playing=false; $("pp").textContent="Play"; }
+  });
+  $("explode").textContent="Stack floors";
+  $("explode").addEventListener("click",e=>{
+    gapTarget=gapTarget>0?0:3.0;
+    e.target.textContent=gapTarget>0?"Stack floors":"Explode floors";
+  });
+  $("autorot").textContent=autoRot?"Auto-rotate: on":"Auto-rotate: off";
+  $("autorot").addEventListener("click",e=>{
+    autoRot=!autoRot; e.target.textContent=autoRot?"Auto-rotate: on":"Auto-rotate: off";
+  });
+  [["vAll",-1],["v0",0],["v1",1],["v2",2],["v3",3]].forEach(([id,f])=>{
+    $(id).addEventListener("click",()=>{
+      floorFilter=f;
+      document.querySelectorAll(".vbtn").forEach(b=>b.classList.remove("active"));
+      $(id).classList.add("active");
+      renderAxon();
+    });
+  });
+  renderAxon(); requestAnimationFrame(axTick);
+
+  show(0); restart();
+  if(reduce){ playing=false; $("pp").textContent="Play"; }
+</script>
+</body>
+</html>
