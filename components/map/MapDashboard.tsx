@@ -66,7 +66,7 @@ type UserOption = { id: string; name: string | null; image: string | null; desig
 export default function MapDashboard({ currentUserId, currentUserDesignation, currentUserRole, allUsers = [] }: { currentUserId?: string; currentUserDesignation?: string; currentUserRole?: string; allUsers?: UserOption[] }) {
   const [activeCity, setActiveCity] = useState<MapCity>("bangalore");
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerKey>>(
-    new Set(LAYERS.filter(l => l.city === "bangalore" && l.key !== "schools" && l.key !== "canteens").map((l) => l.key))
+    new Set(LAYERS.filter(l => l.city === "bangalore" && l.key !== "schools" && l.key !== "canteens" && l.key !== "bbmp_schools").map((l) => l.key))
   );
   const [featureCounts, setFeatureCounts] = useState<Partial<Record<LayerKey, number>>>({});
   const [geoDb, setGeoDb] = useState<{
@@ -115,6 +115,8 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
   const [schoolFeatures, setSchoolFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
   const [canteenMaxKm, setCanteenMaxKm] = useState(4);
   const [canteenFeatures, setCanteenFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
+  const [bbmpSchoolMaxKm, setBbmpSchoolMaxKm] = useState(4);
+  const [bbmpSchoolFeatures, setBbmpSchoolFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
   const [healthFeatures, setHealthFeatures] = useState<{ type: string; features: unknown[] }>({ type: "FeatureCollection", features: [] });
   const [healthTypes, setHealthTypes] = useState<Set<string>>(new Set(["CRC", "Foundation Health Centre", "Government Health Centre", "Referral Helpdesk Hospital", "Super Speciality Hospital"]));
   const [showHealthClusters, setShowHealthClusters] = useState(false);
@@ -236,6 +238,16 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
       })
       .catch(() => {});
   }, [canteenMaxKm]);
+
+  useEffect(() => {
+    fetch(`/api/map/bbmp-schools?maxKm=${bbmpSchoolMaxKm}`)
+      .then(r => r.json())
+      .then(data => {
+        setBbmpSchoolFeatures(data);
+        setFeatureCounts(prev => ({ ...prev, bbmp_schools: data.features?.length ?? 0 }));
+      })
+      .catch(() => {});
+  }, [bbmpSchoolMaxKm]);
 
   useEffect(() => {
     fetch("/api/map/health-centres")
@@ -479,7 +491,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
     setSelectedSettlement(null);
     setMapFilter(null);
     setVisibleLayers(prev => {
-      const next = new Set(LAYERS.filter(l => l.city === city && l.key !== "schools" && l.key !== "canteens").map(l => l.key));
+      const next = new Set(LAYERS.filter(l => l.city === city && l.key !== "schools" && l.key !== "canteens" && l.key !== "bbmp_schools").map(l => l.key));
       // Facility layers are bangalore-only for now
       if (city === "bangalore") {
         const current = [...prev];
@@ -560,6 +572,9 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           canteenMaxKm={canteenMaxKm}
           onCanteenMaxKmChange={setCanteenMaxKm}
           canteenCount={(canteenFeatures.features ?? []).length}
+          bbmpSchoolMaxKm={bbmpSchoolMaxKm}
+          onBbmpSchoolMaxKmChange={setBbmpSchoolMaxKm}
+          bbmpSchoolCount={(bbmpSchoolFeatures.features ?? []).length}
           healthTypes={healthTypes}
           onHealthTypesChange={setHealthTypes}
           healthCount={(healthFeatures.features ?? []).length}
@@ -677,6 +692,7 @@ export default function MapDashboard({ currentUserId, currentUserDesignation, cu
           schoolFeatures={schoolFeatures}
           schoolTypes={schoolTypes}
           canteenFeatures={canteenFeatures}
+          bbmpSchoolFeatures={bbmpSchoolFeatures}
           healthFeatures={healthFeatures}
           healthTypes={healthTypes}
           showHealthClusters={showHealthClusters}

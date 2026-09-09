@@ -1350,6 +1350,7 @@ model Settlement {
   schools               SettlementSchool[]
   healthCentres         SettlementHealthCentre[]
   canteens              SettlementCanteen[]
+  bbmpSchools           SettlementBbmpSchool[]
   layerFeatures         LayerFeature[]
   // Layer 2 facility indicators
   facilityIndicators    FacilityIndicator[]
@@ -1385,6 +1386,45 @@ model SettlementCanteen {
 
   @@unique([settlementId, canteenId])
 }
+
+// BBMP / municipal school. Source: UDISE+ "Know Your School" filtered to
+// management = "Local body" for the Bengaluru U North/South education districts.
+// Coordinates come from the KGIS school layer, joined on the UDISE code, and are
+// NULL where no match exists yet — such rows stay off the map but still report.
+model BbmpSchool {
+  id             String   @id @default(cuid())
+  udiseCode      String   @unique // 11-digit UDISE+ code — the stable external id
+  name           String
+  lat            Float?
+  lng            Float?
+  geocodeSource  String? // "kgis" | "google" | "manual" — null when ungeocoded
+  category       String?
+  management     String?
+  urbanLocalBody String?
+  lgdWard        String?
+  eduBlock       String?
+  eduDistrict    String?
+  address        String?
+  pincode        String?
+  status         String?
+  createdAt      DateTime @default(now())
+
+  settlements SettlementBbmpSchool[]
+}
+
+// Junction: settlement ↔ BBMP school with haversine distance
+model SettlementBbmpSchool {
+  id           String @id @default(cuid())
+  settlementId String
+  schoolId     String
+  distanceKm   Float
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  school     BbmpSchool @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([settlementId, schoolId])
+}
+
 
 // Government / programme health centre
 model HealthCentre {

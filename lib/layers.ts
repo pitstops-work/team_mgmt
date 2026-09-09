@@ -24,6 +24,7 @@ export type LayerKey =
   | "schools"
   | "health_centres"
   | "canteens"
+  | "bbmp_schools"
   // Dynamic facility layer keys from FacilityLayerConfig are plain strings at runtime.
   | (string & {});
 
@@ -67,6 +68,7 @@ export const LAYERS: LayerConfig[] = [
   { key: "schools",        label: "Govt Schools",   file: "", color: "#16a34a", type: "point", city: "bangalore", description: "Government schools tagged to nearby settlements" },
   { key: "health_centres", label: "Health Centres", file: "", color: "#e11d48", type: "point", city: "bangalore", description: "Health centres tagged to nearby settlements" },
   { key: "canteens",       label: "Indira Canteens", file: "", color: "#ea580c", type: "point", city: "bangalore", description: "Indira Canteens tagged to nearby settlements" },
+  { key: "bbmp_schools",   label: "BBMP Schools",    file: "", color: "#0d9488", type: "point", city: "bangalore", description: "BBMP / municipal schools tagged to nearby settlements" },
 ];
 
 export const LAYER_MAP = Object.fromEntries(

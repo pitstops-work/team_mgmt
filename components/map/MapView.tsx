@@ -65,6 +65,7 @@ interface MapViewProps {
   schoolFeatures?: { type: string; features: unknown[] };
   schoolTypes?: Set<string>;
   canteenFeatures?: { type: string; features: unknown[] };
+  bbmpSchoolFeatures?: { type: string; features: unknown[] };
   healthFeatures?: { type: string; features: unknown[] };
   healthTypes?: Set<string>;
   showHealthClusters?: boolean;
@@ -361,6 +362,7 @@ export default function MapView({
   schoolFeatures,
   schoolTypes,
   canteenFeatures,
+  bbmpSchoolFeatures,
   healthFeatures,
   healthTypes,
   showHealthClusters = false,
@@ -996,6 +998,46 @@ export default function MapView({
         }
       } catch (err) {
         console.warn("[MapView] canteens source setup skipped:", err instanceof Error ? err.message : err);
+      }
+
+      // ── BBMP school source ───────────────────────────────────────────────
+      try {
+        if (!map.getSource("bbmp-schools-source")) {
+          map.addSource("bbmp-schools-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+          map.addLayer({
+            id: "bbmp-schools-circle",
+            type: "circle",
+            source: "bbmp-schools-source",
+            paint: {
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3, 13, 5, 16, 8],
+              "circle-color": "#0d9488",
+              "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 13, 1.5, 16, 2],
+              "circle-stroke-color": "white",
+            },
+            layout: { visibility: visibleLayersRef.current.has("bbmp_schools") ? "visible" : "none" },
+          });
+          map.on("click", "bbmp-schools-circle", (e) => {
+            if (!e.features?.length) return;
+            const props = e.features[0].properties ?? {};
+            const settlementList = JSON.parse(props.settlements || "[]")
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .map((s: any) => `<li style="margin:2px 0">${s.name} <span style="color:#64748b;font-size:10px">(${s.distanceKm.toFixed(1)} km)</span></li>`)
+              .join("");
+            activePopupRef.current?.remove();
+            activePopupRef.current = new maplibregl.Popup({ maxWidth: "280px", className: "maplibre-popup-clean" })
+              .setLngLat(e.lngLat)
+              .setHTML(`<div class="map-popup">
+                <span class="badge" style="background:#0d9488">BBMP School</span>
+                <h3>${props.name}</h3>
+                ${props.address ? `<div class="info" style="margin-top:4px;color:#64748b;font-size:11px">${props.address}</div>` : ""}
+                ${settlementList ? `<div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Nearby Settlements</div><ul style="padding:0;margin:0;list-style:none;font-size:12px;color:#1e293b">${settlementList}</ul></div>` : ""}
+              </div>`)
+              .addTo(map);
+          });
+          // cursor managed by the global mousemove handler
+        }
+      } catch (err) {
+        console.warn("[MapView] bbmp schools source setup skipped:", err instanceof Error ? err.message : err);
       }
 
       // ── Health centre source ─────────────────────────────────────────────
@@ -1772,6 +1814,31 @@ export default function MapView({
     if (map?.getLayer("canteens-circle")) map.setLayoutProperty("canteens-circle", "visibility", "visible");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canteenFeatures, visibleLayers]);
+
+  // ── BBMP school markers ───────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    const src = map?.getSource("bbmp-schools-source") as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
+
+    if (!visibleLayers.has("bbmp_schools") || !bbmpSchoolFeatures) {
+      src.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const features = (bbmpSchoolFeatures.features as any[]).map((f: any) => ({
+      ...f,
+      properties: {
+        ...f.properties,
+        settlements: JSON.stringify(f.properties?.settlements ?? []),
+      },
+    }));
+
+    src.setData({ type: "FeatureCollection", features });
+    if (map?.getLayer("bbmp-schools-circle")) map.setLayoutProperty("bbmp-schools-circle", "visibility", "visible");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bbmpSchoolFeatures, visibleLayers]);
 
   // ── Health centre markers ─────────────────────────────────────────────────
   useEffect(() => {

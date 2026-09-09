@@ -36,6 +36,9 @@ interface LayerPanelProps {
   canteenMaxKm: number;
   onCanteenMaxKmChange: (km: number) => void;
   canteenCount: number;
+  bbmpSchoolMaxKm: number;
+  onBbmpSchoolMaxKmChange: (km: number) => void;
+  bbmpSchoolCount: number;
   healthTypes: Set<string>;
   onHealthTypesChange: (types: Set<string>) => void;
   healthCount: number;
@@ -102,6 +105,9 @@ export default function LayerPanel({
   canteenMaxKm,
   onCanteenMaxKmChange,
   canteenCount,
+  bbmpSchoolMaxKm,
+  onBbmpSchoolMaxKmChange,
+  bbmpSchoolCount,
   healthTypes,
   onHealthTypesChange,
   healthCount,
@@ -497,6 +503,55 @@ export default function LayerPanel({
                           className="w-full accent-orange-600 h-1.5"
                         />
                         <div className="flex justify-between text-[10px] text-orange-400 mt-0.5">
+                          <span>0.5 km</span>
+                          <span>10 km</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* BBMP Schools layer (Bangalore only) */}
+            {activeCity === "bangalore" && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                  BBMP Schools
+                </p>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => onToggle("bbmp_schools")}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left transition-colors ${
+                      visibleLayers.has("bbmp_schools") ? "bg-slate-100 text-slate-800" : "text-slate-400 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ background: "#0d9488", opacity: visibleLayers.has("bbmp_schools") ? 1 : 0.3 }}
+                    />
+                    <span className="flex-1 text-xs font-medium">BBMP Schools</span>
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${visibleLayers.has("bbmp_schools") ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-300"}`}>
+                      {bbmpSchoolCount}
+                    </span>
+                  </button>
+                  {visibleLayers.has("bbmp_schools") && (
+                    <div className="px-2.5 py-2 bg-teal-50 rounded-lg space-y-2">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-teal-600">Max distance</span>
+                          <span className="text-xs font-bold text-teal-800">{bbmpSchoolMaxKm} km</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.5}
+                          max={10}
+                          step={0.5}
+                          value={bbmpSchoolMaxKm}
+                          onChange={e => onBbmpSchoolMaxKmChange(parseFloat(e.target.value))}
+                          className="w-full accent-teal-600 h-1.5"
+                        />
+                        <div className="flex justify-between text-[10px] text-teal-400 mt-0.5">
                           <span>0.5 km</span>
                           <span>10 km</span>
                         </div>
