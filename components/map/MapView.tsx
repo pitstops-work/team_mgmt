@@ -309,18 +309,22 @@ function filterCentreGeojson(geojson: any, mapFilter: MapFilter | null): any {
 
 const BASEMAP_LAYERS = { carto: "carto-layer", osm: "osm-layer", satellite: "satellite-layer" };
 
+// CARTO basemaps require an API key — unauthenticated tiles come back watermarked
+// ("API KEY REQUIRED"). Must be referenced as a full literal for Next.js to inline it.
+const CARTO_API_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY ?? "";
+const CARTO_TILES = ["a", "b", "c", "d"].map(
+  (sub) =>
+    `https://${sub}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png` +
+    (CARTO_API_KEY ? `?key=${CARTO_API_KEY}` : "")
+);
+
 const INITIAL_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
   sources: {
     "carto-source": {
       type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-      ],
+      tiles: CARTO_TILES,
       tileSize: 256,
       attribution: "© OpenStreetMap contributors © CARTO",
     },
@@ -406,7 +410,10 @@ export default function MapView({
   const visibleLayersRef = useRef(visibleLayers);
   const progressHealthRef = useRef(progressHealth);
 
-  const [basemap, setBasemap] = useState<"carto" | "osm" | "satellite">("carto");
+  // Without a CARTO key their tiles are watermarked, so fall back to OSM.
+  const [basemap, setBasemap] = useState<"carto" | "osm" | "satellite">(
+    CARTO_API_KEY ? "carto" : "osm"
+  );
   const [showZones, setShowZones] = useState(false);
   const [showClusters, setShowClusters] = useState(false);
   const showZonesRef = useRef(false);
