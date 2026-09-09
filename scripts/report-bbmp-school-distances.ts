@@ -10,14 +10,17 @@
  * settlement instead of being dropped.
  *
  * Writes:
- *   bbmp-school-distances.md   ranked, human-readable
- *   bbmp-school-distances.csv  one row per school↔settlement pair within --withinKm
- *                              (plus the nearest settlement, always)
+ *   bbmp-school-distances.md    ranked, human-readable
+ *   bbmp-school-distances.csv   one row per school↔settlement pair within --withinKm
+ *                               (plus the nearest settlement, always)
+ *   bbmp-school-distances.xlsx  two sheets — the ranked table, and the schools
+ *                               still awaiting coordinates
  *
  * Usage: npx tsx scripts/report-bbmp-school-distances.ts [--withinKm=4]
  */
 import dotenv from "dotenv"; dotenv.config({ path: ".env.local" });
 import fs from "fs";
+import ExcelJS from "exceljs";
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -152,7 +155,78 @@ async function main() {
   });
   fs.writeFileSync("bbmp-school-distances.csv", csv.join("\n"));
 
-  console.log(`\nWrote bbmp-school-distances.md and bbmp-school-distances.csv`);
+  // ── XLSX (two sheets) ───────────────────────────────────────────────────────
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "pitstops";
+  wb.created = new Date();
+
+  const s1 = wb.addWorksheet("Schools by distance", { views: [{ state: "frozen", ySplit: 1 }] });
+  s1.columns = [
+    { header: "#", key: "rank", width: 5 },
+    { header: "UDISE code", key: "udise", width: 14 },
+    { header: "BBMP school", key: "school", width: 46 },
+    { header: "Category", key: "category", width: 30 },
+    { header: "Ward", key: "ward", width: 26 },
+    { header: "Latitude", key: "lat", width: 11 },
+    { header: "Longitude", key: "lng", width: 11 },
+    { header: "Geocoded via", key: "src", width: 13 },
+    { header: "Nearest settlement", key: "settlement", width: 28 },
+    { header: "Cluster", key: "cluster", width: 18 },
+    { header: "Zone", key: "zone", width: 12 },
+    { header: "Distance (m)", key: "dist", width: 13 },
+    { header: `Settlements within ${withinKm} km`, key: "count", width: 20 },
+    { header: `Other settlements within ${withinKm} km`, key: "others", width: 90 },
+  ];
+  rows.forEach((r, i) => {
+    s1.addRow({
+      rank: i + 1,
+      udise: r.school.udiseCode,
+      school: r.school.name,
+      category: r.school.category ?? "",
+      ward: r.school.lgdWard ?? "",
+      lat: r.school.lat,
+      lng: r.school.lng,
+      src: r.school.geocodeSource ?? "",
+      settlement: r.nearest.name,
+      cluster: r.nearest.cluster,
+      zone: r.nearest.zone,
+      dist: Math.round(r.nearest.km * 1000),
+      count: r.near.length,
+      others: r.near.filter(n => n.id !== r.nearest.id).map(n => `${n.name} (${Math.round(n.km * 1000)} m)`).join(", "),
+    });
+  });
+  s1.getRow(1).font = { bold: true };
+  s1.getColumn("lat").numFmt = "0.00000";
+  s1.getColumn("lng").numFmt = "0.00000";
+  s1.getColumn("dist").numFmt = "#,##0";
+  s1.autoFilter = { from: "A1", to: { row: 1, column: s1.columnCount } };
+
+  const s2 = wb.addWorksheet("Awaiting coordinates", { views: [{ state: "frozen", ySplit: 1 }] });
+  s2.columns = [
+    { header: "UDISE code", key: "udise", width: 14 },
+    { header: "BBMP school", key: "school", width: 52 },
+    { header: "Category", key: "category", width: 30 },
+    { header: "Edu. district", key: "district", width: 20 },
+    { header: "Edu. block", key: "block", width: 12 },
+    { header: "LGD ward", key: "ward", width: 30 },
+    { header: "Address", key: "address", width: 48 },
+    { header: "PIN", key: "pin", width: 9 },
+    { header: "Latitude (fill in)", key: "lat", width: 17 },
+    { header: "Longitude (fill in)", key: "lng", width: 18 },
+  ];
+  ungeocoded.forEach(u => {
+    s2.addRow({
+      udise: u.udiseCode, school: u.name, category: u.category ?? "",
+      district: u.eduDistrict ?? "", block: u.eduBlock ?? "",
+      ward: u.lgdWard ?? "", address: u.address ?? "", pin: u.pincode ?? "",
+      lat: null, lng: null,
+    });
+  });
+  s2.getRow(1).font = { bold: true };
+
+  await wb.xlsx.writeFile("bbmp-school-distances.xlsx");
+
+  console.log(`\nWrote bbmp-school-distances.md, .csv and .xlsx`);
   console.log(`  ${withAny}/${rows.length} geocoded schools have a settlement within ${withinKm} km`);
   if (ungeocoded.length) console.log(`  ${ungeocoded.length} schools still awaiting coordinates (listed in the .md)`);
   console.log(`  Closest: ${rows[0].school.name} → ${rows[0].nearest.name} (${dist(rows[0].nearest.km)})`);
