@@ -1,6 +1,7 @@
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { computeTargets, pct, trackBand } from "@/lib/seeding/funnel";
+import { ACTIVE_STAGES } from "@/lib/seeding/outreach";
 import { currentWeek, daysUntil, fmtDate, weekLabel } from "@/lib/seeding/weeks";
 import type { SeedingTaskStatus } from "@/app/generated/prisma/client";
 import { StatusChip, ProgressBar } from "./_components/bits";
@@ -12,7 +13,9 @@ const trackText = { ontrack: "text-emerald-600", warn: "text-amber-600", behind:
 const kfmt = (n: number) => (n >= 1000 ? `${(n / 1000).toLocaleString("en-IN", { maximumFractionDigits: 1 })}k` : `${n}`);
 
 export default async function SeedingDashboard() {
-  const [config, milestones, launchMilestones, subStatus, funnelConfig, geos, blockers, dueRows] = await Promise.all([
+  const now = new Date();
+  const weekAhead = new Date(now.getTime() + 7 * 864e5);
+  const [config, milestones, launchMilestones, subStatus, funnelConfig, geos, blockers, dueRows, channelStages, sessionsSoon, heldRecent] = await Promise.all([
     prisma.seedingConfig.findUnique({ where: { id: 1 } }),
     prisma.seedingMilestone.findMany({ orderBy: { sortOrder: "asc" } }),
     loadLaunchMilestones(),
@@ -21,6 +24,13 @@ export default async function SeedingDashboard() {
     prisma.seedingGeo.findMany({ orderBy: { sortOrder: "asc" }, include: { funnel: true } }),
     prisma.seedingSubtask.findMany({ where: { status: "blocked" }, include: { task: { include: { workstream: true } } }, orderBy: { dueWeek: "asc" } }),
     prisma.seedingSubtask.findMany({ where: { status: { not: "done" }, dueWeek: { not: null } }, include: { task: { include: { workstream: true } } } }),
+    prisma.seedingChannel.groupBy({ by: ["stage"], where: { archivedAt: null }, _count: true }),
+    prisma.seedingSession.count({ where: { archivedAt: null, status: "planned", scheduledAt: { lte: weekAhead } } }),
+    prisma.seedingSession.aggregate({
+      where: { archivedAt: null, status: "held", heldAt: { gte: new Date(now.getTime() - 7 * 864e5) } },
+      _count: true,
+      _sum: { reachCount: true, leadsCaptured: true },
+    }),
   ]);
 
   const week0 = config?.week0Date ?? new Date("2026-06-22T00:00:00Z");
@@ -44,7 +54,13 @@ export default async function SeedingDashboard() {
   const overdue = dueRows.filter((t) => (t.dueWeek ?? 0) < nowWeek);
   const thisWeek = dueRows.filter((t) => (t.dueWeek ?? 0) === nowWeek);
 
+  const channelsFound = channelStages.filter((c) => c.stage !== "dropped").reduce((n, c) => n + c._count, 0);
+  const channelsActive = channelStages.filter((c) => ACTIVE_STAGES.includes(c.stage)).reduce((n, c) => n + c._count, 0);
+  const sessionsHeldTotal = geos.reduce((s, g) => s + (g.funnel?.sessionsHeld ?? 0), 0);
+
   const chain = targets ? [
+    { label: "channels", target: targets.channelsToIdentify, actual: channelsFound },
+    { label: "sessions", target: targets.sessionsNeeded, actual: sessionsHeldTotal },
     { label: "reach", target: targets.peopleToReach, actual: reachTotal },
     { label: "leads", target: targets.leadsToCapture, actual: leadsTotal },
     { label: "apps", target: targets.appsFloor, actual: appsTotal },
@@ -107,8 +123,14 @@ export default async function SeedingDashboard() {
             <div className="text-[11px] uppercase tracking-wide text-stone-400">Pre-launch funnel (build reach → leads)</div>
             <Link href="/seeding/funnel" className="text-xs text-sky-600 hover:underline">Open funnel →</Link>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            {[{ label: "People reached", actual: reachTotal, target: targets.peopleToReach }, { label: "Leads captured", actual: leadsTotal, target: targets.leadsToCapture }, { label: "Applications", actual: appsTotal, target: targets.appsFloor }].map((row) => {
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            {[
+              { label: "Channels active", actual: channelsActive, target: targets.activeChannelsNeeded },
+              { label: "Sessions held", actual: sessionsHeldTotal, target: targets.sessionsNeeded },
+              { label: "People reached", actual: reachTotal, target: targets.peopleToReach },
+              { label: "Leads captured", actual: leadsTotal, target: targets.leadsToCapture },
+              { label: "Applications", actual: appsTotal, target: targets.appsFloor },
+            ].map((row) => {
               const p = pct(row.actual, row.target); const band = trackBand(p);
               return (
                 <div key={row.label}>
@@ -120,8 +142,43 @@ export default async function SeedingDashboard() {
               );
             })}
           </div>
+          <p className="mt-3 text-[11px] text-stone-400">
+            Everything except Applications is computed from the{" "}
+            <Link href="/seeding/outreach" className="text-sky-600 hover:underline">outreach log</Link> — channels found,
+            sessions held, and the reach and leads they produced.
+          </p>
         </div>
       )}
+
+      {/* Outreach this week */}
+      <div className="rounded-xl border border-stone-200 bg-white p-4">
+        <div className="flex items-baseline justify-between mb-3">
+          <div className="text-[11px] uppercase tracking-wide text-stone-400">Outreach this week</div>
+          <Link href="/seeding/outreach" className="text-xs text-sky-600 hover:underline">Open outreach →</Link>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <div className="text-xs text-stone-500">Sessions held</div>
+            <div className="text-lg font-semibold tabular-nums text-stone-900">{heldRecent._count}</div>
+            <div className="text-[11px] text-stone-400">in the last 7 days</div>
+          </div>
+          <div>
+            <div className="text-xs text-stone-500">Reach added</div>
+            <div className="text-lg font-semibold tabular-nums text-stone-900">{(heldRecent._sum.reachCount ?? 0).toLocaleString("en-IN")}</div>
+            <div className="text-[11px] text-stone-400">{(heldRecent._sum.leadsCaptured ?? 0).toLocaleString("en-IN")} leads</div>
+          </div>
+          <div>
+            <div className="text-xs text-stone-500">Coming up</div>
+            <div className="text-lg font-semibold tabular-nums text-sky-700">{sessionsSoon}</div>
+            <div className="text-[11px] text-stone-400">sessions in the next 7 days</div>
+          </div>
+          <div>
+            <div className="text-xs text-stone-500">Directory</div>
+            <div className="text-lg font-semibold tabular-nums text-stone-900">{channelsFound.toLocaleString("en-IN")}</div>
+            <div className="text-[11px] text-stone-400">{channelsActive.toLocaleString("en-IN")} agreed or active</div>
+          </div>
+        </div>
+      </div>
 
       {/* Blockers + due */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

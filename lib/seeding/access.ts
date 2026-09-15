@@ -62,3 +62,23 @@ export function canEditFunnelGeo(a: SeedingAccess, geoId: string): boolean {
   if (a.isSuperAdmin || a.isCentral) return true;
   return a.geoIds.includes(geoId);
 }
+
+/** Add/edit channels, log sessions, manage leads. Same rule as the funnel, but
+ *  a null geoId means central/national outreach — central roles only. */
+export function canEditGeoOutreach(a: SeedingAccess, geoId: string | null): boolean {
+  if (a.isSuperAdmin || a.isCentral) return true;
+  return geoId !== null && a.geoIds.includes(geoId);
+}
+
+/** Geos whose named leads this user may read. Central/super see every geo, so
+ *  they get null meaning "no filter"; everyone else is narrowed to their own. */
+export function leadGeoFilter(a: SeedingAccess): string[] | null {
+  if (a.isSuperAdmin || a.isCentral) return null;
+  return a.geoIds;
+}
+
+/** Named leads are personal data: members with edit rights only. A read-only
+ *  viewer or a budget-admin with portal access sees counts, never names. */
+export function canSeeLeads(a: SeedingAccess): boolean {
+  return a.canEdit;
+}

@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSeedingAccess, canEditTask, canEditFunnelGeo } from "@/lib/seeding/access";
 import { rollupTaskFields } from "@/lib/seeding/rollup";
+import { recomputeOutreachRollup } from "@/lib/seeding/outreachRollup";
 import type { SeedingTaskStatus } from "@/app/generated/prisma/client";
 
 async function access() {
@@ -206,25 +207,48 @@ export async function archiveSeedingWorkstream(id: string) {
 
 // ── Funnel ──────────────────────────────────────────────────────────────────
 
-export type FunnelGeoInput = { reachToDate?: number; leadsToDate?: number; appsReceived?: number; screened?: number; shortlisted?: number };
+// reachToDate/leadsToDate are DERIVED from the outreach log (see
+// lib/seeding/outreachRollup.ts) and deliberately absent here — a stale client
+// or a hand-rolled request must not be able to write them. Only the
+// post-launch application numbers are still typed.
+export type FunnelGeoInput = { appsReceived?: number; screened?: number; shortlisted?: number };
+
+const FUNNEL_GEO_FIELDS = ["appsReceived", "screened", "shortlisted"] as const;
 
 export async function updateSeedingFunnelGeo(geoId: string, input: FunnelGeoInput) {
   const { a } = await access();
   if (!canEditFunnelGeo(a, geoId)) throw new Error("No funnel access for this geo");
   const clean = Object.fromEntries(
-    Object.entries(input).filter(([, v]) => typeof v === "number" && v >= 0).map(([k, v]) => [k, Math.round(v as number)]),
+    Object.entries(input)
+      .filter(([k, v]) => (FUNNEL_GEO_FIELDS as readonly string[]).includes(k) && typeof v === "number" && v >= 0)
+      .map(([k, v]) => [k, Math.round(v as number)]),
   );
   await prisma.seedingFunnelGeo.update({ where: { geoId }, data: clean });
-  revalidatePath("/seeding/funnel");
-  revalidatePath("/seeding");
+  revalidatePath("/seeding", "layout");
 }
 
-export async function updateSeedingFunnelConfig(input: Partial<{ fellowsPerGeo: number; selectionRatio: number; appBufferPct: number; leadToApp: number; coldReachToApp: number; reachToLead: number; shareFromWarm: number }>) {
+/** The one-time carry-forward of the hand-typed numbers that predate the
+ *  outreach log. Central only, and it re-derives reachToDate immediately. */
+export async function setSeedingFunnelOpening(
+  geoId: string,
+  input: { reachOpening?: number; leadsOpening?: number; openingNote?: string | null },
+) {
+  const { a } = await access();
+  if (!a.isCentral) throw new Error("Only central roles can change opening balances");
+  const data: { reachOpening?: number; leadsOpening?: number; openingNote?: string | null } = {};
+  if (typeof input.reachOpening === "number" && input.reachOpening >= 0) data.reachOpening = Math.round(input.reachOpening);
+  if (typeof input.leadsOpening === "number" && input.leadsOpening >= 0) data.leadsOpening = Math.round(input.leadsOpening);
+  if (input.openingNote !== undefined) data.openingNote = input.openingNote?.trim() || null;
+  await prisma.seedingFunnelGeo.upsert({ where: { geoId }, create: { geoId, ...data }, update: data });
+  await recomputeOutreachRollup(geoId);
+  revalidatePath("/seeding", "layout");
+}
+
+export async function updateSeedingFunnelConfig(input: Partial<{ fellowsPerGeo: number; selectionRatio: number; appBufferPct: number; leadToApp: number; coldReachToApp: number; reachToLead: number; shareFromWarm: number; avgReachPerSession: number; sessionsPerChannel: number; channelAgreeRate: number }>) {
   const { a } = await access();
   if (!a.isCentral) throw new Error("Only central roles can change funnel assumptions");
   await prisma.seedingFunnelConfig.update({ where: { id: 1 }, data: input });
-  revalidatePath("/seeding/funnel");
-  revalidatePath("/seeding");
+  revalidatePath("/seeding", "layout");
 }
 
 // ── Members (admin) ─────────────────────────────────────────────────────────

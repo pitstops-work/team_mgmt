@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { computeTargets, pct, trackBand } from "@/lib/seeding/funnel";
 import { ownerIsGeoScoped, seedingRoleLabel } from "@/lib/seeding/roles";
-import { ProgressBar, StatusChip } from "../../_components/bits";
+import { ProgressBar, StatusChip, Chip } from "../../_components/bits";
 import { weekLabel } from "@/lib/seeding/weeks";
+import { CHANNEL_KIND_META, CHANNEL_STAGE_META, SESSION_KIND_META, SESSION_STATUS_META } from "@/lib/seeding/outreach";
+
+const fmtDate = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 const trackColor = { ontrack: "bg-emerald-500", warn: "bg-amber-500", behind: "bg-rose-500" } as const;
 const nf = (n: number) => n.toLocaleString("en-IN");
@@ -17,11 +20,36 @@ export default async function GeoDetail({ params }: { params: Promise<{ key: str
     prisma.seedingGeo.count(),
     prisma.seedingGeo.findUnique({
       where: { key: decodeURIComponent(key) },
-      include: { funnel: true, members: { include: { user: { select: { name: true, email: true } } } } },
+      include: {
+        funnel: true,
+        members: { include: { user: { select: { name: true, email: true } } } },
+        subGeos: {
+          where: { archivedAt: null },
+          orderBy: { sortOrder: "asc" },
+          include: { _count: { select: { channels: true, sessions: true } } },
+        },
+      },
     }),
     prisma.seedingTask.findMany({ include: { workstream: true }, orderBy: { dueWeek: "asc" } }),
   ]);
   if (!geo) notFound();
+
+  // Outreach for this geo: the channels doing the most work, and what's recent.
+  const [topChannels, recentSessions, channelTotal] = await Promise.all([
+    prisma.seedingChannel.findMany({
+      where: { geoId: geo.id, archivedAt: null },
+      orderBy: [{ reachToDate: "desc" }, { name: "asc" }],
+      take: 10,
+      select: { id: true, name: true, kind: true, stage: true, sessionsHeld: true, reachToDate: true },
+    }),
+    prisma.seedingSession.findMany({
+      where: { geoId: geo.id, archivedAt: null },
+      orderBy: [{ scheduledAt: "desc" }],
+      take: 8,
+      include: { channel: { select: { name: true } } },
+    }),
+    prisma.seedingChannel.count({ where: { geoId: geo.id, archivedAt: null } }),
+  ]);
 
   const week0 = config?.week0Date ?? new Date("2026-06-22T00:00:00Z");
   const targets = funnelCfg ? computeTargets(funnelCfg, geoCount) : null;
@@ -55,7 +83,76 @@ export default async function GeoDetail({ params }: { params: Promise<{ key: str
           );
         })}
       </div>
-      <div><Link href="/seeding/funnel" className="text-xs text-sky-600 hover:underline">Edit actuals in the funnel →</Link></div>
+      <div className="flex flex-wrap items-center gap-4">
+        <Link href={`/seeding/outreach/sessions?geo=${geo.id}`} className="text-xs text-sky-600 hover:underline">Log outreach →</Link>
+        <Link href="/seeding/funnel" className="text-xs text-stone-400 hover:text-stone-600">Funnel →</Link>
+      </div>
+
+      {/* Sub-geographies */}
+      {geo.subGeos.length > 0 && (
+        <div className="rounded-xl border border-stone-200 bg-white p-4">
+          <div className="text-[11px] uppercase tracking-wide text-stone-400 mb-2">Sub-geographies</div>
+          <div className="flex flex-wrap gap-2">
+            {geo.subGeos.map((s) => (
+              <span key={s.id} className="text-[11px] px-2 py-1 rounded-full bg-stone-100 text-stone-600">
+                {s.label} · {s._count.channels} channel{s._count.channels === 1 ? "" : "s"} · {s._count.sessions} session{s._count.sessions === 1 ? "" : "s"}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Outreach channels */}
+      <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+        <div className="px-4 py-2.5 bg-stone-50 border-b border-stone-100 text-sm font-medium text-stone-700 flex items-baseline justify-between">
+          <span>Outreach channels ({channelTotal})</span>
+          <Link href={`/seeding/outreach/channels?geo=${geo.id}`} className="text-xs font-normal text-sky-600 hover:underline">Open directory →</Link>
+        </div>
+        <div className="divide-y divide-stone-100">
+          {topChannels.length === 0 && (
+            <div className="px-4 py-6 text-sm text-stone-400 text-center">
+              No channels yet. The directory is where institutions, alumni networks, partners and forums live.
+            </div>
+          )}
+          {topChannels.map((c) => (
+            <div key={c.id} className="px-4 py-2 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-stone-800 truncate">{c.name}</div>
+                <div className="text-[11px] text-stone-400">
+                  {CHANNEL_KIND_META[c.kind].label}
+                  {c.sessionsHeld > 0 ? ` · ${c.sessionsHeld} session${c.sessionsHeld === 1 ? "" : "s"} · ${nf(c.reachToDate)} reached` : ""}
+                </div>
+              </div>
+              <Chip meta={CHANNEL_STAGE_META[c.stage]} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent sessions */}
+      <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+        <div className="px-4 py-2.5 bg-stone-50 border-b border-stone-100 text-sm font-medium text-stone-700 flex items-baseline justify-between">
+          <span>Recent sessions</span>
+          <Link href={`/seeding/outreach/sessions?geo=${geo.id}`} className="text-xs font-normal text-sky-600 hover:underline">Log a session →</Link>
+        </div>
+        <div className="divide-y divide-stone-100">
+          {recentSessions.length === 0 && (
+            <div className="px-4 py-6 text-sm text-stone-400 text-center">Nothing logged yet — this is where the reach number comes from.</div>
+          )}
+          {recentSessions.map((s) => (
+            <div key={s.id} className="px-4 py-2 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-stone-800 truncate">{s.title}</div>
+                <div className="text-[11px] text-stone-400 truncate">
+                  {SESSION_KIND_META[s.kind].label}{s.channel ? ` · ${s.channel.name}` : ""} · {fmtDate(s.scheduledAt)}
+                  {s.status === "held" ? ` · ${nf(s.reachCount)} reached, ${nf(s.leadsCaptured)} leads` : ""}
+                </div>
+              </div>
+              <Chip meta={SESSION_STATUS_META[s.status]} />
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Team */}
       <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">

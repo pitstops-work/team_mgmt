@@ -9,6 +9,10 @@ export type FunnelConfig = {
   coldReachToApp: number;
   reachToLead: number;
   shareFromWarm: number;
+  // Outreach-band assumptions (see the Outreach layer in schema.prisma).
+  avgReachPerSession: number;
+  sessionsPerChannel: number;
+  channelAgreeRate: number;
 };
 
 export type FunnelTargets = {
@@ -17,7 +21,18 @@ export type FunnelTargets = {
   appsBuffer: number;     // +20%
   leadsToCapture: number; // pre-launch warm-lead target
   peopleToReach: number;  // pre-launch reach target
-  perGeo: { reachTarget: number; leadTarget: number; appFloor: number };
+  // Outreach bands — how much machinery the reach target implies.
+  sessionsNeeded: number;       // held sessions to deliver peopleToReach
+  activeChannelsNeeded: number; // channels that must reach `agreed`/`active`
+  channelsToIdentify: number;   // the directory we must build to get there
+  perGeo: {
+    reachTarget: number;
+    leadTarget: number;
+    appFloor: number;
+    sessionTarget: number;
+    activeChannelTarget: number;
+    channelTarget: number;
+  };
   geoCount: number;
 };
 
@@ -30,17 +45,29 @@ export function computeTargets(cfg: FunnelConfig, geoCount: number): FunnelTarge
   const leadsToCapture = Math.round(warmApps / cfg.leadToApp);
   const peopleToReach = Math.round(leadsToCapture / cfg.reachToLead);
   const safeGeo = Math.max(1, geoCount);
+  // Outreach bands, derived the same way: reach → sessions → active channels →
+  // the directory we have to build. Guard each divisor so a zeroed assumption
+  // can't produce Infinity in the UI.
+  const sessionsNeeded = Math.ceil(peopleToReach / Math.max(1, cfg.avgReachPerSession));
+  const activeChannelsNeeded = Math.ceil(sessionsNeeded / Math.max(0.1, cfg.sessionsPerChannel));
+  const channelsToIdentify = Math.ceil(activeChannelsNeeded / Math.max(0.01, cfg.channelAgreeRate));
   return {
     totalFellows,
     appsFloor,
     appsBuffer,
     leadsToCapture,
     peopleToReach,
+    sessionsNeeded,
+    activeChannelsNeeded,
+    channelsToIdentify,
     geoCount,
     perGeo: {
       reachTarget: Math.round(peopleToReach / safeGeo),
       leadTarget: Math.round(leadsToCapture / safeGeo),
       appFloor: Math.round(appsFloor / safeGeo),
+      sessionTarget: Math.ceil(sessionsNeeded / safeGeo),
+      activeChannelTarget: Math.ceil(activeChannelsNeeded / safeGeo),
+      channelTarget: Math.ceil(channelsToIdentify / safeGeo),
     },
   };
 }

@@ -13,6 +13,7 @@ const NAV: { href: string; label: string; mobile?: boolean; external?: boolean }
   { href: "/seeding", label: "Dashboard", mobile: true },
   { href: "/seeding/workstreams", label: "Checklist", mobile: true },
   { href: "/seeding/funnel", label: "Funnel", mobile: true },
+  { href: "/seeding/outreach", label: "Outreach", mobile: true },
   { href: "/seeding/geo", label: "Geographies" },
   { href: "/seeding/my", label: "My tasks", mobile: true },
   { href: "/seeding/timeline", label: "Timeline" },
@@ -44,6 +45,7 @@ export default async function SeedingLayout({ children }: { children: React.Reac
           ))}
           {access.canManageStructure && (
             <>
+              <a href="/seeding/admin/subgeos" className="text-xs text-stone-400 hover:text-stone-700 shrink-0 hidden sm:inline">Sub-geos</a>
               <a href="/seeding/admin/milestones" className="text-xs text-stone-400 hover:text-stone-700 shrink-0 hidden sm:inline">Milestones</a>
               <a href="/seeding/admin/members" className="text-xs text-stone-400 hover:text-stone-700 shrink-0 hidden sm:inline">Members</a>
             </>

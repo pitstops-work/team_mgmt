@@ -150,6 +150,12 @@ model User {
   // Seeding Fellowships launch portal
   seedingMemberships        SeedingMember[]                @relation("SeedingMemberUser")
   seedingTasksCreated       SeedingTask[]                  @relation("SeedingTaskCreatedBy")
+  seedingChannelsOwned      SeedingChannel[]               @relation("SeedingChannelOwner")
+  seedingChannelsCreated    SeedingChannel[]               @relation("SeedingChannelCreatedBy")
+  seedingSessionsOwned      SeedingSession[]               @relation("SeedingSessionOwner")
+  seedingSessionsCreated    SeedingSession[]               @relation("SeedingSessionCreatedBy")
+  seedingLeadsOwned         SeedingLead[]                  @relation("SeedingLeadOwner")
+  seedingLeadsCreated       SeedingLead[]                  @relation("SeedingLeadCreatedBy")
   // After-School Centres portal
   ownedSchoolPlans          SchoolPlan[]                   @relation("SchoolPlanOurLead")
   schoolStepsOwned          SchoolPlanStep[]               @relation("SchoolStepOwner")
@@ -1424,7 +1430,6 @@ model SettlementBbmpSchool {
 
   @@unique([settlementId, schoolId])
 }
-
 
 // Government / programme health centre
 model HealthCentre {
@@ -3336,6 +3341,8 @@ model Org {
   settlementsAsPartner  Settlement[]               @relation("SettlementPartnerOrg")
   clustersAsPartner     Cluster[]                  @relation("ClusterPartnerOrg")
   facilitiesAsPartner   LayerFeature[]             @relation("LayerFeaturePartnerOrg")
+  // Optional link from a Seeding outreach channel that is already an APF partner.
+  seedingChannels       SeedingChannel[]           @relation("SeedingChannelOrg")
 }
 
 // ── Wiki module ──────────────────────────────────────────────────────────────
@@ -4163,6 +4170,9 @@ model SeedingConfig {
 }
 
 /// The 4 Phase-1 geographies (data, not hardcoded — extensible).
+/// NOTE: geoCount drives every derived funnel target (see lib/seeding/funnel.ts),
+/// so this table must hold ONLY real geographies. Central/national outreach is
+/// modelled as a null geoId on the outreach tables, never as a 5th row here.
 model SeedingGeo {
   id        String            @id @default(cuid())
   key       String            @unique // bangalore_urban | odisha | eastern_up | north_east
@@ -4170,6 +4180,10 @@ model SeedingGeo {
   sortOrder Int               @default(0)
   funnel    SeedingFunnelGeo?
   members   SeedingMember[]
+  subGeos   SeedingSubGeo[]
+  channels  SeedingChannel[]
+  sessions  SeedingSession[]
+  leads     SeedingLead[]
 }
 
 /// Top-level workstream (A-E + Launch Gate). Admin add/remove/reorder.
@@ -4293,28 +4307,293 @@ model SeedingMilestone {
 /// Singleton (id always 1): the funnel "blue cell" assumptions. Targets are
 /// computed from these (see lib/seeding/funnel.ts), never stored.
 model SeedingFunnelConfig {
-  id             Int      @id @default(1)
-  fellowsPerGeo  Int      @default(25)
-  selectionRatio Int      @default(100) // applications : fellow
-  appBufferPct   Float    @default(0.20)
-  leadToApp      Float    @default(0.40)
-  coldReachToApp Float    @default(0.02)
-  reachToLead    Float    @default(0.10)
-  shareFromWarm  Float    @default(0.70)
-  updatedAt      DateTime @updatedAt
+  id                 Int      @id @default(1)
+  fellowsPerGeo      Int      @default(25)
+  selectionRatio     Int      @default(100) // applications : fellow
+  appBufferPct       Float    @default(0.20)
+  leadToApp          Float    @default(0.40)
+  coldReachToApp     Float    @default(0.02)
+  reachToLead        Float    @default(0.10)
+  shareFromWarm      Float    @default(0.70)
+  // Outreach-band assumptions: how many sessions the reach target implies, and
+  // how many channels those sessions imply. Same rule as the rest of this
+  // table — assumptions are stored, targets are always derived from them.
+  avgReachPerSession Int      @default(60) // people per held session
+  sessionsPerChannel Float    @default(1.5) // sessions an active channel yields
+  channelAgreeRate   Float    @default(0.35) // identified → active conversion
+  updatedAt          DateTime @updatedAt
 }
 
-/// Editable per-geo actuals (targets are derived, not stored).
+/// Per-geo funnel actuals. Two halves with different provenance:
+///   • reachToDate / leadsToDate are DERIVED and materialised — recomputed from
+///     the outreach log by recomputeOutreachRollup() on every session/channel
+///     write (the recomputeTaskRollup pattern). Never hand-edit them; the only
+///     hand-entered part is the *Opening balance, carried forward once from the
+///     hand-typed numbers that predate the outreach log.
+///   • appsReceived / screened / shortlisted are still typed by hand — they come
+///     from the application portal, which does not exist yet.
 model SeedingFunnelGeo {
-  id           String     @id @default(cuid())
-  geoId        String     @unique
-  geo          SeedingGeo @relation(fields: [geoId], references: [id], onDelete: Cascade)
-  reachToDate  Int        @default(0)
-  leadsToDate  Int        @default(0)
-  appsReceived Int        @default(0)
-  screened     Int        @default(0)
-  shortlisted  Int        @default(0)
-  updatedAt    DateTime   @updatedAt
+  id              String     @id @default(cuid())
+  geoId           String     @unique
+  geo             SeedingGeo @relation(fields: [geoId], references: [id], onDelete: Cascade)
+  reachToDate     Int        @default(0) // = reachOpening + Σ held sessions.reachCount
+  leadsToDate     Int        @default(0) // = leadsOpening + Σ held sessions.leadsCaptured
+  reachOpening    Int        @default(0)
+  leadsOpening    Int        @default(0)
+  openingNote     String?
+  // Materialised outreach counts for the funnel's channel + activity bands.
+  sessionsHeld    Int        @default(0)
+  sessionsPlanned Int        @default(0)
+  channelsActive  Int        @default(0) // stage agreed or active
+  channelsTotal   Int        @default(0) // everything except dropped
+  rollupAt        DateTime?
+  appsReceived    Int        @default(0)
+  screened        Int        @default(0)
+  shortlisted     Int        @default(0)
+  updatedAt       DateTime   @updatedAt
+}
+
+// ─── Outreach layer ─────────────────────────────────────────────────────────
+// The engine under the funnel. Three nouns:
+//   Channel — anything you can reach people through (a college, an alumni
+//             network, a partner NGO, a WhatsApp forum, a govt body, a
+//             broadcast surface). ONE directory, discriminated by `kind`.
+//   Session — one dated act of outreach against a channel. Held sessions are
+//             the SOLE source of the funnel's reach + lead actuals.
+//   Lead    — an optional NAMED row for warm/high-value people only. A strict
+//             subset of Session.leadsCaptured; never summed into the funnel.
+// A null geoId means central/national (a pan-India alumni network, a national
+// webinar) — it rolls into the totals row, never into a geo row.
+
+enum SeedingChannelKind {
+  institution // college, university, ITI, school
+  alumni_network
+  partner_org // NGO / CSO / CSR partner
+  forum_community // youth forum, collective, WhatsApp group, SHG federation
+  govt_body // district admin, NYK, DUDA, skill mission
+  digital_channel // an owned or borrowed broadcast surface
+}
+
+/// Monotonic except `dropped` — see CHANNEL_STAGE_META.rank in lib/seeding/outreach.ts.
+enum SeedingChannelStage {
+  identified
+  contacted
+  responded
+  agreed
+  active
+  dropped
+}
+
+enum SeedingSessionKind {
+  campus_session
+  webinar
+  info_desk
+  meeting
+  digital_blast // off-book reach: WhatsApp/email/social — no room, just a count
+  other
+}
+
+enum SeedingSessionStatus {
+  planned
+  held
+  cancelled
+}
+
+enum SeedingLeadStage {
+  captured
+  nurtured
+  applied
+  dropped
+}
+
+/// Editable list under a geo — NE states, Bangalore clusters, Odisha districts.
+/// Closes the pending "sub-geo definition" item in workstream B.
+model SeedingSubGeo {
+  id         String     @id @default(cuid())
+  geoId      String
+  geo        SeedingGeo @relation(fields: [geoId], references: [id], onDelete: Cascade)
+  key        String // slug, stable within the geo
+  label      String
+  notes      String?
+  sortOrder  Int        @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  channels SeedingChannel[]
+  sessions SeedingSession[]
+  leads    SeedingLead[]
+
+  @@unique([geoId, key])
+  @@index([geoId])
+}
+
+/// The one outreach directory. Nullable descriptor columns are only meaningful
+/// for some kinds (institutions carry externalCode/district/lat/lng; digital
+/// channels carry websiteUrl).
+model SeedingChannel {
+  id       String              @id @default(cuid())
+  geoId    String? // null = central / national
+  geo      SeedingGeo?         @relation(fields: [geoId], references: [id], onDelete: SetNull)
+  subGeoId String?
+  subGeo   SeedingSubGeo?      @relation(fields: [subGeoId], references: [id], onDelete: SetNull)
+  kind     SeedingChannelKind
+  stage    SeedingChannelStage @default(identified)
+
+  name    String
+  /// normaliseName(name) — lowercased, punctuation/whitespace collapsed. The
+  /// dedupe key for the paste importer; never shown in the UI.
+  nameKey String
+
+  contactName  String?
+  contactRole  String?
+  contactPhone String?
+  contactEmail String?
+
+  externalCode String? // AISHE / UDISE / registration no.
+  district     String?
+  address      String?
+  lat          Float?
+  lng          Float?
+  websiteUrl   String?
+
+  /// How many people this channel could plausibly put in a room or an inbox.
+  /// Planning figure only — never counted as reach.
+  estimatedReach Int?
+
+  /// Set when the outreach partner is already an APF partner org. Seeding
+  /// channels are deliberately NOT stored in Org — Org feeds the operational
+  /// map + settlement partner pickers and must not fill with colleges.
+  orgId String?
+  org   Org?    @relation("SeedingChannelOrg", fields: [orgId], references: [id], onDelete: SetNull)
+
+  ownerUserId String?
+  owner       User?   @relation("SeedingChannelOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  source      String? // how we found it
+  notes       String?
+
+  nextActionAt     DateTime?
+  firstContactedAt DateTime?
+  agreedAt         DateTime?
+
+  // Materialised from this channel's held sessions — recomputeChannelRollup().
+  sessionsHeld   Int       @default(0)
+  reachToDate    Int       @default(0)
+  leadsToDate    Int       @default(0)
+  lastActivityAt DateTime?
+
+  origin      String?   @default("manual") // manual | import
+  archivedAt  DateTime?
+  createdById String?
+  createdBy   User?     @relation("SeedingChannelCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sessions SeedingSession[]
+  leads    SeedingLead[]
+
+  @@unique([geoId, nameKey])
+  @@index([geoId, kind])
+  @@index([geoId, stage])
+  @@index([subGeoId])
+  @@index([orgId])
+  @@index([archivedAt])
+}
+
+/// One dated act of outreach. Only status = held contributes to the funnel.
+/// Off-book reach (a WhatsApp blast, a mailer) is a digital_blast session with
+/// a reach count and no channel — so every number still flows through one path
+/// and the funnel never needs a manual override.
+model SeedingSession {
+  id        String               @id @default(cuid())
+  geoId     String? // null = central / national
+  geo       SeedingGeo?          @relation(fields: [geoId], references: [id], onDelete: SetNull)
+  subGeoId  String?
+  subGeo    SeedingSubGeo?       @relation(fields: [subGeoId], references: [id], onDelete: SetNull)
+  channelId String?
+  channel   SeedingChannel?      @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  kind      SeedingSessionKind
+  status    SeedingSessionStatus @default(planned)
+
+  title               String
+  /// Frozen at creation and never mutated by a reschedule, so slippage can't be
+  /// laundered (the PitstopEvent.originalScheduledAt rule).
+  originalScheduledAt DateTime
+  scheduledAt         DateTime
+  heldAt              DateTime?
+  location            String?
+
+  /// Planning figure, entered while status = planned. Never counted as reach.
+  expectedReach Int?
+  /// Actuals — counted into the funnel only when status = held.
+  reachCount    Int  @default(0)
+  leadsCaptured Int  @default(0)
+
+  notes           String?
+  proofUrl        String? // attendance sheet / photo / post link
+  cancelledReason String?
+
+  ownerUserId String?
+  owner       User?     @relation("SeedingSessionOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?     @relation("SeedingSessionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  leads SeedingLead[]
+
+  @@index([geoId, status])
+  @@index([geoId, heldAt])
+  @@index([channelId])
+  @@index([subGeoId])
+  @@index([archivedAt])
+}
+
+/// NAMED register for warm / high-value leads only — a strict SUBSET of
+/// SeedingSession.leadsCaptured, never summed into the funnel. This is personal
+/// data on a production database: reads are geo-filtered at the query (see
+/// canSeeLeadPII), outbound contact affordances are gated on consentAt, and
+/// there is deliberately no bulk import or export.
+model SeedingLead {
+  id        String          @id @default(cuid())
+  geoId     String?
+  geo       SeedingGeo?     @relation(fields: [geoId], references: [id], onDelete: SetNull)
+  subGeoId  String?
+  subGeo    SeedingSubGeo?  @relation(fields: [subGeoId], references: [id], onDelete: SetNull)
+  channelId String?
+  channel   SeedingChannel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  sessionId String?
+  session   SeedingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  name         String
+  phone        String?
+  email        String?
+  ageBand      String? // coarse on purpose — no DOB, no address, no ID numbers
+  occupation   String?
+  theme        String?
+  interestNote String?
+  stage        SeedingLeadStage @default(captured)
+
+  /// Stamped when the person agreed to be contacted. Null = the contact fields
+  /// must not be used for outbound.
+  consentAt       DateTime?
+  lastContactedAt DateTime?
+  nextActionAt    DateTime?
+  appliedAt       DateTime?
+
+  ownerUserId String?
+  owner       User?     @relation("SeedingLeadOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?     @relation("SeedingLeadCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([geoId, stage])
+  @@index([sessionId])
+  @@index([channelId])
+  @@index([archivedAt])
 }
 
 /// Who can use the portal + their scope. Central roles have geoId null (all
@@ -4764,22 +5043,22 @@ model RecruitmentScoutState {
 /// two-wheeler". Promoted to a first-class row so we can grow it (mobility
 /// defaults, seasonal caveats, etc.) without touching every JD.
 model RecruitmentLocation {
-  id                  String    @id @default(cuid())
-  slug                String    @unique
-  city                String
-  state               String?
-  country             String    @default("IN")
-  primaryLanguage     String?   // "Tamil", "Kannada", "Hindi", …
+  id                 String    @id @default(cuid())
+  slug               String    @unique
+  city               String
+  state              String?
+  country            String    @default("IN")
+  primaryLanguage    String? // "Tamil", "Kannada", "Hindi", …
   // Free-form JSON keyed by seniority band, e.g. { entry: "₹18-22k/mo", mid: "…" }.
   // Kept opaque here so orgs pick their own bands without a schema change.
-  localSalaryBands    Json?
-  localReferenceOrgs  String[]  @default([]) // orgs a serious candidate could plausibly cite
-  localRedFlags       String[]  @default([]) // "commercial-only banking background", …
-  mobilityDefault     String?   // "own-two-wheeler" | "public-transport" | "none"
-  notes               String    @default("")
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  archivedAt          DateTime?
+  localSalaryBands   Json?
+  localReferenceOrgs String[]  @default([]) // orgs a serious candidate could plausibly cite
+  localRedFlags      String[]  @default([]) // "commercial-only banking background", …
+  mobilityDefault    String? // "own-two-wheeler" | "public-transport" | "none"
+  notes              String    @default("")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  archivedAt         DateTime?
 
   jobs RecruitmentJob[]
 }
@@ -4791,37 +5070,37 @@ model RecruitmentLocation {
 /// (see RecruitmentScoutingDay.jobSnapshotJson) so subsequent JD edits don't
 /// retroactively change old scouting docs.
 model RecruitmentJob {
-  id                  String    @id @default(cuid())
-  slug                String    @unique
-  title               String
-  seniority           String?   // entry | mid | senior | lead
-  locationId          String
-  location            RecruitmentLocation @relation(fields: [locationId], references: [id])
+  id         String              @id @default(cuid())
+  slug       String              @unique
+  title      String
+  seniority  String? // entry | mid | senior | lead
+  locationId String
+  location   RecruitmentLocation @relation(fields: [locationId], references: [id])
 
-  dayToDay            String    @default("") // markdown — what the role actually does
-  mustHaves           String[]  @default([])
-  niceToHaves         String[]  @default([])
-  hardDisqualifiers   String[]  @default([])
-  salaryBand          String?   // free-text; private — read-gated separately if needed
+  dayToDay          String   @default("") // markdown — what the role actually does
+  mustHaves         String[] @default([])
+  niceToHaves       String[] @default([])
+  hardDisqualifiers String[] @default([])
+  salaryBand        String? // free-text; private — read-gated separately if needed
 
-  theme               String    @default("football") // football | neutral
-  notes               String    @default("")         // free-text extra context (replaces upload-form `context`)
+  theme String @default("football") // football | neutral
+  notes String @default("") // free-text extra context (replaces upload-form `context`)
 
   // Rubric — nullable/empty falls back to generic defaults inside the prompt template.
-  redFlagRules        String[]  @default([]) // role-specific red flags (Phase 3 wiring)
-  yellowFlagRules     String[]  @default([]) // role-specific yellow flags (Phase 3 wiring)
-  scrutiniseFor       String[]  @default([]) // extra things to look for (Phase 3 wiring)
-  lockedAxes          String[]  @default([]) // 6 fixed radar axes; empty = model picks per pool
+  redFlagRules    String[] @default([]) // role-specific red flags (Phase 3 wiring)
+  yellowFlagRules String[] @default([]) // role-specific yellow flags (Phase 3 wiring)
+  scrutiniseFor   String[] @default([]) // extra things to look for (Phase 3 wiring)
+  lockedAxes      String[] @default([]) // 6 fixed radar axes; empty = model picks per pool
 
   // Populated when the JD was extracted from an uploaded doc (Phase 2).
-  sourceDocUrl        String?
-  extractedAt         DateTime?
+  sourceDocUrl String?
+  extractedAt  DateTime?
 
-  createdById         String?
-  createdBy           User?     @relation("RecruitmentJobCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  archivedAt          DateTime?
+  createdById String?
+  createdBy   User?     @relation("RecruitmentJobCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  archivedAt  DateTime?
 
   scoutingDays RecruitmentScoutingDay[]
 }
@@ -4833,8 +5112,8 @@ model RecruitmentJob {
 /// without re-generating. `jobId` is nullable so legacy blob-only docs still
 /// show up in listings.
 model RecruitmentScoutingDay {
-  id              String   @id @default(cuid())
-  slug            String   @unique
+  id              String          @id @default(cuid())
+  slug            String          @unique
   jobId           String?
   job             RecruitmentJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
   matchday        DateTime?
@@ -4847,8 +5126,8 @@ model RecruitmentScoutingDay {
   snapshotJson    Json
   renderedBlobUrl String?
   createdById     String?
-  createdBy       User?    @relation("RecruitmentScoutingDayCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt       DateTime @default(now())
+  createdBy       User?           @relation("RecruitmentScoutingDayCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime        @default(now())
 
   @@index([jobId])
 }
