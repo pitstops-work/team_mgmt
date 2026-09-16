@@ -7,6 +7,14 @@ export const STATUS_META: Record<SeedingTaskStatus, { label: string; chip: strin
   done:        { label: "Done",        chip: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
 };
 
+/** Raw hex per status — for SVG/inline-styled surfaces (timeline bars). */
+export const STATUS_HEX: Record<SeedingTaskStatus, string> = {
+  not_started: "#d6d3d1", // stone-300
+  in_progress: "#0ea5e9", // sky-500
+  blocked:     "#f43f5e", // rose-500
+  done:        "#10b981", // emerald-500
+};
+
 export const STATUS_ORDER: SeedingTaskStatus[] = ["not_started", "in_progress", "blocked", "done"];
 
 export function progressPct(counts: Partial<Record<SeedingTaskStatus, number>>): number {
