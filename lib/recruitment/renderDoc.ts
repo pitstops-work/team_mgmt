@@ -663,18 +663,54 @@ function syncUI(){
    triage could not work it out from the CV — and filling this in is the whole
    job of that desk: scout them on the role, then say where they belong.
    Stored in the shared state, so it is a team decision, not a private note. */
-function renderAlloc(id){
+function renderAlloc(id, busyMsg){
   const host=document.getElementById('al-'+id); if(!host) return;
   if(!CITIES.length){ host.innerHTML=''; return; }
   const cur = (S[id] && S[id].city) || '';
   const unset = !cur;
   host.innerHTML =
     '<label for="ac-'+esc(id)+'">City</label>'
-    + '<select id="ac-'+esc(id)+'" data-ac="'+esc(id)+'">'
+    + '<select id="ac-'+esc(id)+'" data-ac="'+esc(id)+'"'+(busyMsg?' disabled':'')+'>'
     + '<option value="">— not allocated —</option>'
     + CITIES.map(c=>'<option value="'+esc(c.id)+'"'+(c.id===cur?' selected':'')+'>'+esc(c.city)+'</option>').join('')
     + '</select>'
-    + (unset ? '<span class="unset">needs a city</span>' : '');
+    + (busyMsg ? '<span class="unset">'+esc(busyMsg)+'</span>'
+               : unset ? '<span class="unset">needs a city</span>' : '');
+}
+
+/* Picking another city MOVES the candidate to that city's desk, re-scouted
+   against that city's local context. A copy would put them in a league table
+   they are not comparable to, carrying a read that never asked that city's
+   questions — so this costs a model call and about a minute, and says so. */
+async function moveCandidateTo(id, toLocationId, selectEl){
+  const c=C.find(x=>x.id===id); if(!c) return;
+  const city=(CITIES.find(x=>x.id===toLocationId)||{}).city||'that city';
+  const ok=confirm(
+    'Move '+c.name+' to the '+city+' desk?\\n\\n'
+    +'They will be re-scouted against '+city+"'s language, local organisations and red flags, "
+    +'and scored on that desk\\u2019s axes so they can be compared with its pool. '
+    +'Their score, notes and any interview summary move with them.\\n\\n'
+    +'This takes about a minute.'
+  );
+  if(!ok){ if(selectEl) selectEl.value=(S[id]&&S[id].city)||''; return; }
+
+  renderAlloc(id, 'moving to '+city+'\\u2026');
+  try{
+    const res=await fetch('/api/recruitment/'+SLUG+'/move-candidate',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({candidateId:id, toLocationId}),
+    });
+    const body=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(body.error||('Move failed ('+res.status+')'));
+    // They are off this desk now — reload so the pool, table and headlines
+    // all reflect it rather than leaving a stale card behind.
+    alert(c.name+' moved to the '+body.city+' desk'+(body.createdDesk?' (newly opened for '+body.city+')':'')+'.');
+    location.reload();
+  }catch(err){
+    renderAlloc(id);
+    const el=document.getElementById('ac-'+id); if(el) el.value=(S[id]&&S[id].city)||'';
+    alert(err && err.message ? err.message : 'Move failed');
+  }
 }
 
 /* ================= INTERVIEW TRANSCRIPT ================= */
@@ -802,12 +838,16 @@ function wire(){
     renderCards(); renderTable(); syncUI();
   });
 
-  // --- city allocation ---
+  // --- city allocation (moves the candidate to that city's desk) ---
   document.getElementById('cards').addEventListener('change',e=>{
     if(!e.target.matches('select[data-ac]')) return;
     const id=e.target.dataset.ac;
-    S[id].city = e.target.value || null;
-    renderAlloc(id); renderTable(id); save(id);
+    const to=e.target.value||null;
+    if(!to || to===DESK_LOCATION_ID){
+      // Clearing, or re-picking this desk's own city: a local flag only.
+      S[id].city = to; renderAlloc(id); renderTable(id); save(id); return;
+    }
+    moveCandidateTo(id, to, e.target);
   });
 
   // --- interview transcript ---

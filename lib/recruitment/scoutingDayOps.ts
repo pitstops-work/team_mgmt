@@ -65,22 +65,36 @@ async function extractAll(cvs: CvRef[]): Promise<{
   return { extractedTexts, userBlocks };
 }
 
-async function persist(slug: string, data: ScoutDocData): Promise<string> {
+/**
+ * Write the new pool to the DB, and refresh the blob copy.
+ *
+ * The DB row is the source of truth: loadDoc (app/api/recruitment/[slug]/
+ * route.ts) re-renders from snapshotJson on every request, so the blob is a
+ * cache. A blob failure must therefore NOT abort the operation — by the time
+ * we get here the model call is already paid for, and throwing would lose the
+ * result while the desk itself would have rendered fine from the DB.
+ */
+async function persist(slug: string, data: ScoutDocData): Promise<string | null> {
   const html = renderScoutingDoc(slug, data);
-  const putResult = await put(`recruitment/docs/${slug}.html`, html, {
-    access: "private",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: "text/html; charset=utf-8",
-  });
+  let url: string | null = null;
+  try {
+    url = (await put(`recruitment/docs/${slug}.html`, html, {
+      access: "private",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: "text/html; charset=utf-8",
+    })).url;
+  } catch (e) {
+    console.error(`[recruitment-persist] blob refresh failed for ${slug} (DB still authoritative):`, e instanceof Error ? e.message : e);
+  }
   await prisma.recruitmentScoutingDay.update({
     where: { slug },
     data: {
       snapshotJson: data as unknown as never,
-      renderedBlobUrl: putResult.url,
+      ...(url ? { renderedBlobUrl: url } : {}),
     },
   });
-  return putResult.url;
+  return url;
 }
 
 // ── Append ──────────────────────────────────────────────────────────────────
@@ -95,6 +109,48 @@ export async function appendCandidates(
   _session: SessionLike,
 ): Promise<OpResult> {
   if (cvs.length === 0) return { ok: false, status: 400, error: "At least one CV is required to append" };
+  const { extractedTexts, userBlocks, error } = await extractAll(cvs);
+  if (error) return { ok: false, status: 502, error };
+
+  const res = await appendExtracted(
+    slug,
+    cvs.map((cv, i) => ({ name: cv.name, text: extractedTexts[i] ?? "" })),
+    userBlocks,
+  );
+  if (!res.ok) return res;
+  await Promise.allSettled(cvs.map((cv) => del(cv.url)));
+  return { ok: true, slug, mode: "append", addedCount: res.addedIds.length, totalCount: res.totalCount };
+}
+
+/**
+ * Append candidates whose CV text we ALREADY have, with no blob to read.
+ *
+ * Split out of appendCandidates so a candidate can be moved between desks
+ * using the `cvText` persisted on them at generation time — the original CV
+ * blob is deleted once a desk is built, so a move has no file to re-extract.
+ * Returns the new ids, which the caller needs to carry the team's scores and
+ * notes across to the candidate's new home.
+ *
+ * `userBlocks` lets the blob path pass richer content (page images for a
+ * scanned CV); the text-only path builds plain text blocks.
+ */
+export type AppendOutcome =
+  | { ok: true; addedIds: string[]; totalCount: number }
+  | { ok: false; status: number; error: string };
+
+export async function appendExtracted(
+  slug: string,
+  items: { name: string; text: string }[],
+  userBlocksIn?: Anthropic.ContentBlockParam[],
+): Promise<AppendOutcome> {
+  if (items.length === 0) return { ok: false, status: 400, error: "Nothing to append" };
+  const extractedTexts = items.map((i) => i.text);
+  const userBlocks: Anthropic.ContentBlockParam[] =
+    userBlocksIn ??
+    items.map((it, i) => ({
+      type: "text",
+      text: `=== NEW CV ${i + 1} of ${items.length}: ${it.name} ===\n${it.text || "(no CV text stored — see prior scout notes above)"}`,
+    }));
 
   const day = await prisma.recruitmentScoutingDay.findUnique({ where: { slug } });
   if (!day) return { ok: false, status: 404, error: "Scouting day not found (or a legacy blob-only doc that can't be extended)" };
@@ -115,13 +171,11 @@ export async function appendCandidates(
       `Interview-day title: ${day.title}`,
       day.matchday ? `Interview date: ${day.matchday.toISOString().slice(0, 10)}` : null,
       `Existing pool size: ${existing.candidates.length}`,
-      `Number of NEW candidates to score: ${cvs.length}`,
+      `Number of NEW candidates to score: ${items.length}`,
     ]
       .filter(Boolean)
       .join("\n"),
   };
-  const { extractedTexts, userBlocks, error } = await extractAll(cvs);
-  if (error) return { ok: false, status: 502, error };
 
   const client = new Anthropic();
   const stream = client.messages.stream({
@@ -160,9 +214,8 @@ export async function appendCandidates(
 
   const merged: ScoutDocData = { ...existing, candidates: [...existing.candidates, ...addedCandidates] };
   await persist(slug, merged);
-  await Promise.allSettled(cvs.map((cv) => del(cv.url)));
 
-  return { ok: true, slug, mode: "append", addedCount: addedCandidates.length, totalCount: merged.candidates.length };
+  return { ok: true, addedIds: addedCandidates.map((c) => c.id), totalCount: merged.candidates.length };
 }
 
 // ── Regenerate ──────────────────────────────────────────────────────────────
