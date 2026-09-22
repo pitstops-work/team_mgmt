@@ -95,6 +95,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // JD resolves on its own; a multi-city one requires it.
   const requestedLocationId =
     typeof body?.locationId === "string" && body.locationId ? String(body.locationId) : null;
+  // Set when this desk is one city's slice of a multi-city run, so the sibling
+  // desks can find each other. Opaque, client-generated, same for the whole run.
+  const batchId =
+    typeof body?.batchId === "string" && body.batchId ? String(body.batchId).slice(0, 64) : null;
   const cvs: { url: string; name: string }[] = Array.isArray(body?.cvs) ? body.cvs : [];
   if (!title || cvs.length === 0) {
     return NextResponse.json({ error: "Title and at least one CV are required" }, { status: 400 });
@@ -231,6 +235,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       slug,
       jobId,
       locationId: dayLocationId,
+      batchId,
       matchday: date ? new Date(date) : null,
       title,
       // Cast: Prisma's JSON input type is picky about our structured shapes; DB

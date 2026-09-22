@@ -53,8 +53,19 @@ export default async function RecruitmentDocPage({ params }: { params: Promise<{
   // Legacy blob-only + hand-committed docs cannot — no snapshot to extend.
   const day = await prisma.recruitmentScoutingDay.findUnique({
     where: { slug },
-    select: { id: true, title: true, snapshotJson: true },
+    select: { id: true, title: true, snapshotJson: true, batchId: true },
   });
+
+  // Desks from a multi-city run link back to their siblings — without this a
+  // batch desk is a dead end and the other cities are only findable by
+  // scrolling the main listing.
+  const siblings = day?.batchId
+    ? await prisma.recruitmentScoutingDay.findMany({
+        where: { batchId: day.batchId, slug: { not: slug } },
+        orderBy: { createdAt: "asc" },
+        select: { slug: true, location: { select: { city: true } } },
+      })
+    : [];
   const committed = await isCommittedDoc(slug);
 
   // Pool size drives the append-vs-regenerate rule (server-side); we pass it
@@ -92,6 +103,23 @@ export default async function RecruitmentDocPage({ params }: { params: Promise<{
         )}
         {!day && !committed && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">legacy</span>
+        )}
+        {siblings.length > 0 && day?.batchId && (
+          <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-stone-400 min-w-0">
+            <Link href={`/recruitment/batch/${day.batchId}`} className="text-sky-600 hover:underline shrink-0">
+              batch
+            </Link>
+            <span className="shrink-0">·</span>
+            {siblings.map((s) => (
+              <Link
+                key={s.slug}
+                href={`/recruitment/${s.slug}`}
+                className="px-1.5 py-0.5 rounded-full bg-stone-100 hover:bg-sky-50 hover:text-sky-600 truncate"
+              >
+                {s.location?.city ?? s.slug}
+              </Link>
+            ))}
+          </div>
         )}
         <div className="ml-auto">
           <ScoutingDayActions

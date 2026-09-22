@@ -5137,6 +5137,13 @@ model RecruitmentScoutingDay {
   /// predate multi-location, and their city lives in jobSnapshotJson.location.
   locationId      String?
   location        RecruitmentLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  /// Groups the desks produced by ONE multi-city run: a single posting drew
+  /// CVs for several cities, triage split them per city, and each city got its
+  /// own desk (generation is single-city — see lib/recruitment/locations.ts).
+  /// Null for an ordinary one-city desk. Deliberately an opaque id and not a
+  /// foreign key — a batch has no lifecycle or attributes of its own beyond
+  /// the rows that carry it, so a table would be a row per value and nothing else.
+  batchId         String?
   matchday        DateTime?
   title           String
   // The full JD frozen at generation time so subsequent JD edits don't rewrite
@@ -5152,6 +5159,7 @@ model RecruitmentScoutingDay {
 
   @@index([jobId])
   @@index([locationId])
+  @@index([batchId])
 }
 
 // ════════════════════════════════════════════════════════════════════════════
