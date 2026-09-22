@@ -324,6 +324,7 @@ footer{margin-top:44px; text-align:center; font-family:'Space Mono',monospace; f
   <h1><span class="a">${escHtml(d.titleA)}</span><br><span class="b">${escHtml(d.titleB)}</span></h1>
   <div class="sub">${inline(d.sub)}</div>
   <div class="crest"><span class="dot"></span> LIVE SCOUTING DESK · SELECTOR: ${escHtml(d.selector.toUpperCase())}</div>
+  <div class="crest" id="syncChip" style="margin-top:6px;opacity:.7">syncing…</div>
 </header>
 
 <div class="ticker"><div class="ticker-inner" id="ticker"></div></div>
@@ -356,26 +357,138 @@ footer{margin-top:44px; text-align:center; font-family:'Space Mono',monospace; f
 const AXES = ${js(axes)};
 const C = ${js(candidates)};
 
-/* ================= STATE ================= */
-const KEY=${js(`recruitment:${slug}`)};
-let S={}; C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{}});
+/* ================= STATE =================
+   Team-shared. Server is source of truth (RecruitmentScoutState, keyed by
+   this doc's slug). localStorage is kept as an offline cache and as the
+   source for a one-shot migration when a device that used the old
+   local-only build first opens the shared version. Poll every 15s while the
+   tab is visible; skip the poll while the user is actively typing so we
+   don't clobber in-flight edits.
 
-function load(){
-  try{
-    const r = localStorage.getItem(KEY);
-    if(r){ const p=JSON.parse(r); C.forEach(c=>{ if(p[c.id]) S[c.id]={...S[c.id],...p[c.id]}; }); }
-  }catch(e){/* first run — nothing saved yet */}
-}
+   Ported from content/recruitment/rp-chennai-jul-2026.html, which has run
+   this exact shape in production since 2026-07-29. Until now this template
+   emitted a localStorage-only block, so every GENERATED desk was silently
+   device-local — two interviewers on two laptops could not see each other's
+   scores. The migration path in load() is what makes switching safe for the
+   desks that already hold local-only scores: their work is pushed up on
+   first open rather than lost. Do not remove it. */
+const SLUG=${js(slug)};
+const LS_KEY='recruitment:'+SLUG;
+const STATE_URL='/api/recruitment/'+SLUG+'/state';
+const POLL_MS=15000;
+const TYPING_QUIET_MS=3000;
+
+let S={}; C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null});
+let serverVersion=0;
+let lastEditAt=0;
+let pendingSave=false;
 let saveT=null;
+
+function readLS(){
+  try{ const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null; }catch(e){ return null; }
+}
+function writeLS(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){/* quota — offline cache is best-effort */}
+}
+function mergeInto(target, incoming){
+  if(!incoming) return;
+  C.forEach(c=>{ if(incoming[c.id]) target[c.id]={...target[c.id], ...incoming[c.id]}; });
+}
+function chip(msg){ const el=document.getElementById('syncChip'); if(el) el.textContent=msg; }
+function updatedByLabel(u, iso){
+  if(!u) return '';
+  const who = (u.name||'someone').split(' ')[0];
+  if(!iso) return '· updated by '+who;
+  const ago = Math.max(0, Math.round((Date.now()-new Date(iso).getTime())/1000));
+  const t = ago<60?ago+'s ago':ago<3600?Math.round(ago/60)+'m ago':Math.round(ago/3600)+'h ago';
+  return '· updated by '+who+' '+t;
+}
+
+async function load(){
+  // Try server first. On success, one-shot-migrate any local-only edits from
+  // the pre-shared build. On failure, fall back to localStorage so the doc is
+  // still usable offline or if the API is momentarily down.
+  chip('syncing…');
+  try{
+    const res = await fetch(STATE_URL, {headers:{'Accept':'application/json'}, cache:'no-store'});
+    if(!res.ok) throw new Error('http '+res.status);
+    const body = await res.json();
+    serverVersion = body.version||0;
+    if(serverVersion>0){
+      mergeInto(S, body.state);
+      writeLS();
+      chip('team-shared '+updatedByLabel(body.updatedBy, body.updatedAt));
+    } else {
+      // Server is empty. If this device has local state from the old
+      // local-only build, push it up so no one loses their work.
+      const local = readLS();
+      if(local && Object.keys(local).length){
+        mergeInto(S, local);
+        chip('migrating local scores to team…');
+        await pushToServer();
+      } else {
+        chip('team-shared · no scores yet');
+      }
+    }
+  } catch(e){
+    const local = readLS(); mergeInto(S, local);
+    chip('offline — using local cache; edits will sync when back online');
+  }
+}
+
+async function pushToServer(){
+  const res = await fetch(STATE_URL, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({state:S}),
+  });
+  if(!res.ok) throw new Error('http '+res.status);
+  const body = await res.json();
+  serverVersion = body.version||serverVersion;
+  writeLS();
+  chip('team-shared '+updatedByLabel(body.updatedBy, body.updatedAt));
+}
+
 function save(id){
   markSave(id,'saving…');
+  lastEditAt = Date.now();
+  pendingSave = true;
+  writeLS(); // always update local cache immediately
   clearTimeout(saveT);
-  saveT=setTimeout(()=>{
-    try{ localStorage.setItem(KEY, JSON.stringify(S)); markSave(id,'saved ✓'); }
-    catch(e){ markSave(id,'save failed — will retry on next change'); }
+  saveT=setTimeout(async ()=>{
+    try{
+      await pushToServer();
+      pendingSave = false;
+      markSave(id,'saved ✓ (team)');
+    }catch(e){
+      // Server unreachable — local cache already written. Next successful
+      // save will push everything up.
+      markSave(id,'saved locally · will sync when online');
+    }
   },500);
 }
 function markSave(id,msg){ if(!id) return; const el=document.getElementById('sv-'+id); if(el){el.textContent=msg;} }
+
+async function poll(){
+  if(document.hidden) return;
+  if(pendingSave) return;
+  if(Date.now()-lastEditAt < TYPING_QUIET_MS) return;
+  try{
+    const res = await fetch(STATE_URL, {cache:'no-store'});
+    if(!res.ok) return;
+    const body = await res.json();
+    if((body.version||0) > serverVersion){
+      serverVersion = body.version;
+      // Replace state wholesale — server is source of truth for teammate
+      // edits. Any local unsaved edit would have set pendingSave and we'd
+      // have bailed above.
+      C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null});
+      mergeInto(S, body.state);
+      writeLS();
+      syncUI(); renderTable();
+      chip('updated '+updatedByLabel(body.updatedBy, body.updatedAt));
+    }
+  } catch(e){/* transient — try again next tick */}
+}
 
 /* ================= RENDER ================= */
 const idx = a => Math.round(a.reduce((x,y)=>x+y,0)/a.length);
@@ -535,7 +648,15 @@ const headlines=${js(headlines)};
 
 /* ================= BOOT ================= */
 renderCards(); renderTable(); wire();
-load(); syncUI(); renderTable();
+(async ()=>{
+  await load();
+  syncUI(); renderTable();
+  // Poll for teammate edits while the tab is visible. Also poll immediately
+  // when the tab becomes visible again — someone may have scored on their
+  // phone while this tab was in the background.
+  setInterval(poll, POLL_MS);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) poll(); });
+})();
 </script>
 </body>
 </html>
