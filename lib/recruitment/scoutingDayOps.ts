@@ -13,7 +13,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { del, get, put } from "@vercel/blob";
 import prisma from "@/lib/prisma";
-import { extractCv } from "@/lib/recruitment/extractCv";
+import { extractCv, UnsupportedCvError } from "@/lib/recruitment/extractCv";
 import { renderScoutingDoc, type ScoutCandidate, type ScoutDocData } from "@/lib/recruitment/renderDoc";
 import {
   buildAppendSystemPrompt,
@@ -38,7 +38,16 @@ async function extractAll(cvs: CvRef[]): Promise<{
       return { extractedTexts, userBlocks, error: `Could not read CV "${cvs[i].name}"` };
     }
     const buffer = Buffer.from(await new Response(got.stream).arrayBuffer());
-    const { text, images } = await extractCv(buffer);
+    let text: string, images: Awaited<ReturnType<typeof extractCv>>["images"];
+    try {
+      ({ text, images } = await extractCv(buffer));
+    } catch (e) {
+      // Surfaced to the recruiter as-is by the add-cvs route.
+      if (e instanceof UnsupportedCvError) {
+        return { extractedTexts, userBlocks, error: `"${cvs[i].name}": ${e.message}` };
+      }
+      throw e;
+    }
     extractedTexts.push(text || "");
     userBlocks.push({
       type: "text",

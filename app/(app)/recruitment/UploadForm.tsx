@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { FileUp, Loader2, Sparkles } from "lucide-react";
+import { CV_ACCEPT, cvContentType, validateCvFile } from "@/lib/recruitment/cvFiles";
 
 type Phase = "idle" | "uploading" | "scouting";
 
@@ -56,16 +57,12 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
       const cvs: { url: string; name: string }[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-          throw new Error(`Only PDF CVs are supported — "${file.name}" is not a PDF`);
-        }
-        if (file.size > 15 * 1024 * 1024) {
-          throw new Error(`"${file.name}" is too large (max 15 MB)`);
-        }
+        const invalid = validateCvFile(file);
+        if (invalid) throw new Error(invalid);
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const blob = await upload(`recruitment/cv-tmp/${safeName}`, file, {
           access: "private",
-          contentType: "application/pdf",
+          contentType: cvContentType(file),
           handleUploadUrl: "/api/recruitment/upload-cv",
           multipart: true,
           onUploadProgress: ({ percentage }) =>
@@ -186,7 +183,7 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         <input
           ref={fileInput}
           type="file"
-          accept="application/pdf,.pdf"
+          accept={CV_ACCEPT}
           multiple
           disabled={busy}
           onChange={(e) => setFiles(Array.from(e.target.files ?? []))}

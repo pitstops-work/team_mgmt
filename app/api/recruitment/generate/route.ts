@@ -6,7 +6,7 @@ import { del, get, list, put } from "@vercel/blob";
 import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
-import { extractCv } from "@/lib/recruitment/extractCv";
+import { extractCv, UnsupportedCvError } from "@/lib/recruitment/extractCv";
 import { renderScoutingDoc, type ScoutDocData } from "@/lib/recruitment/renderDoc";
 import {
   buildSystemPrompt,
@@ -157,7 +157,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: `Could not read CV "${cvs[i].name}"` }, { status: 502 });
     }
     const buffer = Buffer.from(await new Response(got.stream).arrayBuffer());
-    const { text, images } = await extractCv(buffer);
+    let text: string, images: Awaited<ReturnType<typeof extractCv>>["images"];
+    try {
+      ({ text, images } = await extractCv(buffer));
+    } catch (e) {
+      // A file we can identify but can't read (legacy .doc, image-only docx).
+      // Name the CV — with a pool of 30 the recruiter needs to know which one.
+      if (e instanceof UnsupportedCvError) {
+        return NextResponse.json({ error: `"${cvs[i].name}": ${e.message}` }, { status: 400 });
+      }
+      throw e;
+    }
     extractedTexts.push(text || "");
     userContent.push({ type: "text", text: `=== CV ${i + 1} of ${cvs.length}: ${cvs[i].name} ===\n${text || "(scanned — see page images below)"}` });
     for (const img of images) {

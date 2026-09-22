@@ -27,7 +27,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           // generate/route.ts trusts this prefix when validating CV references.
           if (!pathname.startsWith(PREFIX)) throw new Error("Invalid upload path");
           return {
-            allowedContentTypes: ["application/pdf"],
+            // Both clients currently pin the uploaded contentType rather than
+            // passing the file's own, so this list gates the declared type
+            // only. extractCv sniffs the actual bytes server-side.
+            allowedContentTypes: [
+              "application/pdf",
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ],
             maximumSizeInBytes: MAX_BYTES,
             addRandomSuffix: true,
           };

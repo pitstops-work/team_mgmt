@@ -1,3 +1,14 @@
+/**
+ * CV extractor — reads a candidate CV into `{ text, images }` for a Claude
+ * message. PDFs go through mupdf (text layer if present, page rasters when the
+ * PDF is a scan); DOCX goes through mammoth's raw-text extractor.
+ *
+ * Format is detected by SNIFFING MAGIC BYTES, not by the blob's content type.
+ * Both upload clients pin `contentType: "application/pdf"` when handing the
+ * file to Vercel Blob regardless of what the user actually picked, so the
+ * stored type is not evidence of anything. The bytes are.
+ */
+
 const MAX_PAGES = 8;
 const MAX_CHARS = 24_000;
 // Below this the CV is treated as a scan and pages are rasterized for the model.
@@ -11,7 +22,59 @@ export interface ExtractedCv {
   images: { buffer: Buffer; mediaType: "image/png" }[];
 }
 
+export type CvFormat = "pdf" | "docx" | "doc" | "unknown";
+
+/**
+ * Identify a CV by its leading bytes.
+ *   PDF   → "%PDF"
+ *   DOCX  → a ZIP container, "PK\x03\x04" (also PK\x05\x06 / PK\x07\x08)
+ *   DOC   → OLE2 compound file, D0 CF 11 E0 — the legacy binary Word format,
+ *           which mammoth cannot read. Detected so the caller can say so
+ *           plainly instead of failing with a confusing ZIP parse error.
+ */
+export function sniffCvFormat(buffer: Buffer): CvFormat {
+  if (buffer.length >= 4) {
+    if (buffer.toString("latin1", 0, 4) === "%PDF") return "pdf";
+    if (buffer[0] === 0x50 && buffer[1] === 0x4b) return "docx";
+    if (buffer[0] === 0xd0 && buffer[1] === 0xcf && buffer[2] === 0x11 && buffer[3] === 0xe0) return "doc";
+  }
+  return "unknown";
+}
+
+/** Thrown for a file we can identify but cannot read. Caller surfaces the message. */
+export class UnsupportedCvError extends Error {}
+
 export async function extractCv(buffer: Buffer): Promise<ExtractedCv> {
+  switch (sniffCvFormat(buffer)) {
+    case "pdf":
+      return extractPdfCv(buffer);
+    case "docx":
+      return extractDocxCv(buffer);
+    case "doc":
+      throw new UnsupportedCvError(
+        "This is a legacy .doc file (Word 97–2003), which can't be read. Re-save it as .docx or PDF and upload again.",
+      );
+    default:
+      throw new UnsupportedCvError("Unrecognised CV file — upload a PDF or a .docx.");
+  }
+}
+
+async function extractDocxCv(buffer: Buffer): Promise<ExtractedCv> {
+  const mammoth = await import("mammoth");
+  const result = await mammoth.extractRawText({ buffer });
+  const text = result.value.trim().slice(0, MAX_CHARS);
+  if (!text) {
+    // A DOCX whose text is all inside images/text-boxes. Nothing to rasterize
+    // (mammoth gives no page render), so say so rather than send an empty CV
+    // to the model and get a hallucinated candidate back.
+    throw new UnsupportedCvError(
+      "No readable text in this .docx — if the CV is a picture inside the document, upload it as a PDF instead.",
+    );
+  }
+  return { text, images: [] };
+}
+
+async function extractPdfCv(buffer: Buffer): Promise<ExtractedCv> {
   const mupdf: any = await import("mupdf");
   const doc = mupdf.Document.openDocument(new Uint8Array(buffer), "application/pdf");
   const total = Math.min(doc.countPages(), MAX_PAGES);
