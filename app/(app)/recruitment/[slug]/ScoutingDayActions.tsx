@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
-import { FileUp, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Download, FileUp, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { decideMode, describeMode } from "@/lib/recruitment/decideMode";
 import { CV_ACCEPT, cvContentType, validateCvFile } from "@/lib/recruitment/cvFiles";
 
@@ -47,6 +47,15 @@ export default function ScoutingDayActions({
 
   return (
     <div className="flex items-center gap-2">
+      {/* Plain link, not a fetch — the browser handles the Content-Disposition
+          download directly, so there is no blob URL to build or revoke. */}
+      <a
+        href={`/api/recruitment/${slug}/export`}
+        className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-700"
+        title="Download every candidate's scouting read, scores, notes and interview summary as a spreadsheet"
+      >
+        <Download className="w-3.5 h-3.5" /> Export
+      </a>
       {canAddCvs ? (
         <button
           onClick={() => setAddOpen(true)}
