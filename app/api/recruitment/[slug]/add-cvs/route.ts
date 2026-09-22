@@ -44,7 +44,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!day.snapshotJson) return NextResponse.json({ error: "This scouting day is missing its saved snapshot — extend not supported" }, { status: 400 });
   const existing = day.snapshotJson as unknown as { candidates: unknown[] };
   const poolSize = Array.isArray(existing?.candidates) ? existing.candidates.length : 0;
-  const mode = decideMode(poolSize, cvs.length);
+
+  // `forceAppend` is for the batch builder, which assembles a large desk in
+  // chunks because one generate call for 40 CVs cannot finish inside the 300s
+  // route ceiling. decideMode would read chunk 2 of 5 as "adding 8 to a pool
+  // of 8" and re-scout the whole pool every time — quadratic work, and the
+  // axes would churn on every chunk. Chunked building wants a locked-axes
+  // append; the rule still governs every recruiter-initiated add.
+  const mode = body?.forceAppend === true ? "append" : decideMode(poolSize, cvs.length);
 
   const result = mode === "append"
     ? await appendCandidates(slug, cvs, session)

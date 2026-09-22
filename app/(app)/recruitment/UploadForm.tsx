@@ -11,6 +11,18 @@ import TriageReview, { type TriageAssignment, type TriageCity } from "./TriageRe
 type Phase = "idle" | "uploading" | "sorting" | "scouting";
 
 /**
+ * CVs per generate/append request when building a desk.
+ *
+ * Bounded by OUTPUT tokens against the 300s route ceiling, not by input size:
+ * a rendered candidate costs ~830-1,540 output tokens (measured on real
+ * desks), and Opus streams on the order of 50-80 tokens/sec, so eight
+ * candidates is roughly 7-12k tokens — comfortably inside 300s once CV
+ * extraction is accounted for. Raising this is how the Unplaced desk timed
+ * out on an 89-CV run.
+ */
+const DESK_CHUNK = 8;
+
+/**
  * What to say when the server fails WITHOUT a JSON body.
  *
  * A 504 or a crashed function returns an HTML error page, so `json.error` is
@@ -62,6 +74,9 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
   // Set once the CVs are uploaded and sorted; presence of this switches the
   // form over to the review step. Holds the blob refs so the generate calls
   // after confirmation don't need to re-upload.
+  // Survives a failed run so a retry resumes instead of duplicating desks.
+  const builtRef = useRef<Record<string, { slug: string | null; done: number }>>({});
+  const batchIdRef = useRef<string>("");
   const [triage, setTriage] = useState<
     { cities: TriageCity[]; assignments: TriageAssignment[]; cvs: { url: string; name: string }[] } | null
   >(null);
@@ -117,6 +132,10 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || describeServerFailure(res.status, "sort the CVs"));
+        // Fresh sort => fresh run. Clear any resume state from a previous
+        // attempt, or the next Scout would think those desks already exist.
+        builtRef.current = {};
+        batchIdRef.current = "";
         setTriage({ cities: json.cities, assignments: json.assignments, cvs });
         setPhase("idle");
         setProgress("");
@@ -156,13 +175,33 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
    * the same rate limit and all slow down together. Sequential also means a
    * failure on city 3 leaves cities 1 and 2 already built and openable.
    */
+  /**
+   * Generate one desk per group, SEQUENTIALLY, building any large group in
+   * chunks.
+   *
+   * Chunking is not an optimisation, it is the only way a big desk completes.
+   * A generate call streams roughly 830-1,540 output tokens per candidate
+   * against a hard 300s route ceiling (Vercel's maximum — it cannot be
+   * raised), so a 40-CV pool in one request times out. That is what killed the
+   * Unplaced desk on the first 89-CV run: seven city desks were small enough,
+   * the eighth had the leftovers. So the first chunk generates the desk and
+   * each later chunk appends to it in its own request, with its own 300s.
+   *
+   * Appends are forced rather than left to decideMode, which would read chunk
+   * 2 as "adding 8 to a pool of 8" and re-scout everything each time.
+   *
+   * Progress is kept in `builtRef` so a retry after a partial failure RESUMES
+   * — it skips finished desks and continues a half-built one from where it
+   * stopped, instead of duplicating the desks that already worked.
+   */
   async function runBatch(byCity: { city: TriageCity | null; cvIndexes: number[] }[]) {
     if (!triage) return;
     setError(null);
     setPhase("scouting");
-    // One id for the whole run, so the desks can find each other afterwards.
-    const batchId = `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-    const made: string[] = [];
+    const batchId = (batchIdRef.current ||= `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`);
+    const built = builtRef.current;
+    const total = byCity.length;
+
     try {
       for (let i = 0; i < byCity.length; i++) {
         const { city, cvIndexes } = byCity[i];
@@ -170,34 +209,62 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         // with no local context assumed. Its candidates get allocated to a
         // city from the desk itself.
         const label = city ? city.city : "Unplaced";
-        setProgress(`Scouting ${label} — desk ${i + 1} of ${byCity.length}…`);
-        const res = await fetch("/api/recruitment/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            // The city is part of the title so the desks are tellable apart
-            // in the listing, where they otherwise sit next to each other.
-            title: `${title.trim()} — ${label}`,
-            date,
-            context: "",
-            jobId,
-            locationId: city ? city.id : null,
-            unplaced: !city,
-            batchId,
-            // cvIndex is 1-based, matching the order the CVs were submitted.
-            cvs: cvIndexes.map((n) => triage.cvs[n - 1]).filter(Boolean),
-          }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          const why = json.error || describeServerFailure(res.status, `build the ${label} desk`);
-          throw new Error(
-            made.length > 0
-              ? `${label} failed: ${why} The ${made.length} desk${made.length === 1 ? "" : "s"} before it were built and are safe.`
-              : why,
-          );
+        const key = city ? city.id : "__unplaced__";
+        const prior = built[key] ?? { slug: null as string | null, done: 0 };
+        if (prior.slug && prior.done >= cvIndexes.length) continue; // already finished
+
+        const chunks: number[][] = [];
+        for (let n = prior.done; n < cvIndexes.length; n += DESK_CHUNK) {
+          chunks.push(cvIndexes.slice(n, n + DESK_CHUNK));
         }
-        made.push(json.slug);
+        const parts = Math.ceil(cvIndexes.length / DESK_CHUNK);
+
+        for (const chunk of chunks) {
+          const partNo = Math.floor(prior.done / DESK_CHUNK) + 1;
+          setProgress(
+            `Scouting ${label} — desk ${i + 1} of ${total}` +
+              (parts > 1 ? ` · part ${partNo} of ${parts} (${cvIndexes.length} CVs)` : "") +
+              "…",
+          );
+          const cvs = chunk.map((n) => triage.cvs[n - 1]).filter(Boolean);
+
+          const res = prior.slug
+            ? await fetch(`/api/recruitment/${prior.slug}/add-cvs`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ cvs, forceAppend: true }),
+              })
+            : await fetch("/api/recruitment/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  // The city is part of the title so the desks are tellable
+                  // apart in the listing, where they otherwise sit together.
+                  title: `${title.trim()} — ${label}`,
+                  date,
+                  context: "",
+                  jobId,
+                  locationId: city ? city.id : null,
+                  unplaced: !city,
+                  batchId,
+                  cvs,
+                }),
+              });
+
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            const doneDesks = Object.values(built).filter((b) => b.slug).length;
+            const why = json.error || describeServerFailure(res.status, `build the ${label} desk`);
+            throw new Error(
+              doneDesks > 0
+                ? `${label} failed: ${why} ${doneDesks} desk${doneDesks === 1 ? "" : "s"} already built — press Scout again to carry on from here rather than starting over.`
+                : why,
+            );
+          }
+          prior.slug = prior.slug ?? json.slug;
+          prior.done += chunk.length;
+          built[key] = prior;
+        }
       }
       router.push(`/recruitment/batch/${batchId}`);
     } catch (err) {
@@ -228,7 +295,7 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
           busy={busy}
           progress={progress}
           error={error}
-          onCancel={() => { setTriage(null); setError(null); }}
+          onCancel={() => { setTriage(null); setError(null); builtRef.current = {}; batchIdRef.current = ""; }}
           onConfirm={runBatch}
         />
       </div>
