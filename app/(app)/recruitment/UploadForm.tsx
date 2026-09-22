@@ -156,7 +156,7 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
    * the same rate limit and all slow down together. Sequential also means a
    * failure on city 3 leaves cities 1 and 2 already built and openable.
    */
-  async function runBatch(byCity: { city: TriageCity; cvIndexes: number[] }[]) {
+  async function runBatch(byCity: { city: TriageCity | null; cvIndexes: number[] }[]) {
     if (!triage) return;
     setError(null);
     setPhase("scouting");
@@ -166,18 +166,23 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
     try {
       for (let i = 0; i < byCity.length; i++) {
         const { city, cvIndexes } = byCity[i];
-        setProgress(`Scouting ${city.city} — desk ${i + 1} of ${byCity.length}…`);
+        // A null city is the unplaced pool — a real desk, scouted on the role
+        // with no local context assumed. Its candidates get allocated to a
+        // city from the desk itself.
+        const label = city ? city.city : "Unplaced";
+        setProgress(`Scouting ${label} — desk ${i + 1} of ${byCity.length}…`);
         const res = await fetch("/api/recruitment/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             // The city is part of the title so the desks are tellable apart
             // in the listing, where they otherwise sit next to each other.
-            title: `${title.trim()} — ${city.city}`,
+            title: `${title.trim()} — ${label}`,
             date,
             context: "",
             jobId,
-            locationId: city.id,
+            locationId: city ? city.id : null,
+            unplaced: !city,
             batchId,
             // cvIndex is 1-based, matching the order the CVs were submitted.
             cvs: cvIndexes.map((n) => triage.cvs[n - 1]).filter(Boolean),
@@ -185,10 +190,10 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const why = json.error || describeServerFailure(res.status, `build the ${city.city} desk`);
+          const why = json.error || describeServerFailure(res.status, `build the ${label} desk`);
           throw new Error(
             made.length > 0
-              ? `${city.city} failed: ${why} The ${made.length} desk${made.length === 1 ? "" : "s"} before it were built and are safe.`
+              ? `${label} failed: ${why} The ${made.length} desk${made.length === 1 ? "" : "s"} before it were built and are safe.`
               : why,
           );
         }

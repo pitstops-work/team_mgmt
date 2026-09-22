@@ -11,6 +11,7 @@ import { renderScoutingDoc, type ScoutDocData } from "@/lib/recruitment/renderDo
 import {
   buildSystemPrompt,
   jobSnapshotFromRow,
+  jobSnapshotUnplaced,
   SCOUT_MAX_TOKENS,
   type JobSnapshot,
 } from "@/lib/recruitment/systemPrompt";
@@ -100,6 +101,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // desks can find each other. Opaque, client-generated, same for the whole run.
   const batchId =
     typeof body?.batchId === "string" && body.batchId ? String(body.batchId).slice(0, 64) : null;
+  // An "unplaced" desk scouts the CVs triage could not assign to a city. It is
+  // a real desk in every other respect — it just carries no local context, and
+  // its candidates get allocated to a city from the desk itself.
+  const unplaced = body?.unplaced === true;
   const cvs: { url: string; name: string }[] = Array.isArray(body?.cvs) ? body.cvs : [];
   if (!title || cvs.length === 0) {
     return NextResponse.json({ error: "Title and at least one CV are required" }, { status: 400 });
@@ -126,14 +131,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!job) return NextResponse.json({ error: "Selected JD not found" }, { status: 404 });
     if (job.archivedAt) return NextResponse.json({ error: "Selected JD is archived" }, { status: 400 });
 
-    // Fall back to the primary for JDs created before the multi-location
-    // migration backfilled their membership rows.
-    const candidates = job.locations.length > 0 ? job.locations : [job.location];
-    const picked = resolveDayLocation(candidates, job.locationId, requestedLocationId);
-    if ("error" in picked) return NextResponse.json({ error: picked.error }, { status: 400 });
+    if (unplaced) {
+      // No city to resolve — that is the point of this desk. locationId stays
+      // null, and the prompt is told the location is unknown rather than
+      // inheriting the primary city's language and reference orgs.
+      snapshot = jobSnapshotUnplaced(job);
+    } else {
+      // Fall back to the primary for JDs created before the multi-location
+      // migration backfilled their membership rows.
+      const candidates = job.locations.length > 0 ? job.locations : [job.location];
+      const picked = resolveDayLocation(candidates, job.locationId, requestedLocationId);
+      if ("error" in picked) return NextResponse.json({ error: picked.error }, { status: 400 });
 
-    dayLocationId = picked.location.id;
-    snapshot = jobSnapshotFromRow(job, picked.location);
+      dayLocationId = picked.location.id;
+      snapshot = jobSnapshotFromRow(job, picked.location);
+    }
   } else {
     snapshot = fallbackSnapshot(title, context);
   }

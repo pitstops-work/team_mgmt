@@ -116,11 +116,21 @@ async function loadDoc(slug: string): Promise<string | null> {
   try {
     const day = await prisma.recruitmentScoutingDay.findUnique({
       where: { slug },
-      select: { snapshotJson: true },
+      select: {
+        snapshotJson: true,
+        locationId: true,
+        // The JD's cities power per-candidate allocation inside the desk.
+        // Read live rather than from the snapshot so adding a city to the JD
+        // shows up on desks that already exist.
+        job: { select: { locationId: true, locations: { select: { id: true, city: true }, orderBy: { city: "asc" } } } },
+      },
     });
     const snap = day?.snapshotJson as ScoutDocData | null | undefined;
     if (snap && Array.isArray(snap.candidates) && snap.candidates.length > 0) {
-      return renderScoutingDoc(slug, snap);
+      return renderScoutingDoc(slug, snap, {
+        cities: day?.job?.locations ?? [],
+        deskLocationId: day?.locationId ?? null,
+      });
     }
   } catch {
     /* DB unreachable or snapshot unusable — the blob below is still valid */

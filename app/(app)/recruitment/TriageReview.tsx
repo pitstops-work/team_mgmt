@@ -28,9 +28,12 @@ const confidenceDot: Record<TriageAssignment["confidence"], string> = {
  * container is the fiddlier interaction, and a select is reachable by keyboard
  * and works on a touchscreen.
  *
- * Unsorted must be emptied before generating. That is the whole point of the
- * step — an unreviewed CV would otherwise be judged against a city the sorter
- * only guessed at, and the resulting doc reads as confidently as a correct one.
+ * Unsorted is NOT a blocker — it becomes its own desk. Those candidates are
+ * scouted on the role alone, with the prompt explicitly told the location is
+ * unknown, and each one is allocated to a city from the desk itself once a
+ * human has read the CV. The alternative, forcing a guess here, is what the
+ * whole single-city design exists to avoid: a candidate judged against a
+ * city's language and reference orgs that were never theirs.
  */
 export default function TriageReview({
   cities,
@@ -47,7 +50,7 @@ export default function TriageReview({
   progress: string;
   error: string | null;
   onCancel: () => void;
-  onConfirm: (byCity: { city: TriageCity; cvIndexes: number[] }[]) => void;
+  onConfirm: (groups: { city: TriageCity | null; cvIndexes: number[] }[]) => void;
 }) {
   const [rows, setRows] = useState<TriageAssignment[]>(assignments);
   const [dropped, setDropped] = useState<Set<number>>(new Set());
@@ -66,11 +69,18 @@ export default function TriageReview({
   const live = rows.filter((r) => !dropped.has(r.cvIndex));
   const unsortedRows = live.filter((r) => !r.locationId);
 
-  const byCity = cities
-    .map((city) => ({ city, cvIndexes: live.filter((r) => r.locationId === city.id).map((r) => r.cvIndex) }))
-    .filter((g) => g.cvIndexes.length > 0);
+  // Unsorted is a desk in its own right, not a blocker. Its candidates are
+  // scouted on the role alone — no city context is assumed — and each is
+  // allocated to a city from the desk itself once their CV is read properly.
+  const groups: { city: TriageCity | null; cvIndexes: number[] }[] = [
+    ...cities.map((city) => ({
+      city: city as TriageCity | null,
+      cvIndexes: live.filter((r) => r.locationId === city.id).map((r) => r.cvIndex),
+    })),
+    { city: null, cvIndexes: unsortedRows.map((r) => r.cvIndex) },
+  ].filter((g) => g.cvIndexes.length > 0);
 
-  const blocked = unsortedRows.length > 0 || byCity.length === 0;
+  const blocked = groups.length === 0;
 
   return (
     <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 space-y-3">
@@ -93,15 +103,15 @@ export default function TriageReview({
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
           <AlertTriangle className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
           <p className="text-[11px] text-amber-800 leading-relaxed">
-            {unsortedRows.length} CV{unsortedRows.length === 1 ? "" : "s"} couldn&apos;t be placed. Give{" "}
-            {unsortedRows.length === 1 ? "it a city" : "each one a city"} or skip{" "}
-            {unsortedRows.length === 1 ? "it" : "them"} — they can&apos;t go into a desk unplaced.
+            {unsortedRows.length} CV{unsortedRows.length === 1 ? "" : "s"} couldn&apos;t be placed from the CV alone.
+            Give {unsortedRows.length === 1 ? "it" : "them"} a city here if you know it — otherwise they get their own
+            desk, scouted on the role with no city assumed, and you allocate each one from the desk.
           </p>
         </div>
       )}
 
       <div className="grid gap-2 sm:grid-cols-2">
-        {[...cities.map((c) => ({ key: c.id, label: c.city, sub: c.state })), { key: UNSORTED, label: "Unsorted", sub: null }].map(
+        {[...cities.map((c) => ({ key: c.id, label: c.city, sub: c.state })), { key: UNSORTED, label: "Unsorted — gets its own desk", sub: null }].map(
           (col) => {
             const items = live.filter((r) => (col.key === UNSORTED ? !r.locationId : r.locationId === col.key));
             const isUnsorted = col.key === UNSORTED;
@@ -175,16 +185,15 @@ export default function TriageReview({
 
       <div className="flex items-center gap-2 pt-1">
         <p className="text-[11px] text-stone-500 mr-auto">
-          {byCity.length} desk{byCity.length === 1 ? "" : "s"} · {live.length - unsortedRows.length} CV
-          {live.length - unsortedRows.length === 1 ? "" : "s"}
+          {groups.length} desk{groups.length === 1 ? "" : "s"} · {live.length} CV{live.length === 1 ? "" : "s"}
         </p>
         <button
-          onClick={() => onConfirm(byCity)}
+          onClick={() => onConfirm(groups)}
           disabled={busy || blocked}
           className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50"
         >
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-          {busy ? "Scouting…" : `Scout ${byCity.length} desk${byCity.length === 1 ? "" : "s"}`}
+          {busy ? "Scouting…" : `Scout ${groups.length} desk${groups.length === 1 ? "" : "s"}`}
         </button>
       </div>
     </div>

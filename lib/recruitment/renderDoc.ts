@@ -62,7 +62,23 @@ function cleanCandidate(c: ScoutCandidate, i: number): ScoutCandidate {
   };
 }
 
-export function renderScoutingDoc(slug: string, d: ScoutDocData): string {
+/**
+ * `cities` enables per-candidate city allocation inside the desk. It is passed
+ * at RENDER time rather than stored in ScoutDocData, because the JD's city list
+ * can change after a desk is generated and a frozen copy would go stale. The
+ * doc route re-renders on every request (see loadDoc), so this is always live.
+ *
+ * `deskLocationId` is the desk's own city, pre-selected for each candidate. It
+ * is null on an unplaced desk — which is exactly where allocation matters,
+ * since working out where these people belong is the point of that desk.
+ */
+export function renderScoutingDoc(
+  slug: string,
+  d: ScoutDocData,
+  opts: { cities?: { id: string; city: string }[]; deskLocationId?: string | null } = {},
+): string {
+  const cities = opts.cities ?? [];
+  const deskLocationId = opts.deskLocationId ?? null;
   const axes = (d.axes?.length === 6 ? d.axes : ["FIELD", "RANGE", "DOCS", "DEPTH", "STABLE", "FIT"]).map((a) =>
     escHtml(String(a).toUpperCase().slice(0, 8)),
   );
@@ -289,6 +305,16 @@ textarea:focus{outline:2px solid var(--sky); border-color:transparent}
 textarea::placeholder{color:rgba(157,184,170,.7)}
 .savenote{font-family:'Space Mono',monospace; font-size:10px; color:var(--dim); margin-top:6px; letter-spacing:.1em; min-height:14px}
 
+/* ============ CITY ALLOCATION ============ */
+.alloc{display:flex; align-items:center; gap:9px; margin-top:13px; flex-wrap:wrap}
+.alloc label{font-family:'Space Mono',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim)}
+.alloc select{
+  background:rgba(0,0,0,.28); border:1.5px solid var(--line); border-radius:10px;
+  color:var(--chalk); font-family:'Outfit',sans-serif; font-size:13px; padding:6px 10px; cursor:pointer;
+}
+.alloc select:focus{outline:2px solid var(--sky); border-color:transparent}
+.alloc .unset{color:var(--gold)}
+
 /* ============ INTERVIEW TRANSCRIPT ============ */
 .tw{margin-top:12px; border-top:1px dashed rgba(244,239,223,.14); padding-top:11px}
 .trow{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
@@ -385,6 +411,8 @@ footer{margin-top:44px; text-align:center; font-family:'Space Mono',monospace; f
 /* ================= DATA ================= */
 const AXES = ${js(axes)};
 const C = ${js(candidates)};
+const CITIES = ${js(cities)};
+const DESK_LOCATION_ID = ${js(deskLocationId)};
 
 /* ================= STATE =================
    Team-shared. Server is source of truth (RecruitmentScoutState, keyed by
@@ -407,7 +435,9 @@ const STATE_URL='/api/recruitment/'+SLUG+'/state';
 const POLL_MS=15000;
 const TYPING_QUIET_MS=3000;
 
-let S={}; C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null});
+let S={}; C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null,city:DESK_LOCATION_ID});
+// city defaults to this desk's own — null on an unplaced desk, which is
+// what surfaces the "needs a city" marker on every candidate there.
 let serverVersion=0;
 let lastEditAt=0;
 let pendingSave=false;
@@ -510,7 +540,7 @@ async function poll(){
       // Replace state wholesale — server is source of truth for teammate
       // edits. Any local unsaved edit would have set pendingSave and we'd
       // have bailed above.
-      C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null});
+      C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null,city:DESK_LOCATION_ID});
       mergeInto(S, body.state);
       writeLS();
       syncUI(); renderTable();
@@ -575,13 +605,14 @@ function renderCards(){
         <button class="stamp trial" data-c="\${c.id}" data-v="TRIAL">⏳ Trial</button>
         <button class="stamp pass" data-c="\${c.id}" data-v="PASS">✕ Pass</button>
       </div>
+      <div class="alloc" id="al-\${c.id}"></div>
       <textarea id="nt-\${c.id}" data-c="\${c.id}" placeholder="Interview notes — what they said, how it landed, gut read…"></textarea>
       <div class="savenote" id="sv-\${c.id}"></div>
 
       <div class="tw">
         <div class="trow">
           <label class="tbtn" for="tf-\${c.id}">📄 Attach interview transcript</label>
-          <input type="file" id="tf-\${c.id}" data-c="\${c.id}" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+          <input type="file" id="tf-\${c.id}" data-c="\${c.id}" accept=".pdf,.docx,.txt,.vtt,.srt,application/pdf,text/plain,text/vtt" hidden>
           <span class="tstat" id="tst-\${c.id}"></span>
         </div>
         <div id="ts-\${c.id}"></div>
@@ -621,8 +652,29 @@ function syncUI(){
       const cb=document.getElementById(\`cb-\${c.id}-\${qi}\`); if(cb){cb.checked=on; document.getElementById(\`q-\${c.id}-\${qi}\`).classList.toggle('done',on);}
     });
     updateQC(c.id);
+    renderAlloc(c.id);
     renderTranscript(c.id);
   });
+}
+
+/* ================= CITY ALLOCATION =================
+   Which city a candidate belongs to. On a normal desk this is pre-set to the
+   desk's own city and rarely changes. On an UNPLACED desk there is no city —
+   triage could not work it out from the CV — and filling this in is the whole
+   job of that desk: scout them on the role, then say where they belong.
+   Stored in the shared state, so it is a team decision, not a private note. */
+function renderAlloc(id){
+  const host=document.getElementById('al-'+id); if(!host) return;
+  if(!CITIES.length){ host.innerHTML=''; return; }
+  const cur = (S[id] && S[id].city) || '';
+  const unset = !cur;
+  host.innerHTML =
+    '<label for="ac-'+esc(id)+'">City</label>'
+    + '<select id="ac-'+esc(id)+'" data-ac="'+esc(id)+'">'
+    + '<option value="">— not allocated —</option>'
+    + CITIES.map(c=>'<option value="'+esc(c.id)+'"'+(c.id===cur?' selected':'')+'>'+esc(c.city)+'</option>').join('')
+    + '</select>'
+    + (unset ? '<span class="unset">needs a city</span>' : '');
 }
 
 /* ================= INTERVIEW TRANSCRIPT ================= */
@@ -663,8 +715,9 @@ async function uploadTranscript(id, file){
   if(name.endsWith('.doc') && !name.endsWith('.docx')){
     tstat(id,'legacy .doc can\\u2019t be read — re-save as .docx or PDF'); return;
   }
-  if(!name.endsWith('.pdf') && !name.endsWith('.docx')){
-    tstat(id,'upload a PDF or a .docx'); return;
+  // .vtt/.srt/.txt are what Zoom, Meet and Teams hand you by default.
+  if(!/\.(pdf|docx|txt|vtt|srt)$/.test(name)){
+    tstat(id,'upload a PDF, .docx, .txt or .vtt'); return;
   }
   if(file.size > TRANSCRIPT_MAX_BYTES){ tstat(id,'too large (max 4 MB) — export as .docx'); return; }
 
@@ -743,10 +796,18 @@ function wire(){
     // Wording says "whole team" because this is shared state now — a reset
     // here wipes everyone's scoring, not just this device's.
     if(!confirm('Wipe all scores, verdicts, checkmarks, notes and interview summaries — FOR THE WHOLE TEAM?')) return;
-    C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null});
+    C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null,city:DESK_LOCATION_ID});
     writeLS();
     try{ await pushToServer(); }catch(e){ chip('reset saved locally — will sync when online'); }
     renderCards(); renderTable(); syncUI();
+  });
+
+  // --- city allocation ---
+  document.getElementById('cards').addEventListener('change',e=>{
+    if(!e.target.matches('select[data-ac]')) return;
+    const id=e.target.dataset.ac;
+    S[id].city = e.target.value || null;
+    renderAlloc(id); renderTable(id); save(id);
   });
 
   // --- interview transcript ---

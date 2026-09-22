@@ -11,9 +11,15 @@ export const CV_MAX_BYTES = 15 * 1024 * 1024;
 
 export const PDF_TYPE = "application/pdf";
 export const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+export const TXT_TYPE = "text/plain";
+/** Zoom, Google Meet and Teams all export captions as .vtt by default. */
+export const VTT_TYPE = "text/vtt";
 
-/** For an <input type="file"> accept attribute. */
+/** For an <input type="file"> accept attribute — CV intake (PDF/DOCX only). */
 export const CV_ACCEPT = `${PDF_TYPE},.pdf,${DOCX_TYPE},.docx`;
+
+/** Transcripts additionally accept the formats meeting tools actually emit. */
+export const TRANSCRIPT_ACCEPT = `${CV_ACCEPT},${TXT_TYPE},.txt,${VTT_TYPE},.vtt,.srt`;
 
 /**
  * The content type to hand Vercel Blob. Browsers leave `file.type` empty often
