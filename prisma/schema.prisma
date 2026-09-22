@@ -5060,7 +5060,14 @@ model RecruitmentLocation {
   updatedAt          DateTime  @updatedAt
   archivedAt         DateTime?
 
-  jobs RecruitmentJob[]
+  /// JDs whose PRIMARY location this is (drives the JD slug + the default pick
+  /// at generate time). A JD posted in several cities also appears in `jobs`
+  /// below via the many-to-many — always count both when checking whether a
+  /// location is still referenced.
+  primaryForJobs RecruitmentJob[]         @relation("RecruitmentJobPrimaryLocation")
+  /// Every JD that runs in this city, primary or not.
+  jobs           RecruitmentJob[]         @relation("RecruitmentJobLocations")
+  scoutingDays   RecruitmentScoutingDay[]
 }
 
 /// A saved job description — reusable across many scouting days. Rubric fields
@@ -5070,12 +5077,21 @@ model RecruitmentLocation {
 /// (see RecruitmentScoutingDay.jobSnapshotJson) so subsequent JD edits don't
 /// retroactively change old scouting docs.
 model RecruitmentJob {
-  id         String              @id @default(cuid())
-  slug       String              @unique
-  title      String
-  seniority  String? // entry | mid | senior | lead
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  title     String
+  seniority String? // entry | mid | senior | lead
+
+  // A JD can be posted in several cities (one role, same rubric, many
+  // locations) — `locations` is the full set. But GENERATION is inherently
+  // single-city: language, reference orgs, local red flags and mobility all go
+  // into the prompt from ONE location, so every scouting day resolves exactly
+  // one (see RecruitmentScoutingDay.locationId). `locationId` is the PRIMARY:
+  // it drives the slug and is the default pick when a day is generated.
+  // Invariant: the primary is always also a member of `locations`.
   locationId String
-  location   RecruitmentLocation @relation(fields: [locationId], references: [id])
+  location   RecruitmentLocation   @relation("RecruitmentJobPrimaryLocation", fields: [locationId], references: [id])
+  locations  RecruitmentLocation[] @relation("RecruitmentJobLocations")
 
   dayToDay          String   @default("") // markdown — what the role actually does
   mustHaves         String[] @default([])
@@ -5112,10 +5128,15 @@ model RecruitmentJob {
 /// without re-generating. `jobId` is nullable so legacy blob-only docs still
 /// show up in listings.
 model RecruitmentScoutingDay {
-  id              String          @id @default(cuid())
-  slug            String          @unique
+  id              String               @id @default(cuid())
+  slug            String               @unique
   jobId           String?
-  job             RecruitmentJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  job             RecruitmentJob?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  /// Which of the JD's cities this day was run for — the one whose context was
+  /// baked into the prompt. Nullable: legacy days (and JD-less blob docs)
+  /// predate multi-location, and their city lives in jobSnapshotJson.location.
+  locationId      String?
+  location        RecruitmentLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   matchday        DateTime?
   title           String
   // The full JD frozen at generation time so subsequent JD edits don't rewrite
@@ -5126,10 +5147,11 @@ model RecruitmentScoutingDay {
   snapshotJson    Json
   renderedBlobUrl String?
   createdById     String?
-  createdBy       User?           @relation("RecruitmentScoutingDayCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt       DateTime        @default(now())
+  createdBy       User?                @relation("RecruitmentScoutingDayCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime             @default(now())
 
   @@index([jobId])
+  @@index([locationId])
 }
 
 // ════════════════════════════════════════════════════════════════════════════

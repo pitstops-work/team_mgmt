@@ -12,13 +12,20 @@ export type JobPickerRow = {
   id: string;
   slug: string;
   title: string;
+  /** Primary city — the default pick when the JD runs in several. */
   city: string;
+  /** Every city this JD runs in. One entry for a single-city JD. */
+  locations: { id: string; city: string }[];
 };
 
 export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [jobId, setJobId] = useState<string>(jobs[0]?.id ?? "");
+  // Which city this scouting day is for. The prompt carries exactly one city's
+  // language, reference orgs and red flags, so a multi-city JD must resolve to
+  // one here rather than let the server guess.
+  const [locationId, setLocationId] = useState<string>(jobs[0]?.locations[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [context, setContext] = useState("");
@@ -30,6 +37,15 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
 
   const busy = phase !== "idle";
   const jobless = jobId === "";
+  const selectedJob = jobs.find((j) => j.id === jobId) ?? null;
+  const jobLocations = selectedJob?.locations ?? [];
+
+  // Keep the city valid when the JD changes — default to the JD's primary.
+  const pickJob = (nextJobId: string) => {
+    setJobId(nextJobId);
+    const next = jobs.find((j) => j.id === nextJobId);
+    setLocationId(next?.locations[0]?.id ?? "");
+  };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,6 +85,7 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
           // Only send context when there is no JD; a picked JD supplies its own notes.
           context: jobless ? context.trim() : "",
           jobId: jobless ? null : jobId,
+          locationId: jobless ? null : locationId || null,
           cvs,
         }),
       });
@@ -102,7 +119,7 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-0.5">Job description</label>
         <select
           value={jobId}
-          onChange={(e) => setJobId(e.target.value)}
+          onChange={(e) => pickJob(e.target.value)}
           disabled={busy}
           className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:bg-stone-50"
         >
@@ -116,6 +133,26 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
           <Link href="/recruitment/jobs" className="text-sky-600 hover:underline">Manage JDs →</Link>
         </p>
       </div>
+
+      {jobLocations.length > 1 && (
+        <div>
+          <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-0.5">City for this desk</label>
+          <select
+            value={locationId}
+            onChange={(e) => setLocationId(e.target.value)}
+            disabled={busy}
+            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:bg-stone-50"
+          >
+            {jobLocations.map((l) => (
+              <option key={l.id} value={l.id}>{l.city}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-[11px] text-stone-400">
+            This JD runs in {jobLocations.length} cities. The scout judges candidates against the city you pick —
+            its language, local reference orgs and red flags go into the brief.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <input

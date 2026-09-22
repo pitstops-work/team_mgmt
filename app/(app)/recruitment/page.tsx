@@ -55,6 +55,8 @@ export default async function RecruitmentPage() {
       matchday: true,
       createdAt: true,
       job: { select: { slug: true, title: true, location: { select: { city: true } } } },
+      // The city this day actually ran in — a multi-city JD's days differ.
+      location: { select: { city: true } },
     },
   });
   const knownSlugs = new Set(dbRows.map((r) => r.slug));
@@ -64,7 +66,9 @@ export default async function RecruitmentPage() {
     matchday: r.matchday ? r.matchday.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : null,
     jobTitle: r.job?.title ?? null,
     jobSlug: r.job?.slug ?? null,
-    city: r.job?.location.city ?? null,
+    // Prefer the day's own city; fall back to the JD's primary for days
+    // generated before multi-location (their locationId backfilled to it anyway).
+    city: r.location?.city ?? r.job?.location.city ?? null,
     createdAt: +r.createdAt,
     isLegacy: false,
     isCommitted: false,
@@ -113,9 +117,25 @@ export default async function RecruitmentPage() {
   const jobs = await prisma.recruitmentJob.findMany({
     where: { archivedAt: null },
     orderBy: { updatedAt: "desc" },
-    select: { id: true, slug: true, title: true, location: { select: { city: true } } },
+    select: {
+      id: true, slug: true, title: true,
+      location: { select: { city: true } },
+      locations: { select: { id: true, city: true }, orderBy: { city: "asc" } },
+      locationId: true,
+    },
   });
-  const pickerJobs = jobs.map((j) => ({ id: j.id, slug: j.slug, title: j.title, city: j.location.city }));
+  const pickerJobs = jobs.map((j) => ({
+    id: j.id,
+    slug: j.slug,
+    title: j.title,
+    city: j.location.city,
+    // Primary first so it's the default selection in the city picker. Falls
+    // back to the primary alone for any JD without membership rows.
+    locations: [
+      ...j.locations.filter((l) => l.id === j.locationId),
+      ...j.locations.filter((l) => l.id !== j.locationId),
+    ],
+  }));
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">

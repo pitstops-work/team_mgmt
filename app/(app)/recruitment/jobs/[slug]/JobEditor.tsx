@@ -3,13 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Trash2, Loader2, ArchiveRestore } from "lucide-react";
+import LocationPicker, { type LocationOption } from "../../LocationPicker";
 
 export type JobInitial = {
   id: string;
   slug: string;
   title: string;
   seniority: string | null;
+  /** Primary city — drives the slug and the default pick at generate time. */
   locationId: string;
+  /** Every city this JD runs in; always includes the primary. */
+  locationIds: string[];
   dayToDay: string;
   mustHaves: string[];
   niceToHaves: string[];
@@ -39,7 +43,7 @@ export default function JobEditor({
   canDelete,
 }: {
   initial: JobInitial;
-  locations: { id: string; city: string; state: string | null }[];
+  locations: LocationOption[];
   canEdit: boolean;
   canDelete: boolean;
 }) {
@@ -47,6 +51,7 @@ export default function JobEditor({
   const [title, setTitle] = useState(initial.title);
   const [seniority, setSeniority] = useState(initial.seniority ?? "");
   const [locationId, setLocationId] = useState(initial.locationId);
+  const [locationIds, setLocationIds] = useState<string[]>(initial.locationIds);
   const [dayToDay, setDayToDay] = useState(initial.dayToDay);
   const [mustHaves, setMustHaves] = useState(initial.mustHaves.join("\n"));
   const [niceToHaves, setNiceToHaves] = useState(initial.niceToHaves.join("\n"));
@@ -78,6 +83,7 @@ export default function JobEditor({
           title: title.trim(),
           seniority: seniority || null,
           locationId,
+          locationIds,
           dayToDay,
           mustHaves: linesToArray(mustHaves),
           niceToHaves: linesToArray(niceToHaves),
@@ -129,14 +135,16 @@ export default function JobEditor({
             </select>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 items-start">
           <div>
-            <label className={labelCls}>Location *</label>
-            <select className={inputCls + " w-full"} value={locationId} onChange={(e) => setLocationId(e.target.value)} disabled={disabled}>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>{l.city}{l.state ? ` · ${l.state}` : ""}</option>
-              ))}
-            </select>
+            <label className={labelCls}>Locations *</label>
+            <LocationPicker
+              locations={locations}
+              selectedIds={locationIds}
+              primaryId={locationId}
+              disabled={disabled}
+              onChange={({ selectedIds, primaryId }) => { setLocationIds(selectedIds); setLocationId(primaryId); }}
+            />
           </div>
           <div>
             <label className={labelCls}>Salary band (private)</label>
@@ -231,7 +239,7 @@ export default function JobEditor({
         {canEdit && (
           <button
             onClick={save}
-            disabled={disabled || !title.trim() || !locationId}
+            disabled={disabled || !title.trim() || !locationId || locationIds.length === 0}
             className="ml-auto px-3 py-1.5 text-xs rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-40 inline-flex items-center gap-1"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}

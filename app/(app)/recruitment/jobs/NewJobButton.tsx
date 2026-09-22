@@ -4,11 +4,10 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { Plus, X, Check, Loader2, FileUp, Sparkles, AlertTriangle, Wand2 } from "lucide-react";
+import LocationPicker, { type LocationOption } from "../LocationPicker";
 
 const inputCls = "px-2.5 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-300 bg-white";
 const labelCls = "block text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-0.5";
-
-type LocationOption = { id: string; city: string; state: string | null };
 
 type ExtractedFields = {
   title: string;
@@ -104,6 +103,7 @@ function ManualForm({
   const [title, setTitle] = useState("");
   const [seniority, setSeniority] = useState<string>("");
   const [locationId, setLocationId] = useState<string>(locations[0]?.id ?? "");
+  const [locationIds, setLocationIds] = useState<string[]>(locations[0]?.id ? [locations[0].id] : []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -114,7 +114,7 @@ function ManualForm({
       const res = await fetch("/api/recruitment/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), seniority: seniority || null, locationId }),
+        body: JSON.stringify({ title: title.trim(), seniority: seniority || null, locationId, locationIds }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Create failed");
@@ -143,14 +143,15 @@ function ManualForm({
             <option value="lead">lead</option>
           </select>
         </div>
-        <div>
-          <label className={labelCls}>Location *</label>
-          <select className={inputCls + " w-full"} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.city}{l.state ? ` · ${l.state}` : ""}</option>
-            ))}
-          </select>
-        </div>
+      </div>
+      <div>
+        <label className={labelCls}>Locations *</label>
+        <LocationPicker
+          locations={locations}
+          selectedIds={locationIds}
+          primaryId={locationId}
+          onChange={({ selectedIds, primaryId }) => { setLocationIds(selectedIds); setLocationId(primaryId); }}
+        />
       </div>
       <div className="flex justify-end items-center gap-2 pt-1">
         {error && <span className="text-xs text-red-500 mr-auto">{error}</span>}
@@ -159,7 +160,7 @@ function ManualForm({
         </button>
         <button
           onClick={create}
-          disabled={saving || !title.trim() || !locationId}
+          disabled={saving || !title.trim() || !locationId || locationIds.length === 0}
           className="px-3 py-1.5 text-xs rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-40 inline-flex items-center gap-1"
         >
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
@@ -285,7 +286,11 @@ function ReviewPanel({
 
   const [title, setTitle] = useState(f.title);
   const [seniority, setSeniority] = useState<string>(f.seniority ?? "");
-  const [locationId, setLocationId] = useState<string>(matchLocation(f.locationHint, locations)?.id ?? locations[0]?.id ?? "");
+  const matchedId = matchLocation(f.locationHint, locations)?.id ?? locations[0]?.id ?? "";
+  const [locationId, setLocationId] = useState<string>(matchedId);
+  // Extraction only ever yields one location hint; add the other cities here
+  // if the same JD is being posted in more than one.
+  const [locationIds, setLocationIds] = useState<string[]>(matchedId ? [matchedId] : []);
   const [dayToDay, setDayToDay] = useState(f.dayToDay);
   const [mustHaves, setMustHaves] = useState(f.mustHaves.join("\n"));
   const [niceToHaves, setNiceToHaves] = useState(f.niceToHaves.join("\n"));
@@ -313,6 +318,7 @@ function ReviewPanel({
           title: title.trim(),
           seniority: seniority || null,
           locationId,
+          locationIds,
           dayToDay,
           mustHaves: lines(mustHaves),
           niceToHaves: lines(niceToHaves),
@@ -379,14 +385,15 @@ function ReviewPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 items-start">
         <div>
-          <label className={labelCls}>Location *</label>
-          <select className={inputCls + " w-full"} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.city}{l.state ? ` · ${l.state}` : ""}</option>
-            ))}
-          </select>
+          <label className={labelCls}>Locations *</label>
+          <LocationPicker
+            locations={locations}
+            selectedIds={locationIds}
+            primaryId={locationId}
+            onChange={({ selectedIds, primaryId }) => { setLocationIds(selectedIds); setLocationId(primaryId); }}
+          />
         </div>
         <div>
           <label className={labelCls}>Salary band {badge("salaryBand")}</label>
@@ -457,7 +464,7 @@ function ReviewPanel({
         {error && <span className="text-xs text-red-500">{error}</span>}
         <button
           onClick={create}
-          disabled={saving || !title.trim() || !locationId}
+          disabled={saving || !title.trim() || !locationId || locationIds.length === 0}
           className="ml-auto px-3 py-1.5 text-xs rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-40 inline-flex items-center gap-1"
         >
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}

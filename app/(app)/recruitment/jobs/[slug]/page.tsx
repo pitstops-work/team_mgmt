@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
 import JobEditor from "./JobEditor";
+import { locationLabel } from "@/lib/recruitment/locations";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function RecruitmentJobDetailPage({
       where: { slug },
       include: {
         location: true,
+        locations: { orderBy: { city: "asc" } },
         scoutingDays: {
           orderBy: { createdAt: "desc" },
           select: { id: true, slug: true, title: true, matchday: true, createdAt: true },
@@ -47,8 +49,11 @@ export default async function RecruitmentJobDetailPage({
         </Link>
         <Briefcase className="w-5 h-5 text-sky-500" />
         <h1 className="text-xl font-semibold text-stone-900 truncate">{job.title}</h1>
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 inline-flex items-center gap-0.5">
-          <MapPin className="w-2.5 h-2.5" /> {job.location.city}
+        <span
+          className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 inline-flex items-center gap-0.5"
+          title={job.locations.map((l) => l.city).join(", ")}
+        >
+          <MapPin className="w-2.5 h-2.5" /> {locationLabel(job.location.city, job.locations.length)}
         </span>
         {job.archivedAt && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">archived</span>
@@ -62,6 +67,7 @@ export default async function RecruitmentJobDetailPage({
           title: job.title,
           seniority: job.seniority,
           locationId: job.locationId,
+          locationIds: job.locations.map((l) => l.id),
           dayToDay: job.dayToDay,
           mustHaves: job.mustHaves,
           niceToHaves: job.niceToHaves,

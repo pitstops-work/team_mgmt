@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
+import { normaliseLocationIds } from "@/lib/recruitment/locations";
 
 // GET    /api/recruitment/jobs/[id] — read one (with location + scouting-day list)
 // PUT    /api/recruitment/jobs/[id] — update
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id },
     include: {
       location: true,
+      locations: { orderBy: { city: "asc" } },
       scoutingDays: {
         orderBy: { createdAt: "desc" },
         select: { id: true, slug: true, title: true, matchday: true, createdAt: true },
@@ -45,6 +47,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const locationId = String(body.locationId || "").trim();
   if (!locationId) return NextResponse.json({ error: "Location is required" }, { status: 400 });
 
+  // Primary + the full city set. `set` replaces the membership wholesale, so a
+  // city removed here is genuinely dropped; normaliseLocationIds keeps the
+  // primary in the set so the two can never drift apart.
+  const { locationIds } = normaliseLocationIds(locationId, body.locationIds);
+  const foundCount = await prisma.recruitmentLocation.count({ where: { id: { in: locationIds } } });
+  if (foundCount !== locationIds.length) {
+    return NextResponse.json({ error: "One or more locations not found" }, { status: 404 });
+  }
+
   const lockedAxes = coerceStringArray(body.lockedAxes);
   if (lockedAxes.length !== 0 && lockedAxes.length !== 6) {
     return NextResponse.json({ error: "lockedAxes must be exactly 6 labels or empty" }, { status: 400 });
@@ -56,6 +67,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       title,
       seniority: body.seniority ? String(body.seniority).trim() || null : null,
       locationId,
+      locations: { set: locationIds.map((id) => ({ id })) },
       dayToDay: body.dayToDay ? String(body.dayToDay) : "",
       mustHaves: coerceStringArray(body.mustHaves),
       niceToHaves: coerceStringArray(body.niceToHaves),
@@ -68,7 +80,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       scrutiniseFor: coerceStringArray(body.scrutiniseFor),
       lockedAxes,
     },
-    include: { location: true },
+    include: { location: true, locations: true },
   });
   return NextResponse.json(row);
 }

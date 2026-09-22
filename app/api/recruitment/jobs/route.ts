@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
 import { toSlug } from "@/lib/recruitment/slug";
+import { normaliseLocationIds } from "@/lib/recruitment/locations";
 
 // GET  /api/recruitment/jobs — list (incl. archived; UI filters). Includes
 //                              location + scoutingDay count for the library view.
@@ -45,8 +46,18 @@ export async function POST(req: NextRequest) {
   if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 });
   if (!locationId) return NextResponse.json({ error: "Location is required" }, { status: 400 });
 
-  const location = await prisma.recruitmentLocation.findUnique({ where: { id: locationId }, select: { city: true } });
-  if (!location) return NextResponse.json({ error: "Location not found" }, { status: 404 });
+  // `locationId` is the primary (drives the slug); `locationIds` is the full
+  // set for a JD posted in several cities. Older clients send only the former.
+  const { locationIds } = normaliseLocationIds(locationId, body.locationIds);
+
+  const found = await prisma.recruitmentLocation.findMany({
+    where: { id: { in: locationIds } },
+    select: { id: true, city: true },
+  });
+  if (found.length !== locationIds.length) {
+    return NextResponse.json({ error: "One or more locations not found" }, { status: 404 });
+  }
+  const location = found.find((l) => l.id === locationId)!;
 
   // Slug = title + city, deduped on collision.
   const base = toSlug(`${title}-${location.city}`);
@@ -67,6 +78,7 @@ export async function POST(req: NextRequest) {
       title,
       seniority: body.seniority ? String(body.seniority).trim() || null : null,
       locationId,
+      locations: { connect: locationIds.map((id) => ({ id })) },
       dayToDay: body.dayToDay ? String(body.dayToDay) : "",
       mustHaves: coerceStringArray(body.mustHaves),
       niceToHaves: coerceStringArray(body.niceToHaves),
@@ -82,7 +94,7 @@ export async function POST(req: NextRequest) {
       extractedAt: sourceDocUrl ? new Date() : null,
       createdById: session!.user?.id ?? null,
     },
-    include: { location: true },
+    include: { location: true, locations: true },
   });
   return NextResponse.json(row, { status: 201 });
 }

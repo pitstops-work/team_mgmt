@@ -18,7 +18,10 @@ export default async function RecruitmentLocationsPage() {
 
   const rows = await prisma.recruitmentLocation.findMany({
     orderBy: [{ archivedAt: "asc" }, { city: "asc" }],
-    include: { _count: { select: { jobs: true } } },
+    // Count BOTH relations: `primaryForJobs` is the JDs this city names, `jobs`
+    // is every JD that runs here. A multi-city JD only appears in the latter,
+    // so counting just one would let you archive a city JDs still point at.
+    include: { _count: { select: { primaryForJobs: true, jobs: true } } },
   });
   // Prisma Date -> string for the client component.
   const initial = rows.map((r) => ({
@@ -33,7 +36,9 @@ export default async function RecruitmentLocationsPage() {
     mobilityDefault: r.mobilityDefault,
     notes: r.notes,
     archivedAt: r.archivedAt ? r.archivedAt.toISOString() : null,
-    jobCount: r._count.jobs,
+    // `jobs` is a superset of `primaryForJobs` (the primary is always a member),
+    // so it alone is the true reference count.
+    jobCount: Math.max(r._count.jobs, r._count.primaryForJobs),
   }));
 
   return (

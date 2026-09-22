@@ -13,6 +13,7 @@ import {
   jobSnapshotFromRow,
   type JobSnapshot,
 } from "@/lib/recruitment/systemPrompt";
+import { resolveDayLocation } from "@/lib/recruitment/locations";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -90,6 +91,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const date = String(body?.date || "").trim();
   const context = String(body?.context || "").trim();
   const jobId = typeof body?.jobId === "string" && body.jobId ? String(body.jobId) : null;
+  // Which of the JD's cities this scouting day is for. Optional: a single-city
+  // JD resolves on its own; a multi-city one requires it.
+  const requestedLocationId =
+    typeof body?.locationId === "string" && body.locationId ? String(body.locationId) : null;
   const cvs: { url: string; name: string }[] = Array.isArray(body?.cvs) ? body.cvs : [];
   if (!title || cvs.length === 0) {
     return NextResponse.json({ error: "Title and at least one CV are required" }, { status: 400 });
@@ -105,14 +110,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // from the request body. Snapshot is frozen into RecruitmentScoutingDay.jobSnapshotJson
   // below so subsequent JD edits don't retroactively rewrite this scouting day.
   let snapshot: JobSnapshot;
+  // Which city this day runs in. A JD can span several; the prompt takes
+  // exactly one (see lib/recruitment/locations.ts). Null for JD-less runs.
+  let dayLocationId: string | null = null;
   if (jobId) {
     const job = await prisma.recruitmentJob.findUnique({
       where: { id: jobId },
-      include: { location: true },
+      include: { location: true, locations: { orderBy: { city: "asc" } } },
     });
     if (!job) return NextResponse.json({ error: "Selected JD not found" }, { status: 404 });
     if (job.archivedAt) return NextResponse.json({ error: "Selected JD is archived" }, { status: 400 });
-    snapshot = jobSnapshotFromRow(job, job.location);
+
+    // Fall back to the primary for JDs created before the multi-location
+    // migration backfilled their membership rows.
+    const candidates = job.locations.length > 0 ? job.locations : [job.location];
+    const picked = resolveDayLocation(candidates, job.locationId, requestedLocationId);
+    if ("error" in picked) return NextResponse.json({ error: picked.error }, { status: 400 });
+
+    dayLocationId = picked.location.id;
+    snapshot = jobSnapshotFromRow(job, picked.location);
   } else {
     snapshot = fallbackSnapshot(title, context);
   }
@@ -204,6 +220,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     data: {
       slug,
       jobId,
+      locationId: dayLocationId,
       matchday: date ? new Date(date) : null,
       title,
       // Cast: Prisma's JSON input type is picky about our structured shapes; DB

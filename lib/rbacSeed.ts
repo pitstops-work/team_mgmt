@@ -151,8 +151,9 @@ export const RESOURCE_ACTIONS: Record<string, readonly string[]> = {
   // viewer, member, partner, budget-admin). Grant to other roles from the
   // /settings/roles UI when needed. `list` = index page + generate dropdown,
   // `read` = view a doc + read/write its shared team-scoring state, `create` =
-  // upload a CV + generate a new doc, `delete` = remove a doc (no route yet).
-  recruitment: ["list", "read", "create", "delete"],
+  // upload a CV + generate a new doc, `update` = edit a saved JD or location,
+  // `delete` = remove a doc (no route yet).
+  recruitment: ["list", "read", "create", "update", "delete"],
   // Field-ops unified backend (/field/backend) — configure domains, step
   // templates, forms, interventions, facilities, geography & RP assignment.
   // Super-admin/admin get it by default (below); grant to a programme lead's
@@ -181,7 +182,7 @@ const ADMIN_EXCLUDED = new Set<string>([
   // role row; keeping admin = ALL for new resources unless we add exclusions later.
   // Recruitment holds candidate PII — super-admin only by default. Admins can be
   // granted individual actions from the /settings/roles UI when needed.
-  "recruitment.list", "recruitment.read", "recruitment.create", "recruitment.delete",
+  "recruitment.list", "recruitment.read", "recruitment.create", "recruitment.update", "recruitment.delete",
 ]);
 
 const ADMIN_GRANTS: RoleGrant = (() => {

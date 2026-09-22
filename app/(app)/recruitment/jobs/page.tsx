@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
 import NewJobButton from "./NewJobButton";
+import { locationLabel } from "@/lib/recruitment/locations";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function RecruitmentJobsPage() {
       orderBy: [{ archivedAt: "asc" }, { updatedAt: "desc" }],
       include: {
         location: true,
+        locations: { select: { id: true, city: true }, orderBy: { city: "asc" } },
         _count: { select: { scoutingDays: true } },
       },
     }),
@@ -63,8 +65,11 @@ export default async function RecruitmentJobsPage() {
                   {j.seniority && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">{j.seniority}</span>
                   )}
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 inline-flex items-center gap-0.5">
-                    <MapPin className="w-2.5 h-2.5" /> {j.location.city}
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 inline-flex items-center gap-0.5"
+                    title={j.locations.map((l) => l.city).join(", ")}
+                  >
+                    <MapPin className="w-2.5 h-2.5" /> {locationLabel(j.location.city, j.locations.length)}
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-50 text-stone-500">{j.theme}</span>
                   {j.archivedAt && (
