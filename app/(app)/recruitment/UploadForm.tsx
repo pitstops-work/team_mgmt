@@ -266,6 +266,18 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
           built[key] = prior;
         }
       }
+      // Whole run succeeded — now, and only now, drop the temp CVs. Deleting
+      // them desk-by-desk is what made a failed batch impossible to retry.
+      // Best-effort: a cleanup failure must not cost the desks just built.
+      try {
+        await fetch("/api/recruitment/cleanup-cvs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cvs: triage.cvs }),
+        });
+      } catch {
+        /* temp CVs linger; the desks are what matter */
+      }
       router.push(`/recruitment/batch/${batchId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

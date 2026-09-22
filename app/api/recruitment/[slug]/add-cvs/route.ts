@@ -54,7 +54,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const mode = body?.forceAppend === true ? "append" : decideMode(poolSize, cvs.length);
 
   const result = mode === "append"
-    ? await appendCandidates(slug, cvs, session)
+    ? await appendCandidates(slug, cvs, session, { keepCvs: body?.forceAppend === true })
     : await regenerateScoutingDay(slug, cvs, session);
 
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });

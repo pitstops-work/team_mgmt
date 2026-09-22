@@ -171,7 +171,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Private blobs need the store token — a plain fetch of the URL 401s.
     const got = await get(cvs[i].url, { access: "private" });
     if (got?.statusCode !== 200) {
-      return NextResponse.json({ error: `Could not read CV "${cvs[i].name}"` }, { status: 502 });
+      return NextResponse.json(
+        {
+          error: `Could not read CV "${cvs[i].name}". If an earlier run already built some desks, its CVs were consumed then — re-upload and start a fresh run.`,
+        },
+        { status: 502 },
+      );
     }
     const buffer = Buffer.from(await new Response(got.stream).arrayBuffer());
     let text: string, images: Awaited<ReturnType<typeof extractCv>>["images"];
@@ -261,7 +266,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   });
 
   // 4. Clean up temp CVs (best-effort)
-  await Promise.allSettled(cvs.map((cv) => del(cv.url)));
+  // Keep the CVs while a BATCH is in flight. A batch builds several desks
+  // across several requests, and deleting each desk's inputs the moment it
+  // succeeds makes the whole run un-retryable: if desk 8 fails, retrying
+  // re-reads desk 1's CVs, which no longer exist, and reports "Could not read
+  // CV <name>" — which reads like a corrupt file and is nothing of the sort.
+  // The client deletes them once the run completes (see cleanup-cvs).
+  if (!batchId) await Promise.allSettled(cvs.map((cv) => del(cv.url)));
 
   return NextResponse.json({ slug });
 }

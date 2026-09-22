@@ -37,7 +37,11 @@ async function extractAll(cvs: CvRef[]): Promise<{
   for (let i = 0; i < cvs.length; i++) {
     const got = await get(cvs[i].url, { access: "private" });
     if (got?.statusCode !== 200) {
-      return { extractedTexts, userBlocks, error: `Could not read CV "${cvs[i].name}"` };
+      return {
+        extractedTexts,
+        userBlocks,
+        error: `Could not read CV "${cvs[i].name}". If an earlier run already used it, re-upload and start a fresh run.`,
+      };
     }
     const buffer = Buffer.from(await new Response(got.stream).arrayBuffer());
     let text: string, images: Awaited<ReturnType<typeof extractCv>>["images"];
@@ -107,6 +111,7 @@ export async function appendCandidates(
   slug: string,
   cvs: CvRef[],
   _session: SessionLike,
+  opts: { keepCvs?: boolean } = {},
 ): Promise<OpResult> {
   if (cvs.length === 0) return { ok: false, status: 400, error: "At least one CV is required to append" };
   const { extractedTexts, userBlocks, error } = await extractAll(cvs);
@@ -118,7 +123,9 @@ export async function appendCandidates(
     userBlocks,
   );
   if (!res.ok) return res;
-  await Promise.allSettled(cvs.map((cv) => del(cv.url)));
+  // `keepCvs` is the batch builder: a run that deletes its own inputs as it
+  // goes cannot be retried. It cleans up once, at the end.
+  if (!opts.keepCvs) await Promise.allSettled(cvs.map((cv) => del(cv.url)));
   return { ok: true, slug, mode: "append", addedCount: res.addedIds.length, totalCount: res.totalCount };
 }
 
