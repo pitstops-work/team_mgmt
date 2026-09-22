@@ -71,7 +71,17 @@ export default async function RecruitmentDocPage({ params }: { params: Promise<{
   const iframeVersion = day?.snapshotJson ? JSON.stringify(day.snapshotJson).length : 0;
 
   return (
-    <div className="flex h-full flex-col">
+    // h-dvh, NOT h-full. This page renders under two different layout
+    // branches (app/(app)/layout.tsx): most roles get `div.h-screen >
+    // main.flex-1`, which has a definite height, but budget-admin gets
+    // `main.min-h-screen`, which has none. `h-full` is height:100%, and a
+    // percentage height cannot resolve against an ancestor of indefinite
+    // height — it collapsed to content height, leaving the iframe's flex-1
+    // nothing to grow into, so it fell back to the HTML default iframe height
+    // of 150px ("half a page") for every budget-admin. A viewport unit
+    // resolves the same under either branch; dvh over vh so mobile browser
+    // chrome doesn't clip the doc.
+    <div className="flex h-dvh flex-col overflow-hidden">
       <header className="flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-2">
         <Link href="/recruitment" className="text-stone-400 hover:text-stone-600" title="Back to recruitment">
           <ChevronLeft className="w-5 h-5" />
