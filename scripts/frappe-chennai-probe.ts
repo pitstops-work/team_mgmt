@@ -2,7 +2,20 @@
  * Probe Frappe Chennai for any doctype that exposes individual age data.
  * Tries common doctype names; for each successful one, prints a sample row
  * and the available fields.
+ *
+ * Run: npx tsx scripts/frappe-chennai-probe.ts
+ *
+ * The dotenv import is load-bearing twice over. It supplies the
+ * FRAPPE_CHENNAI_* credentials, which live in .env.local and are otherwise
+ * absent from process.env — without it the KEY/SECRET guard below always
+ * exits 1. It also makes this file a MODULE: with no import or export, TS
+ * treats a script as global scope, so this `main` collided with the `main` in
+ * every other top-level script under scripts/ ("TS2393: Duplicate function
+ * implementation") and broke `next build`'s type check.
  */
+
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
 
 const BASE = (process.env.FRAPPE_CHENNAI_URL ?? "https://chennai.dignifiedlife.in").trim();
 const KEY = (process.env.FRAPPE_CHENNAI_KEY ?? "").trim();
