@@ -5,10 +5,13 @@ import { del, get, list } from "@vercel/blob";
 import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
+import { renderScoutingDoc, type ScoutDocData } from "@/lib/recruitment/renderDoc";
 
 // Serves scouting-day HTML docs (embedded in an iframe by /recruitment/[slug]):
-// hand-committed ones from content/recruitment/, generated ones from the
-// private blob store. Candidate PII — RBAC-gated on `recruitment.read`.
+// hand-committed ones from content/recruitment/, DB-backed ones re-rendered
+// live from their snapshot, legacy ones from the private blob store. See
+// loadDoc below for why the re-render matters. Candidate PII — RBAC-gated on
+// `recruitment.read`.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const session = await auth();
   const ctx = await buildRbacContext(session, { req });
@@ -62,17 +65,65 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ s
   // 2. DB row (may not exist for legacy blob-only docs).
   await prisma.recruitmentScoutingDay.deleteMany({ where: { slug } });
 
-  // 3. Team-scoring state — same slug key, safe to delete unconditionally.
+  // 3. Interview transcripts. These are the most sensitive blobs in the
+  // feature — a full record of what a named person said in an interview — and
+  // unlike CVs they are deliberately KEPT while the desk lives. Deleting the
+  // desk must take them with it, or interview PII outlives the thing that
+  // justified collecting it. Prefix-scoped by slug, so this can't touch
+  // another desk's transcripts.
+  try {
+    const { blobs } = await list({ prefix: `recruitment/transcripts/${slug}/` });
+    await Promise.allSettled(blobs.map((b) => del(b.url)));
+  } catch (e) {
+    // Log loudly — a silent failure here means transcript PII is orphaned in
+    // the blob store with nothing left pointing at it.
+    console.error(`[recruitment-delete] transcript cleanup failed for ${slug}:`, e instanceof Error ? e.message : e);
+  }
+
+  // 4. Team-scoring state — same slug key, safe to delete unconditionally.
+  // Holds the transcript summaries, so this is the other half of step 3.
   await prisma.recruitmentScoutState.deleteMany({ where: { slug } });
 
   return Response.json({ ok: true });
 }
 
+/**
+ * Resolve a doc's HTML, in priority order:
+ *
+ *   1. Hand-committed file in content/recruitment/ — authoritative for itself.
+ *   2. RE-RENDERED from RecruitmentScoutingDay.snapshotJson, when a row exists.
+ *   3. The stored blob — legacy docs that predate the DB row.
+ *
+ * Step 2 is the important one. This used to go straight from 1 to 3, serving
+ * the HTML that was frozen into the blob at generation time. That meant any
+ * change to lib/recruitment/renderDoc.ts reached NEW desks only — every desk
+ * already in use kept running whatever template rendered it, forever. It is
+ * why the team-sync fix could not reach the three live desks on its own.
+ *
+ * The blob was always documented as a render cache with the DB row as source
+ * of truth (see persist() in scoutingDayOps.ts, which writes both from one
+ * `data` object). This makes that true. Rendering is pure string
+ * concatenation over JSON already being read, so the per-request cost is
+ * negligible, and it permanently removes the class of bug where a template
+ * change silently fails to reach existing desks.
+ */
 async function loadDoc(slug: string): Promise<string | null> {
   try {
     return await readFile(path.join(process.cwd(), "content", "recruitment", `${slug}.html`), "utf8");
   } catch {
-    /* not a committed doc — try the blob store */
+    /* not a committed doc — try a fresh render, then the blob */
+  }
+  try {
+    const day = await prisma.recruitmentScoutingDay.findUnique({
+      where: { slug },
+      select: { snapshotJson: true },
+    });
+    const snap = day?.snapshotJson as ScoutDocData | null | undefined;
+    if (snap && Array.isArray(snap.candidates) && snap.candidates.length > 0) {
+      return renderScoutingDoc(slug, snap);
+    }
+  } catch {
+    /* DB unreachable or snapshot unusable — the blob below is still valid */
   }
   try {
     const pathname = `recruitment/docs/${slug}.html`;

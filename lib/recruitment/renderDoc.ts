@@ -289,6 +289,35 @@ textarea:focus{outline:2px solid var(--sky); border-color:transparent}
 textarea::placeholder{color:rgba(157,184,170,.7)}
 .savenote{font-family:'Space Mono',monospace; font-size:10px; color:var(--dim); margin-top:6px; letter-spacing:.1em; min-height:14px}
 
+/* ============ INTERVIEW TRANSCRIPT ============ */
+.tw{margin-top:12px; border-top:1px dashed rgba(244,239,223,.14); padding-top:11px}
+.trow{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.tbtn{
+  display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-size:12.5px;
+  padding:7px 12px; border-radius:10px; border:1.5px solid var(--line);
+  background:rgba(0,0,0,.22); color:var(--chalk);
+}
+.tbtn:hover{border-color:var(--sky); color:var(--sky)}
+.tstat{font-family:'Space Mono',monospace; font-size:10px; color:var(--dim); letter-spacing:.08em}
+.tsum{margin-top:11px; border:1.5px solid var(--line); border-radius:12px; background:rgba(0,0,0,.2); padding:12px 13px}
+.tsum h5{
+  font-family:'Space Mono',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--dim); margin:10px 0 5px;
+}
+.tsum h5:first-child{margin-top:0}
+.tsum ul{list-style:none; margin:0; padding:0}
+.tsum li{font-size:13.5px; line-height:1.55; color:#DCE7DE; padding:3px 0 3px 14px; position:relative}
+.tsum li:before{content:'·'; position:absolute; left:4px; color:var(--gold)}
+.tsum .cue{font-size:13.5px; line-height:1.6; color:var(--chalk); border-left:2px solid var(--gold); padding-left:10px; margin-top:4px}
+.tsum .warn{font-size:11.5px; color:var(--gold); margin-top:9px}
+.tmeta{font-family:'Space Mono',monospace; font-size:10px; color:var(--dim); margin-top:10px; letter-spacing:.06em; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.tmeta button{background:none; border:none; color:var(--sky); font:inherit; cursor:pointer; padding:0; text-decoration:underline}
+.tfull{
+  margin-top:10px; max-height:280px; overflow:auto; white-space:pre-wrap;
+  font-size:12.5px; line-height:1.6; color:#CFE0D6; background:rgba(0,0,0,.3);
+  border:1px solid var(--line); border-radius:10px; padding:11px 12px;
+}
+
 /* ============ EVERYONE PANEL ============ */
 .everyone{
   margin-top:48px; border:2px solid var(--sky); border-radius:20px; padding:22px 20px;
@@ -548,6 +577,15 @@ function renderCards(){
       </div>
       <textarea id="nt-\${c.id}" data-c="\${c.id}" placeholder="Interview notes — what they said, how it landed, gut read…"></textarea>
       <div class="savenote" id="sv-\${c.id}"></div>
+
+      <div class="tw">
+        <div class="trow">
+          <label class="tbtn" for="tf-\${c.id}">📄 Attach interview transcript</label>
+          <input type="file" id="tf-\${c.id}" data-c="\${c.id}" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+          <span class="tstat" id="tst-\${c.id}"></span>
+        </div>
+        <div id="ts-\${c.id}"></div>
+      </div>
     </div>
   </article>\`).join('');
 }
@@ -583,7 +621,88 @@ function syncUI(){
       const cb=document.getElementById(\`cb-\${c.id}-\${qi}\`); if(cb){cb.checked=on; document.getElementById(\`q-\${c.id}-\${qi}\`).classList.toggle('done',on);}
     });
     updateQC(c.id);
+    renderTranscript(c.id);
   });
+}
+
+/* ================= INTERVIEW TRANSCRIPT ================= */
+const TRANSCRIPT_URL='/api/recruitment/'+SLUG+'/transcript';
+const TRANSCRIPT_MAX_BYTES=4*1024*1024;
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function tstat(id,msg){ const el=document.getElementById('tst-'+id); if(el) el.textContent=msg||''; }
+
+function renderTranscript(id){
+  const box=document.getElementById('ts-'+id); if(!box) return;
+  const t=S[id] && S[id].transcript;
+  if(!t || !t.summary){ box.innerHTML=''; return; }
+  const s=t.summary;
+  const list=(items)=> '<ul>'+items.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  const sec=(label,items)=> (items && items.length) ? '<h5>'+label+'</h5>'+list(items) : '';
+  const who = t.uploadedBy ? ' · by '+esc(String(t.uploadedBy).split(' ')[0]) : '';
+  const when = t.uploadedAt ? ' · '+new Date(t.uploadedAt).toLocaleDateString() : '';
+  box.innerHTML =
+    '<div class="tsum">'
+    + sec('What they showed', s.strengths)
+    + sec('Concerns', s.concerns)
+    + sec('Worth probing next', s.followUps)
+    + (s.verdictCue ? '<h5>Read</h5><div class="cue">'+esc(s.verdictCue)+'</div>' : '')
+    + (t.truncated ? '<div class="warn">⚠ Transcript was longer than the limit — this summarises only the first part of the interview.</div>' : '')
+    + '<div class="tmeta">'
+      + '<span>'+esc(t.name||'transcript')+' · '+(t.words||0).toLocaleString()+' words'+who+when+'</span>'
+      + (t.blobUrl ? '<button data-tv="'+esc(id)+'">view full transcript</button>' : '')
+      + '<button data-tx="'+esc(id)+'">remove</button>'
+    + '</div>'
+    + '<div id="tfull-'+esc(id)+'"></div>'
+    + '</div>';
+}
+
+async function uploadTranscript(id, file){
+  const c=C.find(x=>x.id===id); if(!c) return;
+  const name=(file.name||'').toLowerCase();
+  if(name.endsWith('.doc') && !name.endsWith('.docx')){
+    tstat(id,'legacy .doc can\\u2019t be read — re-save as .docx or PDF'); return;
+  }
+  if(!name.endsWith('.pdf') && !name.endsWith('.docx')){
+    tstat(id,'upload a PDF or a .docx'); return;
+  }
+  if(file.size > TRANSCRIPT_MAX_BYTES){ tstat(id,'too large (max 4 MB) — export as .docx'); return; }
+
+  tstat(id,'reading and summarising… this takes up to a minute');
+  try{
+    const fd=new FormData();
+    fd.append('file', file);
+    fd.append('candidateName', c.name);
+    const res=await fetch(TRANSCRIPT_URL, {method:'POST', body:fd});
+    const body=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(body.error || ('Could not summarise that transcript ('+res.status+')'));
+    S[id].transcript={
+      blobUrl: body.blobUrl || null, name: body.name || file.name,
+      words: body.words || 0, truncated: !!body.truncated,
+      uploadedAt: new Date().toISOString(), uploadedBy: null,
+      summary: body.summary,
+    };
+    tstat(id,'');
+    renderTranscript(id);
+    save(id); // rides the same debounced team-shared push as scores and notes
+  }catch(e){
+    tstat(id, e && e.message ? e.message : 'Upload failed');
+  }
+}
+
+async function viewTranscript(id){
+  const t=S[id] && S[id].transcript; if(!t || !t.blobUrl) return;
+  const host=document.getElementById('tfull-'+id); if(!host) return;
+  if(host.innerHTML){ host.innerHTML=''; return; } // toggle closed
+  host.innerHTML='<div class="tfull">loading…</div>';
+  try{
+    const res=await fetch(TRANSCRIPT_URL+'?url='+encodeURIComponent(t.blobUrl));
+    const body=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(body.error||'Could not load the transcript');
+    host.innerHTML='<div class="tfull">'+esc(body.text||'')+'</div>';
+  }catch(e){
+    host.innerHTML='<div class="tfull">'+esc(e && e.message ? e.message : 'Could not load the transcript')+'</div>';
+  }
 }
 function updateQC(id){
   const c=C.find(x=>x.id===id); const n=Object.values(S[id].asked).filter(Boolean).length;
@@ -620,11 +739,31 @@ function wire(){
     const tr=e.target.closest('tr'); if(!tr) return;
     document.getElementById('card-'+tr.dataset.c)?.scrollIntoView({behavior:'smooth',block:'start'});
   });
-  document.getElementById('resetBtn').addEventListener('click',()=>{
-    if(!confirm('Wipe all scores, verdicts, checkmarks and notes?')) return;
-    C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{}});
-    try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+  document.getElementById('resetBtn').addEventListener('click',async ()=>{
+    // Wording says "whole team" because this is shared state now — a reset
+    // here wipes everyone's scoring, not just this device's.
+    if(!confirm('Wipe all scores, verdicts, checkmarks, notes and interview summaries — FOR THE WHOLE TEAM?')) return;
+    C.forEach(c=>S[c.id]={score:null,verdict:null,notes:'',asked:{},transcript:null});
+    writeLS();
+    try{ await pushToServer(); }catch(e){ chip('reset saved locally — will sync when online'); }
     renderCards(); renderTable(); syncUI();
+  });
+
+  // --- interview transcript ---
+  document.getElementById('cards').addEventListener('change',e=>{
+    if(!e.target.matches('input[type="file"][data-c]')) return;
+    const id=e.target.dataset.c; const file=e.target.files && e.target.files[0];
+    e.target.value=''; // let the same file be re-picked after a failure
+    if(id && file) uploadTranscript(id, file);
+  });
+  document.getElementById('cards').addEventListener('click',e=>{
+    const v=e.target.closest('[data-tv]'); if(v){ viewTranscript(v.dataset.tv); return; }
+    const x=e.target.closest('[data-tx]');
+    if(x){
+      const id=x.dataset.tx;
+      if(!confirm('Remove this interview summary for the whole team?')) return;
+      S[id].transcript=null; renderTranscript(id); save(id);
+    }
   });
 }
 
