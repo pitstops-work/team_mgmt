@@ -18,6 +18,8 @@ import { renderScoutingDoc, type ScoutCandidate, type ScoutDocData } from "@/lib
 import {
   buildAppendSystemPrompt,
   buildRegenerateSystemPrompt,
+  APPEND_MAX_TOKENS,
+  SCOUT_MAX_TOKENS,
   type JobSnapshot,
 } from "@/lib/recruitment/systemPrompt";
 
@@ -124,7 +126,7 @@ export async function appendCandidates(
   const client = new Anthropic();
   const stream = client.messages.stream({
     model: "claude-opus-4-7",
-    max_tokens: 16_000,
+    max_tokens: APPEND_MAX_TOKENS,
     system: buildAppendSystemPrompt(snapshot, existing.axes, existingSummaries),
     messages: [{ role: "user", content: [header, ...userBlocks] }],
   });
@@ -220,7 +222,7 @@ export async function regenerateScoutingDay(
   const client = new Anthropic();
   const stream = client.messages.stream({
     model: "claude-opus-4-7",
-    max_tokens: 24_000,
+    max_tokens: SCOUT_MAX_TOKENS,
     system: buildRegenerateSystemPrompt(snapshot),
     messages: [{ role: "user", content: [header, ...existingBlocks, ...userBlocks] }],
   });

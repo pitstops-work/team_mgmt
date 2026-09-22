@@ -9,6 +9,10 @@ import { triageCvs, TRIAGE_CHARS_PER_CV, type TriageCity } from "@/lib/recruitme
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+/** Parallel blob reads. High enough that 85 CVs isn't 85 serial round trips,
+ *  low enough not to open a connection per CV on a large pool. */
+const EXTRACT_CONCURRENCY = 8;
+
 // POST /api/recruitment/triage
 //   body: { jobId, locationIds: string[], cvs: [{ url, name }] }
 //   → { cities, assignments }
@@ -62,23 +66,45 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // Extract just enough text per CV for the location signal.
-  const texts: { name: string; text: string }[] = [];
-  for (const cv of cvs) {
-    const got = await get(cv.url, { access: "private" });
-    if (got?.statusCode !== 200) {
-      return NextResponse.json({ error: `Could not read CV "${cv.name}"` }, { status: 502 });
-    }
-    const buffer = Buffer.from(await new Response(got.stream).arrayBuffer());
-    try {
-      const { text } = await extractCv(buffer);
-      texts.push({ name: cv.name, text: text.slice(0, TRIAGE_CHARS_PER_CV) });
-    } catch (e) {
-      if (e instanceof UnsupportedCvError) {
-        return NextResponse.json({ error: `"${cv.name}": ${e.message}` }, { status: 400 });
+  //
+  // Fetched with bounded concurrency, not one at a time: a pool of 85 means 85
+  // blob round trips, and serially that alone can eat most of the 300s budget
+  // before the sorting call has started. textOnly skips rasterizing scanned
+  // PDFs, whose page images triage would only throw away.
+  const texts: { name: string; text: string }[] = new Array(cvs.length);
+  // An array rather than a `let … | null`: TypeScript's control-flow analysis
+  // can't see assignments made inside the async workers, so a nullable local
+  // narrows to `never` by the time it is read back.
+  const failures: { status: number; error: string }[] = [];
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(EXTRACT_CONCURRENCY, cvs.length) }, async () => {
+      for (;;) {
+        const i = cursor++;
+        if (i >= cvs.length || failures.length > 0) return;
+        const cv = cvs[i];
+        try {
+          const got = await get(cv.url, { access: "private" });
+          if (got?.statusCode !== 200) {
+            failures.push({ status: 502, error: `Could not read CV "${cv.name}"` });
+            return;
+          }
+          const buffer = Buffer.from(await new Response(got.stream).arrayBuffer());
+          const { text } = await extractCv(buffer, { textOnly: true });
+          texts[i] = { name: cv.name, text: text.slice(0, TRIAGE_CHARS_PER_CV) };
+        } catch (e) {
+          if (e instanceof UnsupportedCvError) {
+            failures.push({ status: 400, error: `"${cv.name}": ${e.message}` });
+            return;
+          }
+          // A CV that blows up for any other reason (corrupt PDF, mupdf throw)
+          // must not take down a pool of 85. It sorts as Unsorted.
+          texts[i] = { name: cv.name, text: "" };
+        }
       }
-      throw e;
-    }
-  }
+    }),
+  );
+  if (failures.length > 0) return NextResponse.json({ error: failures[0].error }, { status: failures[0].status });
 
   // A scanned CV yields no text layer here. Rather than let the sorter guess
   // from an empty string, mark it Unsorted up front — the scouting pass will

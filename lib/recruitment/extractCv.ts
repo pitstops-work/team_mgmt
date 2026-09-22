@@ -44,10 +44,18 @@ export function sniffCvFormat(buffer: Buffer): CvFormat {
 /** Thrown for a file we can identify but cannot read. Caller surfaces the message. */
 export class UnsupportedCvError extends Error {}
 
-export async function extractCv(buffer: Buffer): Promise<ExtractedCv> {
+/**
+ * `textOnly` skips rasterizing a scanned PDF's pages.
+ *
+ * Triage only ever reads `.text`, so rendering up to four 1400px PNGs per
+ * scanned CV is pure waste there — and across a pool of 85 it is a large
+ * amount of wasted CPU inside a 300s route. The scouting pass, which actually
+ * sends those images to the model, leaves it off.
+ */
+export async function extractCv(buffer: Buffer, opts: { textOnly?: boolean } = {}): Promise<ExtractedCv> {
   switch (sniffCvFormat(buffer)) {
     case "pdf":
-      return extractPdfCv(buffer);
+      return extractPdfCv(buffer, opts.textOnly === true);
     case "docx":
       return extractDocxCv(buffer);
     case "doc":
@@ -74,7 +82,7 @@ async function extractDocxCv(buffer: Buffer): Promise<ExtractedCv> {
   return { text, images: [] };
 }
 
-async function extractPdfCv(buffer: Buffer): Promise<ExtractedCv> {
+async function extractPdfCv(buffer: Buffer, textOnly: boolean): Promise<ExtractedCv> {
   const mupdf: any = await import("mupdf");
   const doc = mupdf.Document.openDocument(new Uint8Array(buffer), "application/pdf");
   const total = Math.min(doc.countPages(), MAX_PAGES);
@@ -91,7 +99,7 @@ async function extractPdfCv(buffer: Buffer): Promise<ExtractedCv> {
   text = text.trim().slice(0, MAX_CHARS);
 
   const images: ExtractedCv["images"] = [];
-  if (text.length < SCANNED_TEXT_THRESHOLD) {
+  if (!textOnly && text.length < SCANNED_TEXT_THRESHOLD) {
     for (let i = 0; i < Math.min(total, RASTER_MAX_PAGES); i++) {
       const page = doc.loadPage(i);
       const bounds = page.getBounds();

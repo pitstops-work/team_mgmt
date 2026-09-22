@@ -22,6 +22,26 @@ import type { RecruitmentJob, RecruitmentLocation } from "@/app/generated/prisma
  * frozen snapshot without a mapping step. Mirrors the JSON we persist in
  * RecruitmentScoutingDay.jobSnapshotJson.
  */
+/**
+ * Output-token ceilings for the scouting calls.
+ *
+ * Sized from real desks: a rendered candidate costs ~830-1,540 output tokens
+ * (measured across three live scouting days — the spread is pool size, since
+ * the model writes proportionally more prose for a small pool). The original
+ * 24,000 therefore fit only ~15-29 candidates, and a desk past that truncated
+ * mid-JSON and came back as "Model returned unparseable output".
+ *
+ * claude-opus-4-7 allows up to 128K output tokens, but only on a STREAMING
+ * request — which all three of these are (`messages.stream` + `finalMessage`).
+ * 64,000 is the documented streaming default and covers ~40+ candidates in one
+ * desk, well past any realistic single-city pool. Do NOT raise these on a
+ * non-streaming call: that hits the SDK's HTTP timeout instead.
+ */
+export const SCOUT_MAX_TOKENS = 64_000;
+/** Append returns only the NEW candidates plus the doc-level fields, so it
+ *  needs far less room than a full pool. */
+export const APPEND_MAX_TOKENS = 32_000;
+
 export type JobSnapshot = {
   title: string;
   seniority: string | null;

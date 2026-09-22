@@ -10,6 +10,26 @@ import TriageReview, { type TriageAssignment, type TriageCity } from "./TriageRe
 
 type Phase = "idle" | "uploading" | "sorting" | "scouting";
 
+/**
+ * What to say when the server fails WITHOUT a JSON body.
+ *
+ * A 504 or a crashed function returns an HTML error page, so `json.error` is
+ * undefined and the caller's fallback string is all the user ever sees. A bare
+ * "Could not sort the CVs" sent the recruiter back with nothing to act on
+ * after a 20-minute upload (2026-09-22, an 85-CV pool). Name the likely cause
+ * and the next move instead.
+ */
+function describeServerFailure(status: number, what: string): string {
+  if (status === 504 || status === 408) {
+    return `Timed out trying to ${what} — the pool is probably too large for one run. Try splitting the CVs into two smaller runs.`;
+  }
+  if (status === 413) return `The upload was too large to ${what}. Try fewer CVs at once.`;
+  if (status === 502 || status === 503) return `The server was unreachable while trying to ${what}. Wait a moment and try again.`;
+  if (status >= 500) return `The server errored trying to ${what} (${status}). If it repeats, the pool size is the first thing to halve.`;
+  return `Could not ${what} (${status}).`;
+}
+
+
 export type JobPickerRow = {
   id: string;
   slug: string;
@@ -96,7 +116,7 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
           body: JSON.stringify({ jobId, locationIds, cvs }),
         });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error || "Could not sort the CVs");
+        if (!res.ok) throw new Error(json.error || describeServerFailure(res.status, "sort the CVs"));
         setTriage({ cities: json.cities, assignments: json.assignments, cvs });
         setPhase("idle");
         setProgress("");
@@ -119,7 +139,7 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Generation failed");
+      if (!res.ok) throw new Error(json.error || describeServerFailure(res.status, "build the desk"));
       router.push(`/recruitment/${json.slug}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -165,10 +185,11 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
+          const why = json.error || describeServerFailure(res.status, `build the ${city.city} desk`);
           throw new Error(
             made.length > 0
-              ? `${city.city} failed: ${json.error || "generation failed"}. The ${made.length} desk${made.length === 1 ? "" : "s"} before it were built and are safe.`
-              : json.error || "Generation failed",
+              ? `${city.city} failed: ${why} The ${made.length} desk${made.length === 1 ? "" : "s"} before it were built and are safe.`
+              : why,
           );
         }
         made.push(json.slug);

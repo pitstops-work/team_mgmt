@@ -11,6 +11,7 @@ import { renderScoutingDoc, type ScoutDocData } from "@/lib/recruitment/renderDo
 import {
   buildSystemPrompt,
   jobSnapshotFromRow,
+  SCOUT_MAX_TOKENS,
   type JobSnapshot,
 } from "@/lib/recruitment/systemPrompt";
 import { resolveDayLocation } from "@/lib/recruitment/locations";
@@ -186,7 +187,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const client = new Anthropic();
   const stream = client.messages.stream({
     model: "claude-opus-4-7",
-    max_tokens: 24_000,
+    max_tokens: SCOUT_MAX_TOKENS,
     system: buildSystemPrompt(snapshot),
     messages: [{ role: "user", content: userContent }],
   });
