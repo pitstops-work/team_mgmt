@@ -8,7 +8,9 @@ import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
 import { describeRun } from "@/lib/recruitment/batchRunner";
+import { surveyTempCvs } from "@/lib/recruitment/orphanCvs";
 import UploadForm from "./UploadForm";
+import UnfinishedUploads from "./UnfinishedUploads";
 import DocCard from "./DocCard";
 
 export const dynamic = "force-dynamic";
@@ -114,6 +116,12 @@ export default async function RecruitmentPage() {
 
   docs.sort((a, b) => b.createdAt - a.createdAt);
 
+  // CVs uploaded for a run that never finished. Listing the temp area is only
+  // possible here — the store is private and its token is a sensitive project
+  // env var, so no local script can reach it.
+  const temp = await surveyTempCvs().catch(() => null);
+  const tempRow = (c: { name: string; code: string | null }) => ({ name: c.name, code: c.code });
+
   // Runs still in flight, or parked waiting to be carried on.
   //
   // A run no longer lives in the tab that started it, so it needs a way back:
@@ -181,6 +189,17 @@ export default async function RecruitmentPage() {
       </div>
 
       <UploadForm jobs={pickerJobs} />
+
+      {temp && temp.unscouted.length + temp.scouted.length + temp.unmatched.length > 0 && (
+        <UnfinishedUploads
+          unscouted={temp.unscouted.map(tempRow)}
+          scouted={temp.scouted.map(tempRow)}
+          unmatched={temp.unmatched.map(tempRow)}
+          // Newest first: the desk a dead run left half-built is almost always
+          // the most recent one.
+          desks={dbRows.slice(0, 25).map((r) => ({ slug: r.slug, title: r.title }))}
+        />
+      )}
 
       {openRuns.length > 0 && (
         <div className="mb-6 space-y-2">

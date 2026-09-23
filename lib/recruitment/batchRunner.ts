@@ -133,7 +133,12 @@ export async function startBatchRun(input: {
   date: string;
   jobId: string | null;
   context: string;
-  desks: Omit<BatchDesk, "slug" | "done">[];
+  /**
+   * `slug` may be preset to an EXISTING desk — that is how the recovery flow
+   * finishes a pool into the desk it half-built, rather than making a second
+   * one beside it. Every chunk then appends, including the first.
+   */
+  desks: (Omit<BatchDesk, "slug" | "done"> & { slug?: string | null })[];
   session: SessionLike;
   /**
    * Client-minted id, so starting a run is idempotent.
@@ -150,7 +155,7 @@ export async function startBatchRun(input: {
   const plan: BatchPlan = {
     chunkSize: DESK_CHUNK,
     context: input.context,
-    desks: input.desks.map((d) => ({ ...d, slug: null, done: 0 })),
+    desks: input.desks.map((d) => ({ ...d, slug: d.slug ?? null, done: 0 })),
   };
   await prisma.recruitmentBatchRun.create({
     data: {
