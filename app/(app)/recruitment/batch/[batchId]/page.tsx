@@ -4,6 +4,8 @@ import { ChevronLeft, MapPin, UserSearch } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
+import { describeRun } from "@/lib/recruitment/batchRunner";
+import BatchProgress from "../BatchProgress";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,10 @@ export default async function RecruitmentBatchPage({
   if (!(await can(ctx, "recruitment", "read"))) notFound();
 
   const { batchId } = await params;
+  // The run row exists from the moment the recruiter confirms the split —
+  // before any desk does. So the page has to be openable with zero desks on
+  // it, which is also the state they land in straight after pressing Scout.
+  const run = await prisma.recruitmentBatchRun.findUnique({ where: { id: batchId } });
   const days = await prisma.recruitmentScoutingDay.findMany({
     where: { batchId },
     orderBy: { createdAt: "asc" },
@@ -38,13 +44,14 @@ export default async function RecruitmentBatchPage({
       job: { select: { title: true, slug: true } },
     },
   });
-  if (days.length === 0) notFound();
+  if (days.length === 0 && !run) notFound();
 
   const totalCandidates = days.reduce((n, d) => {
     const snap = d.snapshotJson as { candidates?: unknown[] } | null;
     return n + (Array.isArray(snap?.candidates) ? snap.candidates.length : 0);
   }, 0);
-  const job = days[0].job;
+  const job = days[0]?.job ?? null;
+  const progress = run ? describeRun(run) : null;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -54,7 +61,9 @@ export default async function RecruitmentBatchPage({
         </Link>
         <UserSearch className="w-5 h-5 text-sky-500" />
         <h1 className="text-lg font-semibold text-stone-900">
-          {days.length} desks from one posting
+          {progress && progress.status !== "done"
+            ? `${progress.desks.length} desks from one posting`
+            : `${days.length} desks from one posting`}
         </h1>
       </div>
       <p className="text-sm text-stone-500 mb-6 leading-relaxed">
@@ -63,9 +72,12 @@ export default async function RecruitmentBatchPage({
             <Link href={`/recruitment/jobs/${job.slug}`} className="text-sky-600 hover:underline">{job.title}</Link>{" "}
           </>
         ) : null}
-        — {totalCandidates} candidate{totalCandidates === 1 ? "" : "s"} sorted across {days.length} cities. Each desk
-        judges its pool against that city&apos;s own language, reference orgs and red flags.
+        — {totalCandidates} candidate{totalCandidates === 1 ? "" : "s"} sorted across{" "}
+        {progress ? progress.desks.length : days.length} cities. Each desk judges its pool against that city&apos;s own
+        language, reference orgs and red flags.
       </p>
+
+      {progress && <BatchProgress initial={progress} />}
 
       <div className="space-y-2">
         {days.map((d) => {

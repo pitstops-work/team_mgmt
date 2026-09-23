@@ -6,41 +6,15 @@ import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { FileUp, Loader2, Sparkles } from "lucide-react";
 import { CV_ACCEPT, cvContentType, validateCvFile } from "@/lib/recruitment/cvFiles";
+import {
+  describeNetworkFailure,
+  describeServerFailure,
+  fetchRetrying,
+  isNetworkError,
+} from "@/lib/recruitment/fetchRetry";
 import TriageReview, { type TriageAssignment, type TriageCity } from "./TriageReview";
 
 type Phase = "idle" | "uploading" | "sorting" | "scouting";
-
-/**
- * CVs per generate/append request when building a desk.
- *
- * Bounded by OUTPUT tokens against the 300s route ceiling, not by input size:
- * a rendered candidate costs ~830-1,540 output tokens (measured on real
- * desks), and Opus streams on the order of 50-80 tokens/sec, so eight
- * candidates is roughly 7-12k tokens — comfortably inside 300s once CV
- * extraction is accounted for. Raising this is how the Unplaced desk timed
- * out on an 89-CV run.
- */
-const DESK_CHUNK = 8;
-
-/**
- * What to say when the server fails WITHOUT a JSON body.
- *
- * A 504 or a crashed function returns an HTML error page, so `json.error` is
- * undefined and the caller's fallback string is all the user ever sees. A bare
- * "Could not sort the CVs" sent the recruiter back with nothing to act on
- * after a 20-minute upload (2026-09-22, an 85-CV pool). Name the likely cause
- * and the next move instead.
- */
-function describeServerFailure(status: number, what: string): string {
-  if (status === 504 || status === 408) {
-    return `Timed out trying to ${what} — the pool is probably too large for one run. Try splitting the CVs into two smaller runs.`;
-  }
-  if (status === 413) return `The upload was too large to ${what}. Try fewer CVs at once.`;
-  if (status === 502 || status === 503) return `The server was unreachable while trying to ${what}. Wait a moment and try again.`;
-  if (status >= 500) return `The server errored trying to ${what} (${status}). If it repeats, the pool size is the first thing to halve.`;
-  return `Could not ${what} (${status}).`;
-}
-
 
 export type JobPickerRow = {
   id: string;
@@ -72,11 +46,14 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   // Set once the CVs are uploaded and sorted; presence of this switches the
-  // form over to the review step. Holds the blob refs so the generate calls
-  // after confirmation don't need to re-upload.
-  // Survives a failed run so a retry resumes instead of duplicating desks.
-  const builtRef = useRef<Record<string, { slug: string | null; done: number }>>({});
-  const batchIdRef = useRef<string>("");
+  // form over to the review step. Holds the blob refs so the run the server
+  // takes over doesn't need them re-uploaded.
+  //
+  // The id is minted here and reused across retries: starting a run is
+  // idempotent on it, so a lost response can't produce two runs building the
+  // same desks. It is the ONLY run state the browser holds — everything about
+  // what has actually been built lives on the server now.
+  const runIdRef = useRef<string>("");
   const [triage, setTriage] = useState<
     { cities: TriageCity[]; assignments: TriageAssignment[]; cvs: { url: string; name: string }[] } | null
   >(null);
@@ -125,17 +102,18 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
       if (multiCity) {
         setPhase("sorting");
         setProgress("Sorting CVs by city…");
-        const res = await fetch("/api/recruitment/triage", {
+        // Retryable: triage only reads the CVs and returns a split, so a
+        // repeat after a dropped connection costs a model call and nothing else.
+        const res = await fetchRetrying("/api/recruitment/triage", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ jobId, locationIds, cvs }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || describeServerFailure(res.status, "sort the CVs"));
-        // Fresh sort => fresh run. Clear any resume state from a previous
-        // attempt, or the next Scout would think those desks already exist.
-        builtRef.current = {};
-        batchIdRef.current = "";
+        // Fresh sort => fresh run id, or the retry-idempotency on the old one
+        // would make the server hand back the previous run.
+        runIdRef.current = "";
         setTriage({ cities: json.cities, assignments: json.assignments, cvs });
         setPhase("idle");
         setProgress("");
@@ -144,6 +122,9 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
 
       setPhase("scouting");
       setProgress("Scouting the pool — this takes a few minutes…");
+      // Deliberately NOT retried: this call writes a desk, and a repeat after
+      // a lost response builds a second one. Multi-city runs don't come
+      // through here at all — they hand the whole plan to the server.
       const res = await fetch("/api/recruitment/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -161,126 +142,75 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
       if (!res.ok) throw new Error(json.error || describeServerFailure(res.status, "build the desk"));
       router.push(`/recruitment/${json.slug}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(
+        isNetworkError(err)
+          ? // Sorting writes nothing; building a desk does, and by the time the
+            // connection drops the server may already have finished it.
+            describeNetworkFailure(multiCity ? "sort the CVs" : "build the desk", !multiCity)
+          : err instanceof Error
+            ? err.message
+            : "Something went wrong",
+      );
       setPhase("idle");
       setProgress("");
     }
   }
 
   /**
-   * Generate one desk per city, SEQUENTIALLY.
+   * Hand the whole multi-city run to the server, then get out of the way.
    *
-   * Not Promise.all: each generate is a multi-minute Claude call against a
-   * 300s route ceiling, and firing three at once would have them contend for
-   * the same rate limit and all slow down together. Sequential also means a
-   * failure on city 3 leaves cities 1 and 2 already built and openable.
-   */
-  /**
-   * Generate one desk per group, SEQUENTIALLY, building any large group in
-   * chunks.
+   * This used to be a for-loop right here: one desk per city, each large desk
+   * built in chunks of 8 CVs, every chunk a multi-minute fetch from this tab,
+   * with progress in a React ref. An 89-CV run was ~25 minutes of that, and
+   * on 2026-09-22 a single dropped connection ended one at 48 of 89 CVs —
+   * `TypeError: Failed to fetch`, no server error, nothing in the logs,
+   * because the request never reached the server. Closing the tab lost the
+   * resume state and cost a 20-minute re-upload.
    *
-   * Chunking is not an optimisation, it is the only way a big desk completes.
-   * A generate call streams roughly 830-1,540 output tokens per candidate
-   * against a hard 300s route ceiling (Vercel's maximum — it cannot be
-   * raised), so a 40-CV pool in one request times out. That is what killed the
-   * Unplaced desk on the first 89-CV run: seven city desks were small enough,
-   * the eighth had the leftovers. So the first chunk generates the desk and
-   * each later chunk appends to it in its own request, with its own 300s.
-   *
-   * Appends are forced rather than left to decideMode, which would read chunk
-   * 2 as "adding 8 to a pool of 8" and re-scout everything each time.
-   *
-   * Progress is kept in `builtRef` so a retry after a partial failure RESUMES
-   * — it skips finished desks and continues a half-built one from where it
-   * stopped, instead of duplicating the desks that already worked.
+   * So the loop moved to lib/recruitment/batchRunner.ts, which records
+   * progress per COMMITTED chunk and re-kicks itself. All that is left here
+   * is posting the plan and following the link. The browser can close; the
+   * run cannot notice.
    */
   async function runBatch(byCity: { city: TriageCity | null; cvIndexes: number[] }[]) {
     if (!triage) return;
     setError(null);
     setPhase("scouting");
-    const batchId = (batchIdRef.current ||= `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`);
-    const built = builtRef.current;
-    const total = byCity.length;
+    setProgress("Handing the run to the server…");
+    const runId = (runIdRef.current ||= `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`);
 
     try {
-      for (let i = 0; i < byCity.length; i++) {
-        const { city, cvIndexes } = byCity[i];
-        // A null city is the unplaced pool — a real desk, scouted on the role
-        // with no local context assumed. Its candidates get allocated to a
-        // city from the desk itself.
-        const label = city ? city.city : "Unplaced";
-        const key = city ? city.id : "__unplaced__";
-        const prior = built[key] ?? { slug: null as string | null, done: 0 };
-        if (prior.slug && prior.done >= cvIndexes.length) continue; // already finished
-
-        const chunks: number[][] = [];
-        for (let n = prior.done; n < cvIndexes.length; n += DESK_CHUNK) {
-          chunks.push(cvIndexes.slice(n, n + DESK_CHUNK));
-        }
-        const parts = Math.ceil(cvIndexes.length / DESK_CHUNK);
-
-        for (const chunk of chunks) {
-          const partNo = Math.floor(prior.done / DESK_CHUNK) + 1;
-          setProgress(
-            `Scouting ${label} — desk ${i + 1} of ${total}` +
-              (parts > 1 ? ` · part ${partNo} of ${parts} (${cvIndexes.length} CVs)` : "") +
-              "…",
-          );
-          const cvs = chunk.map((n) => triage.cvs[n - 1]).filter(Boolean);
-
-          const res = prior.slug
-            ? await fetch(`/api/recruitment/${prior.slug}/add-cvs`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ cvs, forceAppend: true }),
-              })
-            : await fetch("/api/recruitment/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  // The city is part of the title so the desks are tellable
-                  // apart in the listing, where they otherwise sit together.
-                  title: `${title.trim()} — ${label}`,
-                  date,
-                  context: "",
-                  jobId,
-                  locationId: city ? city.id : null,
-                  unplaced: !city,
-                  batchId,
-                  cvs,
-                }),
-              });
-
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            const doneDesks = Object.values(built).filter((b) => b.slug).length;
-            const why = json.error || describeServerFailure(res.status, `build the ${label} desk`);
-            throw new Error(
-              doneDesks > 0
-                ? `${label} failed: ${why} ${doneDesks} desk${doneDesks === 1 ? "" : "s"} already built — press Scout again to carry on from here rather than starting over.`
-                : why,
-            );
-          }
-          prior.slug = prior.slug ?? json.slug;
-          prior.done += chunk.length;
-          built[key] = prior;
-        }
-      }
-      // Whole run succeeded — now, and only now, drop the temp CVs. Deleting
-      // them desk-by-desk is what made a failed batch impossible to retry.
-      // Best-effort: a cleanup failure must not cost the desks just built.
-      try {
-        await fetch("/api/recruitment/cleanup-cvs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cvs: triage.cvs }),
-        });
-      } catch {
-        /* temp CVs linger; the desks are what matter */
-      }
-      router.push(`/recruitment/batch/${batchId}`);
+      // Retryable because of `runId`: the server treats a second start with
+      // the same id as the same run, so a lost response costs a round trip
+      // rather than a duplicate set of desks.
+      const res = await fetchRetrying("/api/recruitment/batch/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          runId,
+          title: title.trim(),
+          date,
+          context: jobless ? context.trim() : "",
+          jobId,
+          desks: byCity.map(({ city, cvIndexes }) => ({
+            // A null city is the unplaced pool — a real desk, scouted on the
+            // role with no local context assumed. Its candidates get allocated
+            // to a city from the desk itself.
+            key: city ? city.id : "__unplaced__",
+            label: city ? city.city : "Unplaced",
+            locationId: city ? city.id : null,
+            unplaced: !city,
+            cvs: cvIndexes.map((n) => triage.cvs[n - 1]).filter(Boolean),
+          })),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || describeServerFailure(res.status, "start the run"));
+      router.push(`/recruitment/batch/${json.batchId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(
+        isNetworkError(err) ? describeNetworkFailure("start the run") : err instanceof Error ? err.message : "Something went wrong",
+      );
       setPhase("idle");
       setProgress("");
     }
@@ -307,7 +237,7 @@ export default function UploadForm({ jobs }: { jobs: JobPickerRow[] }) {
           busy={busy}
           progress={progress}
           error={error}
-          onCancel={() => { setTriage(null); setError(null); builtRef.current = {}; batchIdRef.current = ""; }}
+          onCancel={() => { setTriage(null); setError(null); runIdRef.current = ""; }}
           onConfirm={runBatch}
         />
       </div>

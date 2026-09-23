@@ -2,11 +2,12 @@ import { readdir, readFile } from "fs/promises";
 import path from "path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Briefcase, KeyRound, Languages, MapPin, UserSearch } from "lucide-react";
+import { AlertTriangle, Briefcase, KeyRound, Languages, Loader2, MapPin, UserSearch } from "lucide-react";
 import { get, list } from "@vercel/blob";
 import { auth } from "@/lib/auth";
 import { buildRbacContext, can } from "@/lib/rbac";
 import prisma from "@/lib/prisma";
+import { describeRun } from "@/lib/recruitment/batchRunner";
 import UploadForm from "./UploadForm";
 import DocCard from "./DocCard";
 
@@ -113,6 +114,19 @@ export default async function RecruitmentPage() {
 
   docs.sort((a, b) => b.createdAt - a.createdAt);
 
+  // Runs still in flight, or parked waiting to be carried on.
+  //
+  // A run no longer lives in the tab that started it, so it needs a way back:
+  // the recruiter can close the browser mid-run, and a desk that is half built
+  // looks identical to a finished one in the list below.
+  const openRuns = (
+    await prisma.recruitmentBatchRun.findMany({
+      where: { status: { in: ["running", "failed"] } },
+      orderBy: { startedAt: "desc" },
+      take: 5,
+    })
+  ).map(describeRun);
+
   // JDs for the upload picker.
   const jobs = await prisma.recruitmentJob.findMany({
     where: { archivedAt: null },
@@ -167,6 +181,38 @@ export default async function RecruitmentPage() {
       </div>
 
       <UploadForm jobs={pickerJobs} />
+
+      {openRuns.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {openRuns.map((r) => {
+            const failed = r.status === "failed";
+            return (
+              <Link
+                key={r.id}
+                href={`/recruitment/batch/${r.id}`}
+                className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${
+                  failed
+                    ? "border-rose-200 bg-rose-50/60 hover:border-rose-300"
+                    : "border-sky-200 bg-sky-50/60 hover:border-sky-300"
+                }`}
+              >
+                {failed ? (
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                ) : (
+                  <Loader2 className="w-3.5 h-3.5 text-sky-600 shrink-0 animate-spin" />
+                )}
+                <span className="text-sm font-medium text-stone-800 truncate">{r.title}</span>
+                <span className="text-[11px] text-stone-500 truncate">
+                  {failed ? "stopped part-way — carry on" : `scouting ${r.currentLabel ?? "…"}`}
+                </span>
+                <span className="ml-auto text-[11px] tabular-nums text-stone-500 shrink-0">
+                  {r.doneCvs}/{r.totalCvs} CVs
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {docs.length === 0 ? (
         <p className="text-sm text-stone-400">No scouting docs yet.</p>

@@ -168,6 +168,7 @@ model User {
   // Recruitment JD library + scouting days (Phase 1)
   recruitmentJobsCreated    RecruitmentJob[]               @relation("RecruitmentJobCreator")
   recruitmentScoutingDays   RecruitmentScoutingDay[]       @relation("RecruitmentScoutingDayCreator")
+  recruitmentBatchRuns      RecruitmentBatchRun[]          @relation("RecruitmentBatchRunCreator")
   // Field-ops surface (/field) — the minimal RP spine
   fieldStepsCompleted       FieldStep[]                    @relation("FieldStepCompleter")
   fieldVisitsArrived        FieldVisit[]                   @relation("FieldVisitArriver")
@@ -5119,6 +5120,7 @@ model RecruitmentJob {
   archivedAt  DateTime?
 
   scoutingDays RecruitmentScoutingDay[]
+  batchRuns    RecruitmentBatchRun[]
 }
 
 /// A scouting day = one JD + one CV pool → one HTML doc. Rendered HTML still
@@ -5140,9 +5142,9 @@ model RecruitmentScoutingDay {
   /// Groups the desks produced by ONE multi-city run: a single posting drew
   /// CVs for several cities, triage split them per city, and each city got its
   /// own desk (generation is single-city — see lib/recruitment/locations.ts).
-  /// Null for an ordinary one-city desk. Deliberately an opaque id and not a
-  /// foreign key — a batch has no lifecycle or attributes of its own beyond
-  /// the rows that carry it, so a table would be a row per value and nothing else.
+  /// Null for an ordinary one-city desk. Not a foreign key: a desk outlives
+  /// the run that made it, and the run row (RecruitmentBatchRun, whose id IS
+  /// this value) is deletable once the desks exist without orphaning them.
   batchId         String?
   matchday        DateTime?
   title           String
@@ -5160,6 +5162,60 @@ model RecruitmentScoutingDay {
   @@index([jobId])
   @@index([locationId])
   @@index([batchId])
+}
+
+/// One multi-city scouting run, owned by the SERVER.
+///
+/// A run builds one desk per city, and each desk is built in chunks of CVs
+/// because a single Claude call for a large pool cannot finish inside the
+/// 300s function ceiling. That is a ~25-minute sequence of model calls. It
+/// used to be driven by a loop in the recruiter's browser, with progress held
+/// in a React ref: one dropped connection ended the run (89-CV run,
+/// 2026-09-22 — 48 of 89 CVs scouted, `TypeError: Failed to fetch`, no
+/// server-side error at all), and a page refresh lost the resume state
+/// entirely, costing a 20-minute re-upload.
+///
+/// So the plan lives here instead. The browser posts it once and may close;
+/// the runner drains it chunk by chunk (lib/recruitment/batchRunner.ts),
+/// records progress after every COMMITTED chunk, and a cron re-kicks any run
+/// whose lock has gone stale. Resume is therefore exact — never "re-send the
+/// chunk the client last heard about", which duplicated candidates.
+model RecruitmentBatchRun {
+  /// Also the `batchId` stamped on every desk this run produces.
+  id       String          @id
+  jobId    String?
+  job      RecruitmentJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  title    String
+  matchday DateTime?
+
+  /// running | done | failed. `failed` is terminal only until someone resumes
+  /// it — the plan is still intact, so a resume picks up at the first
+  /// uncommitted chunk.
+  status String @default("running")
+
+  /// BatchPlan (lib/recruitment/batchRunner.ts): every desk, its CV refs, its
+  /// slug once created, and how many of its CVs are COMMITTED. The one source
+  /// of truth for what still has to run.
+  planJson Json
+
+  /// Why the run stopped, verbatim for the recruiter. Cleared on resume.
+  error    String?
+  /// Consecutive failures of the CURRENT chunk. Reset on every commit; at
+  /// MAX_ATTEMPTS the run parks as `failed` rather than burning model spend.
+  attempts Int     @default(0)
+
+  /// Held by the drain that is working right now. Stale (or null) means no
+  /// worker owns the run and the cron may take it over. Not a real lock —
+  /// a lease, which is what survives a function being killed mid-chunk.
+  lockedAt DateTime?
+
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  createdById String?
+  createdBy   User?     @relation("RecruitmentBatchRunCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([status, lockedAt])
+  @@index([jobId])
 }
 
 // ════════════════════════════════════════════════════════════════════════════
