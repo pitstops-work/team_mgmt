@@ -96,6 +96,38 @@ export async function moveCandidate(
   toLocationId: string,
   session: SessionLike,
 ): Promise<MoveResult> {
+  const res = await moveCandidates(fromSlug, [candidateId], toLocationId, session);
+  if (!res.ok) return res;
+  const [m] = res.moved;
+  if (!m) return { ok: false, status: 502, error: "The re-scout came back without this candidate — try again." };
+  return { ok: true, toSlug: res.toSlug, toCandidateId: m.toId, city: res.city, createdDesk: res.createdDesk, name: m.name };
+}
+
+export type MoveManyResult =
+  | {
+      ok: true;
+      toSlug: string;
+      city: string;
+      createdDesk: boolean;
+      moved: { fromId: string; toId: string; name: string }[];
+      /** Left where they were: the re-scout's output did not include them. */
+      missed: { fromId: string; name: string }[];
+    }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Move several candidates to ONE city in a single re-scout.
+ *
+ * Same contract as moving one, but one model call instead of one per person.
+ * Anyone the model's output leaves out stays on this desk rather than
+ * disappearing from both.
+ */
+export async function moveCandidates(
+  fromSlug: string,
+  candidateIds: string[],
+  toLocationId: string,
+  session: SessionLike,
+): Promise<MoveManyResult> {
   const day = await prisma.recruitmentScoutingDay.findUnique({
     where: { slug: fromSlug },
     include: { job: { include: { location: true, locations: { orderBy: { city: "asc" } } } } },
@@ -105,14 +137,18 @@ export async function moveCandidate(
   if (!day.job) return { ok: false, status: 400, error: "This desk isn't linked to a JD, so it has no cities to move between." };
 
   const source = day.snapshotJson as unknown as ScoutDocData;
-  const candidate = source.candidates.find((c) => c.id === candidateId);
-  if (!candidate) return { ok: false, status: 404, error: "That candidate is no longer on this desk — reload and try again." };
+  const picked = candidateIds.map((id) => source.candidates.find((c) => c.id === id));
+  if (picked.length === 0 || picked.some((c) => !c)) {
+    return { ok: false, status: 404, error: "That candidate is no longer on this desk — reload and try again." };
+  }
+  const candidates = picked as ScoutCandidate[];
 
   const cities = day.job.locations.length > 0 ? day.job.locations : [day.job.location];
   const target = cities.find((l) => l.id === toLocationId);
   if (!target) return { ok: false, status: 400, error: "That city isn't on this JD." };
   if (day.locationId === toLocationId) {
-    return { ok: false, status: 400, error: `${candidate.name} is already on the ${target.city} desk.` };
+    const who = candidates.length === 1 ? `${candidates[0].name} is` : "They are";
+    return { ok: false, status: 400, error: `${who} already on the ${target.city} desk.` };
   }
 
   // Prefer a desk from the same run; fall back to any desk for this JD+city so
@@ -129,9 +165,9 @@ export async function moveCandidate(
       orderBy: { createdAt: "desc" },
     }));
 
-  const item = { name: candidate.name, text: evidenceFor(candidate) };
+  const items = candidates.map((c) => ({ name: c.name, text: evidenceFor(c) }));
   let toSlug: string;
-  let toCandidateId: string;
+  let byItem: (string | null)[];
   let createdDesk = false;
 
   // ORDER MATTERS. Add to the destination first, and only then remove from
@@ -139,10 +175,10 @@ export async function moveCandidate(
   // a second move — rather than deleting someone from the only desk they were
   // on because the destination write failed.
   if (existingTarget) {
-    const res = await appendExtracted(existingTarget.slug, [item]);
+    const res = await appendExtracted(existingTarget.slug, items);
     if (!res.ok) return { ok: false, status: res.status, error: res.error };
     toSlug = existingTarget.slug;
-    toCandidateId = res.addedIds[0];
+    byItem = res.byItem;
   } else {
     const res = await createDeskForCity({
       job: day.job,
@@ -152,18 +188,31 @@ export async function moveCandidate(
       titleBase: day.title.replace(/\s+—\s+[^—]*$/, ""),
       matchday: day.matchday,
       batchId: day.batchId,
-      items: [item],
+      items,
       session,
     });
     if (!res.ok) return { ok: false, status: res.status, error: res.error };
     toSlug = res.slug;
-    toCandidateId = res.addedIds[0];
+    byItem = res.byItem;
     createdDesk = true;
   }
 
+  const moved: { fromId: string; toId: string; name: string }[] = [];
+  const missed: { fromId: string; name: string }[] = [];
+  candidates.forEach((c, i) => {
+    const toId = byItem[i];
+    if (toId) moved.push({ fromId: c.id, toId, name: c.name });
+    else missed.push({ fromId: c.id, name: c.name });
+  });
+  const gone = new Set(moved.map((m) => m.fromId));
+
+  // Re-read before writing: the re-scout took minutes, and this desk may have
+  // changed in the meantime. Only the people who actually moved are removed.
+  const fresh = await prisma.recruitmentScoutingDay.findUnique({ where: { slug: fromSlug }, select: { snapshotJson: true } });
+  const current = (fresh?.snapshotJson ?? source) as unknown as ScoutDocData;
   const remaining: ScoutDocData = {
-    ...source,
-    candidates: source.candidates.filter((c) => c.id !== candidateId),
+    ...current,
+    candidates: current.candidates.filter((c) => !gone.has(c.id)),
   };
   // Blob refresh is best-effort for the same reason as persist(): the DB is
   // what loadDoc renders from, and the candidate has already been added to the
@@ -184,7 +233,7 @@ export async function moveCandidate(
     data: { snapshotJson: remaining as unknown as never },
   });
 
-  await moveSharedState(fromSlug, toSlug, candidateId, toCandidateId, toLocationId);
+  for (const m of moved) await moveSharedState(fromSlug, toSlug, m.fromId, m.toId, toLocationId);
 
-  return { ok: true, toSlug, toCandidateId, city: target.city, createdDesk, name: candidate.name };
+  return { ok: true, toSlug, city: target.city, createdDesk, moved, missed };
 }

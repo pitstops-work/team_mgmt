@@ -15,6 +15,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { put } from "@vercel/blob";
 import prisma from "@/lib/prisma";
 import { renderScoutingDoc, type ScoutDocData } from "@/lib/recruitment/renderDoc";
+import { itemIds } from "@/lib/recruitment/scoutingDayOps";
 import {
   buildSystemPrompt,
   jobSnapshotFromRow,
@@ -25,7 +26,7 @@ import type { RecruitmentJob } from "@/app/generated/prisma/client";
 type SessionLike = { user?: { id?: string; name?: string | null } | null } | null;
 
 export type CreateDeskResult =
-  | { ok: true; slug: string; addedIds: string[] }
+  | { ok: true; slug: string; addedIds: string[]; byItem: (string | null)[] }
   | { ok: false; status: number; error: string };
 
 /**
@@ -138,5 +139,5 @@ export async function createDeskForCity(opts: {
     },
   });
 
-  return { ok: true, slug, addedIds: data.candidates.map((c) => c.id) };
+  return { ok: true, slug, addedIds: data.candidates.map((c) => c.id), byItem: itemIds(data.candidates, items.length) };
 }

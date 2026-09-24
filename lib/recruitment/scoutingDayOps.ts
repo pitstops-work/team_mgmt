@@ -142,7 +142,8 @@ export async function appendCandidates(
  * scanned CV); the text-only path builds plain text blocks.
  */
 export type AppendOutcome =
-  | { ok: true; addedIds: string[]; totalCount: number }
+  /** `byItem[i]` is the new id of `items[i]`, or null if the model left it out. */
+  | { ok: true; addedIds: string[]; byItem: (string | null)[]; totalCount: number }
   | { ok: false; status: number; error: string };
 
 export async function appendExtracted(
@@ -222,7 +223,26 @@ export async function appendExtracted(
   const merged: ScoutDocData = { ...existing, candidates: [...existing.candidates, ...addedCandidates] };
   await persist(slug, merged);
 
-  return { ok: true, addedIds: addedCandidates.map((c) => c.id), totalCount: merged.candidates.length };
+  return {
+    ok: true,
+    addedIds: addedCandidates.map((c) => c.id),
+    byItem: itemIds(addedCandidates, items.length),
+    totalCount: merged.candidates.length,
+  };
+}
+
+/**
+ * Which new candidate each submitted item became, by the cvIndex the model
+ * echoes back. Model output order is not submission order, and a model can
+ * drop a CV, so position in the output says nothing.
+ */
+export function itemIds(added: { id: string; cvIndex?: number }[], count: number): (string | null)[] {
+  const out: (string | null)[] = new Array(count).fill(null);
+  for (const c of added) {
+    const i = typeof c.cvIndex === "number" ? c.cvIndex - 1 : -1;
+    if (i >= 0 && i < count && out[i] === null) out[i] = c.id;
+  }
+  return out;
 }
 
 // ── Regenerate ──────────────────────────────────────────────────────────────
